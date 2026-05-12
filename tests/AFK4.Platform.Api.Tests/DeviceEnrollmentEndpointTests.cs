@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Shared.Contracts.Devices;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -10,7 +9,7 @@ public sealed class DeviceEnrollmentEndpointTests
     [Fact]
     public async Task PostDeviceEnrollmentCode_ThenEnroll_ReturnsDeviceCredentials()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
         var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
@@ -49,7 +48,7 @@ public sealed class DeviceEnrollmentEndpointTests
     [Fact]
     public async Task PostDeviceEnrollment_RejectsReusedEnrollmentCode()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
         var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");

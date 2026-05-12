@@ -98,7 +98,8 @@ AFK4 is split into four main runtime surfaces.
 `AFK4.Platform.Api` is the cloud backend. It starts as one ASP.NET Core modular
 monolith with strict module boundaries. The backend is the authority for
 sessions, billing, POS, roles, audit, device commands, update rollout, and
-reconciliation.
+reconciliation. Device enrollment, device credentials, device heartbeat state,
+and device command status are backed by EF Core/Npgsql persistence.
 
 The current vertical slice exposes:
 
@@ -168,6 +169,9 @@ docs/superpowers/plans/
 - Git for Windows.
 - .NET SDK `10.0.203` or another compatible .NET 10 SDK allowed by
   `global.json` feature-band roll-forward.
+- PostgreSQL for runtime device persistence. Set
+  `ConnectionStrings__PlatformDatabase` for local API runs that exercise device
+  enrollment, credentials, heartbeat state, or command status.
 
 Check the SDK:
 
@@ -241,9 +245,10 @@ The first vertical slice foundation is implemented:
 - strong Guid ID primitives;
 - shared device and floor map contracts;
 - backend health, floor map, heartbeat, and SignalR foundation;
-- in-memory device enrollment code flow and credential issuance;
+- EF Core/Npgsql device persistence with an initial migration;
+- device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
-- in-memory device command status tracking;
+- persisted device heartbeat state and command status tracking;
 - Agent heartbeat payload factory and worker loop skeleton;
 - Operator App floor map shell;
 - Player Shell locked-state skeleton.
@@ -251,8 +256,8 @@ The first vertical slice foundation is implemented:
 Not implemented yet:
 
 - identity, tenancy enforcement, and RBAC;
-- PostgreSQL persistence and EF Core migrations;
-- durable device registry, credential revocation, and production enrollment authorization;
+- PostgreSQL persistence for non-device modules;
+- credential revocation, rotation, and production enrollment authorization;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;
 - audit search and reports;

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Shared.Contracts.Devices;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -10,7 +9,7 @@ public sealed class DeviceCommandEndpointTests
     [Fact]
     public async Task PostDeviceCommand_ReturnsCommandDispatchedToDeviceGroup()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
@@ -38,7 +37,7 @@ public sealed class DeviceCommandEndpointTests
     [Fact]
     public async Task PostDeviceCommand_PersistsPendingCommandStatus()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
@@ -73,7 +72,7 @@ public sealed class DeviceCommandEndpointTests
     [Fact]
     public async Task GetDeviceCommandStatus_ReturnsNotFoundForUnknownCommand()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
@@ -89,7 +88,7 @@ public sealed class DeviceCommandEndpointTests
     [InlineData("   ")]
     public async Task PostDeviceCommand_ReturnsBadRequestForBlankCommandType(string commandType)
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
@@ -110,7 +109,7 @@ public sealed class DeviceCommandEndpointTests
     [Fact]
     public async Task PostDeviceCommand_ReturnsBadRequestForMissingPayload()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");

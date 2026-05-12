@@ -1,6 +1,6 @@
 # AFK4 Vertical Slice Progress
 
-Status: device enrollment, credentials, and command status foundation implemented on `main`
+Status: PostgreSQL-backed device persistence foundation implemented on `main`
 Last updated: 2026-05-12
 
 ## Scope
@@ -74,6 +74,24 @@ Implemented on `main` after the realtime device channel merge:
 - Agent options and HTTP heartbeat now carry the enrollment-issued device
   credential secret.
 
+## PostgreSQL-Backed Device Persistence
+
+Implemented on `main` after the in-memory device management foundation:
+
+- Added `PlatformDbContext` with EF Core/Npgsql configuration.
+- Added initial migration `AddDevicePersistence` for:
+  - `devices`
+  - `device_credentials`
+  - `device_enrollment_codes`
+  - `device_commands`
+- Replaced runtime device enrollment and credential validation with
+  `EfDeviceEnrollmentService`.
+- Replaced runtime command status storage with `EfDeviceCommandStore`.
+- Replaced heartbeat handling with `DeviceHeartbeatService`, which persists the
+  latest device heartbeat state before broadcasting realtime status.
+- Added API test host override that uses EF InMemory provider so automated tests
+  do not require a local PostgreSQL server.
+
 ## Known Deviations And Adaptations
 
 ### Solution Format
@@ -106,23 +124,26 @@ as stable.
 
 ### Device Management Foundation Scope
 
-The current device enrollment, credential, and command status implementation is
-an in-memory foundation for contracts and behavior. It is not yet the durable
-PostgreSQL-backed device registry required for production.
+The current device enrollment, credential, heartbeat state, and command status
+implementation now has PostgreSQL-backed runtime persistence through EF Core.
+It is still a foundation slice, not the complete production device management
+module.
 
 Known limitations:
 
 - enrollment code creation is not yet protected by staff identity, RBAC, or
   audit because those modules are still deferred;
 - device credential revocation and rotation are not implemented yet;
-- command status is retained only for the backend process lifetime;
 - Operator App technician workflows for enrollment and status inspection are
-  not implemented yet.
+  not implemented yet;
+- local live smoke against a real PostgreSQL instance has not been run in this
+  update; automated tests use EF InMemory to validate service and endpoint
+  behavior.
 
 ## Latest Verified State
 
-Full verification was run from `D:\afk4.net` on 2026-05-12 after the device
-management foundation changes:
+Full verification was run from `D:\afk4.net` on 2026-05-12 after the
+PostgreSQL-backed device persistence changes:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -132,7 +153,7 @@ management foundation changes:
 Results:
 
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 44 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 47 visible passing tests, 0 failed, 0 skipped.
 
 Previous live smoke was run on `http://localhost:5074` for the realtime device
 channel:
@@ -167,11 +188,11 @@ realtime status state path and startup failure handling.
 
 ## Recommended Next Work
 
-1. Add PostgreSQL-backed persistence for device registry, device credentials,
-   and command status once the database foundation plan starts.
-2. Add identity, tenancy, RBAC, and audit around enrollment code creation before
+1. Add identity, tenancy, RBAC, and audit around enrollment code creation before
    treating enrollment as production-safe.
-3. Add credential revocation/rotation and Operator App technician workflows for
+2. Add credential revocation/rotation and Operator App technician workflows for
    enrollment and command status inspection.
-4. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
+3. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
    credentials without manual configuration.
+4. Add local PostgreSQL runbook or Docker Compose setup and run live smoke
+   against a real database.

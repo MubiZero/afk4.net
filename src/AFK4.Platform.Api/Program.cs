@@ -1,18 +1,27 @@
+using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Shared.Contracts.Devices;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSignalR();
+builder.Services.AddDbContext<PlatformDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("PlatformDatabase")
+        ?? "Host=localhost;Port=5432;Database=afk4_dev;Username=postgres";
+
+    options.UseNpgsql(connectionString);
+});
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<InMemoryDeviceEnrollmentService>();
-builder.Services.AddSingleton<IDeviceEnrollmentService>(provider => provider.GetRequiredService<InMemoryDeviceEnrollmentService>());
-builder.Services.AddSingleton<IDeviceCredentialValidator>(provider => provider.GetRequiredService<InMemoryDeviceEnrollmentService>());
-builder.Services.AddSingleton<IDeviceCommandStore, InMemoryDeviceCommandStore>();
+builder.Services.AddScoped<EfDeviceEnrollmentService>();
+builder.Services.AddScoped<IDeviceEnrollmentService>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
+builder.Services.AddScoped<IDeviceCredentialValidator>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
+builder.Services.AddScoped<IDeviceCommandStore, EfDeviceCommandStore>();
 builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectionRegistry>();
-builder.Services.AddSingleton<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
-builder.Services.AddSingleton<IDeviceHeartbeatService, InMemoryDeviceHeartbeatService>();
+builder.Services.AddScoped<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
+builder.Services.AddScoped<IDeviceHeartbeatService, DeviceHeartbeatService>();
 builder.Services.AddSingleton<IFloorMapReadService, InMemoryFloorMapReadService>();
 
 var app = builder.Build();
