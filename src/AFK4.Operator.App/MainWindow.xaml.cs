@@ -7,7 +7,7 @@ namespace AFK4.Operator.App;
 public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel viewModel = new();
-    private OperatorRealtimeClient? realtimeClient;
+    private IOperatorRealtimeClient? realtimeClient;
 
     public MainWindow()
     {
@@ -20,8 +20,10 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        realtimeClient = new OperatorRealtimeClient(viewModel, new Uri("http://localhost:5074/hubs/devices"));
-        await realtimeClient.StartAsync(CancellationToken.None);
+        var startup = new OperatorRealtimeStartup(
+            () => new OperatorRealtimeClient(viewModel, new Uri("http://localhost:5074/hubs/devices")));
+
+        realtimeClient = await startup.StartAsync(CancellationToken.None);
     }
 
     private async void OnClosed(object? sender, EventArgs e)
