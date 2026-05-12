@@ -8,12 +8,23 @@ public sealed class Worker(
     ILogger<Worker> logger,
     IHttpClientFactory httpClientFactory,
     IOptions<AgentOptions> options,
-    DeviceRealtimeClient realtimeClient) : BackgroundService
+    IDeviceRealtimeClient realtimeClient) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var agentOptions = options.Value;
-        await realtimeClient.StartAsync(stoppingToken);
+        try
+        {
+            await realtimeClient.StartAsync(stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Realtime device channel failed to start. Continuing with HTTP heartbeats.");
+        }
 
         var client = httpClientFactory.CreateClient("platform");
         client.BaseAddress = agentOptions.PlatformBaseUrl;

@@ -27,7 +27,9 @@ public sealed class DefaultDeviceCommandHandlerTests
                 ["reason"] = "operator-request"
             });
 
+        var before = DateTimeOffset.UtcNow;
         var result = await handler.HandleAsync(command, CancellationToken.None);
+        var after = DateTimeOffset.UtcNow;
 
         Assert.Equal(options.Value.OrganizationId, result.OrganizationId);
         Assert.Equal(options.Value.BranchId, result.BranchId);
@@ -35,5 +37,6 @@ public sealed class DefaultDeviceCommandHandlerTests
         Assert.Equal(command.CommandId, result.CommandId);
         Assert.Equal("Accepted", result.Status);
         Assert.Equal("Command accepted by Agent skeleton.", result.Message);
+        Assert.InRange(result.ObservedAtUtc, before, after);
     }
 }

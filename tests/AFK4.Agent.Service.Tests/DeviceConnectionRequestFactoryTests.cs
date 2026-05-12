@@ -27,5 +27,6 @@ public sealed class DeviceConnectionRequestFactoryTests
         Assert.Equal("PC-001", request.MachineName);
         Assert.Equal("0.1.0", request.AgentVersion);
         Assert.Equal("0.1.0", request.ShellVersion);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-12T00:00:00Z"), request.ConnectedAtUtc);
     }
 }
