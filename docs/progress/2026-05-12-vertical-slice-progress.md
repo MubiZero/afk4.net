@@ -1,22 +1,24 @@
 # AFK4 Vertical Slice Progress
 
-Status: implemented on branch `feature/vertical-slice`  
+Status: realtime device channel implemented on branch `feature/realtime-device-channel`
 Last updated: 2026-05-12
 
 ## Scope
 
 This document tracks delivery progress and known implementation deviations for
-the first technical vertical slice. It is intentionally separate from
-`AGENTS.md` because progress changes more frequently than agent instructions.
+the first technical vertical slice and the realtime device channel follow-up.
+It is intentionally separate from `AGENTS.md` because progress changes more
+frequently than agent instructions.
 
 Stable product and architecture decisions live in:
 
 - `docs/product/AFK4-MVP-PRD.md`
 - `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`
 
-The implementation plan for this slice lives in:
+The implementation plans for this slice live in:
 
 - `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`
+- `docs/superpowers/plans/2026-05-12-afk4-realtime-device-channel.md`
 
 ## Implemented Foundation
 
@@ -34,27 +36,24 @@ The implementation plan for this slice lives in:
 - Server broadcast event `deviceStatusChanged`.
 - Agent Service options, heartbeat payload factory, and HTTP heartbeat worker
   loop.
-- WPF Operator App shell with static floor map ViewModel.
+- WPF Operator App shell with floor map ViewModel.
 - WPF Player Shell fullscreen locked-state skeleton.
 - Master MVP PRD at `docs/product/AFK4-MVP-PRD.md`.
 
+## Realtime Device Channel
+
+Implemented on branch `feature/realtime-device-channel`:
+
+- Shared realtime contracts and stable event/method names for device
+  connection, command dispatch, and command result acknowledgement.
+- Backend device hub registration and `POST /api/devices/{deviceId}/commands`
+  dispatch endpoint with basic command request validation.
+- Agent SignalR client, command acknowledgements, reconnect re-registration,
+  and HTTP heartbeat compatibility when realtime startup fails.
+- Operator realtime status state path with dispatcher-safe ViewModel updates
+  and startup failure handling.
+
 ## Known Deviations And Adaptations
-
-### Agent Heartbeat Transport
-
-The current Agent Service sends heartbeat through an HTTP POST loop:
-
-```text
-Agent -> POST /api/devices/{deviceId}/heartbeat -> Backend -> SignalR broadcast
-```
-
-This matches the current vertical slice implementation plan, where the Worker
-uses `PostAsJsonAsync`, but it does not yet satisfy the full architecture goal
-that the Agent maintains an outgoing SignalR/WebSocket connection for realtime
-command and state flow.
-
-Required follow-up: create a focused plan for Agent SignalR/WebSocket
-connection, command channel, and Operator App realtime subscription.
 
 ### Solution Format
 
@@ -86,47 +85,56 @@ as stable.
 
 ## Latest Verified State
 
-Verification run after the vertical slice and documentation updates:
+Full verification was run from
+`D:\afk4.net\.worktrees\realtime-device-channel` on 2026-05-12:
 
 ```powershell
-dotnet build AFK4.sln --no-restore
-dotnet test AFK4.sln --no-restore
+& 'C:\Program Files\dotnet\dotnet.exe' restore AFK4.sln
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
 ```
 
-Expected current result:
+Results:
 
-- build succeeds with 0 warnings and 0 errors;
-- test suite succeeds with 14 passing tests.
+- restore completed with all projects up to date;
+- build succeeded with 0 warnings and 0 errors;
+- tests passed with 33 visible passing tests, 0 failed, 0 skipped.
 
-Live API verification was also run on `http://localhost:5074`:
+Live smoke was run on `http://localhost:5074`:
 
-- health returned `ok`;
-- floor map returned `Demo Branch` with 2 seats;
-- heartbeat returned interval `10` and 0 commands.
+- `GET /api/health` returned status `ok`;
+- `POST /api/devices/d76eff15-9cf9-4c30-a6d4-c05fd215793f/commands`
+  returned `DeviceCommandDto` responses for `lock` commands;
+- Agent Service was started with the requested organization, branch, device,
+  machine, and platform URL environment variables;
+- Agent logs showed realtime connection for
+  `d76eff15-9cf9-4c30-a6d4-c05fd215793f`;
+- after sending another command, Agent logs showed command acknowledgement as
+  `Accepted`;
+- backend and Agent smoke processes were stopped after verification.
+
+WPF Operator App live smoke was not run in this subagent environment. The
+automated Operator App tests are the current proof for the dispatcher-safe
+realtime status state path and startup failure handling.
 
 ## Recent Key Commits
 
-- `12dfb59 docs: add platform architecture spec`
-- `d8ab10e docs: add vertical slice implementation plan`
-- `f100fbe docs: add mvp delivery roadmap`
-- `d8420af chore: add repository baseline`
-- `5beb130 chore: scaffold dotnet solution`
-- `052dc3d feat: add domain id primitives`
-- `c1accc4 feat: add shared platform contracts`
-- `44c2c68 feat: add api health and floor map endpoints`
-- `5ab5586 feat: add device heartbeat endpoint`
-- `4f80a4c feat: add agent heartbeat skeleton`
-- `a621f23 feat: add operator floor map shell`
-- `674afda feat: add player shell skeleton`
-- `288a049 docs: expand project readme`
-- `9920878 docs: document approved architecture sections`
+- `a176363 fix: harden operator realtime startup and dispatch`
+- `8fe0a2e feat: add operator realtime floor map state`
+- `ebcaa61 fix: keep agent heartbeat alive across realtime failures`
+- `d329897 feat: add agent realtime device client`
+- `0ab297f test: cover device command SignalR dispatch`
+- `b35be64 feat: add backend device realtime command dispatch`
+- `ab681d5 feat: add realtime device contracts`
+- `003ab43 docs: add realtime device channel plan`
+- `d176048 merge: integrate vertical slice foundation`
 - `57b2763 docs: add mvp product requirements`
 
 ## Recommended Next Work
 
-1. Decide whether to merge `feature/vertical-slice` back into `main`.
-2. Create a focused plan for Agent SignalR/WebSocket connection, command
-   channel, and Operator App realtime subscription.
-3. Do not jump into billing, POS, updates, identity, or Windows enforcement
-   before the realtime foundation decision is resolved unless explicitly
-   reprioritized.
+1. Add device enrollment.
+2. Add device credentials.
+3. Add command status persistence.
+4. Sequence identity, tenancy, RBAC, and device management according to the
+   PRD and architecture after the device identity and command persistence
+   foundations are in place.

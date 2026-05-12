@@ -5,6 +5,7 @@ using AFK4.Shared.Contracts.Devices;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
 builder.Services.AddSingleton<IDeviceHeartbeatService, InMemoryDeviceHeartbeatService>();
 builder.Services.AddSingleton<IFloorMapReadService, InMemoryFloorMapReadService>();
 
@@ -36,6 +37,27 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
     var response = await heartbeatService.RecordHeartbeatAsync(deviceId, request, cancellationToken);
 
     return Results.Ok(response);
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/commands", async (
+    Guid deviceId,
+    CreateDeviceCommandRequest request,
+    IDeviceCommandDispatchService commandDispatchService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Type))
+    {
+        return Results.BadRequest(new { Error = "Command type is required." });
+    }
+
+    if (request.Payload is null)
+    {
+        return Results.BadRequest(new { Error = "Command payload is required." });
+    }
+
+    var command = await commandDispatchService.DispatchAsync(deviceId, request, cancellationToken);
+
+    return Results.Ok(command);
 });
 
 app.MapHub<DeviceHub>("/hubs/devices");
