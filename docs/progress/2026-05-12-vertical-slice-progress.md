@@ -84,6 +84,14 @@ message. This is not blocking for the slice because no client depends on the
 error contract yet, but it should be normalized before treating API contracts
 as stable.
 
+### Realtime Device Channel Follow-Up
+
+The next focused plan is
+`docs/superpowers/plans/2026-05-12-afk4-realtime-device-channel.md`. It keeps
+the HTTP heartbeat for compatibility while adding Agent SignalR registration,
+backend command dispatch, Agent command acknowledgements, and Operator App
+realtime floor-map status updates.
+
 ## Latest Verified State
 
 Verification run after the vertical slice and documentation updates:
@@ -124,9 +132,9 @@ Live API verification was also run on `http://localhost:5074`:
 
 ## Recommended Next Work
 
-1. Decide whether to merge `feature/vertical-slice` back into `main`.
-2. Create a focused plan for Agent SignalR/WebSocket connection, command
-   channel, and Operator App realtime subscription.
+1. Execute `docs/superpowers/plans/2026-05-12-afk4-realtime-device-channel.md`.
+2. After realtime device channel verification, create a focused plan for device
+   enrollment, device credentials, and command status persistence.
 3. Do not jump into billing, POS, updates, identity, or Windows enforcement
-   before the realtime foundation decision is resolved unless explicitly
-   reprioritized.
+   before the realtime device channel and device identity foundations are
+   resolved unless explicitly reprioritized.
