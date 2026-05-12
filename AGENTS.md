@@ -10,10 +10,21 @@ Use Windows/PowerShell by default. Do not switch to WSL unless the user explicit
 
 Before changing code or plans, read:
 
+- `README.md`
+- `docs/product/AFK4-MVP-PRD.md`
 - `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`
 - `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`
+- `docs/progress/2026-05-12-vertical-slice-progress.md`
 
-These files are the source of truth for product scope, architecture, and the current implementation sequence.
+Source-of-truth order:
+
+1. `docs/product/AFK4-MVP-PRD.md` explains what product is being built and why.
+2. `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md` explains how the platform is architected.
+3. `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md` explains the first implemented technical slice.
+4. `docs/progress/2026-05-12-vertical-slice-progress.md` explains current implementation status, known deviations, and next recommended work.
+5. `README.md` is the concise entry point and navigation document.
+
+Do not rely on chat history for product decisions when these files answer the question.
 
 ## Product Decisions That Must Not Be Reopened Casually
 
@@ -36,19 +47,15 @@ These files are the source of truth for product scope, architecture, and the cur
 
 If a user asks to change one of these decisions, update the architecture spec first, then update or create an implementation plan.
 
-## Current Delivery State
+## Progress Tracking
 
-Committed docs:
+Do not store volatile delivery status in this file. Current implementation
+state, known deviations, latest verification, and recommended next work belong
+in `docs/progress/`.
 
-- `12dfb59 docs: add platform architecture spec`
-- `d8ab10e docs: add vertical slice implementation plan`
-- `f100fbe docs: add mvp delivery roadmap`
+For the current vertical slice, read:
 
-Next implementation target:
-
-1. Execute `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`.
-2. Build the first vertical slice: repository baseline, .NET solution, shared contracts, backend health/floor-map endpoints, SignalR heartbeat, Agent skeleton, Operator App shell, and Player Shell skeleton.
-3. Do not jump into billing, POS, updates, identity, or Windows enforcement before the vertical slice is green unless the user explicitly reprioritizes.
+- `docs/progress/2026-05-12-vertical-slice-progress.md`
 
 ## Local Tooling
 
@@ -71,6 +78,8 @@ Expected SDK:
 ```
 
 The current PowerShell process may not always have `dotnet` in `PATH`. Use the full path above if `dotnet` is not recognized.
+
+The project currently targets .NET SDK `10.0.203`.
 
 ## Engineering Workflow
 
@@ -101,8 +110,11 @@ Player Shell is a controlled player-facing UI and must not be trusted for author
 
 When a major decision changes:
 
-1. Update the architecture spec.
-2. Update the delivery plan set if sequencing changes.
-3. Create or update the focused implementation plan.
-4. Self-review for incomplete markers, contradictions, and missing coverage.
-5. Commit the docs before implementing code.
+1. Update `docs/product/AFK4-MVP-PRD.md` if product scope, user goals, journeys, or MVP boundaries change.
+2. Update the architecture spec if technical architecture, module boundaries, or platform decisions change.
+3. Update the delivery plan set if sequencing changes.
+4. Create or update the focused implementation plan.
+5. Self-review for incomplete markers, contradictions, and missing coverage.
+6. Commit the docs before implementing code.
+
+When a change only affects implementation detail inside an approved scope, update the focused plan or code without rewriting the PRD.
