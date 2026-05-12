@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: afk4-postgres
+    environment:
+      POSTGRES_DB: afk4_dev
+      POSTGRES_USER: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d afk4_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - afk4-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  afk4-postgres-data:

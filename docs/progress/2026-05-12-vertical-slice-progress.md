@@ -1,6 +1,7 @@
 # AFK4 Vertical Slice Progress
 
-Status: PostgreSQL-backed device persistence foundation implemented on `main`
+Status: Local PostgreSQL runbook and live smoke verified on
+`codex/local-postgres-smoke-runbook`
 Last updated: 2026-05-12
 
 ## Scope
@@ -92,6 +93,22 @@ Implemented on `main` after the in-memory device management foundation:
 - Added API test host override that uses EF InMemory provider so automated tests
   do not require a local PostgreSQL server.
 
+## Local PostgreSQL Runbook And Smoke
+
+Implemented on `codex/local-postgres-smoke-runbook` after commit `69a7f4c`:
+
+- Added root `compose.yaml` for a localhost-bound PostgreSQL dev database.
+- Added `.config/dotnet-tools.json` to pin local `dotnet-ef` at version
+  `10.0.4`.
+- Added `docs/operations/local-postgres-smoke.md` with commands for:
+  - starting PostgreSQL through Docker Compose;
+  - restoring the EF CLI tool;
+  - applying EF migrations;
+  - starting the Platform API;
+  - running health, device enrollment, heartbeat, command creation, and command
+    status checks.
+- Linked the runbook from `README.md`.
+
 ## Known Deviations And Adaptations
 
 ### Solution Format
@@ -135,25 +152,65 @@ Known limitations:
   audit because those modules are still deferred;
 - device credential revocation and rotation are not implemented yet;
 - Operator App technician workflows for enrollment and status inspection are
-  not implemented yet;
-- local live smoke against a real PostgreSQL instance has not been run in this
-  update; automated tests use EF InMemory to validate service and endpoint
-  behavior.
+  not implemented yet.
 
 ## Latest Verified State
 
-Full verification was run from `D:\afk4.net` on 2026-05-12 after the
-PostgreSQL-backed device persistence changes:
+Full verification was run from `D:\afk4.net` on 2026-05-12 after the local
+PostgreSQL runbook and smoke changes:
 
 ```powershell
+docker compose config
+& 'C:\Program Files\dotnet\dotnet.exe' tool restore
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
 ```
 
 Results:
 
+- Docker Compose config parsed successfully;
+- `dotnet-ef` version `10.0.4` restored successfully from the local tool
+  manifest;
 - build succeeded with 0 warnings and 0 errors;
 - tests passed with 47 visible passing tests, 0 failed, 0 skipped.
+
+Local PostgreSQL live smoke was run from `D:\afk4.net` on 2026-05-12 after the
+Docker Compose runbook was added:
+
+```powershell
+docker compose config
+& 'C:\Program Files\dotnet\dotnet.exe' tool restore
+docker compose up -d postgres
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+& 'C:\Program Files\dotnet\dotnet.exe' run --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --urls http://localhost:5074
+```
+
+Live smoke results:
+
+- Docker Compose parsed successfully and PostgreSQL healthcheck reached
+  `healthy`.
+- EF migration `20260512060601_AddDevicePersistence` applied to PostgreSQL.
+- PostgreSQL contained `__EFMigrationsHistory`, `devices`,
+  `device_credentials`, `device_enrollment_codes`, and `device_commands`.
+- `GET /api/health` returned status `ok`.
+- `POST /api/branches/{branchId}/device-enrollment-codes` returned enrollment
+  code `AFK4-0E77-3FA32297EE7E`.
+- `POST /api/devices/enroll` returned device
+  `f7f1066b-94b0-4578-be48-75d5512df551` and credential
+  `7cf3a039-0c1b-47cf-a824-4deb0e781c8b`.
+- Authenticated `POST /api/devices/{deviceId}/heartbeat` returned heartbeat
+  interval `10`.
+- `POST /api/devices/{deviceId}/commands` created command
+  `d5b7c37a-5c01-4668-a9f8-e05f3211d4ec`.
+- `GET /api/devices/{deviceId}/commands/{commandId}/status` returned
+  `Pending`.
+- Direct PostgreSQL reads confirmed the latest smoke device had
+  `IsOnline = true`, `IsLocked = true`, and a non-null heartbeat timestamp.
+- Direct PostgreSQL reads confirmed the latest smoke command stored
+  `Type = lock`, `Status = Pending`, and payload
+  `{"reason": "local-postgres-smoke"}`.
+- The API process was stopped after smoke verification.
+- PostgreSQL was stopped with `docker compose down`; the named volume was kept.
 
 Previous live smoke was run on `http://localhost:5074` for the realtime device
 channel:
@@ -175,6 +232,7 @@ realtime status state path and startup failure handling.
 
 ## Recent Key Commits
 
+- `69a7f4c feat: persist device state and commands with ef core`
 - `a176363 fix: harden operator realtime startup and dispatch`
 - `8fe0a2e feat: add operator realtime floor map state`
 - `ebcaa61 fix: keep agent heartbeat alive across realtime failures`
@@ -194,5 +252,3 @@ realtime status state path and startup failure handling.
    enrollment and command status inspection.
 3. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
    credentials without manual configuration.
-4. Add local PostgreSQL runbook or Docker Compose setup and run live smoke
-   against a real database.

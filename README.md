@@ -195,6 +195,10 @@ Expected for the current vertical slice:
 
 ## Run The Current Slice
 
+For the PostgreSQL-backed device persistence path, first start local
+PostgreSQL and apply EF migrations with the
+[local PostgreSQL smoke runbook](docs/operations/local-postgres-smoke.md).
+
 Start the backend:
 
 ```powershell
