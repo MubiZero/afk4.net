@@ -1,41 +1,25 @@
+using AFK4.Platform.Api.FloorMap;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddSingleton<IFloorMapReadService, InMemoryFloorMapReadService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.MapGet("/api/health", () =>
 {
-    app.MapOpenApi();
-}
+    return Results.Ok(new HealthResponse("ok", DateTimeOffset.UtcNow));
+});
 
-app.UseHttpsRedirection();
-
-var summaries = new[]
+app.MapGet("/api/branches/{branchId:guid}/floor-map", (
+    Guid branchId,
+    IFloorMapReadService floorMapReadService) =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    return Results.Ok(floorMapReadService.GetFloorMap(branchId));
+});
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public sealed record HealthResponse(string Status, DateTimeOffset ServerTimeUtc);
+
+public partial class Program;
