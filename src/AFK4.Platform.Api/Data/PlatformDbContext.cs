@@ -14,6 +14,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StaffAccessTokenEntity> StaffAccessTokens => Set<StaffAccessTokenEntity>();
 
+    public DbSet<StaffRefreshTokenEntity> StaffRefreshTokens => Set<StaffRefreshTokenEntity>();
+
     public DbSet<AuditRecordEntity> AuditRecords => Set<AuditRecordEntity>();
 
     public DbSet<DeviceEntity> Devices => Set<DeviceEntity>();
@@ -73,6 +75,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(accessToken => accessToken.TokenHash).IsRequired();
             entity.HasIndex(accessToken => accessToken.TokenHash);
             entity.HasIndex(accessToken => new { accessToken.StaffUserId, accessToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<StaffRefreshTokenEntity>(entity =>
+        {
+            entity.ToTable("staff_refresh_tokens");
+            entity.HasKey(refreshToken => refreshToken.StaffRefreshTokenId);
+            entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
+            entity.HasIndex(refreshToken => refreshToken.TokenHash);
+            entity.HasIndex(refreshToken => new { refreshToken.StaffUserId, refreshToken.ExpiresAtUtc });
         });
 
         modelBuilder.Entity<AuditRecordEntity>(entity =>

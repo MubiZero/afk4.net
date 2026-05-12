@@ -63,6 +63,18 @@ app.MapPost("/api/auth/staff/sign-in", async (
         : Results.Ok(response);
 });
 
+app.MapPost("/api/auth/staff/refresh", async (
+    StaffRefreshTokenRequest request,
+    IStaffTokenService tokenService,
+    CancellationToken cancellationToken) =>
+{
+    var response = await tokenService.RefreshAsync(request, cancellationToken);
+
+    return response is null
+        ? Results.Unauthorized()
+        : Results.Ok(response);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
     Guid branchId,
     CreateDeviceEnrollmentCodeRequest request,
@@ -180,9 +192,53 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
 app.MapPost("/api/devices/{deviceId:guid}/commands", async (
     Guid deviceId,
     CreateDeviceCommandRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
     IDeviceCommandDispatchService commandDispatchService,
     CancellationToken cancellationToken) =>
 {
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var device = await dbContext.Devices
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
+
+    if (device is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        device.BranchId,
+        StaffPermissionNames.DispatchDeviceCommand,
+        cancellationToken);
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: authorization.StaffContext!.OrganizationId,
+            BranchId: device.BranchId,
+            ActorStaffUserId: authorization.StaffContext.StaffUserId,
+            Action: AuditActionNames.DispatchDeviceCommand,
+            TargetType: "Device",
+            TargetId: deviceId.ToString("D"),
+            Outcome: AuditOutcome.Denied,
+            SourceApp: "PlatformApi",
+            DetailsJson: JsonSerializer.Serialize(new
+            {
+                request.Type,
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
     if (string.IsNullOrWhiteSpace(request.Type))
     {
         return Results.BadRequest(new { Error = "Command type is required." });
@@ -195,20 +251,99 @@ app.MapPost("/api/devices/{deviceId:guid}/commands", async (
 
     var command = await commandDispatchService.DispatchAsync(deviceId, request, cancellationToken);
 
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: authorization.StaffContext!.OrganizationId,
+        BranchId: device.BranchId,
+        ActorStaffUserId: authorization.StaffContext.StaffUserId,
+        Action: AuditActionNames.DispatchDeviceCommand,
+        TargetType: "DeviceCommand",
+        TargetId: command.CommandId.ToString("D"),
+        Outcome: AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: JsonSerializer.Serialize(new
+        {
+            DeviceId = deviceId,
+            command.Type
+        })),
+        cancellationToken);
+
     return Results.Ok(command);
 });
 
 app.MapGet("/api/devices/{deviceId:guid}/commands/{commandId:guid}/status", async (
     Guid deviceId,
     Guid commandId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
     IDeviceCommandStore commandStore,
     CancellationToken cancellationToken) =>
 {
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var device = await dbContext.Devices
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
+
+    if (device is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        device.BranchId,
+        StaffPermissionNames.ViewDeviceCommandStatus,
+        cancellationToken);
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: authorization.StaffContext!.OrganizationId,
+            BranchId: device.BranchId,
+            ActorStaffUserId: authorization.StaffContext.StaffUserId,
+            Action: AuditActionNames.ViewDeviceCommandStatus,
+            TargetType: "DeviceCommand",
+            TargetId: commandId.ToString("D"),
+            Outcome: AuditOutcome.Denied,
+            SourceApp: "PlatformApi",
+            DetailsJson: JsonSerializer.Serialize(new
+            {
+                DeviceId = deviceId,
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
     var status = await commandStore.GetAsync(deviceId, commandId, cancellationToken);
 
-    return status is null
-        ? Results.NotFound()
-        : Results.Ok(status);
+    if (status is null)
+    {
+        return Results.NotFound();
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: authorization.StaffContext!.OrganizationId,
+        BranchId: device.BranchId,
+        ActorStaffUserId: authorization.StaffContext.StaffUserId,
+        Action: AuditActionNames.ViewDeviceCommandStatus,
+        TargetType: "DeviceCommand",
+        TargetId: commandId.ToString("D"),
+        Outcome: AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: JsonSerializer.Serialize(new
+        {
+            DeviceId = deviceId,
+            status.Status
+        })),
+        cancellationToken);
+
+    return Results.Ok(status);
 });
 
 app.MapHub<DeviceHub>("/hubs/devices");

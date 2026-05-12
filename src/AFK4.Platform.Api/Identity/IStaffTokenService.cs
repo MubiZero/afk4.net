@@ -7,5 +7,7 @@ public interface IStaffTokenService
 {
     Task<StaffSignInResponse> IssueAsync(StaffUserEntity user, CancellationToken cancellationToken);
 
+    Task<StaffSignInResponse?> RefreshAsync(StaffRefreshTokenRequest request, CancellationToken cancellationToken);
+
     Task<StaffContext?> ValidateAsync(string? bearerToken, CancellationToken cancellationToken);
 }

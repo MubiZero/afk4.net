@@ -18,12 +18,15 @@ This plan implements the Phase 2 baseline required before device enrollment can 
 - staff users persisted with password hashes;
 - predefined MVP roles mapped to explicit permissions;
 - staff sign-in returning opaque bearer tokens;
+- refresh token rotation for long-lived Operator App sessions;
 - request-time staff context resolution from bearer tokens;
 - tenant and branch checks for privileged branch operations;
 - audit records for successful and denied privileged actions;
 - Operator App token storage abstraction with Windows-protected storage.
 
-This plan intentionally does not implement a web admin panel, custom role CRUD, organization onboarding UI, production SSO, external identity providers, or full audit search/report UX. Refresh token rotation is planned as a follow-up inside Phase 2 after the first access-token protected API path is green.
+This plan intentionally does not implement a web admin panel, custom role CRUD,
+organization onboarding UI, production SSO, external identity providers, or
+full audit search/report UX.
 
 ## File Structure
 
@@ -1104,7 +1107,7 @@ Add a Phase 2 section with:
 - protected endpoints;
 - migration name;
 - latest verification commands and results;
-- known limitations, including refresh token rotation, staff management UI, custom roles, and audit search.
+- known limitations, including staff management UI, custom roles, and audit search.
 
 - [ ] **Step 4: Commit coherent Phase 2 baseline**
 
@@ -1137,10 +1140,12 @@ Spec coverage:
 
 Deferred with explicit reasons:
 
-- Refresh token rotation is deferred until after the first access-token protected API path is green; the token persistence model leaves room for refresh token entities without changing protected endpoint authorization.
 - Staff management screens and role CRUD are deferred because the MVP has no web admin panel and Operator App role management needs its own workflow design.
 - Audit search and reports are deferred to the reports/audit review roadmap slice.
-- Protecting every existing endpoint is deferred to follow-up Phase 2 tasks after the authorization primitives are green; this plan protects the device enrollment-code creation path first because the progress log identifies it as the current production-safety gap.
+- Protecting every future operator-facing endpoint remains a continuing rule as
+  endpoints are added. The current Phase 2 slice protects device enrollment-code
+  creation plus device command dispatch/status because those are the existing
+  privileged staff API paths.
 
 Placeholder scan:
 

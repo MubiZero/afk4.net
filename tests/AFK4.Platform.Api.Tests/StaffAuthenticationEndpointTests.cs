@@ -30,8 +30,46 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
         Assert.Equal("Tech One", body.DisplayName);
         Assert.False(string.IsNullOrWhiteSpace(body.AccessToken));
+        Assert.False(string.IsNullOrWhiteSpace(body.RefreshToken));
+        Assert.True(body.RefreshTokenExpiresAtUtc > body.AccessTokenExpiresAtUtc);
         Assert.Contains(TestIds.BranchId, body.BranchIds);
         Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+    }
+
+    [Fact]
+    public async Task PostStaffRefresh_WithValidRefreshToken_RotatesTokenAndRejectsOriginalRefreshToken()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var signInResponse = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(
+                OrganizationId: TestIds.OrganizationId,
+                UserName: "tech@afk4.test",
+                Password: "Passw0rd!"));
+        var signInBody = await signInResponse.Content.ReadFromJsonAsync<StaffSignInResponse>();
+        Assert.Equal(HttpStatusCode.OK, signInResponse.StatusCode);
+        Assert.NotNull(signInBody);
+
+        var refreshResponse = await client.PostAsJsonAsync(
+            "/api/auth/staff/refresh",
+            new StaffRefreshTokenRequest(TestIds.OrganizationId, signInBody.RefreshToken));
+        var refreshBody = await refreshResponse.Content.ReadFromJsonAsync<StaffSignInResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
+        Assert.NotNull(refreshBody);
+        Assert.NotEqual(signInBody.AccessToken, refreshBody.AccessToken);
+        Assert.NotEqual(signInBody.RefreshToken, refreshBody.RefreshToken);
+        Assert.Equal(signInBody.StaffUserId, refreshBody.StaffUserId);
+        Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, refreshBody.Permissions);
+
+        var replayResponse = await client.PostAsJsonAsync(
+            "/api/auth/staff/refresh",
+            new StaffRefreshTokenRequest(TestIds.OrganizationId, signInBody.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, replayResponse.StatusCode);
     }
 
     private static async Task SeedTechnicianAsync(PlatformApiFactory factory)

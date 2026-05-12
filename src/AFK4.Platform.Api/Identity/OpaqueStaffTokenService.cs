@@ -11,35 +11,51 @@ public sealed class OpaqueStaffTokenService(
     TimeProvider timeProvider) : IStaffTokenService
 {
     private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(8);
+    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
 
     public async Task<StaffSignInResponse> IssueAsync(StaffUserEntity user, CancellationToken cancellationToken)
     {
-        var now = timeProvider.GetUtcNow();
-        var expiresAt = now.Add(AccessTokenLifetime);
-        var token = CreateToken(Guid.NewGuid());
+        return await IssueTokenPairAsync(user, cancellationToken);
+    }
 
-        dbContext.StaffAccessTokens.Add(new StaffAccessTokenEntity
+    public async Task<StaffSignInResponse?> RefreshAsync(
+        StaffRefreshTokenRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.OrganizationId == Guid.Empty || string.IsNullOrWhiteSpace(request.RefreshToken))
         {
-            StaffAccessTokenId = Guid.NewGuid(),
-            StaffUserId = user.StaffUserId,
-            OrganizationId = user.OrganizationId,
-            TokenHash = HashToken(token),
-            CreatedAtUtc = now,
-            ExpiresAtUtc = expiresAt
-        });
+            return null;
+        }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        var refreshTokenHash = HashToken(request.RefreshToken);
+        var candidateRefreshTokens = await dbContext.StaffRefreshTokens
+            .Where(candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.RevokedAtUtc == null &&
+                candidate.ExpiresAtUtc > now)
+            .ToArrayAsync(cancellationToken);
+        var refreshToken = candidateRefreshTokens.SingleOrDefault(candidate => candidate.TokenHash.SequenceEqual(refreshTokenHash));
 
-        var context = await CreateContextAsync(user, cancellationToken);
+        if (refreshToken is null)
+        {
+            return null;
+        }
 
-        return new StaffSignInResponse(
-            StaffUserId: user.StaffUserId,
-            OrganizationId: user.OrganizationId,
-            DisplayName: user.DisplayName,
-            AccessToken: token,
-            AccessTokenExpiresAtUtc: expiresAt,
-            BranchIds: context.BranchIds.OrderBy(branchId => branchId).ToArray(),
-            Permissions: context.Permissions.Order(StringComparer.OrdinalIgnoreCase).ToArray());
+        var user = await dbContext.StaffUsers.SingleOrDefaultAsync(candidate =>
+            candidate.StaffUserId == refreshToken.StaffUserId &&
+            candidate.OrganizationId == refreshToken.OrganizationId &&
+            candidate.IsActive,
+            cancellationToken);
+
+        if (user is null)
+        {
+            return null;
+        }
+
+        refreshToken.RevokedAtUtc = now;
+
+        return await IssueTokenPairAsync(user, cancellationToken);
     }
 
     public async Task<StaffContext?> ValidateAsync(string? bearerToken, CancellationToken cancellationToken)
@@ -75,6 +91,51 @@ public sealed class OpaqueStaffTokenService(
         return user is null
             ? null
             : await CreateContextAsync(user, cancellationToken);
+    }
+
+    private async Task<StaffSignInResponse> IssueTokenPairAsync(
+        StaffUserEntity user,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var accessTokenExpiresAt = now.Add(AccessTokenLifetime);
+        var refreshTokenExpiresAt = now.Add(RefreshTokenLifetime);
+        var accessToken = CreateToken(Guid.NewGuid());
+        var refreshToken = CreateToken(Guid.NewGuid());
+
+        dbContext.StaffAccessTokens.Add(new StaffAccessTokenEntity
+        {
+            StaffAccessTokenId = Guid.NewGuid(),
+            StaffUserId = user.StaffUserId,
+            OrganizationId = user.OrganizationId,
+            TokenHash = HashToken(accessToken),
+            CreatedAtUtc = now,
+            ExpiresAtUtc = accessTokenExpiresAt
+        });
+        dbContext.StaffRefreshTokens.Add(new StaffRefreshTokenEntity
+        {
+            StaffRefreshTokenId = Guid.NewGuid(),
+            StaffUserId = user.StaffUserId,
+            OrganizationId = user.OrganizationId,
+            TokenHash = HashToken(refreshToken),
+            CreatedAtUtc = now,
+            ExpiresAtUtc = refreshTokenExpiresAt
+        });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var context = await CreateContextAsync(user, cancellationToken);
+
+        return new StaffSignInResponse(
+            StaffUserId: user.StaffUserId,
+            OrganizationId: user.OrganizationId,
+            DisplayName: user.DisplayName,
+            AccessToken: accessToken,
+            AccessTokenExpiresAtUtc: accessTokenExpiresAt,
+            RefreshToken: refreshToken,
+            RefreshTokenExpiresAtUtc: refreshTokenExpiresAt,
+            BranchIds: context.BranchIds.OrderBy(branchId => branchId).ToArray(),
+            Permissions: context.Permissions.Order(StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
     private async Task<StaffContext> CreateContextAsync(StaffUserEntity user, CancellationToken cancellationToken)

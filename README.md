@@ -105,13 +105,16 @@ The current vertical slice exposes:
 
 - `GET /api/health`
 - `POST /api/auth/staff/sign-in`
+- `POST /api/auth/staff/refresh`
 - `GET /api/branches/{branchId}/floor-map`
 - `POST /api/branches/{branchId}/device-enrollment-codes` with staff bearer
   token permission `devices.enrollment_codes.create`
 - `POST /api/devices/enroll`
 - `POST /api/devices/{deviceId}/heartbeat`
-- `POST /api/devices/{deviceId}/commands`
-- `GET /api/devices/{deviceId}/commands/{commandId}/status`
+- `POST /api/devices/{deviceId}/commands` with staff bearer token permission
+  `devices.commands.dispatch`
+- `GET /api/devices/{deviceId}/commands/{commandId}/status` with staff bearer
+  token permission `devices.commands.status.view`
 - SignalR hub at `/hubs/devices`
 - SignalR client event `deviceStatusChanged`
 - SignalR device command events `deviceCommand` and `deviceCommandResult`
@@ -252,11 +255,15 @@ The first vertical slice foundation is implemented:
 - shared device and floor map contracts;
 - backend health, floor map, heartbeat, and SignalR foundation;
 - EF Core/Npgsql device persistence with an initial migration;
-- EF Core/Npgsql identity, tenancy, staff access token, and audit baseline;
-- staff sign-in with opaque bearer tokens;
+- EF Core/Npgsql identity, tenancy, staff access/refresh token, and audit
+  baseline;
+- staff sign-in and refresh token rotation with opaque hashed tokens;
 - predefined MVP role-to-permission mapping;
-- branch-scoped authorization for device enrollment-code creation;
-- audit records for allowed and denied enrollment-code creation attempts;
+- branch-scoped authorization for device enrollment-code creation and device
+  command dispatch/status endpoints;
+- audit records for allowed and denied enrollment-code creation and device
+  command dispatch/status attempts;
+- Operator App Windows-protected token storage abstraction;
 - device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
 - persisted device heartbeat state and command status tracking;
@@ -266,9 +273,9 @@ The first vertical slice foundation is implemented:
 
 Not implemented yet:
 
-- refresh token rotation and Operator App protected token storage;
 - staff management workflows, custom roles, and role editing UI;
-- authorization coverage for every operator-facing backend endpoint;
+- authorization coverage for every future operator-facing backend endpoint as
+  it is added;
 - credential revocation and rotation;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;

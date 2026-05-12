@@ -170,6 +170,25 @@ $staffHeaders = @{
 }
 ```
 
+Rotate the refresh token once and continue with the refreshed access token:
+
+```powershell
+$refreshBody = @{
+    organizationId = $organizationId
+    refreshToken = $staffSession.refreshToken
+} | ConvertTo-Json -Depth 4
+
+$refreshedStaffSession = Invoke-RestMethod `
+    "$baseUrl/api/auth/staff/refresh" `
+    -Method Post `
+    -ContentType 'application/json' `
+    -Body $refreshBody
+
+$staffHeaders = @{
+    Authorization = "Bearer $($refreshedStaffSession.accessToken)"
+}
+```
+
 Create an enrollment code with the staff bearer token:
 
 ```powershell
@@ -241,34 +260,47 @@ $commandBody = @{
 $command = Invoke-RestMethod `
     "$baseUrl/api/devices/$($enrollment.deviceId)/commands" `
     -Method Post `
+    -Headers $staffHeaders `
     -ContentType 'application/json' `
     -Body $commandBody
 
 $status = Invoke-RestMethod `
-    "$baseUrl/api/devices/$($enrollment.deviceId)/commands/$($command.commandId)/status"
+    "$baseUrl/api/devices/$($enrollment.deviceId)/commands/$($command.commandId)/status" `
+    -Headers $staffHeaders
 ```
 
 Expected results:
 
 - health returns `status = ok`;
-- staff sign-in returns a non-empty `accessToken` and includes
-  `devices.enrollment_codes.create` in `permissions`;
+- staff sign-in returns non-empty `accessToken` and `refreshToken`, and
+  includes `devices.enrollment_codes.create` in `permissions`;
+- refresh returns a new non-empty `accessToken` and `refreshToken`;
 - enrollment returns non-empty `deviceId`, `credentialId`, and
   `credentialSecret`;
 - heartbeat returns `heartbeatIntervalSeconds = 10`;
 - command status returns `status = Pending` and `type = lock`.
 
-Optionally inspect the latest audit record for the enrollment-code creation:
+Optionally inspect recent audit records for the protected staff actions:
 
 ```powershell
-docker exec -i afk4-postgres psql -U postgres -d afk4_dev -c `
-  'SELECT "Action", "Outcome", "TargetId" FROM audit_records ORDER BY "CreatedAtUtc" DESC LIMIT 1;'
+@'
+SELECT "Action", "Outcome", "TargetId"
+FROM audit_records
+WHERE "Action" IN (
+    'devices.enrollment_codes.create',
+    'devices.commands.dispatch',
+    'devices.commands.status.view')
+ORDER BY "CreatedAtUtc" DESC
+LIMIT 3;
+'@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
 ```
 
 Expected:
 
 ```text
-devices.enrollment_codes.create | Succeeded | AFK4-...
+devices.commands.status.view     | Succeeded | ...
+devices.commands.dispatch        | Succeeded | ...
+devices.enrollment_codes.create  | Succeeded | AFK4-...
 ```
 
 ## Stop Local Services

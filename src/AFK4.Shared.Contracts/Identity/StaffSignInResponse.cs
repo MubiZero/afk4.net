@@ -6,5 +6,7 @@ public sealed record StaffSignInResponse(
     string DisplayName,
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAtUtc,
+    string RefreshToken,
+    DateTimeOffset RefreshTokenExpiresAtUtc,
     IReadOnlyList<Guid> BranchIds,
     IReadOnlyList<string> Permissions);

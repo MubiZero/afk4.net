@@ -124,13 +124,24 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `892c3d3`:
   - `staff_role_assignments`
   - `staff_access_tokens`
   - `audit_records`
+- Added EF Core entity and migration `AddStaffRefreshTokens` for
+  `staff_refresh_tokens`.
 - Added predefined MVP role-to-permission mapping.
 - Added staff sign-in through `POST /api/auth/staff/sign-in` with opaque
   bearer access tokens stored as hashes.
+- Added `POST /api/auth/staff/refresh` with refresh token rotation,
+  hash-only refresh token storage, and replay rejection.
 - Added request-time staff context resolution from `Authorization: Bearer`.
 - Added branch-scoped authorization for
   `POST /api/branches/{branchId}/device-enrollment-codes`.
 - Added audit records for allowed and denied device enrollment-code creation.
+- Added staff authorization and audit coverage for:
+  - `POST /api/devices/{deviceId}/commands` with
+    `devices.commands.dispatch`;
+  - `GET /api/devices/{deviceId}/commands/{commandId}/status` with
+    `devices.commands.status.view`.
+- Added Operator App protected token storage abstraction using Windows DPAPI
+  for access and refresh token snapshots.
 - Updated API tests so device enrollment and heartbeat setup use an authorized
   technician before creating enrollment codes.
 
@@ -175,27 +186,28 @@ Known limitations:
 
 - enrollment code creation is now protected by staff identity, branch-scoped
   permission checks, and audit;
-- device command dispatch and command status endpoints still need staff
-  authorization and audit coverage;
+- device command dispatch and command status endpoints are now protected by
+  staff identity, branch-scoped permission checks, and audit;
 - device credential revocation and rotation are not implemented yet;
 - Operator App technician workflows for enrollment and status inspection are
   not implemented yet.
 
 ### Phase 2 Baseline Scope
 
-The current Phase 2 work is a backend-first baseline. It does not yet include:
+The current Phase 2 work is still a backend-first baseline plus the first
+Operator App credential storage primitive. It does not yet include:
 
-- refresh token rotation;
-- Operator App protected token storage;
 - staff management workflows;
 - custom role editing;
 - audit search or reports;
-- authorization coverage for every existing operator-facing endpoint.
+- authorization coverage for every future operator-facing endpoint as it is
+  added.
 
 ## Latest Verified State
 
 Full verification was run from `D:\afk4.net` on 2026-05-12 after the Phase 2
-backend baseline changes:
+refresh-token, Operator token storage, and device command authorization
+changes:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -205,7 +217,7 @@ backend baseline changes:
 Results:
 
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 53 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 61 visible passing tests, 0 failed, 0 skipped.
 
 Targeted TDD verification was also run for:
 
@@ -214,6 +226,9 @@ Targeted TDD verification was also run for:
 & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter AuditRecordWriterTests --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter StaffAuthenticationEndpointTests --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter DeviceEnrollmentAuthorizationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --filter OperatorTokenStoreTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter DeviceCommandEndpointTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:UseSharedCompilation=false
 ```
 
 Results:
@@ -223,11 +238,54 @@ Results:
 - staff sign-in endpoint test passed after the identity RED/GREEN cycle;
 - device enrollment authorization tests passed after the RBAC/audit
   RED/GREEN cycle.
+- refresh token contract and endpoint tests passed after RED/GREEN cycles;
+- Operator token store test passed after the protected storage RED/GREEN cycle;
+- device command authorization/audit tests passed after the endpoint
+  RED/GREEN cycle;
+- the full Platform API test project passed with 30 visible passing tests.
 
-The local PostgreSQL live smoke has not yet been rerun after the Phase 2
-authorization change. The runbook has been updated so the next smoke seeds a
-local technician, signs in, and sends the enrollment-code request with a staff
-bearer token.
+The local PostgreSQL live smoke was rerun from `D:\afk4.net` on 2026-05-12
+after the Phase 2 refresh-token and command authorization changes:
+
+```powershell
+docker compose up -d postgres
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+& 'C:\Program Files\dotnet\dotnet.exe' run --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --urls http://localhost:5074
+```
+
+Live smoke results:
+
+- PostgreSQL healthcheck reached `healthy`.
+- EF migration `20260512092839_AddStaffRefreshTokens` applied to PostgreSQL.
+- `GET /api/health` returned status `ok`.
+- local technician sign-in returned non-empty access and refresh tokens.
+- `POST /api/auth/staff/refresh` returned a rotated token pair, and replay of
+  the old refresh token returned `401`.
+- bearer-authenticated
+  `POST /api/branches/{branchId}/device-enrollment-codes` returned enrollment
+  code `AFK4-1D03-44405C36A3C9`.
+- `POST /api/devices/enroll` returned device
+  `6c70a84f-6246-4fe7-aa7b-e6d2f4d38f87` and credential
+  `12f392fd-8eca-448d-a9fc-e9c95651e83c`.
+- authenticated `POST /api/devices/{deviceId}/heartbeat` returned heartbeat
+  interval `10`.
+- bearer-authenticated `POST /api/devices/{deviceId}/commands` created command
+  `b1d839b7-90c8-4158-8668-88e1488cbe5a`.
+- bearer-authenticated
+  `GET /api/devices/{deviceId}/commands/{commandId}/status` returned
+  `Pending`.
+- Direct PostgreSQL reads confirmed audit rows for
+  `devices.enrollment_codes.create`, `devices.commands.dispatch`, and
+  `devices.commands.status.view`, all with `Succeeded` outcome.
+- Direct PostgreSQL reads confirmed the latest smoke device had
+  `IsOnline = true`, `IsLocked = true`, and a non-null heartbeat timestamp.
+- Direct PostgreSQL reads confirmed the latest smoke command stored
+  `Type = lock`, `Status = Pending`, and payload
+  `{"reason": "local-postgres-smoke"}`.
+- Direct PostgreSQL reads confirmed `staff_refresh_tokens` contained revoked
+  rows after refresh rotation.
+- The API process was stopped after smoke verification.
+- PostgreSQL was stopped with `docker compose down`; the named volume was kept.
 
 Local PostgreSQL live smoke was run from `D:\afk4.net` on 2026-05-12 after the
 Docker Compose runbook was added:
@@ -301,12 +359,9 @@ realtime status state path and startup failure handling.
 
 ## Recommended Next Work
 
-1. Run the updated local PostgreSQL smoke through the staff sign-in and bearer
-   token enrollment-code flow.
-2. Add Operator App protected token storage and refresh token rotation.
-3. Add staff authorization and audit coverage to device command dispatch and
-   command status endpoints.
-4. Add credential revocation/rotation and Operator App technician workflows for
+1. Add credential revocation/rotation and Operator App technician workflows for
    enrollment and command status inspection.
-5. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
+2. Add staff management workflows and custom role editing in the Operator App.
+3. Add audit search/report workflows for owner, manager, and auditor roles.
+4. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
    credentials without manual configuration.
