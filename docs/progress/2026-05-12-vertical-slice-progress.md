@@ -47,7 +47,7 @@ Implemented on branch `feature/realtime-device-channel`:
 - Shared realtime contracts and stable event/method names for device
   connection, command dispatch, and command result acknowledgement.
 - Backend device hub registration and `POST /api/devices/{deviceId}/commands`
-  dispatch endpoint.
+  dispatch endpoint with basic command request validation.
 - Agent SignalR client, command acknowledgements, reconnect re-registration,
   and HTTP heartbeat compatibility when realtime startup fails.
 - Operator realtime status state path with dispatcher-safe ViewModel updates
@@ -98,7 +98,7 @@ Results:
 
 - restore completed with all projects up to date;
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 30 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 33 visible passing tests, 0 failed, 0 skipped.
 
 Live smoke was run on `http://localhost:5074`:
 

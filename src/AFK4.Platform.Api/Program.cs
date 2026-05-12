@@ -45,6 +45,16 @@ app.MapPost("/api/devices/{deviceId:guid}/commands", async (
     IDeviceCommandDispatchService commandDispatchService,
     CancellationToken cancellationToken) =>
 {
+    if (string.IsNullOrWhiteSpace(request.Type))
+    {
+        return Results.BadRequest(new { Error = "Command type is required." });
+    }
+
+    if (request.Payload is null)
+    {
+        return Results.BadRequest(new { Error = "Command payload is required." });
+    }
+
     var command = await commandDispatchService.DispatchAsync(deviceId, request, cancellationToken);
 
     return Results.Ok(command);

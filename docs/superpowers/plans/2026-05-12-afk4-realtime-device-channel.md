@@ -10,6 +10,19 @@
 
 ---
 
+## Completion Status
+
+Status: implemented and verified on branch `feature/realtime-device-channel`.
+
+Verification summary:
+
+- `dotnet restore AFK4.sln` passed.
+- `dotnet build AFK4.sln --no-restore -p:UseSharedCompilation=false` passed with 0 warnings and 0 errors.
+- `dotnet test AFK4.sln --no-restore -p:UseSharedCompilation=false` passed with 33 visible tests after final command validation tightening.
+- Live backend-Agent smoke passed on `http://localhost:5074`: health returned `ok`, device command endpoint returned `DeviceCommandDto`, Agent connected to the realtime channel, and Agent acknowledged a command as `Accepted`.
+
+Progress details live in `docs/progress/2026-05-12-vertical-slice-progress.md`.
+
 ## Scope
 
 This plan is intentionally limited to realtime transport wiring and testable state flow. It does not implement device authentication, enrollment credentials, PostgreSQL persistence, real lock/unlock enforcement, command retries, signed leases, session lifecycle, RBAC, audit persistence, or update rollout.
