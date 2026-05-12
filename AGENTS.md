@@ -10,10 +10,19 @@ Use Windows/PowerShell by default. Do not switch to WSL unless the user explicit
 
 Before changing code or plans, read:
 
+- `README.md`
+- `docs/product/AFK4-MVP-PRD.md`
 - `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`
 - `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`
 
-These files are the source of truth for product scope, architecture, and the current implementation sequence.
+Source-of-truth order:
+
+1. `docs/product/AFK4-MVP-PRD.md` explains what product is being built and why.
+2. `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md` explains how the platform is architected.
+3. `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md` explains the first implemented technical slice.
+4. `README.md` is the concise entry point and navigation document.
+
+Do not rely on chat history for product decisions when these files answer the question.
 
 ## Product Decisions That Must Not Be Reopened Casually
 
@@ -38,17 +47,49 @@ If a user asks to change one of these decisions, update the architecture spec fi
 
 ## Current Delivery State
 
-Committed docs:
+The first vertical slice foundation has been implemented on branch `feature/vertical-slice`.
+
+Implemented foundation:
+
+- repository baseline with `global.json`, `Directory.Build.props`, `.editorconfig`, `.gitignore`, and expanded `README.md`;
+- `AFK4.sln` with backend, shared contracts, building blocks, Agent Service, Operator App, Player Shell, and tests;
+- strongly typed Guid ID primitives in `AFK4.BuildingBlocks`;
+- shared DTO contracts for device heartbeat and floor map;
+- Platform API endpoints:
+  - `GET /api/health`
+  - `GET /api/branches/{branchId}/floor-map`
+  - `POST /api/devices/{deviceId}/heartbeat`
+- SignalR hub at `/hubs/devices` and server broadcast event `deviceStatusChanged`;
+- Agent Service options, heartbeat payload factory, and HTTP heartbeat worker loop;
+- WPF Operator App shell with static floor map ViewModel;
+- WPF Player Shell fullscreen locked-state skeleton;
+- Master MVP PRD at `docs/product/AFK4-MVP-PRD.md`.
+
+Recent key commits on `feature/vertical-slice`:
 
 - `12dfb59 docs: add platform architecture spec`
 - `d8ab10e docs: add vertical slice implementation plan`
 - `f100fbe docs: add mvp delivery roadmap`
+- `57b2763 docs: add mvp product requirements`
 
-Next implementation target:
+Known implementation deviations or adaptations:
 
-1. Execute `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`.
-2. Build the first vertical slice: repository baseline, .NET solution, shared contracts, backend health/floor-map endpoints, SignalR heartbeat, Agent skeleton, Operator App shell, and Player Shell skeleton.
-3. Do not jump into billing, POS, updates, identity, or Windows enforcement before the vertical slice is green unless the user explicitly reprioritizes.
+- The current Agent Service sends heartbeat through an HTTP POST loop to `/api/devices/{deviceId}/heartbeat`.
+- The backend then broadcasts device status through SignalR.
+- The full architecture still requires an outgoing Agent SignalR/WebSocket connection for realtime command and state flow. That is not implemented yet and should be a focused follow-up plan.
+- `dotnet new sln` on this .NET 10 SDK defaulted to `.slnx`, so the solution was created with `--format sln`.
+- `Microsoft.Extensions.Http` was added to `AFK4.Agent.Service` because `AddHttpClient`/`IHttpClientFactory` are required by the planned Worker.
+
+Latest verified state:
+
+- `dotnet build AFK4.sln --no-restore` succeeds with 0 warnings and 0 errors.
+- `dotnet test AFK4.sln --no-restore` succeeds with 14 passing tests.
+
+Recommended next implementation target:
+
+1. Decide whether to merge `feature/vertical-slice` back into `main`.
+2. Create a focused plan for Agent SignalR/WebSocket connection, command channel, and Operator App realtime subscription.
+3. Do not jump into billing, POS, updates, identity, or Windows enforcement before the realtime foundation decision is resolved unless the user explicitly reprioritizes.
 
 ## Local Tooling
 
@@ -71,6 +112,8 @@ Expected SDK:
 ```
 
 The current PowerShell process may not always have `dotnet` in `PATH`. Use the full path above if `dotnet` is not recognized.
+
+The project currently targets .NET SDK `10.0.203`.
 
 ## Engineering Workflow
 
@@ -101,8 +144,11 @@ Player Shell is a controlled player-facing UI and must not be trusted for author
 
 When a major decision changes:
 
-1. Update the architecture spec.
-2. Update the delivery plan set if sequencing changes.
-3. Create or update the focused implementation plan.
-4. Self-review for incomplete markers, contradictions, and missing coverage.
-5. Commit the docs before implementing code.
+1. Update `docs/product/AFK4-MVP-PRD.md` if product scope, user goals, journeys, or MVP boundaries change.
+2. Update the architecture spec if technical architecture, module boundaries, or platform decisions change.
+3. Update the delivery plan set if sequencing changes.
+4. Create or update the focused implementation plan.
+5. Self-review for incomplete markers, contradictions, and missing coverage.
+6. Commit the docs before implementing code.
+
+When a change only affects implementation detail inside an approved scope, update the focused plan or code without rewriting the PRD.
