@@ -1,7 +1,12 @@
+using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
+using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tenancy;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,8 +28,16 @@ builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectio
 builder.Services.AddScoped<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
 builder.Services.AddScoped<IDeviceHeartbeatService, DeviceHeartbeatService>();
 builder.Services.AddSingleton<IFloorMapReadService, InMemoryFloorMapReadService>();
+builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
+builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
+builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
+builder.Services.AddScoped<StaffAuthorizationService>();
+builder.Services.AddScoped<IBranchResolver, BranchResolver>();
+builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 
 var app = builder.Build();
+
+app.UseMiddleware<StaffAuthenticationMiddleware>();
 
 app.MapGet("/api/health", () =>
 {
@@ -38,15 +51,65 @@ app.MapGet("/api/branches/{branchId:guid}/floor-map", (
     return Results.Ok(floorMapReadService.GetFloorMap(branchId));
 });
 
+app.MapPost("/api/auth/staff/sign-in", async (
+    StaffSignInRequest request,
+    IStaffCredentialService credentialService,
+    CancellationToken cancellationToken) =>
+{
+    var response = await credentialService.SignInAsync(request, cancellationToken);
+
+    return response is null
+        ? Results.Unauthorized()
+        : Results.Ok(response);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
     Guid branchId,
     CreateDeviceEnrollmentCodeRequest request,
     IDeviceEnrollmentService enrollmentService,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
     CancellationToken cancellationToken) =>
 {
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.CreateDeviceEnrollmentCode,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: authorization.StaffContext!.OrganizationId,
+            BranchId: branchId,
+            ActorStaffUserId: authorization.StaffContext.StaffUserId,
+            Action: AuditActionNames.CreateDeviceEnrollmentCode,
+            TargetType: "DeviceEnrollmentCode",
+            TargetId: null,
+            Outcome: AuditOutcome.Denied,
+            SourceApp: "PlatformApi",
+            DetailsJson: JsonSerializer.Serialize(new
+            {
+                request.ExpiresInSeconds,
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
     if (request.OrganizationId == Guid.Empty)
     {
         return Results.BadRequest(new { Error = "OrganizationId is required." });
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
     }
 
     if (request.ExpiresInSeconds <= 0)
@@ -55,6 +118,22 @@ app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
     }
 
     var code = await enrollmentService.CreateEnrollmentCodeAsync(branchId, request, cancellationToken);
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: authorization.StaffContext.OrganizationId,
+        BranchId: branchId,
+        ActorStaffUserId: authorization.StaffContext.StaffUserId,
+        Action: AuditActionNames.CreateDeviceEnrollmentCode,
+        TargetType: "DeviceEnrollmentCode",
+        TargetId: code.Code,
+        Outcome: AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: JsonSerializer.Serialize(new
+        {
+            request.ExpiresInSeconds,
+            code.ExpiresAtUtc
+        })),
+        cancellationToken);
 
     return Results.Ok(code);
 });

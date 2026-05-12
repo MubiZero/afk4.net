@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Devices;
 
 namespace AFK4.Platform.Api.Tests;
@@ -13,6 +14,7 @@ public sealed class DeviceEnrollmentEndpointTests
         using var client = factory.CreateClient();
         var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
         var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
 
         var codeResponse = await client.PostAsJsonAsync(
             $"/api/branches/{branchId}/device-enrollment-codes",
@@ -52,6 +54,7 @@ public sealed class DeviceEnrollmentEndpointTests
         using var client = factory.CreateClient();
         var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
         var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
         var code = await CreateEnrollmentCodeAsync(client, organizationId, branchId);
         var request = new DeviceEnrollmentRequest(
             OrganizationId: organizationId,

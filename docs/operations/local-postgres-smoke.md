@@ -1,7 +1,8 @@
 # Local PostgreSQL And Device Smoke Runbook
 
-This runbook verifies the current AFK4 device persistence slice against a real
-local PostgreSQL database. It covers EF migration application, device
+This runbook verifies the current AFK4 identity, audit, and device persistence
+slice against a real local PostgreSQL database. It covers EF migration
+application, staff sign-in, authorized device enrollment-code creation, device
 enrollment, authenticated heartbeat persistence, and command status storage.
 
 The commands assume PowerShell from the repository root:
@@ -87,7 +88,89 @@ Verify health:
 Invoke-RestMethod "$baseUrl/api/health"
 ```
 
-Create an enrollment code:
+Seed a local technician staff user for the smoke run. The seeded password is
+`Passw0rd!` and the password hash is for local development only:
+
+```powershell
+$staffUserId = '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134'
+$staffRoleAssignmentId = '58e8a836-82cd-45d1-a0cc-c13621e76c4e'
+$passwordHash = 'AQAAAAIAAYagAAAAEBtg5uNEqBhvMLTcq8WPczYLamzC17d4URzbuoedWQV8HBZPONhd1Wapb1t6X/wKag=='
+
+$seedSql = @"
+INSERT INTO organizations ("OrganizationId", "Name", "CreatedAtUtc")
+VALUES ('$organizationId', 'Demo Organization', now())
+ON CONFLICT ("OrganizationId")
+DO UPDATE SET "Name" = EXCLUDED."Name";
+
+INSERT INTO branches ("BranchId", "OrganizationId", "Name", "CreatedAtUtc")
+VALUES ('$branchId', '$organizationId', 'Demo Branch', now())
+ON CONFLICT ("BranchId")
+DO UPDATE SET "OrganizationId" = EXCLUDED."OrganizationId",
+              "Name" = EXCLUDED."Name";
+
+INSERT INTO staff_users (
+    "StaffUserId",
+    "OrganizationId",
+    "UserName",
+    "NormalizedUserName",
+    "DisplayName",
+    "PasswordHash",
+    "IsActive",
+    "CreatedAtUtc")
+VALUES (
+    '$staffUserId',
+    '$organizationId',
+    'tech@afk4.test',
+    'TECH@AFK4.TEST',
+    'Smoke Technician',
+    '$passwordHash',
+    true,
+    now())
+ON CONFLICT ("OrganizationId", "NormalizedUserName")
+DO UPDATE SET "DisplayName" = EXCLUDED."DisplayName",
+              "PasswordHash" = EXCLUDED."PasswordHash",
+              "IsActive" = true;
+
+INSERT INTO staff_role_assignments (
+    "StaffRoleAssignmentId",
+    "StaffUserId",
+    "OrganizationId",
+    "BranchId",
+    "RoleName")
+VALUES (
+    '$staffRoleAssignmentId',
+    '$staffUserId',
+    '$organizationId',
+    '$branchId',
+    'technician')
+ON CONFLICT ("StaffUserId", "OrganizationId", "BranchId", "RoleName")
+DO NOTHING;
+"@
+
+$seedSql | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
+```
+
+Sign in as the local technician:
+
+```powershell
+$signInBody = @{
+    organizationId = $organizationId
+    userName = 'tech@afk4.test'
+    password = 'Passw0rd!'
+} | ConvertTo-Json -Depth 4
+
+$staffSession = Invoke-RestMethod `
+    "$baseUrl/api/auth/staff/sign-in" `
+    -Method Post `
+    -ContentType 'application/json' `
+    -Body $signInBody
+
+$staffHeaders = @{
+    Authorization = "Bearer $($staffSession.accessToken)"
+}
+```
+
+Create an enrollment code with the staff bearer token:
 
 ```powershell
 $codeBody = @{
@@ -98,6 +181,7 @@ $codeBody = @{
 $code = Invoke-RestMethod `
     "$baseUrl/api/branches/$branchId/device-enrollment-codes" `
     -Method Post `
+    -Headers $staffHeaders `
     -ContentType 'application/json' `
     -Body $codeBody
 ```
@@ -167,10 +251,25 @@ $status = Invoke-RestMethod `
 Expected results:
 
 - health returns `status = ok`;
+- staff sign-in returns a non-empty `accessToken` and includes
+  `devices.enrollment_codes.create` in `permissions`;
 - enrollment returns non-empty `deviceId`, `credentialId`, and
   `credentialSecret`;
 - heartbeat returns `heartbeatIntervalSeconds = 10`;
 - command status returns `status = Pending` and `type = lock`.
+
+Optionally inspect the latest audit record for the enrollment-code creation:
+
+```powershell
+docker exec -i afk4-postgres psql -U postgres -d afk4_dev -c `
+  'SELECT "Action", "Outcome", "TargetId" FROM audit_records ORDER BY "CreatedAtUtc" DESC LIMIT 1;'
+```
+
+Expected:
+
+```text
+devices.enrollment_codes.create | Succeeded | AFK4-...
+```
 
 ## Stop Local Services
 

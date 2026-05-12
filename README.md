@@ -104,8 +104,10 @@ and device command status are backed by EF Core/Npgsql persistence.
 The current vertical slice exposes:
 
 - `GET /api/health`
+- `POST /api/auth/staff/sign-in`
 - `GET /api/branches/{branchId}/floor-map`
-- `POST /api/branches/{branchId}/device-enrollment-codes`
+- `POST /api/branches/{branchId}/device-enrollment-codes` with staff bearer
+  token permission `devices.enrollment_codes.create`
 - `POST /api/devices/enroll`
 - `POST /api/devices/{deviceId}/heartbeat`
 - `POST /api/devices/{deviceId}/commands`
@@ -250,6 +252,11 @@ The first vertical slice foundation is implemented:
 - shared device and floor map contracts;
 - backend health, floor map, heartbeat, and SignalR foundation;
 - EF Core/Npgsql device persistence with an initial migration;
+- EF Core/Npgsql identity, tenancy, staff access token, and audit baseline;
+- staff sign-in with opaque bearer tokens;
+- predefined MVP role-to-permission mapping;
+- branch-scoped authorization for device enrollment-code creation;
+- audit records for allowed and denied enrollment-code creation attempts;
 - device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
 - persisted device heartbeat state and command status tracking;
@@ -259,9 +266,10 @@ The first vertical slice foundation is implemented:
 
 Not implemented yet:
 
-- identity, tenancy enforcement, and RBAC;
-- PostgreSQL persistence for non-device modules;
-- credential revocation, rotation, and production enrollment authorization;
+- refresh token rotation and Operator App protected token storage;
+- staff management workflows, custom roles, and role editing UI;
+- authorization coverage for every operator-facing backend endpoint;
+- credential revocation and rotation;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;
 - audit search and reports;

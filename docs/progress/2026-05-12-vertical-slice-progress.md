@@ -1,7 +1,7 @@
 # AFK4 Vertical Slice Progress
 
-Status: Local PostgreSQL runbook and live smoke verified on
-`codex/local-postgres-smoke-runbook`
+Status: Phase 2 identity, tenancy, RBAC, and audit backend baseline started on
+`codex/phase2-identity-tenancy-rbac-audit`
 Last updated: 2026-05-12
 
 ## Scope
@@ -20,6 +20,7 @@ The implementation plans for this slice live in:
 
 - `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`
 - `docs/superpowers/plans/2026-05-12-afk4-realtime-device-channel.md`
+- `docs/superpowers/plans/2026-05-12-afk4-phase2-identity-tenancy-rbac-audit.md`
 
 ## Implemented Foundation
 
@@ -109,6 +110,30 @@ Implemented on `codex/local-postgres-smoke-runbook` after commit `69a7f4c`:
     status checks.
 - Linked the runbook from `README.md`.
 
+## Phase 2 Identity, Tenancy, RBAC, And Audit Baseline
+
+Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `892c3d3`:
+
+- Added a focused implementation plan at
+  `docs/superpowers/plans/2026-05-12-afk4-phase2-identity-tenancy-rbac-audit.md`.
+- Added shared staff sign-in contracts and explicit permission names.
+- Added EF Core entities and migration `AddIdentityTenancyAndAudit` for:
+  - `organizations`
+  - `branches`
+  - `staff_users`
+  - `staff_role_assignments`
+  - `staff_access_tokens`
+  - `audit_records`
+- Added predefined MVP role-to-permission mapping.
+- Added staff sign-in through `POST /api/auth/staff/sign-in` with opaque
+  bearer access tokens stored as hashes.
+- Added request-time staff context resolution from `Authorization: Bearer`.
+- Added branch-scoped authorization for
+  `POST /api/branches/{branchId}/device-enrollment-codes`.
+- Added audit records for allowed and denied device enrollment-code creation.
+- Updated API tests so device enrollment and heartbeat setup use an authorized
+  technician before creating enrollment codes.
+
 ## Known Deviations And Adaptations
 
 ### Solution Format
@@ -148,31 +173,61 @@ module.
 
 Known limitations:
 
-- enrollment code creation is not yet protected by staff identity, RBAC, or
-  audit because those modules are still deferred;
+- enrollment code creation is now protected by staff identity, branch-scoped
+  permission checks, and audit;
+- device command dispatch and command status endpoints still need staff
+  authorization and audit coverage;
 - device credential revocation and rotation are not implemented yet;
 - Operator App technician workflows for enrollment and status inspection are
   not implemented yet.
 
+### Phase 2 Baseline Scope
+
+The current Phase 2 work is a backend-first baseline. It does not yet include:
+
+- refresh token rotation;
+- Operator App protected token storage;
+- staff management workflows;
+- custom role editing;
+- audit search or reports;
+- authorization coverage for every existing operator-facing endpoint.
+
 ## Latest Verified State
 
-Full verification was run from `D:\afk4.net` on 2026-05-12 after the local
-PostgreSQL runbook and smoke changes:
+Full verification was run from `D:\afk4.net` on 2026-05-12 after the Phase 2
+backend baseline changes:
 
 ```powershell
-docker compose config
-& 'C:\Program Files\dotnet\dotnet.exe' tool restore
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
 ```
 
 Results:
 
-- Docker Compose config parsed successfully;
-- `dotnet-ef` version `10.0.4` restored successfully from the local tool
-  manifest;
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 47 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 53 visible passing tests, 0 failed, 0 skipped.
+
+Targeted TDD verification was also run for:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter StaffAuthContractSerializationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter AuditRecordWriterTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter StaffAuthenticationEndpointTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter DeviceEnrollmentAuthorizationTests --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- staff auth contract test passed after the contract RED/GREEN cycle;
+- audit writer test passed after the audit persistence RED/GREEN cycle;
+- staff sign-in endpoint test passed after the identity RED/GREEN cycle;
+- device enrollment authorization tests passed after the RBAC/audit
+  RED/GREEN cycle.
+
+The local PostgreSQL live smoke has not yet been rerun after the Phase 2
+authorization change. The runbook has been updated so the next smoke seeds a
+local technician, signs in, and sends the enrollment-code request with a staff
+bearer token.
 
 Local PostgreSQL live smoke was run from `D:\afk4.net` on 2026-05-12 after the
 Docker Compose runbook was added:
@@ -246,9 +301,12 @@ realtime status state path and startup failure handling.
 
 ## Recommended Next Work
 
-1. Add identity, tenancy, RBAC, and audit around enrollment code creation before
-   treating enrollment as production-safe.
-2. Add credential revocation/rotation and Operator App technician workflows for
+1. Run the updated local PostgreSQL smoke through the staff sign-in and bearer
+   token enrollment-code flow.
+2. Add Operator App protected token storage and refresh token rotation.
+3. Add staff authorization and audit coverage to device command dispatch and
+   command status endpoints.
+4. Add credential revocation/rotation and Operator App technician workflows for
    enrollment and command status inspection.
-3. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
+5. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
    credentials without manual configuration.
