@@ -111,7 +111,7 @@ Shift reports are part of the MVP and must be suitable for day-to-day operator a
 
 ### Audit
 
-Audit is a separate immutable trail for critical operations. It records actor, organization, branch, target entity, action, timestamp, source application, device or IP context, and before/after details where appropriate.
+Audit is a separate immutable trail for critical operations. It records actor, organization, branch, target entity, action, timestamp, source application, device or IP context, and before/after details for configuration, role, tariff, inventory, device, and manual correction changes.
 
 Audit is required for sessions, money, POS, inventory, roles, permissions, tariffs, devices, updates, and manual corrections.
 
@@ -350,6 +350,116 @@ Operator App has its own installer.
 
 Agent Service and Player Shell share a gaming-PC installer or coordinated installer flow. Device enrollment uses a secure branch/device enrollment token, QR code, or short code flow.
 
+## Security Baseline
+
+Security is part of the MVP architecture, not a later hardening pass.
+
+Authentication and authorization:
+
+- staff users authenticate against the Cloud Backend;
+- predefined roles map to explicit permissions;
+- backend endpoints enforce tenant, branch, role, and permission checks;
+- Operator App stores tokens using Windows-protected storage;
+- refresh token rotation is required for long-lived operator sessions;
+- device credentials are separate from staff credentials.
+
+Device enrollment:
+
+- Agent enrollment uses a short-lived enrollment token or code created by an authorized operator or technician;
+- the backend issues a durable device credential after enrollment;
+- device credentials can be revoked from the Operator App;
+- every device request includes device identity and tenant/branch context;
+- backend rejects device requests where route identity, credential identity, and payload identity do not match.
+
+Operational security:
+
+- secrets are never stored in repository config files;
+- password hashing uses a modern .NET-supported password hasher or dedicated identity provider;
+- audit records are written for failed privileged operations as well as successful ones;
+- critical money, session, and device commands require idempotency keys;
+- update packages must be signed before production rollout.
+
+## API And Contract Strategy
+
+The platform uses explicit contracts between backend, Operator App, Agent Service, and Player Shell.
+
+Rules:
+
+- shared DTOs live in a dedicated contracts project;
+- API contracts are versioned before production external integrations are introduced;
+- internal module models are not exposed directly as API responses;
+- device commands use stable command names and explicit payload schemas;
+- breaking contract changes require a compatibility plan for older Operator App and Agent versions;
+- public integration APIs are deferred until the core product stabilizes.
+
+The first implementation can use simple REST endpoints and SignalR messages, but the structure must keep a clean separation between domain models, application commands, and transport DTOs.
+
+## Developer Experience And Quality Gates
+
+The repository must be comfortable for long-term product development.
+
+Baseline requirements:
+
+- one solution file for the first platform slice;
+- separate projects for building blocks, contracts, backend, Operator App, Agent Service, and Player Shell;
+- test projects aligned with production projects;
+- pinned .NET SDK through `global.json`;
+- shared build settings through `Directory.Build.props`;
+- nullable reference types enabled;
+- warnings treated as errors;
+- short, focused modules instead of large cross-cutting files;
+- clear README with local setup and first-run commands.
+
+Quality gates:
+
+- every domain rule starts with a focused test;
+- backend endpoints get integration tests;
+- contract serialization gets tests before clients depend on DTOs;
+- Agent behavior gets unit tests around payloads, command handling, leases, and reconciliation;
+- Operator App view models get unit tests independent of WPF rendering;
+- full solution build and test suite are required before claiming a slice is complete.
+
+## Observability And Operations
+
+The backend and installed clients must be diagnosable from the start.
+
+Backend observability:
+
+- structured logs with tenant, branch, actor, device, session, and correlation context where applicable;
+- health endpoint;
+- readiness checks once PostgreSQL and external providers are introduced;
+- metrics-ready design for sessions, device connectivity, command latency, payment failures, and update rollout status;
+- correlation IDs across Operator App requests, backend logs, and device commands.
+
+Agent observability:
+
+- local service logs;
+- heartbeat status;
+- last command status;
+- update status;
+- last successful cloud connection timestamp;
+- local event backlog size.
+
+Operator observability:
+
+- visible pending and failed operation states;
+- actionable errors for network, permission, payment, and device command failures;
+- support diagnostics screen in a later UI slice.
+
+## Data Protection And Recovery
+
+The MVP must be built assuming real clubs will depend on the data.
+
+Requirements:
+
+- PostgreSQL backups are mandatory before production;
+- migrations must be repeatable in staging before production rollout;
+- audit and ledger records are append-only;
+- tenant data export is a future administrative requirement;
+- accidental destructive operations should be represented as reversals, voids, or corrections rather than deletes;
+- production secrets and signing keys must be stored outside source control;
+- update rollback must be tested before production Agent rollout.
+
 ## MVP Scope
 
 The first full MVP includes:
@@ -389,11 +499,51 @@ The MVP does not include:
 - full-domain event sourcing
 - advanced CRM or loyalty beyond basic bonuses and packages
 
+## Delivery Plan Set
+
+The architecture spec intentionally covers more than the first implementation plan. The MVP should be delivered through a sequence of focused plans, each producing working, testable software.
+
+Recommended plan sequence:
+
+1. **Vertical Slice Foundation**
+   Repository, solution structure, shared contracts, backend health/floor-map endpoints, SignalR heartbeat, Agent skeleton, Operator App shell, Player Shell skeleton.
+
+2. **Identity, Tenancy, And RBAC**
+   Staff users, organizations, branches, predefined roles, permission checks, token storage, tenant-aware API pipeline, audit for privileged actions.
+
+3. **Club Layout And Device Management**
+   zones, seats, device enrollment, device credentials, device state, command log, command status, installed apps, device detail screens.
+
+4. **Session Lifecycle And Grace Mode**
+   start, extend, transfer, end, session state machine, signed leases, Agent lease validation, reconnect reconciliation, session audit.
+
+5. **Billing, Ledger, Tariffs, And Packages**
+   immutable ledger, prepaid/postpaid flows, packages, bonuses, debts, refunds, manual corrections, tariff versioning, idempotency.
+
+6. **POS, Inventory, Shifts, And Receipts**
+   products, categories, stock, sales, returns, shift open/close, cash reconciliation, receipt/payment provider abstraction with mock/manual providers.
+
+7. **Operator App Production UX**
+   real floor map state, context panel actions, POS workflows, player search, shift workflows, settings, role-aware navigation, hotkeys.
+
+8. **Agent Enforcement And Player Shell**
+   lock/unlock enforcement, watchdog, Windows policies, process allow/deny lists, reboot recovery, Shell session screen, basic launcher.
+
+9. **Updates And Installers**
+   signed packages, channels, rollout targeting, rollback, Operator installer, Agent/Shell installer, enrollment flow.
+
+10. **Reports, Audit Review, And Operations**
+    shift reports, sales reports, gameplay reports, operator action reports, audit search, diagnostics, backup/restore runbooks.
+
+This split is deliberate. A single implementation plan for the whole MVP would be too large to execute safely and would mix unrelated risk areas.
+
 ## First Implementation Direction
 
 Implementation should start with repository and solution scaffolding, not UI polish.
 
-Recommended first implementation slice:
+The first implementation slice is the **Vertical Slice Foundation** from the delivery plan set. It is not expected to complete billing, POS, identity, updates, or full device enforcement.
+
+Recommended first slice:
 
 1. Create the .NET solution and project structure.
 2. Add backend modular monolith foundation.

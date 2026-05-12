@@ -91,7 +91,7 @@ MubiZero
 mukhamedov044@gmail.com
 ```
 
-- [ ] **Step 2: Install .NET 10 SDK if `dotnet` is missing**
+- [ ] **Step 2: Verify .NET 10 SDK**
 
 Run:
 
@@ -99,25 +99,33 @@ Run:
 dotnet --info
 ```
 
-Expected before install on the current machine:
+If the current PowerShell process has not refreshed `PATH`, this may return:
 
 ```text
 dotnet : The term 'dotnet' is not recognized
 ```
 
-Install:
+In that case, verify the installed SDK by full path:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' --list-sdks
+```
+
+Expected on this machine:
+
+```text
+10.0.203 [C:\Program Files\dotnet\sdk]
+```
+
+If the full path does not exist, install .NET 10 SDK:
 
 ```powershell
 winget install Microsoft.DotNet.SDK.10 --source winget
 ```
 
-Open a new PowerShell session, then run:
+Open a new PowerShell session after installation so `dotnet` is available through `PATH`.
 
-```powershell
-dotnet --list-sdks
-```
-
-Expected:
+Final expected result:
 
 ```text
 10.0.203 [C:\Program Files\dotnet\sdk]
@@ -1741,4 +1749,3 @@ Deferred from this first plan:
 - installer packaging
 
 These are deferred because they are separate subsystems and need focused plans after the first vertical slice builds successfully.
-
