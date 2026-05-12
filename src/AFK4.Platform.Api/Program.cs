@@ -5,6 +5,12 @@ using AFK4.Shared.Contracts.Devices;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSignalR();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<InMemoryDeviceEnrollmentService>();
+builder.Services.AddSingleton<IDeviceEnrollmentService>(provider => provider.GetRequiredService<InMemoryDeviceEnrollmentService>());
+builder.Services.AddSingleton<IDeviceCredentialValidator>(provider => provider.GetRequiredService<InMemoryDeviceEnrollmentService>());
+builder.Services.AddSingleton<IDeviceCommandStore, InMemoryDeviceCommandStore>();
+builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectionRegistry>();
 builder.Services.AddSingleton<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
 builder.Services.AddSingleton<IDeviceHeartbeatService, InMemoryDeviceHeartbeatService>();
 builder.Services.AddSingleton<IFloorMapReadService, InMemoryFloorMapReadService>();
@@ -23,15 +29,59 @@ app.MapGet("/api/branches/{branchId:guid}/floor-map", (
     return Results.Ok(floorMapReadService.GetFloorMap(branchId));
 });
 
+app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
+    Guid branchId,
+    CreateDeviceEnrollmentCodeRequest request,
+    IDeviceEnrollmentService enrollmentService,
+    CancellationToken cancellationToken) =>
+{
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId is required." });
+    }
+
+    if (request.ExpiresInSeconds <= 0)
+    {
+        return Results.BadRequest(new { Error = "Enrollment code lifetime must be positive." });
+    }
+
+    var code = await enrollmentService.CreateEnrollmentCodeAsync(branchId, request, cancellationToken);
+
+    return Results.Ok(code);
+});
+
+app.MapPost("/api/devices/enroll", async (
+    DeviceEnrollmentRequest request,
+    IDeviceEnrollmentService enrollmentService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await enrollmentService.EnrollAsync(request, cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { result.Error });
+    }
+
+    return Results.Ok(result.Response);
+});
+
 app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
     Guid deviceId,
     DeviceHeartbeatRequest request,
+    HttpContext httpContext,
+    IDeviceCredentialValidator credentialValidator,
     IDeviceHeartbeatService heartbeatService,
     CancellationToken cancellationToken) =>
 {
     if (deviceId != request.DeviceId)
     {
         return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+    }
+
+    var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    {
+        return Results.Unauthorized();
     }
 
     var response = await heartbeatService.RecordHeartbeatAsync(deviceId, request, cancellationToken);
@@ -58,6 +108,19 @@ app.MapPost("/api/devices/{deviceId:guid}/commands", async (
     var command = await commandDispatchService.DispatchAsync(deviceId, request, cancellationToken);
 
     return Results.Ok(command);
+});
+
+app.MapGet("/api/devices/{deviceId:guid}/commands/{commandId:guid}/status", async (
+    Guid deviceId,
+    Guid commandId,
+    IDeviceCommandStore commandStore,
+    CancellationToken cancellationToken) =>
+{
+    var status = await commandStore.GetAsync(deviceId, commandId, cancellationToken);
+
+    return status is null
+        ? Results.NotFound()
+        : Results.Ok(status);
 });
 
 app.MapHub<DeviceHub>("/hubs/devices");

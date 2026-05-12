@@ -13,6 +13,7 @@ public static class DeviceConnectionRequestFactory
             MachineName: options.MachineName,
             AgentVersion: options.AgentVersion,
             ShellVersion: options.ShellVersion,
+            CredentialSecret: options.DeviceCredentialSecret,
             ConnectedAtUtc: connectedAtUtc);
     }
 }

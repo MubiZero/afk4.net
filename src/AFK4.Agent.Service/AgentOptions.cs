@@ -15,4 +15,6 @@ public sealed class AgentOptions
     public string AgentVersion { get; init; } = "0.1.0";
 
     public string ShellVersion { get; init; } = "0.1.0";
+
+    public string DeviceCredentialSecret { get; init; } = string.Empty;
 }

@@ -15,6 +15,7 @@ public sealed class DeviceRealtimeContractSerializationTests
             MachineName: "PC-001",
             AgentVersion: "0.1.0",
             ShellVersion: "0.1.0",
+            CredentialSecret: "device-secret",
             ConnectedAtUtc: DateTimeOffset.Parse("2026-05-12T00:00:00Z"));
 
         var json = JsonSerializer.Serialize(request);
@@ -24,6 +25,7 @@ public sealed class DeviceRealtimeContractSerializationTests
         Assert.Equal(request.DeviceId, copy.DeviceId);
         Assert.Equal("PC-001", copy.MachineName);
         Assert.Equal("0.1.0", copy.AgentVersion);
+        Assert.Equal("device-secret", copy.CredentialSecret);
     }
 
     [Fact]

@@ -22,7 +22,8 @@ public sealed class WorkerTests
             OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
             BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
             DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
-            MachineName = "PC-001"
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
         });
 
         var worker = new Worker(
@@ -36,6 +37,7 @@ public sealed class WorkerTests
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Equal($"/api/devices/{options.Value.DeviceId}/heartbeat", handler.RequestUri?.PathAndQuery);
+        Assert.Equal("device-secret", handler.CredentialSecret);
     }
 
     private sealed class ThrowingRealtimeClient(Exception exception) : IDeviceRealtimeClient
@@ -65,9 +67,12 @@ public sealed class WorkerTests
     {
         public Uri? RequestUri { get; private set; }
 
+        public string? CredentialSecret { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestUri = request.RequestUri;
+            CredentialSecret = request.Headers.GetValues(DeviceCredentialHeaders.CredentialSecret).Single();
             heartbeatAttempted.TrySetResult();
             stopping.Cancel();
 

@@ -1,6 +1,6 @@
 # AFK4 Vertical Slice Progress
 
-Status: realtime device channel implemented on branch `feature/realtime-device-channel`
+Status: device enrollment, credentials, and command status foundation implemented on `main`
 Last updated: 2026-05-12
 
 ## Scope
@@ -53,6 +53,27 @@ Implemented on branch `feature/realtime-device-channel`:
 - Operator realtime status state path with dispatcher-safe ViewModel updates
   and startup failure handling.
 
+## Device Enrollment, Credentials, And Command Status
+
+Implemented on `main` after the realtime device channel merge:
+
+- Shared contracts for enrollment code creation, device enrollment responses,
+  device credential headers, and command status responses.
+- Backend in-memory enrollment code flow:
+  - `POST /api/branches/{branchId}/device-enrollment-codes`
+  - `POST /api/devices/enroll`
+- Enrollment-issued device credentials with server-side hashed secret storage.
+- Heartbeat credential validation through `X-AFK4-Device-Credential`.
+- SignalR device registration credential validation through
+  `DeviceConnectionRequest.CredentialSecret`.
+- Backend in-memory command status tracking:
+  - commands are stored as `Pending` when dispatched;
+  - reported command results update the stored status;
+  - `GET /api/devices/{deviceId}/commands/{commandId}/status` returns current
+    status.
+- Agent options and HTTP heartbeat now carry the enrollment-issued device
+  credential secret.
+
 ## Known Deviations And Adaptations
 
 ### Solution Format
@@ -83,24 +104,38 @@ message. This is not blocking for the slice because no client depends on the
 error contract yet, but it should be normalized before treating API contracts
 as stable.
 
+### Device Management Foundation Scope
+
+The current device enrollment, credential, and command status implementation is
+an in-memory foundation for contracts and behavior. It is not yet the durable
+PostgreSQL-backed device registry required for production.
+
+Known limitations:
+
+- enrollment code creation is not yet protected by staff identity, RBAC, or
+  audit because those modules are still deferred;
+- device credential revocation and rotation are not implemented yet;
+- command status is retained only for the backend process lifetime;
+- Operator App technician workflows for enrollment and status inspection are
+  not implemented yet.
+
 ## Latest Verified State
 
-Full verification was run from
-`D:\afk4.net\.worktrees\realtime-device-channel` on 2026-05-12:
+Full verification was run from `D:\afk4.net` on 2026-05-12 after the device
+management foundation changes:
 
 ```powershell
-& 'C:\Program Files\dotnet\dotnet.exe' restore AFK4.sln
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
 ```
 
 Results:
 
-- restore completed with all projects up to date;
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 33 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 44 visible passing tests, 0 failed, 0 skipped.
 
-Live smoke was run on `http://localhost:5074`:
+Previous live smoke was run on `http://localhost:5074` for the realtime device
+channel:
 
 - `GET /api/health` returned status `ok`;
 - `POST /api/devices/d76eff15-9cf9-4c30-a6d4-c05fd215793f/commands`
@@ -132,9 +167,11 @@ realtime status state path and startup failure handling.
 
 ## Recommended Next Work
 
-1. Add device enrollment.
-2. Add device credentials.
-3. Add command status persistence.
-4. Sequence identity, tenancy, RBAC, and device management according to the
-   PRD and architecture after the device identity and command persistence
-   foundations are in place.
+1. Add PostgreSQL-backed persistence for device registry, device credentials,
+   and command status once the database foundation plan starts.
+2. Add identity, tenancy, RBAC, and audit around enrollment code creation before
+   treating enrollment as production-safe.
+3. Add credential revocation/rotation and Operator App technician workflows for
+   enrollment and command status inspection.
+4. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
+   credentials without manual configuration.

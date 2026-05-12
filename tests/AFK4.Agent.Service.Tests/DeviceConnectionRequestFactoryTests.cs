@@ -14,7 +14,8 @@ public sealed class DeviceConnectionRequestFactoryTests
             DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
             MachineName = "PC-001",
             AgentVersion = "0.1.0",
-            ShellVersion = "0.1.0"
+            ShellVersion = "0.1.0",
+            DeviceCredentialSecret = "device-secret"
         };
 
         var request = DeviceConnectionRequestFactory.Create(
@@ -27,6 +28,7 @@ public sealed class DeviceConnectionRequestFactoryTests
         Assert.Equal("PC-001", request.MachineName);
         Assert.Equal("0.1.0", request.AgentVersion);
         Assert.Equal("0.1.0", request.ShellVersion);
+        Assert.Equal("device-secret", request.CredentialSecret);
         Assert.Equal(DateTimeOffset.Parse("2026-05-12T00:00:00Z"), request.ConnectedAtUtc);
     }
 }

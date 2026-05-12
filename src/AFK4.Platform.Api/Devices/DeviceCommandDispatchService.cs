@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace AFK4.Platform.Api.Devices;
 
-public sealed class DeviceCommandDispatchService(IHubContext<DeviceHub> hubContext) : IDeviceCommandDispatchService
+public sealed class DeviceCommandDispatchService(IHubContext<DeviceHub> hubContext, IDeviceCommandStore commandStore) : IDeviceCommandDispatchService
 {
     public async Task<DeviceCommandDto> DispatchAsync(
         Guid deviceId,
@@ -15,6 +15,8 @@ public sealed class DeviceCommandDispatchService(IHubContext<DeviceHub> hubConte
             Type: request.Type,
             CreatedAtUtc: DateTimeOffset.UtcNow,
             Payload: request.Payload);
+
+        await commandStore.AddPendingAsync(deviceId, command, cancellationToken);
 
         await hubContext.Clients
             .Group(DeviceHubGroups.Device(deviceId))

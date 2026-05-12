@@ -12,23 +12,80 @@ public sealed class DeviceHeartbeatEndpointTests
     {
         await using var factory = new WebApplicationFactory<Program>();
         using var client = factory.CreateClient();
-        var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
+        var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
+        var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+        var enrollment = await EnrollDeviceAsync(client, organizationId, branchId);
         var request = new DeviceHeartbeatRequest(
-            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
-            BranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
-            DeviceId: deviceId,
+            OrganizationId: organizationId,
+            BranchId: branchId,
+            DeviceId: enrollment.DeviceId,
             MachineName: "PC-001",
             AgentVersion: "0.1.0",
             ShellVersion: "0.1.0",
             ObservedAtUtc: DateTimeOffset.UtcNow,
             IsLocked: true);
 
-        var response = await client.PostAsJsonAsync($"/api/devices/{deviceId}/heartbeat", request);
+        using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{enrollment.DeviceId}/heartbeat")
+        {
+            Content = JsonContent.Create(request)
+        };
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
+        var response = await client.SendAsync(message);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>();
         Assert.NotNull(body);
         Assert.Equal(10, body.HeartbeatIntervalSeconds);
         Assert.Empty(body.Commands);
+    }
+
+    [Fact]
+    public async Task DeviceHeartbeat_ReturnsUnauthorizedWithoutDeviceCredential()
+    {
+        await using var factory = new WebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+        var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
+        var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+        var enrollment = await EnrollDeviceAsync(client, organizationId, branchId);
+        var request = new DeviceHeartbeatRequest(
+            OrganizationId: organizationId,
+            BranchId: branchId,
+            DeviceId: enrollment.DeviceId,
+            MachineName: "PC-001",
+            AgentVersion: "0.1.0",
+            ShellVersion: "0.1.0",
+            ObservedAtUtc: DateTimeOffset.UtcNow,
+            IsLocked: true);
+
+        var response = await client.PostAsJsonAsync($"/api/devices/{enrollment.DeviceId}/heartbeat", request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(
+        HttpClient client,
+        Guid organizationId,
+        Guid branchId)
+    {
+        var codeResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{branchId}/device-enrollment-codes",
+            new CreateDeviceEnrollmentCodeRequest(organizationId, ExpiresInSeconds: 300));
+        var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
+        Assert.NotNull(code);
+
+        var enrollmentResponse = await client.PostAsJsonAsync(
+            "/api/devices/enroll",
+            new DeviceEnrollmentRequest(
+                OrganizationId: organizationId,
+                BranchId: branchId,
+                EnrollmentCode: code.Code,
+                MachineName: "PC-001",
+                AgentVersion: "0.1.0",
+                ShellVersion: "0.1.0",
+                RequestedAtUtc: DateTimeOffset.Parse("2026-05-12T00:01:00Z")));
+        var enrollment = await enrollmentResponse.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>();
+        Assert.NotNull(enrollment);
+
+        return enrollment;
     }
 }

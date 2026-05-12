@@ -32,10 +32,17 @@ public sealed class Worker(
         while (!stoppingToken.IsCancellationRequested)
         {
             var request = HeartbeatPayloadFactory.Create(agentOptions, isLocked: true, DateTimeOffset.UtcNow);
-            var response = await client.PostAsJsonAsync(
-                $"/api/devices/{agentOptions.DeviceId}/heartbeat",
-                request,
-                stoppingToken);
+            using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
+            {
+                Content = JsonContent.Create(request)
+            };
+
+            if (!string.IsNullOrWhiteSpace(agentOptions.DeviceCredentialSecret))
+            {
+                message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, agentOptions.DeviceCredentialSecret);
+            }
+
+            var response = await client.SendAsync(message, stoppingToken);
 
             response.EnsureSuccessStatusCode();
             var heartbeat = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>(cancellationToken: stoppingToken);

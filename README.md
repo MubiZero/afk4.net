@@ -104,9 +104,14 @@ The current vertical slice exposes:
 
 - `GET /api/health`
 - `GET /api/branches/{branchId}/floor-map`
+- `POST /api/branches/{branchId}/device-enrollment-codes`
+- `POST /api/devices/enroll`
 - `POST /api/devices/{deviceId}/heartbeat`
+- `POST /api/devices/{deviceId}/commands`
+- `GET /api/devices/{deviceId}/commands/{commandId}/status`
 - SignalR hub at `/hubs/devices`
 - SignalR client event `deviceStatusChanged`
+- SignalR device command events `deviceCommand` and `deviceCommandResult`
 
 ### Operator App
 
@@ -120,9 +125,11 @@ SignalR updates, session actions, POS, players, shifts, and settings.
 ### Agent Service
 
 `AFK4.Agent.Service` is the Windows service skeleton for gaming PCs. It creates
-heartbeat payloads and posts them to the backend. Later slices add enrollment,
-device credentials, lock/unlock enforcement, process policy, session lease
-validation, reconnect reconciliation, watchdog behavior, and updates.
+heartbeat payloads, sends enrollment-issued device credentials, posts
+heartbeats to the backend, and connects to the realtime device hub. Later slices
+add installer enrollment bootstrap, credential revocation, lock/unlock
+enforcement, process policy, session lease validation, reconnect reconciliation,
+watchdog behavior, and updates.
 
 ### Player Shell
 
@@ -220,8 +227,10 @@ Run the Agent Service skeleton:
 dotnet run --project src/AFK4.Agent.Service/AFK4.Agent.Service.csproj
 ```
 
-The Agent currently uses placeholder option defaults. Real device enrollment and
-validated configuration are intentionally deferred to later slices.
+The Agent currently needs enrollment-derived `Agent:DeviceId` and
+`Agent:DeviceCredentialSecret` values from configuration or environment
+variables before authenticated heartbeats succeed. Real installer bootstrap,
+credential rotation, and revocation are intentionally deferred to later slices.
 
 ## Current Implementation State
 
@@ -232,6 +241,9 @@ The first vertical slice foundation is implemented:
 - strong Guid ID primitives;
 - shared device and floor map contracts;
 - backend health, floor map, heartbeat, and SignalR foundation;
+- in-memory device enrollment code flow and credential issuance;
+- heartbeat and realtime registration credential validation;
+- in-memory device command status tracking;
 - Agent heartbeat payload factory and worker loop skeleton;
 - Operator App floor map shell;
 - Player Shell locked-state skeleton.
@@ -240,7 +252,7 @@ Not implemented yet:
 
 - identity, tenancy enforcement, and RBAC;
 - PostgreSQL persistence and EF Core migrations;
-- device enrollment and credentials;
+- durable device registry, credential revocation, and production enrollment authorization;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;
 - audit search and reports;

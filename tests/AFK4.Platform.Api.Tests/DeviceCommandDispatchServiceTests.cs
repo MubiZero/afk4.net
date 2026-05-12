@@ -11,7 +11,8 @@ public sealed class DeviceCommandDispatchServiceTests
     {
         var clients = new CapturingHubClients();
         var hubContext = new CapturingHubContext(clients);
-        var service = new DeviceCommandDispatchService(hubContext);
+        var commandStore = new InMemoryDeviceCommandStore();
+        var service = new DeviceCommandDispatchService(hubContext, commandStore);
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
         var request = new CreateDeviceCommandRequest(
             Type: "lock",
@@ -28,6 +29,10 @@ public sealed class DeviceCommandDispatchServiceTests
         Assert.Same(command, sentCommand);
         Assert.Equal("lock", command.Type);
         Assert.Equal("operator-request", command.Payload["reason"]);
+
+        var status = await commandStore.GetAsync(deviceId, command.CommandId, CancellationToken.None);
+        Assert.NotNull(status);
+        Assert.Equal("Pending", status.Status);
     }
 
     private sealed class CapturingHubContext(CapturingHubClients clients) : IHubContext<DeviceHub>
