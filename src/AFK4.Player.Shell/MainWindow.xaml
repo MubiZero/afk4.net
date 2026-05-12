@@ -1,12 +1,16 @@
-﻿<Window x:Class="AFK4.Player.Shell.MainWindow"
+<Window x:Class="AFK4.Player.Shell.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:AFK4.Player.Shell"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="AFK4 Player Shell"
+        WindowState="Maximized"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="#0B1220">
     <Grid>
-
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="520">
+            <TextBlock Text="AFK4" Foreground="White" FontSize="48" FontWeight="Bold" HorizontalAlignment="Center" />
+            <TextBlock Text="This PC is locked" Foreground="#D1D5DB" FontSize="24" Margin="0,24,0,0" HorizontalAlignment="Center" />
+            <TextBlock Text="Start a session from the operator desk." Foreground="#9CA3AF" FontSize="16" Margin="0,12,0,0" HorizontalAlignment="Center" />
+        </StackPanel>
     </Grid>
 </Window>
