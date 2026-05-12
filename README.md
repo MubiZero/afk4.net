@@ -25,6 +25,70 @@ The core product decisions are fixed for the MVP:
 - POS, inventory, shifts, receipts, audit, and centralized updates are part of
   the full MVP roadmap.
 
+## Approved Architecture Sections
+
+The initial product architecture was approved as nine sections. This README
+keeps the short navigation version; the detailed source of truth is the
+[architecture spec](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md).
+
+1. **System Overview**
+   Cloud Backend, native Operator App, Windows Agent Service, and Player Shell
+   are separate runtime surfaces with the backend as the business authority.
+   Details: [System Overview](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#system-overview).
+
+2. **Domain Model**
+   Organizations, branches, zones, seats, devices, players, guest sessions,
+   sessions, ledger, tariffs, packages, POS, shifts, audit, and updates are the
+   core business objects. Details: [Domain Model](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#domain-model).
+
+3. **Backend Modules**
+   The backend starts as a modular monolith with explicit modules for identity,
+   tenancy, club operations, devices, sessions, billing, POS, audit, updates,
+   and notifications. Details: [Backend Modules](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#backend-modules).
+
+4. **Operator App Design**
+   The Operator App is dense WPF operator software centered on the floor map,
+   seat/session context, POS, players, shifts, reports, and settings. Details:
+   [Operator App Design](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#operator-app-design).
+
+5. **Agent And Shell Design**
+   The gaming PC runtime is split into an elevated Agent Service and a
+   player-facing Shell. The Shell is UI only; the Agent enforces cloud-approved
+   state. Details: [Agent And Shell Design](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#agent-and-shell-design).
+
+6. **Realtime Protocol And Reliability**
+   REST is used for authoritative commands and reads. SignalR is used for
+   realtime status, device commands, session events, and notifications. Active
+   sessions may continue during temporary connectivity loss through signed
+   leases; new sessions and payments require cloud connectivity. Details:
+   [Realtime Protocol And Reliability](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#realtime-protocol-and-reliability)
+   and [Grace Mode](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#grace-mode).
+
+7. **Data And Transactions**
+   PostgreSQL is the source of truth. Data is tenant-aware, EF Core migrations
+   are used, modules keep explicit ownership, read models are allowed for maps
+   and reports, and Redis may be added later only as cache/coordination.
+   Critical rules include immutable ledger entries, explicit POS/payment and
+   session states, versioned tariff calculation, audit for critical changes,
+   and idempotency keys for payments, POS, and session/device commands.
+   Details: [Data And Transactions](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#data-and-transactions).
+
+8. **Deployment And Updates**
+   Dev, staging, and production environments are defined separately. The
+   backend deploys as one ASP.NET Core service at the start. Operator App,
+   Agent Service, and Player Shell updates are centralized, signed, channelled,
+   staged, status-tracked, and rollback-capable. Installers and device
+   enrollment are part of the platform design. Details: [Deployment And Updates](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#deployment-and-updates).
+
+9. **MVP Scope**
+   The first full MVP includes multi-tenancy, WPF Operator App, Windows devices,
+   Agent/Shell, SignalR, session lifecycle, guest and registered players, mixed
+   billing, immutable ledger, tariffs/packages, POS, shifts, receipts, launcher,
+   Windows control, grace mode, audit, centralized updates, and base reports.
+   It excludes web admin, local club server, non-Windows agents, kernel driver,
+   country-specific fiscal integrations, mobile app, microservices, and
+   full-domain event sourcing. Details: [MVP Scope](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#mvp-scope).
+
 ## Runtime Parts
 
 AFK4 is split into four main runtime surfaces.
