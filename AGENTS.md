@@ -14,13 +14,15 @@ Before changing code or plans, read:
 - `docs/product/AFK4-MVP-PRD.md`
 - `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`
 - `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`
+- `docs/progress/2026-05-12-vertical-slice-progress.md`
 
 Source-of-truth order:
 
 1. `docs/product/AFK4-MVP-PRD.md` explains what product is being built and why.
 2. `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md` explains how the platform is architected.
 3. `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md` explains the first implemented technical slice.
-4. `README.md` is the concise entry point and navigation document.
+4. `docs/progress/2026-05-12-vertical-slice-progress.md` explains current implementation status, known deviations, and next recommended work.
+5. `README.md` is the concise entry point and navigation document.
 
 Do not rely on chat history for product decisions when these files answer the question.
 
@@ -45,51 +47,15 @@ Do not rely on chat history for product decisions when these files answer the qu
 
 If a user asks to change one of these decisions, update the architecture spec first, then update or create an implementation plan.
 
-## Current Delivery State
+## Progress Tracking
 
-The first vertical slice foundation has been implemented on branch `feature/vertical-slice`.
+Do not store volatile delivery status in this file. Current implementation
+state, known deviations, latest verification, and recommended next work belong
+in `docs/progress/`.
 
-Implemented foundation:
+For the current vertical slice, read:
 
-- repository baseline with `global.json`, `Directory.Build.props`, `.editorconfig`, `.gitignore`, and expanded `README.md`;
-- `AFK4.sln` with backend, shared contracts, building blocks, Agent Service, Operator App, Player Shell, and tests;
-- strongly typed Guid ID primitives in `AFK4.BuildingBlocks`;
-- shared DTO contracts for device heartbeat and floor map;
-- Platform API endpoints:
-  - `GET /api/health`
-  - `GET /api/branches/{branchId}/floor-map`
-  - `POST /api/devices/{deviceId}/heartbeat`
-- SignalR hub at `/hubs/devices` and server broadcast event `deviceStatusChanged`;
-- Agent Service options, heartbeat payload factory, and HTTP heartbeat worker loop;
-- WPF Operator App shell with static floor map ViewModel;
-- WPF Player Shell fullscreen locked-state skeleton;
-- Master MVP PRD at `docs/product/AFK4-MVP-PRD.md`.
-
-Recent key commits on `feature/vertical-slice`:
-
-- `12dfb59 docs: add platform architecture spec`
-- `d8ab10e docs: add vertical slice implementation plan`
-- `f100fbe docs: add mvp delivery roadmap`
-- `57b2763 docs: add mvp product requirements`
-
-Known implementation deviations or adaptations:
-
-- The current Agent Service sends heartbeat through an HTTP POST loop to `/api/devices/{deviceId}/heartbeat`.
-- The backend then broadcasts device status through SignalR.
-- The full architecture still requires an outgoing Agent SignalR/WebSocket connection for realtime command and state flow. That is not implemented yet and should be a focused follow-up plan.
-- `dotnet new sln` on this .NET 10 SDK defaulted to `.slnx`, so the solution was created with `--format sln`.
-- `Microsoft.Extensions.Http` was added to `AFK4.Agent.Service` because `AddHttpClient`/`IHttpClientFactory` are required by the planned Worker.
-
-Latest verified state:
-
-- `dotnet build AFK4.sln --no-restore` succeeds with 0 warnings and 0 errors.
-- `dotnet test AFK4.sln --no-restore` succeeds with 14 passing tests.
-
-Recommended next implementation target:
-
-1. Decide whether to merge `feature/vertical-slice` back into `main`.
-2. Create a focused plan for Agent SignalR/WebSocket connection, command channel, and Operator App realtime subscription.
-3. Do not jump into billing, POS, updates, identity, or Windows enforcement before the realtime foundation decision is resolved unless the user explicitly reprioritizes.
+- `docs/progress/2026-05-12-vertical-slice-progress.md`
 
 ## Local Tooling
 
