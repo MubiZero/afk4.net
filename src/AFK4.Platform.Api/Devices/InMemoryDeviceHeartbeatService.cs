@@ -19,7 +19,7 @@ public sealed class InMemoryDeviceHeartbeatService(IHubContext<DeviceHub> hubCon
             IsLocked: request.IsLocked,
             ObservedAtUtc: request.ObservedAtUtc);
 
-        await hubContext.Clients.All.SendAsync("deviceStatusChanged", status, cancellationToken);
+        await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
 
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: DateTimeOffset.UtcNow,
