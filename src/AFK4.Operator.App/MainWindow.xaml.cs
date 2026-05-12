@@ -1,4 +1,7 @@
+using System.Net.Http;
 using System.Windows;
+using AFK4.Operator.App.Auth;
+using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Realtime;
 
@@ -6,12 +9,20 @@ namespace AFK4.Operator.App;
 
 public partial class MainWindow : Window
 {
-    private readonly MainWindowViewModel viewModel = new();
+    private readonly HttpClient apiHttpClient = new()
+    {
+        BaseAddress = new Uri("http://localhost:5074")
+    };
+
+    private readonly MainWindowViewModel viewModel;
     private IOperatorRealtimeClient? realtimeClient;
 
     public MainWindow()
     {
         InitializeComponent();
+        viewModel = new MainWindowViewModel(new HttpOperatorDeviceApiClient(
+            apiHttpClient,
+            new ProtectedDataOperatorTokenStore()));
         DataContext = viewModel;
 
         Loaded += OnLoaded;
@@ -32,5 +43,7 @@ public partial class MainWindow : Window
         {
             await realtimeClient.DisposeAsync();
         }
+
+        apiHttpClient.Dispose();
     }
 }

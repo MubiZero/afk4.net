@@ -129,8 +129,11 @@ The current vertical slice exposes:
 managers, technicians, accountants, and owners depending on permissions.
 
 The main working screen is the floor map. The current shell shows static seat
-cards and establishes the MVVM structure that later connects to backend state,
-SignalR updates, session actions, POS, players, shifts, and settings.
+cards, applies SignalR device status updates, stores staff tokens through
+Windows-protected storage, and includes a focused technician panel for device
+enrollment, command status inspection, and credential lifecycle operations.
+Later slices connect session actions, POS, players, shifts, settings, and
+role-aware navigation.
 
 ### Agent Service
 
@@ -271,6 +274,9 @@ The first vertical slice foundation is implemented:
 - branch-scoped authorization and audit for device credential rotation and
   revocation endpoints;
 - Operator App Windows-protected token storage abstraction;
+- Operator App typed device API client and technician panel for enrollment-code
+  creation, command dispatch/status inspection, and credential
+  rotation/revocation;
 - device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
 - persisted device heartbeat state and command status tracking;
@@ -283,8 +289,8 @@ Not implemented yet:
 - staff management workflows, custom roles, and role editing UI;
 - authorization coverage for every future operator-facing backend endpoint as
   it is added;
-- Operator App technician workflows for enrollment, credential lifecycle, and
-  command status inspection;
+- Operator App sign-in UI and role-aware navigation;
+- automatic Agent-side consumption of rotated credentials;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;
 - audit search and reports;

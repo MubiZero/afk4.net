@@ -1,7 +1,7 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 2 identity, tenancy, RBAC, audit, and device credential lifecycle
-backend baseline continued on
+Status: Phase 2 identity, tenancy, RBAC, audit, device credential lifecycle,
+and Operator technician workflows continued on
 `codex/phase2-identity-tenancy-rbac-audit`
 Last updated: 2026-05-12
 
@@ -156,6 +156,15 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `892c3d3`:
   for access and refresh token snapshots.
 - Updated API tests so device enrollment and heartbeat setup use an authorized
   technician before creating enrollment codes.
+- Added a shared Operator-facing `DispatchDeviceCommandRequest` contract.
+- Added Operator App typed device API client coverage for:
+  - bearer-authenticated enrollment-code creation;
+  - device command dispatch;
+  - device command status inspection;
+  - credential rotation;
+  - credential revocation.
+- Added a dense WPF/MVVM technician panel on the existing floor-map shell for
+  enrollment, command status, and credential lifecycle workflows.
 
 ## Known Deviations And Adaptations
 
@@ -202,21 +211,59 @@ Known limitations:
   staff identity, branch-scoped permission checks, and audit;
 - device credential rotation and revocation endpoints are now protected by
   staff identity, branch-scoped permission checks, and audit;
-- Operator App technician workflows for enrollment, credential lifecycle, and
-  status inspection are not implemented yet.
+- Operator App now has initial technician workflows for enrollment-code
+  creation, command dispatch/status inspection, and credential
+  rotation/revocation, backed by staff bearer tokens loaded from protected
+  token storage;
+- the technician panel is still a focused Phase 2 surface, not a full device
+  management/settings area or web admin replacement.
 
 ### Phase 2 Baseline Scope
 
-The current Phase 2 work is still a backend-first baseline plus the first
-Operator App credential storage primitive. It does not yet include:
+The current Phase 2 work is still a baseline plus the first focused Operator
+App technician workflows. It does not yet include:
 
+- Operator App sign-in UI and role-aware navigation;
 - staff management workflows;
 - custom role editing;
 - audit search or reports;
+- automatic Agent-side consumption of rotated credentials;
 - authorization coverage for every future operator-facing endpoint as it is
   added.
 
 ## Latest Verified State
+
+Full verification was run from `D:\afk4.net` on 2026-05-12 after the Operator
+App technician workflow changes:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- build succeeded with 0 warnings and 0 errors;
+- tests passed with 81 visible passing tests, 0 failed, 0 skipped.
+
+Targeted TDD verification for the Operator technician workflows was also run
+for:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter DispatchDeviceCommandRequestSerializationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --filter "OperatorDeviceApiClientTests|TechnicianDeviceWorkflowViewModelTests" --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- `DispatchDeviceCommandRequestSerializationTests` failed first because the
+  shared command request contract did not exist, then passed after GREEN;
+- `OperatorDeviceApiClientTests` and
+  `TechnicianDeviceWorkflowViewModelTests` failed first because the Operator
+  device client and technician ViewModel did not exist, then passed after
+  GREEN;
+- full Operator App tests passed with 19 visible passing tests.
 
 Full verification was run from `D:\afk4.net` on 2026-05-12 after the Phase 2
 device credential lifecycle changes:
@@ -384,9 +431,10 @@ channel:
   `Accepted`;
 - backend and Agent smoke processes were stopped after verification.
 
-WPF Operator App live smoke was not run in this subagent environment. The
-automated Operator App tests are the current proof for the dispatcher-safe
-realtime status state path and startup failure handling.
+WPF Operator App live smoke was not run in this environment. The automated
+Operator App tests are the current proof for the dispatcher-safe realtime
+status state path, startup failure handling, protected token storage, typed
+device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
@@ -404,9 +452,11 @@ realtime status state path and startup failure handling.
 
 ## Recommended Next Work
 
-1. Add Operator App technician workflows for enrollment, credential lifecycle,
-   and command status inspection.
-2. Add staff management workflows and custom role editing in the Operator App.
-3. Add audit search/report workflows for owner, manager, and auditor roles.
-4. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
+1. Add Operator App sign-in UI and role-aware startup so staff can acquire the
+   protected bearer/refresh token snapshot without manual setup.
+2. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
    credentials without manual configuration.
+3. Add Agent credential lifecycle consumption so rotated credentials can be
+   delivered and stored safely on enrolled PCs.
+4. Add staff management workflows and custom role editing in the Operator App.
+5. Add audit search/report workflows for owner, manager, and auditor roles.
