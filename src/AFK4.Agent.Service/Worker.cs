@@ -7,11 +7,14 @@ namespace AFK4.Agent.Service;
 public sealed class Worker(
     ILogger<Worker> logger,
     IHttpClientFactory httpClientFactory,
-    IOptions<AgentOptions> options) : BackgroundService
+    IOptions<AgentOptions> options,
+    DeviceRealtimeClient realtimeClient) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var agentOptions = options.Value;
+        await realtimeClient.StartAsync(stoppingToken);
+
         var client = httpClientFactory.CreateClient("platform");
         client.BaseAddress = agentOptions.PlatformBaseUrl;
 
@@ -30,5 +33,11 @@ public sealed class Worker(
             logger.LogInformation("Heartbeat sent for {DeviceId}. Next heartbeat in {IntervalSeconds}s.", agentOptions.DeviceId, intervalSeconds);
             await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
         }
+    }
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        await realtimeClient.DisposeAsync();
+        await base.StopAsync(cancellationToken);
     }
 }
