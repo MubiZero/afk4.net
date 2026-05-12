@@ -3,7 +3,8 @@
 This runbook verifies the current AFK4 identity, audit, and device persistence
 slice against a real local PostgreSQL database. It covers EF migration
 application, staff sign-in, authorized device enrollment-code creation, device
-enrollment, authenticated heartbeat persistence, and command status storage.
+enrollment, authenticated heartbeat persistence, command status storage, and
+staff-protected device credential rotation/revocation.
 
 The commands assume PowerShell from the repository root:
 
@@ -269,16 +270,47 @@ $status = Invoke-RestMethod `
     -Headers $staffHeaders
 ```
 
+Rotate the device credential, then verify the new secret can authenticate a
+heartbeat:
+
+```powershell
+$rotatedCredential = Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)/credentials/rotate" `
+    -Method Post `
+    -Headers $staffHeaders
+
+$rotatedHeartbeat = Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)/heartbeat" `
+    -Method Post `
+    -Headers @{ 'X-AFK4-Device-Credential' = $rotatedCredential.credentialSecret } `
+    -ContentType 'application/json' `
+    -Body $heartbeatBody
+```
+
+Revoke the rotated credential:
+
+```powershell
+$revokedCredential = Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)/credentials/$($rotatedCredential.credentialId)/revoke" `
+    -Method Post `
+    -Headers $staffHeaders
+```
+
 Expected results:
 
 - health returns `status = ok`;
 - staff sign-in returns non-empty `accessToken` and `refreshToken`, and
-  includes `devices.enrollment_codes.create` in `permissions`;
+  includes `devices.enrollment_codes.create`, `devices.credentials.rotate`,
+  and `devices.credentials.revoke` in `permissions`;
 - refresh returns a new non-empty `accessToken` and `refreshToken`;
 - enrollment returns non-empty `deviceId`, `credentialId`, and
   `credentialSecret`;
 - heartbeat returns `heartbeatIntervalSeconds = 10`;
 - command status returns `status = Pending` and `type = lock`.
+- rotation returns a new non-empty `credentialId` and `credentialSecret`;
+- heartbeat with the rotated credential returns `heartbeatIntervalSeconds = 10`;
+- revocation returns the rotated `credentialId` and a non-empty
+  `revokedAtUtc`.
 
 Optionally inspect recent audit records for the protected staff actions:
 
@@ -289,18 +321,33 @@ FROM audit_records
 WHERE "Action" IN (
     'devices.enrollment_codes.create',
     'devices.commands.dispatch',
-    'devices.commands.status.view')
+    'devices.commands.status.view',
+    'devices.credentials.rotate',
+    'devices.credentials.revoke')
 ORDER BY "CreatedAtUtc" DESC
-LIMIT 3;
+LIMIT 5;
 '@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
 ```
 
 Expected:
 
 ```text
+devices.credentials.revoke       | Succeeded | ...
+devices.credentials.rotate       | Succeeded | ...
 devices.commands.status.view     | Succeeded | ...
 devices.commands.dispatch        | Succeeded | ...
 devices.enrollment_codes.create  | Succeeded | AFK4-...
+```
+
+Optionally inspect credential revocation state:
+
+```powershell
+@"
+SELECT "CredentialId", "RevokedAtUtc"
+FROM device_credentials
+WHERE "DeviceId" = '$($enrollment.deviceId)'
+ORDER BY "CreatedAtUtc";
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
 ```
 
 ## Stop Local Services

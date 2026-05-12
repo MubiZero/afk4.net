@@ -115,6 +115,10 @@ The current vertical slice exposes:
   `devices.commands.dispatch`
 - `GET /api/devices/{deviceId}/commands/{commandId}/status` with staff bearer
   token permission `devices.commands.status.view`
+- `POST /api/devices/{deviceId}/credentials/rotate` with staff bearer token
+  permission `devices.credentials.rotate`
+- `POST /api/devices/{deviceId}/credentials/{credentialId}/revoke` with staff
+  bearer token permission `devices.credentials.revoke`
 - SignalR hub at `/hubs/devices`
 - SignalR client event `deviceStatusChanged`
 - SignalR device command events `deviceCommand` and `deviceCommandResult`
@@ -133,9 +137,9 @@ SignalR updates, session actions, POS, players, shifts, and settings.
 `AFK4.Agent.Service` is the Windows service skeleton for gaming PCs. It creates
 heartbeat payloads, sends enrollment-issued device credentials, posts
 heartbeats to the backend, and connects to the realtime device hub. Later slices
-add installer enrollment bootstrap, credential revocation, lock/unlock
-enforcement, process policy, session lease validation, reconnect reconciliation,
-watchdog behavior, and updates.
+add installer enrollment bootstrap, local credential lifecycle workflows,
+lock/unlock enforcement, process policy, session lease validation, reconnect
+reconciliation, watchdog behavior, and updates.
 
 ### Player Shell
 
@@ -243,7 +247,8 @@ dotnet run --project src/AFK4.Agent.Service/AFK4.Agent.Service.csproj
 The Agent currently needs enrollment-derived `Agent:DeviceId` and
 `Agent:DeviceCredentialSecret` values from configuration or environment
 variables before authenticated heartbeats succeed. Real installer bootstrap,
-credential rotation, and revocation are intentionally deferred to later slices.
+Operator/Agent credential lifecycle workflows, and automated credential
+propagation are intentionally deferred to later slices.
 
 ## Current Implementation State
 
@@ -263,6 +268,8 @@ The first vertical slice foundation is implemented:
   command dispatch/status endpoints;
 - audit records for allowed and denied enrollment-code creation and device
   command dispatch/status attempts;
+- branch-scoped authorization and audit for device credential rotation and
+  revocation endpoints;
 - Operator App Windows-protected token storage abstraction;
 - device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
@@ -276,7 +283,8 @@ Not implemented yet:
 - staff management workflows, custom roles, and role editing UI;
 - authorization coverage for every future operator-facing backend endpoint as
   it is added;
-- credential revocation and rotation;
+- Operator App technician workflows for enrollment, credential lifecycle, and
+  command status inspection;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;
 - audit search and reports;

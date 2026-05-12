@@ -1,6 +1,7 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 2 identity, tenancy, RBAC, and audit backend baseline started on
+Status: Phase 2 identity, tenancy, RBAC, audit, and device credential lifecycle
+backend baseline continued on
 `codex/phase2-identity-tenancy-rbac-audit`
 Last updated: 2026-05-12
 
@@ -140,6 +141,17 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `892c3d3`:
     `devices.commands.dispatch`;
   - `GET /api/devices/{deviceId}/commands/{commandId}/status` with
     `devices.commands.status.view`.
+- Added shared contracts for credential rotation and revocation responses.
+- Added `EfDeviceCredentialLifecycleService`:
+  - rotation revokes current active credentials and issues a new hashed-secret
+    credential;
+  - revocation marks the target credential with `RevokedAtUtc`;
+  - existing credential validation rejects revoked credentials.
+- Added staff authorization and audit coverage for:
+  - `POST /api/devices/{deviceId}/credentials/rotate` with
+    `devices.credentials.rotate`;
+  - `POST /api/devices/{deviceId}/credentials/{credentialId}/revoke` with
+    `devices.credentials.revoke`.
 - Added Operator App protected token storage abstraction using Windows DPAPI
   for access and refresh token snapshots.
 - Updated API tests so device enrollment and heartbeat setup use an authorized
@@ -188,9 +200,10 @@ Known limitations:
   permission checks, and audit;
 - device command dispatch and command status endpoints are now protected by
   staff identity, branch-scoped permission checks, and audit;
-- device credential revocation and rotation are not implemented yet;
-- Operator App technician workflows for enrollment and status inspection are
-  not implemented yet.
+- device credential rotation and revocation endpoints are now protected by
+  staff identity, branch-scoped permission checks, and audit;
+- Operator App technician workflows for enrollment, credential lifecycle, and
+  status inspection are not implemented yet.
 
 ### Phase 2 Baseline Scope
 
@@ -206,8 +219,7 @@ Operator App credential storage primitive. It does not yet include:
 ## Latest Verified State
 
 Full verification was run from `D:\afk4.net` on 2026-05-12 after the Phase 2
-refresh-token, Operator token storage, and device command authorization
-changes:
+device credential lifecycle changes:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -217,32 +229,65 @@ changes:
 Results:
 
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 61 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 70 visible passing tests, 0 failed, 0 skipped.
 
-Targeted TDD verification was also run for:
+Targeted TDD verification for device credential lifecycle was also run for:
 
 ```powershell
-& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter StaffAuthContractSerializationTests --no-restore -p:UseSharedCompilation=false
-& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter AuditRecordWriterTests --no-restore -p:UseSharedCompilation=false
-& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter StaffAuthenticationEndpointTests --no-restore -p:UseSharedCompilation=false
-& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter DeviceEnrollmentAuthorizationTests --no-restore -p:UseSharedCompilation=false
-& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --filter OperatorTokenStoreTests --no-restore -p:UseSharedCompilation=false
-& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter DeviceCommandEndpointTests --no-restore -p:UseSharedCompilation=false
-& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter DeviceCredentialLifecycleContractSerializationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter EfDeviceCredentialLifecycleServiceTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter DeviceCredentialLifecycleEndpointTests --no-restore -p:UseSharedCompilation=false
 ```
 
 Results:
 
-- staff auth contract test passed after the contract RED/GREEN cycle;
-- audit writer test passed after the audit persistence RED/GREEN cycle;
-- staff sign-in endpoint test passed after the identity RED/GREEN cycle;
-- device enrollment authorization tests passed after the RBAC/audit
-  RED/GREEN cycle.
-- refresh token contract and endpoint tests passed after RED/GREEN cycles;
-- Operator token store test passed after the protected storage RED/GREEN cycle;
-- device command authorization/audit tests passed after the endpoint
-  RED/GREEN cycle;
-- the full Platform API test project passed with 30 visible passing tests.
+- credential lifecycle contract tests passed after the contract RED/GREEN
+  cycle;
+- EF credential lifecycle service tests passed after the service RED/GREEN
+  cycle;
+- credential rotation/revocation endpoint authorization and audit tests passed
+  after the endpoint RED/GREEN cycle;
+- the full Platform API test project now has 37 visible passing tests.
+
+The local PostgreSQL live smoke was rerun from `D:\afk4.net` on 2026-05-12
+after the device credential lifecycle changes:
+
+```powershell
+docker compose up -d postgres
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+& 'C:\Program Files\dotnet\dotnet.exe' run --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --urls http://localhost:5074
+```
+
+Live smoke results:
+
+- PostgreSQL healthcheck reached `healthy`.
+- EF database update completed; no new migration was required for credential
+  lifecycle because `device_credentials.RevokedAtUtc` already existed.
+- `GET /api/health` returned status `ok`.
+- local technician sign-in and refresh returned non-empty access tokens.
+- bearer-authenticated
+  `POST /api/branches/{branchId}/device-enrollment-codes` returned enrollment
+  code `AFK4-F8B7-973E65CD9C33`.
+- `POST /api/devices/enroll` returned device
+  `d72f0084-4445-485e-8463-f3c2b4cefdd2`.
+- authenticated `POST /api/devices/{deviceId}/heartbeat` returned heartbeat
+  interval `10`.
+- bearer-authenticated `POST /api/devices/{deviceId}/commands` followed by
+  command status read returned `Pending`.
+- bearer-authenticated
+  `POST /api/devices/{deviceId}/credentials/rotate` returned credential
+  `ba299c3c-c8c2-4a08-833e-d684ce6eb8a0`.
+- heartbeat with the rotated credential returned heartbeat interval `10`.
+- bearer-authenticated
+  `POST /api/devices/{deviceId}/credentials/{credentialId}/revoke` returned
+  the rotated credential id.
+- Direct PostgreSQL reads confirmed succeeded audit rows for enrollment-code
+  creation, device command dispatch/status, credential rotation, and credential
+  revocation.
+- Direct PostgreSQL reads confirmed two revoked credential rows for the smoke
+  device after rotation plus revocation.
+- The API process was stopped after smoke verification.
+- PostgreSQL was stopped with `docker compose down`; the named volume was kept.
 
 The local PostgreSQL live smoke was rerun from `D:\afk4.net` on 2026-05-12
 after the Phase 2 refresh-token and command authorization changes:
@@ -359,8 +404,8 @@ realtime status state path and startup failure handling.
 
 ## Recommended Next Work
 
-1. Add credential revocation/rotation and Operator App technician workflows for
-   enrollment and command status inspection.
+1. Add Operator App technician workflows for enrollment, credential lifecycle,
+   and command status inspection.
 2. Add staff management workflows and custom role editing in the Operator App.
 3. Add audit search/report workflows for owner, manager, and auditor roles.
 4. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store

@@ -7,4 +7,8 @@ public static class AuditActionNames
     public const string DispatchDeviceCommand = "devices.commands.dispatch";
 
     public const string ViewDeviceCommandStatus = "devices.commands.status.view";
+
+    public const string RotateDeviceCredential = "devices.credentials.rotate";
+
+    public const string RevokeDeviceCredential = "devices.credentials.revoke";
 }

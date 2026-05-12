@@ -23,6 +23,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<EfDeviceEnrollmentService>();
 builder.Services.AddScoped<IDeviceEnrollmentService>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
 builder.Services.AddScoped<IDeviceCredentialValidator>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
+builder.Services.AddScoped<IDeviceCredentialLifecycleService, EfDeviceCredentialLifecycleService>();
 builder.Services.AddScoped<IDeviceCommandStore, EfDeviceCommandStore>();
 builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectionRegistry>();
 builder.Services.AddScoped<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
@@ -344,6 +345,156 @@ app.MapGet("/api/devices/{deviceId:guid}/commands/{commandId:guid}/status", asyn
         cancellationToken);
 
     return Results.Ok(status);
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/credentials/rotate", async (
+    Guid deviceId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IDeviceCredentialLifecycleService credentialLifecycleService,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var device = await dbContext.Devices
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
+
+    if (device is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        device.BranchId,
+        StaffPermissionNames.RotateDeviceCredential,
+        cancellationToken);
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: authorization.StaffContext!.OrganizationId,
+            BranchId: device.BranchId,
+            ActorStaffUserId: authorization.StaffContext.StaffUserId,
+            Action: AuditActionNames.RotateDeviceCredential,
+            TargetType: "Device",
+            TargetId: deviceId.ToString("D"),
+            Outcome: AuditOutcome.Denied,
+            SourceApp: "PlatformApi",
+            DetailsJson: JsonSerializer.Serialize(new
+            {
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var rotated = await credentialLifecycleService.RotateAsync(deviceId, cancellationToken);
+
+    if (rotated is null)
+    {
+        return Results.NotFound();
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: authorization.StaffContext!.OrganizationId,
+        BranchId: device.BranchId,
+        ActorStaffUserId: authorization.StaffContext.StaffUserId,
+        Action: AuditActionNames.RotateDeviceCredential,
+        TargetType: "DeviceCredential",
+        TargetId: rotated.CredentialId.ToString("D"),
+        Outcome: AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: JsonSerializer.Serialize(new
+        {
+            DeviceId = deviceId
+        })),
+        cancellationToken);
+
+    return Results.Ok(rotated);
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/credentials/{credentialId:guid}/revoke", async (
+    Guid deviceId,
+    Guid credentialId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IDeviceCredentialLifecycleService credentialLifecycleService,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var credential = await dbContext.DeviceCredentials
+        .AsNoTracking()
+        .SingleOrDefaultAsync(
+            candidate => candidate.DeviceId == deviceId && candidate.CredentialId == credentialId,
+            cancellationToken);
+
+    if (credential is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        credential.BranchId,
+        StaffPermissionNames.RevokeDeviceCredential,
+        cancellationToken);
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: authorization.StaffContext!.OrganizationId,
+            BranchId: credential.BranchId,
+            ActorStaffUserId: authorization.StaffContext.StaffUserId,
+            Action: AuditActionNames.RevokeDeviceCredential,
+            TargetType: "DeviceCredential",
+            TargetId: credentialId.ToString("D"),
+            Outcome: AuditOutcome.Denied,
+            SourceApp: "PlatformApi",
+            DetailsJson: JsonSerializer.Serialize(new
+            {
+                DeviceId = deviceId,
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var revoked = await credentialLifecycleService.RevokeAsync(deviceId, credentialId, cancellationToken);
+
+    if (revoked is null)
+    {
+        return Results.NotFound();
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: authorization.StaffContext!.OrganizationId,
+        BranchId: credential.BranchId,
+        ActorStaffUserId: authorization.StaffContext.StaffUserId,
+        Action: AuditActionNames.RevokeDeviceCredential,
+        TargetType: "DeviceCredential",
+        TargetId: credentialId.ToString("D"),
+        Outcome: AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: JsonSerializer.Serialize(new
+        {
+            DeviceId = deviceId
+        })),
+        cancellationToken);
+
+    return Results.Ok(revoked);
 });
 
 app.MapHub<DeviceHub>("/hubs/devices");

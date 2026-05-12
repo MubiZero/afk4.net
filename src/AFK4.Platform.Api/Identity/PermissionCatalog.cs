@@ -12,6 +12,8 @@ public static class PermissionCatalog
                 StaffPermissionNames.CreateDeviceEnrollmentCode,
                 StaffPermissionNames.DispatchDeviceCommand,
                 StaffPermissionNames.ViewDeviceCommandStatus,
+                StaffPermissionNames.RotateDeviceCredential,
+                StaffPermissionNames.RevokeDeviceCredential,
                 StaffPermissionNames.ViewFloorMap,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit
@@ -21,6 +23,8 @@ public static class PermissionCatalog
                 StaffPermissionNames.CreateDeviceEnrollmentCode,
                 StaffPermissionNames.DispatchDeviceCommand,
                 StaffPermissionNames.ViewDeviceCommandStatus,
+                StaffPermissionNames.RotateDeviceCredential,
+                StaffPermissionNames.RevokeDeviceCredential,
                 StaffPermissionNames.ViewFloorMap,
                 StaffPermissionNames.ViewAudit
             },
@@ -39,6 +43,8 @@ public static class PermissionCatalog
                 StaffPermissionNames.CreateDeviceEnrollmentCode,
                 StaffPermissionNames.DispatchDeviceCommand,
                 StaffPermissionNames.ViewDeviceCommandStatus,
+                StaffPermissionNames.RotateDeviceCredential,
+                StaffPermissionNames.RevokeDeviceCredential,
                 StaffPermissionNames.ViewFloorMap
             },
             [StaffRoleNames.AccountantAuditor] = new HashSet<string>
