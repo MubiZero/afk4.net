@@ -437,9 +437,7 @@ Known limitations:
   existing device command path, but offline local event replay is not yet
   modeled beyond `PendingLocalEventCount`;
 - session lifecycle audit is written for staff commands, while reconciliation
-  is captured in `session_events`;
-- local PostgreSQL Phase 4 smoke instructions are documented but have not yet
-  been rerun in this branch.
+  is captured in `session_events`.
 
 ## Latest Verified State
 
@@ -475,8 +473,48 @@ Results:
 The Phase 4 local PostgreSQL smoke path was documented in
 `docs/operations/local-postgres-smoke.md`, including signed lease key
 configuration, idempotent start/extend/end, optional transfer, reconciliation,
-and direct session table inspection. A live PostgreSQL smoke run has not yet
-been rerun for Phase 4 in this branch.
+and direct session table inspection.
+
+The Phase 4 local PostgreSQL live smoke was run from `D:\afk4.net` on
+2026-05-13 using a temporary PostgreSQL container on `localhost:55432` because
+port `5432` was already occupied by another Docker project:
+
+```powershell
+docker run --rm -d --name afk4-phase4-smoke-postgres -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=afk4_dev -p 55432:5432 postgres:17-alpine
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --connection "Host=localhost;Port=55432;Database=afk4_dev;Username=postgres"
+& 'C:\Program Files\dotnet\dotnet.exe' run --no-launch-profile --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --urls http://localhost:5074
+```
+
+Live smoke results:
+
+- EF migrations applied through `20260513064045_AddSessions`.
+- Platform API health returned `status = ok`.
+- Local branch manager sign-in and refresh returned bearer tokens with session
+  permissions.
+- Device enrollment-code creation, device enrollment, and device-authenticated
+  heartbeat succeeded.
+- Seeded zone `Main Hall`, seat `PC-SMOKE-001`, and active device-seat
+  assignment were returned by the persisted floor-map endpoint.
+- `POST /api/branches/{branchId}/sessions/start` returned an active session
+  with a signed lease.
+- Repeating start with idempotency key `smoke-start-001` returned the same
+  `sessionId`.
+- `POST /api/sessions/{sessionId}/extend` returned a refreshed signed lease
+  with sequence `2`.
+- Active device reconciliation returned action `continue`.
+- `POST /api/sessions/{sessionId}/end` moved the session to `ending`.
+- Ending-state reconciliation returned action `lock`.
+- Direct PostgreSQL inspection confirmed:
+  - one `sessions` row in `ending` state;
+  - two `session_leases` rows with non-empty signatures;
+  - `session-started`, `session-extended`, `device-reconciled`, and
+    `session-ending` rows in `session_events`;
+  - `start`, `extend`, and `end` rows in `session_command_idempotency`;
+  - `unlock`, `refresh-session-lease`, and `lock` rows in `device_commands`;
+  - succeeded audit rows for session start, repeated start, extend, and end.
+- The API process was stopped after smoke verification.
+- The temporary PostgreSQL container was stopped and removed, and the temporary
+  lease-signing private key file was deleted.
 
 Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 3
 local PostgreSQL smoke path update:
