@@ -60,6 +60,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<CashMovementEntity> CashMovements => Set<CashMovementEntity>();
 
+    public DbSet<PosProductCategoryEntity> PosProductCategories => Set<PosProductCategoryEntity>();
+
+    public DbSet<PosProductEntity> PosProducts => Set<PosProductEntity>();
+
+    public DbSet<StockMovementEntity> StockMovements => Set<StockMovementEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -380,6 +386,56 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(movement => movement.CurrencyCode).HasMaxLength(3).IsRequired();
             entity.Property(movement => movement.Reason).HasMaxLength(512).IsRequired();
             entity.HasIndex(movement => new { movement.ShiftId, movement.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<PosProductCategoryEntity>(entity =>
+        {
+            entity.ToTable("pos_product_categories");
+            entity.HasKey(category => category.CategoryId);
+            entity.Property(category => category.Name).HasMaxLength(160).IsRequired();
+            entity.HasIndex(category => new
+            {
+                category.OrganizationId,
+                category.BranchId,
+                category.Name
+            }).IsUnique();
+        });
+
+        modelBuilder.Entity<PosProductEntity>(entity =>
+        {
+            entity.ToTable("pos_products");
+            entity.HasKey(product => product.ProductId);
+            entity.Property(product => product.Name).HasMaxLength(160).IsRequired();
+            entity.Property(product => product.Sku).HasMaxLength(80).IsRequired();
+            entity.Property(product => product.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasIndex(product => new
+            {
+                product.OrganizationId,
+                product.BranchId,
+                product.Sku
+            }).IsUnique();
+            entity.HasIndex(product => new
+            {
+                product.OrganizationId,
+                product.BranchId,
+                product.CategoryId
+            });
+        });
+
+        modelBuilder.Entity<StockMovementEntity>(entity =>
+        {
+            entity.ToTable("stock_movements");
+            entity.HasKey(movement => movement.StockMovementId);
+            entity.Property(movement => movement.MovementType).HasMaxLength(32).IsRequired();
+            entity.Property(movement => movement.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(movement => movement.Reason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(movement => new { movement.ProductId, movement.CreatedAtUtc });
+            entity.HasIndex(movement => new
+            {
+                movement.OrganizationId,
+                movement.BranchId,
+                movement.CreatedAtUtc
+            });
         });
     }
 }
