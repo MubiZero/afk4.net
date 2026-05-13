@@ -1,8 +1,8 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 6 POS, inventory, shifts, receipts, and protected backend
-endpoints are implemented, locally verified, live PostgreSQL smoked, and
-fast-forward merged to `main` at `fc762ea`.
+Status: Phase 7 Operator App Production UX is implemented on
+`codex/phase7-operator-app-production-ux`, locally verified, and live
+PostgreSQL operator-workflow smoked through the API-backed WPF ViewModel paths.
 Last updated: 2026-05-14
 
 ## Scope
@@ -27,6 +27,129 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-13-afk4-phase5-billing-ledger-tariffs-packages.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase6-pos-inventory-shifts-receipts.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase7-operator-app-production-ux.md`
+
+## Phase 7 Operator App Production UX
+
+Started on `codex/phase7-operator-app-production-ux` after `main` commit
+`fc762ea`.
+
+- Added the focused Phase 7 implementation plan at
+  `docs/superpowers/plans/2026-05-13-afk4-phase7-operator-app-production-ux.md`.
+- Replaced the Operator App static shell with authenticated WPF/MVVM operator
+  workspaces:
+  - staff sign-in and protected token storage;
+  - permission-filtered navigation;
+  - realtime floor-map loading and device-status merge;
+  - selected-seat session context actions;
+  - player search, player creation, wallet top-up, debt payment, and package
+    summary refresh;
+  - POS catalog, cart, cash/card-manual payment, refund, void, sale read, and
+    receipt read workflow;
+  - shift open/current/cash movement/close workflow;
+  - settings workspace with connection, device technician tools, POS catalog,
+    stock, tariffs, packages, roles, and audit panels filtered by permission;
+  - production hotkeys for floor map, session actions, refresh, POS, players,
+    shifts, sign-out, and transient selection clearing.
+- Added backend Operator reference read endpoints for player search, tariff
+  options, and package options, with branch permission checks and denied audit
+  coverage.
+- Kept the backend authoritative for sessions, money, POS, shifts, and device
+  state; Operator App state remains UI acceleration only.
+
+Phase 7 commits on the branch:
+
+- `7db9525 docs: add phase 7 operator ux plan`
+- `97f21c1 feat: add operator auth shell`
+- `c9be82e feat: load realtime operator floor map`
+- `ccf1ca1 feat: add operator session context actions`
+- `e3f5dec feat: add operator reference data endpoints`
+- `05e4a82 feat: add operator player search workflow`
+- `d87f754 feat: add operator pos workflow`
+- `ca1040b feat: add operator shift workflow`
+- `bf6836f feat: add operator settings workspace`
+- `62aec89 feat: integrate operator production layout`
+
+Final Phase 7 verification was run from `D:\afk4.net` on 2026-05-14:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter OperatorReferenceContractSerializationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter OperatorReferenceDataEndpointTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- Operator reference shared contract tests passed 3/3.
+- Operator reference Platform API endpoint tests passed 4/4.
+- Operator App tests passed 87/87.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 409/409:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 56/56;
+  - Operator.App 87/87;
+  - Agent.Service 25/25;
+  - Platform.Api 238/238.
+
+The Phase 7 local PostgreSQL operator-workflow smoke was run from
+`D:\afk4.net` on 2026-05-14 against a temporary PostgreSQL 17 container on
+localhost port `55435` and Platform API on `http://localhost:5074`. A temporary
+ECDSA PEM key pair was generated with Git for Windows OpenSSL for session lease
+signing. EF migrations were applied through
+`20260513170215_AddPosInventoryShiftsReceipts`.
+
+Smoke commands included:
+
+```powershell
+docker run --rm -d --name afk4-phase7-smoke-postgres -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=afk4_dev -p 55435:5432 postgres:17-alpine
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --connection "Host=localhost;Port=55435;Database=afk4_dev;Username=postgres" --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+& 'C:\Program Files\dotnet\dotnet.exe' run --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --urls http://localhost:5074 --no-build
+```
+
+The smoke harness then exercised the API paths consumed by the WPF Operator
+App ViewModels.
+
+Live smoke results:
+
+- `GET /api/health` returned `ok`.
+- Branch manager sign-in returned 37 permissions.
+- Cashier/operator sign-in returned 19 permissions and did not include
+  manager-only settings permissions such as `identity.roles.manage`,
+  `pos.catalog.manage`, or `devices.detail.view`.
+- Device enrollment and credential-authenticated heartbeat succeeded.
+- Floor map returned seeded seat `PC-PHASE7-001` in `Main Hall` with the
+  enrolled device assignment.
+- Shift open/current succeeded.
+- Player creation and player search returned one matching smoke player.
+- POS category/product creation, stock purchase movement, and catalog read
+  succeeded; catalog returned stock on hand `24`.
+- Tariff creation/version/calculation, tariff options, package definition, and
+  package options succeeded.
+- Prepaid wallet top-up succeeded with wallet balance `100000`.
+- Session start returned state `active`, floor map showed the active session,
+  session extend returned the same session id, and session end accepted the
+  session command.
+- POS sale create/pay/read and receipt read succeeded; paid sale state was
+  `paid` and receipt number was `POS-20260513-0001`.
+- Device detail read returned assigned seat `PC-PHASE7-001`.
+- Cash movement and shift close succeeded with expected cash `157400`, counted
+  cash `157400`, and difference `0`.
+- The API process, temporary PostgreSQL container, and temporary signing key
+  files were stopped/removed after smoke verification.
+
+Known Phase 7 limitations:
+
+- The live smoke covered the API-backed WPF ViewModel paths and automated
+  Operator App ViewModel tests; a manual interactive WPF desktop smoke was not
+  run in this environment.
+- Agent enforcement and Player Shell production UX remain out of Phase 7 and
+  belong to Phase 8.
+- Centralized updates/installers, reports, audit search, diagnostics, and
+  backup/restore runbooks remain out of Phase 7 and belong to Phase 9.
+- POS payments remain manual/mock; fiscal printers, tax authority integration,
+  card acquirer integration, and external payment gateways remain out of MVP
+  scope unless the PRD and architecture spec change first.
 
 ## Phase 6 POS, Inventory, Shifts, And Receipts
 
@@ -1133,6 +1256,16 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
+- `62aec89 feat: integrate operator production layout`
+- `bf6836f feat: add operator settings workspace`
+- `ca1040b feat: add operator shift workflow`
+- `d87f754 feat: add operator pos workflow`
+- `05e4a82 feat: add operator player search workflow`
+- `e3f5dec feat: add operator reference data endpoints`
+- `ccf1ca1 feat: add operator session context actions`
+- `c9be82e feat: load realtime operator floor map`
+- `97f21c1 feat: add operator auth shell`
+- `7db9525 docs: add phase 7 operator ux plan`
 - `fc762ea fix: reconcile debt payments in shift close`
 - `aa8ddb1 feat: add protected pos shift endpoints`
 - `fbc7006 feat: add pos sale payment receipt service`
@@ -1160,12 +1293,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Plan Phase 7 Operator App Production UX on branch
-   `codex/phase7-operator-app-production-ux`, using the PRD and architecture
-   Phase 7 scope as the boundary.
-2. Implement Phase 7 through WPF/MVVM ViewModel TDD first: realtime floor map
-   state, context panel actions, POS workflow, player search, shift workflow,
-   settings, role-aware navigation, and hotkeys.
-3. Keep Agent enforcement, Player Shell production work, centralized
-   updates/installers, web admin, local server, and microservices out of Phase
-   7 unless the PRD and architecture spec are updated first.
+1. Finish the Phase 7 branch integration path: review, merge to `main`, rerun
+   full build/tests, and delete the feature branch after merge if the branch is
+   accepted.
+2. Plan Phase 8 Agent Enforcement And Player Shell on a new `codex/phase8-*`
+   branch using the PRD and architecture scope as the boundary.
+3. Keep centralized updates/installers, reports, audit search, web admin, local
+   server, and microservices out of Phase 8 unless the PRD and architecture
+   spec are updated first.
