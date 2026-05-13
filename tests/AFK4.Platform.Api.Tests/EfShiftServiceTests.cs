@@ -249,7 +249,7 @@ public sealed class EfShiftServiceTests
         await SeedPaymentAsync(db, shift.ShiftId, PaymentMethodNames.Cash, "refund", -1200);
         await SeedPaymentAsync(db, shift.ShiftId, PaymentMethodNames.CardManual, "payment", 9999);
         await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 10000);
-        await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.DebtPayment, LedgerAccountTypeNames.Debt, 3000);
+        await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.DebtPayment, LedgerAccountTypeNames.Debt, -3000);
         await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.ManualCorrection, LedgerAccountTypeNames.Wallet, -500);
         await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.GameplayCharge, LedgerAccountTypeNames.Wallet, -6000);
 

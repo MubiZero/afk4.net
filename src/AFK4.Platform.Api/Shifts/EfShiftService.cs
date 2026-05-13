@@ -329,7 +329,11 @@ public sealed class EfShiftService(
                     (entry.EntryType == LedgerEntryTypeNames.TopUp ||
                      entry.EntryType == LedgerEntryTypeNames.DebtPayment ||
                      entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
-                .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+                .SumAsync(
+                    entry => (long?)(entry.EntryType == LedgerEntryTypeNames.DebtPayment
+                        ? -entry.AmountMinorUnits
+                        : entry.AmountMinorUnits),
+                    cancellationToken) ?? 0;
             var expectedCash = shift.StartingCashMinorUnits + cashMovementDelta + posCashDelta + billingCashDelta;
             var difference = request.CountedCash.MinorUnits - expectedCash;
             var now = timeProvider.GetUtcNow();

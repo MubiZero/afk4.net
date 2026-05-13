@@ -1,7 +1,7 @@
 # AFK4 Vertical Slice Progress
 
 Status: Phase 6 POS, inventory, shifts, receipts, and protected backend
-endpoints are implemented and locally verified on
+endpoints are implemented, locally verified, and live PostgreSQL smoked on
 `codex/phase6-pos-inventory-shifts-receipts`
 Last updated: 2026-05-13
 
@@ -98,6 +98,11 @@ Results:
 - Targeted Phase 6 Platform API tests passed 42/42 after adding coverage for
   shift close reconciliation with cash movements, POS cash payments/refunds,
   and cash-impacting shift-linked ledger entries.
+- A live PostgreSQL smoke regression found that `debt_payment` ledger entries
+  are stored as negative debt-account movements while they must count as
+  positive cash drawer inflow during shift close reconciliation. The regression
+  test was updated to use the real ledger sign and passed after fixing
+  `EfShiftService`.
 - Full solution build succeeded with 0 warnings and 0 errors.
 - Full solution tests passed 336/336.
 - Scope self-review confirmed no Operator production UX files were changed, no
@@ -108,10 +113,42 @@ Results:
   idempotency coverage, and protected endpoint tests cover allowed and denied
   audit paths.
 
+The Phase 6 local PostgreSQL live smoke was run from `D:\afk4.net` on
+2026-05-13 against a temporary PostgreSQL 17 container on localhost port
+`55434` and Platform API on `http://localhost:5074`. A temporary ECDSA PEM key
+pair was generated with Git for Windows OpenSSL for session lease signing.
+
+Live smoke results:
+
+- EF migrations applied through
+  `20260513170215_AddPosInventoryShiftsReceipts`.
+- Staff sign-in and refresh succeeded for the seeded branch manager, with
+  Phase 6 permissions present.
+- Device enrollment, heartbeat, installed-app report, command dispatch/status,
+  command result, credential rotation, and credential revocation succeeded.
+- Floor map returned the seeded `Main Hall` seat assigned to `PC-SMOKE-001`.
+- Shift open/current, final cash movement, and shift close succeeded; direct
+  PostgreSQL inspection confirmed the closed shift had expected/count/difference
+  cash values `158100/158100/0`.
+- POS category/product creation, purchase stock movement, catalog read, sale
+  create/pay/read/refund, and receipt reads succeeded.
+- Direct PostgreSQL inspection confirmed POS sale state `refunded`, sale total
+  `2400`, one sale line snapshot `Smoke Cola 0.5:2:1200:2400`, cash payment
+  `2400`, cash refund `-2400`, sale receipt `POS-20260513-0001`, refund
+  receipt `REF-20260513-0001`, and stock movements `purchase:24`, `sale:-2`,
+  `refund:2`.
+- Billing, tariff, package, prepaid wallet session start/extend, package
+  extension, postpaid debt start/payment, gameplay refund, active
+  reconciliation, session end, and ending reconciliation succeeded.
+- Direct PostgreSQL inspection confirmed protected Phase 6 audit rows for
+  shift, POS, inventory, device command, and device credential actions.
+- Direct PostgreSQL inspection confirmed `ledger_entries.ShiftId` was populated
+  for all smoke money-changing entries.
+- The API process and temporary PostgreSQL container were stopped after smoke
+  verification.
+
 Known Phase 6 limitations:
 
-- Phase 6 local PostgreSQL live smoke has not been run yet after the migration
-  and runbook update.
 - Operator production POS/shift/inventory UX is not implemented in this phase.
 - Agent enforcement and Player Shell UI changes are out of this phase.
 - Fiscal printers, tax authority integration, card acquirer integrations, and
