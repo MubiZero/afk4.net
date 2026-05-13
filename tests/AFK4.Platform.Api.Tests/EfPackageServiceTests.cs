@@ -1,7 +1,9 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Packages;
+using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Tests;
@@ -150,6 +152,7 @@ public sealed class EfPackageServiceTests
         await SeedPlayerAsync(db);
         await SeedWalletTopUpAsync(db, 5000);
         var definition = await SeedPackageDefinitionAsync(db, priceMinorUnits: 4000, includedSeconds: 18000, bonusSeconds: 1800);
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
         var request = new PurchasePackageRequest(TestIds.OrganizationId, definition.PackageDefinitionId, "package-purchase-001");
 
@@ -249,6 +252,7 @@ public sealed class EfPackageServiceTests
         await SeedPlayerPackageAsync(db);
         await SeedPackageGrantAsync(db, LedgerEntryTypeNames.PackagePurchase, LedgerAccountTypeNames.PackageTime, 3600);
         await SeedPackageGrantAsync(db, LedgerEntryTypeNames.BonusGrant, LedgerAccountTypeNames.BonusTime, 600);
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
 
         var result = await service.ConsumePackageTimeAsync(
@@ -377,6 +381,7 @@ public sealed class EfPackageServiceTests
         await SeedPlayerPackageAsync(db);
         await SeedPackageGrantAsync(db, LedgerEntryTypeNames.PackagePurchase, LedgerAccountTypeNames.PackageTime, 3600);
         await SeedPackageGrantAsync(db, LedgerEntryTypeNames.BonusGrant, LedgerAccountTypeNames.BonusTime, 600);
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
 
         var first = await service.ConsumePackageTimeAsync(
@@ -417,7 +422,7 @@ public sealed class EfPackageServiceTests
 
     private static EfPackageService CreateService(PlatformDbContext db)
     {
-        return new EfPackageService(db, new FixedTimeProvider(Now));
+        return new EfPackageService(db, new EfShiftService(db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now));
     }
 
     private static CreatePackageDefinitionRequest CreatePackageRequest(string idempotencyKey)
@@ -445,6 +450,27 @@ public sealed class EfPackageServiceTests
             CreatedAtUtc = Now
         });
 
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedOpenShiftAsync(PlatformDbContext db)
+    {
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = ActorStaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            StartingCashMinorUnits = 50000,
+            CountedCashMinorUnits = 0,
+            ExpectedCashMinorUnits = 0,
+            DifferenceMinorUnits = 0,
+            OpeningNote = "test shift",
+            ClosingNote = string.Empty,
+            OpenedAtUtc = Now
+        });
         await db.SaveChangesAsync();
     }
 

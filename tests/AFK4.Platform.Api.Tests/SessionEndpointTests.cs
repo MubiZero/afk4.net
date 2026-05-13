@@ -5,6 +5,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -68,6 +69,7 @@ public sealed class SessionEndpointTests
         await SeedLayoutAsync(factory, includeTargetSeat: false);
         var playerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
         var tariffVersion = await SeedBillingAsync(factory, playerAccountId);
+        await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
@@ -382,5 +384,28 @@ public sealed class SessionEndpointTests
         await dbContext.SaveChangesAsync();
 
         return tariffVersion;
+    }
+
+    private static async Task SeedOpenShiftAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = TestIds.TechnicianStaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            StartingCashMinorUnits = 50000,
+            CountedCashMinorUnits = 0,
+            ExpectedCashMinorUnits = 0,
+            DifferenceMinorUnits = 0,
+            OpeningNote = "test shift",
+            ClosingNote = string.Empty,
+            OpenedAtUtc = Now
+        });
+        await dbContext.SaveChangesAsync();
     }
 }

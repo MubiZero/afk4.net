@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace AFK4.Platform.Api.Billing;
 
 public sealed class EfBillingCommandService(
     PlatformDbContext dbContext,
+    IOpenShiftResolver openShiftResolver,
     TimeProvider timeProvider) : IBillingCommandService
 {
     private const string PlayerCreateOperation = "player-create";
@@ -134,6 +136,15 @@ public sealed class EfBillingCommandService(
             return currencyValidation.Error;
         }
 
+        var openShift = await RequireOpenShiftAsync<WalletSummaryDto>(
+            request.OrganizationId,
+            branchId,
+            cancellationToken);
+        if (openShift.Error is not null)
+        {
+            return openShift.Error;
+        }
+
         return await ExecuteLedgerSummaryCommandAsync(
             request.OrganizationId,
             branchId,
@@ -156,7 +167,8 @@ public sealed class EfBillingCommandService(
                 request.Reason.Trim(),
                 reversesLedgerEntryId: null,
                 actorStaffUserId,
-                timeProvider.GetUtcNow()),
+                timeProvider.GetUtcNow(),
+                openShift.ShiftId),
             cancellationToken);
     }
 
@@ -230,6 +242,15 @@ public sealed class EfBillingCommandService(
                 return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund amount cannot exceed the remaining refundable amount.");
             }
 
+            var openShift = await RequireOpenShiftAsync<LedgerEntryDto>(
+                request.OrganizationId,
+                branchId,
+                cancellationToken);
+            if (openShift.Error is not null)
+            {
+                return openShift.Error;
+            }
+
             var refundAmount = original.AmountMinorUnits > 0
                 ? -request.Amount.MinorUnits
                 : request.Amount.MinorUnits;
@@ -248,7 +269,8 @@ public sealed class EfBillingCommandService(
                 request.Reason.Trim(),
                 original.LedgerEntryId,
                 actorStaffUserId,
-                now);
+                now,
+                openShift.ShiftId);
 
             dbContext.LedgerEntries.Add(refund);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -326,6 +348,15 @@ public sealed class EfBillingCommandService(
             return currencyValidation.Error;
         }
 
+        var openShift = await RequireOpenShiftAsync<WalletSummaryDto>(
+            request.OrganizationId,
+            branchId,
+            cancellationToken);
+        if (openShift.Error is not null)
+        {
+            return openShift.Error;
+        }
+
         return await ExecuteLedgerSummaryCommandAsync(
             request.OrganizationId,
             branchId,
@@ -348,7 +379,8 @@ public sealed class EfBillingCommandService(
                 request.Reason.Trim(),
                 reversesLedgerEntryId: null,
                 actorStaffUserId,
-                timeProvider.GetUtcNow()),
+                timeProvider.GetUtcNow(),
+                openShift.ShiftId),
             cancellationToken);
     }
 
@@ -413,6 +445,15 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Debt payment cannot exceed current debt balance.");
         }
 
+        var openShift = await RequireOpenShiftAsync<WalletSummaryDto>(
+            request.OrganizationId,
+            branchId,
+            cancellationToken);
+        if (openShift.Error is not null)
+        {
+            return openShift.Error;
+        }
+
         return await ExecuteLedgerSummaryCommandAsync(
             request.OrganizationId,
             branchId,
@@ -435,7 +476,8 @@ public sealed class EfBillingCommandService(
                 request.Reason.Trim(),
                 reversesLedgerEntryId: null,
                 actorStaffUserId,
-                timeProvider.GetUtcNow()),
+                timeProvider.GetUtcNow(),
+                openShift.ShiftId),
             cancellationToken);
     }
 
@@ -641,6 +683,24 @@ public sealed class EfBillingCommandService(
             idempotencyKey,
             request,
             cancellationToken);
+    }
+
+    private sealed record OpenShiftValidation<TResponse>(
+        BillingCommandServiceResult<TResponse>? Error,
+        Guid ShiftId);
+
+    private async Task<OpenShiftValidation<TResponse>> RequireOpenShiftAsync<TResponse>(
+        Guid organizationId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var openShift = await openShiftResolver.GetOpenShiftIdAsync(organizationId, branchId, cancellationToken);
+
+        return openShift.Succeeded && openShift.Response != Guid.Empty
+            ? new OpenShiftValidation<TResponse>(null, openShift.Response)
+            : new OpenShiftValidation<TResponse>(
+                BillingCommandServiceResult<TResponse>.Invalid(openShift.Error ?? "An open shift is required."),
+                Guid.Empty);
     }
 
     private static bool IsManualCorrectionAccountType(string accountType)

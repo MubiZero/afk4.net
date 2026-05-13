@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Packages;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace AFK4.Platform.Api.Billing;
 
 public sealed class EfPackageService(
     PlatformDbContext dbContext,
+    IOpenShiftResolver openShiftResolver,
     TimeProvider timeProvider) : IPackageService
 {
     private const string PackageCreateOperation = "package-create";
@@ -180,6 +182,15 @@ public sealed class EfPackageService(
                 return BillingCommandServiceResult<PlayerPackageDto>.Invalid("Insufficient wallet balance.");
             }
 
+            var openShift = await RequireOpenShiftAsync<PlayerPackageDto>(
+                request.OrganizationId,
+                branchId,
+                cancellationToken);
+            if (openShift.Error is not null)
+            {
+                return openShift.Error;
+            }
+
             var now = timeProvider.GetUtcNow();
             var playerPackage = new PlayerPackageEntity
             {
@@ -216,7 +227,8 @@ public sealed class EfPackageService(
                     "package purchase",
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
-                    now),
+                    now,
+                    openShift.ShiftId),
                 BillingEntryFactory.Create(
                     package.OrganizationId,
                     package.BranchId,
@@ -232,7 +244,8 @@ public sealed class EfPackageService(
                     "package included time grant",
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
-                    now.AddTicks(1))
+                    now.AddTicks(1),
+                    openShift.ShiftId)
             };
 
             if (package.BonusSeconds > 0)
@@ -252,7 +265,8 @@ public sealed class EfPackageService(
                     "package bonus time grant",
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
-                    now.AddTicks(2)));
+                    now.AddTicks(2),
+                    openShift.ShiftId));
             }
 
             dbContext.LedgerEntries.AddRange(entries);
@@ -351,6 +365,15 @@ public sealed class EfPackageService(
                 return BillingCommandServiceResult<IReadOnlyList<LedgerEntryDto>>.Invalid("Insufficient package time remaining.");
             }
 
+            var openShift = await RequireOpenShiftAsync<IReadOnlyList<LedgerEntryDto>>(
+                playerPackage.OrganizationId,
+                branchId,
+                cancellationToken);
+            if (openShift.Error is not null)
+            {
+                return openShift.Error;
+            }
+
             var bonusToConsume = Math.Min(remaining.BonusSeconds, durationSeconds);
             var packageToConsume = durationSeconds - bonusToConsume;
             var entries = new List<LedgerEntryEntity>();
@@ -372,7 +395,8 @@ public sealed class EfPackageService(
                     "package bonus time consumption",
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
-                    now));
+                    now,
+                    openShift.ShiftId));
             }
 
             if (packageToConsume > 0)
@@ -392,7 +416,8 @@ public sealed class EfPackageService(
                     "package included time consumption",
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
-                    now.AddTicks(1)));
+                    now.AddTicks(1),
+                    openShift.ShiftId));
             }
 
             dbContext.LedgerEntries.AddRange(entries);
@@ -612,6 +637,24 @@ public sealed class EfPackageService(
             idempotencyKey,
             requestHashInput,
             cancellationToken);
+    }
+
+    private sealed record OpenShiftValidation<TResponse>(
+        BillingCommandServiceResult<TResponse>? Error,
+        Guid ShiftId);
+
+    private async Task<OpenShiftValidation<TResponse>> RequireOpenShiftAsync<TResponse>(
+        Guid organizationId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var openShift = await openShiftResolver.GetOpenShiftIdAsync(organizationId, branchId, cancellationToken);
+
+        return openShift.Succeeded && openShift.Response != Guid.Empty
+            ? new OpenShiftValidation<TResponse>(null, openShift.Response)
+            : new OpenShiftValidation<TResponse>(
+                BillingCommandServiceResult<TResponse>.Invalid(openShift.Error ?? "An open shift is required."),
+                Guid.Empty);
     }
 
     private sealed record LedgerCurrencyValidation<TResponse>(

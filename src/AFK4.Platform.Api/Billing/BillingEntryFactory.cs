@@ -19,13 +19,15 @@ public static class BillingEntryFactory
         string reason,
         Guid? reversesLedgerEntryId,
         Guid actorStaffUserId,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        Guid? shiftId = null)
     {
         return new LedgerEntryEntity
         {
             LedgerEntryId = Guid.NewGuid(),
             OrganizationId = organizationId,
             BranchId = branchId,
+            ShiftId = shiftId,
             PlayerAccountId = playerAccountId,
             SessionId = sessionId,
             PlayerPackageId = playerPackageId,

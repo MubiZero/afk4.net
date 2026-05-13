@@ -5,6 +5,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Packages;
+using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,6 +66,7 @@ public sealed class BillingEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
         await SeedPlayerAsync(factory);
+        await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
             $"/api/players/{PlayerAccountId:D}/wallet/top-ups",
@@ -230,6 +232,7 @@ public sealed class BillingEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.ShiftSupervisor);
         await SeedPlayerAsync(factory);
+        await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
             $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
@@ -417,6 +420,7 @@ public sealed class BillingEndpointTests
         await SeedPlayerAsync(factory);
         await SeedLedgerEntryAsync(factory, LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000);
         var package = await SeedPackageDefinitionAsync(factory);
+        await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
             $"/api/players/{PlayerAccountId:D}/packages/purchases",
@@ -444,6 +448,7 @@ public sealed class BillingEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
         await SeedPlayerAsync(factory);
+        await SeedOpenShiftAsync(factory);
         var request = new TopUpWalletRequest(
             TestIds.OrganizationId,
             new MoneyDto("TJS", 5000),
@@ -526,6 +531,29 @@ public sealed class BillingEndpointTests
             ReversesLedgerEntryId = null,
             CreatedByStaffUserId = ActorStaffUserId,
             CreatedAtUtc = Now
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedOpenShiftAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = ActorStaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            StartingCashMinorUnits = 50000,
+            CountedCashMinorUnits = 0,
+            ExpectedCashMinorUnits = 0,
+            DifferenceMinorUnits = 0,
+            OpeningNote = "test shift",
+            ClosingNote = string.Empty,
+            OpenedAtUtc = Now
         });
         await dbContext.SaveChangesAsync();
     }

@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ namespace AFK4.Platform.Api.Billing;
 public sealed class SessionBillingService(
     PlatformDbContext dbContext,
     ITariffService tariffService,
+    IOpenShiftResolver openShiftResolver,
     TimeProvider timeProvider) : ISessionBillingService
 {
     private const string DefaultCurrencyCode = "TJS";
@@ -136,7 +138,7 @@ public sealed class SessionBillingService(
             return Invalid("Player account was not found.");
         }
 
-        return billingMode.Trim() switch
+        var validation = billingMode.Trim() switch
         {
             BillingModeNames.PrepaidWallet => await ValidateTariffBillingAsync(
                 organizationId,
@@ -163,6 +165,16 @@ public sealed class SessionBillingService(
                 cancellationToken),
             _ => Invalid("Unsupported billing mode.")
         };
+
+        if (!validation.Succeeded)
+        {
+            return validation;
+        }
+
+        var openShift = await openShiftResolver.GetOpenShiftIdAsync(organizationId, branchId, cancellationToken);
+        return openShift.Succeeded
+            ? validation
+            : Invalid(openShift.Error ?? "An open shift is required.");
     }
 
     private async Task<SessionBillingValidationResult> ValidateTariffBillingAsync(
@@ -289,6 +301,7 @@ public sealed class SessionBillingService(
 
         var session = await dbContext.Sessions
             .SingleAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+        var shiftId = await GetRequiredOpenShiftIdAsync(session.OrganizationId, session.BranchId, cancellationToken);
 
         switch (billingMode.Trim())
         {
@@ -308,7 +321,8 @@ public sealed class SessionBillingService(
                     "prepaid wallet gameplay charge",
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
-                    now));
+                    now,
+                    shiftId));
                 break;
 
             case BillingModeNames.PostpaidDebt:
@@ -327,7 +341,8 @@ public sealed class SessionBillingService(
                     "postpaid gameplay debt",
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
-                    now));
+                    now,
+                    shiftId));
                 break;
 
             case BillingModeNames.Package:
@@ -343,6 +358,7 @@ public sealed class SessionBillingService(
                     playerAccountId,
                     playerPackageId.Value,
                     now,
+                    shiftId,
                     cancellationToken);
                 break;
 
@@ -358,6 +374,7 @@ public sealed class SessionBillingService(
         Guid playerAccountId,
         Guid playerPackageId,
         DateTimeOffset now,
+        Guid shiftId,
         CancellationToken cancellationToken)
     {
         var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
@@ -390,7 +407,8 @@ public sealed class SessionBillingService(
                 "package bonus time consumption",
                 reversesLedgerEntryId: null,
                 actorStaffUserId,
-                now));
+                now,
+                shiftId));
         }
 
         if (packageToConsume > 0)
@@ -410,8 +428,23 @@ public sealed class SessionBillingService(
                 "package included time consumption",
                 reversesLedgerEntryId: null,
                 actorStaffUserId,
-                now.AddTicks(1)));
+                now.AddTicks(1),
+                shiftId));
         }
+    }
+
+    private async Task<Guid> GetRequiredOpenShiftIdAsync(
+        Guid organizationId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var openShift = await openShiftResolver.GetOpenShiftIdAsync(organizationId, branchId, cancellationToken);
+        if (!openShift.Succeeded)
+        {
+            throw new InvalidOperationException(openShift.Error ?? "An open shift is required.");
+        }
+
+        return openShift.Response;
     }
 
     private async Task<string?> GetLedgerCurrencyForWriteAsync(

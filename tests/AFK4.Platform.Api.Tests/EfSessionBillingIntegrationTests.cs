@@ -2,9 +2,11 @@ using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Tests;
@@ -26,6 +28,7 @@ public sealed class EfSessionBillingIntegrationTests
         await SeedPlayerAsync(db);
         await SeedWalletTopUpAsync(db, 5000);
         var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
         var dispatcher = new RecordingCommandDispatchService(db, requireGameplayChargeBeforeDispatch: true);
         var service = CreateService(db, dispatcher);
 
@@ -166,6 +169,7 @@ public sealed class EfSessionBillingIntegrationTests
         await SeedPlayerAsync(db);
         await SeedWalletTopUpAsync(db, 10000);
         var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
         var dispatcher = new RecordingCommandDispatchService(db);
         var service = CreateService(db, dispatcher);
         var start = await StartPrepaidSessionAsync(service, tariffVersion.TariffVersionId, "start-prepaid-extend-001");
@@ -202,6 +206,7 @@ public sealed class EfSessionBillingIntegrationTests
         await SeedLayoutAsync(db);
         await SeedPlayerAsync(db);
         var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
         var dispatcher = new RecordingCommandDispatchService(db);
         var service = CreateService(db, dispatcher);
 
@@ -238,6 +243,7 @@ public sealed class EfSessionBillingIntegrationTests
         await SeedPlayerAsync(db);
         await SeedPlayerPackageAsync(db, includedSeconds: 7200, bonusSeconds: 0);
         await SeedPackageGrantAsync(db, LedgerEntryTypeNames.PackagePurchase, LedgerAccountTypeNames.PackageTime, 7200);
+        await SeedOpenShiftAsync(db);
         var dispatcher = new RecordingCommandDispatchService(db);
         var service = CreateService(db, dispatcher);
 
@@ -309,6 +315,7 @@ public sealed class EfSessionBillingIntegrationTests
         await SeedPlayerAsync(db);
         await SeedWalletTopUpAsync(db, 5000);
         var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
         var dispatcher = new RecordingCommandDispatchService(db);
         var service = CreateService(db, dispatcher);
         var request = new StartGuestSessionRequest(
@@ -343,6 +350,7 @@ public sealed class EfSessionBillingIntegrationTests
         await SeedPlayerAsync(db);
         await SeedWalletTopUpAsync(db, 5000);
         var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
         var dispatcher = new RecordingCommandDispatchService(db);
         var service = CreateService(db, dispatcher);
 
@@ -379,6 +387,7 @@ public sealed class EfSessionBillingIntegrationTests
         await SeedPlayerAsync(db);
         await SeedWalletTopUpAsync(db, 10000);
         var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
         var dispatcher = new RecordingCommandDispatchService(db);
         var service = CreateService(db, dispatcher);
         var start = await StartPrepaidSessionAsync(service, tariffVersion.TariffVersionId, "start-prepaid-notify-extend-001");
@@ -443,12 +452,13 @@ public sealed class EfSessionBillingIntegrationTests
         RecordingCommandDispatchService dispatcher)
     {
         var timeProvider = new FixedTimeProvider(Now);
+        var shiftService = new EfShiftService(db, timeProvider);
         return new EfSessionCommandService(
             db,
             dispatcher,
             new FakeSessionLeaseSigner(),
             timeProvider,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), timeProvider));
+            new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, timeProvider));
     }
 
     private static async Task SeedLayoutAsync(PlatformDbContext db)
@@ -521,6 +531,27 @@ public sealed class EfSessionBillingIntegrationTests
             PhoneNumber = "+992000000001",
             IsActive = true,
             CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedOpenShiftAsync(PlatformDbContext db)
+    {
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = ActorStaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            StartingCashMinorUnits = 50000,
+            CountedCashMinorUnits = 0,
+            ExpectedCashMinorUnits = 0,
+            DifferenceMinorUnits = 0,
+            OpeningNote = "test shift",
+            ClosingNote = string.Empty,
+            OpenedAtUtc = Now
         });
         await db.SaveChangesAsync();
     }

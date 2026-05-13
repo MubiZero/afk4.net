@@ -1,6 +1,8 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Tests;
@@ -63,6 +65,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
         var request = new TopUpWalletRequest(
             TestIds.OrganizationId,
@@ -92,6 +95,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
         var request = new TopUpWalletRequest(
             TestIds.OrganizationId,
@@ -113,6 +117,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
         var firstRequest = new TopUpWalletRequest(
             TestIds.OrganizationId,
@@ -134,6 +139,7 @@ public sealed class EfBillingCommandServiceTests
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
         await SeedPlayerAsync(db, OtherPlayerAccountId, "Player Two");
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
         var request = new TopUpWalletRequest(
             TestIds.OrganizationId,
@@ -154,6 +160,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var original = CreateLedgerEntry(LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000, 0);
         db.LedgerEntries.Add(original);
         await db.SaveChangesAsync();
@@ -181,6 +188,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var original = CreateLedgerEntry(LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000, 0);
         db.LedgerEntries.Add(original);
         await db.SaveChangesAsync();
@@ -204,6 +212,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var original = CreateLedgerEntry(LedgerEntryTypeNames.GameplayCharge, LedgerAccountTypeNames.Wallet, -5000, 0);
         db.LedgerEntries.Add(original);
         await db.SaveChangesAsync();
@@ -228,6 +237,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var original = CreateLedgerEntry(LedgerEntryTypeNames.GameplayCharge, LedgerAccountTypeNames.Wallet, -5000, 0);
         db.LedgerEntries.Add(original);
         await db.SaveChangesAsync();
@@ -267,6 +277,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var original = CreateLedgerEntry(LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000, 0);
         db.LedgerEntries.Add(original);
         await db.SaveChangesAsync();
@@ -313,6 +324,7 @@ public sealed class EfBillingCommandServiceTests
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
         db.LedgerEntries.Add(CreateLedgerEntry(LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000, 0, currencyCode: "tjs"));
+        await SeedOpenShiftAsync(db, saveChanges: false);
         await db.SaveChangesAsync();
         var service = CreateService(db);
         var request = new TopUpWalletRequest(
@@ -332,6 +344,7 @@ public sealed class EfBillingCommandServiceTests
     {
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
         var request = new ManualLedgerCorrectionRequest(
             TestIds.OrganizationId,
@@ -366,6 +379,7 @@ public sealed class EfBillingCommandServiceTests
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
         await SeedPlayerAsync(db, OtherPlayerAccountId, "Player Two");
+        await SeedOpenShiftAsync(db);
         var service = CreateService(db);
         var request = new ManualLedgerCorrectionRequest(
             TestIds.OrganizationId,
@@ -455,6 +469,7 @@ public sealed class EfBillingCommandServiceTests
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
         db.LedgerEntries.Add(CreateLedgerEntry(LedgerEntryTypeNames.PostpaidDebt, LedgerAccountTypeNames.Debt, 1000, 0));
+        await SeedOpenShiftAsync(db, saveChanges: false);
         await db.SaveChangesAsync();
         var service = CreateService(db);
         var request = new PayDebtRequest(
@@ -495,6 +510,7 @@ public sealed class EfBillingCommandServiceTests
             1000,
             0,
             OtherPlayerAccountId));
+        await SeedOpenShiftAsync(db, saveChanges: false);
         await db.SaveChangesAsync();
         var service = CreateService(db);
         var request = new PayDebtRequest(
@@ -575,7 +591,7 @@ public sealed class EfBillingCommandServiceTests
 
     private static EfBillingCommandService CreateService(PlatformDbContext db)
     {
-        return new EfBillingCommandService(db, new FixedTimeProvider(Now));
+        return new EfBillingCommandService(db, new EfShiftService(db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now));
     }
 
     private static async Task SeedPlayerAsync(
@@ -595,6 +611,31 @@ public sealed class EfBillingCommandServiceTests
         });
 
         await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedOpenShiftAsync(PlatformDbContext db, bool saveChanges = true)
+    {
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = ActorStaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            StartingCashMinorUnits = 50000,
+            CountedCashMinorUnits = 0,
+            ExpectedCashMinorUnits = 0,
+            DifferenceMinorUnits = 0,
+            OpeningNote = "test shift",
+            ClosingNote = string.Empty,
+            OpenedAtUtc = Now
+        });
+
+        if (saveChanges)
+        {
+            await db.SaveChangesAsync();
+        }
     }
 
     private static LedgerEntryEntity CreateLedgerEntry(

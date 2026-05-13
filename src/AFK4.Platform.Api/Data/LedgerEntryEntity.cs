@@ -8,6 +8,8 @@ public sealed class LedgerEntryEntity
 
     public Guid BranchId { get; set; }
 
+    public Guid? ShiftId { get; set; }
+
     public Guid PlayerAccountId { get; set; }
 
     public Guid? SessionId { get; set; }

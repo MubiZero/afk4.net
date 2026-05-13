@@ -56,6 +56,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlayerPackageEntity> PlayerPackages => Set<PlayerPackageEntity>();
 
+    public DbSet<ShiftEntity> Shifts => Set<ShiftEntity>();
+
+    public DbSet<CashMovementEntity> CashMovements => Set<CashMovementEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -293,6 +297,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(entry => entry.Reason).HasMaxLength(512).IsRequired();
             entity.HasIndex(entry => new { entry.OrganizationId, entry.BranchId, entry.CreatedAtUtc });
             entity.HasIndex(entry => new { entry.PlayerAccountId, entry.CreatedAtUtc });
+            entity.HasIndex(entry => new { entry.ShiftId, entry.CreatedAtUtc });
             entity.HasIndex(entry => entry.SessionId);
             entity.HasIndex(entry => entry.PlayerPackageId);
             entity.HasIndex(entry => entry.ReversesLedgerEntryId);
@@ -349,6 +354,32 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(package => package.CurrencyCode).HasMaxLength(3).IsRequired();
             entity.HasIndex(package => new { package.PlayerAccountId, package.PurchasedAtUtc });
             entity.HasIndex(package => new { package.OrganizationId, package.BranchId });
+        });
+
+        modelBuilder.Entity<ShiftEntity>(entity =>
+        {
+            entity.ToTable("shifts");
+            entity.HasKey(shift => shift.ShiftId);
+            entity.Property(shift => shift.State).HasMaxLength(32).IsRequired();
+            entity.Property(shift => shift.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(shift => shift.OpeningNote).HasMaxLength(512).IsRequired();
+            entity.Property(shift => shift.ClosingNote).HasMaxLength(512).IsRequired();
+            entity.HasIndex(shift => new
+            {
+                shift.OrganizationId,
+                shift.BranchId,
+                shift.State
+            });
+        });
+
+        modelBuilder.Entity<CashMovementEntity>(entity =>
+        {
+            entity.ToTable("cash_movements");
+            entity.HasKey(movement => movement.CashMovementId);
+            entity.Property(movement => movement.MovementType).HasMaxLength(32).IsRequired();
+            entity.Property(movement => movement.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(movement => movement.Reason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(movement => new { movement.ShiftId, movement.CreatedAtUtc });
         });
     }
 }
