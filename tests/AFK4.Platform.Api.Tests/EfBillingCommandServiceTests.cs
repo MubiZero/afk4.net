@@ -8,6 +8,7 @@ namespace AFK4.Platform.Api.Tests;
 public sealed class EfBillingCommandServiceTests
 {
     private static readonly Guid PlayerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
+    private static readonly Guid OtherPlayerAccountId = Guid.Parse("cccccccc-cccc-4ccc-cccc-cccccccccccc");
     private static readonly Guid ActorStaffUserId = Guid.Parse("55555555-5555-4555-8555-555555555555");
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-13T10:00:00Z");
 
@@ -128,6 +129,27 @@ public sealed class EfBillingCommandServiceTests
     }
 
     [Fact]
+    public async Task TopUpWalletAsync_ReusingIdempotencyKeyWithSameRequestAgainstDifferentPlayerReturnsConflict()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedPlayerAsync(db, OtherPlayerAccountId, "Player Two");
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(
+            TestIds.OrganizationId,
+            new MoneyDto("TJS", 5000),
+            "front desk cash top-up",
+            "topup-001");
+
+        await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var conflict = await service.TopUpWalletAsync(OtherPlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(conflict.Conflict);
+        var entry = await db.LedgerEntries.SingleAsync();
+        Assert.Equal(PlayerAccountId, entry.PlayerAccountId);
+    }
+
+    [Fact]
     public async Task RefundLedgerEntryAsync_AppendsRefundAndDoesNotMutateOriginal()
     {
         await using var db = CreateDbContext();
@@ -211,6 +233,51 @@ public sealed class EfBillingCommandServiceTests
     }
 
     [Fact]
+    public async Task ManualCorrectionAsync_ReusingIdempotencyKeyWithSameRequestAgainstDifferentPlayerReturnsConflict()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedPlayerAsync(db, OtherPlayerAccountId, "Player Two");
+        var service = CreateService(db);
+        var request = new ManualLedgerCorrectionRequest(
+            TestIds.OrganizationId,
+            LedgerAccountTypeNames.Wallet,
+            new MoneyDto("TJS", -300),
+            QuantitySeconds: 0,
+            "manager correction for dispute",
+            "correction-001");
+
+        await service.ManualCorrectionAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var conflict = await service.ManualCorrectionAsync(OtherPlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(conflict.Conflict);
+        var entry = await db.LedgerEntries.SingleAsync();
+        Assert.Equal(PlayerAccountId, entry.PlayerAccountId);
+    }
+
+    [Fact]
+    public async Task ManualCorrectionAsync_NullReasonReturnsInvalidAndDoesNotAppendEntry()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        var service = CreateService(db);
+        var request = new ManualLedgerCorrectionRequest(
+            TestIds.OrganizationId,
+            LedgerAccountTypeNames.Wallet,
+            new MoneyDto("TJS", -300),
+            QuantitySeconds: 0,
+            null!,
+            "correction-001");
+
+        var result = await service.ManualCorrectionAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.False(result.NotFound);
+        Assert.Empty(await db.LedgerEntries.ToListAsync());
+    }
+
+    [Fact]
     public async Task PayDebtAsync_AppendsDebtPaymentAndRejectsOverpayment()
     {
         await using var db = CreateDbContext();
@@ -289,14 +356,17 @@ public sealed class EfBillingCommandServiceTests
         return new EfBillingCommandService(db, new FixedTimeProvider(Now));
     }
 
-    private static async Task SeedPlayerAsync(PlatformDbContext db)
+    private static async Task SeedPlayerAsync(
+        PlatformDbContext db,
+        Guid? playerAccountId = null,
+        string displayName = "Player One")
     {
         db.PlayerAccounts.Add(new PlayerAccountEntity
         {
-            PlayerAccountId = PlayerAccountId,
+            PlayerAccountId = playerAccountId ?? PlayerAccountId,
             OrganizationId = TestIds.OrganizationId,
             HomeBranchId = TestIds.BranchId,
-            DisplayName = "Player One",
+            DisplayName = displayName,
             PhoneNumber = "+992000000001",
             IsActive = true,
             CreatedAtUtc = Now

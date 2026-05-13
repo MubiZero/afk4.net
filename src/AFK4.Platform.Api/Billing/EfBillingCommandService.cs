@@ -84,12 +84,12 @@ public sealed class EfBillingCommandService(
         TopUpWalletRequest request,
         CancellationToken cancellationToken)
     {
-        var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, TopUpWalletRequest>(
+        var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, object>(
             request.OrganizationId,
             branchId,
             WalletTopUpOperation,
             request.IdempotencyKey,
-            request,
+            PlayerScopedRequest(playerAccountId, request),
             cancellationToken);
 
         if (idempotency is not null)
@@ -124,6 +124,7 @@ public sealed class EfBillingCommandService(
             WalletTopUpOperation,
             request.IdempotencyKey,
             request,
+            PlayerScopedRequest(playerAccountId, request),
             BillingEntryFactory.Create(
                 request.OrganizationId,
                 branchId,
@@ -241,12 +242,12 @@ public sealed class EfBillingCommandService(
         ManualLedgerCorrectionRequest request,
         CancellationToken cancellationToken)
     {
-        var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, ManualLedgerCorrectionRequest>(
+        var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, object>(
             request.OrganizationId,
             branchId,
             ManualCorrectionOperation,
             request.IdempotencyKey,
-            request,
+            PlayerScopedRequest(playerAccountId, request),
             cancellationToken);
 
         if (idempotency is not null)
@@ -265,7 +266,7 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Unsupported ledger account type.");
         }
 
-        if (request.Reason.Trim().Length < 8)
+        if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length < 8)
         {
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Manual correction reason must be at least 8 characters.");
         }
@@ -281,6 +282,7 @@ public sealed class EfBillingCommandService(
             ManualCorrectionOperation,
             request.IdempotencyKey,
             request,
+            PlayerScopedRequest(playerAccountId, request),
             BillingEntryFactory.Create(
                 request.OrganizationId,
                 branchId,
@@ -307,12 +309,12 @@ public sealed class EfBillingCommandService(
         PayDebtRequest request,
         CancellationToken cancellationToken)
     {
-        var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, PayDebtRequest>(
+        var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, object>(
             request.OrganizationId,
             branchId,
             DebtPaymentOperation,
             request.IdempotencyKey,
-            request,
+            PlayerScopedRequest(playerAccountId, request),
             cancellationToken);
 
         if (idempotency is not null)
@@ -358,6 +360,7 @@ public sealed class EfBillingCommandService(
             DebtPaymentOperation,
             request.IdempotencyKey,
             request,
+            PlayerScopedRequest(playerAccountId, request),
             BillingEntryFactory.Create(
                 request.OrganizationId,
                 branchId,
@@ -383,6 +386,7 @@ public sealed class EfBillingCommandService(
         string operation,
         string idempotencyKey,
         TRequest request,
+        object requestHashInput,
         LedgerEntryEntity entry,
         CancellationToken cancellationToken)
     {
@@ -402,7 +406,7 @@ public sealed class EfBillingCommandService(
                 branchId,
                 operation,
                 idempotencyKey,
-                request,
+                requestHashInput,
                 summary,
                 entry.CreatedAtUtc);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -516,6 +520,15 @@ public sealed class EfBillingCommandService(
     private static string HashRequest<TRequest>(TRequest request)
     {
         return BillingCommandIdempotencyKeyHasher.Hash(JsonSerializer.Serialize(request, JsonOptions));
+    }
+
+    private static object PlayerScopedRequest<TRequest>(Guid playerAccountId, TRequest request)
+    {
+        return new
+        {
+            PlayerAccountId = playerAccountId,
+            Request = request
+        };
     }
 
     private async Task<BillingCommandServiceResult<TResponse>> ExecuteInTransactionAsync<TResponse>(
