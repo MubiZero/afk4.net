@@ -272,6 +272,102 @@ app.MapPost("/api/devices/{deviceId:guid}/installed-apps/report", async (
     return Results.NoContent();
 });
 
+app.MapGet("/api/devices/{deviceId:guid}", async (
+    Guid deviceId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var device = await dbContext.Devices
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
+
+    if (device is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        device.BranchId,
+        StaffPermissionNames.ViewDeviceDetail,
+        cancellationToken);
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var assignment = await dbContext.DeviceSeatAssignments
+        .AsNoTracking()
+        .Where(candidate => candidate.DeviceId == deviceId && candidate.DetachedAtUtc == null)
+        .OrderByDescending(candidate => candidate.AttachedAtUtc)
+        .FirstOrDefaultAsync(cancellationToken);
+
+    SeatEntity? seat = null;
+    ZoneEntity? zone = null;
+    if (assignment is not null)
+    {
+        seat = await dbContext.Seats
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.SeatId == assignment.SeatId, cancellationToken);
+
+        if (seat is not null)
+        {
+            zone = await dbContext.Zones
+                .AsNoTracking()
+                .SingleOrDefaultAsync(candidate => candidate.ZoneId == seat.ZoneId, cancellationToken);
+        }
+    }
+
+    var activeCredentialCount = await dbContext.DeviceCredentials
+        .AsNoTracking()
+        .CountAsync(
+            credential => credential.DeviceId == deviceId && credential.RevokedAtUtc == null,
+            cancellationToken);
+    var installedAppCount = await dbContext.DeviceInstalledApps
+        .AsNoTracking()
+        .CountAsync(app => app.DeviceId == deviceId, cancellationToken);
+    var recentCommands = await dbContext.DeviceCommands
+        .AsNoTracking()
+        .Where(command => command.DeviceId == deviceId)
+        .OrderByDescending(command => command.CreatedAtUtc)
+        .Take(5)
+        .Select(command => new DeviceCommandStatusDto(
+            command.DeviceId,
+            command.CommandId,
+            command.Type,
+            command.Status,
+            command.Message,
+            command.CreatedAtUtc,
+            command.UpdatedAtUtc))
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(new DeviceDetailDto(
+        OrganizationId: device.OrganizationId,
+        BranchId: device.BranchId,
+        DeviceId: device.DeviceId,
+        MachineName: device.MachineName,
+        AgentVersion: device.AgentVersion,
+        ShellVersion: device.ShellVersion,
+        EnrolledAtUtc: device.EnrolledAtUtc,
+        LastHeartbeatAtUtc: device.LastHeartbeatAtUtc,
+        IsOnline: device.IsOnline,
+        IsLocked: device.IsLocked,
+        SeatId: seat?.SeatId,
+        SeatName: seat?.Name,
+        ZoneId: zone?.ZoneId,
+        ZoneName: zone?.Name,
+        ActiveCredentialCount: activeCredentialCount,
+        InstalledAppCount: installedAppCount,
+        RecentCommands: recentCommands));
+});
+
 app.MapPost("/api/devices/{deviceId:guid}/commands", async (
     Guid deviceId,
     CreateDeviceCommandRequest request,

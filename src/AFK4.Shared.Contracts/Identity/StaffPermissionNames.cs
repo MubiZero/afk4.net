@@ -12,6 +12,8 @@ public static class StaffPermissionNames
 
     public const string RevokeDeviceCredential = "devices.credentials.revoke";
 
+    public const string ViewDeviceDetail = "devices.detail.view";
+
     public const string ViewFloorMap = "floor_map.view";
 
     public const string ManageRoles = "identity.roles.manage";

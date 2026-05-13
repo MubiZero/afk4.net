@@ -323,10 +323,10 @@ Expected: pass.
 - Modify: `D:\afk4.net\src\AFK4.Platform.Api\Program.cs`
 - Create: `D:\afk4.net\tests\AFK4.Platform.Api.Tests\DeviceDetailEndpointTests.cs`
 
-- [ ] Add `devices.detail.view` permission.
-- [ ] Add `GET /api/devices/{deviceId}` returning device identity, branch, current assigned seat, latest heartbeat, active credential count, recent command statuses, and installed app count.
-- [ ] Protect the endpoint with staff bearer branch permission.
-- [ ] Add audit only for sensitive detail actions later; simple read does not write audit unless product scope changes.
+- [x] Add `devices.detail.view` permission.
+- [x] Add `GET /api/devices/{deviceId}` returning device identity, branch, current assigned seat, latest heartbeat, active credential count, recent command statuses, and installed app count.
+- [x] Protect the endpoint with staff bearer branch permission.
+- [x] Add audit only for sensitive detail actions later; simple read does not write audit unless product scope changes.
 
 ## Task 6: Operator Device Detail Workflow
 

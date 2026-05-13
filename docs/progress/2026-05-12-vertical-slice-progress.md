@@ -218,6 +218,22 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `f072f6d`:
   - missing credential rejection;
   - route/request device mismatch rejection;
   - credential-for-different-device rejection.
+- Added shared device detail contract `DeviceDetailDto`.
+- Added permission `devices.detail.view` and mapped it for owner, branch
+  manager, shift supervisor, and technician roles.
+- Added staff-protected `GET /api/devices/{deviceId}`, returning:
+  - device identity and branch;
+  - latest heartbeat online/locked state and component versions;
+  - current assigned seat and zone;
+  - active credential count;
+  - recent command statuses;
+  - installed app count.
+- Added tests for:
+  - device detail contract serialization;
+  - unauthenticated device detail rejection;
+  - branch staff without `devices.detail.view` rejection;
+  - authorized technician detail read;
+  - unknown device `404`.
 
 ## Known Deviations And Adaptations
 
@@ -291,16 +307,16 @@ reads only. It does not yet include:
 
 - Operator App layout management UI for creating or editing zones, seats, or
   device-seat assignments;
-- staff-protected installed app read path through the upcoming device detail
-  endpoint;
-- device detail read endpoint and Operator detail workflow;
+- full installed app list read path, if needed beyond the current device detail
+  installed app count;
+- Operator detail workflow;
 - automatic Agent-side installed app inventory collection;
 - live PostgreSQL smoke for persisted floor-map reads.
 
 ## Latest Verified State
 
 Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 3
-installed apps reporting changes:
+device detail backend changes:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -310,7 +326,22 @@ installed apps reporting changes:
 Results:
 
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 89 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 94 visible passing tests, 0 failed, 0 skipped.
+
+Targeted TDD verification for the Phase 3 device detail backend slice was also
+run for:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter DeviceDetailContractSerializationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter DeviceDetailEndpointTests --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- `DeviceDetailContractSerializationTests` failed first because
+  `DeviceDetailDto` did not exist, then passed after GREEN;
+- `DeviceDetailEndpointTests` failed first because `GET /api/devices/{deviceId}`
+  returned `404`, then passed after GREEN.
 
 Targeted TDD verification for the Phase 3 installed apps reporting slice was
 also run for:
@@ -571,14 +602,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add the staff-protected device detail read endpoint with assigned seat,
-   latest heartbeat state, credential summary, recent command statuses, and
-   installed app counts.
-2. Extend the existing Operator technician panel with a dense device detail
+1. Extend the existing Operator technician panel with a dense device detail
    workflow backed by the new read endpoint.
-3. Add Agent-side installed app inventory collection that posts to the
+2. Add Agent-side installed app inventory collection that posts to the
    authenticated installed apps report endpoint.
-4. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
+3. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
    assignment, and bearer-authenticated floor-map read verification.
-5. Later, add Operator App sign-in UI and role-aware startup so staff can
+4. Later, add Operator App sign-in UI and role-aware startup so staff can
    acquire protected bearer/refresh token snapshots without manual setup.
