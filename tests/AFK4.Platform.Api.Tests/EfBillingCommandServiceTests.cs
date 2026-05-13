@@ -308,6 +308,26 @@ public sealed class EfBillingCommandServiceTests
     }
 
     [Fact]
+    public async Task TopUpWalletAsync_TreatsExistingLedgerCurrenciesCaseInsensitively()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        db.LedgerEntries.Add(CreateLedgerEntry(LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000, 0, currencyCode: "tjs"));
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(
+            TestIds.OrganizationId,
+            new MoneyDto("TJS", 5000),
+            "front desk cash top-up",
+            "topup-001");
+
+        var result = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2, await db.LedgerEntries.CountAsync());
+    }
+
+    [Fact]
     public async Task ManualCorrectionAsync_AppendsManualCorrectionAndRequiresReason()
     {
         await using var db = CreateDbContext();

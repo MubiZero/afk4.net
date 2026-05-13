@@ -1,3 +1,4 @@
+using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
@@ -124,13 +125,13 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Reason is required.");
         }
 
-        var currencyValidation = await ValidatePlayerLedgerCurrencyAsync<WalletSummaryDto>(
+        var currencyValidation = await GetLedgerCurrencyForWriteAsync<WalletSummaryDto>(
             playerAccountId,
             request.Amount.CurrencyCode,
             cancellationToken);
-        if (currencyValidation is not null)
+        if (currencyValidation.Error is not null)
         {
-            return currencyValidation;
+            return currencyValidation.Error;
         }
 
         return await ExecuteLedgerSummaryCommandAsync(
@@ -150,7 +151,7 @@ public sealed class EfBillingCommandService(
                 LedgerAccountTypeNames.Wallet,
                 request.Amount.MinorUnits,
                 quantitySeconds: 0,
-                request.Amount.CurrencyCode.Trim().ToUpperInvariant(),
+                currencyValidation.CurrencyCode,
                 description: LedgerEntryTypeNames.TopUp,
                 request.Reason.Trim(),
                 reversesLedgerEntryId: null,
@@ -193,42 +194,42 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Reason is required.");
         }
 
-        var original = await dbContext.LedgerEntries
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                entry =>
-                    entry.OrganizationId == request.OrganizationId &&
-                    entry.BranchId == branchId &&
-                    entry.LedgerEntryId == request.LedgerEntryId,
-                cancellationToken);
-
-        if (original is null)
-        {
-            return BillingCommandServiceResult<LedgerEntryDto>.Missing("Ledger entry was not found.");
-        }
-
-        if (!string.Equals(original.CurrencyCode, request.Amount.CurrencyCode.Trim(), StringComparison.OrdinalIgnoreCase))
-        {
-            return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund currency must match the original entry currency.");
-        }
-
-        if (original.AmountMinorUnits == 0)
-        {
-            return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund amount cannot exceed the original amount.");
-        }
-
-        var originalAmountAbs = Math.Abs(original.AmountMinorUnits);
-        var alreadyRefundedAbs = await GetAlreadyRefundedAmountAsync(original.LedgerEntryId, cancellationToken);
-        var remainingRefundable = originalAmountAbs - alreadyRefundedAbs;
-
-        if (request.Amount.MinorUnits > remainingRefundable)
-        {
-            return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund amount cannot exceed the remaining refundable amount.");
-        }
-
         return await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
+            var original = await dbContext.LedgerEntries
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    entry =>
+                        entry.OrganizationId == request.OrganizationId &&
+                        entry.BranchId == branchId &&
+                        entry.LedgerEntryId == request.LedgerEntryId,
+                    cancellationToken);
+
+            if (original is null)
+            {
+                return BillingCommandServiceResult<LedgerEntryDto>.Missing("Ledger entry was not found.");
+            }
+
+            if (!string.Equals(original.CurrencyCode, request.Amount.CurrencyCode.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund currency must match the original entry currency.");
+            }
+
+            if (original.AmountMinorUnits == 0)
+            {
+                return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund amount cannot exceed the original amount.");
+            }
+
+            var originalAmountAbs = Math.Abs(original.AmountMinorUnits);
+            var alreadyRefundedAbs = await GetAlreadyRefundedAmountAsync(original.LedgerEntryId, cancellationToken);
+            var remainingRefundable = originalAmountAbs - alreadyRefundedAbs;
+
+            if (request.Amount.MinorUnits > remainingRefundable)
+            {
+                return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund amount cannot exceed the remaining refundable amount.");
+            }
+
             var refundAmount = original.AmountMinorUnits > 0
                 ? -request.Amount.MinorUnits
                 : request.Amount.MinorUnits;
@@ -270,7 +271,9 @@ public sealed class EfBillingCommandService(
             RefundOperation,
             request.IdempotencyKey,
             request,
-            cancellationToken), cancellationToken);
+            cancellationToken),
+            IsolationLevel.Serializable,
+            cancellationToken);
     }
 
     public async Task<BillingCommandServiceResult<WalletSummaryDto>> ManualCorrectionAsync(
@@ -314,13 +317,13 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Currency code is required.");
         }
 
-        var currencyValidation = await ValidatePlayerLedgerCurrencyAsync<WalletSummaryDto>(
+        var currencyValidation = await GetLedgerCurrencyForWriteAsync<WalletSummaryDto>(
             playerAccountId,
             request.Amount.CurrencyCode,
             cancellationToken);
-        if (currencyValidation is not null)
+        if (currencyValidation.Error is not null)
         {
-            return currencyValidation;
+            return currencyValidation.Error;
         }
 
         return await ExecuteLedgerSummaryCommandAsync(
@@ -340,7 +343,7 @@ public sealed class EfBillingCommandService(
                 request.AccountType,
                 request.Amount.MinorUnits,
                 request.QuantitySeconds,
-                request.Amount.CurrencyCode.Trim().ToUpperInvariant(),
+                currencyValidation.CurrencyCode,
                 description: LedgerEntryTypeNames.ManualCorrection,
                 request.Reason.Trim(),
                 reversesLedgerEntryId: null,
@@ -390,13 +393,13 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Reason is required.");
         }
 
-        var currencyValidation = await ValidatePlayerLedgerCurrencyAsync<WalletSummaryDto>(
+        var currencyValidation = await GetLedgerCurrencyForWriteAsync<WalletSummaryDto>(
             playerAccountId,
             request.Amount.CurrencyCode,
             cancellationToken);
-        if (currencyValidation is not null)
+        if (currencyValidation.Error is not null)
         {
-            return currencyValidation;
+            return currencyValidation.Error;
         }
 
         var current = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, playerAccountId, cancellationToken);
@@ -427,7 +430,7 @@ public sealed class EfBillingCommandService(
                 LedgerAccountTypeNames.Debt,
                 -request.Amount.MinorUnits,
                 quantitySeconds: 0,
-                request.Amount.CurrencyCode.Trim().ToUpperInvariant(),
+                currencyValidation.CurrencyCode,
                 description: LedgerEntryTypeNames.DebtPayment,
                 request.Reason.Trim(),
                 reversesLedgerEntryId: null,
@@ -583,32 +586,44 @@ public sealed class EfBillingCommandService(
         return refundAmounts.Sum(Math.Abs);
     }
 
-    private async Task<BillingCommandServiceResult<TResponse>?> ValidatePlayerLedgerCurrencyAsync<TResponse>(
+    private sealed record LedgerCurrencyValidation<TResponse>(
+        BillingCommandServiceResult<TResponse>? Error,
+        string CurrencyCode);
+
+    private async Task<LedgerCurrencyValidation<TResponse>> GetLedgerCurrencyForWriteAsync<TResponse>(
         Guid playerAccountId,
         string requestedCurrencyCode,
         CancellationToken cancellationToken)
     {
         var normalizedRequestedCurrency = requestedCurrencyCode.Trim();
-        var currencies = await dbContext.LedgerEntries
+        var rawCurrencies = await dbContext.LedgerEntries
             .AsNoTracking()
             .Where(entry => entry.PlayerAccountId == playerAccountId)
             .Select(entry => entry.CurrencyCode)
-            .Distinct()
             .ToListAsync(cancellationToken);
+        var currencies = rawCurrencies
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         if (currencies.Count > 1)
         {
-            return BillingCommandServiceResult<TResponse>.Invalid("Player ledger contains multiple currencies.");
+            return new LedgerCurrencyValidation<TResponse>(
+                BillingCommandServiceResult<TResponse>.Invalid("Player ledger contains multiple currencies."),
+                normalizedRequestedCurrency.ToUpperInvariant());
         }
 
         var existingCurrency = currencies.SingleOrDefault();
         if (existingCurrency is not null &&
             !string.Equals(existingCurrency, normalizedRequestedCurrency, StringComparison.OrdinalIgnoreCase))
         {
-            return BillingCommandServiceResult<TResponse>.Invalid("Requested currency must match the player ledger currency.");
+            return new LedgerCurrencyValidation<TResponse>(
+                BillingCommandServiceResult<TResponse>.Invalid("Requested currency must match the player ledger currency."),
+                existingCurrency);
         }
 
-        return null;
+        return new LedgerCurrencyValidation<TResponse>(
+            Error: null,
+            CurrencyCode: existingCurrency ?? normalizedRequestedCurrency.ToUpperInvariant());
     }
 
     private async Task<BillingCommandServiceResult<TResponse>?> ReplayIdempotencyAsync<TResponse, TRequest>(
@@ -652,6 +667,7 @@ public sealed class EfBillingCommandService(
     private async Task<BillingCommandServiceResult<TResponse>> ExecuteInTransactionAsync<TResponse>(
         Func<Task<BillingCommandServiceResult<TResponse>>> action,
         Func<Task<BillingCommandServiceResult<TResponse>?>>? recoverIdempotencyRaceAsync,
+        IsolationLevel? isolationLevel,
         CancellationToken cancellationToken)
     {
         if (!dbContext.Database.IsRelational())
@@ -674,7 +690,9 @@ public sealed class EfBillingCommandService(
             }
         }
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = isolationLevel is null
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : await dbContext.Database.BeginTransactionAsync(isolationLevel.Value, cancellationToken);
         try
         {
             var result = await action();
@@ -699,8 +717,25 @@ public sealed class EfBillingCommandService(
 
     private Task<BillingCommandServiceResult<TResponse>> ExecuteInTransactionAsync<TResponse>(
         Func<Task<BillingCommandServiceResult<TResponse>>> action,
+        Func<Task<BillingCommandServiceResult<TResponse>?>>? recoverIdempotencyRaceAsync,
+        IsolationLevel isolationLevel,
         CancellationToken cancellationToken)
     {
-        return ExecuteInTransactionAsync(action, recoverIdempotencyRaceAsync: null, cancellationToken);
+        return ExecuteInTransactionAsync(action, recoverIdempotencyRaceAsync, (IsolationLevel?)isolationLevel, cancellationToken);
+    }
+
+    private Task<BillingCommandServiceResult<TResponse>> ExecuteInTransactionAsync<TResponse>(
+        Func<Task<BillingCommandServiceResult<TResponse>>> action,
+        Func<Task<BillingCommandServiceResult<TResponse>?>>? recoverIdempotencyRaceAsync,
+        CancellationToken cancellationToken)
+    {
+        return ExecuteInTransactionAsync(action, recoverIdempotencyRaceAsync, isolationLevel: null, cancellationToken);
+    }
+
+    private Task<BillingCommandServiceResult<TResponse>> ExecuteInTransactionAsync<TResponse>(
+        Func<Task<BillingCommandServiceResult<TResponse>>> action,
+        CancellationToken cancellationToken)
+    {
+        return ExecuteInTransactionAsync(action, recoverIdempotencyRaceAsync: null, isolationLevel: null, cancellationToken);
     }
 }
