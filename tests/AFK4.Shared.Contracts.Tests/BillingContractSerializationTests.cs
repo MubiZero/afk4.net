@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Shared.Contracts.Tests;
 
@@ -41,11 +42,34 @@ public sealed class BillingContractSerializationTests
     }
 
     [Fact]
-    public void SessionRequests_CanCarryBillingModeAndPlayerAccount()
+    public void StartGuestSessionRequest_LegacyJsonDefaultsBillingFields()
+    {
+        const string json = """
+            {
+              "OrganizationId": "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
+              "SeatId": "11111111-1111-4111-8111-111111111111",
+              "DurationMinutes": 60,
+              "TariffRuleVersionId": "legacy-tariff-rule",
+              "IdempotencyKey": "legacy-start-001"
+            }
+            """;
+
+        var copy = JsonSerializer.Deserialize<StartGuestSessionRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Null(copy.PlayerAccountId);
+        Assert.Equal("", copy.BillingMode);
+        Assert.Null(copy.TariffVersionId);
+        Assert.Null(copy.PlayerPackageId);
+    }
+
+    [Fact]
+    public void StartGuestSessionRequest_RoundTripsBillingFieldsThroughJson()
     {
         var playerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
         var tariffVersionId = Guid.Parse("cccccccc-cccc-4ccc-cccc-cccccccccccc");
-        var start = new AFK4.Shared.Contracts.Sessions.StartGuestSessionRequest(
+        var playerPackageId = Guid.Parse("dddddddd-dddd-4ddd-dddd-dddddddddddd");
+        var start = new StartGuestSessionRequest(
             OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
             SeatId: Guid.Parse("11111111-1111-4111-8111-111111111111"),
             DurationMinutes: 60,
@@ -54,10 +78,60 @@ public sealed class BillingContractSerializationTests
             PlayerAccountId: playerAccountId,
             BillingMode: BillingModeNames.PrepaidWallet,
             TariffVersionId: tariffVersionId,
-            PlayerPackageId: null);
+            PlayerPackageId: playerPackageId);
 
-        Assert.Equal(playerAccountId, start.PlayerAccountId);
-        Assert.Equal(BillingModeNames.PrepaidWallet, start.BillingMode);
-        Assert.Equal(tariffVersionId, start.TariffVersionId);
+        var json = JsonSerializer.Serialize(start);
+        var copy = JsonSerializer.Deserialize<StartGuestSessionRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(playerAccountId, copy.PlayerAccountId);
+        Assert.Equal(BillingModeNames.PrepaidWallet, copy.BillingMode);
+        Assert.Equal(tariffVersionId, copy.TariffVersionId);
+        Assert.Equal(playerPackageId, copy.PlayerPackageId);
+    }
+
+    [Fact]
+    public void ExtendSessionRequest_LegacyJsonDefaultsBillingFields()
+    {
+        const string json = """
+            {
+              "AdditionalMinutes": 30,
+              "TariffRuleVersionId": "legacy-tariff-rule",
+              "IdempotencyKey": "legacy-extend-001"
+            }
+            """;
+
+        var copy = JsonSerializer.Deserialize<ExtendSessionRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Null(copy.PlayerAccountId);
+        Assert.Equal("", copy.BillingMode);
+        Assert.Null(copy.TariffVersionId);
+        Assert.Null(copy.PlayerPackageId);
+    }
+
+    [Fact]
+    public void ExtendSessionRequest_RoundTripsBillingFieldsThroughJson()
+    {
+        var playerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
+        var tariffVersionId = Guid.Parse("cccccccc-cccc-4ccc-cccc-cccccccccccc");
+        var playerPackageId = Guid.Parse("dddddddd-dddd-4ddd-dddd-dddddddddddd");
+        var request = new ExtendSessionRequest(
+            AdditionalMinutes: 30,
+            TariffRuleVersionId: tariffVersionId.ToString("D"),
+            IdempotencyKey: "extend-package-001",
+            PlayerAccountId: playerAccountId,
+            BillingMode: BillingModeNames.Package,
+            TariffVersionId: tariffVersionId,
+            PlayerPackageId: playerPackageId);
+
+        var json = JsonSerializer.Serialize(request);
+        var copy = JsonSerializer.Deserialize<ExtendSessionRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(playerAccountId, copy.PlayerAccountId);
+        Assert.Equal(BillingModeNames.Package, copy.BillingMode);
+        Assert.Equal(tariffVersionId, copy.TariffVersionId);
+        Assert.Equal(playerPackageId, copy.PlayerPackageId);
     }
 }
