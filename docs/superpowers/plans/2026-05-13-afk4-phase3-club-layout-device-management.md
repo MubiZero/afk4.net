@@ -307,11 +307,11 @@ Expected: pass.
 - Modify: `D:\afk4.net\src\AFK4.Platform.Api\Program.cs`
 - Create: `D:\afk4.net\tests\AFK4.Platform.Api.Tests\InstalledAppsEndpointTests.cs`
 
-- [ ] Add contract tests for installed app report serialization.
-- [ ] Add EF entity and migration for latest installed app snapshots per device.
-- [ ] Add authenticated device endpoint `POST /api/devices/{deviceId}/installed-apps/report`.
-- [ ] Reject route/device/credential mismatches.
-- [ ] Add staff-protected read path later through the device detail workflow task.
+- [x] Add contract tests for installed app report serialization.
+- [x] Add EF entity and migration for latest installed app snapshots per device.
+- [x] Add authenticated device endpoint `POST /api/devices/{deviceId}/installed-apps/report`.
+- [x] Reject route/device/credential mismatches.
+- [x] Add staff-protected read path later through the device detail workflow task.
 
 ## Task 5: Device Detail Backend Workflow
 

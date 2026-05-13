@@ -200,6 +200,24 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `f072f6d`:
   - floor-map contract serialization with persisted layout/device fields;
   - EF floor-map read service state projection;
   - unauthorized, forbidden, and authorized persisted floor-map endpoint paths.
+- Added shared installed app report contracts:
+  - `InstalledAppReportRequest`;
+  - `InstalledAppDto`.
+- Added EF Core entity and migration `AddDeviceInstalledApps` for
+  `device_installed_apps`.
+- Added device-authenticated
+  `POST /api/devices/{deviceId}/installed-apps/report`, which replaces the
+  latest installed app snapshot rows for the reporting device.
+- Added route/body/credential identity validation for installed apps reports:
+  - route `deviceId` must match request `DeviceId`;
+  - the supplied device credential must match the request organization, branch,
+    and device.
+- Added tests for:
+  - installed app report contract serialization;
+  - successful snapshot replacement;
+  - missing credential rejection;
+  - route/request device mismatch rejection;
+  - credential-for-different-device rejection.
 
 ## Known Deviations And Adaptations
 
@@ -273,7 +291,8 @@ reads only. It does not yet include:
 
 - Operator App layout management UI for creating or editing zones, seats, or
   device-seat assignments;
-- installed apps reporting;
+- staff-protected installed app read path through the upcoming device detail
+  endpoint;
 - device detail read endpoint and Operator detail workflow;
 - automatic Agent-side installed app inventory collection;
 - live PostgreSQL smoke for persisted floor-map reads.
@@ -281,7 +300,7 @@ reads only. It does not yet include:
 ## Latest Verified State
 
 Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 3
-persisted layout and floor-map changes:
+installed apps reporting changes:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -291,7 +310,26 @@ persisted layout and floor-map changes:
 Results:
 
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 84 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 89 visible passing tests, 0 failed, 0 skipped.
+
+Targeted TDD verification for the Phase 3 installed apps reporting slice was
+also run for:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter InstalledAppReportContractSerializationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter InstalledAppsEndpointTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- `InstalledAppReportContractSerializationTests` failed first because the
+  installed app report contracts did not exist, then passed after GREEN;
+- `InstalledAppsEndpointTests` failed first because `DeviceInstalledAppEntity`
+  and `PlatformDbContext.DeviceInstalledApps` did not exist, then passed after
+  GREEN;
+- full Platform API tests passed with 44 visible passing tests, 0 failed,
+  0 skipped.
 
 Targeted TDD verification for the Phase 3 persisted floor-map slice was also
 run for:
@@ -533,13 +571,13 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Continue Phase 3 with installed apps reporting from Agent to backend,
-   including an authenticated device endpoint and persisted app snapshot rows.
-2. Add the staff-protected device detail read endpoint with assigned seat,
+1. Add the staff-protected device detail read endpoint with assigned seat,
    latest heartbeat state, credential summary, recent command statuses, and
    installed app counts.
-3. Extend the existing Operator technician panel with a dense device detail
+2. Extend the existing Operator technician panel with a dense device detail
    workflow backed by the new read endpoint.
+3. Add Agent-side installed app inventory collection that posts to the
+   authenticated installed apps report endpoint.
 4. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
    assignment, and bearer-authenticated floor-map read verification.
 5. Later, add Operator App sign-in UI and role-aware startup so staff can

@@ -211,6 +211,67 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
     return Results.Ok(response);
 });
 
+app.MapPost("/api/devices/{deviceId:guid}/installed-apps/report", async (
+    Guid deviceId,
+    InstalledAppReportRequest request,
+    HttpContext httpContext,
+    PlatformDbContext dbContext,
+    IDeviceCredentialValidator credentialValidator,
+    CancellationToken cancellationToken) =>
+{
+    if (deviceId != request.DeviceId)
+    {
+        return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+    }
+
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId is required." });
+    }
+
+    if (request.BranchId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "BranchId is required." });
+    }
+
+    if (request.ReportedAtUtc == default)
+    {
+        return Results.BadRequest(new { Error = "ReportedAtUtc is required." });
+    }
+
+    var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    {
+        return Results.Unauthorized();
+    }
+
+    var existingApps = await dbContext.DeviceInstalledApps
+        .Where(app => app.DeviceId == deviceId)
+        .ToListAsync(cancellationToken);
+    dbContext.DeviceInstalledApps.RemoveRange(existingApps);
+
+    foreach (var app in request.Apps.Where(app => !string.IsNullOrWhiteSpace(app.DisplayName)))
+    {
+        dbContext.DeviceInstalledApps.Add(new DeviceInstalledAppEntity
+        {
+            DeviceInstalledAppId = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
+            BranchId = request.BranchId,
+            DeviceId = deviceId,
+            DisplayName = app.DisplayName.Trim(),
+            Version = string.IsNullOrWhiteSpace(app.Version) ? null : app.Version.Trim(),
+            Publisher = string.IsNullOrWhiteSpace(app.Publisher) ? null : app.Publisher.Trim(),
+            InstallLocation = string.IsNullOrWhiteSpace(app.InstallLocation) ? null : app.InstallLocation.Trim(),
+            InstalledAtUtc = app.InstalledAtUtc,
+            ReportedAtUtc = request.ReportedAtUtc
+        });
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    return Results.NoContent();
+});
+
 app.MapPost("/api/devices/{deviceId:guid}/commands", async (
     Guid deviceId,
     CreateDeviceCommandRequest request,

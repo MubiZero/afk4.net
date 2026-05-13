@@ -32,6 +32,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<DeviceCommandEntity> DeviceCommands => Set<DeviceCommandEntity>();
 
+    public DbSet<DeviceInstalledAppEntity> DeviceInstalledApps => Set<DeviceInstalledAppEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -172,6 +174,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(command => command.Message).HasMaxLength(512);
             entity.Property(command => command.PayloadJson).HasColumnType("jsonb").IsRequired();
             entity.HasIndex(command => new { command.DeviceId, command.CommandId }).IsUnique();
+        });
+
+        modelBuilder.Entity<DeviceInstalledAppEntity>(entity =>
+        {
+            entity.ToTable("device_installed_apps");
+            entity.HasKey(app => app.DeviceInstalledAppId);
+            entity.Property(app => app.DisplayName).HasMaxLength(240).IsRequired();
+            entity.Property(app => app.Version).HasMaxLength(120);
+            entity.Property(app => app.Publisher).HasMaxLength(160);
+            entity.Property(app => app.InstallLocation).HasMaxLength(512);
+            entity.HasIndex(app => new { app.DeviceId, app.DisplayName });
+            entity.HasIndex(app => new { app.OrganizationId, app.BranchId, app.DeviceId });
+            entity.HasIndex(app => app.ReportedAtUtc);
         });
     }
 }

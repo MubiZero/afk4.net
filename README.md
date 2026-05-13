@@ -113,6 +113,8 @@ The current vertical slice exposes:
   token permission `devices.enrollment_codes.create`
 - `POST /api/devices/enroll`
 - `POST /api/devices/{deviceId}/heartbeat`
+- `POST /api/devices/{deviceId}/installed-apps/report` with device credential
+  authentication
 - `POST /api/devices/{deviceId}/commands` with staff bearer token permission
   `devices.commands.dispatch`
 - `GET /api/devices/{deviceId}/commands/{commandId}/status` with staff bearer
@@ -280,6 +282,8 @@ The first vertical slice foundation is implemented:
 - branch-scoped authorization for persisted floor-map reads;
 - EF-backed floor-map read model assembled from branch, zone, seat,
   device-seat assignment, and latest device heartbeat state;
+- device-authenticated installed apps reporting with EF-backed latest snapshot
+  rows;
 - Operator App Windows-protected token storage abstraction;
 - Operator App typed device API client and technician panel for enrollment-code
   creation, command dispatch/status inspection, and credential
@@ -298,7 +302,7 @@ Not implemented yet:
   it is added;
 - Operator App sign-in UI and role-aware navigation;
 - Operator App layout management UI;
-- installed apps reporting and device detail read workflows;
+- device detail read workflows;
 - automatic Agent-side consumption of rotated credentials;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;
