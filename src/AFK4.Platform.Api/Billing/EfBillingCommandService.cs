@@ -74,7 +74,13 @@ public sealed class EfBillingCommandService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return BillingCommandServiceResult<PlayerAccountDto>.Ok(response);
-        }, cancellationToken);
+        }, () => ReplayIdempotencyAsync<PlayerAccountDto, CreatePlayerAccountRequest>(
+            request.OrganizationId,
+            branchId,
+            PlayerCreateOperation,
+            request.IdempotencyKey,
+            request,
+            cancellationToken), cancellationToken);
     }
 
     public async Task<BillingCommandServiceResult<WalletSummaryDto>> TopUpWalletAsync(
@@ -116,6 +122,15 @@ public sealed class EfBillingCommandService(
         if (string.IsNullOrWhiteSpace(request.Reason))
         {
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Reason is required.");
+        }
+
+        var currencyValidation = await ValidatePlayerLedgerCurrencyAsync<WalletSummaryDto>(
+            playerAccountId,
+            request.Amount.CurrencyCode,
+            cancellationToken);
+        if (currencyValidation is not null)
+        {
+            return currencyValidation;
         }
 
         return await ExecuteLedgerSummaryCommandAsync(
@@ -173,6 +188,11 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Currency code is required.");
         }
 
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Reason is required.");
+        }
+
         var original = await dbContext.LedgerEntries
             .AsNoTracking()
             .SingleOrDefaultAsync(
@@ -192,14 +212,26 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund currency must match the original entry currency.");
         }
 
-        if (original.AmountMinorUnits <= 0 || request.Amount.MinorUnits > Math.Abs(original.AmountMinorUnits))
+        if (original.AmountMinorUnits == 0)
         {
             return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund amount cannot exceed the original amount.");
+        }
+
+        var originalAmountAbs = Math.Abs(original.AmountMinorUnits);
+        var alreadyRefundedAbs = await GetAlreadyRefundedAmountAsync(original.LedgerEntryId, cancellationToken);
+        var remainingRefundable = originalAmountAbs - alreadyRefundedAbs;
+
+        if (request.Amount.MinorUnits > remainingRefundable)
+        {
+            return BillingCommandServiceResult<LedgerEntryDto>.Invalid("Refund amount cannot exceed the remaining refundable amount.");
         }
 
         return await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
+            var refundAmount = original.AmountMinorUnits > 0
+                ? -request.Amount.MinorUnits
+                : request.Amount.MinorUnits;
             var refund = BillingEntryFactory.Create(
                 original.OrganizationId,
                 original.BranchId,
@@ -207,8 +239,8 @@ public sealed class EfBillingCommandService(
                 original.SessionId,
                 original.PlayerPackageId,
                 LedgerEntryTypeNames.Refund,
-                LedgerAccountTypeNames.Wallet,
-                -request.Amount.MinorUnits,
+                original.AccountType,
+                refundAmount,
                 quantitySeconds: 0,
                 original.CurrencyCode,
                 description: LedgerEntryTypeNames.Refund,
@@ -232,7 +264,13 @@ public sealed class EfBillingCommandService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return BillingCommandServiceResult<LedgerEntryDto>.Ok(response);
-        }, cancellationToken);
+        }, () => ReplayIdempotencyAsync<LedgerEntryDto, RefundLedgerEntryRequest>(
+            request.OrganizationId,
+            branchId,
+            RefundOperation,
+            request.IdempotencyKey,
+            request,
+            cancellationToken), cancellationToken);
     }
 
     public async Task<BillingCommandServiceResult<WalletSummaryDto>> ManualCorrectionAsync(
@@ -261,7 +299,7 @@ public sealed class EfBillingCommandService(
             return BillingCommandServiceResult<WalletSummaryDto>.Missing("Player account was not found.");
         }
 
-        if (!IsSupportedAccountType(request.AccountType))
+        if (!IsManualCorrectionAccountType(request.AccountType))
         {
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Unsupported ledger account type.");
         }
@@ -274,6 +312,15 @@ public sealed class EfBillingCommandService(
         if (string.IsNullOrWhiteSpace(request.Amount.CurrencyCode))
         {
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Currency code is required.");
+        }
+
+        var currencyValidation = await ValidatePlayerLedgerCurrencyAsync<WalletSummaryDto>(
+            playerAccountId,
+            request.Amount.CurrencyCode,
+            cancellationToken);
+        if (currencyValidation is not null)
+        {
+            return currencyValidation;
         }
 
         return await ExecuteLedgerSummaryCommandAsync(
@@ -341,6 +388,15 @@ public sealed class EfBillingCommandService(
         if (string.IsNullOrWhiteSpace(request.Reason))
         {
             return BillingCommandServiceResult<WalletSummaryDto>.Invalid("Reason is required.");
+        }
+
+        var currencyValidation = await ValidatePlayerLedgerCurrencyAsync<WalletSummaryDto>(
+            playerAccountId,
+            request.Amount.CurrencyCode,
+            cancellationToken);
+        if (currencyValidation is not null)
+        {
+            return currencyValidation;
         }
 
         var current = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, playerAccountId, cancellationToken);
@@ -412,7 +468,13 @@ public sealed class EfBillingCommandService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return BillingCommandServiceResult<WalletSummaryDto>.Ok(summary);
-        }, cancellationToken);
+        }, () => ReplayIdempotencyAsync<WalletSummaryDto, object>(
+            organizationId,
+            branchId,
+            operation,
+            idempotencyKey,
+            requestHashInput,
+            cancellationToken), cancellationToken);
     }
 
     private async Task<BillingCommandServiceResult<TResponse>?> GetExistingIdempotencyAsync<TResponse, TRequest>(
@@ -508,13 +570,69 @@ public sealed class EfBillingCommandService(
             player.CreatedAtUtc);
     }
 
-    private static bool IsSupportedAccountType(string accountType)
+    private async Task<long> GetAlreadyRefundedAmountAsync(Guid originalLedgerEntryId, CancellationToken cancellationToken)
+    {
+        var refundAmounts = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry =>
+                entry.ReversesLedgerEntryId == originalLedgerEntryId &&
+                (entry.EntryType == LedgerEntryTypeNames.Refund || entry.EntryType == LedgerEntryTypeNames.Reversal))
+            .Select(entry => entry.AmountMinorUnits)
+            .ToListAsync(cancellationToken);
+
+        return refundAmounts.Sum(Math.Abs);
+    }
+
+    private async Task<BillingCommandServiceResult<TResponse>?> ValidatePlayerLedgerCurrencyAsync<TResponse>(
+        Guid playerAccountId,
+        string requestedCurrencyCode,
+        CancellationToken cancellationToken)
+    {
+        var normalizedRequestedCurrency = requestedCurrencyCode.Trim();
+        var currencies = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry => entry.PlayerAccountId == playerAccountId)
+            .Select(entry => entry.CurrencyCode)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (currencies.Count > 1)
+        {
+            return BillingCommandServiceResult<TResponse>.Invalid("Player ledger contains multiple currencies.");
+        }
+
+        var existingCurrency = currencies.SingleOrDefault();
+        if (existingCurrency is not null &&
+            !string.Equals(existingCurrency, normalizedRequestedCurrency, StringComparison.OrdinalIgnoreCase))
+        {
+            return BillingCommandServiceResult<TResponse>.Invalid("Requested currency must match the player ledger currency.");
+        }
+
+        return null;
+    }
+
+    private async Task<BillingCommandServiceResult<TResponse>?> ReplayIdempotencyAsync<TResponse, TRequest>(
+        Guid organizationId,
+        Guid branchId,
+        string operation,
+        string idempotencyKey,
+        TRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await GetExistingIdempotencyAsync<TResponse, TRequest>(
+            organizationId,
+            branchId,
+            operation,
+            idempotencyKey,
+            request,
+            cancellationToken);
+    }
+
+    private static bool IsManualCorrectionAccountType(string accountType)
     {
         return accountType is
             LedgerAccountTypeNames.Wallet or
-            LedgerAccountTypeNames.Debt or
-            LedgerAccountTypeNames.PackageTime or
-            LedgerAccountTypeNames.BonusTime;
+            LedgerAccountTypeNames.Debt;
     }
 
     private static string HashRequest<TRequest>(TRequest request)
@@ -533,17 +651,56 @@ public sealed class EfBillingCommandService(
 
     private async Task<BillingCommandServiceResult<TResponse>> ExecuteInTransactionAsync<TResponse>(
         Func<Task<BillingCommandServiceResult<TResponse>>> action,
+        Func<Task<BillingCommandServiceResult<TResponse>?>>? recoverIdempotencyRaceAsync,
         CancellationToken cancellationToken)
     {
         if (!dbContext.Database.IsRelational())
         {
-            return await action();
+            try
+            {
+                return await action();
+            }
+            catch (DbUpdateException) when (recoverIdempotencyRaceAsync is not null)
+            {
+                dbContext.ChangeTracker.Clear();
+                var recovered = await recoverIdempotencyRaceAsync();
+
+                if (recovered is not null)
+                {
+                    return recovered;
+                }
+
+                throw;
+            }
         }
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        var result = await action();
-        await transaction.CommitAsync(cancellationToken);
+        try
+        {
+            var result = await action();
+            await transaction.CommitAsync(cancellationToken);
 
-        return result;
+            return result;
+        }
+        catch (DbUpdateException) when (recoverIdempotencyRaceAsync is not null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            var recovered = await recoverIdempotencyRaceAsync();
+
+            if (recovered is not null)
+            {
+                return recovered;
+            }
+
+            throw;
+        }
+    }
+
+    private Task<BillingCommandServiceResult<TResponse>> ExecuteInTransactionAsync<TResponse>(
+        Func<Task<BillingCommandServiceResult<TResponse>>> action,
+        CancellationToken cancellationToken)
+    {
+        return ExecuteInTransactionAsync(action, recoverIdempotencyRaceAsync: null, cancellationToken);
     }
 }

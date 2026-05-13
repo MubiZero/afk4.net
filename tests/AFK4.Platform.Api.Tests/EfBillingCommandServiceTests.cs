@@ -200,6 +200,114 @@ public sealed class EfBillingCommandServiceTests
     }
 
     [Fact]
+    public async Task RefundLedgerEntryAsync_RefundsNegativeGameplayChargeWithPositiveRefundEntry()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        var original = CreateLedgerEntry(LedgerEntryTypeNames.GameplayCharge, LedgerAccountTypeNames.Wallet, -5000, 0);
+        db.LedgerEntries.Add(original);
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var request = new RefundLedgerEntryRequest(
+            TestIds.OrganizationId,
+            original.LedgerEntryId,
+            new MoneyDto("TJS", 5000),
+            "operator refund approved",
+            "refund-001");
+
+        var result = await service.RefundLedgerEntryAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var refund = await db.LedgerEntries.SingleAsync(entry => entry.EntryType == LedgerEntryTypeNames.Refund);
+        Assert.Equal(5000, refund.AmountMinorUnits);
+        Assert.Equal(original.LedgerEntryId, refund.ReversesLedgerEntryId);
+    }
+
+    [Fact]
+    public async Task RefundLedgerEntryAsync_RejectsCumulativeRefundOverOriginalAmount()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        var original = CreateLedgerEntry(LedgerEntryTypeNames.GameplayCharge, LedgerAccountTypeNames.Wallet, -5000, 0);
+        db.LedgerEntries.Add(original);
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+
+        var first = await service.RefundLedgerEntryAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new RefundLedgerEntryRequest(
+                TestIds.OrganizationId,
+                original.LedgerEntryId,
+                new MoneyDto("TJS", 3000),
+                "operator refund approved",
+                "refund-001"),
+            CancellationToken.None);
+        var second = await service.RefundLedgerEntryAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new RefundLedgerEntryRequest(
+                TestIds.OrganizationId,
+                original.LedgerEntryId,
+                new MoneyDto("TJS", 3000),
+                "operator refund approved",
+                "refund-002"),
+            CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.False(second.Succeeded);
+        Assert.False(second.Conflict);
+        Assert.Single(await db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.Refund).ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    public async Task RefundLedgerEntryAsync_NullOrWhitespaceReasonReturnsInvalidAndDoesNotAppendRefund(string? reason)
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        var original = CreateLedgerEntry(LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000, 0);
+        db.LedgerEntries.Add(original);
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var request = new RefundLedgerEntryRequest(
+            TestIds.OrganizationId,
+            original.LedgerEntryId,
+            new MoneyDto("TJS", 5000),
+            reason!,
+            "refund-001");
+
+        var result = await service.RefundLedgerEntryAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.False(result.NotFound);
+        Assert.Empty(await db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.Refund).ToListAsync());
+    }
+
+    [Fact]
+    public async Task TopUpWalletAsync_RejectsMismatchedLedgerCurrencyWithoutAppendingEntry()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        db.LedgerEntries.Add(CreateLedgerEntry(LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000, 0, currencyCode: "TJS"));
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(
+            TestIds.OrganizationId,
+            new MoneyDto("USD", 5000),
+            "front desk cash top-up",
+            "topup-001");
+
+        var result = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.Single(await db.LedgerEntries.ToListAsync());
+    }
+
+    [Fact]
     public async Task ManualCorrectionAsync_AppendsManualCorrectionAndRequiresReason()
     {
         await using var db = CreateDbContext();
@@ -278,6 +386,50 @@ public sealed class EfBillingCommandServiceTests
     }
 
     [Fact]
+    public async Task ManualCorrectionAsync_RejectsMismatchedLedgerCurrencyWithoutAppendingEntry()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        db.LedgerEntries.Add(CreateLedgerEntry(LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000, 0, currencyCode: "TJS"));
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var request = new ManualLedgerCorrectionRequest(
+            TestIds.OrganizationId,
+            LedgerAccountTypeNames.Wallet,
+            new MoneyDto("USD", -300),
+            QuantitySeconds: 0,
+            "manager correction for dispute",
+            "correction-001");
+
+        var result = await service.ManualCorrectionAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.Single(await db.LedgerEntries.ToListAsync());
+    }
+
+    [Fact]
+    public async Task ManualCorrectionAsync_RejectsPackageTimeWithoutAppendingEntry()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        var service = CreateService(db);
+        var request = new ManualLedgerCorrectionRequest(
+            TestIds.OrganizationId,
+            LedgerAccountTypeNames.PackageTime,
+            new MoneyDto("TJS", 0),
+            QuantitySeconds: 300,
+            "manager correction for dispute",
+            "correction-001");
+
+        var result = await service.ManualCorrectionAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.Empty(await db.LedgerEntries.ToListAsync());
+    }
+
+    [Fact]
     public async Task PayDebtAsync_AppendsDebtPaymentAndRejectsOverpayment()
     {
         await using var db = CreateDbContext();
@@ -337,6 +489,27 @@ public sealed class EfBillingCommandServiceTests
         Assert.True(conflict.Conflict);
         var payment = await db.LedgerEntries.SingleAsync(entry => entry.EntryType == LedgerEntryTypeNames.DebtPayment);
         Assert.Equal(PlayerAccountId, payment.PlayerAccountId);
+    }
+
+    [Fact]
+    public async Task PayDebtAsync_RejectsMismatchedLedgerCurrencyWithoutAppendingPayment()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        db.LedgerEntries.Add(CreateLedgerEntry(LedgerEntryTypeNames.PostpaidDebt, LedgerAccountTypeNames.Debt, 1000, 0, currencyCode: "TJS"));
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var request = new PayDebtRequest(
+            TestIds.OrganizationId,
+            new MoneyDto("USD", 700),
+            "cash debt payment",
+            "debt-pay-001");
+
+        var result = await service.PayDebtAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.Empty(await db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.DebtPayment).ToListAsync());
     }
 
     [Fact]
@@ -409,7 +582,8 @@ public sealed class EfBillingCommandServiceTests
         string accountType,
         long amountMinorUnits,
         int quantitySeconds,
-        Guid? playerAccountId = null)
+        Guid? playerAccountId = null,
+        string currencyCode = "TJS")
     {
         return new LedgerEntryEntity
         {
@@ -423,7 +597,7 @@ public sealed class EfBillingCommandServiceTests
             AccountType = accountType,
             AmountMinorUnits = amountMinorUnits,
             QuantitySeconds = quantitySeconds,
-            CurrencyCode = "TJS",
+            CurrencyCode = currencyCode,
             Description = entryType,
             Reason = "test seed",
             ReversesLedgerEntryId = null,
