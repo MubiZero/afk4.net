@@ -50,6 +50,22 @@ public sealed class EfTariffServiceTests
     }
 
     [Fact]
+    public async Task CreateTariffAsync_DuplicateNameWithDifferentIdempotencyKeyReturnsInvalid()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var request = new CreateTariffRequest(TestIds.OrganizationId, "Standard", "tariff-create-001");
+        var duplicateRequest = new CreateTariffRequest(TestIds.OrganizationId, " standard ", "tariff-create-002");
+
+        await service.CreateTariffAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var duplicate = await service.CreateTariffAsync(TestIds.BranchId, ActorStaffUserId, duplicateRequest, CancellationToken.None);
+
+        Assert.False(duplicate.Succeeded);
+        Assert.False(duplicate.Conflict);
+        Assert.Single(await db.Tariffs.ToListAsync());
+    }
+
+    [Fact]
     public async Task CreateTariffVersionAsync_AssignsVersionNumberOneForFirstVersion()
     {
         await using var db = CreateDbContext();
@@ -115,12 +131,35 @@ public sealed class EfTariffServiceTests
         Assert.Single(await db.TariffVersions.ToListAsync());
     }
 
+    [Theory]
+    [InlineData("2026-05-13T10:00:00Z")]
+    [InlineData("2026-05-13T09:00:00Z")]
+    public async Task CreateTariffVersionAsync_RejectsEqualOrEarlierEffectiveDate(string effectiveFromUtc)
+    {
+        await using var db = CreateDbContext();
+        var tariff = await SeedTariffAsync(db);
+        await SeedTariffVersionAsync(db, tariff.TariffId, effectiveFromUtc: FirstEffectiveFromUtc);
+        var service = CreateService(db);
+        var request = CreateVersionRequest(
+            tariff.TariffId,
+            pricePerMinuteMinorUnits: 60,
+            effectiveFromUtc: DateTimeOffset.Parse(effectiveFromUtc),
+            idempotencyKey: "tariff-version-002");
+
+        var result = await service.CreateTariffVersionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.False(result.NotFound);
+        Assert.Single(await db.TariffVersions.ToListAsync());
+    }
+
     [Fact]
     public async Task CalculateAsync_PreservesVersionAndRoundsBillableMinutes()
     {
         await using var db = CreateDbContext();
         var tariff = await SeedTariffAsync(db);
-        var version = await SeedTariffVersionAsync(db, tariff.TariffId);
+        var version = await SeedTariffVersionAsync(db, tariff.TariffId, effectiveFromUtc: Now);
         var service = CreateService(db);
 
         var exact = await service.CalculateAsync(
@@ -146,6 +185,59 @@ public sealed class EfTariffServiceTests
     }
 
     [Fact]
+    public async Task CalculateAsync_UsesCurrentEffectiveWindowAndIgnoresFutureVersion()
+    {
+        await using var db = CreateDbContext();
+        var tariff = await SeedTariffAsync(db);
+        var current = await SeedTariffVersionAsync(
+            db,
+            tariff.TariffId,
+            versionNumber: 1,
+            effectiveFromUtc: Now,
+            retiredAtUtc: Now.AddDays(1));
+        var future = await SeedTariffVersionAsync(
+            db,
+            tariff.TariffId,
+            versionNumber: 2,
+            pricePerMinuteMinorUnits: 60,
+            effectiveFromUtc: Now.AddDays(1));
+        var service = CreateService(db, Now);
+
+        var currentCalculation = await service.CalculateAsync(
+            TestIds.BranchId,
+            new CalculateTariffRequest(TestIds.OrganizationId, current.TariffVersionId, 30),
+            CancellationToken.None);
+        var futureCalculation = await service.CalculateAsync(
+            TestIds.BranchId,
+            new CalculateTariffRequest(TestIds.OrganizationId, future.TariffVersionId, 30),
+            CancellationToken.None);
+
+        Assert.NotNull(currentCalculation);
+        Assert.Null(futureCalculation);
+    }
+
+    [Fact]
+    public async Task CalculateAsync_ReturnsNullWhenAmountOverflows()
+    {
+        await using var db = CreateDbContext();
+        var tariff = await SeedTariffAsync(db);
+        var version = await SeedTariffVersionAsync(
+            db,
+            tariff.TariffId,
+            pricePerMinuteMinorUnits: long.MaxValue,
+            minimumBillableMinutes: 2,
+            effectiveFromUtc: Now);
+        var service = CreateService(db);
+
+        var result = await service.CalculateAsync(
+            TestIds.BranchId,
+            new CalculateTariffRequest(TestIds.OrganizationId, version.TariffVersionId, 2),
+            CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public async Task CalculateAsync_ReturnsNullForUnknownOrRetiredVersion()
     {
         await using var db = CreateDbContext();
@@ -153,7 +245,8 @@ public sealed class EfTariffServiceTests
         var version = await SeedTariffVersionAsync(
             db,
             tariff.TariffId,
-            retiredAtUtc: DateTimeOffset.Parse("2026-05-13T12:00:00Z"));
+            effectiveFromUtc: Now,
+            retiredAtUtc: Now);
         var service = CreateService(db);
 
         var unknown = await service.CalculateAsync(
@@ -190,7 +283,9 @@ public sealed class EfTariffServiceTests
     [InlineData(0, 30, 15, "TJS")]
     [InlineData(50, 0, 15, "TJS")]
     [InlineData(50, 30, 0, "TJS")]
-    [InlineData(50, 30, 15, "   ")]
+    [InlineData(50, 30, 15, "")]
+    [InlineData(50, 30, 15, "USDT")]
+    [InlineData(50, 30, 15, "12$")]
     public async Task CreateTariffVersionAsync_RejectsInvalidValues(
         long pricePerMinuteMinorUnits,
         int minimumBillableMinutes,
@@ -237,7 +332,7 @@ public sealed class EfTariffServiceTests
     {
         await using var db = CreateDbContext();
         var tariff = await SeedTariffAsync(db);
-        var version = await SeedTariffVersionAsync(db, tariff.TariffId);
+        var version = await SeedTariffVersionAsync(db, tariff.TariffId, effectiveFromUtc: Now);
         var service = CreateService(db);
 
         var result = await service.CalculateAsync(
@@ -257,9 +352,9 @@ public sealed class EfTariffServiceTests
         return new PlatformDbContext(options);
     }
 
-    private static EfTariffService CreateService(PlatformDbContext db)
+    private static EfTariffService CreateService(PlatformDbContext db, DateTimeOffset? now = null)
     {
-        return new EfTariffService(db, new FixedTimeProvider(Now));
+        return new EfTariffService(db, new FixedTimeProvider(now ?? Now));
     }
 
     private static async Task<TariffEntity> SeedTariffAsync(PlatformDbContext db)
@@ -283,6 +378,10 @@ public sealed class EfTariffServiceTests
     private static async Task<TariffVersionEntity> SeedTariffVersionAsync(
         PlatformDbContext db,
         Guid tariffId,
+        int versionNumber = 1,
+        long pricePerMinuteMinorUnits = 50,
+        int minimumBillableMinutes = 30,
+        DateTimeOffset? effectiveFromUtc = null,
         DateTimeOffset? retiredAtUtc = null)
     {
         var version = new TariffVersionEntity
@@ -291,12 +390,12 @@ public sealed class EfTariffServiceTests
             TariffId = tariffId,
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            VersionNumber = 1,
+            VersionNumber = versionNumber,
             CurrencyCode = "TJS",
-            PricePerMinuteMinorUnits = 50,
-            MinimumBillableMinutes = 30,
+            PricePerMinuteMinorUnits = pricePerMinuteMinorUnits,
+            MinimumBillableMinutes = minimumBillableMinutes,
             RoundingIncrementMinutes = 15,
-            EffectiveFromUtc = FirstEffectiveFromUtc,
+            EffectiveFromUtc = effectiveFromUtc ?? FirstEffectiveFromUtc,
             RetiredAtUtc = retiredAtUtc,
             CreatedAtUtc = Now
         };

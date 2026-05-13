@@ -44,6 +44,20 @@ public sealed class EfTariffService(
             return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name is required.");
         }
 
+        var trimmedName = request.Name.Trim();
+        var existingNames = await dbContext.Tariffs
+            .AsNoTracking()
+            .Where(tariff =>
+                tariff.OrganizationId == request.OrganizationId &&
+                tariff.BranchId == branchId)
+            .Select(tariff => tariff.Name)
+            .ToListAsync(cancellationToken);
+
+        if (existingNames.Contains(trimmedName, StringComparer.OrdinalIgnoreCase))
+        {
+            return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.");
+        }
+
         return await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
@@ -52,7 +66,7 @@ public sealed class EfTariffService(
                 TariffId = Guid.NewGuid(),
                 OrganizationId = request.OrganizationId,
                 BranchId = branchId,
-                Name = request.Name.Trim(),
+                Name = trimmedName,
                 IsActive = true,
                 CreatedAtUtc = now
             };
@@ -115,9 +129,9 @@ public sealed class EfTariffService(
             return BillingCommandServiceResult<TariffVersionDto>.Invalid("Rounding increment minutes must be positive.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.CurrencyCode))
+        if (!IsValidCurrencyCode(request.CurrencyCode))
         {
-            return BillingCommandServiceResult<TariffVersionDto>.Invalid("Currency code is required.");
+            return BillingCommandServiceResult<TariffVersionDto>.Invalid("Currency code must be exactly 3 alphabetic letters.");
         }
 
         return await ExecuteInTransactionAsync(async () =>
@@ -134,6 +148,19 @@ public sealed class EfTariffService(
             if (!tariffExists)
             {
                 return BillingCommandServiceResult<TariffVersionDto>.Missing("Tariff was not found.");
+            }
+
+            var latestEffectiveFromUtc = await dbContext.TariffVersions
+                .Where(version =>
+                    version.OrganizationId == request.OrganizationId &&
+                    version.BranchId == branchId &&
+                    version.TariffId == request.TariffId)
+                .Select(version => (DateTimeOffset?)version.EffectiveFromUtc)
+                .MaxAsync(cancellationToken);
+
+            if (latestEffectiveFromUtc is not null && request.EffectiveFromUtc <= latestEffectiveFromUtc.Value)
+            {
+                return BillingCommandServiceResult<TariffVersionDto>.Invalid("Effective date must be later than the latest tariff version.");
             }
 
             var nextVersionNumber = await dbContext.TariffVersions
@@ -217,7 +244,10 @@ public sealed class EfTariffService(
                     candidate.TariffVersionId == request.TariffVersionId,
                 cancellationToken);
 
-        if (version is null || version.RetiredAtUtc is not null)
+        var now = timeProvider.GetUtcNow();
+        if (version is null ||
+            version.EffectiveFromUtc > now ||
+            (version.RetiredAtUtc is not null && version.RetiredAtUtc <= now))
         {
             return null;
         }
@@ -228,13 +258,22 @@ public sealed class EfTariffService(
             billableMinutes = RoundUp(billableMinutes, version.RoundingIncrementMinutes);
         }
 
-        return new TariffCalculationResult(
-            version.TariffId,
-            version.TariffVersionId,
-            version.TariffVersionId.ToString("D"),
-            request.DurationMinutes,
-            billableMinutes,
-            new MoneyDto(version.CurrencyCode, billableMinutes * version.PricePerMinuteMinorUnits));
+        try
+        {
+            var amountMinorUnits = checked(billableMinutes * version.PricePerMinuteMinorUnits);
+
+            return new TariffCalculationResult(
+                version.TariffId,
+                version.TariffVersionId,
+                version.TariffVersionId.ToString("D"),
+                request.DurationMinutes,
+                billableMinutes,
+                new MoneyDto(version.CurrencyCode, amountMinorUnits));
+        }
+        catch (OverflowException)
+        {
+            return null;
+        }
     }
 
     private async Task<BillingCommandServiceResult<TResponse>?> GetExistingIdempotencyAsync<TResponse, TRequest>(
@@ -416,6 +455,15 @@ public sealed class EfTariffService(
     private static int RoundUp(int value, int increment)
     {
         return ((value + increment - 1) / increment) * increment;
+    }
+
+    private static bool IsValidCurrencyCode(string currencyCode)
+    {
+        var trimmed = currencyCode.Trim();
+        return trimmed.Length == 3 &&
+            trimmed.All(character =>
+                (character >= 'A' && character <= 'Z') ||
+                (character >= 'a' && character <= 'z'));
     }
 
     private static string HashRequest<TRequest>(TRequest request)
