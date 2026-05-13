@@ -13,6 +13,7 @@ using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Tariffs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -570,6 +571,38 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
     var response = await heartbeatService.RecordHeartbeatAsync(deviceId, request, cancellationToken);
 
     return Results.Ok(response);
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/commands/{commandId:guid}/result", async (
+    Guid deviceId,
+    Guid commandId,
+    DeviceCommandResultDto result,
+    HttpContext httpContext,
+    IDeviceCredentialValidator credentialValidator,
+    IDeviceCommandStore commandStore,
+    IHubContext<DeviceHub> hubContext,
+    CancellationToken cancellationToken) =>
+{
+    if (deviceId != result.DeviceId)
+    {
+        return Results.BadRequest(new { Error = "Route deviceId must match result DeviceId." });
+    }
+
+    if (commandId != result.CommandId)
+    {
+        return Results.BadRequest(new { Error = "Route commandId must match result CommandId." });
+    }
+
+    var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+    if (!credentialValidator.Validate(result.OrganizationId, result.BranchId, deviceId, credentialSecret))
+    {
+        return Results.Unauthorized();
+    }
+
+    await commandStore.ApplyResultAsync(result, cancellationToken);
+    await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceCommandResult, result, cancellationToken);
+
+    return Results.Ok();
 });
 
 app.MapPost("/api/devices/{deviceId:guid}/session-reconciliation", async (

@@ -33,6 +33,7 @@ public sealed class WorkerTests
             options,
             new ThrowingRealtimeClient(new InvalidOperationException("realtime unavailable")),
             new InMemorySessionLeaseStore(),
+            new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter());
@@ -69,6 +70,7 @@ public sealed class WorkerTests
             options,
             new NoOpRealtimeClient(),
             new InMemorySessionLeaseStore(),
+            new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector(
             [
@@ -114,6 +116,7 @@ public sealed class WorkerTests
             options,
             new NoOpRealtimeClient(),
             new InMemorySessionLeaseStore(),
+            new NoOpDeviceCommandHandler(options.Value),
             new RecordingSessionReconciliationReporter(calls),
             new StaticInstalledAppInventoryCollector(
             [
@@ -131,6 +134,56 @@ public sealed class WorkerTests
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Equal(["reconcile", "apps"], calls);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_HandlesHeartbeatCommandsAndReportsResultWithCredential()
+    {
+        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var resultPosted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
+        });
+        var command = new DeviceCommandDto(
+            Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            "lock",
+            DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+            new Dictionary<string, string>
+            {
+                ["reason"] = "heartbeat-fallback"
+            });
+        using var handler = new HeartbeatCommandResultHandler(command, resultPosted, stopping);
+        var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
+        var commandHandler = new RecordingDeviceCommandHandler(options.Value);
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            httpClientFactory,
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            commandHandler,
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter());
+
+        await worker.StartAsync(stopping.Token);
+        await resultPosted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await worker.StopAsync(CancellationToken.None);
+
+        var handled = Assert.Single(commandHandler.HandledCommands);
+        Assert.Equal(command.CommandId, handled.CommandId);
+        Assert.Equal($"/api/devices/{options.Value.DeviceId:D}/commands/{command.CommandId:D}/result", handler.ResultRequestUri?.PathAndQuery);
+        Assert.Equal("device-secret", handler.ResultCredentialSecret);
+        Assert.NotNull(handler.ResultBody);
+        Assert.Equal(command.CommandId, handler.ResultBody.CommandId);
+        Assert.Equal("Accepted", handler.ResultBody.Status);
     }
 
     private sealed class ThrowingRealtimeClient(Exception exception) : IDeviceRealtimeClient
@@ -183,6 +236,40 @@ public sealed class WorkerTests
                 SessionId: null,
                 Lease: null));
         }
+    }
+
+    private sealed class NoOpDeviceCommandHandler(AgentOptions options) : IDeviceCommandHandler
+    {
+        public Task<DeviceCommandResultDto> HandleAsync(DeviceCommandDto command, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(CreateResult(options, command, "Accepted"));
+        }
+    }
+
+    private sealed class RecordingDeviceCommandHandler(AgentOptions options) : IDeviceCommandHandler
+    {
+        public List<DeviceCommandDto> HandledCommands { get; } = [];
+
+        public Task<DeviceCommandResultDto> HandleAsync(DeviceCommandDto command, CancellationToken cancellationToken)
+        {
+            HandledCommands.Add(command);
+            return Task.FromResult(CreateResult(options, command, "Accepted"));
+        }
+    }
+
+    private static DeviceCommandResultDto CreateResult(
+        AgentOptions options,
+        DeviceCommandDto command,
+        string status)
+    {
+        return new DeviceCommandResultDto(
+            options.OrganizationId,
+            options.BranchId,
+            options.DeviceId,
+            command.CommandId,
+            status,
+            "test result",
+            DateTimeOffset.Parse("2026-05-13T10:01:00Z"));
     }
 
     private sealed class RecordingSessionReconciliationReporter(List<string> calls) : ISessionReconciliationReporter
@@ -263,6 +350,44 @@ public sealed class WorkerTests
             {
                 Content = JsonContent.Create(response)
             });
+        }
+    }
+
+    private sealed class HeartbeatCommandResultHandler(
+        DeviceCommandDto command,
+        TaskCompletionSource resultPosted,
+        CancellationTokenSource stopping) : HttpMessageHandler
+    {
+        public Uri? ResultRequestUri { get; private set; }
+
+        public string? ResultCredentialSecret { get; private set; }
+
+        public DeviceCommandResultDto? ResultBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.RequestUri?.PathAndQuery.EndsWith("/heartbeat", StringComparison.Ordinal) == true)
+            {
+                var response = new DeviceHeartbeatResponse(
+                    ServerTimeUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                    HeartbeatIntervalSeconds: 10,
+                    Commands: [command]);
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(response)
+                };
+            }
+
+            ResultRequestUri = request.RequestUri;
+            ResultCredentialSecret = request.Headers.GetValues(DeviceCredentialHeaders.CredentialSecret).Single();
+            ResultBody = await request.Content!.ReadFromJsonAsync<DeviceCommandResultDto>(cancellationToken: cancellationToken);
+            resultPosted.TrySetResult();
+            stopping.Cancel();
+
+            return new HttpResponseMessage(HttpStatusCode.OK);
         }
     }
 }

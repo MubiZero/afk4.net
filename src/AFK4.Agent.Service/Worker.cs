@@ -10,6 +10,7 @@ public sealed class Worker(
     IOptions<AgentOptions> options,
     IDeviceRealtimeClient realtimeClient,
     ISessionLeaseStore leaseStore,
+    IDeviceCommandHandler commandHandler,
     ISessionReconciliationReporter sessionReconciliationReporter,
     IInstalledAppInventoryCollector installedAppInventoryCollector,
     IInstalledAppReporter installedAppReporter) : BackgroundService
@@ -53,10 +54,46 @@ public sealed class Worker(
 
             response.EnsureSuccessStatusCode();
             var heartbeat = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>(cancellationToken: stoppingToken);
+            if (heartbeat is not null)
+            {
+                await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, stoppingToken);
+            }
+
             var intervalSeconds = heartbeat?.HeartbeatIntervalSeconds ?? 10;
 
             logger.LogInformation("Heartbeat sent for {DeviceId}. Next heartbeat in {IntervalSeconds}s.", agentOptions.DeviceId, intervalSeconds);
             await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+        }
+    }
+
+    private async Task HandleHeartbeatCommandsAsync(
+        HttpClient client,
+        IReadOnlyList<DeviceCommandDto> commands,
+        CancellationToken cancellationToken)
+    {
+        foreach (var command in commands)
+        {
+            var result = await commandHandler.HandleAsync(command, cancellationToken);
+            using var message = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/devices/{result.DeviceId}/commands/{result.CommandId}/result")
+            {
+                Content = JsonContent.Create(result)
+            };
+
+            var credentialSecret = options.Value.DeviceCredentialSecret;
+            if (!string.IsNullOrWhiteSpace(credentialSecret))
+            {
+                message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
+            }
+
+            var response = await client.SendAsync(message, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            logger.LogInformation(
+                "Heartbeat command {CommandId} acknowledged as {Status}.",
+                command.CommandId,
+                result.Status);
         }
     }
 

@@ -135,6 +135,63 @@ public sealed class DeviceCommandEndpointTests
     }
 
     [Fact]
+    public async Task PostDeviceCommandResult_WithValidCredential_UpdatesPersistedCommandStatus()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var enrollment = await EnrollDeviceAsync(client, factory);
+        var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
+        await SeedPendingCommandAsync(factory, commandId, enrollment.DeviceId);
+        var result = new DeviceCommandResultDto(
+            enrollment.OrganizationId,
+            enrollment.BranchId,
+            enrollment.DeviceId,
+            commandId,
+            Status: "Accepted",
+            Message: "handled from heartbeat fallback",
+            ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:02:00Z"));
+        using var message = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/devices/{enrollment.DeviceId:D}/commands/{commandId:D}/result")
+        {
+            Content = JsonContent.Create(result)
+        };
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
+
+        var response = await client.SendAsync(message);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var command = await dbContext.DeviceCommands.SingleAsync(candidate => candidate.CommandId == commandId);
+        Assert.Equal("Accepted", command.Status);
+        Assert.Equal("handled from heartbeat fallback", command.Message);
+        Assert.Equal(result.ObservedAtUtc, command.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task PostDeviceCommandResult_WithoutCredential_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
+        var result = new DeviceCommandResultDto(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            TestIds.DeviceId,
+            commandId,
+            Status: "Accepted",
+            Message: "handled from heartbeat fallback",
+            ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:02:00Z"));
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/devices/{TestIds.DeviceId:D}/commands/{commandId:D}/result",
+            result);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetDeviceCommandStatus_WithoutStaffToken_ReturnsUnauthorized()
     {
         await using var factory = new PlatformApiFactory();
@@ -271,14 +328,52 @@ public sealed class DeviceCommandEndpointTests
         await dbContext.SaveChangesAsync();
     }
 
-    private static async Task SeedPendingCommandAsync(PlatformApiFactory factory, Guid commandId)
+    private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(
+        HttpClient client,
+        PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var code = "AFK4-TEST-COMMANDRESULT";
+        dbContext.DeviceEnrollmentCodes.Add(new DeviceEnrollmentCodeEntity
+        {
+            Code = code,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z"),
+            ExpiresAtUtc = DateTimeOffset.Parse("2026-06-12T01:00:00Z")
+        });
+        await dbContext.SaveChangesAsync();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/devices/enroll",
+            new DeviceEnrollmentRequest(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                code,
+                MachineName: "PC-001",
+                AgentVersion: "0.1.0",
+                ShellVersion: "0.1.0",
+                RequestedAtUtc: DateTimeOffset.Parse("2026-05-12T00:00:00Z")));
+        var body = await response.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+
+        return body;
+    }
+
+    private static async Task SeedPendingCommandAsync(
+        PlatformApiFactory factory,
+        Guid commandId,
+        Guid? deviceId = null)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var createdAt = DateTimeOffset.Parse("2026-05-12T00:01:00Z");
         dbContext.DeviceCommands.Add(new DeviceCommandEntity
         {
-            DeviceId = TestIds.DeviceId,
+            DeviceId = deviceId ?? TestIds.DeviceId,
             CommandId = commandId,
             Type = "lock",
             PayloadJson = """{"reason":"operator-request"}""",
