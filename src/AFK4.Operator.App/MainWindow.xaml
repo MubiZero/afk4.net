@@ -7,120 +7,203 @@
         MinHeight="640"
         MinWidth="960"
         Background="#F3F5F7">
-    <DockPanel>
-        <Border DockPanel.Dock="Top" Background="#111827" Padding="18,12">
-            <TextBlock Text="{Binding Title}" Foreground="White" FontSize="20" FontWeight="SemiBold" />
-        </Border>
+    <Grid>
+        <Grid Background="#111827">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSignedIn}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
 
-        <Grid Margin="18">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="360" />
-            </Grid.ColumnDefinitions>
+            <Border Width="420"
+                    Padding="28"
+                    Background="White"
+                    BorderBrush="#D8DEE9"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel DataContext="{Binding SignIn}">
+                    <TextBlock Text="AFK4 Operator"
+                               FontSize="24"
+                               FontWeight="SemiBold"
+                               Foreground="#111827" />
+                    <TextBlock Text="Operator sign-in"
+                               Margin="0,6,0,22"
+                               Foreground="#4B5563" />
 
-            <ItemsControl ItemsSource="{Binding Seats}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Width="160" Height="112" Margin="0,0,12,12" Background="White" BorderBrush="#D8DEE9" BorderThickness="1" CornerRadius="6" Padding="12">
-                            <StackPanel>
-                                <TextBlock Text="{Binding Name}" FontSize="18" FontWeight="SemiBold" Foreground="#111827" />
-                                <TextBlock Text="{Binding Zone}" Margin="0,6,0,0" Foreground="#4B5563" />
-                                <TextBlock Text="{Binding State}" Margin="0,12,0,0" FontWeight="SemiBold" Foreground="#047857" />
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                    <TextBlock Text="Organization"
+                               Foreground="#4B5563" />
+                    <TextBox Text="{Binding OrganizationIdText, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="0,4,0,12" />
 
-            <Border Grid.Column="1" Background="White" BorderBrush="#D8DEE9" BorderThickness="1" CornerRadius="6" Padding="16">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" DataContext="{Binding TechnicianWorkflow}">
-                    <StackPanel>
-                        <TextBlock Text="Technician" FontSize="18" FontWeight="SemiBold" Foreground="#111827" />
+                    <TextBlock Text="User"
+                               Foreground="#4B5563" />
+                    <TextBox Text="{Binding UserName, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="0,4,0,12" />
 
-                        <TextBlock Text="Organization" Margin="0,14,0,4" Foreground="#4B5563" />
-                        <TextBox Text="{Binding OrganizationIdText, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Text="Password"
+                               Foreground="#4B5563" />
+                    <TextBox Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
+                             Margin="0,4,0,18" />
 
-                        <TextBlock Text="Branch" Margin="0,10,0,4" Foreground="#4B5563" />
-                        <TextBox Text="{Binding BranchIdText, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Content="Sign In"
+                            Height="36"
+                            Command="{Binding SignInCommand}" />
 
-                        <TextBlock Text="Device" Margin="0,10,0,4" Foreground="#4B5563" />
-                        <TextBox Text="{Binding DeviceIdText, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <Button Content="Load Detail" Margin="0,8,0,0" Command="{Binding RefreshDeviceDetailCommand}" />
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold" Foreground="#111827" />
-                                <TextBlock Text="{Binding DeviceSeatSummary}" Margin="0,4,0,0" Foreground="#4B5563" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding DeviceStateSummary}" Margin="0,4,0,0" Foreground="#111827" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                <TextBlock Text="{Binding DeviceVersionSummary}" Foreground="#4B5563" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding DeviceCredentialSummary}" Margin="0,4,0,0" Foreground="#4B5563" />
-                                <TextBlock Text="{Binding DeviceInstalledAppsSummary}" Margin="0,4,0,0" Foreground="#4B5563" />
-                                <TextBlock Text="{Binding RecentCommandSummary}" Margin="0,4,0,0" Foreground="#4B5563" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Grid>
-
-                        <Separator Margin="0,14,0,12" />
-
-                        <TextBlock Text="Enrollment" FontWeight="SemiBold" Foreground="#111827" />
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="96" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox Text="{Binding EnrollmentExpiresInSeconds, UpdateSourceTrigger=PropertyChanged}" />
-                            <Button Grid.Column="1" Content="Create" Margin="8,0,0,0" Command="{Binding CreateEnrollmentCodeCommand}" />
-                        </Grid>
-                        <TextBox Text="{Binding EnrollmentCode}" Margin="0,8,0,0" IsReadOnly="True" />
-                        <TextBlock Text="{Binding EnrollmentCodeExpiresAtUtc}" Margin="0,4,0,0" Foreground="#4B5563" />
-
-                        <Separator Margin="0,14,0,12" />
-
-                        <TextBlock Text="Command" FontWeight="SemiBold" Foreground="#111827" />
-                        <TextBox Text="{Binding CommandType, UpdateSourceTrigger=PropertyChanged}" Margin="0,8,0,0" />
-                        <TextBox Text="{Binding CommandReason, UpdateSourceTrigger=PropertyChanged}" Margin="0,8,0,0" />
-                        <Button Content="Dispatch" Margin="0,8,0,0" Command="{Binding DispatchDeviceCommandCommand}" />
-                        <TextBox Text="{Binding CommandIdText, UpdateSourceTrigger=PropertyChanged}" Margin="0,8,0,0" />
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="96" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding CommandStatus}" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#111827" />
-                            <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommandStatusCommand}" />
-                        </Grid>
-                        <TextBlock Text="{Binding CommandStatusMessage}" Margin="0,4,0,0" Foreground="#4B5563" TextWrapping="Wrap" />
-
-                        <Separator Margin="0,14,0,12" />
-
-                        <TextBlock Text="Credential" FontWeight="SemiBold" Foreground="#111827" />
-                        <TextBox Text="{Binding CredentialIdText, UpdateSourceTrigger=PropertyChanged}" Margin="0,8,0,0" />
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Button Content="Rotate" Command="{Binding RotateCredentialCommand}" />
-                            <Button Grid.Column="1" Content="Revoke" Margin="8,0,0,0" Command="{Binding RevokeCredentialCommand}" />
-                        </Grid>
-                        <TextBlock Text="{Binding CredentialStatus}" Margin="0,8,0,0" FontWeight="SemiBold" Foreground="#111827" />
-                        <TextBox Text="{Binding RotatedCredentialSecret}" Margin="0,8,0,0" IsReadOnly="True" TextWrapping="Wrap" />
-
-                        <TextBlock Text="{Binding StatusMessage}" Margin="0,14,0,0" Foreground="#047857" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding ErrorMessage}" Margin="0,8,0,0" Foreground="#B91C1C" TextWrapping="Wrap" />
-                    </StackPanel>
-                </ScrollViewer>
+                    <TextBlock Text="{Binding StatusMessage}"
+                               Margin="0,14,0,0"
+                               Foreground="#047857"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding ErrorMessage}"
+                               Margin="0,8,0,0"
+                               Foreground="#B91C1C"
+                               TextWrapping="Wrap" />
+                </StackPanel>
             </Border>
         </Grid>
-    </DockPanel>
+
+        <DockPanel>
+            <DockPanel.Style>
+                <Style TargetType="DockPanel">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSignedIn}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DockPanel.Style>
+
+            <Border DockPanel.Dock="Top"
+                    Background="#111827"
+                    Padding="18,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Title}"
+                                   Foreground="White"
+                                   FontSize="20"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding CurrentUser.DisplayName, StringFormat=  /  {0}}"
+                                   Foreground="#D1D5DB"
+                                   Margin="18,3,0,0" />
+                        <TextBlock Text="{Binding SelectedWorkspace, StringFormat=Workspace: {0}}"
+                                   Foreground="#9CA3AF"
+                                   Margin="18,3,0,0" />
+                    </StackPanel>
+
+                    <Button Grid.Column="1"
+                            Content="Sign Out"
+                            Command="{Binding SignOutCommand}"
+                            MinWidth="92" />
+                </Grid>
+            </Border>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="156" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="340" />
+                </Grid.ColumnDefinitions>
+
+                <Border Background="#E5E7EB"
+                        BorderBrush="#D1D5DB"
+                        BorderThickness="0,0,1,0"
+                        Padding="10">
+                    <ItemsControl ItemsSource="{Binding NavigationItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Label}"
+                                        Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding Kind}"
+                                        HorizontalContentAlignment="Left"
+                                        Margin="0,0,0,8"
+                                        Padding="10,8" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <Grid Grid.Column="1"
+                      Margin="18">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Floor Map"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="#111827"
+                               Margin="0,0,0,14" />
+
+                    <ItemsControl Grid.Row="1"
+                                  ItemsSource="{Binding FloorMap.Seats}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="160"
+                                        Height="112"
+                                        Margin="0,0,12,12"
+                                        Background="White"
+                                        BorderBrush="#D8DEE9"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="12">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#111827" />
+                                        <TextBlock Text="{Binding Zone}"
+                                                   Margin="0,6,0,0"
+                                                   Foreground="#4B5563" />
+                                        <TextBlock Text="{Binding State}"
+                                                   Margin="0,12,0,0"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#047857" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+
+                <Border Grid.Column="2"
+                        Background="White"
+                        BorderBrush="#D8DEE9"
+                        BorderThickness="1,0,0,0"
+                        Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="Context"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827" />
+                        <TextBlock Text="No seat selected."
+                                   Margin="0,10,0,0"
+                                   TextWrapping="Wrap"
+                                   Foreground="#4B5563" />
+                        <Separator Margin="0,16,0,16" />
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   Foreground="#047857"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DockPanel>
+    </Grid>
 </Window>
