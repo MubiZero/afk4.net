@@ -46,6 +46,8 @@ public sealed class EfSessionBillingIntegrationTests
 
         Assert.True(result.Succeeded);
         Assert.NotNull(result.Response);
+        var enqueued = Assert.Single(dispatcher.Enqueued);
+        Assert.Equal(enqueued.Command.CommandId, result.Response.DeviceCommands[0].CommandId);
         Assert.Contains(db.LedgerEntries, entry =>
             entry.EntryType == LedgerEntryTypeNames.GameplayCharge &&
             entry.AccountType == LedgerAccountTypeNames.Wallet &&
@@ -83,6 +85,7 @@ public sealed class EfSessionBillingIntegrationTests
         Assert.False(result.Succeeded);
         Assert.Empty(db.Sessions);
         Assert.Empty(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge));
+        Assert.Empty(dispatcher.Enqueued);
         Assert.Empty(dispatcher.Calls);
     }
 
@@ -98,7 +101,7 @@ public sealed class EfSessionBillingIntegrationTests
         var service = CreateService(db, dispatcher);
         var start = await StartPrepaidSessionAsync(service, tariffVersion.TariffVersionId, "start-prepaid-extend-001");
         Assert.NotNull(start.Response);
-        dispatcher.Calls.Clear();
+        dispatcher.Clear();
 
         var result = await service.ExtendSessionAsync(
             start.Response.Session.SessionId,
@@ -117,8 +120,10 @@ public sealed class EfSessionBillingIntegrationTests
         Assert.NotNull(result.Response);
         Assert.Equal(tariffVersion.TariffVersionId.ToString("D"), result.Response.Session.TariffRuleVersionId);
         Assert.Equal(2, await db.LedgerEntries.CountAsync(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge));
+        var enqueued = Assert.Single(dispatcher.Enqueued);
+        Assert.Equal(result.Response.DeviceCommands[0].CommandId, enqueued.Command.CommandId);
         var call = Assert.Single(dispatcher.Calls);
-        Assert.Equal("refresh-session-lease", call.Request.Type);
+        Assert.Equal("refresh-session-lease", call.Command.Type);
     }
 
     [Fact]
@@ -223,6 +228,7 @@ public sealed class EfSessionBillingIntegrationTests
         Assert.False(result.Succeeded);
         Assert.Empty(db.Sessions);
         Assert.Empty(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.PackageConsumption));
+        Assert.Empty(dispatcher.Enqueued);
         Assert.Empty(dispatcher.Calls);
     }
 
@@ -256,7 +262,81 @@ public sealed class EfSessionBillingIntegrationTests
         Assert.NotNull(second.Response);
         Assert.Equal(first.Response.Session.SessionId, second.Response.Session.SessionId);
         Assert.Single(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge));
+        Assert.Single(dispatcher.Enqueued);
         Assert.Single(dispatcher.Calls);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_EnqueuesCommandForResponseThenNotifiesOnce()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-prepaid-notify-001",
+                PlayerAccountId,
+                BillingModeNames.PrepaidWallet,
+                tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        var enqueued = Assert.Single(dispatcher.Enqueued);
+        var notified = Assert.Single(dispatcher.Calls);
+        Assert.Empty(dispatcher.DispatchCalls);
+        Assert.Equal(result.Response.DeviceCommands[0].CommandId, enqueued.Command.CommandId);
+        Assert.Equal(enqueued.Command.CommandId, notified.Command.CommandId);
+        Assert.Equal("unlock", notified.Command.Type);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_EnqueuesCommandForResponseThenNotifiesOnce()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 10000);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+        var start = await StartPrepaidSessionAsync(service, tariffVersion.TariffVersionId, "start-prepaid-notify-extend-001");
+        Assert.NotNull(start.Response);
+        dispatcher.Clear();
+
+        var result = await service.ExtendSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(
+                AdditionalMinutes: 30,
+                TariffRuleVersionId: "ignored-manual-v2",
+                IdempotencyKey: "extend-prepaid-notify-001",
+                PlayerAccountId,
+                BillingModeNames.PrepaidWallet,
+                tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        var enqueued = Assert.Single(dispatcher.Enqueued);
+        var notified = Assert.Single(dispatcher.Calls);
+        Assert.Empty(dispatcher.DispatchCalls);
+        Assert.Equal(result.Response.DeviceCommands[0].CommandId, enqueued.Command.CommandId);
+        Assert.Equal(enqueued.Command.CommandId, notified.Command.CommandId);
+        Assert.Equal("refresh-session-lease", notified.Command.Type);
     }
 
     private static async Task<SessionCommandServiceResult> StartPrepaidSessionAsync(
@@ -494,9 +574,25 @@ public sealed class EfSessionBillingIntegrationTests
         PlatformDbContext dbContext,
         bool requireGameplayChargeBeforeDispatch = false) : IDeviceCommandDispatchService
     {
-        public List<(Guid DeviceId, CreateDeviceCommandRequest Request)> Calls { get; } = [];
+        public List<(Guid DeviceId, CreateDeviceCommandRequest Request, DeviceCommandDto Command)> DispatchCalls { get; } = [];
+
+        public List<(Guid DeviceId, CreateDeviceCommandRequest Request, DeviceCommandDto Command)> Enqueued { get; } = [];
+
+        public List<(Guid DeviceId, DeviceCommandDto Command)> Calls { get; } = [];
 
         public Task<DeviceCommandDto> DispatchAsync(
+            Guid deviceId,
+            CreateDeviceCommandRequest request,
+            CancellationToken cancellationToken)
+        {
+            var command = CreateCommand(request);
+            DispatchCalls.Add((deviceId, request, command));
+            Calls.Add((deviceId, command));
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DeviceCommandDto> EnqueueAsync(
             Guid deviceId,
             CreateDeviceCommandRequest request,
             CancellationToken cancellationToken)
@@ -509,13 +605,36 @@ public sealed class EfSessionBillingIntegrationTests
                     entry.AmountMinorUnits < 0);
             }
 
-            Calls.Add((deviceId, request));
+            var command = CreateCommand(request);
+            Enqueued.Add((deviceId, request, command));
 
-            return Task.FromResult(new DeviceCommandDto(
+            return Task.FromResult(command);
+        }
+
+        public Task NotifyAsync(
+            Guid deviceId,
+            DeviceCommandDto command,
+            CancellationToken cancellationToken)
+        {
+            Calls.Add((deviceId, command));
+
+            return Task.CompletedTask;
+        }
+
+        public void Clear()
+        {
+            DispatchCalls.Clear();
+            Enqueued.Clear();
+            Calls.Clear();
+        }
+
+        private static DeviceCommandDto CreateCommand(CreateDeviceCommandRequest request)
+        {
+            return new DeviceCommandDto(
                 CommandId: Guid.NewGuid(),
                 Type: request.Type,
                 CreatedAtUtc: Now,
-                Payload: request.Payload));
+                Payload: request.Payload);
         }
     }
 

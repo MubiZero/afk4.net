@@ -85,7 +85,9 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid(billingValidation.Error ?? "Session billing validation failed.");
         }
 
-        return await ExecuteInTransactionAsync(async () =>
+        Guid? deviceIdToNotify = null;
+        DeviceCommandDto? commandToNotify = null;
+        var result = await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
             var sessionId = Guid.NewGuid();
@@ -141,7 +143,7 @@ public sealed class EfSessionCommandService(
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 
-            var command = await deviceCommandDispatchService.DispatchAsync(
+            var command = await deviceCommandDispatchService.EnqueueAsync(
                 assignment.DeviceId,
                 new CreateDeviceCommandRequest(
                     Type: "unlock",
@@ -152,6 +154,8 @@ public sealed class EfSessionCommandService(
                         ["reason"] = "session-start"
                     }),
                 cancellationToken);
+            deviceIdToNotify = assignment.DeviceId;
+            commandToNotify = command;
             var response = CreateResponse(request.IdempotencyKey, session, lease, [command], now);
 
             AddIdempotencyRecord(
@@ -166,6 +170,13 @@ public sealed class EfSessionCommandService(
 
             return SessionCommandServiceResult.Ok(response);
         }, cancellationToken);
+
+        if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
+        {
+            await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
+        }
+
+        return result;
     }
 
     public async Task<SessionCommandServiceResult> ExtendSessionAsync(
@@ -229,7 +240,9 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid(billingValidation.Error ?? "Session billing validation failed.");
         }
 
-        return await ExecuteInTransactionAsync(async () =>
+        Guid? deviceIdToNotify = null;
+        DeviceCommandDto? commandToNotify = null;
+        var result = await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
             session.PlayerAccountId = playerAccountId;
@@ -257,12 +270,14 @@ public sealed class EfSessionCommandService(
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            var command = await deviceCommandDispatchService.DispatchAsync(
+            var command = await deviceCommandDispatchService.EnqueueAsync(
                 session.DeviceId,
                 new CreateDeviceCommandRequest(
                     Type: "refresh-session-lease",
                     Payload: LeasePayload(session.SessionId, lease, "session-extend")),
                 cancellationToken);
+            deviceIdToNotify = session.DeviceId;
+            commandToNotify = command;
             var response = CreateResponse(request.IdempotencyKey, session, lease, [command], now);
 
             AddIdempotencyRecord(
@@ -277,6 +292,13 @@ public sealed class EfSessionCommandService(
 
             return SessionCommandServiceResult.Ok(response);
         }, cancellationToken);
+
+        if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
+        {
+            await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
+        }
+
+        return result;
     }
 
     public async Task<SessionCommandServiceResult> TransferSessionAsync(

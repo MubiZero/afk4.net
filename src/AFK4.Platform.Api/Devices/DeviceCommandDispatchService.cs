@@ -5,7 +5,7 @@ namespace AFK4.Platform.Api.Devices;
 
 public sealed class DeviceCommandDispatchService(IHubContext<DeviceHub> hubContext, IDeviceCommandStore commandStore) : IDeviceCommandDispatchService
 {
-    public async Task<DeviceCommandDto> DispatchAsync(
+    public async Task<DeviceCommandDto> EnqueueAsync(
         Guid deviceId,
         CreateDeviceCommandRequest request,
         CancellationToken cancellationToken)
@@ -18,9 +18,26 @@ public sealed class DeviceCommandDispatchService(IHubContext<DeviceHub> hubConte
 
         await commandStore.AddPendingAsync(deviceId, command, cancellationToken);
 
+        return command;
+    }
+
+    public async Task NotifyAsync(
+        Guid deviceId,
+        DeviceCommandDto command,
+        CancellationToken cancellationToken)
+    {
         await hubContext.Clients
             .Group(DeviceHubGroups.Device(deviceId))
             .SendAsync(DeviceRealtimeEvents.DeviceCommand, command, cancellationToken);
+    }
+
+    public async Task<DeviceCommandDto> DispatchAsync(
+        Guid deviceId,
+        CreateDeviceCommandRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = await EnqueueAsync(deviceId, request, cancellationToken);
+        await NotifyAsync(deviceId, command, cancellationToken);
 
         return command;
     }

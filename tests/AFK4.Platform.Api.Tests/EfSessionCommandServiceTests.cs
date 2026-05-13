@@ -308,7 +308,32 @@ public sealed class EfSessionCommandServiceTests
     {
         public List<(Guid DeviceId, CreateDeviceCommandRequest Request)> Calls { get; } = [];
 
-        public Task<DeviceCommandDto> DispatchAsync(Guid deviceId, CreateDeviceCommandRequest request, CancellationToken cancellationToken)
+        public Task<DeviceCommandDto> EnqueueAsync(
+            Guid deviceId,
+            CreateDeviceCommandRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new DeviceCommandDto(
+                CommandId: Guid.NewGuid(),
+                Type: request.Type,
+                CreatedAtUtc: Now,
+                Payload: request.Payload));
+        }
+
+        public Task NotifyAsync(
+            Guid deviceId,
+            DeviceCommandDto command,
+            CancellationToken cancellationToken)
+        {
+            Calls.Add((deviceId, new CreateDeviceCommandRequest(command.Type, command.Payload)));
+
+            return Task.CompletedTask;
+        }
+
+        public Task<DeviceCommandDto> DispatchAsync(
+            Guid deviceId,
+            CreateDeviceCommandRequest request,
+            CancellationToken cancellationToken)
         {
             Calls.Add((deviceId, request));
 

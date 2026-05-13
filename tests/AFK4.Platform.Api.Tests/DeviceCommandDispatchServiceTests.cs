@@ -7,6 +7,58 @@ namespace AFK4.Platform.Api.Tests;
 public sealed class DeviceCommandDispatchServiceTests
 {
     [Fact]
+    public async Task EnqueueAsync_SavesPendingCommandWithoutSendingRealtimeNotification()
+    {
+        var clients = new CapturingHubClients();
+        var hubContext = new CapturingHubContext(clients);
+        var commandStore = new InMemoryDeviceCommandStore();
+        var service = new DeviceCommandDispatchService(hubContext, commandStore);
+        var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
+        var request = new CreateDeviceCommandRequest(
+            Type: "unlock",
+            Payload: new Dictionary<string, string>
+            {
+                ["reason"] = "session-start"
+            });
+
+        var command = await service.EnqueueAsync(deviceId, request, CancellationToken.None);
+
+        Assert.Null(clients.CapturedGroupName);
+        Assert.Null(clients.Proxy.CapturedMethod);
+        Assert.Equal("unlock", command.Type);
+        Assert.Equal("session-start", command.Payload["reason"]);
+
+        var status = await commandStore.GetAsync(deviceId, command.CommandId, CancellationToken.None);
+        Assert.NotNull(status);
+        Assert.Equal("Pending", status.Status);
+    }
+
+    [Fact]
+    public async Task NotifyAsync_SendsAlreadyCreatedCommandToDeviceGroup()
+    {
+        var clients = new CapturingHubClients();
+        var hubContext = new CapturingHubContext(clients);
+        var commandStore = new InMemoryDeviceCommandStore();
+        var service = new DeviceCommandDispatchService(hubContext, commandStore);
+        var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
+        var command = new DeviceCommandDto(
+            Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            "refresh-session-lease",
+            DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+            new Dictionary<string, string>
+            {
+                ["reason"] = "session-extend"
+            });
+
+        await service.NotifyAsync(deviceId, command, CancellationToken.None);
+
+        Assert.Equal("device:d76eff15-9cf9-4c30-a6d4-c05fd215793f", clients.CapturedGroupName);
+        Assert.Equal(DeviceRealtimeEvents.DeviceCommand, clients.Proxy.CapturedMethod);
+        var sentCommand = Assert.IsType<DeviceCommandDto>(Assert.Single(clients.Proxy.CapturedArgs));
+        Assert.Same(command, sentCommand);
+    }
+
+    [Fact]
     public async Task DispatchAsync_SendsReturnedCommandToDeviceGroup()
     {
         var clients = new CapturingHubClients();
