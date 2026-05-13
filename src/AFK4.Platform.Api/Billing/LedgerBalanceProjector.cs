@@ -8,6 +8,8 @@ public sealed record PackageRemainingSeconds(int IncludedSeconds, int BonusSecon
 
 public static class LedgerBalanceProjector
 {
+    private const string DefaultCurrencyCode = "TJS";
+
     public static async Task<WalletSummaryDto?> GetWalletSummaryAsync(
         PlatformDbContext dbContext,
         Guid playerAccountId,
@@ -22,6 +24,21 @@ public static class LedgerBalanceProjector
             return null;
         }
 
+        var currencyCodes = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry => entry.PlayerAccountId == playerAccountId)
+            .Select(entry => entry.CurrencyCode)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (currencyCodes.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Cannot project wallet summary for player account '{playerAccountId}' because ledger entries contain multiple currencies.");
+        }
+
+        var currencyCode = currencyCodes.SingleOrDefault() ?? DefaultCurrencyCode;
+
         var entries = await dbContext.LedgerEntries
             .AsNoTracking()
             .Where(entry => entry.PlayerAccountId == playerAccountId)
@@ -35,8 +52,8 @@ public static class LedgerBalanceProjector
 
         return new WalletSummaryDto(
             playerAccountId,
-            new MoneyDto("TJS", wallet),
-            new MoneyDto("TJS", debt),
+            new MoneyDto(currencyCode, wallet),
+            new MoneyDto(currencyCode, debt),
             entries.Select(ToDto).ToList());
     }
 
