@@ -25,6 +25,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     private readonly AsyncRelayCommand payCardManualCommand;
     private readonly AsyncRelayCommand refundLastSaleCommand;
     private readonly AsyncRelayCommand voidDraftSaleCommand;
+    private readonly RelayCommand addProductCommand;
     private Guid organizationId;
     private Guid branchId;
     private Guid? currentShiftId;
@@ -53,6 +54,15 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
         Catalog = [];
         CatalogGroups = [];
         CartLines = [];
+        addProductCommand = new RelayCommand(
+            parameter =>
+            {
+                if (parameter is PosProductDto product)
+                {
+                    AddProduct(product);
+                }
+            },
+            parameter => !IsBusy && parameter is PosProductDto);
         refreshCatalogCommand = new AsyncRelayCommand(LoadCatalogAsync, () => !IsBusy);
         payCashCommand = new AsyncRelayCommand(PayCashAsync, () => CanRunCartCommand());
         payCardManualCommand = new AsyncRelayCommand(PayCardManualAsync, () => CanRunCartCommand());
@@ -168,6 +178,8 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
 
     public ICommand RefreshCatalogCommand => refreshCatalogCommand;
 
+    public ICommand AddProductCommand => addProductCommand;
+
     public ICommand PayCashCommand => payCashCommand;
 
     public ICommand PayCardManualCommand => payCardManualCommand;
@@ -182,7 +194,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
         this.branchId = branchId;
     }
 
-    public void SetCurrentShift(Guid shiftId)
+    public void SetCurrentShift(Guid? shiftId)
     {
         CurrentShiftId = shiftId;
     }
@@ -532,6 +544,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     private void NotifyCommandStates()
     {
         refreshCatalogCommand.NotifyCanExecuteChanged();
+        addProductCommand.NotifyCanExecuteChanged();
         payCashCommand.NotifyCanExecuteChanged();
         payCardManualCommand.NotifyCanExecuteChanged();
         refundLastSaleCommand.NotifyCanExecuteChanged();

@@ -1,5 +1,16 @@
+using AFK4.Operator.App.Auth;
+using AFK4.Operator.App.FloorMap;
+using AFK4.Operator.App.Players;
+using AFK4.Operator.App.Pos;
+using AFK4.Operator.App.Settings;
 using AFK4.Operator.App.Shell;
+using AFK4.Operator.App.Shifts;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Payments;
+using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Receipts;
+using AFK4.Shared.Contracts.Shifts;
 
 namespace AFK4.Operator.App.Tests;
 
@@ -84,6 +95,29 @@ public sealed class OperatorShellViewModelTests
         Assert.Null(shell.SelectedWorkspace);
     }
 
+    [Fact]
+    public void ApplySignedInContext_WiresShiftStateIntoPosWorkspace()
+    {
+        var pos = new PosWorkspaceViewModel(new RecordingPosApiClient());
+        var shifts = new ShiftWorkspaceViewModel(new RecordingShiftApiClient());
+        var shell = new OperatorShellViewModel(
+            new SignInViewModel(new UnconfiguredOperatorAuthApiClient()),
+            new FloorMapWorkspaceViewModel(),
+            new PlayerSearchViewModel(new UnconfiguredOperatorPlayerApiClient()),
+            pos,
+            shifts,
+            new SettingsWorkspaceViewModel(new HashSet<string>()));
+        var shift = CreateOpenShift();
+
+        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.CreatePosSale, StaffPermissionNames.ViewShift));
+        shifts.SetCurrentShift(shift);
+
+        Assert.Same(pos, shell.Pos);
+        Assert.Same(shifts, shell.Shifts);
+        Assert.Equal(shift.ShiftId, shell.Pos.CurrentShiftId);
+        Assert.Equal(ShiftStateNames.Open, shell.CurrentShiftState);
+    }
+
     private static OperatorUserContext CreateContext(params string[] permissions)
     {
         return new OperatorUserContext(
@@ -92,5 +126,114 @@ public sealed class OperatorShellViewModelTests
             BranchId,
             "Cashier One",
             permissions.ToHashSet(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static ShiftDto CreateOpenShift()
+    {
+        return new ShiftDto(
+            Guid.Parse("55555555-5555-4555-8555-555555555555"),
+            OrganizationId,
+            BranchId,
+            StaffUserId,
+            null,
+            ShiftStateNames.Open,
+            new MoneyDto("USD", 50000),
+            null,
+            null,
+            null,
+            "Morning shift",
+            string.Empty,
+            DateTimeOffset.Parse("2026-05-14T09:00:00Z"),
+            null);
+    }
+
+    private sealed class RecordingPosApiClient : IOperatorPosApiClient
+    {
+        public Task<IReadOnlyList<PosProductDto>> GetCatalogAsync(
+            Guid branchId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<PosProductDto>>([]);
+        }
+
+        public Task<PosSaleDto> CreateSaleAsync(
+            Guid branchId,
+            CreatePosSaleRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<PosSaleDto> PaySaleManualAsync(
+            Guid saleId,
+            ManualPaymentRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<PosSaleDto> RefundSaleAsync(
+            Guid saleId,
+            RefundPosSaleRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<PosSaleDto> VoidSaleAsync(
+            Guid saleId,
+            VoidPosSaleRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<PosSaleDto> GetSaleAsync(
+            Guid saleId,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ReceiptDto> GetReceiptAsync(
+            Guid receiptId,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    private sealed class RecordingShiftApiClient : IOperatorShiftApiClient
+    {
+        public Task<ShiftDto> OpenShiftAsync(
+            Guid branchId,
+            OpenShiftRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ShiftDto?> GetCurrentShiftAsync(
+            Guid branchId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<ShiftDto?>(null);
+        }
+
+        public Task<CashMovementDto> RecordCashMovementAsync(
+            Guid shiftId,
+            RecordCashMovementRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ShiftDto> CloseShiftAsync(
+            Guid shiftId,
+            CloseShiftRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

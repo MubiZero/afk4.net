@@ -6,7 +6,9 @@ using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Operator.App.Players;
+using AFK4.Operator.App.Pos;
 using AFK4.Operator.App.Settings;
+using AFK4.Operator.App.Shifts;
 using AFK4.Shared.Contracts.Identity;
 
 namespace AFK4.Operator.App.Shell;
@@ -24,15 +26,19 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
 
     private readonly RelayCommand navigateCommand;
     private readonly RelayCommand signOutCommand;
+    private readonly RelayCommand clearTransientStateCommand;
     private OperatorUserContext? currentUser;
     private OperatorWorkspaceKind? selectedWorkspace;
     private string statusMessage = "Sign in to start operator work.";
+    private string realtimeConnectionState = "Disconnected";
 
     public OperatorShellViewModel()
         : this(
             new SignInViewModel(new UnconfiguredOperatorAuthApiClient()),
             new FloorMapWorkspaceViewModel(new UnconfiguredOperatorFloorMapApiClient()),
             new PlayerSearchViewModel(new UnconfiguredOperatorPlayerApiClient()),
+            new PosWorkspaceViewModel(new UnconfiguredOperatorPosApiClient()),
+            new ShiftWorkspaceViewModel(new UnconfiguredOperatorShiftApiClient()),
             new SettingsWorkspaceViewModel(new HashSet<string>()))
     {
     }
@@ -42,6 +48,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
             signIn,
             floorMap,
             new PlayerSearchViewModel(new UnconfiguredOperatorPlayerApiClient()),
+            new PosWorkspaceViewModel(new UnconfiguredOperatorPosApiClient()),
+            new ShiftWorkspaceViewModel(new UnconfiguredOperatorShiftApiClient()),
             new SettingsWorkspaceViewModel(new HashSet<string>()))
     {
     }
@@ -50,7 +58,13 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         SignInViewModel signIn,
         FloorMapWorkspaceViewModel floorMap,
         PlayerSearchViewModel players)
-        : this(signIn, floorMap, players, new SettingsWorkspaceViewModel(new HashSet<string>()))
+        : this(
+            signIn,
+            floorMap,
+            players,
+            new PosWorkspaceViewModel(new UnconfiguredOperatorPosApiClient()),
+            new ShiftWorkspaceViewModel(new UnconfiguredOperatorShiftApiClient()),
+            new SettingsWorkspaceViewModel(new HashSet<string>()))
     {
     }
 
@@ -59,18 +73,39 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         FloorMapWorkspaceViewModel floorMap,
         PlayerSearchViewModel players,
         SettingsWorkspaceViewModel settings)
+        : this(
+            signIn,
+            floorMap,
+            players,
+            new PosWorkspaceViewModel(new UnconfiguredOperatorPosApiClient()),
+            new ShiftWorkspaceViewModel(new UnconfiguredOperatorShiftApiClient()),
+            settings)
+    {
+    }
+
+    public OperatorShellViewModel(
+        SignInViewModel signIn,
+        FloorMapWorkspaceViewModel floorMap,
+        PlayerSearchViewModel players,
+        PosWorkspaceViewModel pos,
+        ShiftWorkspaceViewModel shifts,
+        SettingsWorkspaceViewModel settings)
     {
         SignIn = signIn;
         FloorMap = floorMap;
         Players = players;
+        Pos = pos;
+        Shifts = shifts;
         Settings = settings;
         NavigationItems = [];
         navigateCommand = new RelayCommand(
             parameter => NavigateTo((OperatorWorkspaceKind)parameter!),
             parameter => parameter is OperatorWorkspaceKind kind && IsWorkspaceAllowed(kind));
         signOutCommand = new RelayCommand(_ => SignOut(), _ => IsSignedIn);
+        clearTransientStateCommand = new RelayCommand(_ => ClearTransientState(), _ => IsSignedIn);
 
         SignIn.SignedIn += ApplySignedInContext;
+        Shifts.PropertyChanged += OnShiftsPropertyChanged;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -83,6 +118,10 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
 
     public PlayerSearchViewModel Players { get; }
 
+    public PosWorkspaceViewModel Pos { get; }
+
+    public ShiftWorkspaceViewModel Shifts { get; }
+
     public SettingsWorkspaceViewModel Settings { get; }
 
     public ObservableCollection<OperatorNavigationItemViewModel> NavigationItems { get; }
@@ -90,6 +129,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     public ICommand NavigateCommand => navigateCommand;
 
     public ICommand SignOutCommand => signOutCommand;
+
+    public ICommand ClearTransientStateCommand => clearTransientStateCommand;
 
     public OperatorUserContext? CurrentUser
     {
@@ -99,12 +140,16 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
             if (SetField(ref currentUser, value))
             {
                 OnPropertyChanged(nameof(IsSignedIn));
+                OnPropertyChanged(nameof(BranchSummary));
                 signOutCommand.NotifyCanExecuteChanged();
+                clearTransientStateCommand.NotifyCanExecuteChanged();
             }
         }
     }
 
     public bool IsSignedIn => CurrentUser is not null;
+
+    public string BranchSummary => CurrentUser?.BranchId.ToString("D") ?? "";
 
     public OperatorWorkspaceKind? SelectedWorkspace
     {
@@ -122,6 +167,14 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     {
         get => statusMessage;
         private set => SetField(ref statusMessage, value);
+    }
+
+    public string CurrentShiftState => Shifts.CurrentShiftState ?? "No open shift";
+
+    public string RealtimeConnectionState
+    {
+        get => realtimeConnectionState;
+        private set => SetField(ref realtimeConnectionState, value);
     }
 
     public void ApplySignedInContext(OperatorUserContext context)
@@ -145,6 +198,9 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         navigateCommand.NotifyCanExecuteChanged();
         FloorMap.ApplyContext(context.OrganizationId, context.BranchId);
         Players.ApplyContext(context.OrganizationId, context.BranchId);
+        Pos.ApplyContext(context.OrganizationId, context.BranchId);
+        Shifts.ApplyContext(context.OrganizationId, context.BranchId);
+        SyncCurrentShiftToPos();
         Settings.ApplyContext(context.OrganizationId, context.BranchId, context.Permissions);
 
         if (SelectedWorkspace == OperatorWorkspaceKind.FloorMap)
@@ -163,14 +219,46 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         SelectedWorkspace = workspace;
     }
 
+    public bool CanNavigateTo(OperatorWorkspaceKind workspace)
+    {
+        return IsWorkspaceAllowed(workspace);
+    }
+
+    public void SetRealtimeConnectionState(string state)
+    {
+        RealtimeConnectionState = string.IsNullOrWhiteSpace(state) ? "Disconnected" : state.Trim();
+    }
+
+    public void ClearTransientState()
+    {
+        FloorMap.SelectedSeat = null;
+        Players.SelectPlayer(null);
+        StatusMessage = "Transient selection cleared.";
+    }
+
     public void SignOut()
     {
         CurrentUser = null;
         SelectedWorkspace = null;
         NavigationItems.Clear();
+        Pos.SetCurrentShift(null);
         Settings.ApplyPermissions(new HashSet<string>());
         StatusMessage = "Signed out.";
         navigateCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnShiftsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ShiftWorkspaceViewModel.CurrentShiftId) or nameof(ShiftWorkspaceViewModel.CurrentShiftState))
+        {
+            SyncCurrentShiftToPos();
+            OnPropertyChanged(nameof(CurrentShiftState));
+        }
+    }
+
+    private void SyncCurrentShiftToPos()
+    {
+        Pos.SetCurrentShift(Shifts.CurrentShiftId);
     }
 
     private bool IsWorkspaceAllowed(OperatorWorkspaceKind workspace)

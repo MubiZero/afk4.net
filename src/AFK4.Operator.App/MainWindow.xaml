@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:AFK4.Operator.App.Shell"
         Title="{Binding Title}"
-        Height="720"
-        Width="1180"
-        MinHeight="640"
-        MinWidth="960"
+        Height="760"
+        Width="1280"
+        MinHeight="680"
+        MinWidth="1040"
         Background="#F3F5F7">
     <Grid>
         <Grid Background="#111827">
@@ -69,7 +69,7 @@
             </Border>
         </Grid>
 
-        <DockPanel>
+        <DockPanel LastChildFill="True">
             <DockPanel.Style>
                 <Style TargetType="DockPanel">
                     <Setter Property="Visibility" Value="Collapsed" />
@@ -83,36 +83,91 @@
 
             <Border DockPanel.Dock="Top"
                     Background="#111827"
-                    Padding="18,10">
+                    Padding="14,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Orientation="Horizontal">
+                    <WrapPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding Title}"
                                    Foreground="White"
-                                   FontSize="20"
-                                   FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding CurrentUser.DisplayName, StringFormat=  /  {0}}"
-                                   Foreground="#D1D5DB"
-                                   Margin="18,3,0,0" />
-                        <TextBlock Text="{Binding SelectedWorkspace, StringFormat=Workspace: {0}}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,18,0" />
+                        <TextBlock Text="User"
                                    Foreground="#9CA3AF"
-                                   Margin="18,3,0,0" />
-                    </StackPanel>
+                                   Margin="0,2,4,0" />
+                        <TextBlock Text="{Binding CurrentUser.DisplayName}"
+                                   Foreground="#F9FAFB"
+                                   FontWeight="SemiBold"
+                                   Margin="0,2,16,0" />
+                        <TextBlock Text="Branch"
+                                   Foreground="#9CA3AF"
+                                   Margin="0,2,4,0" />
+                        <TextBlock Text="{Binding BranchSummary}"
+                                   Foreground="#F9FAFB"
+                                   Margin="0,2,16,0" />
+                        <TextBlock Text="Shift"
+                                   Foreground="#9CA3AF"
+                                   Margin="0,2,4,0" />
+                        <TextBlock Text="{Binding CurrentShiftState}"
+                                   Foreground="#A7F3D0"
+                                   Margin="0,2,16,0" />
+                        <TextBlock Text="Realtime"
+                                   Foreground="#9CA3AF"
+                                   Margin="0,2,4,0" />
+                        <TextBlock Text="{Binding RealtimeConnectionState}"
+                                   Foreground="#BFDBFE"
+                                   Margin="0,2,16,0" />
+                    </WrapPanel>
 
                     <Button Grid.Column="1"
                             Content="Sign Out"
                             Command="{Binding SignOutCommand}"
-                            MinWidth="92" />
+                            MinWidth="92"
+                            Padding="12,6" />
+                </Grid>
+            </Border>
+
+            <Border DockPanel.Dock="Bottom"
+                    Background="#F9FAFB"
+                    BorderBrush="#D1D5DB"
+                    BorderThickness="0,1,0,0"
+                    Padding="12,6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="2*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding StatusMessage}"
+                               Foreground="#374151"
+                               TextTrimming="CharacterEllipsis" />
+                    <WrapPanel Grid.Column="1"
+                               HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding FloorMap.ErrorMessage}"
+                                   Foreground="#B91C1C"
+                                   Margin="8,0,0,0" />
+                        <TextBlock Text="{Binding FloorMap.SeatContext.ErrorMessage}"
+                                   Foreground="#B91C1C"
+                                   Margin="8,0,0,0" />
+                        <TextBlock Text="{Binding Players.ErrorMessage}"
+                                   Foreground="#B91C1C"
+                                   Margin="8,0,0,0" />
+                        <TextBlock Text="{Binding Pos.ErrorMessage}"
+                                   Foreground="#B91C1C"
+                                   Margin="8,0,0,0" />
+                        <TextBlock Text="{Binding Shifts.ErrorMessage}"
+                                   Foreground="#B91C1C"
+                                   Margin="8,0,0,0" />
+                    </WrapPanel>
                 </Grid>
             </Border>
 
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="156" />
+                    <ColumnDefinition Width="148" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="340" />
                 </Grid.ColumnDefinitions>
@@ -121,22 +176,29 @@
                         BorderBrush="#D1D5DB"
                         BorderThickness="0,0,1,0"
                         Padding="10">
-                    <ItemsControl ItemsSource="{Binding NavigationItems}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Content="{Binding Label}"
-                                        Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding Kind}"
-                                        HorizontalContentAlignment="Left"
-                                        Margin="0,0,0,8"
-                                        Padding="10,8" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <DockPanel LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Top"
+                                   Text="Workspaces"
+                                   Foreground="#4B5563"
+                                   FontWeight="SemiBold"
+                                   Margin="2,0,0,10" />
+                        <ItemsControl ItemsSource="{Binding NavigationItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding Label}"
+                                            Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding Kind}"
+                                            HorizontalContentAlignment="Left"
+                                            Margin="0,0,0,8"
+                                            Padding="10,8" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DockPanel>
                 </Border>
 
                 <Grid Grid.Column="1"
-                      Margin="18">
+                      Margin="14">
                     <Grid DataContext="{Binding FloorMap}">
                         <Grid.Style>
                             <Style TargetType="Grid">
@@ -154,52 +216,240 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <TextBlock Text="Floor Map"
-                                   FontSize="22"
-                                   FontWeight="SemiBold"
-                                   Foreground="#111827"
-                                   Margin="0,0,0,14" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding BranchName}"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding Seats.Count, StringFormat={}{0} seats}"
+                                           Foreground="#4B5563"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="Refresh"
+                                    Command="{Binding RefreshCommand}"
+                                    Padding="14,7" />
+                        </Grid>
 
-                        <ItemsControl Grid.Row="1"
-                                      ItemsSource="{Binding Seats}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Command="{Binding DataContext.FloorMap.SelectSeatCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}"
-                                            Margin="0,0,12,12"
-                                            Padding="0"
-                                            Background="Transparent"
-                                            BorderThickness="0">
-                                        <Border Width="160"
-                                                Height="112"
-                                                Background="White"
-                                                BorderBrush="#D8DEE9"
-                                                BorderThickness="1"
-                                                CornerRadius="6"
-                                                Padding="12">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Name}"
-                                                           FontSize="18"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="#111827" />
-                                                <TextBlock Text="{Binding Zone}"
-                                                           Margin="0,6,0,0"
-                                                           Foreground="#4B5563" />
-                                                <TextBlock Text="{Binding State}"
-                                                           Margin="0,12,0,0"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="#047857" />
-                                            </StackPanel>
-                                        </Border>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer Grid.Row="1"
+                                      VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Seats}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Command="{Binding DataContext.FloorMap.SelectSeatCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Margin="0,0,10,10"
+                                                Padding="0"
+                                                Background="Transparent"
+                                                BorderThickness="0">
+                                            <Border Width="154"
+                                                    Height="104"
+                                                    Background="White"
+                                                    BorderBrush="#D8DEE9"
+                                                    BorderThickness="1"
+                                                    CornerRadius="5"
+                                                    Padding="10">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontSize="17"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#111827" />
+                                                    <TextBlock Text="{Binding Zone}"
+                                                               Margin="0,4,0,0"
+                                                               Foreground="#4B5563" />
+                                                    <TextBlock Text="{Binding State}"
+                                                               Margin="0,10,0,0"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#047857" />
+                                                    <TextBlock Text="{Binding RemainingSeconds, TargetNullValue=''}"
+                                                               Foreground="#6B7280" />
+                                                </StackPanel>
+                                            </Border>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <Grid DataContext="{Binding Pos}">
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DataContext.SelectedWorkspace, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                 Value="{x:Static shell:OperatorWorkspaceKind.Pos}">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="340" />
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.ColumnSpan="2"
+                              Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="POS"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding CartSummary}"
+                                           Foreground="#4B5563"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="Load Catalog"
+                                    Command="{Binding RefreshCatalogCommand}"
+                                    Padding="14,7" />
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="1"
+                                      VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding CatalogGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,14">
+                                            <TextBlock Text="{Binding Label}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#111827"
+                                                       Margin="0,0,0,6" />
+                                            <ItemsControl ItemsSource="{Binding Products}"
+                                                          Tag="{Binding DataContext.AddProductCommand, RelativeSource={RelativeSource AncestorType=Grid}}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Command="{Binding Tag, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                Margin="0,0,8,8"
+                                                                Padding="10"
+                                                                Width="180"
+                                                                HorizontalContentAlignment="Stretch">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Name}"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#111827"
+                                                                           TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding Price.MinorUnits, StringFormat={}{0} minor units}"
+                                                                           Foreground="#4B5563"
+                                                                           Margin="0,4,0,0" />
+                                                                <TextBlock Text="{Binding StockOnHand, StringFormat=Stock {0}}"
+                                                                           Foreground="#6B7280"
+                                                                           Margin="0,2,0,0" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <Border Grid.Row="1"
+                                Grid.Column="1"
+                                Background="White"
+                                BorderBrush="#D8DEE9"
+                                BorderThickness="1"
+                                Padding="12"
+                                Margin="14,0,0,0">
+                            <DockPanel LastChildFill="True">
+                                <StackPanel DockPanel.Dock="Bottom">
+                                    <TextBlock Text="{Binding PendingOperation}"
+                                               Foreground="#92400E"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Margin="0,6,0,0"
+                                               Foreground="#047857"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding ErrorMessage}"
+                                               Margin="0,6,0,0"
+                                               Foreground="#B91C1C"
+                                               TextWrapping="Wrap" />
+                                    <Button Content="Cash"
+                                            Command="{Binding PayCashCommand}"
+                                            Margin="0,10,0,0"
+                                            Height="32" />
+                                    <Button Content="Card Manual"
+                                            Command="{Binding PayCardManualCommand}"
+                                            Margin="0,8,0,0"
+                                            Height="32" />
+                                    <Button Content="Refund Last"
+                                            Command="{Binding RefundLastSaleCommand}"
+                                            Margin="0,8,0,0"
+                                            Height="32" />
+                                    <Button Content="Void Draft"
+                                            Command="{Binding VoidDraftSaleCommand}"
+                                            Margin="0,8,0,0"
+                                            Height="32" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Cart"
+                                               FontSize="18"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827" />
+                                    <ListBox ItemsSource="{Binding CartLines}"
+                                             Margin="0,10,0,10"
+                                             BorderBrush="#D8DEE9"
+                                             BorderThickness="1">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding ProductName}"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#111827" />
+                                                        <TextBlock Text="{Binding Quantity, StringFormat=Qty {0}}"
+                                                                   Foreground="#4B5563" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding LineTotalMinorUnits}"
+                                                               Foreground="#111827"
+                                                               FontWeight="SemiBold"
+                                                               Margin="10,0,0,0" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock Text="{Binding CartTotalMinorUnits, StringFormat=Total {0} minor units}"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827" />
+                                    <TextBlock Text="{Binding CurrentShiftId, TargetNullValue='No open shift for POS.'}"
+                                               Margin="0,6,0,0"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
                     </Grid>
 
                     <Grid DataContext="{Binding Players}">
@@ -225,7 +475,7 @@
 
                         <StackPanel Grid.ColumnSpan="2"
                                     Orientation="Horizontal"
-                                    Margin="0,0,0,14">
+                                    Margin="0,0,0,12">
                             <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                      Width="300"
                                      MinHeight="32" />
@@ -342,6 +592,151 @@
                                            TextWrapping="Wrap" />
                             </StackPanel>
                         </ScrollViewer>
+                    </Grid>
+
+                    <Grid DataContext="{Binding Shifts}">
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding DataContext.SelectedWorkspace, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                 Value="{x:Static shell:OperatorWorkspaceKind.Shifts}">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Grid Grid.ColumnSpan="3"
+                              Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Shifts"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding CurrentShiftState, TargetNullValue='No open shift'}"
+                                           Foreground="#4B5563"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="Load Current"
+                                    Command="{Binding LoadCurrentShiftCommand}"
+                                    Padding="14,7" />
+                        </Grid>
+
+                        <Border Grid.Row="1"
+                                Background="White"
+                                BorderBrush="#D8DEE9"
+                                BorderThickness="1"
+                                Padding="12"
+                                Margin="0,0,10,0">
+                            <StackPanel>
+                                <TextBlock Text="Open"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="Starting cash"
+                                           Margin="0,10,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBox Text="{Binding StartingCashMinorUnits, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,8" />
+                                <TextBlock Text="Opening note"
+                                           Foreground="#4B5563" />
+                                <TextBox Text="{Binding OpeningNote, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,8" />
+                                <Button Content="Open Shift"
+                                        Command="{Binding OpenShiftCommand}"
+                                        Height="32" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="1"
+                                Grid.Column="1"
+                                Background="White"
+                                BorderBrush="#D8DEE9"
+                                BorderThickness="1"
+                                Padding="12"
+                                Margin="0,0,10,0">
+                            <StackPanel>
+                                <TextBlock Text="Cash Movement"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="Amount"
+                                           Margin="0,10,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBox Text="{Binding CashMovementAmountMinorUnits, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,8" />
+                                <TextBlock Text="Type"
+                                           Foreground="#4B5563" />
+                                <TextBox Text="{Binding CashMovementType, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,8" />
+                                <TextBlock Text="Reason"
+                                           Foreground="#4B5563" />
+                                <TextBox Text="{Binding CashMovementReason, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,8" />
+                                <Button Content="Record"
+                                        Command="{Binding RecordCashMovementCommand}"
+                                        Height="32" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="1"
+                                Grid.Column="2"
+                                Background="White"
+                                BorderBrush="#D8DEE9"
+                                BorderThickness="1"
+                                Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="Close"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding ExpectedCashMinorUnits, StringFormat=Expected {0}}"
+                                           Margin="0,10,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBlock Text="Counted cash"
+                                           Margin="0,8,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBox Text="{Binding CountedCashMinorUnits, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,8" />
+                                <TextBlock Text="Closing note"
+                                           Foreground="#4B5563" />
+                                <TextBox Text="{Binding ClosingNote, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,8" />
+                                <Button Content="Close Shift"
+                                        Command="{Binding CloseShiftCommand}"
+                                        Height="32" />
+                                <TextBlock Text="{Binding DifferenceMinorUnits, StringFormat=Difference {0}}"
+                                           Margin="0,10,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBlock Text="{Binding PendingOperation}"
+                                           Margin="0,10,0,0"
+                                           Foreground="#92400E"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding StatusMessage}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#047857"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ErrorMessage}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#B91C1C"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
                     </Grid>
 
                     <Grid DataContext="{Binding Settings}">
@@ -524,91 +919,211 @@
                         Background="White"
                         BorderBrush="#D8DEE9"
                         BorderThickness="1,0,0,0"
-                        Padding="16"
-                        DataContext="{Binding FloorMap.SeatContext}">
-                    <StackPanel>
-                        <TextBlock Text="Context"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   Foreground="#111827" />
-                        <TextBlock Text="{Binding SelectedSeat.Name, TargetNullValue='No seat selected.'}"
-                                   Margin="0,10,0,0"
-                                   TextWrapping="Wrap"
-                                   FontWeight="SemiBold"
-                                   Foreground="#111827" />
-                        <TextBlock Text="{Binding SelectedSeat.State}"
-                                   Margin="0,4,0,0"
-                                   Foreground="#4B5563" />
-                        <StackPanel Orientation="Horizontal"
-                                    Margin="0,4,0,0">
-                            <TextBlock Text="Remaining: "
-                                       Foreground="#4B5563" />
-                            <TextBlock Text="{Binding SelectedSeat.RemainingSeconds, TargetNullValue=-}"
-                                       Foreground="#4B5563" />
-                            <TextBlock Text="s"
-                                       Foreground="#4B5563" />
+                        Padding="14">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="Context"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="#111827" />
+
+                            <StackPanel DataContext="{Binding FloorMap.SeatContext}">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataContext.SelectedWorkspace, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         Value="{x:Static shell:OperatorWorkspaceKind.FloorMap}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="{Binding SelectedSeat.Name, TargetNullValue='No seat selected.'}"
+                                           Margin="0,10,0,0"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding SelectedSeat.State}"
+                                           Margin="0,4,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBlock Text="{Binding SelectedSeat.RemainingSeconds, StringFormat=Remaining {0}s}"
+                                           Margin="0,4,0,0"
+                                           Foreground="#4B5563" />
+                                <Separator Margin="0,14,0,14" />
+
+                                <TextBlock Text="Start guest"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBox Text="{Binding DurationMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,8,0,0" />
+                                <TextBox Text="{Binding BillingMode, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,8,0,0" />
+                                <Button Content="Start"
+                                        Command="{Binding StartGuestSessionCommand}"
+                                        Margin="0,8,0,0"
+                                        Height="32" />
+
+                                <Separator Margin="0,14,0,14" />
+
+                                <TextBlock Text="Active session"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBox Text="{Binding AdditionalMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,8,0,0" />
+                                <Button Content="Extend"
+                                        Command="{Binding ExtendSessionCommand}"
+                                        Margin="0,8,0,0"
+                                        Height="32" />
+                                <TextBox Text="{Binding TargetSeatIdText, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,12,0,0" />
+                                <Button Content="Transfer"
+                                        Command="{Binding TransferSessionCommand}"
+                                        Margin="0,8,0,0"
+                                        Height="32" />
+                                <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,12,0,0" />
+                                <Button Content="End"
+                                        Command="{Binding EndSessionCommand}"
+                                        Margin="0,8,0,0"
+                                        Height="32" />
+
+                                <TextBlock Text="{Binding PendingOperation}"
+                                           Margin="0,14,0,0"
+                                           Foreground="#92400E"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding StatusMessage}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#047857"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ErrorMessage}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#B91C1C"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel DataContext="{Binding Players}">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataContext.SelectedWorkspace, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         Value="{x:Static shell:OperatorWorkspaceKind.Players}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="{Binding SelectedPlayer.DisplayName, TargetNullValue='No player selected.'}"
+                                           Margin="0,10,0,0"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding WalletSummaryText}"
+                                           Margin="0,6,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBlock Text="{Binding PendingOperation}"
+                                           Margin="0,14,0,0"
+                                           Foreground="#92400E"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding StatusMessage}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#047857"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel DataContext="{Binding Pos}">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataContext.SelectedWorkspace, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         Value="{x:Static shell:OperatorWorkspaceKind.Pos}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="{Binding CartSummary}"
+                                           Margin="0,10,0,0"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding LastSaleId, StringFormat=Sale {0}, TargetNullValue='No sale yet.'}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#4B5563"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding LastSaleState, StringFormat=State {0}}"
+                                           Margin="0,4,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBlock Text="{Binding LastReceipt.ReceiptNumber, StringFormat=Receipt {0}}"
+                                           Margin="0,4,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBlock Text="{Binding PendingOperation}"
+                                           Margin="0,14,0,0"
+                                           Foreground="#92400E"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding StatusMessage}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#047857"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel DataContext="{Binding Shifts}">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataContext.SelectedWorkspace, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         Value="{x:Static shell:OperatorWorkspaceKind.Shifts}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="{Binding CurrentShiftState, TargetNullValue='No open shift'}"
+                                           Margin="0,10,0,0"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding CurrentShiftId, StringFormat=Shift {0}}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#4B5563"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding ExpectedCashMinorUnits, StringFormat=Expected {0}}"
+                                           Margin="0,6,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBlock Text="{Binding DifferenceMinorUnits, StringFormat=Difference {0}}"
+                                           Margin="0,4,0,0"
+                                           Foreground="#4B5563" />
+                                <TextBlock Text="{Binding PendingOperation}"
+                                           Margin="0,14,0,0"
+                                           Foreground="#92400E"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding StatusMessage}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#047857"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <StackPanel DataContext="{Binding Settings}">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DataContext.SelectedWorkspace, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         Value="{x:Static shell:OperatorWorkspaceKind.Settings}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="{Binding SelectedPanel.Label, TargetNullValue=Settings}"
+                                           Margin="0,10,0,0"
+                                           FontWeight="SemiBold"
+                                           Foreground="#111827" />
+                                <TextBlock Text="{Binding SelectedPanel.Description}"
+                                           Margin="0,6,0,0"
+                                           Foreground="#4B5563" />
+                            </StackPanel>
                         </StackPanel>
-                        <Separator Margin="0,16,0,16" />
-
-                        <TextBlock Text="Start guest"
-                                   FontWeight="SemiBold"
-                                   Foreground="#111827" />
-                        <TextBlock Text="Duration"
-                                   Margin="0,8,0,0"
-                                   Foreground="#4B5563" />
-                        <TextBox Text="{Binding DurationMinutes, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,4,0,8" />
-                        <TextBlock Text="Billing mode"
-                                   Foreground="#4B5563" />
-                        <TextBox Text="{Binding BillingMode, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,4,0,8" />
-                        <Button Content="Start"
-                                Command="{Binding StartGuestSessionCommand}"
-                                Height="32" />
-
-                        <Separator Margin="0,16,0,16" />
-
-                        <TextBlock Text="Active session"
-                                   FontWeight="SemiBold"
-                                   Foreground="#111827" />
-                        <TextBlock Text="Additional minutes"
-                                   Margin="0,8,0,0"
-                                   Foreground="#4B5563" />
-                        <TextBox Text="{Binding AdditionalMinutes, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,4,0,8" />
-                        <Button Content="Extend"
-                                Command="{Binding ExtendSessionCommand}"
-                                Height="32" />
-                        <TextBlock Text="Target seat id"
-                                   Margin="0,12,0,0"
-                                   Foreground="#4B5563" />
-                        <TextBox Text="{Binding TargetSeatIdText, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,4,0,8" />
-                        <Button Content="Transfer"
-                                Command="{Binding TransferSessionCommand}"
-                                Height="32" />
-                        <TextBlock Text="Reason"
-                                   Margin="0,12,0,0"
-                                   Foreground="#4B5563" />
-                        <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,4,0,8" />
-                        <Button Content="End"
-                                Command="{Binding EndSessionCommand}"
-                                Height="32" />
-
-                        <Separator Margin="0,16,0,16" />
-                        <TextBlock Text="{Binding PendingOperation}"
-                                   Foreground="#92400E"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding StatusMessage}"
-                                   Margin="0,8,0,0"
-                                   Foreground="#047857"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding ErrorMessage}"
-                                   Margin="0,8,0,0"
-                                   Foreground="#B91C1C"
-                                   TextWrapping="Wrap" />
-                    </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </Grid>
         </DockPanel>
