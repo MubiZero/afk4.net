@@ -1,9 +1,9 @@
 # AFK4 Vertical Slice Progress
 
 Status: Phase 6 POS, inventory, shifts, receipts, and protected backend
-endpoints are implemented, locally verified, and live PostgreSQL smoked on
-`codex/phase6-pos-inventory-shifts-receipts`
-Last updated: 2026-05-13
+endpoints are implemented, locally verified, live PostgreSQL smoked, and
+fast-forward merged to `main` at `fc762ea`.
+Last updated: 2026-05-14
 
 ## Scope
 
@@ -26,6 +26,7 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-13-afk4-phase4-session-lifecycle-grace-mode.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase5-billing-ledger-tariffs-packages.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase6-pos-inventory-shifts-receipts.md`
+- `docs/superpowers/plans/2026-05-13-afk4-phase7-operator-app-production-ux.md`
 
 ## Phase 6 POS, Inventory, Shifts, And Receipts
 
@@ -1132,6 +1133,7 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
+- `fc762ea fix: reconcile debt payments in shift close`
 - `aa8ddb1 feat: add protected pos shift endpoints`
 - `fbc7006 feat: add pos sale payment receipt service`
 - `3daeba2 feat: add pos catalog inventory service`
@@ -1158,9 +1160,12 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Run Phase 6 final verification from the focused plan, including targeted
-   contract tests, targeted Platform API tests, full build, and full test suite.
-2. Run the Phase 6 local PostgreSQL live smoke path after applying
-   `AddPosInventoryShiftsReceipts`.
-3. Record final Phase 6 verification evidence and then decide whether to merge
-   `codex/phase6-pos-inventory-shifts-receipts` into `main`.
+1. Plan Phase 7 Operator App Production UX on branch
+   `codex/phase7-operator-app-production-ux`, using the PRD and architecture
+   Phase 7 scope as the boundary.
+2. Implement Phase 7 through WPF/MVVM ViewModel TDD first: realtime floor map
+   state, context panel actions, POS workflow, player search, shift workflow,
+   settings, role-aware navigation, and hotkeys.
+3. Keep Agent enforcement, Player Shell production work, centralized
+   updates/installers, web admin, local server, and microservices out of Phase
+   7 unless the PRD and architecture spec are updated first.
