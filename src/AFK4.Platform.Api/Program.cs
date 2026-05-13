@@ -16,6 +16,7 @@ using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
@@ -66,6 +67,7 @@ builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
 builder.Services.AddScoped<ITariffService, EfTariffService>();
 builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
+builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
 
 var app = builder.Build();
 
@@ -1267,6 +1269,52 @@ app.MapPost("/api/branches/{branchId:guid}/players", async (
     return Results.Ok(result.Response);
 });
 
+app.MapGet("/api/branches/{branchId:guid}/players", async (
+    Guid branchId,
+    string? query,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IOperatorReferenceDataService referenceDataService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewPlayers,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewPlayers,
+            "PlayerAccount",
+            null,
+            AuditOutcome.Denied,
+            new { query, limit, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var players = await referenceDataService.SearchPlayersAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        limit ?? 20,
+        cancellationToken);
+
+    return Results.Ok(players);
+});
+
 app.MapGet("/api/players/{playerAccountId:guid}/wallet-summary", async (
     Guid playerAccountId,
     PlatformDbContext dbContext,
@@ -1782,6 +1830,48 @@ app.MapPost("/api/branches/{branchId:guid}/tariffs/calculate", async (
         : Results.Ok(calculation);
 });
 
+app.MapGet("/api/branches/{branchId:guid}/tariffs/options", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IOperatorReferenceDataService referenceDataService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewTariffs,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewTariffs,
+            "Tariff",
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var options = await referenceDataService.GetTariffOptionsAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        cancellationToken);
+
+    return Results.Ok(options);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/packages", async (
     Guid branchId,
     CreatePackageDefinitionRequest request,
@@ -1846,6 +1936,48 @@ app.MapPost("/api/branches/{branchId:guid}/packages", async (
         cancellationToken);
 
     return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/packages/options", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IOperatorReferenceDataService referenceDataService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewPackages,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewPackages,
+            "PackageDefinition",
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var options = await referenceDataService.GetPackageOptionsAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        cancellationToken);
+
+    return Results.Ok(options);
 });
 
 app.MapPost("/api/players/{playerAccountId:guid}/packages/purchases", async (

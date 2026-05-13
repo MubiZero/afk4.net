@@ -22,6 +22,8 @@ public static class AuditActionNames
 
     public const string CreatePlayerAccount = "players.create";
 
+    public const string ViewPlayers = "players.view";
+
     public const string TopUpWallet = "billing.wallet.top_up";
 
     public const string RefundLedgerEntry = "billing.refund";
@@ -34,7 +36,11 @@ public static class AuditActionNames
 
     public const string CreateTariffVersion = "tariffs.versions.create";
 
+    public const string ViewTariffs = "tariffs.view";
+
     public const string CreatePackageDefinition = "packages.create";
+
+    public const string ViewPackages = "packages.view";
 
     public const string PurchasePackage = "packages.purchase";
 

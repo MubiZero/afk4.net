@@ -28,6 +28,8 @@ public static class StaffPermissionNames
 
     public const string CreatePlayerAccount = "players.create";
 
+    public const string ViewPlayers = "players.view";
+
     public const string ViewBilling = "billing.view";
 
     public const string TopUpWallet = "billing.wallet.top_up";
@@ -40,7 +42,11 @@ public static class StaffPermissionNames
 
     public const string ManageTariffs = "tariffs.manage";
 
+    public const string ViewTariffs = "tariffs.view";
+
     public const string ManagePackages = "packages.manage";
+
+    public const string ViewPackages = "packages.view";
 
     public const string PurchasePackage = "packages.purchase";
 
