@@ -339,9 +339,9 @@ Expected: pass.
 - Modify: `D:\afk4.net\tests\AFK4.Operator.App.Tests\OperatorDeviceApiClientTests.cs`
 - Modify: `D:\afk4.net\tests\AFK4.Operator.App.Tests\TechnicianDeviceWorkflowViewModelTests.cs`
 
-- [ ] Add typed client coverage for `GET /api/devices/{deviceId}`.
-- [ ] Add ViewModel state for current device detail.
-- [ ] Show device identity, assigned seat, online/lock state, Agent/Shell versions, active credentials, and recent command state in the existing dense technician panel.
+- [x] Add typed client coverage for `GET /api/devices/{deviceId}`.
+- [x] Add ViewModel state for current device detail.
+- [x] Show device identity, assigned seat, online/lock state, Agent/Shell versions, active credentials, and recent command state in the existing dense technician panel.
 
 ## Task 7: Full Verification And Progress Log
 

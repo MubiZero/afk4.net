@@ -49,6 +49,17 @@ public sealed class HttpOperatorDeviceApiClient(HttpClient httpClient, IOperator
             cancellationToken);
     }
 
+    public async Task<DeviceDetailDto> GetDeviceDetailAsync(
+        Guid deviceId,
+        CancellationToken cancellationToken)
+    {
+        return await SendAsync<DeviceDetailDto>(
+            HttpMethod.Get,
+            $"/api/devices/{deviceId:D}",
+            body: null,
+            cancellationToken);
+    }
+
     public async Task<RotateDeviceCredentialResponse> RotateDeviceCredentialAsync(
         Guid deviceId,
         CancellationToken cancellationToken)

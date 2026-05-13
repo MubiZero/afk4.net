@@ -234,6 +234,20 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `f072f6d`:
   - branch staff without `devices.detail.view` rejection;
   - authorized technician detail read;
   - unknown device `404`.
+- Extended the Operator App typed device API client with
+  `GetDeviceDetailAsync`.
+- Added technician ViewModel state and command for loading device detail:
+  - machine name;
+  - assigned seat and zone;
+  - online/lock state;
+  - Agent/Shell versions;
+  - active credential count;
+  - installed app count;
+  - most recent command summary.
+- Added the device detail block to the existing dense WPF technician panel.
+- Added Operator tests for:
+  - typed client `GET /api/devices/{deviceId}`;
+  - ViewModel detail refresh state projection.
 
 ## Known Deviations And Adaptations
 
@@ -309,14 +323,13 @@ reads only. It does not yet include:
   device-seat assignments;
 - full installed app list read path, if needed beyond the current device detail
   installed app count;
-- Operator detail workflow;
 - automatic Agent-side installed app inventory collection;
 - live PostgreSQL smoke for persisted floor-map reads.
 
 ## Latest Verified State
 
 Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 3
-device detail backend changes:
+Operator device detail workflow changes:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -326,7 +339,22 @@ device detail backend changes:
 Results:
 
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 94 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 96 visible passing tests, 0 failed, 0 skipped.
+
+Targeted TDD verification for the Phase 3 Operator device detail workflow was
+also run for:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --filter "OperatorDeviceApiClientTests|TechnicianDeviceWorkflowViewModelTests" --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- `OperatorDeviceApiClientTests` and
+  `TechnicianDeviceWorkflowViewModelTests` failed first because the typed
+  detail client method and ViewModel detail state did not exist, then passed
+  after GREEN;
+- targeted Operator tests passed with 12 visible passing tests.
 
 Targeted TDD verification for the Phase 3 device detail backend slice was also
 run for:
@@ -602,11 +630,9 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Extend the existing Operator technician panel with a dense device detail
-   workflow backed by the new read endpoint.
-2. Add Agent-side installed app inventory collection that posts to the
+1. Add Agent-side installed app inventory collection that posts to the
    authenticated installed apps report endpoint.
-3. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
+2. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
    assignment, and bearer-authenticated floor-map read verification.
-4. Later, add Operator App sign-in UI and role-aware startup so staff can
+3. Later, add Operator App sign-in UI and role-aware startup so staff can
    acquire protected bearer/refresh token snapshots without manual setup.

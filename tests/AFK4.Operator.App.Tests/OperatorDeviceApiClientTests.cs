@@ -87,6 +87,37 @@ public sealed class OperatorDeviceApiClientTests
     }
 
     [Fact]
+    public async Task GetDeviceDetailAsync_ReadsDetailFromDeviceEndpoint()
+    {
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(new DeviceDetailDto(
+            OrganizationId,
+            BranchId,
+            DeviceId,
+            "PC-001",
+            "0.1.1",
+            "0.1.2",
+            DateTimeOffset.Parse("2026-05-13T09:00:00Z"),
+            DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+            IsOnline: true,
+            IsLocked: true,
+            SeatId: Guid.Parse("11111111-1111-4111-8111-111111111111"),
+            SeatName: "Seat 01",
+            ZoneId: Guid.Parse("22222222-2222-4222-8222-222222222222"),
+            ZoneName: "Main Hall",
+            ActiveCredentialCount: 1,
+            InstalledAppCount: 2,
+            RecentCommands: [])));
+        var client = CreateClient(handler);
+
+        var result = await client.GetDeviceDetailAsync(DeviceId, CancellationToken.None);
+
+        Assert.Equal(DeviceId, result.DeviceId);
+        Assert.Equal("PC-001", result.MachineName);
+        Assert.Equal(HttpMethod.Get, handler.LastMethod);
+        Assert.Equal($"/api/devices/{DeviceId:D}", handler.LastPathAndQuery);
+    }
+
+    [Fact]
     public async Task CredentialLifecycleAsync_PostsToRotateAndRevokeEndpoints()
     {
         var call = 0;

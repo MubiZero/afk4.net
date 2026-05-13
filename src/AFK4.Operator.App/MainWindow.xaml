@@ -51,6 +51,25 @@
                         <TextBlock Text="Device" Margin="0,10,0,4" Foreground="#4B5563" />
                         <TextBox Text="{Binding DeviceIdText, UpdateSourceTrigger=PropertyChanged}" />
 
+                        <Button Content="Load Detail" Margin="0,8,0,0" Command="{Binding RefreshDeviceDetailCommand}" />
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold" Foreground="#111827" />
+                                <TextBlock Text="{Binding DeviceSeatSummary}" Margin="0,4,0,0" Foreground="#4B5563" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding DeviceStateSummary}" Margin="0,4,0,0" Foreground="#111827" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                <TextBlock Text="{Binding DeviceVersionSummary}" Foreground="#4B5563" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding DeviceCredentialSummary}" Margin="0,4,0,0" Foreground="#4B5563" />
+                                <TextBlock Text="{Binding DeviceInstalledAppsSummary}" Margin="0,4,0,0" Foreground="#4B5563" />
+                                <TextBlock Text="{Binding RecentCommandSummary}" Margin="0,4,0,0" Foreground="#4B5563" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+
                         <Separator Margin="0,14,0,12" />
 
                         <TextBlock Text="Enrollment" FontWeight="SemiBold" Foreground="#111827" />

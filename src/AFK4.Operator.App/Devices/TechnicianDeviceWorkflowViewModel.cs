@@ -20,6 +20,13 @@ public sealed class TechnicianDeviceWorkflowViewModel : INotifyPropertyChanged
     private DateTimeOffset? enrollmentCodeExpiresAtUtc;
     private string commandStatus = "Not inspected";
     private string? commandStatusMessage;
+    private string deviceName = "Not loaded";
+    private string deviceSeatSummary = "Seat not loaded";
+    private string deviceStateSummary = "State not loaded";
+    private string deviceVersionSummary = "Versions not loaded";
+    private string deviceCredentialSummary = "Active credentials: unknown";
+    private string deviceInstalledAppsSummary = "Installed apps: unknown";
+    private string recentCommandSummary = "Recent command: none";
     private string rotatedCredentialSecret = string.Empty;
     private string credentialStatus = "Not inspected";
     private string statusMessage = string.Empty;
@@ -33,6 +40,7 @@ public sealed class TechnicianDeviceWorkflowViewModel : INotifyPropertyChanged
         CreateEnrollmentCodeCommand = new AsyncRelayCommand(CreateEnrollmentCodeAsync, CanRunCommand);
         DispatchDeviceCommandCommand = new AsyncRelayCommand(DispatchDeviceCommandAsync, CanRunCommand);
         RefreshCommandStatusCommand = new AsyncRelayCommand(RefreshCommandStatusAsync, CanRunCommand);
+        RefreshDeviceDetailCommand = new AsyncRelayCommand(RefreshDeviceDetailAsync, CanRunCommand);
         RotateCredentialCommand = new AsyncRelayCommand(RotateCredentialAsync, CanRunCommand);
         RevokeCredentialCommand = new AsyncRelayCommand(RevokeCredentialAsync, CanRunCommand);
     }
@@ -44,6 +52,8 @@ public sealed class TechnicianDeviceWorkflowViewModel : INotifyPropertyChanged
     public AsyncRelayCommand DispatchDeviceCommandCommand { get; }
 
     public AsyncRelayCommand RefreshCommandStatusCommand { get; }
+
+    public AsyncRelayCommand RefreshDeviceDetailCommand { get; }
 
     public AsyncRelayCommand RotateCredentialCommand { get; }
 
@@ -119,6 +129,48 @@ public sealed class TechnicianDeviceWorkflowViewModel : INotifyPropertyChanged
     {
         get => commandStatusMessage;
         private set => SetField(ref commandStatusMessage, value);
+    }
+
+    public string DeviceName
+    {
+        get => deviceName;
+        private set => SetField(ref deviceName, value);
+    }
+
+    public string DeviceSeatSummary
+    {
+        get => deviceSeatSummary;
+        private set => SetField(ref deviceSeatSummary, value);
+    }
+
+    public string DeviceStateSummary
+    {
+        get => deviceStateSummary;
+        private set => SetField(ref deviceStateSummary, value);
+    }
+
+    public string DeviceVersionSummary
+    {
+        get => deviceVersionSummary;
+        private set => SetField(ref deviceVersionSummary, value);
+    }
+
+    public string DeviceCredentialSummary
+    {
+        get => deviceCredentialSummary;
+        private set => SetField(ref deviceCredentialSummary, value);
+    }
+
+    public string DeviceInstalledAppsSummary
+    {
+        get => deviceInstalledAppsSummary;
+        private set => SetField(ref deviceInstalledAppsSummary, value);
+    }
+
+    public string RecentCommandSummary
+    {
+        get => recentCommandSummary;
+        private set => SetField(ref recentCommandSummary, value);
     }
 
     public string RotatedCredentialSecret
@@ -234,6 +286,34 @@ public sealed class TechnicianDeviceWorkflowViewModel : INotifyPropertyChanged
         });
     }
 
+    public Task RefreshDeviceDetailAsync(CancellationToken cancellationToken)
+    {
+        ClearMessages();
+        if (!TryParseGuid(DeviceIdText, "DeviceId", out var deviceId))
+        {
+            return Task.CompletedTask;
+        }
+
+        return RunApiCallAsync(async () =>
+        {
+            var detail = await apiClient.GetDeviceDetailAsync(deviceId, cancellationToken);
+
+            DeviceName = detail.MachineName;
+            DeviceSeatSummary = detail.SeatName is null
+                ? "Unassigned"
+                : $"{detail.SeatName} / {detail.ZoneName ?? "No zone"}";
+            DeviceStateSummary = $"{(detail.IsOnline ? "Online" : "Offline")}, {(detail.IsLocked ? "locked" : "unlocked")}";
+            DeviceVersionSummary = $"Agent {detail.AgentVersion} / Shell {detail.ShellVersion}";
+            DeviceCredentialSummary = $"Active credentials: {detail.ActiveCredentialCount}";
+            DeviceInstalledAppsSummary = $"Installed apps: {detail.InstalledAppCount}";
+            var recentCommand = detail.RecentCommands.FirstOrDefault();
+            RecentCommandSummary = recentCommand is null
+                ? "Recent command: none"
+                : $"{recentCommand.Type} {recentCommand.Status}";
+            StatusMessage = $"Device {detail.MachineName} detail refreshed.";
+        });
+    }
+
     public Task RotateCredentialAsync(CancellationToken cancellationToken)
     {
         ClearMessages();
@@ -317,6 +397,7 @@ public sealed class TechnicianDeviceWorkflowViewModel : INotifyPropertyChanged
         CreateEnrollmentCodeCommand.NotifyCanExecuteChanged();
         DispatchDeviceCommandCommand.NotifyCanExecuteChanged();
         RefreshCommandStatusCommand.NotifyCanExecuteChanged();
+        RefreshDeviceDetailCommand.NotifyCanExecuteChanged();
         RotateCredentialCommand.NotifyCanExecuteChanged();
         RevokeCredentialCommand.NotifyCanExecuteChanged();
     }

@@ -30,6 +30,13 @@ public sealed class UnconfiguredOperatorDeviceApiClient : IOperatorDeviceApiClie
         return NotConfigured<DeviceCommandStatusDto>();
     }
 
+    public Task<DeviceDetailDto> GetDeviceDetailAsync(
+        Guid deviceId,
+        CancellationToken cancellationToken)
+    {
+        return NotConfigured<DeviceDetailDto>();
+    }
+
     public Task<RotateDeviceCredentialResponse> RotateDeviceCredentialAsync(
         Guid deviceId,
         CancellationToken cancellationToken)

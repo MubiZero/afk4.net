@@ -95,6 +95,26 @@ public sealed class TechnicianDeviceWorkflowViewModelTests
     }
 
     [Fact]
+    public async Task RefreshDeviceDetailAsync_WithDeviceId_UpdatesDetailState()
+    {
+        var apiClient = new RecordingOperatorDeviceApiClient();
+        var viewModel = CreateViewModel(apiClient);
+
+        await viewModel.RefreshDeviceDetailAsync(CancellationToken.None);
+
+        Assert.Equal(DeviceId, apiClient.LastDetailDeviceId);
+        Assert.Equal("PC-001", viewModel.DeviceName);
+        Assert.Equal("Seat 01 / Main Hall", viewModel.DeviceSeatSummary);
+        Assert.Equal("Online, locked", viewModel.DeviceStateSummary);
+        Assert.Equal("Agent 0.1.1 / Shell 0.1.2", viewModel.DeviceVersionSummary);
+        Assert.Equal("Active credentials: 1", viewModel.DeviceCredentialSummary);
+        Assert.Equal("Installed apps: 2", viewModel.DeviceInstalledAppsSummary);
+        Assert.Equal("unlock Completed", viewModel.RecentCommandSummary);
+        Assert.Equal("Device PC-001 detail refreshed.", viewModel.StatusMessage);
+        Assert.Null(viewModel.ErrorMessage);
+    }
+
+    [Fact]
     public async Task CreateEnrollmentCodeAsync_WithInvalidBranchId_DoesNotCallBackendAndShowsError()
     {
         var apiClient = new RecordingOperatorDeviceApiClient();
@@ -148,6 +168,8 @@ public sealed class TechnicianDeviceWorkflowViewModelTests
         public Guid LastRevokedDeviceId { get; private set; }
 
         public Guid LastRevokedCredentialId { get; private set; }
+
+        public Guid LastDetailDeviceId { get; private set; }
 
         public Task<DeviceEnrollmentCodeDto> CreateEnrollmentCodeAsync(
             Guid branchId,
@@ -231,6 +253,40 @@ public sealed class TechnicianDeviceWorkflowViewModelTests
                 deviceId,
                 credentialId,
                 DateTimeOffset.Parse("2026-05-12T00:01:00Z")));
+        }
+
+        public Task<DeviceDetailDto> GetDeviceDetailAsync(Guid deviceId, CancellationToken cancellationToken)
+        {
+            LastDetailDeviceId = deviceId;
+
+            return Task.FromResult(new DeviceDetailDto(
+                OrganizationId,
+                BranchId,
+                deviceId,
+                "PC-001",
+                "0.1.1",
+                "0.1.2",
+                DateTimeOffset.Parse("2026-05-13T09:00:00Z"),
+                DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                IsOnline: true,
+                IsLocked: true,
+                SeatId: Guid.Parse("11111111-1111-4111-8111-111111111111"),
+                SeatName: "Seat 01",
+                ZoneId: Guid.Parse("22222222-2222-4222-8222-222222222222"),
+                ZoneName: "Main Hall",
+                ActiveCredentialCount: 1,
+                InstalledAppCount: 2,
+                RecentCommands:
+                [
+                    new DeviceCommandStatusDto(
+                        deviceId,
+                        CommandId,
+                        "unlock",
+                        "Completed",
+                        null,
+                        DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                        DateTimeOffset.Parse("2026-05-13T10:01:00Z"))
+                ]));
         }
     }
 }

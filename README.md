@@ -292,6 +292,8 @@ The first vertical slice foundation is implemented:
 - Operator App typed device API client and technician panel for enrollment-code
   creation, command dispatch/status inspection, and credential
   rotation/revocation;
+- Operator App technician device detail workflow backed by
+  `GET /api/devices/{deviceId}`;
 - device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
 - persisted device heartbeat state and command status tracking;
@@ -306,7 +308,6 @@ Not implemented yet:
   it is added;
 - Operator App sign-in UI and role-aware navigation;
 - Operator App layout management UI;
-- Operator technician device detail workflow;
 - automatic Agent-side consumption of rotated credentials;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;

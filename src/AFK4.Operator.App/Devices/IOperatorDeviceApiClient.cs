@@ -21,6 +21,10 @@ public interface IOperatorDeviceApiClient
         Guid commandId,
         CancellationToken cancellationToken);
 
+    Task<DeviceDetailDto> GetDeviceDetailAsync(
+        Guid deviceId,
+        CancellationToken cancellationToken);
+
     Task<RotateDeviceCredentialResponse> RotateDeviceCredentialAsync(
         Guid deviceId,
         CancellationToken cancellationToken);
