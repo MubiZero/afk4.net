@@ -3,6 +3,7 @@ using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
@@ -315,7 +316,21 @@ public sealed class EfShiftService(
                         ? movement.AmountMinorUnits
                         : -movement.AmountMinorUnits,
                     cancellationToken);
-            var expectedCash = shift.StartingCashMinorUnits + cashMovementDelta;
+            var posCashDelta = await dbContext.Payments
+                .Where(payment =>
+                    payment.ShiftId == shift.ShiftId &&
+                    payment.CurrencyCode == shift.CurrencyCode &&
+                    payment.PaymentMethod == PaymentMethodNames.Cash)
+                .SumAsync(payment => (long?)payment.AmountMinorUnits, cancellationToken) ?? 0;
+            var billingCashDelta = await dbContext.LedgerEntries
+                .Where(entry =>
+                    entry.ShiftId == shift.ShiftId &&
+                    entry.CurrencyCode == shift.CurrencyCode &&
+                    (entry.EntryType == LedgerEntryTypeNames.TopUp ||
+                     entry.EntryType == LedgerEntryTypeNames.DebtPayment ||
+                     entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
+                .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+            var expectedCash = shift.StartingCashMinorUnits + cashMovementDelta + posCashDelta + billingCashDelta;
             var difference = request.CountedCash.MinorUnits - expectedCash;
             var now = timeProvider.GetUtcNow();
 

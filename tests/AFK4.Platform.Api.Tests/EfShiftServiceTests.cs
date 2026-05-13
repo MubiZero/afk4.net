@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
@@ -229,6 +230,46 @@ public sealed class EfShiftServiceTests
     }
 
     [Fact]
+    public async Task CloseShiftAsync_IncludesPosCashPaymentsRefundsAndShiftLinkedBillingCashEntries()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var shift = await OpenShiftAsync(service);
+        await service.RecordCashMovementAsync(
+            shift.ShiftId,
+            ActorStaffUserId,
+            new RecordCashMovementRequest(
+                TestIds.OrganizationId,
+                CashMovementTypeNames.CashIn,
+                new MoneyDto("TJS", 5000),
+                "cash drawer refill",
+                "cash-in-001"),
+            CancellationToken.None);
+        await SeedPaymentAsync(db, shift.ShiftId, PaymentMethodNames.Cash, "payment", 2400);
+        await SeedPaymentAsync(db, shift.ShiftId, PaymentMethodNames.Cash, "refund", -1200);
+        await SeedPaymentAsync(db, shift.ShiftId, PaymentMethodNames.CardManual, "payment", 9999);
+        await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 10000);
+        await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.DebtPayment, LedgerAccountTypeNames.Debt, 3000);
+        await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.ManualCorrection, LedgerAccountTypeNames.Wallet, -500);
+        await SeedLedgerEntryAsync(db, shift.ShiftId, LedgerEntryTypeNames.GameplayCharge, LedgerAccountTypeNames.Wallet, -6000);
+
+        var result = await service.CloseShiftAsync(
+            shift.ShiftId,
+            ActorStaffUserId,
+            new CloseShiftRequest(
+                TestIds.OrganizationId,
+                new MoneyDto("TJS", 68700),
+                "balanced",
+                "shift-close-001"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(new MoneyDto("TJS", 68700), result.Response.ExpectedCash);
+        Assert.Equal(new MoneyDto("TJS", 0), result.Response.Difference);
+    }
+
+    [Fact]
     public async Task CloseShiftAsync_RejectsAlreadyClosedShift()
     {
         await using var db = CreateDbContext();
@@ -303,6 +344,62 @@ public sealed class EfShiftServiceTests
         Assert.NotNull(result.Response);
 
         return result.Response;
+    }
+
+    private static async Task SeedPaymentAsync(
+        PlatformDbContext db,
+        Guid shiftId,
+        string paymentMethod,
+        string paymentKind,
+        long amountMinorUnits)
+    {
+        db.Payments.Add(new PaymentEntity
+        {
+            PaymentId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PosSaleId = Guid.NewGuid(),
+            ShiftId = shiftId,
+            CreatedByStaffUserId = ActorStaffUserId,
+            PaymentKind = paymentKind,
+            Provider = "manual",
+            PaymentMethod = paymentMethod,
+            CurrencyCode = "TJS",
+            AmountMinorUnits = amountMinorUnits,
+            Note = "test payment",
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedLedgerEntryAsync(
+        PlatformDbContext db,
+        Guid shiftId,
+        string entryType,
+        string accountType,
+        long amountMinorUnits)
+    {
+        db.LedgerEntries.Add(new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ShiftId = shiftId,
+            PlayerAccountId = Guid.NewGuid(),
+            SessionId = null,
+            PlayerPackageId = null,
+            EntryType = entryType,
+            AccountType = accountType,
+            AmountMinorUnits = amountMinorUnits,
+            QuantitySeconds = 0,
+            CurrencyCode = "TJS",
+            Description = entryType,
+            Reason = "test seed",
+            ReversesLedgerEntryId = null,
+            CreatedByStaffUserId = ActorStaffUserId,
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
