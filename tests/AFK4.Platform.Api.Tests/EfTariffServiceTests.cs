@@ -238,6 +238,28 @@ public sealed class EfTariffServiceTests
     }
 
     [Fact]
+    public async Task CalculateAsync_ReturnsNullWhenRoundedBillableMinutesOverflowInt()
+    {
+        await using var db = CreateDbContext();
+        var tariff = await SeedTariffAsync(db);
+        var version = await SeedTariffVersionAsync(
+            db,
+            tariff.TariffId,
+            pricePerMinuteMinorUnits: 1,
+            minimumBillableMinutes: 1,
+            roundingIncrementMinutes: 15,
+            effectiveFromUtc: Now);
+        var service = CreateService(db);
+
+        var result = await service.CalculateAsync(
+            TestIds.BranchId,
+            new CalculateTariffRequest(TestIds.OrganizationId, version.TariffVersionId, int.MaxValue),
+            CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public async Task CalculateAsync_ReturnsNullForUnknownOrRetiredVersion()
     {
         await using var db = CreateDbContext();
@@ -283,6 +305,7 @@ public sealed class EfTariffServiceTests
     [InlineData(0, 30, 15, "TJS")]
     [InlineData(50, 0, 15, "TJS")]
     [InlineData(50, 30, 0, "TJS")]
+    [InlineData(50, 30, 15, null)]
     [InlineData(50, 30, 15, "")]
     [InlineData(50, 30, 15, "USDT")]
     [InlineData(50, 30, 15, "12$")]
@@ -290,14 +313,14 @@ public sealed class EfTariffServiceTests
         long pricePerMinuteMinorUnits,
         int minimumBillableMinutes,
         int roundingIncrementMinutes,
-        string currencyCode)
+        string? currencyCode)
     {
         await using var db = CreateDbContext();
         var tariff = await SeedTariffAsync(db);
         var service = CreateService(db);
         var request = CreateVersionRequest(
             tariff.TariffId,
-            currencyCode,
+            currencyCode!,
             pricePerMinuteMinorUnits,
             minimumBillableMinutes,
             roundingIncrementMinutes,
@@ -381,6 +404,7 @@ public sealed class EfTariffServiceTests
         int versionNumber = 1,
         long pricePerMinuteMinorUnits = 50,
         int minimumBillableMinutes = 30,
+        int roundingIncrementMinutes = 15,
         DateTimeOffset? effectiveFromUtc = null,
         DateTimeOffset? retiredAtUtc = null)
     {
@@ -394,7 +418,7 @@ public sealed class EfTariffServiceTests
             CurrencyCode = "TJS",
             PricePerMinuteMinorUnits = pricePerMinuteMinorUnits,
             MinimumBillableMinutes = minimumBillableMinutes,
-            RoundingIncrementMinutes = 15,
+            RoundingIncrementMinutes = roundingIncrementMinutes,
             EffectiveFromUtc = effectiveFromUtc ?? FirstEffectiveFromUtc,
             RetiredAtUtc = retiredAtUtc,
             CreatedAtUtc = Now

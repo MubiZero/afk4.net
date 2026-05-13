@@ -255,7 +255,13 @@ public sealed class EfTariffService(
         var billableMinutes = Math.Max(request.DurationMinutes, version.MinimumBillableMinutes);
         if (version.RoundingIncrementMinutes > 1)
         {
-            billableMinutes = RoundUp(billableMinutes, version.RoundingIncrementMinutes);
+            var roundedBillableMinutes = RoundUp(billableMinutes, version.RoundingIncrementMinutes);
+            if (roundedBillableMinutes is null)
+            {
+                return null;
+            }
+
+            billableMinutes = roundedBillableMinutes.Value;
         }
 
         try
@@ -452,13 +458,22 @@ public sealed class EfTariffService(
             version.CreatedAtUtc);
     }
 
-    private static int RoundUp(int value, int increment)
+    private static int? RoundUp(int value, int increment)
     {
-        return ((value + increment - 1) / increment) * increment;
+        var rounded = ((long)value + increment - 1) / increment * increment;
+
+        return rounded > int.MaxValue
+            ? null
+            : (int)rounded;
     }
 
-    private static bool IsValidCurrencyCode(string currencyCode)
+    private static bool IsValidCurrencyCode(string? currencyCode)
     {
+        if (string.IsNullOrWhiteSpace(currencyCode))
+        {
+            return false;
+        }
+
         var trimmed = currencyCode.Trim();
         return trimmed.Length == 3 &&
             trimmed.All(character =>
