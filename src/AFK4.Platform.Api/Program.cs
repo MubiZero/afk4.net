@@ -2010,6 +2010,30 @@ static async Task<PlayerScopedEndpointResult> LoadPlayerScopedEndpointAsync(
         playerAccountId,
         staffContext.OrganizationId,
         cancellationToken);
+
+    if (player is not null && !staffContext.BranchIds.Contains(player.HomeBranchId))
+    {
+        var fallbackBranchId = staffContext.BranchIds.OrderBy(branch => branch).FirstOrDefault();
+        if (fallbackBranchId == Guid.Empty)
+        {
+            return new PlayerScopedEndpointResult(null, Guid.Empty, null, Results.StatusCode(StatusCodes.Status403Forbidden));
+        }
+
+        var fallbackAuthorization = await authorizationService.RequireBranchPermissionAsync(
+            fallbackBranchId,
+            permission,
+            cancellationToken);
+
+        if (!fallbackAuthorization.IsAuthenticated)
+        {
+            return new PlayerScopedEndpointResult(null, fallbackBranchId, fallbackAuthorization, Results.Unauthorized());
+        }
+
+        return fallbackAuthorization.IsAllowed
+            ? new PlayerScopedEndpointResult(null, fallbackBranchId, fallbackAuthorization, Results.NotFound())
+            : new PlayerScopedEndpointResult(null, fallbackBranchId, fallbackAuthorization, null);
+    }
+
     var branchId = player?.HomeBranchId ?? staffContext.BranchIds.OrderBy(branch => branch).FirstOrDefault();
     if (branchId == Guid.Empty)
     {

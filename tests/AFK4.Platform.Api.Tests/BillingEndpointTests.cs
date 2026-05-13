@@ -14,6 +14,8 @@ namespace AFK4.Platform.Api.Tests;
 public sealed class BillingEndpointTests
 {
     private static readonly Guid PlayerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+    private static readonly Guid CrossBranchId = Guid.Parse("0f97df06-14c0-469a-97d7-8f7850bc72b0");
+    private static readonly Guid CrossBranchPlayerAccountId = Guid.Parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
     private static readonly Guid ActorStaffUserId = TestIds.TechnicianStaffUserId;
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-13T10:00:00Z");
 
@@ -126,6 +128,48 @@ public sealed class BillingEndpointTests
     }
 
     [Fact]
+    public async Task TopUpWallet_WithCashierForCrossBranchPlayer_ReturnsNotFoundWithoutDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedCrossBranchPlayerAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/players/{CrossBranchPlayerAccountId:D}/wallet/top-ups",
+            new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-cross-branch-001"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await dbContext.AuditRecords.ToListAsync());
+        Assert.Empty(await dbContext.LedgerEntries.ToListAsync());
+    }
+
+    [Fact]
+    public async Task TopUpWallet_WithTechnicianForCrossBranchPlayer_ReturnsForbiddenAndWritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await SeedCrossBranchPlayerAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/players/{CrossBranchPlayerAccountId:D}/wallet/top-ups",
+            new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-cross-branch-001"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.TopUpWallet, audit.Action);
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
+        Assert.Equal(CrossBranchPlayerAccountId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
     public async Task WalletSummary_WithAccountantForUnknownPlayer_ReturnsNotFoundAfterAuthorization()
     {
         await using var factory = new PlatformApiFactory();
@@ -134,6 +178,19 @@ public sealed class BillingEndpointTests
         var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
         var response = await client.GetAsync($"/api/players/{unknownPlayerId:D}/wallet-summary");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task WalletSummary_WithCashierForCrossBranchPlayer_ReturnsNotFound()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedCrossBranchPlayerAsync(factory);
+
+        var response = await client.GetAsync($"/api/players/{CrossBranchPlayerAccountId:D}/wallet-summary");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -381,7 +438,7 @@ public sealed class BillingEndpointTests
     }
 
     [Fact]
-    public async Task DuplicateIdempotencyKeyWithDifferentEndpointRequest_ReturnsConflict()
+    public async Task DuplicateIdempotencyKeyWithDifferentSameOperationRequest_ReturnsConflict()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -413,6 +470,30 @@ public sealed class BillingEndpointTests
             HomeBranchId = TestIds.BranchId,
             DisplayName = "Player One",
             PhoneNumber = "+992000000001",
+            IsActive = true,
+            CreatedAtUtc = Now
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedCrossBranchPlayerAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.Branches.Add(new BranchEntity
+        {
+            BranchId = CrossBranchId,
+            OrganizationId = TestIds.OrganizationId,
+            Name = "Other Branch",
+            CreatedAtUtc = Now
+        });
+        dbContext.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = CrossBranchPlayerAccountId,
+            OrganizationId = TestIds.OrganizationId,
+            HomeBranchId = CrossBranchId,
+            DisplayName = "Other Branch Player",
+            PhoneNumber = "+992000000002",
             IsActive = true,
             CreatedAtUtc = Now
         });
