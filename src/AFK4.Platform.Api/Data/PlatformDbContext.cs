@@ -42,6 +42,20 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<SessionCommandIdempotencyEntity> SessionCommandIdempotency => Set<SessionCommandIdempotencyEntity>();
 
+    public DbSet<PlayerAccountEntity> PlayerAccounts => Set<PlayerAccountEntity>();
+
+    public DbSet<LedgerEntryEntity> LedgerEntries => Set<LedgerEntryEntity>();
+
+    public DbSet<BillingCommandIdempotencyEntity> BillingCommandIdempotency => Set<BillingCommandIdempotencyEntity>();
+
+    public DbSet<TariffEntity> Tariffs => Set<TariffEntity>();
+
+    public DbSet<TariffVersionEntity> TariffVersions => Set<TariffVersionEntity>();
+
+    public DbSet<PackageDefinitionEntity> PackageDefinitions => Set<PackageDefinitionEntity>();
+
+    public DbSet<PlayerPackageEntity> PlayerPackages => Set<PlayerPackageEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -257,6 +271,84 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 record.IdempotencyKeyHash,
                 record.Operation
             }).IsUnique();
+        });
+
+        modelBuilder.Entity<PlayerAccountEntity>(entity =>
+        {
+            entity.ToTable("player_accounts");
+            entity.HasKey(player => player.PlayerAccountId);
+            entity.Property(player => player.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(player => player.PhoneNumber).HasMaxLength(64);
+            entity.HasIndex(player => new { player.OrganizationId, player.HomeBranchId });
+        });
+
+        modelBuilder.Entity<LedgerEntryEntity>(entity =>
+        {
+            entity.ToTable("ledger_entries");
+            entity.HasKey(entry => entry.LedgerEntryId);
+            entity.Property(entry => entry.EntryType).HasMaxLength(64).IsRequired();
+            entity.Property(entry => entry.AccountType).HasMaxLength(64).IsRequired();
+            entity.Property(entry => entry.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(entry => entry.Description).HasMaxLength(240).IsRequired();
+            entity.Property(entry => entry.Reason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(entry => new { entry.OrganizationId, entry.BranchId, entry.CreatedAtUtc });
+            entity.HasIndex(entry => new { entry.PlayerAccountId, entry.CreatedAtUtc });
+            entity.HasIndex(entry => entry.SessionId);
+            entity.HasIndex(entry => entry.PlayerPackageId);
+            entity.HasIndex(entry => entry.ReversesLedgerEntryId);
+        });
+
+        modelBuilder.Entity<BillingCommandIdempotencyEntity>(entity =>
+        {
+            entity.ToTable("billing_command_idempotency");
+            entity.HasKey(record => record.BillingCommandIdempotencyId);
+            entity.Property(record => record.Operation).HasMaxLength(64).IsRequired();
+            entity.Property(record => record.IdempotencyKeyHash).HasMaxLength(128).IsRequired();
+            entity.Property(record => record.RequestHash).HasMaxLength(128).IsRequired();
+            entity.Property(record => record.ResponseJson).HasColumnType("jsonb").IsRequired();
+            entity.HasIndex(record => new
+            {
+                record.OrganizationId,
+                record.BranchId,
+                record.Operation,
+                record.IdempotencyKeyHash
+            }).IsUnique();
+        });
+
+        modelBuilder.Entity<TariffEntity>(entity =>
+        {
+            entity.ToTable("tariffs");
+            entity.HasKey(tariff => tariff.TariffId);
+            entity.Property(tariff => tariff.Name).HasMaxLength(160).IsRequired();
+            entity.HasIndex(tariff => new { tariff.OrganizationId, tariff.BranchId, tariff.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<TariffVersionEntity>(entity =>
+        {
+            entity.ToTable("tariff_versions");
+            entity.HasKey(version => version.TariffVersionId);
+            entity.Property(version => version.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasIndex(version => new { version.TariffId, version.VersionNumber }).IsUnique();
+            entity.HasIndex(version => new { version.OrganizationId, version.BranchId, version.EffectiveFromUtc });
+        });
+
+        modelBuilder.Entity<PackageDefinitionEntity>(entity =>
+        {
+            entity.ToTable("package_definitions");
+            entity.HasKey(package => package.PackageDefinitionId);
+            entity.Property(package => package.Name).HasMaxLength(160).IsRequired();
+            entity.Property(package => package.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasIndex(package => new { package.OrganizationId, package.BranchId, package.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<PlayerPackageEntity>(entity =>
+        {
+            entity.ToTable("player_packages");
+            entity.HasKey(package => package.PlayerPackageId);
+            entity.Property(package => package.Name).HasMaxLength(160).IsRequired();
+            entity.Property(package => package.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasIndex(package => new { package.PlayerAccountId, package.PurchasedAtUtc });
+            entity.HasIndex(package => new { package.OrganizationId, package.BranchId });
         });
     }
 }
