@@ -66,6 +66,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StockMovementEntity> StockMovements => Set<StockMovementEntity>();
 
+    public DbSet<PosSaleEntity> PosSales => Set<PosSaleEntity>();
+
+    public DbSet<PosSaleLineEntity> PosSaleLines => Set<PosSaleLineEntity>();
+
+    public DbSet<PaymentEntity> Payments => Set<PaymentEntity>();
+
+    public DbSet<ReceiptEntity> Receipts => Set<ReceiptEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -436,6 +444,61 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 movement.BranchId,
                 movement.CreatedAtUtc
             });
+        });
+
+        modelBuilder.Entity<PosSaleEntity>(entity =>
+        {
+            entity.ToTable("pos_sales");
+            entity.HasKey(sale => sale.PosSaleId);
+            entity.Property(sale => sale.State).HasMaxLength(32).IsRequired();
+            entity.Property(sale => sale.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(sale => sale.RefundReason).HasMaxLength(512).IsRequired();
+            entity.Property(sale => sale.VoidReason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(sale => new
+            {
+                sale.OrganizationId,
+                sale.BranchId,
+                sale.ShiftId,
+                sale.CreatedAtUtc
+            });
+            entity.HasIndex(sale => sale.State);
+        });
+
+        modelBuilder.Entity<PosSaleLineEntity>(entity =>
+        {
+            entity.ToTable("pos_sale_lines");
+            entity.HasKey(line => line.PosSaleLineId);
+            entity.Property(line => line.ProductName).HasMaxLength(160).IsRequired();
+            entity.Property(line => line.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasIndex(line => line.PosSaleId);
+        });
+
+        modelBuilder.Entity<PaymentEntity>(entity =>
+        {
+            entity.ToTable("payments");
+            entity.HasKey(payment => payment.PaymentId);
+            entity.Property(payment => payment.PaymentKind).HasMaxLength(32).IsRequired();
+            entity.Property(payment => payment.Provider).HasMaxLength(64).IsRequired();
+            entity.Property(payment => payment.PaymentMethod).HasMaxLength(64).IsRequired();
+            entity.Property(payment => payment.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(payment => payment.Note).HasMaxLength(512).IsRequired();
+            entity.HasIndex(payment => new { payment.PosSaleId, payment.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<ReceiptEntity>(entity =>
+        {
+            entity.ToTable("receipts");
+            entity.HasKey(receipt => receipt.ReceiptId);
+            entity.Property(receipt => receipt.ReceiptNumber).HasMaxLength(32).IsRequired();
+            entity.Property(receipt => receipt.ReceiptType).HasMaxLength(32).IsRequired();
+            entity.Property(receipt => receipt.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasIndex(receipt => new
+            {
+                receipt.OrganizationId,
+                receipt.BranchId,
+                receipt.ReceiptNumber
+            }).IsUnique();
+            entity.HasIndex(receipt => receipt.PosSaleId);
         });
     }
 }
