@@ -510,8 +510,9 @@ grace-mode foundation only. It intentionally does not include:
 - Operator sign-in UI or role-aware navigation;
 - web admin;
 - local club server;
-- billing ledger charging, POS integration, or tariff calculation beyond
-  preserving `TariffRuleVersionId`;
+- billing ledger charging, POS integration, or tariff calculation in Phase 4;
+  billing ledger/tariff foundations were added later in Phase 5, while POS
+  remains deferred;
 - real Windows lock/unlock enforcement or Player Shell session UI;
 - Agent-side lease creation or renewal.
 
