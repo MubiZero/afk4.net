@@ -2,7 +2,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using AFK4.Operator.App.Mvvm;
+using AFK4.Operator.App.Sessions;
 using AFK4.Shared.Contracts.Devices;
 
 namespace AFK4.Operator.App.FloorMap;
@@ -11,6 +13,7 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
 {
     private readonly IOperatorFloorMapApiClient apiClient;
     private readonly DeviceStatusStore deviceStatusStore;
+    private readonly RelayCommand selectSeatCommand;
     private Guid? lastBranchId;
     private string branchName = "Floor map";
     private FloorMapSeatViewModel? selectedSeat;
@@ -18,16 +21,32 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
     private string? errorMessage;
 
     public FloorMapWorkspaceViewModel()
-        : this(new UnconfiguredOperatorFloorMapApiClient())
+        : this(
+            new UnconfiguredOperatorFloorMapApiClient(),
+            new UnconfiguredOperatorSessionApiClient(),
+            new GuidIdempotencyKeyFactory())
     {
     }
 
     public FloorMapWorkspaceViewModel(IOperatorFloorMapApiClient apiClient)
+        : this(
+            apiClient,
+            new UnconfiguredOperatorSessionApiClient(),
+            new GuidIdempotencyKeyFactory())
+    {
+    }
+
+    public FloorMapWorkspaceViewModel(
+        IOperatorFloorMapApiClient apiClient,
+        IOperatorSessionApiClient sessionApiClient,
+        IIdempotencyKeyFactory idempotencyKeyFactory)
     {
         this.apiClient = apiClient;
         Seats = [];
         deviceStatusStore = new DeviceStatusStore(Seats);
+        SeatContext = new SeatContextPanelViewModel(sessionApiClient, idempotencyKeyFactory, RefreshAsync);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => lastBranchId is not null && !IsLoading);
+        selectSeatCommand = new RelayCommand(parameter => SelectedSeat = parameter as FloorMapSeatViewModel);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -40,20 +59,29 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
 
     public ObservableCollection<FloorMapSeatViewModel> Seats { get; }
 
+    public SeatContextPanelViewModel SeatContext { get; }
+
     public FloorMapSeatViewModel? SelectedSeat
     {
         get => selectedSeat;
         set
         {
+            if (ReferenceEquals(selectedSeat, value))
+            {
+                return;
+            }
+
             if (selectedSeat is not null)
             {
                 selectedSeat.IsSelected = false;
             }
 
-            if (SetField(ref selectedSeat, value) && selectedSeat is not null)
+            if (SetField(ref selectedSeat, value) && value is not null)
             {
-                selectedSeat.IsSelected = true;
+                value.IsSelected = true;
             }
+
+            SeatContext.SelectSeat(value);
         }
     }
 
@@ -76,6 +104,13 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
     }
 
     public AsyncRelayCommand RefreshCommand { get; }
+
+    public ICommand SelectSeatCommand => selectSeatCommand;
+
+    public void ApplyContext(Guid organizationId, Guid branchId)
+    {
+        SeatContext.ApplyContext(organizationId, branchId);
+    }
 
     public async Task LoadAsync(Guid branchId, CancellationToken cancellationToken)
     {

@@ -156,28 +156,34 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Width="160"
-                                        Height="112"
+                                <Button Command="{Binding DataContext.FloorMap.SelectSeatCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"
                                         Margin="0,0,12,12"
-                                        Background="White"
-                                        BorderBrush="#D8DEE9"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Padding="12">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}"
-                                                   FontSize="18"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="#111827" />
-                                        <TextBlock Text="{Binding Zone}"
-                                                   Margin="0,6,0,0"
-                                                   Foreground="#4B5563" />
-                                        <TextBlock Text="{Binding State}"
-                                                   Margin="0,12,0,0"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="#047857" />
-                                    </StackPanel>
-                                </Border>
+                                        Padding="0"
+                                        Background="Transparent"
+                                        BorderThickness="0">
+                                    <Border Width="160"
+                                            Height="112"
+                                            Background="White"
+                                            BorderBrush="#D8DEE9"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#111827" />
+                                            <TextBlock Text="{Binding Zone}"
+                                                       Margin="0,6,0,0"
+                                                       Foreground="#4B5563" />
+                                            <TextBlock Text="{Binding State}"
+                                                       Margin="0,12,0,0"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#047857" />
+                                        </StackPanel>
+                                    </Border>
+                                </Button>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -187,19 +193,89 @@
                         Background="White"
                         BorderBrush="#D8DEE9"
                         BorderThickness="1,0,0,0"
-                        Padding="16">
+                        Padding="16"
+                        DataContext="{Binding FloorMap.SeatContext}">
                     <StackPanel>
                         <TextBlock Text="Context"
                                    FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="#111827" />
-                        <TextBlock Text="No seat selected."
+                        <TextBlock Text="{Binding SelectedSeat.Name, TargetNullValue='No seat selected.'}"
                                    Margin="0,10,0,0"
                                    TextWrapping="Wrap"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827" />
+                        <TextBlock Text="{Binding SelectedSeat.State}"
+                                   Margin="0,4,0,0"
                                    Foreground="#4B5563" />
+                        <StackPanel Orientation="Horizontal"
+                                    Margin="0,4,0,0">
+                            <TextBlock Text="Remaining: "
+                                       Foreground="#4B5563" />
+                            <TextBlock Text="{Binding SelectedSeat.RemainingSeconds, TargetNullValue=-}"
+                                       Foreground="#4B5563" />
+                            <TextBlock Text="s"
+                                       Foreground="#4B5563" />
+                        </StackPanel>
                         <Separator Margin="0,16,0,16" />
+
+                        <TextBlock Text="Start guest"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827" />
+                        <TextBlock Text="Duration"
+                                   Margin="0,8,0,0"
+                                   Foreground="#4B5563" />
+                        <TextBox Text="{Binding DurationMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,4,0,8" />
+                        <TextBlock Text="Billing mode"
+                                   Foreground="#4B5563" />
+                        <TextBox Text="{Binding BillingMode, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,4,0,8" />
+                        <Button Content="Start"
+                                Command="{Binding StartGuestSessionCommand}"
+                                Height="32" />
+
+                        <Separator Margin="0,16,0,16" />
+
+                        <TextBlock Text="Active session"
+                                   FontWeight="SemiBold"
+                                   Foreground="#111827" />
+                        <TextBlock Text="Additional minutes"
+                                   Margin="0,8,0,0"
+                                   Foreground="#4B5563" />
+                        <TextBox Text="{Binding AdditionalMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,4,0,8" />
+                        <Button Content="Extend"
+                                Command="{Binding ExtendSessionCommand}"
+                                Height="32" />
+                        <TextBlock Text="Target seat id"
+                                   Margin="0,12,0,0"
+                                   Foreground="#4B5563" />
+                        <TextBox Text="{Binding TargetSeatIdText, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,4,0,8" />
+                        <Button Content="Transfer"
+                                Command="{Binding TransferSessionCommand}"
+                                Height="32" />
+                        <TextBlock Text="Reason"
+                                   Margin="0,12,0,0"
+                                   Foreground="#4B5563" />
+                        <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,4,0,8" />
+                        <Button Content="End"
+                                Command="{Binding EndSessionCommand}"
+                                Height="32" />
+
+                        <Separator Margin="0,16,0,16" />
+                        <TextBlock Text="{Binding PendingOperation}"
+                                   Foreground="#92400E"
+                                   TextWrapping="Wrap" />
                         <TextBlock Text="{Binding StatusMessage}"
+                                   Margin="0,8,0,0"
                                    Foreground="#047857"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Margin="0,8,0,0"
+                                   Foreground="#B91C1C"
                                    TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>

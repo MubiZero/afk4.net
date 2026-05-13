@@ -112,6 +112,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         SelectedWorkspace = NavigationItems.FirstOrDefault()?.Kind;
         StatusMessage = $"Signed in as {context.DisplayName}.";
         navigateCommand.NotifyCanExecuteChanged();
+        FloorMap.ApplyContext(context.OrganizationId, context.BranchId);
 
         if (SelectedWorkspace == OperatorWorkspaceKind.FloorMap)
         {

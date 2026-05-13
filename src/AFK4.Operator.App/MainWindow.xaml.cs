@@ -5,6 +5,8 @@ using AFK4.Operator.App.Configuration;
 using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Realtime;
+using AFK4.Operator.App.Mvvm;
+using AFK4.Operator.App.Sessions;
 using AFK4.Operator.App.Shell;
 
 namespace AFK4.Operator.App;
@@ -28,8 +30,12 @@ public partial class MainWindow : Window
         var tokenStore = new ProtectedDataOperatorTokenStore();
         var authApiClient = new HttpOperatorAuthApiClient(apiHttpClient, tokenStore);
         var floorMapApiClient = new HttpOperatorFloorMapApiClient(apiHttpClient, tokenStore);
+        var sessionApiClient = new HttpOperatorSessionApiClient(apiHttpClient, tokenStore);
 
-        floorMapViewModel = new FloorMapWorkspaceViewModel(floorMapApiClient);
+        floorMapViewModel = new FloorMapWorkspaceViewModel(
+            floorMapApiClient,
+            sessionApiClient,
+            new GuidIdempotencyKeyFactory());
         shellViewModel = new OperatorShellViewModel(
             new SignInViewModel(authApiClient),
             floorMapViewModel);
