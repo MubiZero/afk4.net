@@ -1,9 +1,10 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 2 identity, tenancy, RBAC, audit, device credential lifecycle,
-and Operator technician workflows continued on
+Status: Phase 3 club layout and device management started after Phase 2
+identity, tenancy, RBAC, audit, device credential lifecycle, and Operator
+technician workflows on
 `codex/phase2-identity-tenancy-rbac-audit`
-Last updated: 2026-05-12
+Last updated: 2026-05-13
 
 ## Scope
 
@@ -22,6 +23,7 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`
 - `docs/superpowers/plans/2026-05-12-afk4-realtime-device-channel.md`
 - `docs/superpowers/plans/2026-05-12-afk4-phase2-identity-tenancy-rbac-audit.md`
+- `docs/superpowers/plans/2026-05-13-afk4-phase3-club-layout-device-management.md`
 
 ## Implemented Foundation
 
@@ -166,6 +168,39 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `892c3d3`:
 - Added a dense WPF/MVVM technician panel on the existing floor-map shell for
   enrollment, command status, and credential lifecycle workflows.
 
+## Phase 3 Club Layout And Device Management
+
+Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `f072f6d`:
+
+- Added a focused implementation plan at
+  `docs/superpowers/plans/2026-05-13-afk4-phase3-club-layout-device-management.md`.
+- Expanded the shared floor-map seat contract with persisted layout and device
+  attachment fields:
+  - `ZoneId`
+  - `SortOrder`
+  - `DeviceId`
+  - `DeviceName`
+  - `IsDeviceOnline`
+  - `IsDeviceLocked`
+  - `LastHeartbeatAtUtc`
+  - `AgentVersion`
+  - `ShellVersion`
+- Added EF Core entities and migration `AddClubLayout` for:
+  - `zones`
+  - `seats`
+  - `device_seat_assignments`
+- Added `EfFloorMapReadService`, which builds the branch floor map from
+  persisted branch, zone, seat, active device-seat assignment, and latest
+  device heartbeat state.
+- Replaced the runtime floor-map service registration with the EF-backed read
+  service.
+- Protected `GET /api/branches/{branchId}/floor-map` with staff bearer
+  permission `floor_map.view`.
+- Added tests for:
+  - floor-map contract serialization with persisted layout/device fields;
+  - EF floor-map read service state projection;
+  - unauthorized, forbidden, and authorized persisted floor-map endpoint paths.
+
 ## Known Deviations And Adaptations
 
 ### Solution Format
@@ -231,7 +266,52 @@ App technician workflows. It does not yet include:
 - authorization coverage for every future operator-facing endpoint as it is
   added.
 
+### Phase 3 Baseline Scope
+
+The current Phase 3 work has started with persisted layout and backend floor-map
+reads only. It does not yet include:
+
+- Operator App layout management UI for creating or editing zones, seats, or
+  device-seat assignments;
+- installed apps reporting;
+- device detail read endpoint and Operator detail workflow;
+- automatic Agent-side installed app inventory collection;
+- live PostgreSQL smoke for persisted floor-map reads.
+
 ## Latest Verified State
+
+Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 3
+persisted layout and floor-map changes:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- build succeeded with 0 warnings and 0 errors;
+- tests passed with 84 visible passing tests, 0 failed, 0 skipped.
+
+Targeted TDD verification for the Phase 3 persisted floor-map slice was also
+run for:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter ContractSerializationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter EfFloorMapReadServiceTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter FloorMapEndpointTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "EfFloorMapReadServiceTests|FloorMapEndpointTests" --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- `ContractSerializationTests` failed first because `SeatStatusDto` did not
+  expose persisted layout/device attachment fields, then passed after GREEN;
+- `EfFloorMapReadServiceTests` failed first because layout entities and the EF
+  floor-map service did not exist, then passed after GREEN;
+- `FloorMapEndpointTests` failed first because the endpoint was anonymous and
+  returned in-memory demo seats, then passed after GREEN;
+- targeted Platform API floor-map tests passed with 4 visible passing tests.
 
 Full verification was run from `D:\afk4.net` on 2026-05-12 after the Operator
 App technician workflow changes:
@@ -438,6 +518,7 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
+- `f072f6d docs: add phase 3 club layout plan`
 - `69a7f4c feat: persist device state and commands with ef core`
 - `a176363 fix: harden operator realtime startup and dispatch`
 - `8fe0a2e feat: add operator realtime floor map state`
@@ -452,11 +533,14 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add Operator App sign-in UI and role-aware startup so staff can acquire the
-   protected bearer/refresh token snapshot without manual setup.
-2. Add Agent installer/enrollment bootstrap so gaming PCs can acquire and store
-   credentials without manual configuration.
-3. Add Agent credential lifecycle consumption so rotated credentials can be
-   delivered and stored safely on enrolled PCs.
-4. Add staff management workflows and custom role editing in the Operator App.
-5. Add audit search/report workflows for owner, manager, and auditor roles.
+1. Continue Phase 3 with installed apps reporting from Agent to backend,
+   including an authenticated device endpoint and persisted app snapshot rows.
+2. Add the staff-protected device detail read endpoint with assigned seat,
+   latest heartbeat state, credential summary, recent command statuses, and
+   installed app counts.
+3. Extend the existing Operator technician panel with a dense device detail
+   workflow backed by the new read endpoint.
+4. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
+   assignment, and bearer-authenticated floor-map read verification.
+5. Later, add Operator App sign-in UI and role-aware startup so staff can
+   acquire protected bearer/refresh token snapshots without manual setup.

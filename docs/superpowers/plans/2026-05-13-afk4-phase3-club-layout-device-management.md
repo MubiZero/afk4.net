@@ -74,7 +74,7 @@ Responsibilities:
 - Modify: `D:\afk4.net\src\AFK4.Shared.Contracts\FloorMap\SeatStatusDto.cs`
 - Modify: `D:\afk4.net\tests\AFK4.Shared.Contracts.Tests\ContractSerializationTests.cs`
 
-- [ ] **Step 1: Write the failing contract test**
+- [x] **Step 1: Write the failing contract test**
 
 Add assertions to `FloorMapDto_ContainsSeatStatuses` that a seat can carry persisted layout and device attachment data:
 
@@ -105,7 +105,7 @@ Run:
 
 Expected: compile failure because `SeatStatusDto` does not yet expose the persisted layout/device fields in this constructor shape.
 
-- [ ] **Step 2: Implement the expanded floor map seat contract**
+- [x] **Step 2: Implement the expanded floor map seat contract**
 
 Use this transport shape:
 
@@ -130,7 +130,7 @@ public sealed record SeatStatusDto(
     int? RemainingSeconds);
 ```
 
-- [ ] **Step 3: Run the contract tests**
+- [x] **Step 3: Run the contract tests**
 
 Run:
 
@@ -152,7 +152,7 @@ Expected: pass.
 - Modify: `D:\afk4.net\src\AFK4.Platform.Api\Data\Migrations\PlatformDbContextModelSnapshot.cs`
 - Create: `D:\afk4.net\tests\AFK4.Platform.Api.Tests\EfFloorMapReadServiceTests.cs`
 
-- [ ] **Step 1: Write the failing EF floor map service test**
+- [x] **Step 1: Write the failing EF floor map service test**
 
 Create a test that seeds one organization, branch, zone, two seats, one enrolled device, and one active seat/device assignment. The expected floor map must return the branch name from DB, seats ordered by zone/seat sort order, and device state from `devices`.
 
@@ -164,7 +164,7 @@ Run:
 
 Expected: compile failure because the persisted layout entities and EF floor map service do not exist.
 
-- [ ] **Step 2: Implement layout entities**
+- [x] **Step 2: Implement layout entities**
 
 Create:
 
@@ -218,7 +218,7 @@ Add DbSets and table configuration:
 - `seats`: key `SeatId`, required `Name` length 80, index `{ OrganizationId, BranchId, ZoneId, SortOrder }`.
 - `device_seat_assignments`: key `DeviceSeatAssignmentId`, indexes `{ SeatId, DetachedAtUtc }`, `{ DeviceId, DetachedAtUtc }`, and `{ OrganizationId, BranchId }`.
 
-- [ ] **Step 3: Add EF migration**
+- [x] **Step 3: Add EF migration**
 
 Run:
 
@@ -238,7 +238,7 @@ Expected: migration creates `zones`, `seats`, and `device_seat_assignments`.
 - Modify: `D:\afk4.net\src\AFK4.Platform.Api\Identity\PermissionCatalog.cs`
 - Modify: `D:\afk4.net\tests\AFK4.Platform.Api.Tests\FloorMapEndpointTests.cs`
 
-- [ ] **Step 1: Write failing endpoint tests**
+- [x] **Step 1: Write failing endpoint tests**
 
 Update `FloorMapEndpointTests` to use `PlatformApiFactory`, seed a technician, seed a persisted branch layout, and verify:
 
@@ -254,7 +254,7 @@ Run:
 
 Expected: failure because the current endpoint is anonymous and returns demo in-memory seats.
 
-- [ ] **Step 2: Implement async EF floor map reads**
+- [x] **Step 2: Implement async EF floor map reads**
 
 Change `IFloorMapReadService` to:
 
@@ -273,18 +273,19 @@ Task<FloorMapDto?> GetFloorMapAsync(Guid branchId, CancellationToken cancellatio
 - return `"Locked"` when an assigned device is online and locked;
 - return `"Free"` when an assigned device is online and unlocked.
 
-- [ ] **Step 3: Protect `GET /api/branches/{branchId}/floor-map`**
+- [x] **Step 3: Protect `GET /api/branches/{branchId}/floor-map`**
 
 Use `StaffAuthorizationService.RequireBranchPermissionAsync(branchId, StaffPermissionNames.ViewFloorMap, cancellationToken)`.
 
 Return:
 
 - `401` when unauthenticated;
-- `403` when authenticated but not authorized for the branch/permission;
-- `404` when the branch has no persisted floor map branch row;
+- `403` when authenticated but not authorized for the branch/permission, or
+  when the branch is not available to the staff member's organization;
+- `404` only if the authorized branch disappears before the read completes;
 - `200` with `FloorMapDto` when allowed.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
 Run:
 
@@ -349,19 +350,19 @@ Expected: pass.
 - Modify: `D:\afk4.net\docs\progress\2026-05-12-vertical-slice-progress.md`
 - Modify: `D:\afk4.net\README.md`
 
-- [ ] Run full build:
+- [x] Run full build:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
 ```
 
-- [ ] Run full tests:
+- [x] Run full tests:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
 ```
 
-- [ ] Update progress log with implemented Phase 3 items, latest verification, and remaining gaps.
+- [x] Update progress log with implemented Phase 3 items, latest verification, and remaining gaps.
 
 ## Plan Self-Review
 

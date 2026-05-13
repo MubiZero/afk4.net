@@ -34,8 +34,17 @@ public sealed class ContractSerializationTests
         var seat = new SeatStatusDto(
             SeatId: Guid.Parse("e5edae8b-a833-4d92-ad8c-5864376d0414"),
             SeatName: "PC-001",
+            ZoneId: Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"),
             ZoneName: "Main Hall",
-            State: "Free",
+            SortOrder: 10,
+            State: "Locked",
+            DeviceId: Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            DeviceName: "PC-001",
+            IsDeviceOnline: true,
+            IsDeviceLocked: true,
+            LastHeartbeatAtUtc: DateTimeOffset.Parse("2026-05-12T00:02:00Z"),
+            AgentVersion: "0.1.1",
+            ShellVersion: "0.1.2",
             ActiveSessionId: null,
             RemainingSeconds: null);
 
@@ -45,6 +54,10 @@ public sealed class ContractSerializationTests
             Seats: [seat]);
 
         Assert.Single(map.Seats);
-        Assert.Equal("Free", map.Seats[0].State);
+        Assert.Equal("Locked", map.Seats[0].State);
+        Assert.Equal(Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"), map.Seats[0].ZoneId);
+        Assert.Equal(Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"), map.Seats[0].DeviceId);
+        Assert.True(map.Seats[0].IsDeviceOnline);
+        Assert.Equal("0.1.2", map.Seats[0].ShellVersion);
     }
 }

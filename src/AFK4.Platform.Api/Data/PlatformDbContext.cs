@@ -18,7 +18,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<AuditRecordEntity> AuditRecords => Set<AuditRecordEntity>();
 
+    public DbSet<ZoneEntity> Zones => Set<ZoneEntity>();
+
+    public DbSet<SeatEntity> Seats => Set<SeatEntity>();
+
     public DbSet<DeviceEntity> Devices => Set<DeviceEntity>();
+
+    public DbSet<DeviceSeatAssignmentEntity> DeviceSeatAssignments => Set<DeviceSeatAssignmentEntity>();
 
     public DbSet<DeviceCredentialEntity> DeviceCredentials => Set<DeviceCredentialEntity>();
 
@@ -104,6 +110,22 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
         });
 
+        modelBuilder.Entity<ZoneEntity>(entity =>
+        {
+            entity.ToTable("zones");
+            entity.HasKey(zone => zone.ZoneId);
+            entity.Property(zone => zone.Name).HasMaxLength(120).IsRequired();
+            entity.HasIndex(zone => new { zone.OrganizationId, zone.BranchId, zone.SortOrder });
+        });
+
+        modelBuilder.Entity<SeatEntity>(entity =>
+        {
+            entity.ToTable("seats");
+            entity.HasKey(seat => seat.SeatId);
+            entity.Property(seat => seat.Name).HasMaxLength(80).IsRequired();
+            entity.HasIndex(seat => new { seat.OrganizationId, seat.BranchId, seat.ZoneId, seat.SortOrder });
+        });
+
         modelBuilder.Entity<DeviceEntity>(entity =>
         {
             entity.ToTable("devices");
@@ -112,6 +134,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(device => device.AgentVersion).HasMaxLength(64).IsRequired();
             entity.Property(device => device.ShellVersion).HasMaxLength(64).IsRequired();
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId });
+        });
+
+        modelBuilder.Entity<DeviceSeatAssignmentEntity>(entity =>
+        {
+            entity.ToTable("device_seat_assignments");
+            entity.HasKey(assignment => assignment.DeviceSeatAssignmentId);
+            entity.HasIndex(assignment => new { assignment.SeatId, assignment.DetachedAtUtc });
+            entity.HasIndex(assignment => new { assignment.DeviceId, assignment.DetachedAtUtc });
+            entity.HasIndex(assignment => new { assignment.OrganizationId, assignment.BranchId });
         });
 
         modelBuilder.Entity<DeviceCredentialEntity>(entity =>

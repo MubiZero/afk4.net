@@ -4,5 +4,5 @@ namespace AFK4.Platform.Api.FloorMap;
 
 public interface IFloorMapReadService
 {
-    FloorMapDto GetFloorMap(Guid branchId);
+    Task<FloorMapDto?> GetFloorMapAsync(Guid branchId, CancellationToken cancellationToken);
 }

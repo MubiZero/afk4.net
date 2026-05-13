@@ -99,14 +99,16 @@ AFK4 is split into four main runtime surfaces.
 monolith with strict module boundaries. The backend is the authority for
 sessions, billing, POS, roles, audit, device commands, update rollout, and
 reconciliation. Device enrollment, device credentials, device heartbeat state,
-and device command status are backed by EF Core/Npgsql persistence.
+device command status, persisted zones/seats, and floor-map reads are backed by
+EF Core/Npgsql persistence.
 
 The current vertical slice exposes:
 
 - `GET /api/health`
 - `POST /api/auth/staff/sign-in`
 - `POST /api/auth/staff/refresh`
-- `GET /api/branches/{branchId}/floor-map`
+- `GET /api/branches/{branchId}/floor-map` with staff bearer token permission
+  `floor_map.view`
 - `POST /api/branches/{branchId}/device-enrollment-codes` with staff bearer
   token permission `devices.enrollment_codes.create`
 - `POST /api/devices/enroll`
@@ -223,10 +225,11 @@ Verify health:
 Invoke-RestMethod http://localhost:5074/api/health
 ```
 
-Verify the demo floor map:
+Verify the persisted floor map after signing in and seeding branch layout rows:
 
 ```powershell
-Invoke-RestMethod http://localhost:5074/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/floor-map
+$headers = @{ Authorization = "Bearer <staff-access-token>" }
+Invoke-RestMethod http://localhost:5074/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/floor-map -Headers $headers
 ```
 
 Run the Operator App:
@@ -273,6 +276,10 @@ The first vertical slice foundation is implemented:
   command dispatch/status attempts;
 - branch-scoped authorization and audit for device credential rotation and
   revocation endpoints;
+- persisted zones, seats, and explicit device-seat assignments;
+- branch-scoped authorization for persisted floor-map reads;
+- EF-backed floor-map read model assembled from branch, zone, seat,
+  device-seat assignment, and latest device heartbeat state;
 - Operator App Windows-protected token storage abstraction;
 - Operator App typed device API client and technician panel for enrollment-code
   creation, command dispatch/status inspection, and credential
@@ -290,6 +297,8 @@ Not implemented yet:
 - authorization coverage for every future operator-facing backend endpoint as
   it is added;
 - Operator App sign-in UI and role-aware navigation;
+- Operator App layout management UI;
+- installed apps reporting and device detail read workflows;
 - automatic Agent-side consumption of rotated credentials;
 - real session lifecycle;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;

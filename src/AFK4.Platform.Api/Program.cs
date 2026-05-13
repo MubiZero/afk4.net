@@ -28,7 +28,7 @@ builder.Services.AddScoped<IDeviceCommandStore, EfDeviceCommandStore>();
 builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectionRegistry>();
 builder.Services.AddScoped<IDeviceCommandDispatchService, DeviceCommandDispatchService>();
 builder.Services.AddScoped<IDeviceHeartbeatService, DeviceHeartbeatService>();
-builder.Services.AddSingleton<IFloorMapReadService, InMemoryFloorMapReadService>();
+builder.Services.AddScoped<IFloorMapReadService, EfFloorMapReadService>();
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
 builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
 builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
@@ -45,11 +45,32 @@ app.MapGet("/api/health", () =>
     return Results.Ok(new HealthResponse("ok", DateTimeOffset.UtcNow));
 });
 
-app.MapGet("/api/branches/{branchId:guid}/floor-map", (
+app.MapGet("/api/branches/{branchId:guid}/floor-map", async (
     Guid branchId,
-    IFloorMapReadService floorMapReadService) =>
+    IFloorMapReadService floorMapReadService,
+    StaffAuthorizationService authorizationService,
+    CancellationToken cancellationToken) =>
 {
-    return Results.Ok(floorMapReadService.GetFloorMap(branchId));
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewFloorMap,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var floorMap = await floorMapReadService.GetFloorMapAsync(branchId, cancellationToken);
+
+    return floorMap is null
+        ? Results.NotFound()
+        : Results.Ok(floorMap);
 });
 
 app.MapPost("/api/auth/staff/sign-in", async (
