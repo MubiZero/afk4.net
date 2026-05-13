@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,6 +57,42 @@ public sealed class SessionEndpointTests
         Assert.Equal(AuditActionNames.StartSession, audit.Action);
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
         Assert.Equal(body.Session.SessionId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
+    public async Task StartSession_WithRealPrepaidBilling_AppendsGameplayCharge()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedLayoutAsync(factory, includeTargetSeat: false);
+        var playerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+        var tariffVersion = await SeedBillingAsync(factory, playerAccountId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-real-prepaid-001",
+                PlayerAccountId: playerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
+                PlayerPackageId: null));
+        var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Contains(dbContext.LedgerEntries, entry =>
+            entry.EntryType == LedgerEntryTypeNames.GameplayCharge &&
+            entry.AccountType == LedgerAccountTypeNames.Wallet &&
+            entry.AmountMinorUnits < 0 &&
+            entry.SessionId == body.Session.SessionId);
     }
 
     [Fact]
@@ -279,5 +316,71 @@ public sealed class SessionEndpointTests
         }
 
         await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task<TariffVersionEntity> SeedBillingAsync(
+        PlatformApiFactory factory,
+        Guid playerAccountId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = playerAccountId,
+            OrganizationId = TestIds.OrganizationId,
+            HomeBranchId = TestIds.BranchId,
+            DisplayName = "Player One",
+            PhoneNumber = "+992000000001",
+            IsActive = true,
+            CreatedAtUtc = Now
+        });
+        dbContext.LedgerEntries.Add(new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = playerAccountId,
+            SessionId = null,
+            PlayerPackageId = null,
+            EntryType = LedgerEntryTypeNames.TopUp,
+            AccountType = LedgerAccountTypeNames.Wallet,
+            AmountMinorUnits = 5000,
+            QuantitySeconds = 0,
+            CurrencyCode = "TJS",
+            Description = LedgerEntryTypeNames.TopUp,
+            Reason = "test seed",
+            ReversesLedgerEntryId = null,
+            CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            CreatedAtUtc = Now
+        });
+        var tariff = new TariffEntity
+        {
+            TariffId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            Name = "Standard",
+            IsActive = true,
+            CreatedAtUtc = Now
+        };
+        var tariffVersion = new TariffVersionEntity
+        {
+            TariffVersionId = Guid.NewGuid(),
+            TariffId = tariff.TariffId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            VersionNumber = 1,
+            CurrencyCode = "TJS",
+            PricePerMinuteMinorUnits = 50,
+            MinimumBillableMinutes = 30,
+            RoundingIncrementMinutes = 15,
+            EffectiveFromUtc = Now.AddMinutes(-1),
+            RetiredAtUtc = null,
+            CreatedAtUtc = Now
+        };
+        dbContext.Tariffs.Add(tariff);
+        dbContext.TariffVersions.Add(tariffVersion);
+        await dbContext.SaveChangesAsync();
+
+        return tariffVersion;
     }
 }

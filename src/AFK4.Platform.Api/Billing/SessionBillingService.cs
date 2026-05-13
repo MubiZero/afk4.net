@@ -189,6 +189,15 @@ public sealed class SessionBillingService(
             return Invalid("Tariff calculation could not be completed.");
         }
 
+        var ledgerCurrencyValidation = await GetLedgerCurrencyForWriteAsync(
+            playerAccountId,
+            calculation.Amount.CurrencyCode,
+            cancellationToken);
+        if (ledgerCurrencyValidation is not null)
+        {
+            return Invalid(ledgerCurrencyValidation);
+        }
+
         if (requireWalletBalance)
         {
             var walletBalance = await GetBalanceAsync(playerAccountId, LedgerAccountTypeNames.Wallet, cancellationToken);
@@ -403,6 +412,36 @@ public sealed class SessionBillingService(
                 actorStaffUserId,
                 now.AddTicks(1)));
         }
+    }
+
+    private async Task<string?> GetLedgerCurrencyForWriteAsync(
+        Guid playerAccountId,
+        string requestedCurrencyCode,
+        CancellationToken cancellationToken)
+    {
+        var requested = requestedCurrencyCode.Trim().ToUpperInvariant();
+        var rawCurrencies = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry => entry.PlayerAccountId == playerAccountId)
+            .Select(entry => entry.CurrencyCode)
+            .ToListAsync(cancellationToken);
+        var currencies = rawCurrencies
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (currencies.Count > 1)
+        {
+            return "Player ledger contains multiple currencies.";
+        }
+
+        var existingCurrency = currencies.SingleOrDefault();
+        if (existingCurrency is not null &&
+            !string.Equals(existingCurrency, requested, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Requested currency must match the player ledger currency.";
+        }
+
+        return null;
     }
 
     private async Task<long> GetBalanceAsync(

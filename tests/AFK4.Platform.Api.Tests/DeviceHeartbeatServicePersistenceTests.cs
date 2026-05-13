@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Shared.Contracts.Devices;
+using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,6 +64,86 @@ public sealed class DeviceHeartbeatServicePersistenceTests
             Assert.Equal("0.1.1", device.AgentVersion);
             Assert.Equal("0.1.2", device.ShellVersion);
             Assert.Equal(DateTimeOffset.Parse("2026-05-12T00:02:00Z"), device.LastHeartbeatAtUtc);
+        }
+    }
+
+    [Fact]
+    public async Task RecordHeartbeatAsync_ReturnsPendingCommandsForHeartbeatDevice()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
+        var otherDeviceId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+        var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
+        var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+        var commandId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.Devices.Add(new DeviceEntity
+            {
+                DeviceId = deviceId,
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                MachineName = "PC-001",
+                AgentVersion = "0.1.0",
+                ShellVersion = "0.1.0",
+                EnrolledAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
+            });
+            db.DeviceCommands.Add(new DeviceCommandEntity
+            {
+                DeviceId = deviceId,
+                CommandId = commandId,
+                Type = "unlock",
+                PayloadJson = JsonSerializer.Serialize(new Dictionary<string, string>
+                {
+                    ["sessionId"] = "session-001",
+                    ["reason"] = "session-start"
+                }),
+                Status = "Pending",
+                Message = null,
+                CreatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:01:00Z"),
+                UpdatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:01:00Z")
+            });
+            db.DeviceCommands.Add(new DeviceCommandEntity
+            {
+                DeviceId = otherDeviceId,
+                CommandId = Guid.Parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc"),
+                Type = "lock",
+                PayloadJson = "{}",
+                Status = "Pending",
+                Message = null,
+                CreatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z"),
+                UpdatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            var service = new DeviceHeartbeatService(new CapturingHubContext(), db);
+            var response = await service.RecordHeartbeatAsync(
+                deviceId,
+                new DeviceHeartbeatRequest(
+                    OrganizationId: organizationId,
+                    BranchId: branchId,
+                    DeviceId: deviceId,
+                    MachineName: "PC-001",
+                    AgentVersion: "0.1.1",
+                    ShellVersion: "0.1.2",
+                    ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:02:00Z"),
+                    IsLocked: true,
+                    ActiveSessionId: null,
+                    ActiveSessionLeaseExpiresAtUtc: null,
+                    ActiveSessionLeaseSequence: null),
+                CancellationToken.None);
+
+            var command = Assert.Single(response.Commands);
+            Assert.Equal(commandId, command.CommandId);
+            Assert.Equal("unlock", command.Type);
+            Assert.Equal("session-start", command.Payload["reason"]);
         }
     }
 

@@ -14,6 +14,12 @@ namespace AFK4.Platform.Api.Tests;
 internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
 {
     private readonly string databaseName = Guid.NewGuid().ToString("N");
+    private readonly bool useRealSessionBilling;
+
+    public PlatformApiFactory(bool useRealSessionBilling = false)
+    {
+        this.useRealSessionBilling = useRealSessionBilling;
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -26,8 +32,11 @@ internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
             {
                 options.UseInMemoryDatabase(databaseName);
             });
-            services.RemoveAll<ISessionBillingService>();
-            services.AddSingleton<ISessionBillingService, FakeSessionBillingService>();
+            if (!useRealSessionBilling)
+            {
+                services.RemoveAll<ISessionBillingService>();
+                services.AddSingleton<ISessionBillingService, FakeSessionBillingService>();
+            }
 
             using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             var signingPrivateKeyPem = key.ExportECPrivateKeyPem();

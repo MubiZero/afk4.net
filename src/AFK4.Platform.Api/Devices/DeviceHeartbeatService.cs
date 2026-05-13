@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.AspNetCore.SignalR;
@@ -43,9 +44,31 @@ public sealed class DeviceHeartbeatService(
 
         await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
 
+        var pendingCommands = await dbContext.DeviceCommands
+            .AsNoTracking()
+            .Where(command => command.DeviceId == deviceId && command.Status == "Pending")
+            .OrderBy(command => command.CreatedAtUtc)
+            .ThenBy(command => command.CommandId)
+            .Select(command => new
+            {
+                command.CommandId,
+                command.Type,
+                command.CreatedAtUtc,
+                command.PayloadJson
+            })
+            .ToListAsync(cancellationToken);
+
+        var commands = pendingCommands
+            .Select(command => new DeviceCommandDto(
+                command.CommandId,
+                command.Type,
+                command.CreatedAtUtc,
+                JsonSerializer.Deserialize<Dictionary<string, string>>(command.PayloadJson) ?? []))
+            .ToList();
+
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: DateTimeOffset.UtcNow,
             HeartbeatIntervalSeconds: 10,
-            Commands: []);
+            Commands: commands);
     }
 }

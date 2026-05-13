@@ -90,6 +90,75 @@ public sealed class EfSessionBillingIntegrationTests
     }
 
     [Fact]
+    public async Task StartGuestSessionAsync_WithPrepaidWallet_RejectsMismatchedExistingLedgerCurrency()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000, currencyCode: "USD");
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-prepaid-currency-mismatch-001",
+                PlayerAccountId,
+                BillingModeNames.PrepaidWallet,
+                tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Requested currency must match the player ledger currency.", result.Error);
+        Assert.Empty(db.Sessions);
+        Assert.Empty(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge));
+        Assert.Empty(dispatcher.Enqueued);
+        Assert.Empty(dispatcher.Calls);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_WithPrepaidWallet_RejectsMixedExistingLedgerCurrencies()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000, currencyCode: "USD");
+        await SeedWalletTopUpAsync(db, 5000, currencyCode: "TJS");
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-prepaid-mixed-currency-001",
+                PlayerAccountId,
+                BillingModeNames.PrepaidWallet,
+                tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Player ledger contains multiple currencies.", result.Error);
+        Assert.Empty(db.Sessions);
+        Assert.Empty(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge));
+        Assert.Empty(dispatcher.Enqueued);
+        Assert.Empty(dispatcher.Calls);
+    }
+
+    [Fact]
     public async Task ExtendSessionAsync_WithPrepaidWallet_DebitsAdditionalGameplayChargeAndRefreshesLease()
     {
         await using var db = CreateDbContext();
@@ -456,7 +525,10 @@ public sealed class EfSessionBillingIntegrationTests
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedWalletTopUpAsync(PlatformDbContext db, long amountMinorUnits)
+    private static async Task SeedWalletTopUpAsync(
+        PlatformDbContext db,
+        long amountMinorUnits,
+        string currencyCode = "TJS")
     {
         db.LedgerEntries.Add(CreateLedgerEntry(
             LedgerEntryTypeNames.TopUp,
@@ -464,7 +536,8 @@ public sealed class EfSessionBillingIntegrationTests
             amountMinorUnits,
             quantitySeconds: 0,
             sessionId: null,
-            playerPackageId: null));
+            playerPackageId: null,
+            currencyCode));
         await db.SaveChangesAsync();
     }
 
@@ -547,7 +620,8 @@ public sealed class EfSessionBillingIntegrationTests
         long amountMinorUnits,
         int quantitySeconds,
         Guid? sessionId,
-        Guid? playerPackageId)
+        Guid? playerPackageId,
+        string currencyCode = "TJS")
     {
         return new LedgerEntryEntity
         {
@@ -561,7 +635,7 @@ public sealed class EfSessionBillingIntegrationTests
             AccountType = accountType,
             AmountMinorUnits = amountMinorUnits,
             QuantitySeconds = quantitySeconds,
-            CurrencyCode = "TJS",
+            CurrencyCode = currencyCode,
             Description = entryType,
             Reason = "test seed",
             ReversesLedgerEntryId = null,

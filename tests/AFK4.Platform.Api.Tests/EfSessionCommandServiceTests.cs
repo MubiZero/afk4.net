@@ -112,6 +112,8 @@ public sealed class EfSessionCommandServiceTests
         Assert.True(conflict.Conflict);
         Assert.Null(conflict.Response);
         Assert.Single(dispatcher.Calls);
+        Assert.Single(dispatcher.Enqueued);
+        Assert.Empty(dispatcher.DispatchCalls);
     }
 
     [Fact]
@@ -124,10 +126,10 @@ public sealed class EfSessionCommandServiceTests
         var start = await service.StartGuestSessionAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"),
+        new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"),
             CancellationToken.None);
         Assert.NotNull(start.Response);
-        dispatcher.Calls.Clear();
+        dispatcher.Clear();
 
         var result = await service.EndSessionAsync(
             start.Response.Session.SessionId,
@@ -143,6 +145,10 @@ public sealed class EfSessionCommandServiceTests
         Assert.Equal(SessionStateNames.Ending, session.State);
 
         var call = Assert.Single(dispatcher.Calls);
+        var enqueued = Assert.Single(dispatcher.Enqueued);
+        Assert.Empty(dispatcher.DispatchCalls);
+        Assert.Equal(call.DeviceId, enqueued.DeviceId);
+        Assert.Equal(call.Request.Type, enqueued.Request.Type);
         Assert.Equal(TestIds.DeviceId, call.DeviceId);
         Assert.Equal("lock", call.Request.Type);
         Assert.Equal(session.SessionId.ToString("D"), call.Request.Payload["sessionId"]);
@@ -159,10 +165,10 @@ public sealed class EfSessionCommandServiceTests
         var start = await service.StartGuestSessionAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"),
+        new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"),
             CancellationToken.None);
         Assert.NotNull(start.Response);
-        dispatcher.Calls.Clear();
+        dispatcher.Clear();
 
         var result = await service.TransferSessionAsync(
             start.Response.Session.SessionId,
@@ -181,6 +187,8 @@ public sealed class EfSessionCommandServiceTests
         Assert.Equal(TargetDeviceId, session.DeviceId);
 
         Assert.Equal(2, dispatcher.Calls.Count);
+        Assert.Equal(2, dispatcher.Enqueued.Count);
+        Assert.Empty(dispatcher.DispatchCalls);
         Assert.Equal(TestIds.DeviceId, dispatcher.Calls[0].DeviceId);
         Assert.Equal("lock", dispatcher.Calls[0].Request.Type);
         Assert.Equal(TargetDeviceId, dispatcher.Calls[1].DeviceId);
@@ -306,6 +314,10 @@ public sealed class EfSessionCommandServiceTests
 
     private sealed class RecordingCommandDispatchService : IDeviceCommandDispatchService
     {
+        public List<(Guid DeviceId, CreateDeviceCommandRequest Request)> DispatchCalls { get; } = [];
+
+        public List<(Guid DeviceId, CreateDeviceCommandRequest Request)> Enqueued { get; } = [];
+
         public List<(Guid DeviceId, CreateDeviceCommandRequest Request)> Calls { get; } = [];
 
         public Task<DeviceCommandDto> EnqueueAsync(
@@ -313,6 +325,8 @@ public sealed class EfSessionCommandServiceTests
             CreateDeviceCommandRequest request,
             CancellationToken cancellationToken)
         {
+            Enqueued.Add((deviceId, request));
+
             return Task.FromResult(new DeviceCommandDto(
                 CommandId: Guid.NewGuid(),
                 Type: request.Type,
@@ -330,11 +344,19 @@ public sealed class EfSessionCommandServiceTests
             return Task.CompletedTask;
         }
 
+        public void Clear()
+        {
+            DispatchCalls.Clear();
+            Enqueued.Clear();
+            Calls.Clear();
+        }
+
         public Task<DeviceCommandDto> DispatchAsync(
             Guid deviceId,
             CreateDeviceCommandRequest request,
             CancellationToken cancellationToken)
         {
+            DispatchCalls.Add((deviceId, request));
             Calls.Add((deviceId, request));
 
             return Task.FromResult(new DeviceCommandDto(
