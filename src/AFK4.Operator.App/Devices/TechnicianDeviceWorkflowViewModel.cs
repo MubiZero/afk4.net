@@ -209,6 +209,12 @@ public sealed class TechnicianDeviceWorkflowViewModel : INotifyPropertyChanged
         }
     }
 
+    public void ApplyContext(Guid organizationId, Guid branchId)
+    {
+        OrganizationIdText = organizationId.ToString("D");
+        BranchIdText = branchId.ToString("D");
+    }
+
     public Task CreateEnrollmentCodeAsync(CancellationToken cancellationToken)
     {
         ClearMessages();
