@@ -345,8 +345,6 @@ reads only. It does not yet include:
   device-seat assignments;
 - full installed app list read path, if needed beyond the current device detail
   installed app count;
-- a freshly executed live PostgreSQL smoke for the full Phase 3 path in this
-  branch.
 
 ## Latest Verified State
 
@@ -362,6 +360,51 @@ Results:
 
 - build succeeded with 0 warnings and 0 errors;
 - tests passed with 101 visible passing tests, 0 failed, 0 skipped.
+
+The full local PostgreSQL live smoke was run from `D:\afk4.net` on 2026-05-13
+for the Phase 3 path on `codex/phase3-installed-apps-reporting`:
+
+```powershell
+docker compose down -v
+docker compose up -d postgres
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+& 'C:\Program Files\dotnet\dotnet.exe' run --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --urls http://localhost:5074
+```
+
+Live smoke results:
+
+- PostgreSQL healthcheck reached `healthy`.
+- EF migrations applied through `AddDeviceInstalledApps`.
+- `GET /api/health` returned status `ok`.
+- local technician sign-in and refresh returned non-empty access tokens.
+- bearer-authenticated device enrollment-code creation returned
+  `AFK4-A70C-BB7607073B40`.
+- device enrollment returned device
+  `e14e78b8-b69d-4d52-a63e-64af11c6e0d7`.
+- authenticated heartbeat returned heartbeat interval `10`.
+- seeded zone `Main Hall`, seat `PC-SMOKE-001`, and active device-seat
+  assignment were returned by the bearer-authenticated floor-map endpoint with
+  state `Locked`.
+- device-authenticated installed apps report persisted `Counter-Strike 2` and
+  `Discord`.
+- staff-protected device detail returned machine `PC-SMOKE-001`,
+  installed app count `2`, active credential count `1`, assigned seat
+  `PC-SMOKE-001`, and zone `Main Hall`.
+- bearer-authenticated command dispatch/status returned command status
+  `Pending`.
+- credential rotation returned credential
+  `af62be84-93fe-4197-9966-aa2552750380`.
+- heartbeat with the rotated credential returned heartbeat interval `10`.
+- credential revocation returned the rotated credential id.
+- Direct PostgreSQL reads confirmed the seeded layout row with online/locked
+  device state.
+- Direct PostgreSQL reads confirmed installed app snapshot rows for
+  `Counter-Strike 2` and `Discord`.
+- Direct PostgreSQL reads confirmed succeeded audit rows for enrollment-code
+  creation, command dispatch/status, credential rotation, and credential
+  revocation.
+- The API process was stopped after smoke verification.
+- PostgreSQL was stopped with `docker compose down`; the named volume was kept.
 
 Targeted TDD verification for the Phase 3 Operator device detail workflow was
 also run for:
@@ -668,7 +711,5 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Run the full local PostgreSQL smoke path for Phase 3 against this branch,
-   including layout, installed apps, and device detail reads.
-2. Later, add Operator App sign-in UI and role-aware startup so staff can
+1. Later, add Operator App sign-in UI and role-aware startup so staff can
    acquire protected bearer/refresh token snapshots without manual setup.
