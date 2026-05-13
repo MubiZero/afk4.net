@@ -1,11 +1,24 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.FloorMap;
 
-public sealed class EfFloorMapReadService(PlatformDbContext dbContext) : IFloorMapReadService
+public sealed class EfFloorMapReadService(PlatformDbContext dbContext, TimeProvider timeProvider) : IFloorMapReadService
 {
+    private static readonly string[] ProjectedSessionStates =
+    [
+        SessionStateNames.Active,
+        SessionStateNames.Paused,
+        SessionStateNames.Ending
+    ];
+
+    public EfFloorMapReadService(PlatformDbContext dbContext)
+        : this(dbContext, TimeProvider.System)
+    {
+    }
+
     public async Task<FloorMapDto?> GetFloorMapAsync(Guid branchId, CancellationToken cancellationToken)
     {
         var branch = await dbContext.Branches
@@ -36,13 +49,20 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext) : IFloorM
             .AsNoTracking()
             .Where(device => assignedDeviceIds.Contains(device.DeviceId))
             .ToDictionaryAsync(device => device.DeviceId, cancellationToken);
+        var sessions = await dbContext.Sessions
+            .AsNoTracking()
+            .Where(session => session.BranchId == branchId && ProjectedSessionStates.Contains(session.State))
+            .ToListAsync(cancellationToken);
 
         var assignmentsBySeat = activeAssignments
             .GroupBy(assignment => assignment.SeatId)
             .ToDictionary(group => group.Key, group => group.OrderByDescending(assignment => assignment.AttachedAtUtc).First());
+        var sessionsBySeat = sessions
+            .GroupBy(session => session.SeatId)
+            .ToDictionary(group => group.Key, group => group.OrderByDescending(session => session.UpdatedAtUtc).First());
 
         var seatStatuses = seats
-            .Select(seat => CreateSeatStatus(seat, zones, assignmentsBySeat, devices))
+            .Select(seat => CreateSeatStatus(seat, zones, assignmentsBySeat, devices, sessionsBySeat))
             .OrderBy(seat => zones.TryGetValue(seat.ZoneId, out var zone) ? zone.SortOrder : int.MaxValue)
             .ThenBy(seat => seat.SortOrder)
             .ThenBy(seat => seat.SeatName, StringComparer.OrdinalIgnoreCase)
@@ -54,11 +74,12 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext) : IFloorM
             Seats: seatStatuses);
     }
 
-    private static SeatStatusDto CreateSeatStatus(
+    private SeatStatusDto CreateSeatStatus(
         SeatEntity seat,
         IReadOnlyDictionary<Guid, ZoneEntity> zones,
         IReadOnlyDictionary<Guid, DeviceSeatAssignmentEntity> assignmentsBySeat,
-        IReadOnlyDictionary<Guid, DeviceEntity> devices)
+        IReadOnlyDictionary<Guid, DeviceEntity> devices,
+        IReadOnlyDictionary<Guid, SessionEntity> sessionsBySeat)
     {
         zones.TryGetValue(seat.ZoneId, out var zone);
 
@@ -68,13 +89,15 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext) : IFloorM
             devices.TryGetValue(assignment.DeviceId, out device);
         }
 
+        sessionsBySeat.TryGetValue(seat.SeatId, out var activeSession);
+
         return new SeatStatusDto(
             SeatId: seat.SeatId,
             SeatName: seat.Name,
             ZoneId: seat.ZoneId,
             ZoneName: zone?.Name ?? string.Empty,
             SortOrder: seat.SortOrder,
-            State: GetSeatState(device),
+            State: GetSeatState(device, activeSession),
             DeviceId: device?.DeviceId,
             DeviceName: device?.MachineName,
             IsDeviceOnline: device?.IsOnline,
@@ -82,12 +105,33 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext) : IFloorM
             LastHeartbeatAtUtc: device?.LastHeartbeatAtUtc,
             AgentVersion: device?.AgentVersion,
             ShellVersion: device?.ShellVersion,
-            ActiveSessionId: null,
-            RemainingSeconds: null);
+            ActiveSessionId: activeSession?.SessionId,
+            RemainingSeconds: GetRemainingSeconds(activeSession));
     }
 
-    private static string GetSeatState(DeviceEntity? device)
+    private int? GetRemainingSeconds(SessionEntity? activeSession)
     {
+        if (activeSession?.EndsAtUtc is null)
+        {
+            return null;
+        }
+
+        return Math.Max(0, (int)(activeSession.EndsAtUtc.Value - timeProvider.GetUtcNow()).TotalSeconds);
+    }
+
+    private static string GetSeatState(DeviceEntity? device, SessionEntity? activeSession)
+    {
+        if (activeSession is not null)
+        {
+            return activeSession.State switch
+            {
+                SessionStateNames.Ending => "Ending",
+                SessionStateNames.Paused => "Paused",
+                SessionStateNames.Active => "Active",
+                _ => "Active"
+            };
+        }
+
         if (device is null)
         {
             return "Maintenance";

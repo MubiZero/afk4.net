@@ -16,7 +16,10 @@ public sealed class DeviceRealtimeContractSerializationTests
             AgentVersion: "0.1.0",
             ShellVersion: "0.1.0",
             CredentialSecret: "device-secret",
-            ConnectedAtUtc: DateTimeOffset.Parse("2026-05-12T00:00:00Z"));
+            ConnectedAtUtc: DateTimeOffset.Parse("2026-05-12T00:00:00Z"),
+            ActiveSessionId: null,
+            ActiveSessionLeaseExpiresAtUtc: null,
+            ActiveSessionLeaseSequence: null);
 
         var json = JsonSerializer.Serialize(request);
         var copy = JsonSerializer.Deserialize<DeviceConnectionRequest>(json);

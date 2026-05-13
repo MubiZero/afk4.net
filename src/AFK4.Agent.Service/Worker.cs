@@ -9,6 +9,8 @@ public sealed class Worker(
     IHttpClientFactory httpClientFactory,
     IOptions<AgentOptions> options,
     IDeviceRealtimeClient realtimeClient,
+    ISessionLeaseStore leaseStore,
+    ISessionReconciliationReporter sessionReconciliationReporter,
     IInstalledAppInventoryCollector installedAppInventoryCollector,
     IInstalledAppReporter installedAppReporter) : BackgroundService
 {
@@ -31,11 +33,12 @@ public sealed class Worker(
         var client = httpClientFactory.CreateClient("platform");
         client.BaseAddress = agentOptions.PlatformBaseUrl;
 
+        await TryReconcileSessionAsync(stoppingToken);
         await TryReportInstalledAppsAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var request = HeartbeatPayloadFactory.Create(agentOptions, isLocked: true, DateTimeOffset.UtcNow);
+            var request = HeartbeatPayloadFactory.Create(agentOptions, isLocked: true, DateTimeOffset.UtcNow, leaseStore);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
                 Content = JsonContent.Create(request)
@@ -54,6 +57,29 @@ public sealed class Worker(
 
             logger.LogInformation("Heartbeat sent for {DeviceId}. Next heartbeat in {IntervalSeconds}s.", agentOptions.DeviceId, intervalSeconds);
             await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+        }
+    }
+
+    private async Task TryReconcileSessionAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await sessionReconciliationReporter.ReportAsync(
+                isLocked: true,
+                observedAtUtc: DateTimeOffset.UtcNow,
+                cancellationToken);
+            logger.LogInformation(
+                "Session reconciliation returned {Action} for {SessionId}.",
+                response.Action,
+                response.SessionId);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Session reconciliation failed. Continuing with heartbeat loop.");
         }
     }
 

@@ -34,6 +34,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<DeviceInstalledAppEntity> DeviceInstalledApps => Set<DeviceInstalledAppEntity>();
 
+    public DbSet<SessionEntity> Sessions => Set<SessionEntity>();
+
+    public DbSet<SessionEventEntity> SessionEvents => Set<SessionEventEntity>();
+
+    public DbSet<SessionLeaseEntity> SessionLeases => Set<SessionLeaseEntity>();
+
+    public DbSet<SessionCommandIdempotencyEntity> SessionCommandIdempotency => Set<SessionCommandIdempotencyEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -187,6 +195,68 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(app => new { app.DeviceId, app.DisplayName });
             entity.HasIndex(app => new { app.OrganizationId, app.BranchId, app.DeviceId });
             entity.HasIndex(app => app.ReportedAtUtc);
+        });
+
+        modelBuilder.Entity<SessionEntity>(entity =>
+        {
+            entity.ToTable("sessions");
+            entity.HasKey(session => session.SessionId);
+            entity.Property(session => session.PlayerKind).HasMaxLength(32).IsRequired();
+            entity.Property(session => session.TariffRuleVersionId).HasMaxLength(128).IsRequired();
+            entity.Property(session => session.State).HasMaxLength(32).IsRequired();
+            entity.HasIndex(session => new
+            {
+                session.OrganizationId,
+                session.BranchId,
+                session.SeatId,
+                session.State
+            });
+            entity.HasIndex(session => new
+            {
+                session.OrganizationId,
+                session.BranchId,
+                session.DeviceId,
+                session.State
+            });
+            entity.HasIndex(session => session.CurrentLeaseId);
+        });
+
+        modelBuilder.Entity<SessionEventEntity>(entity =>
+        {
+            entity.ToTable("session_events");
+            entity.HasKey(sessionEvent => sessionEvent.SessionEventId);
+            entity.Property(sessionEvent => sessionEvent.EventType).HasMaxLength(80).IsRequired();
+            entity.Property(sessionEvent => sessionEvent.DetailsJson).HasColumnType("jsonb").IsRequired();
+            entity.HasIndex(sessionEvent => new { sessionEvent.SessionId, sessionEvent.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<SessionLeaseEntity>(entity =>
+        {
+            entity.ToTable("session_leases");
+            entity.HasKey(lease => lease.SessionLeaseId);
+            entity.Property(lease => lease.State).HasMaxLength(32).IsRequired();
+            entity.Property(lease => lease.SignatureAlgorithm).HasMaxLength(64).IsRequired();
+            entity.Property(lease => lease.Signature).IsRequired();
+            entity.Property(lease => lease.PayloadJson).HasColumnType("jsonb").IsRequired();
+            entity.HasIndex(lease => new { lease.SessionId, lease.Sequence }).IsUnique();
+            entity.HasIndex(lease => new { lease.DeviceId, lease.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<SessionCommandIdempotencyEntity>(entity =>
+        {
+            entity.ToTable("session_command_idempotency");
+            entity.HasKey(record => record.SessionCommandIdempotencyId);
+            entity.Property(record => record.IdempotencyKeyHash).HasMaxLength(128).IsRequired();
+            entity.Property(record => record.Operation).HasMaxLength(64).IsRequired();
+            entity.Property(record => record.RequestHash).HasMaxLength(128).IsRequired();
+            entity.Property(record => record.ResponseJson).HasColumnType("jsonb").IsRequired();
+            entity.HasIndex(record => new
+            {
+                record.OrganizationId,
+                record.BranchId,
+                record.IdempotencyKeyHash,
+                record.Operation
+            }).IsUnique();
         });
     }
 }

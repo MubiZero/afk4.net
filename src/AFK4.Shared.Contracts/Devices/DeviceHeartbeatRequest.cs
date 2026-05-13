@@ -8,4 +8,7 @@ public sealed record DeviceHeartbeatRequest(
     string AgentVersion,
     string ShellVersion,
     DateTimeOffset ObservedAtUtc,
-    bool IsLocked);
+    bool IsLocked,
+    Guid? ActiveSessionId,
+    DateTimeOffset? ActiveSessionLeaseExpiresAtUtc,
+    int? ActiveSessionLeaseSequence);

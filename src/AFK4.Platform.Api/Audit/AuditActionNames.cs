@@ -11,4 +11,12 @@ public static class AuditActionNames
     public const string RotateDeviceCredential = "devices.credentials.rotate";
 
     public const string RevokeDeviceCredential = "devices.credentials.revoke";
+
+    public const string StartSession = "sessions.start";
+
+    public const string ExtendSession = "sessions.extend";
+
+    public const string TransferSession = "sessions.transfer";
+
+    public const string EndSession = "sessions.end";
 }

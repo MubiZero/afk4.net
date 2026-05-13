@@ -17,7 +17,10 @@ public sealed class ContractSerializationTests
             AgentVersion: "0.1.0",
             ShellVersion: "0.1.0",
             ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:00:00Z"),
-            IsLocked: true);
+            IsLocked: true,
+            ActiveSessionId: null,
+            ActiveSessionLeaseExpiresAtUtc: null,
+            ActiveSessionLeaseSequence: null);
 
         var json = JsonSerializer.Serialize(request);
         var copy = JsonSerializer.Deserialize<DeviceHeartbeatRequest>(json);

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Agent.Service;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -31,6 +32,8 @@ public sealed class WorkerTests
             httpClientFactory,
             options,
             new ThrowingRealtimeClient(new InvalidOperationException("realtime unavailable")),
+            new InMemorySessionLeaseStore(),
+            new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter());
 
@@ -65,6 +68,8 @@ public sealed class WorkerTests
             httpClientFactory,
             options,
             new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector(
             [
                 new InstalledAppSnapshot(
@@ -83,6 +88,49 @@ public sealed class WorkerTests
         var app = Assert.Single(reporter.LastApps);
         Assert.Equal("Discord", app.DisplayName);
         Assert.NotNull(reporter.LastReportedAtUtc);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ReconcilesSessionBeforeInstalledAppsAndHeartbeatLoop()
+    {
+        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var heartbeatAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new CapturingHeartbeatHandler(heartbeatAttempted, stopping);
+        var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
+        });
+        var calls = new List<string>();
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            httpClientFactory,
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingSessionReconciliationReporter(calls),
+            new StaticInstalledAppInventoryCollector(
+            [
+                new InstalledAppSnapshot(
+                    DisplayName: "Discord",
+                    Version: "1.0.9059",
+                    Publisher: "Discord Inc.",
+                    InstallLocation: null,
+                    InstalledAtUtc: null)
+            ]),
+            new RecordingInstalledAppReporter(calls));
+
+        await worker.StartAsync(stopping.Token);
+        await heartbeatAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal(["reconcile", "apps"], calls);
     }
 
     private sealed class ThrowingRealtimeClient(Exception exception) : IDeviceRealtimeClient
@@ -122,8 +170,51 @@ public sealed class WorkerTests
         }
     }
 
+    private sealed class NoOpSessionReconciliationReporter : ISessionReconciliationReporter
+    {
+        public Task<SessionReconciliationResponse> ReportAsync(
+            bool isLocked,
+            DateTimeOffset observedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new SessionReconciliationResponse(
+                Action: "continue",
+                Reason: "test",
+                SessionId: null,
+                Lease: null));
+        }
+    }
+
+    private sealed class RecordingSessionReconciliationReporter(List<string> calls) : ISessionReconciliationReporter
+    {
+        public Task<SessionReconciliationResponse> ReportAsync(
+            bool isLocked,
+            DateTimeOffset observedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            calls.Add("reconcile");
+
+            return Task.FromResult(new SessionReconciliationResponse(
+                Action: "continue",
+                Reason: "test",
+                SessionId: null,
+                Lease: null));
+        }
+    }
+
     private sealed class RecordingInstalledAppReporter : IInstalledAppReporter
     {
+        private readonly List<string>? calls;
+
+        public RecordingInstalledAppReporter()
+        {
+        }
+
+        public RecordingInstalledAppReporter(List<string> calls)
+        {
+            this.calls = calls;
+        }
+
         public IReadOnlyCollection<InstalledAppSnapshot> LastApps { get; private set; } = [];
 
         public DateTimeOffset? LastReportedAtUtc { get; private set; }
@@ -133,6 +224,7 @@ public sealed class WorkerTests
             DateTimeOffset reportedAtUtc,
             CancellationToken cancellationToken)
         {
+            calls?.Add("apps");
             LastApps = apps;
             LastReportedAtUtc = reportedAtUtc;
             return Task.CompletedTask;

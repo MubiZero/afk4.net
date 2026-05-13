@@ -8,4 +8,7 @@ public sealed record DeviceConnectionRequest(
     string AgentVersion,
     string ShellVersion,
     string CredentialSecret,
-    DateTimeOffset ConnectedAtUtc);
+    DateTimeOffset ConnectedAtUtc,
+    Guid? ActiveSessionId,
+    DateTimeOffset? ActiveSessionLeaseExpiresAtUtc,
+    int? ActiveSessionLeaseSequence);

@@ -109,10 +109,20 @@ The current vertical slice exposes:
 - `POST /api/auth/staff/refresh`
 - `GET /api/branches/{branchId}/floor-map` with staff bearer token permission
   `floor_map.view`
+- `POST /api/branches/{branchId}/sessions/start` with staff bearer token
+  permission `sessions.start`
+- `POST /api/sessions/{sessionId}/extend` with staff bearer token permission
+  `sessions.extend`
+- `POST /api/sessions/{sessionId}/transfer` with staff bearer token
+  permission `sessions.transfer`
+- `POST /api/sessions/{sessionId}/end` with staff bearer token permission
+  `sessions.end`
 - `POST /api/branches/{branchId}/device-enrollment-codes` with staff bearer
   token permission `devices.enrollment_codes.create`
 - `POST /api/devices/enroll`
 - `POST /api/devices/{deviceId}/heartbeat`
+- `POST /api/devices/{deviceId}/session-reconciliation` with device
+  credential authentication
 - `POST /api/devices/{deviceId}/installed-apps/report` with device credential
   authentication
 - `GET /api/devices/{deviceId}` with staff bearer token permission
@@ -146,9 +156,10 @@ role-aware navigation.
 `AFK4.Agent.Service` is the Windows service skeleton for gaming PCs. It creates
 heartbeat payloads, sends enrollment-issued device credentials, posts
 heartbeats to the backend, reports Windows installed app inventory snapshots,
-and connects to the realtime device hub. Later slices add installer enrollment
-bootstrap, local credential lifecycle workflows, lock/unlock enforcement,
-process policy, session lease validation, reconnect reconciliation, watchdog
+connects to the realtime device hub, validates backend-signed session leases,
+stores the current active lease, and reports reconnect reconciliation snapshots.
+Later slices add installer enrollment bootstrap, local credential lifecycle
+workflows, real Windows lock/unlock enforcement, process policy, watchdog
 behavior, and updates.
 
 ### Player Shell
@@ -297,6 +308,18 @@ The first vertical slice foundation is implemented:
   rotation/revocation;
 - Operator App technician device detail workflow backed by
   `GET /api/devices/{deviceId}`;
+- shared session lifecycle and signed lease contracts;
+- EF-backed sessions, session leases, session events, and session command
+  idempotency records with migration `AddSessions`;
+- staff-protected guest session start, extend, transfer, and end endpoints;
+- session command dispatch through the existing device command path for
+  unlock, lock, and lease refresh;
+- signed ECDSA session lease issuance by the backend;
+- Agent-side signed lease validation and current lease storage;
+- device heartbeat/reconnect active lease snapshot fields;
+- device-authenticated session reconciliation endpoint with `continue`,
+  `unlock`, and `lock` actions;
+- floor-map active session projection with remaining seconds;
 - device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
 - persisted device heartbeat state and command status tracking;
@@ -312,7 +335,7 @@ Not implemented yet:
 - Operator App sign-in UI and role-aware navigation;
 - Operator App layout management UI;
 - automatic Agent-side consumption of rotated credentials;
-- real session lifecycle;
+- Operator App session action UI;
 - ledger, tariffs, packages, POS, inventory, shifts, receipts;
 - audit search and reports;
 - Windows lock/unlock enforcement and launcher control;

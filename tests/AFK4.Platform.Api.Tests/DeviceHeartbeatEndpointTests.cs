@@ -24,7 +24,10 @@ public sealed class DeviceHeartbeatEndpointTests
             AgentVersion: "0.1.0",
             ShellVersion: "0.1.0",
             ObservedAtUtc: DateTimeOffset.UtcNow,
-            IsLocked: true);
+            IsLocked: true,
+            ActiveSessionId: null,
+            ActiveSessionLeaseExpiresAtUtc: null,
+            ActiveSessionLeaseSequence: null);
 
         using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{enrollment.DeviceId}/heartbeat")
         {
@@ -57,7 +60,10 @@ public sealed class DeviceHeartbeatEndpointTests
             AgentVersion: "0.1.0",
             ShellVersion: "0.1.0",
             ObservedAtUtc: DateTimeOffset.UtcNow,
-            IsLocked: true);
+            IsLocked: true,
+            ActiveSessionId: null,
+            ActiveSessionLeaseExpiresAtUtc: null,
+            ActiveSessionLeaseSequence: null);
 
         var response = await client.PostAsJsonAsync($"/api/devices/{enrollment.DeviceId}/heartbeat", request);
 

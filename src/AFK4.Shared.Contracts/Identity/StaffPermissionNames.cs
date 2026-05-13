@@ -16,6 +16,16 @@ public static class StaffPermissionNames
 
     public const string ViewFloorMap = "floor_map.view";
 
+    public const string StartSession = "sessions.start";
+
+    public const string ExtendSession = "sessions.extend";
+
+    public const string TransferSession = "sessions.transfer";
+
+    public const string EndSession = "sessions.end";
+
+    public const string ViewSession = "sessions.view";
+
     public const string ManageRoles = "identity.roles.manage";
 
     public const string ViewAudit = "audit.view";

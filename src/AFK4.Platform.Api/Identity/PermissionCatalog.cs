@@ -16,6 +16,11 @@ public static class PermissionCatalog
                 StaffPermissionNames.RevokeDeviceCredential,
                 StaffPermissionNames.ViewDeviceDetail,
                 StaffPermissionNames.ViewFloorMap,
+                StaffPermissionNames.StartSession,
+                StaffPermissionNames.ExtendSession,
+                StaffPermissionNames.TransferSession,
+                StaffPermissionNames.EndSession,
+                StaffPermissionNames.ViewSession,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit
             },
@@ -28,6 +33,11 @@ public static class PermissionCatalog
                 StaffPermissionNames.RevokeDeviceCredential,
                 StaffPermissionNames.ViewDeviceDetail,
                 StaffPermissionNames.ViewFloorMap,
+                StaffPermissionNames.StartSession,
+                StaffPermissionNames.ExtendSession,
+                StaffPermissionNames.TransferSession,
+                StaffPermissionNames.EndSession,
+                StaffPermissionNames.ViewSession,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.ShiftSupervisor] = new HashSet<string>
@@ -35,11 +45,21 @@ public static class PermissionCatalog
                 StaffPermissionNames.ViewDeviceCommandStatus,
                 StaffPermissionNames.ViewDeviceDetail,
                 StaffPermissionNames.ViewFloorMap,
+                StaffPermissionNames.StartSession,
+                StaffPermissionNames.ExtendSession,
+                StaffPermissionNames.TransferSession,
+                StaffPermissionNames.EndSession,
+                StaffPermissionNames.ViewSession,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.CashierOperator] = new HashSet<string>
             {
-                StaffPermissionNames.ViewFloorMap
+                StaffPermissionNames.ViewFloorMap,
+                StaffPermissionNames.StartSession,
+                StaffPermissionNames.ExtendSession,
+                StaffPermissionNames.TransferSession,
+                StaffPermissionNames.EndSession,
+                StaffPermissionNames.ViewSession
             },
             [StaffRoleNames.Technician] = new HashSet<string>
             {
@@ -53,6 +73,7 @@ public static class PermissionCatalog
             },
             [StaffRoleNames.AccountantAuditor] = new HashSet<string>
             {
+                StaffPermissionNames.ViewSession,
                 StaffPermissionNames.ViewAudit
             }
         };

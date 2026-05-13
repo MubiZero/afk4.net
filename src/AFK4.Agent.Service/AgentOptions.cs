@@ -17,4 +17,6 @@ public sealed class AgentOptions
     public string ShellVersion { get; init; } = "0.1.0";
 
     public string DeviceCredentialSecret { get; init; } = string.Empty;
+
+    public string LeaseSigningPublicKeyPem { get; init; } = string.Empty;
 }

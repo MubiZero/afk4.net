@@ -47,7 +47,10 @@ public sealed class DeviceHeartbeatServicePersistenceTests
                     AgentVersion: "0.1.1",
                     ShellVersion: "0.1.2",
                     ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:02:00Z"),
-                    IsLocked: true),
+                    IsLocked: true,
+                    ActiveSessionId: null,
+                    ActiveSessionLeaseExpiresAtUtc: null,
+                    ActiveSessionLeaseSequence: null),
                 CancellationToken.None);
         }
 

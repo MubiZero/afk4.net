@@ -1,11 +1,13 @@
 # Local PostgreSQL And Device Smoke Runbook
 
-This runbook verifies the current AFK4 identity, audit, layout, and device
-persistence slice against a real local PostgreSQL database. It covers EF
-migration application, staff sign-in, authorized device enrollment-code
-creation, device enrollment, authenticated heartbeat persistence, persisted
-floor-map reads, installed app reporting, device detail reads, command status
-storage, and staff-protected device credential rotation/revocation.
+This runbook verifies the current AFK4 identity, audit, layout, device
+persistence, and session lifecycle slice against a real local PostgreSQL
+database. It covers EF migration application, staff sign-in, authorized device
+enrollment-code creation, device enrollment, authenticated heartbeat
+persistence, persisted floor-map reads, signed session leases, session command
+idempotency, reconnect reconciliation, installed app reporting, device detail
+reads, command status storage, and staff-protected device credential
+rotation/revocation.
 
 The commands assume PowerShell from the repository root:
 
@@ -65,6 +67,17 @@ Apply the migrations:
 
 ## Start Platform API
 
+Generate a local ECDSA key pair for backend session lease signing. Keep the
+private key only in local environment/configuration; the Agent receives only
+the public key.
+
+```powershell
+$leaseSigningKey = [System.Security.Cryptography.ECDsa]::Create(
+    [System.Security.Cryptography.ECCurve+NamedCurves]::nistP256)
+$env:Sessions__SigningPrivateKeyPem = $leaseSigningKey.ExportECPrivateKeyPem()
+$env:Agent__LeaseSigningPublicKeyPem = $leaseSigningKey.ExportSubjectPublicKeyInfoPem()
+```
+
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' run `
   --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj `
@@ -90,8 +103,8 @@ Verify health:
 Invoke-RestMethod "$baseUrl/api/health"
 ```
 
-Seed a local technician staff user for the smoke run. The seeded password is
-`Passw0rd!` and the password hash is for local development only:
+Seed a local branch manager staff user for the smoke run. The seeded password
+is `Passw0rd!` and the password hash is for local development only:
 
 ```powershell
 $staffUserId = '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134'
@@ -124,7 +137,7 @@ VALUES (
     '$organizationId',
     'tech@afk4.test',
     'TECH@AFK4.TEST',
-    'Smoke Technician',
+    'Smoke Branch Manager',
     '$passwordHash',
     true,
     now())
@@ -144,7 +157,7 @@ VALUES (
     '$staffUserId',
     '$organizationId',
     '$branchId',
-    'technician')
+    'branch_manager')
 ON CONFLICT ("StaffUserId", "OrganizationId", "BranchId", "RoleName")
 DO NOTHING;
 "@
@@ -152,7 +165,7 @@ DO NOTHING;
 $seedSql | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
 ```
 
-Sign in as the local technician:
+Sign in as the local branch manager:
 
 ```powershell
 $signInBody = @{
@@ -307,6 +320,118 @@ $floorMap = Invoke-RestMethod `
     -Headers $staffHeaders
 ```
 
+Start a guest session on the assigned seat with a stable idempotency key:
+
+```powershell
+$startSessionBody = @{
+    organizationId = $organizationId
+    seatId = $seatId
+    durationMinutes = 60
+    tariffRuleVersionId = 'manual-v1'
+    idempotencyKey = 'smoke-start-001'
+} | ConvertTo-Json -Depth 6
+
+$startedSession = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/sessions/start" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $startSessionBody
+```
+
+Repeat the same start request and confirm the idempotent response returns the
+same `sessionId`:
+
+```powershell
+$repeatedStartSession = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/sessions/start" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $startSessionBody
+
+if ($startedSession.session.sessionId -ne $repeatedStartSession.session.sessionId) {
+    throw 'Repeated start did not return the original sessionId.'
+}
+```
+
+Extend the session with a second idempotency key:
+
+```powershell
+$sessionId = $startedSession.session.sessionId
+$extendSessionBody = @{
+    additionalMinutes = 15
+    tariffRuleVersionId = 'manual-v1'
+    idempotencyKey = 'smoke-extend-001'
+} | ConvertTo-Json -Depth 6
+
+$extendedSession = Invoke-RestMethod `
+    "$baseUrl/api/sessions/$sessionId/extend" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $extendSessionBody
+
+$activeLease = $extendedSession.session.currentLease
+```
+
+Report reconciliation while the cloud session is active. A matching local lease
+should return `continue`:
+
+```powershell
+$reconciliationBody = @{
+    organizationId = $organizationId
+    branchId = $branchId
+    deviceId = $enrollment.deviceId
+    activeSessionId = $sessionId
+    activeLease = $activeLease
+    isLocked = $false
+    pendingLocalEventCount = 0
+    observedAtUtc = (Get-Date).ToUniversalTime().ToString('O')
+} | ConvertTo-Json -Depth 12
+
+$activeReconciliation = Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)/session-reconciliation" `
+    -Method Post `
+    -Headers @{ 'X-AFK4-Device-Credential' = $enrollment.credentialSecret } `
+    -ContentType 'application/json' `
+    -Body $reconciliationBody
+```
+
+If the smoke setup seeds a second enrolled device and assigned seat, transfer
+the session by posting to `POST /api/sessions/{sessionId}/transfer` with:
+
+```json
+{
+  "targetSeatId": "<second-seat-id>",
+  "idempotencyKey": "smoke-transfer-001"
+}
+```
+
+End the session and then reconcile the still-local lease. Because the cloud
+session is ending, reconciliation should return `lock`:
+
+```powershell
+$endSessionBody = @{
+    reason = 'local-postgres-smoke'
+    idempotencyKey = 'smoke-end-001'
+} | ConvertTo-Json -Depth 6
+
+$endingSession = Invoke-RestMethod `
+    "$baseUrl/api/sessions/$sessionId/end" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $endSessionBody
+
+$endingReconciliation = Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)/session-reconciliation" `
+    -Method Post `
+    -Headers @{ 'X-AFK4-Device-Credential' = $enrollment.credentialSecret } `
+    -ContentType 'application/json' `
+    -Body $reconciliationBody
+```
+
 Post an authenticated installed apps report from the device:
 
 ```powershell
@@ -402,13 +527,21 @@ Expected results:
 - health returns `status = ok`;
 - staff sign-in returns non-empty `accessToken` and `refreshToken`, and
   includes `devices.enrollment_codes.create`, `devices.credentials.rotate`,
-  and `devices.credentials.revoke` in `permissions`;
+  `devices.credentials.revoke`, `sessions.start`, `sessions.extend`,
+  `sessions.transfer`, and `sessions.end` in `permissions`;
 - refresh returns a new non-empty `accessToken` and `refreshToken`;
 - enrollment returns non-empty `deviceId`, `credentialId`, and
   `credentialSecret`;
 - heartbeat returns `heartbeatIntervalSeconds = 10`;
 - floor map returns the seeded `PC-SMOKE-001` seat with `zoneName = Main Hall`
   and the enrolled `deviceId`;
+- session start returns an active session with a non-empty signed
+  `currentLease`;
+- repeated session start with `smoke-start-001` returns the same `sessionId`;
+- session extend returns a refreshed signed lease;
+- active reconciliation returns `action = continue`;
+- session end returns `state = ending`;
+- ending reconciliation returns `action = lock`;
 - installed apps report returns no content and persists two app snapshot rows;
 - device detail returns `machineName = PC-SMOKE-001`, assigned seat
   `PC-SMOKE-001`, `activeCredentialCount = 1`, and `installedAppCount = 2`;
@@ -429,7 +562,11 @@ WHERE "Action" IN (
     'devices.commands.dispatch',
     'devices.commands.status.view',
     'devices.credentials.rotate',
-    'devices.credentials.revoke')
+    'devices.credentials.revoke',
+    'sessions.start',
+    'sessions.extend',
+    'sessions.transfer',
+    'sessions.end')
 ORDER BY "CreatedAtUtc" DESC
 LIMIT 5;
 '@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
@@ -442,7 +579,50 @@ devices.credentials.revoke       | Succeeded | ...
 devices.credentials.rotate       | Succeeded | ...
 devices.commands.status.view     | Succeeded | ...
 devices.commands.dispatch        | Succeeded | ...
+sessions.end                     | Succeeded | ...
+sessions.extend                  | Succeeded | ...
+sessions.start                   | Succeeded | ...
 devices.enrollment_codes.create  | Succeeded | AFK4-...
+```
+
+Optionally inspect the Phase 4 session rows:
+
+```powershell
+@"
+SELECT "SessionId", "State", "SeatId", "DeviceId", "TariffRuleVersionId"
+FROM sessions
+WHERE "SessionId" = '$sessionId';
+
+SELECT "SessionId", "Sequence", "ExpiresAtUtc", length("Signature") AS "SignatureLength"
+FROM session_leases
+WHERE "SessionId" = '$sessionId'
+ORDER BY "Sequence";
+
+SELECT "EventType", "DeviceId"
+FROM session_events
+WHERE "SessionId" = '$sessionId'
+ORDER BY "CreatedAtUtc";
+
+SELECT "Operation", "ExpiresAtUtc"
+FROM session_command_idempotency
+WHERE "BranchId" = '$branchId'
+ORDER BY "CreatedAtUtc";
+
+SELECT "Type", "Status", "PayloadJson"
+FROM device_commands
+WHERE "DeviceId" = '$($enrollment.deviceId)'
+ORDER BY "CreatedAtUtc";
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
+```
+
+Expected:
+
+```text
+sessions: one row with state ending after the end request
+session_leases: at least two signed lease rows with increasing Sequence values
+session_events: session-started, session-extended, device-reconciled, session-ending
+session_command_idempotency: start, extend, and end rows
+device_commands: unlock, refresh-session-lease, and lock commands
 ```
 
 Optionally inspect the Phase 3 layout and installed app rows:

@@ -4,9 +4,11 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Tenancy;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +37,9 @@ builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
+builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
+builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
+builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
 
 var app = builder.Build();
 
@@ -95,6 +100,354 @@ app.MapPost("/api/auth/staff/refresh", async (
     return response is null
         ? Results.Unauthorized()
         : Results.Ok(response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
+    Guid branchId,
+    StartGuestSessionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ISessionCommandService sessionCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.StartSession,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.StartSession,
+            "Session",
+            null,
+            AuditOutcome.Denied,
+            "PlatformApi",
+            JsonSerializer.Serialize(new
+            {
+                request.SeatId,
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await sessionCommandService.StartGuestSessionAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { Error = result.Error });
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.StartSession,
+        "Session",
+        result.Response!.Session.SessionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        "PlatformApi",
+        JsonSerializer.Serialize(new
+        {
+            request.SeatId,
+            request.DurationMinutes
+        })),
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/sessions/{sessionId:guid}/extend", async (
+    Guid sessionId,
+    ExtendSessionRequest request,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ISessionCommandService sessionCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var session = await dbContext.Sessions
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        session.BranchId,
+        StaffPermissionNames.ExtendSession,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            authorization.StaffContext!.OrganizationId,
+            session.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ExtendSession,
+            "Session",
+            sessionId.ToString("D"),
+            AuditOutcome.Denied,
+            "PlatformApi",
+            JsonSerializer.Serialize(new
+            {
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await sessionCommandService.ExtendSessionAsync(
+        sessionId,
+        authorization.StaffContext!.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { Error = result.Error });
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        authorization.StaffContext.OrganizationId,
+        session.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ExtendSession,
+        "Session",
+        sessionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        "PlatformApi",
+        JsonSerializer.Serialize(new
+        {
+            request.AdditionalMinutes,
+            request.TariffRuleVersionId
+        })),
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/sessions/{sessionId:guid}/transfer", async (
+    Guid sessionId,
+    TransferSessionRequest request,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ISessionCommandService sessionCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var session = await dbContext.Sessions
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        session.BranchId,
+        StaffPermissionNames.TransferSession,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            authorization.StaffContext!.OrganizationId,
+            session.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.TransferSession,
+            "Session",
+            sessionId.ToString("D"),
+            AuditOutcome.Denied,
+            "PlatformApi",
+            JsonSerializer.Serialize(new
+            {
+                request.TargetSeatId,
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await sessionCommandService.TransferSessionAsync(
+        sessionId,
+        authorization.StaffContext!.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { Error = result.Error });
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        authorization.StaffContext.OrganizationId,
+        session.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.TransferSession,
+        "Session",
+        sessionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        "PlatformApi",
+        JsonSerializer.Serialize(new
+        {
+            request.TargetSeatId
+        })),
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/sessions/{sessionId:guid}/end", async (
+    Guid sessionId,
+    EndSessionRequest request,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ISessionCommandService sessionCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var session = await dbContext.Sessions
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        session.BranchId,
+        StaffPermissionNames.EndSession,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            authorization.StaffContext!.OrganizationId,
+            session.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.EndSession,
+            "Session",
+            sessionId.ToString("D"),
+            AuditOutcome.Denied,
+            "PlatformApi",
+            JsonSerializer.Serialize(new
+            {
+                request.Reason,
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await sessionCommandService.EndSessionAsync(
+        sessionId,
+        authorization.StaffContext!.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { Error = result.Error });
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        authorization.StaffContext.OrganizationId,
+        session.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.EndSession,
+        "Session",
+        sessionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        "PlatformApi",
+        JsonSerializer.Serialize(new
+        {
+            request.Reason
+        })),
+        cancellationToken);
+
+    return Results.Ok(result.Response);
 });
 
 app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
@@ -209,6 +562,121 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
     var response = await heartbeatService.RecordHeartbeatAsync(deviceId, request, cancellationToken);
 
     return Results.Ok(response);
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/session-reconciliation", async (
+    Guid deviceId,
+    DeviceSessionSnapshotRequest request,
+    HttpContext httpContext,
+    PlatformDbContext dbContext,
+    IDeviceCredentialValidator credentialValidator,
+    IDeviceCommandDispatchService commandDispatchService,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    if (deviceId != request.DeviceId)
+    {
+        return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+    }
+
+    if (request.ObservedAtUtc == default)
+    {
+        return Results.BadRequest(new { Error = "ObservedAtUtc is required." });
+    }
+
+    var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    {
+        return Results.Unauthorized();
+    }
+
+    var now = timeProvider.GetUtcNow();
+    var cloudSession = await dbContext.Sessions
+        .Where(session =>
+            session.OrganizationId == request.OrganizationId &&
+            session.BranchId == request.BranchId &&
+            session.DeviceId == deviceId &&
+            (session.State == SessionStateNames.Active ||
+                session.State == SessionStateNames.Paused ||
+                session.State == SessionStateNames.Ending))
+        .OrderByDescending(session => session.UpdatedAtUtc)
+        .FirstOrDefaultAsync(cancellationToken);
+
+    if (cloudSession is not null)
+    {
+        if (cloudSession.State == SessionStateNames.Ending)
+        {
+            return await CompleteReconciliationAsync(
+                dbContext,
+                commandDispatchService,
+                request,
+                action: "lock",
+                reason: "cloud-session-ending",
+                cloudSession,
+                lease: null,
+                dispatchCommand: true,
+                recordedAtUtc: now,
+                cancellationToken);
+        }
+
+        var currentLease = await LoadCurrentLeaseAsync(dbContext, cloudSession, cancellationToken);
+        if (currentLease is not null && LocalLeaseMatches(request, cloudSession, currentLease, now))
+        {
+            return await CompleteReconciliationAsync(
+                dbContext,
+                commandDispatchService,
+                request,
+                action: "continue",
+                reason: "local-lease-current",
+                cloudSession,
+                lease: null,
+                dispatchCommand: false,
+                recordedAtUtc: now,
+                cancellationToken);
+        }
+
+        if (currentLease is null)
+        {
+            return Results.Conflict(new { Error = "Active session has no current lease." });
+        }
+
+        return await CompleteReconciliationAsync(
+            dbContext,
+            commandDispatchService,
+            request,
+            action: "unlock",
+            reason: "cloud-session-active",
+            cloudSession,
+            lease: currentLease,
+            dispatchCommand: true,
+            recordedAtUtc: now,
+            cancellationToken);
+    }
+
+    var localSessionId = request.ActiveSessionId ?? request.ActiveLease?.SessionId;
+    if (localSessionId is not null)
+    {
+        var localSession = await dbContext.Sessions
+            .SingleOrDefaultAsync(session => session.SessionId == localSessionId, cancellationToken);
+
+        return await CompleteReconciliationAsync(
+            dbContext,
+            commandDispatchService,
+            request,
+            action: "lock",
+            reason: localSession is null ? "unknown-local-session" : "cloud-session-not-active",
+            localSession,
+            lease: null,
+            dispatchCommand: true,
+            recordedAtUtc: now,
+            cancellationToken);
+    }
+
+    return Results.Ok(new SessionReconciliationResponse(
+        Action: "continue",
+        Reason: "no-active-session",
+        SessionId: null,
+        Lease: null));
 });
 
 app.MapPost("/api/devices/{deviceId:guid}/installed-apps/report", async (
@@ -678,6 +1146,140 @@ app.MapPost("/api/devices/{deviceId:guid}/credentials/{credentialId:guid}/revoke
 app.MapHub<DeviceHub>("/hubs/devices");
 
 app.Run();
+
+static async Task<IResult> CompleteReconciliationAsync(
+    PlatformDbContext dbContext,
+    IDeviceCommandDispatchService commandDispatchService,
+    DeviceSessionSnapshotRequest request,
+    string action,
+    string reason,
+    SessionEntity? session,
+    SessionLeaseDto? lease,
+    bool dispatchCommand,
+    DateTimeOffset recordedAtUtc,
+    CancellationToken cancellationToken)
+{
+    var sessionId = session?.SessionId ?? request.ActiveSessionId ?? request.ActiveLease?.SessionId;
+
+    if (dispatchCommand)
+    {
+        var payload = CreateReconciliationCommandPayload(action, reason, sessionId, lease);
+        await commandDispatchService.DispatchAsync(
+            request.DeviceId,
+            new CreateDeviceCommandRequest(action, payload),
+            cancellationToken);
+    }
+
+    if (session is not null)
+    {
+        dbContext.SessionEvents.Add(new SessionEventEntity
+        {
+            SessionEventId = Guid.NewGuid(),
+            SessionId = session.SessionId,
+            OrganizationId = session.OrganizationId,
+            BranchId = session.BranchId,
+            EventType = "device-reconciled",
+            ActorStaffUserId = null,
+            DeviceId = request.DeviceId,
+            CreatedAtUtc = recordedAtUtc,
+            DetailsJson = JsonSerializer.Serialize(new
+            {
+                action,
+                reason,
+                request.ActiveSessionId,
+                request.ObservedAtUtc,
+                request.PendingLocalEventCount
+            })
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    return Results.Ok(new SessionReconciliationResponse(
+        Action: action,
+        Reason: reason,
+        SessionId: sessionId,
+        Lease: lease));
+}
+
+static Dictionary<string, string> CreateReconciliationCommandPayload(
+    string action,
+    string reason,
+    Guid? sessionId,
+    SessionLeaseDto? lease)
+{
+    var payload = new Dictionary<string, string>
+    {
+        ["reason"] = reason
+    };
+
+    if (sessionId is not null)
+    {
+        payload["sessionId"] = sessionId.Value.ToString("D");
+    }
+
+    if (action == "unlock" && lease is not null)
+    {
+        payload["sessionLease"] = JsonSerializer.Serialize(lease, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    }
+
+    return payload;
+}
+
+static bool LocalLeaseMatches(
+    DeviceSessionSnapshotRequest request,
+    SessionEntity cloudSession,
+    SessionLeaseDto currentLease,
+    DateTimeOffset now)
+{
+    var localLease = request.ActiveLease;
+
+    return localLease is not null &&
+        request.ActiveSessionId == cloudSession.SessionId &&
+        localLease.SessionId == cloudSession.SessionId &&
+        localLease.OrganizationId == cloudSession.OrganizationId &&
+        localLease.BranchId == cloudSession.BranchId &&
+        localLease.DeviceId == cloudSession.DeviceId &&
+        localLease.SeatId == cloudSession.SeatId &&
+        localLease.Sequence == currentLease.Sequence &&
+        string.Equals(localLease.Signature, currentLease.Signature, StringComparison.Ordinal) &&
+        localLease.ExpiresAtUtc > now;
+}
+
+static async Task<SessionLeaseDto?> LoadCurrentLeaseAsync(
+    PlatformDbContext dbContext,
+    SessionEntity session,
+    CancellationToken cancellationToken)
+{
+    var leaseEntity = session.CurrentLeaseId is null
+        ? await dbContext.SessionLeases
+            .Where(lease => lease.SessionId == session.SessionId)
+            .OrderByDescending(lease => lease.Sequence)
+            .FirstOrDefaultAsync(cancellationToken)
+        : await dbContext.SessionLeases
+            .SingleOrDefaultAsync(lease => lease.SessionLeaseId == session.CurrentLeaseId, cancellationToken);
+
+    if (leaseEntity is null)
+    {
+        return null;
+    }
+
+    var lease = JsonSerializer.Deserialize<SessionLeaseDto>(
+        leaseEntity.PayloadJson,
+        new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+    return lease ?? new SessionLeaseDto(
+        SessionId: leaseEntity.SessionId,
+        OrganizationId: leaseEntity.OrganizationId,
+        BranchId: leaseEntity.BranchId,
+        SeatId: leaseEntity.SeatId,
+        DeviceId: leaseEntity.DeviceId,
+        State: leaseEntity.State,
+        Sequence: leaseEntity.Sequence,
+        IssuedAtUtc: leaseEntity.IssuedAtUtc,
+        ExpiresAtUtc: leaseEntity.ExpiresAtUtc,
+        SignatureAlgorithm: leaseEntity.SignatureAlgorithm,
+        Signature: leaseEntity.Signature);
+}
 
 public sealed record HealthResponse(string Status, DateTimeOffset ServerTimeUtc);
 

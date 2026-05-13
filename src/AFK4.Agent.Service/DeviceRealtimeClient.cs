@@ -26,15 +26,18 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
     private readonly IDeviceCommandHandler commandHandler;
     private readonly ILogger<DeviceRealtimeClient> logger;
     private readonly IDeviceHubConnection connection;
+    private readonly ISessionLeaseStore? leaseStore;
 
     public DeviceRealtimeClient(
         IOptions<AgentOptions> options,
         IDeviceCommandHandler commandHandler,
-        ILogger<DeviceRealtimeClient> logger)
+        ILogger<DeviceRealtimeClient> logger,
+        ISessionLeaseStore leaseStore)
         : this(
             options,
             commandHandler,
             logger,
+            leaseStore,
             new SignalRDeviceHubConnection(
                 new HubConnectionBuilder()
                     .WithUrl(new Uri(options.Value.PlatformBaseUrl, "/hubs/devices"))
@@ -48,10 +51,21 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         IDeviceCommandHandler commandHandler,
         ILogger<DeviceRealtimeClient> logger,
         IDeviceHubConnection connection)
+        : this(options, commandHandler, logger, leaseStore: null, connection)
+    {
+    }
+
+    public DeviceRealtimeClient(
+        IOptions<AgentOptions> options,
+        IDeviceCommandHandler commandHandler,
+        ILogger<DeviceRealtimeClient> logger,
+        ISessionLeaseStore? leaseStore,
+        IDeviceHubConnection connection)
     {
         this.options = options.Value;
         this.commandHandler = commandHandler;
         this.logger = logger;
+        this.leaseStore = leaseStore;
         this.connection = connection;
 
         this.connection.On<DeviceCommandDto>(DeviceRealtimeEvents.DeviceCommand, HandleCommandAsync);
@@ -73,7 +87,7 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
 
     private Task RegisterDeviceAsync(CancellationToken cancellationToken)
     {
-        var request = DeviceConnectionRequestFactory.Create(options, DateTimeOffset.UtcNow);
+        var request = DeviceConnectionRequestFactory.Create(options, DateTimeOffset.UtcNow, leaseStore);
         return connection.InvokeAsync(DeviceRealtimeMethods.RegisterDeviceAsync, request, cancellationToken);
     }
 

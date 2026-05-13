@@ -17,7 +17,10 @@ public sealed class DefaultDeviceCommandHandlerTests
             MachineName = "PC-001"
         });
 
-        var handler = new DefaultDeviceCommandHandler(options);
+        var handler = new DefaultDeviceCommandHandler(
+            options,
+            new SessionLeaseValidator(options, TimeProvider.System),
+            new InMemorySessionLeaseStore());
         var command = new DeviceCommandDto(
             CommandId: Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94"),
             Type: "lock",

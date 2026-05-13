@@ -1,9 +1,8 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 3 club layout and device management started after Phase 2
-identity, tenancy, RBAC, audit, device credential lifecycle, and Operator
-technician workflows on
-`codex/phase2-identity-tenancy-rbac-audit`
+Status: Phase 4 session lifecycle and grace-mode foundation implemented after
+Phase 3 club layout and device management on
+`codex/phase4-session-lifecycle-grace-mode`
 Last updated: 2026-05-13
 
 ## Scope
@@ -24,6 +23,7 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-12-afk4-realtime-device-channel.md`
 - `docs/superpowers/plans/2026-05-12-afk4-phase2-identity-tenancy-rbac-audit.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase3-club-layout-device-management.md`
+- `docs/superpowers/plans/2026-05-13-afk4-phase4-session-lifecycle-grace-mode.md`
 
 ## Implemented Foundation
 
@@ -271,6 +271,75 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `f072f6d`:
   - staff-protected device detail read;
   - direct PostgreSQL inspection of layout and installed app snapshot rows.
 
+## Phase 4 Session Lifecycle And Grace Mode Foundation
+
+Started on `codex/phase4-session-lifecycle-grace-mode` after commit `bdbc8fd`:
+
+- Added a focused implementation plan at
+  `docs/superpowers/plans/2026-05-13-afk4-phase4-session-lifecycle-grace-mode.md`.
+- Added shared session contracts in `AFK4.Shared.Contracts.Sessions` for:
+  - session states;
+  - session DTOs and command responses;
+  - start, extend, transfer, and end requests;
+  - signed session leases;
+  - device session snapshots;
+  - reconciliation responses;
+  - canonical lease signing payloads.
+- Extended heartbeat and realtime connection contracts with active lease
+  snapshot fields:
+  - `ActiveSessionId`;
+  - `ActiveSessionLeaseExpiresAtUtc`;
+  - `ActiveSessionLeaseSequence`.
+- Added session permissions and role mappings:
+  - owner, branch manager, shift supervisor, and cashier/operator can start,
+    extend, transfer, end, and view sessions;
+  - accountant/auditor can view sessions;
+  - technician does not receive session operator actions by default.
+- Added session audit action names for start, extend, transfer, and end.
+- Added EF Core session entities and migration `AddSessions` for:
+  - `sessions`;
+  - `session_events`;
+  - `session_leases`;
+  - `session_command_idempotency`.
+- Added explicit session state-machine tests and implementation.
+- Added backend ECDSA P-256 lease signing from configured
+  `Sessions:SigningPrivateKeyPem`.
+- Added idempotent session command service behavior for:
+  - starting guest sessions;
+  - extending active or paused sessions;
+  - transferring active sessions to another assigned seat/device;
+  - ending active or paused sessions into `ending` state.
+- Session commands dispatch through the existing device command path:
+  - `unlock`;
+  - `refresh-session-lease`;
+  - `lock`.
+- Added staff-protected session endpoints:
+  - `POST /api/branches/{branchId}/sessions/start`;
+  - `POST /api/sessions/{sessionId}/extend`;
+  - `POST /api/sessions/{sessionId}/transfer`;
+  - `POST /api/sessions/{sessionId}/end`.
+- Added floor-map active session projection with `ActiveSessionId`,
+  `RemainingSeconds`, and session-aware seat state.
+- Added Agent-side signed lease validation using configured
+  `Agent:LeaseSigningPublicKeyPem`.
+- Added Agent-side current lease storage and command handling:
+  - `unlock` and `refresh-session-lease` require and validate a signed lease;
+  - `lock` clears the matching current lease.
+- Added Agent heartbeat and reconnect snapshots from the current lease store.
+- Added device-authenticated
+  `POST /api/devices/{deviceId}/session-reconciliation` with actions:
+  - `continue` for matching active cloud/local lease state;
+  - `unlock` when the backend has an active session but the Agent has no
+    current local lease;
+  - `lock` when the local lease is unknown, ended, or the cloud session is
+    ending.
+- Added Agent `SessionReconciliationReporter` and Worker startup reconciliation
+  before installed app reporting and heartbeat loop.
+- Extended `docs/operations/local-postgres-smoke.md` with a Phase 4 local
+  PostgreSQL smoke path for signed lease configuration, session start
+  idempotency, extend, optional transfer, end, reconciliation, and direct
+  PostgreSQL inspection of session tables.
+
 ## Known Deviations And Adaptations
 
 ### Solution Format
@@ -346,7 +415,68 @@ reads only. It does not yet include:
 - full installed app list read path, if needed beyond the current device detail
   installed app count;
 
+### Phase 4 Baseline Scope
+
+The current Phase 4 work adds the backend-authoritative session lifecycle and
+grace-mode foundation only. It intentionally does not include:
+
+- Operator App session action UI;
+- Operator sign-in UI or role-aware navigation;
+- web admin;
+- local club server;
+- billing ledger charging, POS integration, or tariff calculation beyond
+  preserving `TariffRuleVersionId`;
+- real Windows lock/unlock enforcement or Player Shell session UI;
+- Agent-side lease creation or renewal.
+
+Known limitations:
+
+- session leases are issued by the backend and validated by Agent, but real
+  Windows lock/unlock enforcement remains deferred;
+- reconciliation dispatches corrective `unlock`/`lock` commands through the
+  existing device command path, but offline local event replay is not yet
+  modeled beyond `PendingLocalEventCount`;
+- session lifecycle audit is written for staff commands, while reconciliation
+  is captured in `session_events`;
+- local PostgreSQL Phase 4 smoke instructions are documented but have not yet
+  been rerun in this branch.
+
 ## Latest Verified State
+
+Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 4
+session lifecycle and grace-mode foundation:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- build succeeded with 0 warnings and 0 errors;
+- tests passed with 149 visible passing tests, 0 failed, 0 skipped.
+
+Targeted TDD verification for the Phase 4 session lifecycle and grace-mode
+foundation was also run for:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter SessionContractSerializationTests --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "SessionStateMachineTests|SessionLeaseSignerTests|EfSessionCommandServiceTests|SessionEndpointTests|SessionReconciliationEndpointTests|EfFloorMapReadServiceTests" --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter "SessionLeaseValidatorTests|SessionCommandHandlerLeaseTests|HeartbeatPayloadFactoryTests|SessionReconciliationReporterTests" --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- `SessionContractSerializationTests` passed with 2 visible passing tests;
+- targeted Platform API session tests passed with 34 visible passing tests;
+- targeted Agent lease/reconciliation tests passed with 12 visible passing
+  tests.
+
+The Phase 4 local PostgreSQL smoke path was documented in
+`docs/operations/local-postgres-smoke.md`, including signed lease key
+configuration, idempotent start/extend/end, optional transfer, reconciliation,
+and direct session table inspection. A live PostgreSQL smoke run has not yet
+been rerun for Phase 4 in this branch.
 
 Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 3
 local PostgreSQL smoke path update:
@@ -696,6 +826,7 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
+- `bdbc8fd docs: add phase 4 session lifecycle plan`
 - `f072f6d docs: add phase 3 club layout plan`
 - `69a7f4c feat: persist device state and commands with ef core`
 - `a176363 fix: harden operator realtime startup and dispatch`
