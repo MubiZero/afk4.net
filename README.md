@@ -117,10 +117,36 @@ The current vertical slice exposes:
   permission `sessions.transfer`
 - `POST /api/sessions/{sessionId}/end` with staff bearer token permission
   `sessions.end`
+- `POST /api/branches/{branchId}/players` with staff bearer token permission
+  `players.create`
+- `GET /api/players/{playerAccountId}/wallet-summary` with staff bearer token
+  permission `billing.view`
+- `POST /api/players/{playerAccountId}/wallet/top-ups` with staff bearer
+  token permission `billing.wallet.top_up`
+- `POST /api/players/{playerAccountId}/ledger/{ledgerEntryId}/refunds` with
+  staff bearer token permission `billing.refund`
+- `POST /api/players/{playerAccountId}/ledger/manual-corrections` with staff
+  bearer token permission `billing.manual_correction`
+- `POST /api/players/{playerAccountId}/debts/payments` with staff bearer
+  token permission `billing.debt.pay`
+- `POST /api/branches/{branchId}/tariffs` with staff bearer token permission
+  `tariffs.manage`
+- `POST /api/branches/{branchId}/tariffs/{tariffId}/versions` with staff
+  bearer token permission `tariffs.manage`
+- `POST /api/branches/{branchId}/tariffs/calculate` with staff bearer token
+  permission `billing.view`
+- `POST /api/branches/{branchId}/packages` with staff bearer token permission
+  `packages.manage`
+- `POST /api/players/{playerAccountId}/packages/purchases` with staff bearer
+  token permission `packages.purchase`
+- `GET /api/players/{playerAccountId}/packages` with staff bearer token
+  permission `billing.view`
 - `POST /api/branches/{branchId}/device-enrollment-codes` with staff bearer
   token permission `devices.enrollment_codes.create`
 - `POST /api/devices/enroll`
 - `POST /api/devices/{deviceId}/heartbeat`
+- `POST /api/devices/{deviceId}/commands/{commandId}/result` with device
+  credential authentication
 - `POST /api/devices/{deviceId}/session-reconciliation` with device
   credential authentication
 - `POST /api/devices/{deviceId}/installed-apps/report` with device credential
@@ -138,6 +164,10 @@ The current vertical slice exposes:
 - SignalR hub at `/hubs/devices`
 - SignalR client event `deviceStatusChanged`
 - SignalR device command events `deviceCommand` and `deviceCommandResult`
+
+Wallet/debt summaries and player package remaining time are derived from
+immutable `ledger_entries`. The database intentionally does not store mutable
+wallet balance, debt balance, or package balance fields.
 
 ### Operator App
 
@@ -320,6 +350,17 @@ The first vertical slice foundation is implemented:
 - device-authenticated session reconciliation endpoint with `continue`,
   `unlock`, and `lock` actions;
 - floor-map active session projection with remaining seconds;
+- immutable billing ledger persistence with player accounts, billing command
+  idempotency, tariff versions, package definitions, purchased packages, and
+  wallet/debt/package projections derived from `ledger_entries`;
+- protected Phase 5 endpoints for player creation, wallet top-ups, refunds,
+  manual corrections, debt payments, tariff/version management, tariff
+  calculation, package definition/purchase, player package reads, and billing
+  session modes;
+- session start/extend billing integration for prepaid wallet, postpaid debt,
+  and package-backed time consumption;
+- authenticated HTTP fallback for device command results returned by heartbeat
+  polling;
 - device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
 - persisted device heartbeat state and command status tracking;
@@ -336,7 +377,7 @@ Not implemented yet:
 - Operator App layout management UI;
 - automatic Agent-side consumption of rotated credentials;
 - Operator App session action UI;
-- ledger, tariffs, packages, POS, inventory, shifts, receipts;
+- POS, inventory, shifts, receipts;
 - audit search and reports;
 - Windows lock/unlock enforcement and launcher control;
 - signed updates, rollout, rollback, and installers.

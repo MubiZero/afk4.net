@@ -1,13 +1,14 @@
 # Local PostgreSQL And Device Smoke Runbook
 
 This runbook verifies the current AFK4 identity, audit, layout, device
-persistence, and session lifecycle slice against a real local PostgreSQL
-database. It covers EF migration application, staff sign-in, authorized device
-enrollment-code creation, device enrollment, authenticated heartbeat
-persistence, persisted floor-map reads, signed session leases, session command
-idempotency, reconnect reconciliation, installed app reporting, device detail
-reads, command status storage, and staff-protected device credential
-rotation/revocation.
+persistence, session lifecycle, and Phase 5 billing foundation against a real
+local PostgreSQL database. It covers EF migration application, staff sign-in,
+authorized device enrollment-code creation, device enrollment, authenticated
+heartbeat persistence, persisted floor-map reads, immutable ledger writes,
+wallet/debt/package projections, tariff version calculation, signed session
+leases, session and billing command idempotency, reconnect reconciliation,
+installed app reporting, device detail reads, command status storage, and
+staff-protected device credential rotation/revocation.
 
 The commands assume PowerShell from the repository root:
 
@@ -320,15 +321,139 @@ $floorMap = Invoke-RestMethod `
     -Headers $staffHeaders
 ```
 
-Start a guest session on the assigned seat with a stable idempotency key:
+Create a player account for Phase 5 billing smoke:
+
+```powershell
+$playerBody = @{
+    organizationId = $organizationId
+    displayName = 'Smoke Player'
+    phoneNumber = '+992000000001'
+    idempotencyKey = 'smoke-player-001'
+} | ConvertTo-Json -Depth 6
+
+$player = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/players" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $playerBody
+
+$playerAccountId = $player.playerAccountId
+```
+
+Top up the wallet with a stable idempotency key:
+
+```powershell
+$topUpBody = @{
+    organizationId = $organizationId
+    amount = @{
+        currencyCode = 'TJS'
+        minorUnits = 100000
+    }
+    reason = 'local-postgres-smoke wallet preload'
+    idempotencyKey = 'smoke-topup-001'
+} | ConvertTo-Json -Depth 8
+
+$topUp = Invoke-RestMethod `
+    "$baseUrl/api/players/$playerAccountId/wallet/top-ups" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $topUpBody
+
+$repeatedTopUp = Invoke-RestMethod `
+    "$baseUrl/api/players/$playerAccountId/wallet/top-ups" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $topUpBody
+```
+
+Append a small manual wallet correction to exercise the protected correction
+path:
+
+```powershell
+$manualCorrectionBody = @{
+    organizationId = $organizationId
+    accountType = 'wallet'
+    amount = @{
+        currencyCode = 'TJS'
+        minorUnits = 100
+    }
+    quantitySeconds = 0
+    reason = 'local-postgres-smoke manual wallet correction'
+    idempotencyKey = 'smoke-manual-correction-001'
+} | ConvertTo-Json -Depth 8
+
+$manualCorrection = Invoke-RestMethod `
+    "$baseUrl/api/players/$playerAccountId/ledger/manual-corrections" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $manualCorrectionBody
+```
+
+Create a tariff and version, then calculate 60 minutes:
+
+```powershell
+$tariffBody = @{
+    organizationId = $organizationId
+    name = 'Smoke Hourly'
+    idempotencyKey = 'smoke-tariff-001'
+} | ConvertTo-Json -Depth 6
+
+$tariff = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/tariffs" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $tariffBody
+
+$tariffVersionBody = @{
+    organizationId = $organizationId
+    tariffId = $tariff.tariffId
+    currencyCode = 'TJS'
+    pricePerMinuteMinorUnits = 100
+    minimumBillableMinutes = 1
+    roundingIncrementMinutes = 1
+    effectiveFromUtc = (Get-Date).ToUniversalTime().AddMinutes(-1).ToString('O')
+    idempotencyKey = 'smoke-tariff-version-001'
+} | ConvertTo-Json -Depth 8
+
+$tariffVersion = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/tariffs/$($tariff.tariffId)/versions" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $tariffVersionBody
+
+$tariffCalculationBody = @{
+    organizationId = $organizationId
+    tariffVersionId = $tariffVersion.tariffVersionId
+    durationMinutes = 60
+} | ConvertTo-Json -Depth 6
+
+$tariffCalculation = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/tariffs/calculate" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $tariffCalculationBody
+```
+
+Start a prepaid wallet session on the assigned seat with a stable idempotency
+key:
 
 ```powershell
 $startSessionBody = @{
     organizationId = $organizationId
     seatId = $seatId
     durationMinutes = 60
-    tariffRuleVersionId = 'manual-v1'
-    idempotencyKey = 'smoke-start-001'
+    tariffRuleVersionId = $tariffCalculation.tariffRuleVersionId
+    idempotencyKey = 'smoke-start-prepaid-001'
+    playerAccountId = $playerAccountId
+    billingMode = 'prepaid_wallet'
+    tariffVersionId = $tariffVersion.tariffVersionId
 } | ConvertTo-Json -Depth 6
 
 $startedSession = Invoke-RestMethod `
@@ -355,15 +480,76 @@ if ($startedSession.session.sessionId -ne $repeatedStartSession.session.sessionI
 }
 ```
 
-Extend the session with a second idempotency key:
+Create a package definition, purchase it, and extend the active session with
+package-backed time using a stable idempotency key:
 
 ```powershell
+$packageDefinitionBody = @{
+    organizationId = $organizationId
+    name = 'Smoke 2h Pack'
+    price = @{
+        currencyCode = 'TJS'
+        minorUnits = 30000
+    }
+    includedSeconds = 7200
+    bonusSeconds = 600
+    expiresAfterDays = 30
+    idempotencyKey = 'smoke-package-def-001'
+} | ConvertTo-Json -Depth 8
+
+$packageDefinition = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/packages" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $packageDefinitionBody
+
+$packagePurchaseBody = @{
+    organizationId = $organizationId
+    packageDefinitionId = $packageDefinition.packageDefinitionId
+    idempotencyKey = 'smoke-package-buy-001'
+} | ConvertTo-Json -Depth 6
+
+$playerPackage = Invoke-RestMethod `
+    "$baseUrl/api/players/$playerAccountId/packages/purchases" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $packagePurchaseBody
+
 $sessionId = $startedSession.session.sessionId
+$packageExtendBody = @{
+    additionalMinutes = 15
+    tariffRuleVersionId = "package:$($playerPackage.playerPackageId)"
+    idempotencyKey = 'smoke-start-package-001'
+    playerAccountId = $playerAccountId
+    billingMode = 'package'
+    playerPackageId = $playerPackage.playerPackageId
+} | ConvertTo-Json -Depth 8
+
+$packageExtendedSession = Invoke-RestMethod `
+    "$baseUrl/api/sessions/$sessionId/extend" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $packageExtendBody
+
+$playerPackages = Invoke-RestMethod `
+    "$baseUrl/api/players/$playerAccountId/packages" `
+    -Headers $staffHeaders
+```
+
+Extend the session once more with prepaid wallet billing:
+
+```powershell
 $extendSessionBody = @{
     additionalMinutes = 15
-    tariffRuleVersionId = 'manual-v1'
+    tariffRuleVersionId = $tariffCalculation.tariffRuleVersionId
     idempotencyKey = 'smoke-extend-001'
-} | ConvertTo-Json -Depth 6
+    playerAccountId = $playerAccountId
+    billingMode = 'prepaid_wallet'
+    tariffVersionId = $tariffVersion.tariffVersionId
+} | ConvertTo-Json -Depth 8
 
 $extendedSession = Invoke-RestMethod `
     "$baseUrl/api/sessions/$sessionId/extend" `
@@ -373,6 +559,85 @@ $extendedSession = Invoke-RestMethod `
     -Body $extendSessionBody
 
 $activeLease = $extendedSession.session.currentLease
+```
+
+Create a postpaid-debt session with idempotency key
+`smoke-start-debt-001` in a fresh database or on another available assigned
+seat/device. Phase 4 currently moves ended sessions to `ending` and leaves final
+Agent acknowledgement/completion for a later slice, so the same seat should not
+be reused for a second start in a single smoke run.
+
+```powershell
+$postpaidSeatId = $seatId
+
+$postpaidStartBody = @{
+    organizationId = $organizationId
+    seatId = $postpaidSeatId
+    durationMinutes = 30
+    tariffRuleVersionId = $tariffCalculation.tariffRuleVersionId
+    idempotencyKey = 'smoke-start-debt-001'
+    playerAccountId = $playerAccountId
+    billingMode = 'postpaid_debt'
+    tariffVersionId = $tariffVersion.tariffVersionId
+} | ConvertTo-Json -Depth 8
+
+$postpaidSession = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/sessions/start" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $postpaidStartBody
+
+$debtPaymentBody = @{
+    organizationId = $organizationId
+    amount = @{
+        currencyCode = 'TJS'
+        minorUnits = 3000
+    }
+    reason = 'local-postgres-smoke debt payment'
+    idempotencyKey = 'smoke-debt-pay-001'
+} | ConvertTo-Json -Depth 8
+
+$debtPayment = Invoke-RestMethod `
+    "$baseUrl/api/players/$playerAccountId/debts/payments" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $debtPaymentBody
+```
+
+Refund the prepaid wallet gameplay charge:
+
+```powershell
+$walletSummary = Invoke-RestMethod `
+    "$baseUrl/api/players/$playerAccountId/wallet-summary" `
+    -Headers $staffHeaders
+
+$gameplayChargeEntry = $walletSummary.recentEntries |
+    Where-Object { $_.entryType -eq 'gameplay_charge' -and $_.accountType -eq 'wallet' } |
+    Select-Object -First 1
+
+if ($null -eq $gameplayChargeEntry) {
+    throw 'No prepaid wallet gameplay charge found to refund.'
+}
+
+$refundBody = @{
+    organizationId = $organizationId
+    ledgerEntryId = $gameplayChargeEntry.ledgerEntryId
+    amount = @{
+        currencyCode = 'TJS'
+        minorUnits = [Math]::Abs([int64]$gameplayChargeEntry.amount.minorUnits)
+    }
+    reason = 'local-postgres-smoke gameplay refund'
+    idempotencyKey = 'smoke-refund-001'
+} | ConvertTo-Json -Depth 8
+
+$refund = Invoke-RestMethod `
+    "$baseUrl/api/players/$playerAccountId/ledger/$($gameplayChargeEntry.ledgerEntryId)/refunds" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $refundBody
 ```
 
 Report reconciliation while the cloud session is active. A matching local lease
@@ -401,11 +666,18 @@ $activeReconciliation = Invoke-RestMethod `
 If the smoke setup seeds a second enrolled device and assigned seat, transfer
 the session by posting to `POST /api/sessions/{sessionId}/transfer` with:
 
-```json
-{
-  "targetSeatId": "<second-seat-id>",
-  "idempotencyKey": "smoke-transfer-001"
-}
+```powershell
+$transferBody = @{
+    targetSeatId = $secondSeatId
+    idempotencyKey = 'smoke-transfer-001'
+} | ConvertTo-Json -Depth 4
+
+$transferredSession = Invoke-RestMethod `
+    "$baseUrl/api/sessions/$sessionId/transfer" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $transferBody
 ```
 
 End the session and then reconcile the still-local lease. Because the cloud
@@ -496,6 +768,32 @@ $status = Invoke-RestMethod `
     -Headers $staffHeaders
 ```
 
+Report the command result through the device-authenticated HTTP fallback used
+when the realtime hub is unavailable:
+
+```powershell
+$commandResultBody = @{
+    organizationId = $organizationId
+    branchId = $branchId
+    deviceId = $enrollment.deviceId
+    commandId = $command.commandId
+    status = 'Accepted'
+    message = 'handled from local-postgres-smoke'
+    observedAtUtc = (Get-Date).ToUniversalTime().ToString('O')
+} | ConvertTo-Json -Depth 6
+
+$commandResult = Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)/commands/$($command.commandId)/result" `
+    -Method Post `
+    -Headers @{ 'X-AFK4-Device-Credential' = $enrollment.credentialSecret } `
+    -ContentType 'application/json' `
+    -Body $commandResultBody
+
+$statusAfterResult = Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)/commands/$($command.commandId)/status" `
+    -Headers $staffHeaders
+```
+
 Rotate the device credential, then verify the new secret can authenticate a
 heartbeat:
 
@@ -528,24 +826,46 @@ Expected results:
 - staff sign-in returns non-empty `accessToken` and `refreshToken`, and
   includes `devices.enrollment_codes.create`, `devices.credentials.rotate`,
   `devices.credentials.revoke`, `sessions.start`, `sessions.extend`,
-  `sessions.transfer`, and `sessions.end` in `permissions`;
+  `sessions.transfer`, `sessions.end`, `players.create`, `billing.view`,
+  `billing.wallet.top_up`, `billing.refund`, `billing.manual_correction`,
+  `billing.debt.pay`, `tariffs.manage`, `packages.manage`, and
+  `packages.purchase` in `permissions`;
 - refresh returns a new non-empty `accessToken` and `refreshToken`;
 - enrollment returns non-empty `deviceId`, `credentialId`, and
   `credentialSecret`;
 - heartbeat returns `heartbeatIntervalSeconds = 10`;
 - floor map returns the seeded `PC-SMOKE-001` seat with `zoneName = Main Hall`
   and the enrolled `deviceId`;
-- session start returns an active session with a non-empty signed
-  `currentLease`;
-- repeated session start with `smoke-start-001` returns the same `sessionId`;
-- session extend returns a refreshed signed lease;
+- player creation returns a non-empty `playerAccountId`;
+- top-up with `smoke-topup-001` appends one wallet ledger entry, and repeating
+  the same request returns the same idempotent response;
+- manual correction with `smoke-manual-correction-001` appends one immutable
+  wallet correction entry;
+- tariff creation and version creation return non-empty tariff IDs;
+- tariff calculation for 60 minutes returns the expected branch tariff version
+  and a positive amount;
+- prepaid wallet session start returns an active session with a non-empty
+  signed `currentLease`;
+- repeated prepaid start with `smoke-start-prepaid-001` returns the same
+  `sessionId`;
+- package definition and package purchase return non-empty IDs;
+- package-backed extension with `smoke-start-package-001` returns a refreshed
+  signed lease and reduces remaining package seconds in the derived package
+  projection;
+- prepaid session extend returns a refreshed signed lease;
+- postpaid start with `smoke-start-debt-001`, when run on an available second
+  seat or fresh database, appends debt ledger entries;
+- debt payment with `smoke-debt-pay-001` appends a debt-payment ledger entry;
+- refund with `smoke-refund-001` appends a refund ledger entry reversing the
+  prepaid gameplay charge;
 - active reconciliation returns `action = continue`;
 - session end returns `state = ending`;
 - ending reconciliation returns `action = lock`;
 - installed apps report returns no content and persists two app snapshot rows;
 - device detail returns `machineName = PC-SMOKE-001`, assigned seat
   `PC-SMOKE-001`, `activeCredentialCount = 1`, and `installedAppCount = 2`;
-- command status returns `status = Pending` and `type = lock`.
+- command status initially returns `status = Pending` and `type = lock`;
+- command result fallback updates command status to `Accepted`;
 - rotation returns a new non-empty `credentialId` and `credentialSecret`;
 - heartbeat with the rotated credential returns `heartbeatIntervalSeconds = 10`;
 - revocation returns the rotated `credentialId` and a non-empty
@@ -563,6 +883,15 @@ WHERE "Action" IN (
     'devices.commands.status.view',
     'devices.credentials.rotate',
     'devices.credentials.revoke',
+    'players.create',
+    'billing.wallet.top_up',
+    'billing.refund',
+    'billing.manual_correction',
+    'billing.debt.pay',
+    'tariffs.create',
+    'tariffs.versions.create',
+    'packages.create',
+    'packages.purchase',
     'sessions.start',
     'sessions.extend',
     'sessions.transfer',
@@ -577,6 +906,13 @@ Expected:
 ```text
 devices.credentials.revoke       | Succeeded | ...
 devices.credentials.rotate       | Succeeded | ...
+packages.purchase                | Succeeded | ...
+packages.create                  | Succeeded | ...
+tariffs.versions.create          | Succeeded | ...
+tariffs.create                   | Succeeded | ...
+billing.refund                   | Succeeded | ...
+billing.wallet.top_up            | Succeeded | ...
+players.create                   | Succeeded | ...
 devices.commands.status.view     | Succeeded | ...
 devices.commands.dispatch        | Succeeded | ...
 sessions.end                     | Succeeded | ...
@@ -621,8 +957,62 @@ Expected:
 sessions: one row with state ending after the end request
 session_leases: at least two signed lease rows with increasing Sequence values
 session_events: session-started, session-extended, device-reconciled, session-ending
-session_command_idempotency: start, extend, and end rows
+session_command_idempotency: prepaid start, package-backed extend, prepaid
+extend, end, and optional postpaid start rows
 device_commands: unlock, refresh-session-lease, and lock commands
+```
+
+Optionally inspect the Phase 5 billing rows:
+
+```powershell
+@"
+SELECT "PlayerAccountId", "DisplayName", "HomeBranchId"
+FROM player_accounts
+WHERE "PlayerAccountId" = '$playerAccountId';
+
+SELECT "EntryType", "AccountType", "AmountMinorUnits", "QuantitySeconds",
+       "SessionId", "PlayerPackageId", "ReversesLedgerEntryId"
+FROM ledger_entries
+WHERE "PlayerAccountId" = '$playerAccountId'
+ORDER BY "CreatedAtUtc";
+
+SELECT "Operation", "ExpiresAtUtc"
+FROM billing_command_idempotency
+WHERE "BranchId" = '$branchId'
+ORDER BY "CreatedAtUtc";
+
+SELECT "Name", "IsActive"
+FROM tariffs
+WHERE "BranchId" = '$branchId';
+
+SELECT "VersionNumber", "PricePerMinuteMinorUnits",
+       "MinimumBillableMinutes", "RoundingIncrementMinutes"
+FROM tariff_versions
+WHERE "TariffId" = '$($tariff.tariffId)'
+ORDER BY "VersionNumber";
+
+SELECT "Name", "PriceMinorUnits", "IncludedSeconds", "BonusSeconds"
+FROM package_definitions
+WHERE "PackageDefinitionId" = '$($packageDefinition.packageDefinitionId)';
+
+SELECT "PlayerPackageId", "IncludedSeconds", "BonusSeconds", "ExpiresAtUtc"
+FROM player_packages
+WHERE "PlayerPackageId" = '$($playerPackage.playerPackageId)';
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
+```
+
+Expected:
+
+```text
+player_accounts: one active smoke player in the branch
+ledger_entries: immutable top_up, manual_correction, gameplay_charge,
+package_purchase, package_consumption or bonus_consumption, and refund rows
+billing_command_idempotency: rows for smoke-player-001, smoke-topup-001,
+smoke-manual-correction-001, smoke-tariff-001, smoke-tariff-version-001,
+smoke-package-def-001, smoke-package-buy-001, smoke-debt-pay-001 when the
+postpaid path is run, and smoke-refund-001
+tariffs/tariff_versions: Smoke Hourly version 1
+package_definitions/player_packages: Smoke 2h Pack purchase rows
 ```
 
 Optionally inspect the Phase 3 layout and installed app rows:

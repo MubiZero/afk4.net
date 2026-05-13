@@ -1,8 +1,8 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 4 session lifecycle and grace-mode foundation implemented after
-Phase 3 club layout and device management on
-`codex/phase4-session-lifecycle-grace-mode`
+Status: Phase 5 billing, immutable ledger, tariffs, and packages foundation is
+in progress on `codex/phase5-billing-ledger-tariffs-packages` after Phase 4
+session lifecycle and grace-mode foundation was merged to `main`
 Last updated: 2026-05-13
 
 ## Scope
@@ -24,6 +24,84 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-12-afk4-phase2-identity-tenancy-rbac-audit.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase3-club-layout-device-management.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase4-session-lifecycle-grace-mode.md`
+- `docs/superpowers/plans/2026-05-13-afk4-phase5-billing-ledger-tariffs-packages.md`
+
+## Phase 5 Billing, Ledger, Tariffs, And Packages
+
+Started on `codex/phase5-billing-ledger-tariffs-packages` after `main` commit
+`c0e7927`:
+
+- Added the focused Phase 5 implementation plan at
+  `docs/superpowers/plans/2026-05-13-afk4-phase5-billing-ledger-tariffs-packages.md`.
+- Added shared contracts for:
+  - player account creation;
+  - wallet summaries, top-ups, refunds, debt payments, and manual ledger
+    corrections;
+  - tariff creation, versioning, and calculation;
+  - package definitions, package purchases, and player package projections;
+  - session billing modes on start/extend requests.
+- Added EF Core billing persistence and migration
+  `AddBillingLedgerTariffsPackages` for:
+  - `player_accounts`;
+  - `ledger_entries`;
+  - `billing_command_idempotency`;
+  - `tariffs`;
+  - `tariff_versions`;
+  - `package_definitions`;
+  - `player_packages`.
+- Kept balances derived from immutable `ledger_entries`; no mutable wallet,
+  debt, or package balance columns were added.
+- Added ledger projection for wallet/debt and package remaining seconds.
+- Added idempotent billing command handling for player creation, wallet
+  top-ups, refunds, debt payments, manual corrections, tariff changes, and
+  package purchase flows.
+- Added tariff versioning and calculation foundation with billable-minute
+  rounding.
+- Added package definition, purchase, and ledger-backed time consumption
+  foundation.
+- Added protected backend endpoints for player creation, billing summaries,
+  wallet/debt/refund/manual correction flows, tariff management/calculation,
+  package management/purchase, and player package reads.
+- Integrated session start/extend with prepaid wallet, postpaid debt, and
+  package-backed billing modes.
+- Added authenticated HTTP fallback for device command results returned through
+  heartbeat polling when the realtime hub is unavailable.
+
+Latest Phase 5 verification before final full-suite pass:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' tool restore
+& 'C:\Program Files\dotnet\dotnet.exe' ef migrations add AddBillingLedgerTariffsPackages --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- local `dotnet-ef` 10.0.4 restored successfully;
+- EF migration generation completed after a successful design-time build;
+- build succeeded with 0 warnings and 0 errors;
+- migration sanity confirmed the seven Phase 5 tables and expected indexes for
+  player accounts, ledger chronology, session/package ledger lookups, billing
+  idempotency, tariff versions, tariffs, package definitions, and player
+  package purchases;
+- forbidden schema field grep found no `wallet_balance`, `debt_balance`,
+  `remaining_seconds`, or `remaining_bonus_seconds` columns in generated
+  migrations.
+
+Phase 5 local PostgreSQL live smoke has not been run yet. The runbook at
+`docs/operations/local-postgres-smoke.md` now includes the Phase 5 smoke path
+for wallet top-up, manual correction, tariff calculation, prepaid session
+idempotency, package purchase/consumption, postpaid debt, debt payment, refund,
+and direct SQL inspection.
+
+Known Phase 5 limitations:
+
+- Operator production UX is not implemented in this phase.
+- POS, inventory, shifts, and receipts remain out of this phase.
+- Agent enforcement and Player Shell billing UI remain out of this phase.
+- Phase 4 still leaves ended sessions in `ending` until a later Agent
+  acknowledgement/completion workflow; run billing-mode session smoke starts on
+  fresh or separate assigned seats.
 
 ## Implemented Foundation
 
