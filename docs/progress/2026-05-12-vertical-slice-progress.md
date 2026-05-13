@@ -1,8 +1,8 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 7 Operator App Production UX is implemented on
-`codex/phase7-operator-app-production-ux`, locally verified, and live
-PostgreSQL operator-workflow smoked through the API-backed WPF ViewModel paths.
+Status: Phase 7 Operator App Production UX is implemented, locally verified,
+live PostgreSQL operator-workflow smoked through the API-backed WPF ViewModel
+paths, and fast-forward merged to `main` at `55e56b4`.
 Last updated: 2026-05-14
 
 ## Scope
@@ -32,6 +32,10 @@ The implementation plans for this slice live in:
 
 Started on `codex/phase7-operator-app-production-ux` after `main` commit
 `fc762ea`.
+
+Fast-forward merged to `main` at `55e56b4` after merged-main verification. The
+feature branch `codex/phase7-operator-app-production-ux` was deleted after
+merge.
 
 - Added the focused Phase 7 implementation plan at
   `docs/superpowers/plans/2026-05-13-afk4-phase7-operator-app-production-ux.md`.
@@ -1293,11 +1297,8 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Finish the Phase 7 branch integration path: review, merge to `main`, rerun
-   full build/tests, and delete the feature branch after merge if the branch is
-   accepted.
-2. Plan Phase 8 Agent Enforcement And Player Shell on a new `codex/phase8-*`
+1. Plan Phase 8 Agent Enforcement And Player Shell on a new `codex/phase8-*`
    branch using the PRD and architecture scope as the boundary.
-3. Keep centralized updates/installers, reports, audit search, web admin, local
+2. Keep centralized updates/installers, reports, audit search, web admin, local
    server, and microservices out of Phase 8 unless the PRD and architecture
    spec are updated first.
