@@ -34,7 +34,7 @@ public sealed class EfPackageServiceTests
         Assert.Equal(first.Response.PackageDefinitionId, package.PackageDefinitionId);
         Assert.Equal(TestIds.OrganizationId, package.OrganizationId);
         Assert.Equal(TestIds.BranchId, package.BranchId);
-        Assert.Equal("Night 5h", package.Name);
+        Assert.Equal("NIGHT 5H", package.Name);
         Assert.Equal("TJS", package.CurrencyCode);
         Assert.Equal(4000, package.PriceMinorUnits);
         Assert.Equal(18000, package.IncludedSeconds);
@@ -42,6 +42,29 @@ public sealed class EfPackageServiceTests
         Assert.Equal(30, package.ExpiresAfterDays);
         Assert.True(package.IsActive);
         Assert.Single(await db.BillingCommandIdempotency.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreatePackageDefinitionAsync_DuplicateNameWithDifferentIdempotencyKeyReturnsInvalidOrConflict()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var request = CreatePackageRequest(idempotencyKey: "package-create-001");
+        var duplicateRequest = request with
+        {
+            Name = "night 5h",
+            IdempotencyKey = "package-create-002"
+        };
+
+        await service.CreatePackageDefinitionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var duplicate = await service.CreatePackageDefinitionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            duplicateRequest,
+            CancellationToken.None);
+
+        Assert.False(duplicate.Succeeded);
+        Assert.Single(await db.PackageDefinitions.ToListAsync());
     }
 
     [Fact]
@@ -117,7 +140,7 @@ public sealed class EfPackageServiceTests
         var playerPackage = await db.PlayerPackages.SingleAsync();
         Assert.Equal(first.Response.PlayerPackageId, playerPackage.PlayerPackageId);
         Assert.Equal(definition.PackageDefinitionId, playerPackage.PackageDefinitionId);
-        Assert.Equal("Night 5h", playerPackage.Name);
+        Assert.Equal("NIGHT 5H", playerPackage.Name);
         Assert.Equal("TJS", playerPackage.CurrencyCode);
         Assert.Equal(4000, playerPackage.PurchasedPriceMinorUnits);
         Assert.Equal(18000, playerPackage.IncludedSeconds);
@@ -412,7 +435,7 @@ public sealed class EfPackageServiceTests
             PackageDefinitionId = Guid.NewGuid(),
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            Name = "Night 5h",
+            Name = "NIGHT 5H",
             CurrencyCode = currencyCode,
             PriceMinorUnits = priceMinorUnits,
             IncludedSeconds = includedSeconds,
@@ -449,7 +472,7 @@ public sealed class EfPackageServiceTests
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
             PlayerAccountId = PlayerAccountId,
-            Name = "Night 5h",
+            Name = "NIGHT 5H",
             CurrencyCode = "TJS",
             PurchasedPriceMinorUnits = 4000,
             IncludedSeconds = 3600,

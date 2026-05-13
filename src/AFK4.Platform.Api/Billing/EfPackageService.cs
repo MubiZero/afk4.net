@@ -70,7 +70,7 @@ public sealed class EfPackageService(
             return BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Currency code must be exactly 3 alphabetic letters.");
         }
 
-        var trimmedName = request.Name.Trim();
+        var normalizedName = NormalizePackageName(request.Name);
         var existingNames = await dbContext.PackageDefinitions
             .AsNoTracking()
             .Where(package =>
@@ -79,7 +79,8 @@ public sealed class EfPackageService(
             .Select(package => package.Name)
             .ToListAsync(cancellationToken);
 
-        if (existingNames.Contains(trimmedName, StringComparer.OrdinalIgnoreCase))
+        if (existingNames.Any(existingName =>
+            string.Equals(NormalizePackageName(existingName), normalizedName, StringComparison.Ordinal)))
         {
             return BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.");
         }
@@ -92,7 +93,7 @@ public sealed class EfPackageService(
                 PackageDefinitionId = Guid.NewGuid(),
                 OrganizationId = request.OrganizationId,
                 BranchId = branchId,
-                Name = trimmedName,
+                Name = normalizedName,
                 CurrencyCode = request.Price.CurrencyCode.Trim().ToUpperInvariant(),
                 PriceMinorUnits = request.Price.MinorUnits,
                 IncludedSeconds = request.IncludedSeconds,
@@ -658,6 +659,11 @@ public sealed class EfPackageService(
     private static string HashRequest<TRequest>(TRequest request)
     {
         return BillingCommandIdempotencyKeyHasher.Hash(JsonSerializer.Serialize(request, JsonOptions));
+    }
+
+    private static string NormalizePackageName(string name)
+    {
+        return name.Trim().ToUpperInvariant();
     }
 
     private static object PlayerScopedRequest<TRequest>(Guid playerAccountId, TRequest request)
