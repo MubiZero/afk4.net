@@ -66,6 +66,17 @@ Apply the migrations:
   --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
 ```
 
+If port `5432` is occupied and a temporary PostgreSQL container is bound to a
+different localhost port, pass the connection explicitly because the EF
+design-time factory uses the local fallback connection:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update `
+  --connection "Host=localhost;Port=55433;Database=afk4_dev;Username=postgres" `
+  --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj `
+  --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+```
+
 ## Start Platform API
 
 Generate a local ECDSA key pair for backend session lease signing. Keep the
@@ -77,6 +88,18 @@ $leaseSigningKey = [System.Security.Cryptography.ECDsa]::Create(
     [System.Security.Cryptography.ECCurve+NamedCurves]::nistP256)
 $env:Sessions__SigningPrivateKeyPem = $leaseSigningKey.ExportECPrivateKeyPem()
 $env:Agent__LeaseSigningPublicKeyPem = $leaseSigningKey.ExportSubjectPublicKeyInfoPem()
+```
+
+On Windows PowerShell versions where `ECDsaCng` does not expose PEM export
+helpers, Git for Windows OpenSSL can generate the same temporary key pair:
+
+```powershell
+$privateKeyPath = Join-Path $env:TEMP 'afk4-smoke-private.pem'
+$publicKeyPath = Join-Path $env:TEMP 'afk4-smoke-public.pem'
+& 'C:\Program Files\Git\usr\bin\openssl.exe' ecparam -name prime256v1 -genkey -noout -out $privateKeyPath
+& 'C:\Program Files\Git\usr\bin\openssl.exe' ec -in $privateKeyPath -pubout -out $publicKeyPath
+$env:Sessions__SigningPrivateKeyPem = Get-Content -Raw -LiteralPath $privateKeyPath
+$env:Agent__LeaseSigningPublicKeyPem = Get-Content -Raw -LiteralPath $publicKeyPath
 ```
 
 ```powershell
@@ -568,7 +591,57 @@ Agent acknowledgement/completion for a later slice, so the same seat should not
 be reused for a second start in a single smoke run.
 
 ```powershell
-$postpaidSeatId = $seatId
+$postpaidCode = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/device-enrollment-codes" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $codeBody
+
+$postpaidEnrollBody = @{
+    organizationId = $organizationId
+    branchId = $branchId
+    enrollmentCode = $postpaidCode.code
+    machineName = 'PC-SMOKE-002'
+    agentVersion = '0.1.0'
+    shellVersion = '0.1.0'
+    requestedAtUtc = (Get-Date).ToUniversalTime().ToString('O')
+} | ConvertTo-Json -Depth 4
+
+$postpaidEnrollment = Invoke-RestMethod `
+    "$baseUrl/api/devices/enroll" `
+    -Method Post `
+    -ContentType 'application/json' `
+    -Body $postpaidEnrollBody
+
+$postpaidSeatId = '5d42fdcf-fd80-47b6-971c-f705702f4730'
+$postpaidAssignmentId = 'b61ef7ca-36ac-4c60-a29d-b6936cb1a1a9'
+
+@"
+INSERT INTO seats ("SeatId", "OrganizationId", "BranchId", "ZoneId", "Name", "SortOrder", "CreatedAtUtc")
+VALUES ('$postpaidSeatId', '$organizationId', '$branchId', '$zoneId', 'PC-SMOKE-002', 20, now())
+ON CONFLICT ("SeatId")
+DO UPDATE SET "ZoneId" = EXCLUDED."ZoneId",
+              "Name" = EXCLUDED."Name",
+              "SortOrder" = EXCLUDED."SortOrder";
+
+INSERT INTO device_seat_assignments (
+    "DeviceSeatAssignmentId",
+    "OrganizationId",
+    "BranchId",
+    "SeatId",
+    "DeviceId",
+    "AttachedAtUtc",
+    "DetachedAtUtc")
+VALUES (
+    '$postpaidAssignmentId',
+    '$organizationId',
+    '$branchId',
+    '$postpaidSeatId',
+    '$($postpaidEnrollment.deviceId)',
+    now(),
+    NULL);
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
 
 $postpaidStartBody = @{
     organizationId = $organizationId

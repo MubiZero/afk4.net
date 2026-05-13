@@ -77,6 +77,8 @@ Latest Phase 5 verification:
 & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
+docker run --rm -d --name afk4-phase5-smoke-postgres -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=afk4_dev -p 55433:5432 postgres:17-alpine
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --connection "Host=localhost;Port=55433;Database=afk4_dev;Username=postgres" --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
 ```
 
 Results:
@@ -88,6 +90,8 @@ Results:
 - Agent Service tests passed 25/25;
 - full solution build succeeded with 0 warnings and 0 errors;
 - full solution tests passed 268/268;
+- Phase 5 live PostgreSQL smoke passed on a temporary PostgreSQL container
+  bound to `localhost:55433`;
 - migration sanity confirmed the seven Phase 5 tables and expected indexes for
   player accounts, ledger chronology, session/package ledger lookups, billing
   idempotency, tariff versions, tariffs, package definitions, and player
@@ -96,11 +100,56 @@ Results:
   `remaining_seconds`, or `remaining_bonus_seconds` columns in generated
   migrations.
 
-Phase 5 local PostgreSQL live smoke has not been run yet. The runbook at
-`docs/operations/local-postgres-smoke.md` now includes the Phase 5 smoke path
-for wallet top-up, manual correction, tariff calculation, prepaid session
-idempotency, package purchase/consumption, postpaid debt, debt payment, refund,
-and direct SQL inspection.
+Phase 5 local PostgreSQL live smoke was run from `D:\afk4.net` on 2026-05-13
+using a temporary PostgreSQL container on `localhost:55433`, because the usual
+local PostgreSQL ports were not available for the smoke harness. The temporary
+API process used `http://localhost:5074` and a temporary ECDSA signing key
+generated outside the repository.
+
+Live smoke results:
+
+- PostgreSQL accepted connections on `localhost:55433`.
+- EF migrations applied through
+  `20260513151112_AddBillingLedgerTariffsPackages`.
+- `GET /api/health` returned `status = ok`.
+- local branch manager sign-in and refresh returned non-empty tokens and Phase
+  5 billing/tariff/package permissions.
+- two devices enrolled and authenticated heartbeats succeeded for
+  `PC-SMOKE-001` and `PC-SMOKE-002`.
+- persisted floor map returned both smoke seats/devices.
+- player account creation returned player
+  `65b9b565-eb5c-4ff5-890c-85f3e12a0fc2`.
+- wallet top-up with `smoke-topup-001` was idempotent and returned wallet
+  balance `100000`.
+- manual wallet correction with `smoke-manual-correction-001` succeeded.
+- tariff/version creation succeeded and 60-minute calculation returned `6000`
+  minor units.
+- prepaid wallet session start with `smoke-start-prepaid-001` returned session
+  `da0939b5-54cb-40c6-b657-09c18309d14b`; repeating the start returned the
+  same session id.
+- postpaid session start with `smoke-start-debt-001` created debt `3000`, and
+  debt payment with `smoke-debt-pay-001` reduced debt balance to `0`.
+- package definition/purchase succeeded, package-backed extension consumed time,
+  and player package projection reported `6900` seconds remaining.
+- prepaid wallet extension succeeded with lease sequence `3`.
+- refund with `smoke-refund-001` succeeded.
+- active reconciliation returned `continue`; ending reconciliation returned
+  `lock`.
+- installed apps report persisted two apps and device detail reflected
+  `installedAppCount = 2`.
+- device command HTTP fallback moved command status from `Pending` to
+  `Accepted`.
+- device credential rotation, heartbeat with the rotated credential, and
+  revocation succeeded.
+- SQL inspection confirmed rows in `player_accounts`, `ledger_entries`,
+  `billing_command_idempotency`, `tariffs`, `tariff_versions`,
+  `package_definitions`, `player_packages`, `sessions`,
+  `session_command_idempotency`, `device_commands`, and `audit_records`.
+- SQL ledger inspection confirmed `debt_payment`, `gameplay_charge`,
+  `manual_correction`, `package_consumption`, `package_purchase`,
+  `postpaid_debt`, `refund`, and `top_up` entries.
+- Temporary API process was stopped; temporary PostgreSQL container was removed;
+  temporary private/public key files were removed.
 
 Known Phase 5 limitations:
 
@@ -951,6 +1000,9 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
+- `81376af docs: clarify phase 5 progress scope`
+- `50c1189 docs: record phase 5 verification`
+- `5490b19 docs: add phase 5 migration and runbook`
 - `bdbc8fd docs: add phase 4 session lifecycle plan`
 - `f072f6d docs: add phase 3 club layout plan`
 - `69a7f4c feat: persist device state and commands with ef core`
@@ -967,5 +1019,7 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Later, add Operator App sign-in UI and role-aware startup so staff can
-   acquire protected bearer/refresh token snapshots without manual setup.
+1. Merge `codex/phase5-billing-ledger-tariffs-packages` into `main` with a
+   fast-forward merge, then run fresh full build and tests on `main`.
+2. Start Phase 6 with a focused implementation plan for POS, inventory, shifts,
+   and receipts before writing code.
