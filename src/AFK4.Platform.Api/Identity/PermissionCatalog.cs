@@ -21,6 +21,15 @@ public static class PermissionCatalog
                 StaffPermissionNames.TransferSession,
                 StaffPermissionNames.EndSession,
                 StaffPermissionNames.ViewSession,
+                StaffPermissionNames.CreatePlayerAccount,
+                StaffPermissionNames.ViewBilling,
+                StaffPermissionNames.TopUpWallet,
+                StaffPermissionNames.RefundLedgerEntry,
+                StaffPermissionNames.ManualLedgerCorrection,
+                StaffPermissionNames.PayDebt,
+                StaffPermissionNames.ManageTariffs,
+                StaffPermissionNames.ManagePackages,
+                StaffPermissionNames.PurchasePackage,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit
             },
@@ -38,6 +47,15 @@ public static class PermissionCatalog
                 StaffPermissionNames.TransferSession,
                 StaffPermissionNames.EndSession,
                 StaffPermissionNames.ViewSession,
+                StaffPermissionNames.CreatePlayerAccount,
+                StaffPermissionNames.ViewBilling,
+                StaffPermissionNames.TopUpWallet,
+                StaffPermissionNames.RefundLedgerEntry,
+                StaffPermissionNames.ManualLedgerCorrection,
+                StaffPermissionNames.PayDebt,
+                StaffPermissionNames.ManageTariffs,
+                StaffPermissionNames.ManagePackages,
+                StaffPermissionNames.PurchasePackage,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.ShiftSupervisor] = new HashSet<string>
@@ -50,6 +68,13 @@ public static class PermissionCatalog
                 StaffPermissionNames.TransferSession,
                 StaffPermissionNames.EndSession,
                 StaffPermissionNames.ViewSession,
+                StaffPermissionNames.CreatePlayerAccount,
+                StaffPermissionNames.ViewBilling,
+                StaffPermissionNames.TopUpWallet,
+                StaffPermissionNames.RefundLedgerEntry,
+                StaffPermissionNames.ManualLedgerCorrection,
+                StaffPermissionNames.PayDebt,
+                StaffPermissionNames.PurchasePackage,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.CashierOperator] = new HashSet<string>
@@ -59,7 +84,12 @@ public static class PermissionCatalog
                 StaffPermissionNames.ExtendSession,
                 StaffPermissionNames.TransferSession,
                 StaffPermissionNames.EndSession,
-                StaffPermissionNames.ViewSession
+                StaffPermissionNames.ViewSession,
+                StaffPermissionNames.CreatePlayerAccount,
+                StaffPermissionNames.ViewBilling,
+                StaffPermissionNames.TopUpWallet,
+                StaffPermissionNames.PayDebt,
+                StaffPermissionNames.PurchasePackage
             },
             [StaffRoleNames.Technician] = new HashSet<string>
             {
@@ -74,6 +104,7 @@ public static class PermissionCatalog
             [StaffRoleNames.AccountantAuditor] = new HashSet<string>
             {
                 StaffPermissionNames.ViewSession,
+                StaffPermissionNames.ViewBilling,
                 StaffPermissionNames.ViewAudit
             }
         };

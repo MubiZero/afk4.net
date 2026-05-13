@@ -1,14 +1,18 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Audit;
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Tenancy;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,6 +44,9 @@ builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
+builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
+builder.Services.AddScoped<ITariffService, EfTariffService>();
+builder.Services.AddScoped<IPackageService, EfPackageService>();
 
 var app = builder.Build();
 
@@ -1143,9 +1150,890 @@ app.MapPost("/api/devices/{deviceId:guid}/credentials/{credentialId:guid}/revoke
     return Results.Ok(revoked);
 });
 
+app.MapPost("/api/branches/{branchId:guid}/players", async (
+    Guid branchId,
+    CreatePlayerAccountRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IBillingCommandService billingCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.CreatePlayerAccount,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreatePlayerAccount,
+            "PlayerAccount",
+            null,
+            AuditOutcome.Denied,
+            new { request.DisplayName, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await billingCommandService.CreatePlayerAccountAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreatePlayerAccount,
+        "PlayerAccount",
+        result.Response!.PlayerAccountId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.DisplayName },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/players/{playerAccountId:guid}/wallet-summary", async (
+    Guid playerAccountId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var player = await LoadPlayerForStaffAsync(dbContext, playerAccountId, staffContextAccessor.Current.OrganizationId, cancellationToken);
+    if (player is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        player.HomeBranchId,
+        StaffPermissionNames.ViewBilling,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var summary = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, playerAccountId, cancellationToken);
+
+    return summary is null
+        ? Results.NotFound()
+        : Results.Ok(summary);
+});
+
+app.MapPost("/api/players/{playerAccountId:guid}/wallet/top-ups", async (
+    Guid playerAccountId,
+    TopUpWalletRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IBillingCommandService billingCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    if (player.Result is not null)
+    {
+        return player.Result;
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        player.Player!.HomeBranchId,
+        StaffPermissionNames.TopUpWallet,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            player.Player.HomeBranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.TopUpWallet,
+            "PlayerAccount",
+            playerAccountId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.Amount, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await billingCommandService.TopUpWalletAsync(
+        playerAccountId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.TopUpWallet,
+        "PlayerAccount",
+        playerAccountId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Amount },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/refunds", async (
+    Guid playerAccountId,
+    Guid ledgerEntryId,
+    RefundLedgerEntryRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IBillingCommandService billingCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    if (player.Result is not null)
+    {
+        return player.Result;
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        player.Player!.HomeBranchId,
+        StaffPermissionNames.RefundLedgerEntry,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            player.Player.HomeBranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.RefundLedgerEntry,
+            "LedgerEntry",
+            ledgerEntryId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.Amount, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (request.LedgerEntryId != ledgerEntryId)
+    {
+        return Results.BadRequest(new { Error = "Route ledgerEntryId must match request LedgerEntryId." });
+    }
+
+    var originalEntry = await dbContext.LedgerEntries
+        .AsNoTracking()
+        .SingleOrDefaultAsync(
+            entry =>
+                entry.OrganizationId == authorization.StaffContext.OrganizationId &&
+                entry.BranchId == player.Player.HomeBranchId &&
+                entry.PlayerAccountId == playerAccountId &&
+                entry.LedgerEntryId == ledgerEntryId,
+            cancellationToken);
+    if (originalEntry is null)
+    {
+        return Results.NotFound();
+    }
+
+    var result = await billingCommandService.RefundLedgerEntryAsync(
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.RefundLedgerEntry,
+        "LedgerEntry",
+        result.Response!.LedgerEntryId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.LedgerEntryId, request.Amount },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", async (
+    Guid playerAccountId,
+    ManualLedgerCorrectionRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IBillingCommandService billingCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    if (player.Result is not null)
+    {
+        return player.Result;
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        player.Player!.HomeBranchId,
+        StaffPermissionNames.ManualLedgerCorrection,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            player.Player.HomeBranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ManualLedgerCorrection,
+            "PlayerAccount",
+            playerAccountId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.AccountType, request.Amount, request.QuantitySeconds, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await billingCommandService.ManualCorrectionAsync(
+        playerAccountId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ManualLedgerCorrection,
+        "PlayerAccount",
+        playerAccountId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.AccountType, request.Amount, request.QuantitySeconds },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/players/{playerAccountId:guid}/debts/payments", async (
+    Guid playerAccountId,
+    PayDebtRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IBillingCommandService billingCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    if (player.Result is not null)
+    {
+        return player.Result;
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        player.Player!.HomeBranchId,
+        StaffPermissionNames.PayDebt,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            player.Player.HomeBranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.PayDebt,
+            "PlayerAccount",
+            playerAccountId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.Amount, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await billingCommandService.PayDebtAsync(
+        playerAccountId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.PayDebt,
+        "PlayerAccount",
+        playerAccountId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Amount },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/tariffs", async (
+    Guid branchId,
+    CreateTariffRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ITariffService tariffService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageTariffs,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateTariff,
+            "Tariff",
+            null,
+            AuditOutcome.Denied,
+            new { request.Name, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await tariffService.CreateTariffAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateTariff,
+        "Tariff",
+        result.Response!.TariffId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Name },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/tariffs/{tariffId:guid}/versions", async (
+    Guid branchId,
+    Guid tariffId,
+    CreateTariffVersionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ITariffService tariffService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageTariffs,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateTariffVersion,
+            "Tariff",
+            tariffId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (request.TariffId != tariffId)
+    {
+        return Results.BadRequest(new { Error = "Route tariffId must match request TariffId." });
+    }
+
+    var result = await tariffService.CreateTariffVersionAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateTariffVersion,
+        "TariffVersion",
+        result.Response!.TariffVersionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { tariffId, result.Response.VersionNumber },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/tariffs/calculate", async (
+    Guid branchId,
+    CalculateTariffRequest request,
+    StaffAuthorizationService authorizationService,
+    ITariffService tariffService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewBilling,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var calculation = await tariffService.CalculateAsync(branchId, request, cancellationToken);
+
+    return calculation is null
+        ? Results.NotFound()
+        : Results.Ok(calculation);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/packages", async (
+    Guid branchId,
+    CreatePackageDefinitionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IPackageService packageService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManagePackages,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreatePackageDefinition,
+            "PackageDefinition",
+            null,
+            AuditOutcome.Denied,
+            new { request.Name, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await packageService.CreatePackageDefinitionAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreatePackageDefinition,
+        "PackageDefinition",
+        result.Response!.PackageDefinitionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Name, request.Price },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/players/{playerAccountId:guid}/packages/purchases", async (
+    Guid playerAccountId,
+    PurchasePackageRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IPackageService packageService,
+    CancellationToken cancellationToken) =>
+{
+    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    if (player.Result is not null)
+    {
+        return player.Result;
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        player.Player!.HomeBranchId,
+        StaffPermissionNames.PurchasePackage,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            player.Player.HomeBranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.PurchasePackage,
+            "PackageDefinition",
+            request.PackageDefinitionId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await packageService.PurchasePackageAsync(
+        playerAccountId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.Player.HomeBranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.PurchasePackage,
+        "PlayerPackage",
+        result.Response!.PlayerPackageId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.PackageDefinitionId },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/players/{playerAccountId:guid}/packages", async (
+    Guid playerAccountId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    CancellationToken cancellationToken) =>
+{
+    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    if (player.Result is not null)
+    {
+        return player.Result;
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        player.Player!.HomeBranchId,
+        StaffPermissionNames.ViewBilling,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var packages = await dbContext.PlayerPackages
+        .AsNoTracking()
+        .Where(package =>
+            package.PlayerAccountId == playerAccountId &&
+            package.OrganizationId == authorization.StaffContext!.OrganizationId &&
+            package.BranchId == player.Player.HomeBranchId)
+        .OrderByDescending(package => package.PurchasedAtUtc)
+        .ToListAsync(cancellationToken);
+
+    var response = new List<PlayerPackageDto>();
+    foreach (var package in packages)
+    {
+        var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
+            dbContext,
+            package.PlayerPackageId,
+            cancellationToken);
+        response.Add(new PlayerPackageDto(
+            package.PlayerPackageId,
+            package.PackageDefinitionId,
+            package.PlayerAccountId,
+            package.Name,
+            new MoneyDto(package.CurrencyCode, package.PurchasedPriceMinorUnits),
+            package.IncludedSeconds,
+            package.BonusSeconds,
+            remaining.IncludedSeconds,
+            remaining.BonusSeconds,
+            package.PurchasedAtUtc,
+            package.ExpiresAtUtc));
+    }
+
+    return Results.Ok(response);
+});
+
 app.MapHub<DeviceHub>("/hubs/devices");
 
 app.Run();
+
+static IResult ToHttpResult<TResponse>(BillingCommandServiceResult<TResponse> result)
+{
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { Error = result.Error });
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    return Results.Ok(result.Response);
+}
+
+static async Task WriteAuditAsync(
+    IAuditRecordWriter auditRecordWriter,
+    Guid organizationId,
+    Guid branchId,
+    Guid actorStaffUserId,
+    string action,
+    string targetType,
+    string? targetId,
+    string outcome,
+    object details,
+    CancellationToken cancellationToken)
+{
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        organizationId,
+        branchId,
+        actorStaffUserId,
+        action,
+        targetType,
+        targetId,
+        outcome,
+        "PlatformApi",
+        JsonSerializer.Serialize(details)),
+        cancellationToken);
+}
+
+static async Task<PlayerAccountEntity?> LoadPlayerForStaffAsync(
+    PlatformDbContext dbContext,
+    Guid playerAccountId,
+    Guid organizationId,
+    CancellationToken cancellationToken)
+{
+    return await dbContext.PlayerAccounts
+        .AsNoTracking()
+        .SingleOrDefaultAsync(
+            player =>
+                player.OrganizationId == organizationId &&
+                player.PlayerAccountId == playerAccountId,
+            cancellationToken);
+}
+
+static async Task<PlayerScopedEndpointResult> LoadPlayerScopedEndpointAsync(
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    Guid playerAccountId,
+    CancellationToken cancellationToken)
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return new PlayerScopedEndpointResult(null, Results.Unauthorized());
+    }
+
+    var player = await LoadPlayerForStaffAsync(
+        dbContext,
+        playerAccountId,
+        staffContextAccessor.Current.OrganizationId,
+        cancellationToken);
+
+    return player is null
+        ? new PlayerScopedEndpointResult(null, Results.NotFound())
+        : new PlayerScopedEndpointResult(player, null);
+}
 
 static async Task<IResult> CompleteReconciliationAsync(
     PlatformDbContext dbContext,
@@ -1282,5 +2170,7 @@ static async Task<SessionLeaseDto?> LoadCurrentLeaseAsync(
 }
 
 public sealed record HealthResponse(string Status, DateTimeOffset ServerTimeUtc);
+
+public sealed record PlayerScopedEndpointResult(PlayerAccountEntity? Player, IResult? Result);
 
 public partial class Program;
