@@ -68,6 +68,31 @@ public sealed class EfPackageServiceTests
     }
 
     [Fact]
+    public async Task CreatePackageDefinitionAsync_DuplicateRaceRecoveryReturnsInvalidWhenCanonicalNameNowExists()
+    {
+        await using var db = CreateDbContext();
+        await SeedPackageDefinitionAsync(db);
+        var service = CreateService(db);
+        var request = CreatePackageRequest(idempotencyKey: "package-create-002");
+
+        var recoveryMethod = typeof(EfPackageService).GetMethod(
+            "RecoverPackageCreateRaceAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(recoveryMethod);
+        var resultTask = Assert.IsAssignableFrom<Task<BillingCommandServiceResult<PackageDefinitionDto>?>>(
+            recoveryMethod.Invoke(service, [TestIds.BranchId, request, CancellationToken.None]));
+        var result = await resultTask;
+
+        Assert.NotNull(result);
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.False(result.NotFound);
+        Assert.Equal("Package name already exists.", result.Error);
+        Assert.Single(await db.PackageDefinitions.ToListAsync());
+    }
+
+    [Fact]
     public async Task CreatePackageDefinitionAsync_ReusingIdempotencyKeyWithDifferentRequestReturnsConflict()
     {
         await using var db = CreateDbContext();

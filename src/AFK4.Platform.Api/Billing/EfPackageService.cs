@@ -118,13 +118,7 @@ public sealed class EfPackageService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return BillingCommandServiceResult<PackageDefinitionDto>.Ok(response);
-        }, () => ReplayIdempotencyAsync<PackageDefinitionDto, CreatePackageDefinitionRequest>(
-            request.OrganizationId,
-            branchId,
-            PackageCreateOperation,
-            request.IdempotencyKey,
-            request,
-            cancellationToken), cancellationToken);
+        }, () => RecoverPackageCreateRaceAsync(branchId, request, cancellationToken), cancellationToken);
     }
 
     public async Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageAsync(
@@ -554,6 +548,39 @@ public sealed class EfPackageService(
             idempotencyKey,
             request,
             cancellationToken);
+    }
+
+    private async Task<BillingCommandServiceResult<PackageDefinitionDto>?> RecoverPackageCreateRaceAsync(
+        Guid branchId,
+        CreatePackageDefinitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var idempotency = await ReplayIdempotencyAsync<PackageDefinitionDto, CreatePackageDefinitionRequest>(
+            request.OrganizationId,
+            branchId,
+            PackageCreateOperation,
+            request.IdempotencyKey,
+            request,
+            cancellationToken);
+
+        if (idempotency is not null)
+        {
+            return idempotency;
+        }
+
+        var normalizedName = NormalizePackageName(request.Name);
+        var existingNames = await dbContext.PackageDefinitions
+            .AsNoTracking()
+            .Where(package =>
+                package.OrganizationId == request.OrganizationId &&
+                package.BranchId == branchId)
+            .Select(package => package.Name)
+            .ToListAsync(cancellationToken);
+
+        return existingNames.Any(existingName =>
+            string.Equals(NormalizePackageName(existingName), normalizedName, StringComparison.Ordinal))
+            ? BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.")
+            : null;
     }
 
     private async Task<BillingCommandServiceResult<IReadOnlyList<LedgerEntryDto>>?> ReplayConsumeIdempotencyAsync(
