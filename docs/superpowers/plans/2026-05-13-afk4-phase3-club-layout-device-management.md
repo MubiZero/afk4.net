@@ -312,6 +312,7 @@ Expected: pass.
 - [x] Add authenticated device endpoint `POST /api/devices/{deviceId}/installed-apps/report`.
 - [x] Reject route/device/credential mismatches.
 - [x] Add staff-protected read path later through the device detail workflow task.
+- [x] Add Agent-side Windows installed app inventory collection and authenticated reporting.
 
 ## Task 5: Device Detail Backend Workflow
 

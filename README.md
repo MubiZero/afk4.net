@@ -145,10 +145,11 @@ role-aware navigation.
 
 `AFK4.Agent.Service` is the Windows service skeleton for gaming PCs. It creates
 heartbeat payloads, sends enrollment-issued device credentials, posts
-heartbeats to the backend, and connects to the realtime device hub. Later slices
-add installer enrollment bootstrap, local credential lifecycle workflows,
-lock/unlock enforcement, process policy, session lease validation, reconnect
-reconciliation, watchdog behavior, and updates.
+heartbeats to the backend, reports Windows installed app inventory snapshots,
+and connects to the realtime device hub. Later slices add installer enrollment
+bootstrap, local credential lifecycle workflows, lock/unlock enforcement,
+process policy, session lease validation, reconnect reconciliation, watchdog
+behavior, and updates.
 
 ### Player Shell
 
@@ -286,6 +287,8 @@ The first vertical slice foundation is implemented:
   device-seat assignment, and latest device heartbeat state;
 - device-authenticated installed apps reporting with EF-backed latest snapshot
   rows;
+- Agent-side Windows installed app inventory collection and authenticated
+  reporting to the backend;
 - staff-protected device detail reads with assigned seat, latest heartbeat,
   active credential count, recent command statuses, and installed app count;
 - Operator App Windows-protected token storage abstraction;

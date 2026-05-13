@@ -8,7 +8,9 @@ public sealed class Worker(
     ILogger<Worker> logger,
     IHttpClientFactory httpClientFactory,
     IOptions<AgentOptions> options,
-    IDeviceRealtimeClient realtimeClient) : BackgroundService
+    IDeviceRealtimeClient realtimeClient,
+    IInstalledAppInventoryCollector installedAppInventoryCollector,
+    IInstalledAppReporter installedAppReporter) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -28,6 +30,8 @@ public sealed class Worker(
 
         var client = httpClientFactory.CreateClient("platform");
         client.BaseAddress = agentOptions.PlatformBaseUrl;
+
+        await TryReportInstalledAppsAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -50,6 +54,24 @@ public sealed class Worker(
 
             logger.LogInformation("Heartbeat sent for {DeviceId}. Next heartbeat in {IntervalSeconds}s.", agentOptions.DeviceId, intervalSeconds);
             await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+        }
+    }
+
+    private async Task TryReportInstalledAppsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var apps = await installedAppInventoryCollector.CollectAsync(cancellationToken);
+            await installedAppReporter.ReportAsync(apps, DateTimeOffset.UtcNow, cancellationToken);
+            logger.LogInformation("Installed app inventory reported with {InstalledAppCount} apps.", apps.Count);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Installed app inventory report failed. Continuing with heartbeat loop.");
         }
     }
 

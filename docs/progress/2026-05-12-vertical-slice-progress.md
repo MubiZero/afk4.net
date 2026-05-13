@@ -248,6 +248,20 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `f072f6d`:
 - Added Operator tests for:
   - typed client `GET /api/devices/{deviceId}`;
   - ViewModel detail refresh state projection.
+- Added Agent-side installed app inventory collection:
+  - Windows registry uninstall-key collector for machine and current-user apps;
+  - registry entry mapper with stable UTC date parsing;
+  - installed app report factory;
+  - authenticated HTTP reporter for
+    `POST /api/devices/{deviceId}/installed-apps/report`;
+  - Worker startup report attempt before the heartbeat loop, with failures
+    logged without stopping heartbeat.
+- Added Agent tests for:
+  - static collector behavior;
+  - registry entry mapping and date parsing;
+  - installed app report factory;
+  - authenticated HTTP reporting;
+  - Worker collection/report wiring.
 
 ## Known Deviations And Adaptations
 
@@ -323,13 +337,12 @@ reads only. It does not yet include:
   device-seat assignments;
 - full installed app list read path, if needed beyond the current device detail
   installed app count;
-- automatic Agent-side installed app inventory collection;
 - live PostgreSQL smoke for persisted floor-map reads.
 
 ## Latest Verified State
 
 Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 3
-Operator device detail workflow changes:
+Agent installed app inventory collection changes:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -339,7 +352,7 @@ Operator device detail workflow changes:
 Results:
 
 - build succeeded with 0 warnings and 0 errors;
-- tests passed with 96 visible passing tests, 0 failed, 0 skipped.
+- tests passed with 101 visible passing tests, 0 failed, 0 skipped.
 
 Targeted TDD verification for the Phase 3 Operator device detail workflow was
 also run for:
@@ -355,6 +368,22 @@ Results:
   detail client method and ViewModel detail state did not exist, then passed
   after GREEN;
 - targeted Operator tests passed with 12 visible passing tests.
+
+Targeted TDD verification for the Phase 3 Agent installed app inventory
+collection was also run for:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter "InstalledAppInventoryTests|WorkerTests" --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- `InstalledAppInventoryTests` failed first because the Agent inventory
+  snapshot, report factory, reporter, and registry mapper did not exist, then
+  passed after GREEN;
+- `WorkerTests` failed first because Worker did not collect/report installed
+  apps, then passed after GREEN;
+- targeted Agent tests passed with 6 visible passing tests.
 
 Targeted TDD verification for the Phase 3 device detail backend slice was also
 run for:
@@ -630,9 +659,7 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add Agent-side installed app inventory collection that posts to the
-   authenticated installed apps report endpoint.
-2. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
+1. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
    assignment, and bearer-authenticated floor-map read verification.
-3. Later, add Operator App sign-in UI and role-aware startup so staff can
+2. Later, add Operator App sign-in UI and role-aware startup so staff can
    acquire protected bearer/refresh token snapshots without manual setup.
