@@ -311,6 +311,35 @@ public sealed class EfBillingCommandServiceTests
     }
 
     [Fact]
+    public async Task PayDebtAsync_ReusingIdempotencyKeyWithSameRequestAgainstDifferentPlayerReturnsConflict()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedPlayerAsync(db, OtherPlayerAccountId, "Player Two");
+        db.LedgerEntries.Add(CreateLedgerEntry(LedgerEntryTypeNames.PostpaidDebt, LedgerAccountTypeNames.Debt, 1000, 0));
+        db.LedgerEntries.Add(CreateLedgerEntry(
+            LedgerEntryTypeNames.PostpaidDebt,
+            LedgerAccountTypeNames.Debt,
+            1000,
+            0,
+            OtherPlayerAccountId));
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var request = new PayDebtRequest(
+            TestIds.OrganizationId,
+            new MoneyDto("TJS", 700),
+            "cash debt payment",
+            "debt-pay-001");
+
+        await service.PayDebtAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var conflict = await service.PayDebtAsync(OtherPlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(conflict.Conflict);
+        var payment = await db.LedgerEntries.SingleAsync(entry => entry.EntryType == LedgerEntryTypeNames.DebtPayment);
+        Assert.Equal(PlayerAccountId, payment.PlayerAccountId);
+    }
+
+    [Fact]
     public async Task UnknownPlayerCommands_ReturnNotFound()
     {
         await using var db = CreateDbContext();
@@ -379,14 +408,15 @@ public sealed class EfBillingCommandServiceTests
         string entryType,
         string accountType,
         long amountMinorUnits,
-        int quantitySeconds)
+        int quantitySeconds,
+        Guid? playerAccountId = null)
     {
         return new LedgerEntryEntity
         {
             LedgerEntryId = Guid.NewGuid(),
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            PlayerAccountId = PlayerAccountId,
+            PlayerAccountId = playerAccountId ?? PlayerAccountId,
             SessionId = null,
             PlayerPackageId = null,
             EntryType = entryType,
