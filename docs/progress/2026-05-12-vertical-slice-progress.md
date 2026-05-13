@@ -1,8 +1,8 @@
 # AFK4 Vertical Slice Progress
 
 Status: Phase 6 POS, inventory, shifts, receipts, and protected backend
-endpoints are implemented on `codex/phase6-pos-inventory-shifts-receipts`;
-the Phase 6 EF migration and runbook updates are in progress
+endpoints are implemented and locally verified on
+`codex/phase6-pos-inventory-shifts-receipts`
 Last updated: 2026-05-13
 
 ## Scope
@@ -74,10 +74,9 @@ Started on `codex/phase6-pos-inventory-shifts-receipts` after `main` commit
 - Generated EF Core migration `AddPosInventoryShiftsReceipts` for the Phase 6
   schema.
 
-Latest Phase 6 verification before the migration/runbook commit:
+Final Phase 6 verification was run from `D:\afk4.net` on 2026-05-13:
 
 ```powershell
-& 'C:\Program Files\dotnet\dotnet.exe' ef migrations add AddPosInventoryShiftsReceipts --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
 & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter "ShiftContractSerializationTests|InventoryContractSerializationTests|PaymentContractSerializationTests|PosContractSerializationTests|ReceiptContractSerializationTests" --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "EfShiftServiceTests|BillingShiftIntegrationTests|EfInventoryServiceTests|EfPosServiceTests|ReceiptNumberGeneratorTests|PosEndpointTests" --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -86,7 +85,8 @@ Latest Phase 6 verification before the migration/runbook commit:
 
 Results:
 
-- EF migration generation completed after a successful design-time build.
+- EF migration generation for `AddPosInventoryShiftsReceipts` completed after
+  a successful design-time build in the migration/runbook task.
 - Migration sanity confirmed creation of `shifts`, `cash_movements`,
   `pos_product_categories`, `pos_products`, `stock_movements`, `pos_sales`,
   `pos_sale_lines`, `payments`, and `receipts`.
@@ -100,6 +100,13 @@ Results:
   and cash-impacting shift-linked ledger entries.
 - Full solution build succeeded with 0 warnings and 0 errors.
 - Full solution tests passed 336/336.
+- Scope self-review confirmed no Operator production UX files were changed, no
+  fiscal/payment gateway/web-admin/local-server/microservice code was added,
+  POS sales remain separate from billing ledger entries, stock projection is
+  derived from `stock_movements`, money-changing billing entries are linked to
+  open shifts through nullable `ShiftId`, critical Phase 6 commands have
+  idempotency coverage, and protected endpoint tests cover allowed and denied
+  audit paths.
 
 Known Phase 6 limitations:
 
