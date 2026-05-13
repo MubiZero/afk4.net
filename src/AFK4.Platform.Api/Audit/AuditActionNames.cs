@@ -37,4 +37,24 @@ public static class AuditActionNames
     public const string CreatePackageDefinition = "packages.create";
 
     public const string PurchasePackage = "packages.purchase";
+
+    public const string OpenShift = "shifts.open";
+
+    public const string CloseShift = "shifts.close";
+
+    public const string RecordCashMovement = "shifts.cash_movement";
+
+    public const string CreateProductCategory = "pos.categories.create";
+
+    public const string CreateProduct = "pos.products.create";
+
+    public const string CreateStockMovement = "inventory.stock.create";
+
+    public const string CreatePosSale = "pos.sales.create";
+
+    public const string PayPosSale = "pos.sales.pay";
+
+    public const string RefundPosSale = "pos.sales.refund";
+
+    public const string VoidPosSale = "pos.sales.void";
 }

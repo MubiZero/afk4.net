@@ -30,6 +30,18 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageTariffs,
                 StaffPermissionNames.ManagePackages,
                 StaffPermissionNames.PurchasePackage,
+                StaffPermissionNames.OpenShift,
+                StaffPermissionNames.CloseShift,
+                StaffPermissionNames.ViewShift,
+                StaffPermissionNames.ManageShiftCash,
+                StaffPermissionNames.ManagePosCatalog,
+                StaffPermissionNames.CreatePosSale,
+                StaffPermissionNames.PayPosSale,
+                StaffPermissionNames.RefundPosSale,
+                StaffPermissionNames.VoidPosSale,
+                StaffPermissionNames.ManageInventoryStock,
+                StaffPermissionNames.ViewInventory,
+                StaffPermissionNames.ViewReceipt,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit
             },
@@ -56,6 +68,18 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageTariffs,
                 StaffPermissionNames.ManagePackages,
                 StaffPermissionNames.PurchasePackage,
+                StaffPermissionNames.OpenShift,
+                StaffPermissionNames.CloseShift,
+                StaffPermissionNames.ViewShift,
+                StaffPermissionNames.ManageShiftCash,
+                StaffPermissionNames.ManagePosCatalog,
+                StaffPermissionNames.CreatePosSale,
+                StaffPermissionNames.PayPosSale,
+                StaffPermissionNames.RefundPosSale,
+                StaffPermissionNames.VoidPosSale,
+                StaffPermissionNames.ManageInventoryStock,
+                StaffPermissionNames.ViewInventory,
+                StaffPermissionNames.ViewReceipt,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.ShiftSupervisor] = new HashSet<string>
@@ -75,6 +99,16 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManualLedgerCorrection,
                 StaffPermissionNames.PayDebt,
                 StaffPermissionNames.PurchasePackage,
+                StaffPermissionNames.OpenShift,
+                StaffPermissionNames.CloseShift,
+                StaffPermissionNames.ViewShift,
+                StaffPermissionNames.ManageShiftCash,
+                StaffPermissionNames.CreatePosSale,
+                StaffPermissionNames.PayPosSale,
+                StaffPermissionNames.RefundPosSale,
+                StaffPermissionNames.VoidPosSale,
+                StaffPermissionNames.ViewInventory,
+                StaffPermissionNames.ViewReceipt,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.CashierOperator] = new HashSet<string>
@@ -89,7 +123,12 @@ public static class PermissionCatalog
                 StaffPermissionNames.ViewBilling,
                 StaffPermissionNames.TopUpWallet,
                 StaffPermissionNames.PayDebt,
-                StaffPermissionNames.PurchasePackage
+                StaffPermissionNames.PurchasePackage,
+                StaffPermissionNames.OpenShift,
+                StaffPermissionNames.ViewShift,
+                StaffPermissionNames.CreatePosSale,
+                StaffPermissionNames.PayPosSale,
+                StaffPermissionNames.ViewReceipt
             },
             [StaffRoleNames.Technician] = new HashSet<string>
             {
@@ -99,12 +138,16 @@ public static class PermissionCatalog
                 StaffPermissionNames.RotateDeviceCredential,
                 StaffPermissionNames.RevokeDeviceCredential,
                 StaffPermissionNames.ViewDeviceDetail,
-                StaffPermissionNames.ViewFloorMap
+                StaffPermissionNames.ViewFloorMap,
+                StaffPermissionNames.ViewInventory
             },
             [StaffRoleNames.AccountantAuditor] = new HashSet<string>
             {
                 StaffPermissionNames.ViewSession,
                 StaffPermissionNames.ViewBilling,
+                StaffPermissionNames.ViewShift,
+                StaffPermissionNames.ViewInventory,
+                StaffPermissionNames.ViewReceipt,
                 StaffPermissionNames.ViewAudit
             }
         };

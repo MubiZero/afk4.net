@@ -5,14 +5,23 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Payments;
+using AFK4.Platform.Api.Pos;
+using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Platform.Api.Tenancy;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Packages;
+using AFK4.Shared.Contracts.Payments;
+using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +55,10 @@ builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.AddScoped<EfShiftService>();
 builder.Services.AddScoped<IShiftService>(provider => provider.GetRequiredService<EfShiftService>());
 builder.Services.AddScoped<IOpenShiftResolver>(provider => provider.GetRequiredService<EfShiftService>());
+builder.Services.AddScoped<IInventoryService, EfInventoryService>();
+builder.Services.AddScoped<IPosService, EfPosService>();
+builder.Services.AddScoped<IPaymentProvider, ManualPaymentProvider>();
+builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
@@ -1965,6 +1978,812 @@ app.MapGet("/api/players/{playerAccountId:guid}/packages", async (
     return Results.Ok(response);
 });
 
+app.MapPost("/api/branches/{branchId:guid}/shifts/open", async (
+    Guid branchId,
+    OpenShiftRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IShiftService shiftService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.OpenShift,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.OpenShift,
+            "Shift",
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await shiftService.OpenShiftAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.OpenShift,
+        "Shift",
+        result.Response!.ShiftId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.StartingCash },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/shifts/current", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IShiftService shiftService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewShift,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await shiftService.GetCurrentShiftAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        cancellationToken);
+
+    return result.Response is null
+        ? Results.NotFound()
+        : Results.Ok(result.Response);
+});
+
+app.MapPost("/api/shifts/{shiftId:guid}/cash-movements", async (
+    Guid shiftId,
+    RecordCashMovementRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IShiftService shiftService,
+    CancellationToken cancellationToken) =>
+{
+    var shift = await LoadShiftScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        shiftId,
+        StaffPermissionNames.ManageShiftCash,
+        cancellationToken);
+    if (shift.Result is not null)
+    {
+        return shift.Result;
+    }
+
+    var authorization = shift.Authorization!;
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            shift.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.RecordCashMovement,
+            "Shift",
+            shiftId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await shiftService.RecordCashMovementAsync(
+        shiftId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        shift.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.RecordCashMovement,
+        "CashMovement",
+        result.Response!.CashMovementId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.MovementType, request.Amount },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/shifts/{shiftId:guid}/close", async (
+    Guid shiftId,
+    CloseShiftRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IShiftService shiftService,
+    CancellationToken cancellationToken) =>
+{
+    var shift = await LoadShiftScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        shiftId,
+        StaffPermissionNames.CloseShift,
+        cancellationToken);
+    if (shift.Result is not null)
+    {
+        return shift.Result;
+    }
+
+    var authorization = shift.Authorization!;
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            shift.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CloseShift,
+            "Shift",
+            shiftId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await shiftService.CloseShiftAsync(
+        shiftId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        shift.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CloseShift,
+        "Shift",
+        shiftId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.CountedCash },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/pos/categories", async (
+    Guid branchId,
+    CreateProductCategoryRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IInventoryService inventoryService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManagePosCatalog,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateProductCategory,
+            "PosProductCategory",
+            null,
+            AuditOutcome.Denied,
+            new { request.Name, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await inventoryService.CreateCategoryAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateProductCategory,
+        "PosProductCategory",
+        result.Response!.CategoryId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Name },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/pos/products", async (
+    Guid branchId,
+    CreateProductRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IInventoryService inventoryService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManagePosCatalog,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateProduct,
+            "PosProduct",
+            null,
+            AuditOutcome.Denied,
+            new { request.Sku, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await inventoryService.CreateProductAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateProduct,
+        "PosProduct",
+        result.Response!.ProductId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Sku, request.Price },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/pos/catalog", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IInventoryService inventoryService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewInventory,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await inventoryService.GetCatalogAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        cancellationToken);
+
+    return ToHttpResult(result);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/inventory/stock-movements", async (
+    Guid branchId,
+    CreateStockMovementRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IInventoryService inventoryService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageInventoryStock,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateStockMovement,
+            "StockMovement",
+            null,
+            AuditOutcome.Denied,
+            new { request.ProductId, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await inventoryService.CreateStockMovementAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateStockMovement,
+        "StockMovement",
+        result.Response!.StockMovementId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.ProductId, request.MovementType, request.QuantityDelta },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/pos/sales", async (
+    Guid branchId,
+    CreatePosSaleRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IPosService posService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.CreatePosSale,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreatePosSale,
+            "PosSale",
+            null,
+            AuditOutcome.Denied,
+            new { request.ShiftId, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await posService.CreateSaleAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreatePosSale,
+        "PosSale",
+        result.Response!.PosSaleId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.ShiftId, LineCount = request.Lines.Count },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/pos/sales/{saleId:guid}/payments/manual", async (
+    Guid saleId,
+    ManualPaymentRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IPosService posService,
+    CancellationToken cancellationToken) =>
+{
+    var sale = await LoadPosSaleScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        saleId,
+        StaffPermissionNames.PayPosSale,
+        cancellationToken);
+    if (sale.Result is not null)
+    {
+        return sale.Result;
+    }
+
+    var authorization = sale.Authorization!;
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            sale.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.PayPosSale,
+            "PosSale",
+            saleId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await posService.PaySaleAsync(
+        saleId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        sale.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.PayPosSale,
+        "PosSale",
+        saleId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.PaymentMethod, request.Amount },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/pos/sales/{saleId:guid}/refunds", async (
+    Guid saleId,
+    RefundPosSaleRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IPosService posService,
+    CancellationToken cancellationToken) =>
+{
+    var sale = await LoadPosSaleScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        saleId,
+        StaffPermissionNames.RefundPosSale,
+        cancellationToken);
+    if (sale.Result is not null)
+    {
+        return sale.Result;
+    }
+
+    var authorization = sale.Authorization!;
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            sale.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.RefundPosSale,
+            "PosSale",
+            saleId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await posService.RefundSaleAsync(
+        saleId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        sale.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.RefundPosSale,
+        "PosSale",
+        saleId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Reason },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/pos/sales/{saleId:guid}/void", async (
+    Guid saleId,
+    VoidPosSaleRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IPosService posService,
+    CancellationToken cancellationToken) =>
+{
+    var sale = await LoadPosSaleScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        saleId,
+        StaffPermissionNames.VoidPosSale,
+        cancellationToken);
+    if (sale.Result is not null)
+    {
+        return sale.Result;
+    }
+
+    var authorization = sale.Authorization!;
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            sale.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.VoidPosSale,
+            "PosSale",
+            saleId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await posService.VoidSaleAsync(
+        saleId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        sale.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.VoidPosSale,
+        "PosSale",
+        saleId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Reason },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/pos/sales/{saleId:guid}", async (
+    Guid saleId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IPosService posService,
+    CancellationToken cancellationToken) =>
+{
+    var sale = await LoadPosSaleScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        saleId,
+        StaffPermissionNames.ViewReceipt,
+        cancellationToken);
+    if (sale.Result is not null)
+    {
+        return sale.Result;
+    }
+
+    var authorization = sale.Authorization!;
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await posService.GetSaleAsync(
+        authorization.StaffContext!.OrganizationId,
+        saleId,
+        cancellationToken);
+
+    return ToHttpResult(result);
+});
+
+app.MapGet("/api/receipts/{receiptId:guid}", async (
+    Guid receiptId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    CancellationToken cancellationToken) =>
+{
+    var receipt = await LoadReceiptScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        receiptId,
+        StaffPermissionNames.ViewReceipt,
+        cancellationToken);
+    if (receipt.Result is not null)
+    {
+        return receipt.Result;
+    }
+
+    if (!receipt.Authorization!.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    return Results.Ok(ToDto(receipt.Entity!));
+});
+
 app.MapHub<DeviceHub>("/hubs/devices");
 
 app.Run();
@@ -2096,6 +2915,166 @@ static async Task<PlayerScopedEndpointResult> LoadPlayerScopedEndpointAsync(
     return player is null
         ? new PlayerScopedEndpointResult(null, branchId, authorization, Results.NotFound())
         : new PlayerScopedEndpointResult(player, branchId, authorization, null);
+}
+
+static Task<ScopedEntityEndpointResult<ShiftEntity>> LoadShiftScopedEndpointAsync(
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    Guid shiftId,
+    string permission,
+    CancellationToken cancellationToken)
+{
+    return LoadScopedEntityEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        permission,
+        (organizationId, token) => dbContext.Shifts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                shift => shift.OrganizationId == organizationId && shift.ShiftId == shiftId,
+                token),
+        shift => shift.BranchId,
+        cancellationToken);
+}
+
+static Task<ScopedEntityEndpointResult<PosSaleEntity>> LoadPosSaleScopedEndpointAsync(
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    Guid saleId,
+    string permission,
+    CancellationToken cancellationToken)
+{
+    return LoadScopedEntityEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        permission,
+        (organizationId, token) => dbContext.PosSales
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                sale => sale.OrganizationId == organizationId && sale.PosSaleId == saleId,
+                token),
+        sale => sale.BranchId,
+        cancellationToken);
+}
+
+static Task<ScopedEntityEndpointResult<ReceiptEntity>> LoadReceiptScopedEndpointAsync(
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    Guid receiptId,
+    string permission,
+    CancellationToken cancellationToken)
+{
+    return LoadScopedEntityEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        permission,
+        (organizationId, token) => dbContext.Receipts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                receipt => receipt.OrganizationId == organizationId && receipt.ReceiptId == receiptId,
+                token),
+        receipt => receipt.BranchId,
+        cancellationToken);
+}
+
+static async Task<ScopedEntityEndpointResult<TEntity>> LoadScopedEntityEndpointAsync<TEntity>(
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    string permission,
+    Func<Guid, CancellationToken, Task<TEntity?>> loadEntityAsync,
+    Func<TEntity, Guid> getBranchId,
+    CancellationToken cancellationToken)
+    where TEntity : class
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return new ScopedEntityEndpointResult<TEntity>(null, Guid.Empty, null, Results.Unauthorized());
+    }
+
+    var staffContext = staffContextAccessor.Current;
+    var entity = await loadEntityAsync(staffContext.OrganizationId, cancellationToken);
+
+    if (entity is not null && !staffContext.BranchIds.Contains(getBranchId(entity)))
+    {
+        var fallbackBranchId = staffContext.BranchIds.OrderBy(branch => branch).FirstOrDefault();
+        if (fallbackBranchId == Guid.Empty)
+        {
+            return new ScopedEntityEndpointResult<TEntity>(
+                null,
+                Guid.Empty,
+                null,
+                Results.StatusCode(StatusCodes.Status403Forbidden));
+        }
+
+        var fallbackAuthorization = await authorizationService.RequireBranchPermissionAsync(
+            fallbackBranchId,
+            permission,
+            cancellationToken);
+
+        if (!fallbackAuthorization.IsAuthenticated)
+        {
+            return new ScopedEntityEndpointResult<TEntity>(
+                null,
+                fallbackBranchId,
+                fallbackAuthorization,
+                Results.Unauthorized());
+        }
+
+        return fallbackAuthorization.IsAllowed
+            ? new ScopedEntityEndpointResult<TEntity>(null, fallbackBranchId, fallbackAuthorization, Results.NotFound())
+            : new ScopedEntityEndpointResult<TEntity>(null, fallbackBranchId, fallbackAuthorization, null);
+    }
+
+    var branchId = entity is null
+        ? staffContext.BranchIds.OrderBy(branch => branch).FirstOrDefault()
+        : getBranchId(entity);
+    if (branchId == Guid.Empty)
+    {
+        return new ScopedEntityEndpointResult<TEntity>(
+            null,
+            Guid.Empty,
+            null,
+            Results.StatusCode(StatusCodes.Status403Forbidden));
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        permission,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return new ScopedEntityEndpointResult<TEntity>(entity, branchId, authorization, Results.Unauthorized());
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return new ScopedEntityEndpointResult<TEntity>(entity, branchId, authorization, null);
+    }
+
+    return entity is null
+        ? new ScopedEntityEndpointResult<TEntity>(null, branchId, authorization, Results.NotFound())
+        : new ScopedEntityEndpointResult<TEntity>(entity, branchId, authorization, null);
+}
+
+static ReceiptDto ToDto(ReceiptEntity receipt)
+{
+    return new ReceiptDto(
+        receipt.ReceiptId,
+        receipt.OrganizationId,
+        receipt.BranchId,
+        receipt.PosSaleId,
+        receipt.ReceiptNumber,
+        receipt.ReceiptType,
+        new MoneyDto(receipt.CurrencyCode, receipt.TotalMinorUnits),
+        receipt.CreatedAtUtc);
 }
 
 static async Task<IResult> CompleteReconciliationAsync(
@@ -2239,5 +3218,12 @@ public sealed record PlayerScopedEndpointResult(
     Guid BranchId,
     StaffAuthorizationResult? Authorization,
     IResult? Result);
+
+public sealed record ScopedEntityEndpointResult<TEntity>(
+    TEntity? Entity,
+    Guid BranchId,
+    StaffAuthorizationResult? Authorization,
+    IResult? Result)
+    where TEntity : class;
 
 public partial class Program;
