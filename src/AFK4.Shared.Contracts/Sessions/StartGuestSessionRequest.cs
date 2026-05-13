@@ -5,4 +5,8 @@ public sealed record StartGuestSessionRequest(
     Guid SeatId,
     int DurationMinutes,
     string TariffRuleVersionId,
-    string IdempotencyKey);
+    string IdempotencyKey,
+    Guid? PlayerAccountId = null,
+    string BillingMode = "",
+    Guid? TariffVersionId = null,
+    Guid? PlayerPackageId = null);

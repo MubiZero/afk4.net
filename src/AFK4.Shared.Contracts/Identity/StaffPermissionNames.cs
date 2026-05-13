@@ -26,6 +26,24 @@ public static class StaffPermissionNames
 
     public const string ViewSession = "sessions.view";
 
+    public const string CreatePlayerAccount = "players.create";
+
+    public const string ViewBilling = "billing.view";
+
+    public const string TopUpWallet = "billing.wallet.top_up";
+
+    public const string RefundLedgerEntry = "billing.refund";
+
+    public const string ManualLedgerCorrection = "billing.manual_correction";
+
+    public const string PayDebt = "billing.debt.pay";
+
+    public const string ManageTariffs = "tariffs.manage";
+
+    public const string ManagePackages = "packages.manage";
+
+    public const string PurchasePackage = "packages.purchase";
+
     public const string ManageRoles = "identity.roles.manage";
 
     public const string ViewAudit = "audit.view";
