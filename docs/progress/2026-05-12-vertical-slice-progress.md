@@ -1,8 +1,8 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 5 billing, immutable ledger, tariffs, and packages foundation is
-implemented on `codex/phase5-billing-ledger-tariffs-packages` after Phase 4
-session lifecycle and grace-mode foundation was merged to `main`
+Status: Phase 6 POS, inventory, shifts, receipts, and protected backend
+endpoints are implemented on `codex/phase6-pos-inventory-shifts-receipts`;
+the Phase 6 EF migration and runbook updates are in progress
 Last updated: 2026-05-13
 
 ## Scope
@@ -25,6 +25,94 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-13-afk4-phase3-club-layout-device-management.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase4-session-lifecycle-grace-mode.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase5-billing-ledger-tariffs-packages.md`
+- `docs/superpowers/plans/2026-05-13-afk4-phase6-pos-inventory-shifts-receipts.md`
+
+## Phase 6 POS, Inventory, Shifts, And Receipts
+
+Started on `codex/phase6-pos-inventory-shifts-receipts` after `main` commit
+`3400873`:
+
+- Added the focused Phase 6 implementation plan at
+  `docs/superpowers/plans/2026-05-13-afk4-phase6-pos-inventory-shifts-receipts.md`.
+- Added shared contracts and permission constants for:
+  - operator shifts and cash movements;
+  - POS catalog categories and products;
+  - append-only inventory stock movements and derived stock projection;
+  - manual payment requests and payment method names;
+  - POS sale states, sale lines, refunds, and voids;
+  - receipt projections.
+- Added shift persistence and services:
+  - `shifts`;
+  - `cash_movements`;
+  - open/current/close shift flows;
+  - cash movement append flow;
+  - command idempotency through `billing_command_idempotency`.
+- Added nullable `ledger_entries.ShiftId` and required future
+  money-changing ledger writes to resolve an open shift before appending
+  entries.
+- Added POS catalog and inventory persistence/services:
+  - `pos_product_categories`;
+  - `pos_products`;
+  - `stock_movements`;
+  - stock on hand derived from stock movement history.
+- Added POS sale, manual payment, refund, void, and receipt foundation:
+  - `pos_sales`;
+  - `pos_sale_lines`;
+  - `payments`;
+  - `receipts`;
+  - manual provider support for `cash` and `card_manual`;
+  - receipt numbers with `POS-YYYYMMDD-0001` and `REF-YYYYMMDD-0001`
+    branch/date/type sequences.
+- Added protected backend endpoints for:
+  - shift open/current/cash movement/close;
+  - POS categories/products/catalog;
+  - inventory stock movements;
+  - POS sale create/pay/refund/void/read;
+  - receipt reads.
+- Added audit action names and role permission mapping for protected Phase 6
+  actions.
+- Generated EF Core migration `AddPosInventoryShiftsReceipts` for the Phase 6
+  schema.
+
+Latest Phase 6 verification before the migration/runbook commit:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' ef migrations add AddPosInventoryShiftsReceipts --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter "ShiftContractSerializationTests|InventoryContractSerializationTests|PaymentContractSerializationTests|PosContractSerializationTests|ReceiptContractSerializationTests" --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "EfShiftServiceTests|BillingShiftIntegrationTests|EfInventoryServiceTests|EfPosServiceTests|ReceiptNumberGeneratorTests|PosEndpointTests" --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- EF migration generation completed after a successful design-time build.
+- Migration sanity confirmed creation of `shifts`, `cash_movements`,
+  `pos_product_categories`, `pos_products`, `stock_movements`, `pos_sales`,
+  `pos_sale_lines`, `payments`, and `receipts`.
+- Migration sanity confirmed nullable `ledger_entries.ShiftId` and index
+  `IX_ledger_entries_ShiftId_CreatedAtUtc`.
+- Forbidden schema field grep found no mutable stock/cash/wallet/debt balance
+  columns and no fiscal or external payment gateway tables.
+- Shared contract tests passed 26/26.
+- Targeted Phase 6 Platform API tests passed 42/42 after adding coverage for
+  shift close reconciliation with cash movements, POS cash payments/refunds,
+  and cash-impacting shift-linked ledger entries.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 336/336.
+
+Known Phase 6 limitations:
+
+- Phase 6 local PostgreSQL live smoke has not been run yet after the migration
+  and runbook update.
+- Operator production POS/shift/inventory UX is not implemented in this phase.
+- Agent enforcement and Player Shell UI changes are out of this phase.
+- Fiscal printers, tax authority integration, card acquirer integrations, and
+  external payment gateways are out of this phase.
+- Shift cash reconciliation includes cash movements, POS cash provider
+  payments/refunds, and cash-impacting linked ledger entries such as top-ups,
+  debt payments, and manual corrections; it intentionally excludes wallet
+  gameplay charges and package time consumption from drawer cash.
 
 ## Phase 5 Billing, Ledger, Tariffs, And Packages
 
@@ -1000,6 +1088,13 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
+- `aa8ddb1 feat: add protected pos shift endpoints`
+- `fbc7006 feat: add pos sale payment receipt service`
+- `3daeba2 feat: add pos catalog inventory service`
+- `5bb99ad feat: add shift foundation and ledger shift links`
+- `4575813 feat: add pos shift inventory contracts`
+- `9b9977f docs: add phase 6 pos inventory plan`
+- `3400873 docs: record phase 5 live smoke`
 - `81376af docs: clarify phase 5 progress scope`
 - `50c1189 docs: record phase 5 verification`
 - `5490b19 docs: add phase 5 migration and runbook`
@@ -1019,7 +1114,9 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Merge `codex/phase5-billing-ledger-tariffs-packages` into `main` with a
-   fast-forward merge, then run fresh full build and tests on `main`.
-2. Start Phase 6 with a focused implementation plan for POS, inventory, shifts,
-   and receipts before writing code.
+1. Run Phase 6 final verification from the focused plan, including targeted
+   contract tests, targeted Platform API tests, full build, and full test suite.
+2. Run the Phase 6 local PostgreSQL live smoke path after applying
+   `AddPosInventoryShiftsReceipts`.
+3. Record final Phase 6 verification evidence and then decide whether to merge
+   `codex/phase6-pos-inventory-shifts-receipts` into `main`.

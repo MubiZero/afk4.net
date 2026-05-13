@@ -99,8 +99,9 @@ AFK4 is split into four main runtime surfaces.
 monolith with strict module boundaries. The backend is the authority for
 sessions, billing, POS, roles, audit, device commands, update rollout, and
 reconciliation. Device enrollment, device credentials, device heartbeat state,
-device command status, persisted zones/seats, and floor-map reads are backed by
-EF Core/Npgsql persistence.
+device command status, persisted zones/seats, floor-map reads, shifts, POS
+catalog, stock movements, POS sales, manual payments, refunds, voids, and
+receipts are backed by EF Core/Npgsql persistence.
 
 The current vertical slice exposes:
 
@@ -141,6 +142,34 @@ The current vertical slice exposes:
   token permission `packages.purchase`
 - `GET /api/players/{playerAccountId}/packages` with staff bearer token
   permission `billing.view`
+- `POST /api/branches/{branchId}/shifts/open` with staff bearer token
+  permission `shifts.open`
+- `GET /api/branches/{branchId}/shifts/current` with staff bearer token
+  permission `shifts.view`
+- `POST /api/shifts/{shiftId}/cash-movements` with staff bearer token
+  permission `shifts.cash.manage`
+- `POST /api/shifts/{shiftId}/close` with staff bearer token permission
+  `shifts.close`
+- `POST /api/branches/{branchId}/pos/categories` with staff bearer token
+  permission `pos.catalog.manage`
+- `POST /api/branches/{branchId}/pos/products` with staff bearer token
+  permission `pos.catalog.manage`
+- `GET /api/branches/{branchId}/pos/catalog` with staff bearer token
+  permission `inventory.view`
+- `POST /api/branches/{branchId}/inventory/stock-movements` with staff bearer
+  token permission `inventory.stock.manage`
+- `POST /api/branches/{branchId}/pos/sales` with staff bearer token
+  permission `pos.sales.create`
+- `POST /api/pos/sales/{saleId}/payments/manual` with staff bearer token
+  permission `pos.sales.pay`
+- `POST /api/pos/sales/{saleId}/refunds` with staff bearer token permission
+  `pos.sales.refund`
+- `POST /api/pos/sales/{saleId}/void` with staff bearer token permission
+  `pos.sales.void`
+- `GET /api/pos/sales/{saleId}` with staff bearer token permission
+  `receipts.view`
+- `GET /api/receipts/{receiptId}` with staff bearer token permission
+  `receipts.view`
 - `POST /api/branches/{branchId}/device-enrollment-codes` with staff bearer
   token permission `devices.enrollment_codes.create`
 - `POST /api/devices/enroll`
@@ -168,6 +197,14 @@ The current vertical slice exposes:
 Wallet/debt summaries and player package remaining time are derived from
 immutable `ledger_entries`. The database intentionally does not store mutable
 wallet balance, debt balance, or package balance fields.
+
+POS sales are explicit sale records, separate from the billing ledger. Stock on
+hand is derived from append-only `stock_movements`. Shift close summary data
+reconciles starting cash, cash movements, POS payments/refunds, and
+cash-impacting shift-linked ledger entries such as top-ups, debt payments, and
+manual corrections. The Phase 6 payment provider is manual/mock only; there are
+no fiscal printer, tax authority, card acquirer, or external payment gateway
+integrations.
 
 ### Operator App
 
@@ -359,6 +396,21 @@ The first vertical slice foundation is implemented:
   session modes;
 - session start/extend billing integration for prepaid wallet, postpaid debt,
   and package-backed time consumption;
+- shared Phase 6 contracts and permissions for shifts, cash movements, POS
+  catalog, stock movements, manual payments, POS sales, refunds, voids, and
+  receipts;
+- EF-backed shift, cash movement, POS catalog, stock movement, POS sale,
+  payment, and receipt persistence with migration
+  `AddPosInventoryShiftsReceipts`;
+- money-changing ledger entries linked to the currently open shift through
+  nullable `ledger_entries.ShiftId`;
+- shift service for open/current/cash movement/close flows with idempotency;
+- inventory service for branch product catalog and append-only stock
+  movements, with stock on hand derived from `stock_movements`;
+- POS service for draft sales, manual cash/card-manual payments, stock
+  validation, receipts, refunds, voids, and idempotency;
+- protected Phase 6 endpoints for shifts, POS catalog, stock movements, POS
+  sales, manual payments, refunds, voids, sale reads, and receipt reads;
 - authenticated HTTP fallback for device command results returned by heartbeat
   polling;
 - device enrollment code flow and credential issuance;
@@ -377,7 +429,6 @@ Not implemented yet:
 - Operator App layout management UI;
 - automatic Agent-side consumption of rotated credentials;
 - Operator App session action UI;
-- POS, inventory, shifts, receipts;
 - audit search and reports;
 - Windows lock/unlock enforcement and launcher control;
 - signed updates, rollout, rollback, and installers.

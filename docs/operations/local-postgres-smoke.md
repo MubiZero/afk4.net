@@ -364,6 +364,179 @@ $player = Invoke-RestMethod `
 $playerAccountId = $player.playerAccountId
 ```
 
+Open an operator shift. Keep this shift open until the end of the smoke run so
+Phase 6 POS activity and Phase 5 money-changing billing commands can link to
+the same shift for reconciliation:
+
+```powershell
+$openShiftBody = @{
+    organizationId = $organizationId
+    startingCash = @{
+        currencyCode = 'TJS'
+        minorUnits = 50000
+    }
+    openingNote = 'local-postgres-smoke opening cash'
+    idempotencyKey = 'smoke-shift-open-001'
+} | ConvertTo-Json -Depth 8
+
+$shift = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/shifts/open" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $openShiftBody
+
+$shiftId = $shift.shiftId
+
+$currentShift = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/shifts/current" `
+    -Headers $staffHeaders
+```
+
+Create a POS category and product, append purchase stock, and read derived
+stock on hand from the catalog:
+
+```powershell
+$categoryBody = @{
+    organizationId = $organizationId
+    name = 'Smoke Drinks'
+    idempotencyKey = 'smoke-pos-category-001'
+} | ConvertTo-Json -Depth 6
+
+$category = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/pos/categories" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $categoryBody
+
+$productBody = @{
+    organizationId = $organizationId
+    categoryId = $category.categoryId
+    name = 'Smoke Cola 0.5'
+    sku = 'SMOKE-COLA-05'
+    price = @{
+        currencyCode = 'TJS'
+        minorUnits = 1200
+    }
+    trackStock = $true
+    allowNegativeStock = $false
+    idempotencyKey = 'smoke-pos-product-001'
+} | ConvertTo-Json -Depth 8
+
+$product = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/pos/products" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $productBody
+
+$stockBody = @{
+    organizationId = $organizationId
+    productId = $product.productId
+    movementType = 'purchase'
+    quantityDelta = 24
+    unitCost = @{
+        currencyCode = 'TJS'
+        minorUnits = 900
+    }
+    reason = 'local-postgres-smoke initial stock'
+    idempotencyKey = 'smoke-stock-001'
+} | ConvertTo-Json -Depth 8
+
+$purchaseStock = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/inventory/stock-movements" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $stockBody
+
+$catalog = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/pos/catalog" `
+    -Headers $staffHeaders
+```
+
+Create a POS sale, pay it with the manual cash provider, inspect the paid sale
+and receipt, then refund the sale:
+
+```powershell
+$saleBody = @{
+    organizationId = $organizationId
+    shiftId = $shiftId
+    lines = @(
+        @{
+            productId = $product.productId
+            productName = ''
+            quantity = 2
+            unitPrice = @{
+                currencyCode = 'TJS'
+                minorUnits = 0
+            }
+            lineTotal = @{
+                currencyCode = 'TJS'
+                minorUnits = 0
+            }
+        }
+    )
+    idempotencyKey = 'smoke-pos-sale-001'
+} | ConvertTo-Json -Depth 10
+
+$sale = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/pos/sales" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $saleBody
+
+$paymentBody = @{
+    organizationId = $organizationId
+    paymentMethod = 'cash'
+    amount = @{
+        currencyCode = 'TJS'
+        minorUnits = 2400
+    }
+    note = 'local-postgres-smoke cash drawer'
+    idempotencyKey = 'smoke-pos-pay-001'
+} | ConvertTo-Json -Depth 8
+
+$paidSale = Invoke-RestMethod `
+    "$baseUrl/api/pos/sales/$($sale.posSaleId)/payments/manual" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $paymentBody
+
+$readSale = Invoke-RestMethod `
+    "$baseUrl/api/pos/sales/$($sale.posSaleId)" `
+    -Headers $staffHeaders
+
+$receiptId = @"
+SELECT "ReceiptId"
+FROM receipts
+WHERE "PosSaleId" = '$($sale.posSaleId)'
+  AND "ReceiptType" = 'sale'
+LIMIT 1;
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev -t -A
+$receiptId = $receiptId.Trim()
+
+$receipt = Invoke-RestMethod `
+    "$baseUrl/api/receipts/$receiptId" `
+    -Headers $staffHeaders
+
+$refundBody = @{
+    organizationId = $organizationId
+    reason = 'local-postgres-smoke customer return'
+    idempotencyKey = 'smoke-pos-refund-001'
+} | ConvertTo-Json -Depth 6
+
+$refundedSale = Invoke-RestMethod `
+    "$baseUrl/api/pos/sales/$($sale.posSaleId)/refunds" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $refundBody
+```
+
 Top up the wallet with a stable idempotency key:
 
 ```powershell
@@ -893,6 +1066,47 @@ $revokedCredential = Invoke-RestMethod `
     -Headers $staffHeaders
 ```
 
+Record a final cash movement and close the shift. The counted cash below
+assumes the postpaid debt payment path above was run; subtract `3000` from the
+counted amount if that optional second-seat path is skipped:
+
+```powershell
+$cashMovementBody = @{
+    organizationId = $organizationId
+    movementType = 'cash_in'
+    amount = @{
+        currencyCode = 'TJS'
+        minorUnits = 5000
+    }
+    reason = 'local-postgres-smoke cash drawer refill'
+    idempotencyKey = 'smoke-cash-in-001'
+} | ConvertTo-Json -Depth 8
+
+$cashMovement = Invoke-RestMethod `
+    "$baseUrl/api/shifts/$shiftId/cash-movements" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $cashMovementBody
+
+$closeShiftBody = @{
+    organizationId = $organizationId
+    countedCash = @{
+        currencyCode = 'TJS'
+        minorUnits = 158100
+    }
+    closingNote = 'local-postgres-smoke balanced close'
+    idempotencyKey = 'smoke-shift-close-001'
+} | ConvertTo-Json -Depth 8
+
+$closedShift = Invoke-RestMethod `
+    "$baseUrl/api/shifts/$shiftId/close" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $closeShiftBody
+```
+
 Expected results:
 
 - health returns `status = ok`;
@@ -902,7 +1116,11 @@ Expected results:
   `sessions.transfer`, `sessions.end`, `players.create`, `billing.view`,
   `billing.wallet.top_up`, `billing.refund`, `billing.manual_correction`,
   `billing.debt.pay`, `tariffs.manage`, `packages.manage`, and
-  `packages.purchase` in `permissions`;
+  `packages.purchase`, `shifts.open`, `shifts.close`, `shifts.view`,
+  `shifts.cash.manage`, `pos.catalog.manage`, `pos.sales.create`,
+  `pos.sales.pay`, `pos.sales.refund`, `pos.sales.void`,
+  `inventory.stock.manage`, `inventory.view`, and `receipts.view` in
+  `permissions`;
 - refresh returns a new non-empty `accessToken` and `refreshToken`;
 - enrollment returns non-empty `deviceId`, `credentialId`, and
   `credentialSecret`;
@@ -910,6 +1128,18 @@ Expected results:
 - floor map returns the seeded `PC-SMOKE-001` seat with `zoneName = Main Hall`
   and the enrolled `deviceId`;
 - player creation returns a non-empty `playerAccountId`;
+- shift open returns state `open`, and current shift returns the same
+  `shiftId`;
+- POS category and product creation return non-empty IDs;
+- purchase stock movement with `smoke-stock-001` appends quantity `24`;
+- catalog returns `Smoke Cola 0.5` with derived `stockOnHand = 24`;
+- POS sale creation with `smoke-pos-sale-001` returns state `draft`;
+- manual cash payment with `smoke-pos-pay-001` returns state `paid`, creates a
+  POS receipt number beginning with `POS-`, and writes a negative sale stock
+  movement;
+- POS refund with `smoke-pos-refund-001` returns state `refunded`, creates a
+  refund receipt number beginning with `REF-`, and writes a positive refund
+  stock movement;
 - top-up with `smoke-topup-001` appends one wallet ledger entry, and repeating
   the same request returns the same idempotent response;
 - manual correction with `smoke-manual-correction-001` appends one immutable
@@ -943,6 +1173,10 @@ Expected results:
 - heartbeat with the rotated credential returns `heartbeatIntervalSeconds = 10`;
 - revocation returns the rotated `credentialId` and a non-empty
   `revokedAtUtc`.
+- cash movement with `smoke-cash-in-001` appends one `cash_in` row;
+- shift close with `smoke-shift-close-001` returns state `closed`, expected
+  cash `158100`, counted cash `158100`, and difference `0` when the full smoke
+  path is run.
 
 Optionally inspect recent audit records for the protected staff actions:
 
@@ -965,6 +1199,16 @@ WHERE "Action" IN (
     'tariffs.versions.create',
     'packages.create',
     'packages.purchase',
+    'shifts.open',
+    'shifts.cash_movement',
+    'shifts.close',
+    'pos.categories.create',
+    'pos.products.create',
+    'inventory.stock.create',
+    'pos.sales.create',
+    'pos.sales.pay',
+    'pos.sales.refund',
+    'pos.sales.void',
     'sessions.start',
     'sessions.extend',
     'sessions.transfer',
@@ -981,6 +1225,15 @@ devices.credentials.revoke       | Succeeded | ...
 devices.credentials.rotate       | Succeeded | ...
 packages.purchase                | Succeeded | ...
 packages.create                  | Succeeded | ...
+shifts.close                     | Succeeded | ...
+shifts.cash_movement             | Succeeded | ...
+pos.sales.refund                 | Succeeded | ...
+pos.sales.pay                    | Succeeded | ...
+pos.sales.create                 | Succeeded | ...
+inventory.stock.create           | Succeeded | ...
+pos.products.create              | Succeeded | ...
+pos.categories.create            | Succeeded | ...
+shifts.open                      | Succeeded | ...
 tariffs.versions.create          | Succeeded | ...
 tariffs.create                   | Succeeded | ...
 billing.refund                   | Succeeded | ...
@@ -1086,6 +1339,62 @@ smoke-package-def-001, smoke-package-buy-001, smoke-debt-pay-001 when the
 postpaid path is run, and smoke-refund-001
 tariffs/tariff_versions: Smoke Hourly version 1
 package_definitions/player_packages: Smoke 2h Pack purchase rows
+```
+
+Optionally inspect the Phase 6 shift, POS, receipt, payment, and inventory rows:
+
+```powershell
+@"
+SELECT "ShiftId", "State", "ExpectedCashMinorUnits",
+       "CountedCashMinorUnits", "DifferenceMinorUnits"
+FROM shifts
+WHERE "ShiftId" = '$shiftId';
+
+SELECT "MovementType", "AmountMinorUnits"
+FROM cash_movements
+WHERE "ShiftId" = '$shiftId'
+ORDER BY "CreatedAtUtc";
+
+SELECT "Name", "Sku", "TrackStock", "AllowNegativeStock"
+FROM pos_products
+WHERE "ProductId" = '$($product.productId)';
+
+SELECT "State", "TotalMinorUnits", "ShiftId"
+FROM pos_sales
+WHERE "PosSaleId" = '$($sale.posSaleId)';
+
+SELECT "ProductName", "Quantity", "UnitPriceMinorUnits", "LineTotalMinorUnits"
+FROM pos_sale_lines
+WHERE "PosSaleId" = '$($sale.posSaleId)';
+
+SELECT "PaymentKind", "PaymentMethod", "AmountMinorUnits"
+FROM payments
+WHERE "PosSaleId" = '$($sale.posSaleId)'
+ORDER BY "CreatedAtUtc";
+
+SELECT "ReceiptNumber", "ReceiptType", "TotalMinorUnits"
+FROM receipts
+WHERE "PosSaleId" = '$($sale.posSaleId)'
+ORDER BY "CreatedAtUtc";
+
+SELECT "MovementType", "QuantityDelta"
+FROM stock_movements
+WHERE "ProductId" = '$($product.productId)'
+ORDER BY "CreatedAtUtc";
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
+```
+
+Expected:
+
+```text
+shifts: closed row with expected/count/difference matching the close response
+cash_movements: one cash_in row for 5000
+pos_products: Smoke Cola 0.5 with TrackStock = true
+pos_sales: refunded row linked to the opened shift
+pos_sale_lines: one snapshot row with quantity 2 and 1200/2400 minor units
+payments: cash payment 2400 and cash refund -2400
+receipts: POS-... sale receipt and REF-... refund receipt
+stock_movements: purchase +24, sale -2, refund +2
 ```
 
 Optionally inspect the Phase 3 layout and installed app rows:
