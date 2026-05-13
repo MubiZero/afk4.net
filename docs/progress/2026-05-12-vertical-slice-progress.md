@@ -1,7 +1,7 @@
 # AFK4 Vertical Slice Progress
 
 Status: Phase 5 billing, immutable ledger, tariffs, and packages foundation is
-in progress on `codex/phase5-billing-ledger-tariffs-packages` after Phase 4
+implemented on `codex/phase5-billing-ledger-tariffs-packages` after Phase 4
 session lifecycle and grace-mode foundation was merged to `main`
 Last updated: 2026-05-13
 
@@ -67,19 +67,27 @@ Started on `codex/phase5-billing-ledger-tariffs-packages` after `main` commit
 - Added authenticated HTTP fallback for device command results returned through
   heartbeat polling when the realtime hub is unavailable.
 
-Latest Phase 5 verification before final full-suite pass:
+Latest Phase 5 verification:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' tool restore
 & 'C:\Program Files\dotnet\dotnet.exe' ef migrations add AddBillingLedgerTariffsPackages --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter "BillingContractSerializationTests|TariffContractSerializationTests|PackageContractSerializationTests|SessionContractSerializationTests" --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "LedgerBalanceProjectorTests|EfBillingCommandServiceTests|EfTariffServiceTests|EfPackageServiceTests|BillingEndpointTests|EfSessionBillingIntegrationTests|EfSessionCommandServiceTests|SessionEndpointTests|DeviceHeartbeatServicePersistenceTests|DeviceCommandEndpointTests|DeviceCommandDispatchServiceTests" --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false
 ```
 
 Results:
 
 - local `dotnet-ef` 10.0.4 restored successfully;
 - EF migration generation completed after a successful design-time build;
-- build succeeded with 0 warnings and 0 errors;
+- targeted shared contract tests passed 9/9;
+- targeted Platform API Phase 5/session/device fallback tests passed 137/137;
+- Agent Service tests passed 25/25;
+- full solution build succeeded with 0 warnings and 0 errors;
+- full solution tests passed 268/268;
 - migration sanity confirmed the seven Phase 5 tables and expected indexes for
   player accounts, ledger chronology, session/package ledger lookups, billing
   idempotency, tariff versions, tariffs, package definitions, and player
