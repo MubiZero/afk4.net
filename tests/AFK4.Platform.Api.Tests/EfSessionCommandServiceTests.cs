@@ -206,7 +206,8 @@ public sealed class EfSessionCommandServiceTests
             db,
             dispatcher,
             new FakeSessionLeaseSigner(),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            new FakeSessionBillingService());
     }
 
     private static async Task SeedLayoutAsync(PlatformDbContext db, bool includeTargetSeat)

@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Sessions;
 using Microsoft.AspNetCore.Hosting;
@@ -25,6 +26,8 @@ internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
             {
                 options.UseInMemoryDatabase(databaseName);
             });
+            services.RemoveAll<ISessionBillingService>();
+            services.AddSingleton<ISessionBillingService, FakeSessionBillingService>();
 
             using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             var signingPrivateKeyPem = key.ExportECPrivateKeyPem();

@@ -47,6 +47,7 @@ builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
 builder.Services.AddScoped<ITariffService, EfTariffService>();
 builder.Services.AddScoped<IPackageService, EfPackageService>();
+builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
 
 var app = builder.Build();
 

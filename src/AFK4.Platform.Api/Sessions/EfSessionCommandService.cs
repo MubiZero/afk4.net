@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Shared.Contracts.Devices;
@@ -11,7 +12,8 @@ public sealed class EfSessionCommandService(
     PlatformDbContext dbContext,
     IDeviceCommandDispatchService deviceCommandDispatchService,
     ISessionLeaseSigner leaseSigner,
-    TimeProvider timeProvider) : ISessionCommandService
+    TimeProvider timeProvider,
+    ISessionBillingService sessionBillingService) : ISessionCommandService
 {
     private const int LeaseMinutes = 15;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -68,6 +70,21 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid("Seat or device already has an active session.");
         }
 
+        var billingValidation = await sessionBillingService.ValidateStartAsync(
+            request.OrganizationId,
+            branchId,
+            request.PlayerAccountId,
+            request.BillingMode,
+            request.TariffVersionId,
+            request.PlayerPackageId,
+            request.DurationMinutes,
+            cancellationToken);
+
+        if (!billingValidation.Succeeded)
+        {
+            return SessionCommandServiceResult.Invalid(billingValidation.Error ?? "Session billing validation failed.");
+        }
+
         return await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
@@ -93,7 +110,10 @@ public sealed class EfSessionCommandService(
                 DeviceId = assignment.DeviceId,
                 CreatedByStaffUserId = actorStaffUserId,
                 PlayerKind = "guest",
-                TariffRuleVersionId = request.TariffRuleVersionId,
+                PlayerAccountId = request.PlayerAccountId,
+                TariffRuleVersionId = string.IsNullOrWhiteSpace(billingValidation.TariffRuleVersionId)
+                    ? request.TariffRuleVersionId
+                    : billingValidation.TariffRuleVersionId,
                 State = SessionStateNames.Active,
                 RequestedAtUtc = now,
                 StartedAtUtc = now,
@@ -106,6 +126,20 @@ public sealed class EfSessionCommandService(
             dbContext.SessionLeases.Add(leaseEntity);
             AddEvent(session, "session-started", actorStaffUserId, deviceId: assignment.DeviceId, now);
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (request.PlayerAccountId is not null)
+            {
+                await sessionBillingService.AppendStartLedgerEntriesAsync(
+                    sessionId,
+                    actorStaffUserId,
+                    billingValidation,
+                    request.PlayerAccountId.Value,
+                    request.PlayerPackageId,
+                    request.BillingMode,
+                    now,
+                    cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
 
             var command = await deviceCommandDispatchService.DispatchAsync(
                 assignment.DeviceId,
@@ -172,15 +206,55 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid("Only active or paused sessions can be extended.");
         }
 
+        if (session.PlayerAccountId is not null &&
+            request.PlayerAccountId is not null &&
+            session.PlayerAccountId.Value != request.PlayerAccountId.Value)
+        {
+            return SessionCommandServiceResult.Invalid("Extend request player account must match the session player account.");
+        }
+
+        var playerAccountId = session.PlayerAccountId ?? request.PlayerAccountId;
+        var billingValidation = await sessionBillingService.ValidateExtendAsync(
+            session.OrganizationId,
+            session.BranchId,
+            playerAccountId,
+            request.BillingMode,
+            request.TariffVersionId,
+            request.PlayerPackageId,
+            request.AdditionalMinutes,
+            cancellationToken);
+
+        if (!billingValidation.Succeeded)
+        {
+            return SessionCommandServiceResult.Invalid(billingValidation.Error ?? "Session billing validation failed.");
+        }
+
         return await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
-            session.TariffRuleVersionId = request.TariffRuleVersionId;
+            session.PlayerAccountId = playerAccountId;
+            session.TariffRuleVersionId = string.IsNullOrWhiteSpace(billingValidation.TariffRuleVersionId)
+                ? request.TariffRuleVersionId
+                : billingValidation.TariffRuleVersionId;
             session.EndsAtUtc = (session.EndsAtUtc ?? now).AddMinutes(request.AdditionalMinutes);
             session.UpdatedAtUtc = now;
 
             var lease = await IssueNextLeaseAsync(session, now, cancellationToken);
             AddEvent(session, "session-extended", actorStaffUserId, session.DeviceId, now);
+
+            if (playerAccountId is not null)
+            {
+                await sessionBillingService.AppendExtendLedgerEntriesAsync(
+                    session.SessionId,
+                    actorStaffUserId,
+                    billingValidation,
+                    playerAccountId.Value,
+                    request.PlayerPackageId,
+                    request.BillingMode,
+                    now,
+                    cancellationToken);
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var command = await deviceCommandDispatchService.DispatchAsync(

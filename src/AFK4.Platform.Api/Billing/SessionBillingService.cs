@@ -1,0 +1,429 @@
+using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Tariffs;
+using Microsoft.EntityFrameworkCore;
+
+namespace AFK4.Platform.Api.Billing;
+
+public sealed class SessionBillingService(
+    PlatformDbContext dbContext,
+    ITariffService tariffService,
+    TimeProvider timeProvider) : ISessionBillingService
+{
+    private const string DefaultCurrencyCode = "TJS";
+
+    public Task<SessionBillingValidationResult> ValidateStartAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid? playerAccountId,
+        string billingMode,
+        Guid? tariffVersionId,
+        Guid? playerPackageId,
+        int durationMinutes,
+        CancellationToken cancellationToken)
+    {
+        return ValidateAsync(
+            organizationId,
+            branchId,
+            playerAccountId,
+            billingMode,
+            tariffVersionId,
+            playerPackageId,
+            durationMinutes,
+            cancellationToken);
+    }
+
+    public Task<SessionBillingValidationResult> ValidateExtendAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid? playerAccountId,
+        string billingMode,
+        Guid? tariffVersionId,
+        Guid? playerPackageId,
+        int additionalMinutes,
+        CancellationToken cancellationToken)
+    {
+        return ValidateAsync(
+            organizationId,
+            branchId,
+            playerAccountId,
+            billingMode,
+            tariffVersionId,
+            playerPackageId,
+            additionalMinutes,
+            cancellationToken);
+    }
+
+    public Task AppendStartLedgerEntriesAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        SessionBillingValidationResult validation,
+        Guid playerAccountId,
+        Guid? playerPackageId,
+        string billingMode,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        return AppendLedgerEntriesAsync(
+            sessionId,
+            actorStaffUserId,
+            validation,
+            playerAccountId,
+            playerPackageId,
+            billingMode,
+            now,
+            cancellationToken);
+    }
+
+    public Task AppendExtendLedgerEntriesAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        SessionBillingValidationResult validation,
+        Guid playerAccountId,
+        Guid? playerPackageId,
+        string billingMode,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        return AppendLedgerEntriesAsync(
+            sessionId,
+            actorStaffUserId,
+            validation,
+            playerAccountId,
+            playerPackageId,
+            billingMode,
+            now,
+            cancellationToken);
+    }
+
+    private async Task<SessionBillingValidationResult> ValidateAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid? playerAccountId,
+        string billingMode,
+        Guid? tariffVersionId,
+        Guid? playerPackageId,
+        int durationMinutes,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(billingMode))
+        {
+            return Invalid("Billing mode is required.");
+        }
+
+        if (playerAccountId is null)
+        {
+            return Invalid("Player account id is required for session billing.");
+        }
+
+        if (durationMinutes <= 0)
+        {
+            return Invalid("Billable duration must be positive.");
+        }
+
+        var playerExists = await dbContext.PlayerAccounts
+            .AsNoTracking()
+            .AnyAsync(
+                player =>
+                    player.OrganizationId == organizationId &&
+                    player.HomeBranchId == branchId &&
+                    player.PlayerAccountId == playerAccountId.Value &&
+                    player.IsActive,
+                cancellationToken);
+
+        if (!playerExists)
+        {
+            return Invalid("Player account was not found.");
+        }
+
+        return billingMode.Trim() switch
+        {
+            BillingModeNames.PrepaidWallet => await ValidateTariffBillingAsync(
+                organizationId,
+                branchId,
+                playerAccountId.Value,
+                tariffVersionId,
+                durationMinutes,
+                requireWalletBalance: true,
+                cancellationToken),
+            BillingModeNames.PostpaidDebt => await ValidateTariffBillingAsync(
+                organizationId,
+                branchId,
+                playerAccountId.Value,
+                tariffVersionId,
+                durationMinutes,
+                requireWalletBalance: false,
+                cancellationToken),
+            BillingModeNames.Package => await ValidatePackageBillingAsync(
+                organizationId,
+                branchId,
+                playerAccountId.Value,
+                playerPackageId,
+                durationMinutes,
+                cancellationToken),
+            _ => Invalid("Unsupported billing mode.")
+        };
+    }
+
+    private async Task<SessionBillingValidationResult> ValidateTariffBillingAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid playerAccountId,
+        Guid? tariffVersionId,
+        int durationMinutes,
+        bool requireWalletBalance,
+        CancellationToken cancellationToken)
+    {
+        if (tariffVersionId is null)
+        {
+            return Invalid("Tariff version id is required for tariff billing.");
+        }
+
+        var calculation = await tariffService.CalculateAsync(
+            branchId,
+            new CalculateTariffRequest(organizationId, tariffVersionId.Value, durationMinutes),
+            cancellationToken);
+
+        if (calculation is null)
+        {
+            return Invalid("Tariff calculation could not be completed.");
+        }
+
+        if (requireWalletBalance)
+        {
+            var walletBalance = await GetBalanceAsync(playerAccountId, LedgerAccountTypeNames.Wallet, cancellationToken);
+            if (walletBalance < calculation.Amount.MinorUnits)
+            {
+                return Invalid("Insufficient wallet balance.");
+            }
+        }
+
+        return new SessionBillingValidationResult(
+            Succeeded: true,
+            Error: null,
+            calculation.TariffRuleVersionId,
+            calculation.TariffVersionId,
+            checked(calculation.BillableMinutes * 60),
+            calculation.Amount.MinorUnits,
+            calculation.Amount.CurrencyCode);
+    }
+
+    private async Task<SessionBillingValidationResult> ValidatePackageBillingAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid playerAccountId,
+        Guid? playerPackageId,
+        int durationMinutes,
+        CancellationToken cancellationToken)
+    {
+        if (playerPackageId is null)
+        {
+            return Invalid("Player package id is required for package billing.");
+        }
+
+        var playerPackage = await dbContext.PlayerPackages
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                package =>
+                    package.OrganizationId == organizationId &&
+                    package.BranchId == branchId &&
+                    package.PlayerAccountId == playerAccountId &&
+                    package.PlayerPackageId == playerPackageId.Value,
+                cancellationToken);
+
+        if (playerPackage is null)
+        {
+            return Invalid("Player package was not found.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        if (playerPackage.ExpiresAtUtc is not null && playerPackage.ExpiresAtUtc <= now)
+        {
+            return Invalid("Player package is expired.");
+        }
+
+        var requestedSeconds = checked(durationMinutes * 60);
+        var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
+            dbContext,
+            playerPackageId.Value,
+            cancellationToken);
+
+        if (remaining.IncludedSeconds + remaining.BonusSeconds < requestedSeconds)
+        {
+            return Invalid("Insufficient package time remaining.");
+        }
+
+        return new SessionBillingValidationResult(
+            Succeeded: true,
+            Error: null,
+            $"package:{playerPackageId.Value:D}",
+            TariffVersionId: null,
+            requestedSeconds,
+            AmountMinorUnits: 0,
+            playerPackage.CurrencyCode);
+    }
+
+    private async Task AppendLedgerEntriesAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        SessionBillingValidationResult validation,
+        Guid playerAccountId,
+        Guid? playerPackageId,
+        string billingMode,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        if (!validation.Succeeded)
+        {
+            throw new InvalidOperationException("Cannot append ledger entries for failed session billing validation.");
+        }
+
+        var session = await dbContext.Sessions
+            .SingleAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+        switch (billingMode.Trim())
+        {
+            case BillingModeNames.PrepaidWallet:
+                dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+                    session.OrganizationId,
+                    session.BranchId,
+                    playerAccountId,
+                    sessionId,
+                    playerPackageId: null,
+                    LedgerEntryTypeNames.GameplayCharge,
+                    LedgerAccountTypeNames.Wallet,
+                    -validation.AmountMinorUnits,
+                    quantitySeconds: 0,
+                    validation.CurrencyCode,
+                    LedgerEntryTypeNames.GameplayCharge,
+                    "prepaid wallet gameplay charge",
+                    reversesLedgerEntryId: null,
+                    actorStaffUserId,
+                    now));
+                break;
+
+            case BillingModeNames.PostpaidDebt:
+                dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+                    session.OrganizationId,
+                    session.BranchId,
+                    playerAccountId,
+                    sessionId,
+                    playerPackageId: null,
+                    LedgerEntryTypeNames.PostpaidDebt,
+                    LedgerAccountTypeNames.Debt,
+                    validation.AmountMinorUnits,
+                    quantitySeconds: 0,
+                    validation.CurrencyCode,
+                    LedgerEntryTypeNames.PostpaidDebt,
+                    "postpaid gameplay debt",
+                    reversesLedgerEntryId: null,
+                    actorStaffUserId,
+                    now));
+                break;
+
+            case BillingModeNames.Package:
+                if (playerPackageId is null)
+                {
+                    throw new InvalidOperationException("Player package id is required for package session billing.");
+                }
+
+                await AppendPackageConsumptionAsync(
+                    session,
+                    actorStaffUserId,
+                    validation,
+                    playerAccountId,
+                    playerPackageId.Value,
+                    now,
+                    cancellationToken);
+                break;
+
+            default:
+                throw new InvalidOperationException($"Unsupported session billing mode '{billingMode}'.");
+        }
+    }
+
+    private async Task AppendPackageConsumptionAsync(
+        SessionEntity session,
+        Guid actorStaffUserId,
+        SessionBillingValidationResult validation,
+        Guid playerAccountId,
+        Guid playerPackageId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
+            dbContext,
+            playerPackageId,
+            cancellationToken);
+
+        if (remaining.IncludedSeconds + remaining.BonusSeconds < validation.BillableSeconds)
+        {
+            throw new InvalidOperationException("Insufficient package time remaining.");
+        }
+
+        var bonusToConsume = Math.Min(remaining.BonusSeconds, validation.BillableSeconds);
+        var packageToConsume = validation.BillableSeconds - bonusToConsume;
+
+        if (bonusToConsume > 0)
+        {
+            dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+                session.OrganizationId,
+                session.BranchId,
+                playerAccountId,
+                session.SessionId,
+                playerPackageId,
+                LedgerEntryTypeNames.BonusConsumption,
+                LedgerAccountTypeNames.BonusTime,
+                amountMinorUnits: 0,
+                -bonusToConsume,
+                validation.CurrencyCode,
+                LedgerEntryTypeNames.BonusConsumption,
+                "package bonus time consumption",
+                reversesLedgerEntryId: null,
+                actorStaffUserId,
+                now));
+        }
+
+        if (packageToConsume > 0)
+        {
+            dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+                session.OrganizationId,
+                session.BranchId,
+                playerAccountId,
+                session.SessionId,
+                playerPackageId,
+                LedgerEntryTypeNames.PackageConsumption,
+                LedgerAccountTypeNames.PackageTime,
+                amountMinorUnits: 0,
+                -packageToConsume,
+                validation.CurrencyCode,
+                LedgerEntryTypeNames.PackageConsumption,
+                "package included time consumption",
+                reversesLedgerEntryId: null,
+                actorStaffUserId,
+                now.AddTicks(1)));
+        }
+    }
+
+    private async Task<long> GetBalanceAsync(
+        Guid playerAccountId,
+        string accountType,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.LedgerEntries
+            .Where(entry => entry.PlayerAccountId == playerAccountId && entry.AccountType == accountType)
+            .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+    }
+
+    private static SessionBillingValidationResult Invalid(string error)
+    {
+        return new SessionBillingValidationResult(
+            Succeeded: false,
+            error,
+            TariffRuleVersionId: string.Empty,
+            TariffVersionId: null,
+            BillableSeconds: 0,
+            AmountMinorUnits: 0,
+            DefaultCurrencyCode);
+    }
+}

@@ -1,0 +1,557 @@
+using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Sessions;
+using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Sessions;
+using Microsoft.EntityFrameworkCore;
+
+namespace AFK4.Platform.Api.Tests;
+
+public sealed class EfSessionBillingIntegrationTests
+{
+    private static readonly Guid SeatId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+    private static readonly Guid ZoneId = Guid.Parse("44444444-4444-4444-8444-444444444444");
+    private static readonly Guid ActorStaffUserId = Guid.Parse("55555555-5555-4555-8555-555555555555");
+    private static readonly Guid PlayerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+    private static readonly Guid PlayerPackageId = Guid.Parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+    private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-13T10:00:00Z");
+
+    [Fact]
+    public async Task StartGuestSessionAsync_WithPrepaidWallet_DebitsWalletBeforeUnlockCommand()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db, requireGameplayChargeBeforeDispatch: true);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-prepaid-001",
+                PlayerAccountId,
+                BillingModeNames.PrepaidWallet,
+                tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Contains(db.LedgerEntries, entry =>
+            entry.EntryType == LedgerEntryTypeNames.GameplayCharge &&
+            entry.AccountType == LedgerAccountTypeNames.Wallet &&
+            entry.AmountMinorUnits < 0 &&
+            entry.SessionId == result.Response!.Session.SessionId);
+        Assert.Single(dispatcher.Calls);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_WithPrepaidWallet_RejectsInsufficientFundsAndDispatchesNoDeviceCommand()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 1000);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-prepaid-insufficient-001",
+                PlayerAccountId,
+                BillingModeNames.PrepaidWallet,
+                tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(db.Sessions);
+        Assert.Empty(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge));
+        Assert.Empty(dispatcher.Calls);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_WithPrepaidWallet_DebitsAdditionalGameplayChargeAndRefreshesLease()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 10000);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+        var start = await StartPrepaidSessionAsync(service, tariffVersion.TariffVersionId, "start-prepaid-extend-001");
+        Assert.NotNull(start.Response);
+        dispatcher.Calls.Clear();
+
+        var result = await service.ExtendSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(
+                AdditionalMinutes: 30,
+                TariffRuleVersionId: "ignored-manual-v2",
+                IdempotencyKey: "extend-prepaid-001",
+                PlayerAccountId,
+                BillingModeNames.PrepaidWallet,
+                tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(tariffVersion.TariffVersionId.ToString("D"), result.Response.Session.TariffRuleVersionId);
+        Assert.Equal(2, await db.LedgerEntries.CountAsync(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge));
+        var call = Assert.Single(dispatcher.Calls);
+        Assert.Equal("refresh-session-lease", call.Request.Type);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_WithPostpaidDebt_AppendsPostpaidDebtAndAllowsSession()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-postpaid-001",
+                PlayerAccountId,
+                BillingModeNames.PostpaidDebt,
+                tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Contains(db.LedgerEntries, entry =>
+            entry.EntryType == LedgerEntryTypeNames.PostpaidDebt &&
+            entry.AccountType == LedgerAccountTypeNames.Debt &&
+            entry.AmountMinorUnits > 0 &&
+            entry.SessionId == result.Response.Session.SessionId);
+        Assert.Single(dispatcher.Calls);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_WithPackage_AppendsPackageConsumptionAndAllowsSession()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedPlayerPackageAsync(db, includedSeconds: 7200, bonusSeconds: 0);
+        await SeedPackageGrantAsync(db, LedgerEntryTypeNames.PackagePurchase, LedgerAccountTypeNames.PackageTime, 7200);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-package-001",
+                PlayerAccountId,
+                BillingModeNames.Package,
+                TariffVersionId: null,
+                PlayerPackageId),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal($"package:{PlayerPackageId:D}", result.Response.Session.TariffRuleVersionId);
+        Assert.Contains(db.LedgerEntries, entry =>
+            entry.EntryType == LedgerEntryTypeNames.PackageConsumption &&
+            entry.AccountType == LedgerAccountTypeNames.PackageTime &&
+            entry.QuantitySeconds == -3600 &&
+            entry.SessionId == result.Response.Session.SessionId &&
+            entry.PlayerPackageId == PlayerPackageId);
+        Assert.Single(dispatcher.Calls);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_WithPackage_RejectsInsufficientPackageSecondsAndDispatchesNoDeviceCommand()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedPlayerPackageAsync(db, includedSeconds: 1200, bonusSeconds: 0);
+        await SeedPackageGrantAsync(db, LedgerEntryTypeNames.PackagePurchase, LedgerAccountTypeNames.PackageTime, 1200);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-package-insufficient-001",
+                PlayerAccountId,
+                BillingModeNames.Package,
+                TariffVersionId: null,
+                PlayerPackageId),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(db.Sessions);
+        Assert.Empty(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.PackageConsumption));
+        Assert.Empty(dispatcher.Calls);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_IdempotencyReplay_ReturnsOriginalResponseWithoutDuplicateLedgerEntries()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+        var request = new StartGuestSessionRequest(
+            TestIds.OrganizationId,
+            SeatId,
+            DurationMinutes: 60,
+            TariffRuleVersionId: "ignored-manual-v1",
+            IdempotencyKey: "start-prepaid-idempotent-001",
+            PlayerAccountId,
+            BillingModeNames.PrepaidWallet,
+            tariffVersion.TariffVersionId,
+            PlayerPackageId: null);
+
+        var first = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var second = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.NotNull(first.Response);
+        Assert.NotNull(second.Response);
+        Assert.Equal(first.Response.Session.SessionId, second.Response.Session.SessionId);
+        Assert.Single(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.GameplayCharge));
+        Assert.Single(dispatcher.Calls);
+    }
+
+    private static async Task<SessionCommandServiceResult> StartPrepaidSessionAsync(
+        EfSessionCommandService service,
+        Guid tariffVersionId,
+        string idempotencyKey)
+    {
+        return await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: idempotencyKey,
+                PlayerAccountId,
+                BillingModeNames.PrepaidWallet,
+                tariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+    }
+
+    private static PlatformDbContext CreateDbContext()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+        return new PlatformDbContext(options);
+    }
+
+    private static EfSessionCommandService CreateService(
+        PlatformDbContext db,
+        RecordingCommandDispatchService dispatcher)
+    {
+        var timeProvider = new FixedTimeProvider(Now);
+        return new EfSessionCommandService(
+            db,
+            dispatcher,
+            new FakeSessionLeaseSigner(),
+            timeProvider,
+            new SessionBillingService(db, new EfTariffService(db, timeProvider), timeProvider));
+    }
+
+    private static async Task SeedLayoutAsync(PlatformDbContext db)
+    {
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = TestIds.OrganizationId,
+            Name = "Demo Org",
+            CreatedAtUtc = Now
+        });
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = TestIds.BranchId,
+            OrganizationId = TestIds.OrganizationId,
+            Name = "Demo Branch",
+            CreatedAtUtc = Now
+        });
+        db.Zones.Add(new ZoneEntity
+        {
+            ZoneId = ZoneId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            Name = "Main Hall",
+            SortOrder = 1,
+            CreatedAtUtc = Now
+        });
+        db.Seats.Add(new SeatEntity
+        {
+            SeatId = SeatId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ZoneId = ZoneId,
+            Name = "PC-001",
+            SortOrder = 1,
+            CreatedAtUtc = Now
+        });
+        db.Devices.Add(new DeviceEntity
+        {
+            DeviceId = TestIds.DeviceId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            MachineName = "PC-001",
+            AgentVersion = "0.1.0",
+            ShellVersion = "0.1.0",
+            EnrolledAtUtc = Now,
+            IsOnline = true,
+            IsLocked = true
+        });
+        db.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+        {
+            DeviceSeatAssignmentId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = SeatId,
+            DeviceId = TestIds.DeviceId,
+            AttachedAtUtc = Now
+        });
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedPlayerAsync(PlatformDbContext db)
+    {
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = PlayerAccountId,
+            OrganizationId = TestIds.OrganizationId,
+            HomeBranchId = TestIds.BranchId,
+            DisplayName = "Player One",
+            PhoneNumber = "+992000000001",
+            IsActive = true,
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedWalletTopUpAsync(PlatformDbContext db, long amountMinorUnits)
+    {
+        db.LedgerEntries.Add(CreateLedgerEntry(
+            LedgerEntryTypeNames.TopUp,
+            LedgerAccountTypeNames.Wallet,
+            amountMinorUnits,
+            quantitySeconds: 0,
+            sessionId: null,
+            playerPackageId: null));
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<TariffVersionEntity> SeedTariffVersionAsync(PlatformDbContext db)
+    {
+        var tariff = new TariffEntity
+        {
+            TariffId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            Name = "Standard",
+            IsActive = true,
+            CreatedAtUtc = Now
+        };
+        var version = new TariffVersionEntity
+        {
+            TariffVersionId = Guid.NewGuid(),
+            TariffId = tariff.TariffId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            VersionNumber = 1,
+            CurrencyCode = "TJS",
+            PricePerMinuteMinorUnits = 50,
+            MinimumBillableMinutes = 30,
+            RoundingIncrementMinutes = 15,
+            EffectiveFromUtc = Now.AddMinutes(-1),
+            RetiredAtUtc = null,
+            CreatedAtUtc = Now
+        };
+
+        db.Tariffs.Add(tariff);
+        db.TariffVersions.Add(version);
+        await db.SaveChangesAsync();
+
+        return version;
+    }
+
+    private static async Task SeedPlayerPackageAsync(
+        PlatformDbContext db,
+        int includedSeconds,
+        int bonusSeconds)
+    {
+        db.PlayerPackages.Add(new PlayerPackageEntity
+        {
+            PlayerPackageId = PlayerPackageId,
+            PackageDefinitionId = Guid.Parse("99999999-9999-4999-8999-999999999999"),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = PlayerAccountId,
+            Name = "NIGHT 5H",
+            CurrencyCode = "TJS",
+            PurchasedPriceMinorUnits = 4000,
+            IncludedSeconds = includedSeconds,
+            BonusSeconds = bonusSeconds,
+            PurchasedAtUtc = Now,
+            ExpiresAtUtc = Now.AddDays(30)
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedPackageGrantAsync(
+        PlatformDbContext db,
+        string entryType,
+        string accountType,
+        int quantitySeconds)
+    {
+        db.LedgerEntries.Add(CreateLedgerEntry(
+            entryType,
+            accountType,
+            amountMinorUnits: 0,
+            quantitySeconds,
+            sessionId: null,
+            PlayerPackageId));
+        await db.SaveChangesAsync();
+    }
+
+    private static LedgerEntryEntity CreateLedgerEntry(
+        string entryType,
+        string accountType,
+        long amountMinorUnits,
+        int quantitySeconds,
+        Guid? sessionId,
+        Guid? playerPackageId)
+    {
+        return new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = PlayerAccountId,
+            SessionId = sessionId,
+            PlayerPackageId = playerPackageId,
+            EntryType = entryType,
+            AccountType = accountType,
+            AmountMinorUnits = amountMinorUnits,
+            QuantitySeconds = quantitySeconds,
+            CurrencyCode = "TJS",
+            Description = entryType,
+            Reason = "test seed",
+            ReversesLedgerEntryId = null,
+            CreatedByStaffUserId = ActorStaffUserId,
+            CreatedAtUtc = Now
+        };
+    }
+
+    private sealed class RecordingCommandDispatchService(
+        PlatformDbContext dbContext,
+        bool requireGameplayChargeBeforeDispatch = false) : IDeviceCommandDispatchService
+    {
+        public List<(Guid DeviceId, CreateDeviceCommandRequest Request)> Calls { get; } = [];
+
+        public Task<DeviceCommandDto> DispatchAsync(
+            Guid deviceId,
+            CreateDeviceCommandRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (requireGameplayChargeBeforeDispatch)
+            {
+                Assert.Contains(dbContext.LedgerEntries, entry =>
+                    entry.EntryType == LedgerEntryTypeNames.GameplayCharge &&
+                    entry.AccountType == LedgerAccountTypeNames.Wallet &&
+                    entry.AmountMinorUnits < 0);
+            }
+
+            Calls.Add((deviceId, request));
+
+            return Task.FromResult(new DeviceCommandDto(
+                CommandId: Guid.NewGuid(),
+                Type: request.Type,
+                CreatedAtUtc: Now,
+                Payload: request.Payload));
+        }
+    }
+
+    private sealed class FakeSessionLeaseSigner : ISessionLeaseSigner
+    {
+        public SessionLeaseDto Sign(
+            Guid SessionId,
+            Guid OrganizationId,
+            Guid BranchId,
+            Guid SeatId,
+            Guid DeviceId,
+            string State,
+            int Sequence,
+            DateTimeOffset IssuedAtUtc,
+            DateTimeOffset ExpiresAtUtc)
+        {
+            return new SessionLeaseDto(
+                SessionId,
+                OrganizationId,
+                BranchId,
+                SeatId,
+                DeviceId,
+                State,
+                Sequence,
+                IssuedAtUtc,
+                ExpiresAtUtc,
+                EcdsaSessionLeaseSigner.SignatureAlgorithm,
+                $"fake-signature-{Sequence}");
+        }
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()
+        {
+            return now;
+        }
+    }
+}
