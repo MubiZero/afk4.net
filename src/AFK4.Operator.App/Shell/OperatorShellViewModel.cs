@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using AFK4.Operator.App.Auth;
-using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Shared.Contracts.Identity;
@@ -30,11 +29,11 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     public OperatorShellViewModel()
         : this(
             new SignInViewModel(new UnconfiguredOperatorAuthApiClient()),
-            new MainWindowViewModel(new UnconfiguredOperatorDeviceApiClient()))
+            new FloorMapWorkspaceViewModel(new UnconfiguredOperatorFloorMapApiClient()))
     {
     }
 
-    public OperatorShellViewModel(SignInViewModel signIn, MainWindowViewModel floorMap)
+    public OperatorShellViewModel(SignInViewModel signIn, FloorMapWorkspaceViewModel floorMap)
     {
         SignIn = signIn;
         FloorMap = floorMap;
@@ -53,7 +52,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
 
     public SignInViewModel SignIn { get; }
 
-    public MainWindowViewModel FloorMap { get; }
+    public FloorMapWorkspaceViewModel FloorMap { get; }
 
     public ObservableCollection<OperatorNavigationItemViewModel> NavigationItems { get; }
 
@@ -113,6 +112,11 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         SelectedWorkspace = NavigationItems.FirstOrDefault()?.Kind;
         StatusMessage = $"Signed in as {context.DisplayName}.";
         navigateCommand.NotifyCanExecuteChanged();
+
+        if (SelectedWorkspace == OperatorWorkspaceKind.FloorMap)
+        {
+            _ = FloorMap.LoadAsync(context.BranchId, CancellationToken.None);
+        }
     }
 
     public void NavigateTo(OperatorWorkspaceKind workspace)

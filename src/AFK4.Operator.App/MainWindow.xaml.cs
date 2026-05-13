@@ -13,7 +13,7 @@ public partial class MainWindow : Window
 {
     private readonly OperatorAppOptions options = new();
     private readonly HttpClient apiHttpClient;
-    private readonly MainWindowViewModel floorMapViewModel;
+    private readonly FloorMapWorkspaceViewModel floorMapViewModel;
     private readonly OperatorShellViewModel shellViewModel;
     private IOperatorRealtimeClient? realtimeClient;
 
@@ -26,10 +26,10 @@ public partial class MainWindow : Window
             BaseAddress = options.PlatformBaseUrl
         };
         var tokenStore = new ProtectedDataOperatorTokenStore();
-        var deviceApiClient = new HttpOperatorDeviceApiClient(apiHttpClient, tokenStore);
         var authApiClient = new HttpOperatorAuthApiClient(apiHttpClient, tokenStore);
+        var floorMapApiClient = new HttpOperatorFloorMapApiClient(apiHttpClient, tokenStore);
 
-        floorMapViewModel = new MainWindowViewModel(deviceApiClient);
+        floorMapViewModel = new FloorMapWorkspaceViewModel(floorMapApiClient);
         shellViewModel = new OperatorShellViewModel(
             new SignInViewModel(authApiClient),
             floorMapViewModel);

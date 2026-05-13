@@ -24,17 +24,17 @@ public interface IOperatorRealtimeClient : IAsyncDisposable
 
 public sealed class OperatorRealtimeClient : IOperatorRealtimeClient
 {
-    private readonly MainWindowViewModel viewModel;
+    private readonly FloorMapWorkspaceViewModel viewModel;
     private readonly IOperatorHubConnection connection;
     private readonly IUiDispatcher dispatcher;
 
-    public OperatorRealtimeClient(MainWindowViewModel viewModel, Uri hubUrl)
+    public OperatorRealtimeClient(FloorMapWorkspaceViewModel viewModel, Uri hubUrl)
         : this(viewModel, new SignalROperatorHubConnection(hubUrl), new WpfUiDispatcher())
     {
     }
 
     public OperatorRealtimeClient(
-        MainWindowViewModel viewModel,
+        FloorMapWorkspaceViewModel viewModel,
         IOperatorHubConnection connection,
         IUiDispatcher dispatcher)
     {

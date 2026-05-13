@@ -1,6 +1,7 @@
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Realtime;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.FloorMap;
 
 namespace AFK4.Operator.App.Tests;
 
@@ -9,7 +10,11 @@ public sealed class OperatorRealtimeClientTests
     [Fact]
     public async Task DeviceStatusChanged_SchedulesStatusApplicationThroughDispatcher()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = new FloorMapWorkspaceViewModel(new RecordingFloorMapApiClient(new FloorMapDto(
+            Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            "Demo Branch",
+            [Seat("PC-002", Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"), "Locked")])));
+        await viewModel.LoadAsync(Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"), CancellationToken.None);
         var hubConnection = new TestOperatorHubConnection();
         var dispatcher = new RecordingUiDispatcher();
         await using var client = new OperatorRealtimeClient(viewModel, hubConnection, dispatcher);
@@ -26,6 +31,34 @@ public sealed class OperatorRealtimeClientTests
 
         Assert.Equal(1, dispatcher.InvocationCount);
         Assert.Contains(viewModel.Seats, seat => seat.Name == "PC-002" && seat.State == "Free" && seat.IsOnline);
+    }
+
+    private static SeatStatusDto Seat(string name, Guid deviceId, string state)
+    {
+        return new SeatStatusDto(
+            SeatId: Guid.Parse("11111111-1111-4111-8111-111111111111"),
+            SeatName: name,
+            ZoneId: Guid.Parse("22222222-2222-4222-8222-222222222222"),
+            ZoneName: "Main Hall",
+            SortOrder: 1,
+            State: state,
+            DeviceId: deviceId,
+            DeviceName: name,
+            IsDeviceOnline: true,
+            IsDeviceLocked: state == "Locked",
+            LastHeartbeatAtUtc: DateTimeOffset.Parse("2026-05-14T09:00:00Z"),
+            AgentVersion: "0.1.1",
+            ShellVersion: "0.1.2",
+            ActiveSessionId: null,
+            RemainingSeconds: null);
+    }
+
+    private sealed class RecordingFloorMapApiClient(FloorMapDto floorMap) : IOperatorFloorMapApiClient
+    {
+        public Task<FloorMapDto> GetFloorMapAsync(Guid branchId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(floorMap);
+        }
     }
 
     private sealed class TestOperatorHubConnection : IOperatorHubConnection
