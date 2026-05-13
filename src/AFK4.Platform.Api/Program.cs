@@ -1223,28 +1223,19 @@ app.MapGet("/api/players/{playerAccountId:guid}/wallet-summary", async (
     StaffAuthorizationService authorizationService,
     CancellationToken cancellationToken) =>
 {
-    if (staffContextAccessor.Current is null)
-    {
-        return Results.Unauthorized();
-    }
-
-    var player = await LoadPlayerForStaffAsync(dbContext, playerAccountId, staffContextAccessor.Current.OrganizationId, cancellationToken);
-    if (player is null)
-    {
-        return Results.NotFound();
-    }
-
-    var authorization = await authorizationService.RequireBranchPermissionAsync(
-        player.HomeBranchId,
+    var player = await LoadPlayerScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        playerAccountId,
         StaffPermissionNames.ViewBilling,
         cancellationToken);
-
-    if (!authorization.IsAuthenticated)
+    if (player.Result is not null)
     {
-        return Results.Unauthorized();
+        return player.Result;
     }
 
-    if (!authorization.IsAllowed)
+    if (!player.Authorization!.IsAllowed)
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -1266,28 +1257,25 @@ app.MapPost("/api/players/{playerAccountId:guid}/wallet/top-ups", async (
     IBillingCommandService billingCommandService,
     CancellationToken cancellationToken) =>
 {
-    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    var player = await LoadPlayerScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        playerAccountId,
+        StaffPermissionNames.TopUpWallet,
+        cancellationToken);
     if (player.Result is not null)
     {
         return player.Result;
     }
 
-    var authorization = await authorizationService.RequireBranchPermissionAsync(
-        player.Player!.HomeBranchId,
-        StaffPermissionNames.TopUpWallet,
-        cancellationToken);
-
-    if (!authorization.IsAuthenticated)
-    {
-        return Results.Unauthorized();
-    }
-
+    var authorization = player.Authorization!;
     if (!authorization.IsAllowed)
     {
         await WriteAuditAsync(
             auditRecordWriter,
             authorization.StaffContext!.OrganizationId,
-            player.Player.HomeBranchId,
+            player.BranchId,
             authorization.StaffContext.StaffUserId,
             AuditActionNames.TopUpWallet,
             "PlayerAccount",
@@ -1306,7 +1294,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/wallet/top-ups", async (
 
     var result = await billingCommandService.TopUpWalletAsync(
         playerAccountId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         request,
         cancellationToken);
@@ -1319,7 +1307,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/wallet/top-ups", async (
     await WriteAuditAsync(
         auditRecordWriter,
         authorization.StaffContext.OrganizationId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         AuditActionNames.TopUpWallet,
         "PlayerAccount",
@@ -1342,28 +1330,25 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
     IBillingCommandService billingCommandService,
     CancellationToken cancellationToken) =>
 {
-    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    var player = await LoadPlayerScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        playerAccountId,
+        StaffPermissionNames.RefundLedgerEntry,
+        cancellationToken);
     if (player.Result is not null)
     {
         return player.Result;
     }
 
-    var authorization = await authorizationService.RequireBranchPermissionAsync(
-        player.Player!.HomeBranchId,
-        StaffPermissionNames.RefundLedgerEntry,
-        cancellationToken);
-
-    if (!authorization.IsAuthenticated)
-    {
-        return Results.Unauthorized();
-    }
-
+    var authorization = player.Authorization!;
     if (!authorization.IsAllowed)
     {
         await WriteAuditAsync(
             auditRecordWriter,
             authorization.StaffContext!.OrganizationId,
-            player.Player.HomeBranchId,
+            player.BranchId,
             authorization.StaffContext.StaffUserId,
             AuditActionNames.RefundLedgerEntry,
             "LedgerEntry",
@@ -1390,7 +1375,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
         .SingleOrDefaultAsync(
             entry =>
                 entry.OrganizationId == authorization.StaffContext.OrganizationId &&
-                entry.BranchId == player.Player.HomeBranchId &&
+                entry.BranchId == player.BranchId &&
                 entry.PlayerAccountId == playerAccountId &&
                 entry.LedgerEntryId == ledgerEntryId,
             cancellationToken);
@@ -1400,7 +1385,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
     }
 
     var result = await billingCommandService.RefundLedgerEntryAsync(
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         request,
         cancellationToken);
@@ -1413,7 +1398,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
     await WriteAuditAsync(
         auditRecordWriter,
         authorization.StaffContext.OrganizationId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         AuditActionNames.RefundLedgerEntry,
         "LedgerEntry",
@@ -1435,28 +1420,25 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
     IBillingCommandService billingCommandService,
     CancellationToken cancellationToken) =>
 {
-    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    var player = await LoadPlayerScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        playerAccountId,
+        StaffPermissionNames.ManualLedgerCorrection,
+        cancellationToken);
     if (player.Result is not null)
     {
         return player.Result;
     }
 
-    var authorization = await authorizationService.RequireBranchPermissionAsync(
-        player.Player!.HomeBranchId,
-        StaffPermissionNames.ManualLedgerCorrection,
-        cancellationToken);
-
-    if (!authorization.IsAuthenticated)
-    {
-        return Results.Unauthorized();
-    }
-
+    var authorization = player.Authorization!;
     if (!authorization.IsAllowed)
     {
         await WriteAuditAsync(
             auditRecordWriter,
             authorization.StaffContext!.OrganizationId,
-            player.Player.HomeBranchId,
+            player.BranchId,
             authorization.StaffContext.StaffUserId,
             AuditActionNames.ManualLedgerCorrection,
             "PlayerAccount",
@@ -1475,7 +1457,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
 
     var result = await billingCommandService.ManualCorrectionAsync(
         playerAccountId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         request,
         cancellationToken);
@@ -1488,7 +1470,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
     await WriteAuditAsync(
         auditRecordWriter,
         authorization.StaffContext.OrganizationId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         AuditActionNames.ManualLedgerCorrection,
         "PlayerAccount",
@@ -1510,28 +1492,25 @@ app.MapPost("/api/players/{playerAccountId:guid}/debts/payments", async (
     IBillingCommandService billingCommandService,
     CancellationToken cancellationToken) =>
 {
-    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    var player = await LoadPlayerScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        playerAccountId,
+        StaffPermissionNames.PayDebt,
+        cancellationToken);
     if (player.Result is not null)
     {
         return player.Result;
     }
 
-    var authorization = await authorizationService.RequireBranchPermissionAsync(
-        player.Player!.HomeBranchId,
-        StaffPermissionNames.PayDebt,
-        cancellationToken);
-
-    if (!authorization.IsAuthenticated)
-    {
-        return Results.Unauthorized();
-    }
-
+    var authorization = player.Authorization!;
     if (!authorization.IsAllowed)
     {
         await WriteAuditAsync(
             auditRecordWriter,
             authorization.StaffContext!.OrganizationId,
-            player.Player.HomeBranchId,
+            player.BranchId,
             authorization.StaffContext.StaffUserId,
             AuditActionNames.PayDebt,
             "PlayerAccount",
@@ -1550,7 +1529,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/debts/payments", async (
 
     var result = await billingCommandService.PayDebtAsync(
         playerAccountId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         request,
         cancellationToken);
@@ -1563,7 +1542,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/debts/payments", async (
     await WriteAuditAsync(
         auditRecordWriter,
         authorization.StaffContext.OrganizationId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         AuditActionNames.PayDebt,
         "PlayerAccount",
@@ -1740,6 +1719,11 @@ app.MapPost("/api/branches/{branchId:guid}/tariffs/calculate", async (
         return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
     }
 
+    if (request.DurationMinutes <= 0)
+    {
+        return Results.BadRequest(new { Error = "DurationMinutes must be positive." });
+    }
+
     var calculation = await tariffService.CalculateAsync(branchId, request, cancellationToken);
 
     return calculation is null
@@ -1823,28 +1807,25 @@ app.MapPost("/api/players/{playerAccountId:guid}/packages/purchases", async (
     IPackageService packageService,
     CancellationToken cancellationToken) =>
 {
-    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    var player = await LoadPlayerScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        playerAccountId,
+        StaffPermissionNames.PurchasePackage,
+        cancellationToken);
     if (player.Result is not null)
     {
         return player.Result;
     }
 
-    var authorization = await authorizationService.RequireBranchPermissionAsync(
-        player.Player!.HomeBranchId,
-        StaffPermissionNames.PurchasePackage,
-        cancellationToken);
-
-    if (!authorization.IsAuthenticated)
-    {
-        return Results.Unauthorized();
-    }
-
+    var authorization = player.Authorization!;
     if (!authorization.IsAllowed)
     {
         await WriteAuditAsync(
             auditRecordWriter,
             authorization.StaffContext!.OrganizationId,
-            player.Player.HomeBranchId,
+            player.BranchId,
             authorization.StaffContext.StaffUserId,
             AuditActionNames.PurchasePackage,
             "PackageDefinition",
@@ -1863,7 +1844,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/packages/purchases", async (
 
     var result = await packageService.PurchasePackageAsync(
         playerAccountId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         request,
         cancellationToken);
@@ -1876,7 +1857,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/packages/purchases", async (
     await WriteAuditAsync(
         auditRecordWriter,
         authorization.StaffContext.OrganizationId,
-        player.Player.HomeBranchId,
+        player.BranchId,
         authorization.StaffContext.StaffUserId,
         AuditActionNames.PurchasePackage,
         "PlayerPackage",
@@ -1895,22 +1876,19 @@ app.MapGet("/api/players/{playerAccountId:guid}/packages", async (
     StaffAuthorizationService authorizationService,
     CancellationToken cancellationToken) =>
 {
-    var player = await LoadPlayerScopedEndpointAsync(dbContext, staffContextAccessor, playerAccountId, cancellationToken);
+    var player = await LoadPlayerScopedEndpointAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        playerAccountId,
+        StaffPermissionNames.ViewBilling,
+        cancellationToken);
     if (player.Result is not null)
     {
         return player.Result;
     }
 
-    var authorization = await authorizationService.RequireBranchPermissionAsync(
-        player.Player!.HomeBranchId,
-        StaffPermissionNames.ViewBilling,
-        cancellationToken);
-
-    if (!authorization.IsAuthenticated)
-    {
-        return Results.Unauthorized();
-    }
-
+    var authorization = player.Authorization!;
     if (!authorization.IsAllowed)
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -1921,7 +1899,7 @@ app.MapGet("/api/players/{playerAccountId:guid}/packages", async (
         .Where(package =>
             package.PlayerAccountId == playerAccountId &&
             package.OrganizationId == authorization.StaffContext!.OrganizationId &&
-            package.BranchId == player.Player.HomeBranchId)
+            package.BranchId == player.BranchId)
         .OrderByDescending(package => package.PurchasedAtUtc)
         .ToListAsync(cancellationToken);
 
@@ -2016,23 +1994,46 @@ static async Task<PlayerAccountEntity?> LoadPlayerForStaffAsync(
 static async Task<PlayerScopedEndpointResult> LoadPlayerScopedEndpointAsync(
     PlatformDbContext dbContext,
     IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
     Guid playerAccountId,
+    string permission,
     CancellationToken cancellationToken)
 {
     if (staffContextAccessor.Current is null)
     {
-        return new PlayerScopedEndpointResult(null, Results.Unauthorized());
+        return new PlayerScopedEndpointResult(null, Guid.Empty, null, Results.Unauthorized());
     }
 
+    var staffContext = staffContextAccessor.Current;
     var player = await LoadPlayerForStaffAsync(
         dbContext,
         playerAccountId,
-        staffContextAccessor.Current.OrganizationId,
+        staffContext.OrganizationId,
+        cancellationToken);
+    var branchId = player?.HomeBranchId ?? staffContext.BranchIds.OrderBy(branch => branch).FirstOrDefault();
+    if (branchId == Guid.Empty)
+    {
+        return new PlayerScopedEndpointResult(null, Guid.Empty, null, Results.StatusCode(StatusCodes.Status403Forbidden));
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        permission,
         cancellationToken);
 
+    if (!authorization.IsAuthenticated)
+    {
+        return new PlayerScopedEndpointResult(player, branchId, authorization, Results.Unauthorized());
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return new PlayerScopedEndpointResult(player, branchId, authorization, null);
+    }
+
     return player is null
-        ? new PlayerScopedEndpointResult(null, Results.NotFound())
-        : new PlayerScopedEndpointResult(player, null);
+        ? new PlayerScopedEndpointResult(null, branchId, authorization, Results.NotFound())
+        : new PlayerScopedEndpointResult(player, branchId, authorization, null);
 }
 
 static async Task<IResult> CompleteReconciliationAsync(
@@ -2171,6 +2172,10 @@ static async Task<SessionLeaseDto?> LoadCurrentLeaseAsync(
 
 public sealed record HealthResponse(string Status, DateTimeOffset ServerTimeUtc);
 
-public sealed record PlayerScopedEndpointResult(PlayerAccountEntity? Player, IResult? Result);
+public sealed record PlayerScopedEndpointResult(
+    PlayerAccountEntity? Player,
+    Guid BranchId,
+    StaffAuthorizationResult? Authorization,
+    IResult? Result);
 
 public partial class Program;

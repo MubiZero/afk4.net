@@ -84,6 +84,61 @@ public sealed class BillingEndpointTests
     }
 
     [Fact]
+    public async Task TopUpWallet_WithTechnicianForUnknownPlayer_ReturnsForbiddenAndWritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/players/{unknownPlayerId:D}/wallet/top-ups",
+            new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-unknown-001"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.TopUpWallet, audit.Action);
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
+        Assert.Equal(unknownPlayerId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
+    public async Task TopUpWallet_WithCashierForUnknownPlayer_ReturnsNotFoundAfterAuthorization()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/players/{unknownPlayerId:D}/wallet/top-ups",
+            new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-unknown-001"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await dbContext.AuditRecords.ToListAsync());
+        Assert.Empty(await dbContext.LedgerEntries.ToListAsync());
+    }
+
+    [Fact]
+    public async Task WalletSummary_WithAccountantForUnknownPlayer_ReturnsNotFoundAfterAuthorization()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+
+        var response = await client.GetAsync($"/api/players/{unknownPlayerId:D}/wallet-summary");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ManualCorrection_WithCashier_ReturnsForbiddenAndWritesDeniedAudit()
     {
         await using var factory = new PlatformApiFactory();
@@ -241,6 +296,36 @@ public sealed class BillingEndpointTests
         Assert.NotNull(body);
         Assert.Equal(90, body.BillableMinutes);
         Assert.Equal(4500, body.Amount.MinorUnits);
+    }
+
+    [Fact]
+    public async Task CalculateTariff_WithNonPositiveDuration_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var tariff = await SeedTariffAsync(factory);
+        var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/tariffs/calculate",
+            new CalculateTariffRequest(TestIds.OrganizationId, version.TariffVersionId, 0));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CalculateTariff_WithUnknownVersion_ReturnsNotFound()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/tariffs/calculate",
+            new CalculateTariffRequest(TestIds.OrganizationId, Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), 30));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
