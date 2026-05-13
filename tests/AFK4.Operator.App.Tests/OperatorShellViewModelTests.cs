@@ -46,6 +46,16 @@ public sealed class OperatorShellViewModelTests
     }
 
     [Fact]
+    public void ApplySignedInContext_WithPlayerViewPermission_ShowsPlayers()
+    {
+        var shell = new OperatorShellViewModel();
+
+        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewPlayers));
+
+        Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Players);
+    }
+
+    [Fact]
     public void NavigateCommand_ChangesSelectedWorkspaceOnlyWhenItemIsAllowed()
     {
         var context = CreateContext(

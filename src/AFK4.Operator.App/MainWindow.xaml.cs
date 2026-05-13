@@ -6,6 +6,7 @@ using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Realtime;
 using AFK4.Operator.App.Mvvm;
+using AFK4.Operator.App.Players;
 using AFK4.Operator.App.Sessions;
 using AFK4.Operator.App.Shell;
 
@@ -31,6 +32,7 @@ public partial class MainWindow : Window
         var authApiClient = new HttpOperatorAuthApiClient(apiHttpClient, tokenStore);
         var floorMapApiClient = new HttpOperatorFloorMapApiClient(apiHttpClient, tokenStore);
         var sessionApiClient = new HttpOperatorSessionApiClient(apiHttpClient, tokenStore);
+        var playerApiClient = new HttpOperatorPlayerApiClient(apiHttpClient, tokenStore);
 
         floorMapViewModel = new FloorMapWorkspaceViewModel(
             floorMapApiClient,
@@ -38,7 +40,8 @@ public partial class MainWindow : Window
             new GuidIdempotencyKeyFactory());
         shellViewModel = new OperatorShellViewModel(
             new SignInViewModel(authApiClient),
-            floorMapViewModel);
+            floorMapViewModel,
+            new PlayerSearchViewModel(playerApiClient, new GuidIdempotencyKeyFactory()));
         DataContext = shellViewModel;
 
         Loaded += OnLoaded;

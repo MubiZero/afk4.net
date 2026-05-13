@@ -5,6 +5,7 @@ using System.Windows.Input;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Mvvm;
+using AFK4.Operator.App.Players;
 using AFK4.Shared.Contracts.Identity;
 
 namespace AFK4.Operator.App.Shell;
@@ -15,7 +16,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     [
         new(OperatorWorkspaceKind.FloorMap, "Floor", StaffPermissionNames.ViewFloorMap),
         new(OperatorWorkspaceKind.Pos, "POS", StaffPermissionNames.CreatePosSale),
-        new(OperatorWorkspaceKind.Players, "Players", StaffPermissionNames.CreatePlayerAccount),
+        new(OperatorWorkspaceKind.Players, "Players", StaffPermissionNames.ViewPlayers),
         new(OperatorWorkspaceKind.Shifts, "Shifts", StaffPermissionNames.ViewShift),
         new(OperatorWorkspaceKind.Settings, "Settings", StaffPermissionNames.ViewDeviceDetail)
     ];
@@ -29,14 +30,24 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     public OperatorShellViewModel()
         : this(
             new SignInViewModel(new UnconfiguredOperatorAuthApiClient()),
-            new FloorMapWorkspaceViewModel(new UnconfiguredOperatorFloorMapApiClient()))
+            new FloorMapWorkspaceViewModel(new UnconfiguredOperatorFloorMapApiClient()),
+            new PlayerSearchViewModel(new UnconfiguredOperatorPlayerApiClient()))
     {
     }
 
     public OperatorShellViewModel(SignInViewModel signIn, FloorMapWorkspaceViewModel floorMap)
+        : this(signIn, floorMap, new PlayerSearchViewModel(new UnconfiguredOperatorPlayerApiClient()))
+    {
+    }
+
+    public OperatorShellViewModel(
+        SignInViewModel signIn,
+        FloorMapWorkspaceViewModel floorMap,
+        PlayerSearchViewModel players)
     {
         SignIn = signIn;
         FloorMap = floorMap;
+        Players = players;
         NavigationItems = [];
         navigateCommand = new RelayCommand(
             parameter => NavigateTo((OperatorWorkspaceKind)parameter!),
@@ -53,6 +64,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     public SignInViewModel SignIn { get; }
 
     public FloorMapWorkspaceViewModel FloorMap { get; }
+
+    public PlayerSearchViewModel Players { get; }
 
     public ObservableCollection<OperatorNavigationItemViewModel> NavigationItems { get; }
 
@@ -113,6 +126,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         StatusMessage = $"Signed in as {context.DisplayName}.";
         navigateCommand.NotifyCanExecuteChanged();
         FloorMap.ApplyContext(context.OrganizationId, context.BranchId);
+        Players.ApplyContext(context.OrganizationId, context.BranchId);
 
         if (SelectedWorkspace == OperatorWorkspaceKind.FloorMap)
         {
@@ -160,6 +174,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
                 StaffPermissionNames.ViewReceipt),
             OperatorWorkspaceKind.Players => HasAny(
                 permissions,
+                StaffPermissionNames.ViewPlayers,
                 StaffPermissionNames.CreatePlayerAccount,
                 StaffPermissionNames.ViewBilling,
                 StaffPermissionNames.TopUpWallet,
