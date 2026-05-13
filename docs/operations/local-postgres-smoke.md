@@ -1,10 +1,11 @@
 # Local PostgreSQL And Device Smoke Runbook
 
-This runbook verifies the current AFK4 identity, audit, and device persistence
-slice against a real local PostgreSQL database. It covers EF migration
-application, staff sign-in, authorized device enrollment-code creation, device
-enrollment, authenticated heartbeat persistence, command status storage, and
-staff-protected device credential rotation/revocation.
+This runbook verifies the current AFK4 identity, audit, layout, and device
+persistence slice against a real local PostgreSQL database. It covers EF
+migration application, staff sign-in, authorized device enrollment-code
+creation, device enrollment, authenticated heartbeat persistence, persisted
+floor-map reads, installed app reporting, device detail reads, command status
+storage, and staff-protected device credential rotation/revocation.
 
 The commands assume PowerShell from the repository root:
 
@@ -248,6 +249,106 @@ $heartbeat = Invoke-RestMethod `
     -Body $heartbeatBody
 ```
 
+Seed one zone, one seat, and an active device-seat assignment for the enrolled
+device:
+
+```powershell
+$zoneId = '2e37f7b3-41bb-4a19-9d50-94eb848f4e01'
+$seatId = '9f3adbd3-957e-4dc8-8d34-a6bfa56b9275'
+$assignmentId = 'ad8c15f4-7ff1-44b4-9f9e-f27e2f0c1b44'
+
+@"
+INSERT INTO zones ("ZoneId", "OrganizationId", "BranchId", "Name", "SortOrder", "CreatedAtUtc")
+VALUES ('$zoneId', '$organizationId', '$branchId', 'Main Hall', 10, now())
+ON CONFLICT ("ZoneId")
+DO UPDATE SET "Name" = EXCLUDED."Name",
+              "SortOrder" = EXCLUDED."SortOrder";
+
+INSERT INTO seats ("SeatId", "OrganizationId", "BranchId", "ZoneId", "Name", "SortOrder", "CreatedAtUtc")
+VALUES ('$seatId', '$organizationId', '$branchId', '$zoneId', 'PC-SMOKE-001', 10, now())
+ON CONFLICT ("SeatId")
+DO UPDATE SET "ZoneId" = EXCLUDED."ZoneId",
+              "Name" = EXCLUDED."Name",
+              "SortOrder" = EXCLUDED."SortOrder";
+
+UPDATE device_seat_assignments
+SET "DetachedAtUtc" = now()
+WHERE "DeviceId" = '$($enrollment.deviceId)'
+  AND "DetachedAtUtc" IS NULL;
+
+INSERT INTO device_seat_assignments (
+    "DeviceSeatAssignmentId",
+    "OrganizationId",
+    "BranchId",
+    "SeatId",
+    "DeviceId",
+    "AttachedAtUtc",
+    "DetachedAtUtc")
+VALUES (
+    '$assignmentId',
+    '$organizationId',
+    '$branchId',
+    '$seatId',
+    '$($enrollment.deviceId)',
+    now(),
+    NULL)
+ON CONFLICT ("DeviceSeatAssignmentId")
+DO UPDATE SET "SeatId" = EXCLUDED."SeatId",
+              "DeviceId" = EXCLUDED."DeviceId",
+              "DetachedAtUtc" = NULL;
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
+```
+
+Read the staff-protected persisted floor map:
+
+```powershell
+$floorMap = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/floor-map" `
+    -Headers $staffHeaders
+```
+
+Post an authenticated installed apps report from the device:
+
+```powershell
+$installedAppsBody = @{
+    organizationId = $organizationId
+    branchId = $branchId
+    deviceId = $enrollment.deviceId
+    reportedAtUtc = (Get-Date).ToUniversalTime().ToString('O')
+    apps = @(
+        @{
+            displayName = 'Counter-Strike 2'
+            version = '2.0.0'
+            publisher = 'Valve'
+            installLocation = 'C:\Games\Counter-Strike 2'
+            installedAtUtc = '2026-05-01T08:30:00Z'
+        },
+        @{
+            displayName = 'Discord'
+            version = '1.0.9059'
+            publisher = 'Discord Inc.'
+            installLocation = $null
+            installedAtUtc = $null
+        }
+    )
+} | ConvertTo-Json -Depth 8
+
+Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)/installed-apps/report" `
+    -Method Post `
+    -Headers @{ 'X-AFK4-Device-Credential' = $enrollment.credentialSecret } `
+    -ContentType 'application/json' `
+    -Body $installedAppsBody
+```
+
+Read the staff-protected device detail projection:
+
+```powershell
+$deviceDetail = Invoke-RestMethod `
+    "$baseUrl/api/devices/$($enrollment.deviceId)" `
+    -Headers $staffHeaders
+```
+
 Create a device command and read its persisted status:
 
 ```powershell
@@ -306,6 +407,11 @@ Expected results:
 - enrollment returns non-empty `deviceId`, `credentialId`, and
   `credentialSecret`;
 - heartbeat returns `heartbeatIntervalSeconds = 10`;
+- floor map returns the seeded `PC-SMOKE-001` seat with `zoneName = Main Hall`
+  and the enrolled `deviceId`;
+- installed apps report returns no content and persists two app snapshot rows;
+- device detail returns `machineName = PC-SMOKE-001`, assigned seat
+  `PC-SMOKE-001`, `activeCredentialCount = 1`, and `installedAppCount = 2`;
 - command status returns `status = Pending` and `type = lock`.
 - rotation returns a new non-empty `credentialId` and `credentialSecret`;
 - heartbeat with the rotated credential returns `heartbeatIntervalSeconds = 10`;
@@ -337,6 +443,41 @@ devices.credentials.rotate       | Succeeded | ...
 devices.commands.status.view     | Succeeded | ...
 devices.commands.dispatch        | Succeeded | ...
 devices.enrollment_codes.create  | Succeeded | AFK4-...
+```
+
+Optionally inspect the Phase 3 layout and installed app rows:
+
+```powershell
+@"
+SELECT z."Name" AS "ZoneName",
+       s."Name" AS "SeatName",
+       d."DeviceId",
+       d."MachineName",
+       d."IsOnline",
+       d."IsLocked"
+FROM seats s
+JOIN zones z ON z."ZoneId" = s."ZoneId"
+LEFT JOIN device_seat_assignments a
+  ON a."SeatId" = s."SeatId"
+ AND a."DetachedAtUtc" IS NULL
+LEFT JOIN devices d ON d."DeviceId" = a."DeviceId"
+WHERE s."SeatId" = '$seatId';
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
+
+@"
+SELECT "DisplayName", "Version", "Publisher"
+FROM device_installed_apps
+WHERE "DeviceId" = '$($enrollment.deviceId)'
+ORDER BY "DisplayName";
+"@ | docker exec -i afk4-postgres psql -U postgres -d afk4_dev
+```
+
+Expected:
+
+```text
+Main Hall | PC-SMOKE-001 | ... | PC-SMOKE-001 | t | t
+Counter-Strike 2 | 2.0.0    | Valve
+Discord          | 1.0.9059 | Discord Inc.
 ```
 
 Optionally inspect credential revocation state:

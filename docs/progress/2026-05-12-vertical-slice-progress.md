@@ -262,6 +262,14 @@ Started on `codex/phase2-identity-tenancy-rbac-audit` after commit `f072f6d`:
   - installed app report factory;
   - authenticated HTTP reporting;
   - Worker collection/report wiring.
+- Extended `docs/operations/local-postgres-smoke.md` with a Phase 3 local
+  PostgreSQL smoke path for:
+  - seeded zone and seat rows;
+  - active device-seat assignment;
+  - bearer-authenticated persisted floor-map read;
+  - device-authenticated installed apps report;
+  - staff-protected device detail read;
+  - direct PostgreSQL inspection of layout and installed app snapshot rows.
 
 ## Known Deviations And Adaptations
 
@@ -337,12 +345,13 @@ reads only. It does not yet include:
   device-seat assignments;
 - full installed app list read path, if needed beyond the current device detail
   installed app count;
-- live PostgreSQL smoke for persisted floor-map reads.
+- a freshly executed live PostgreSQL smoke for the full Phase 3 path in this
+  branch.
 
 ## Latest Verified State
 
 Full verification was run from `D:\afk4.net` on 2026-05-13 after the Phase 3
-Agent installed app inventory collection changes:
+local PostgreSQL smoke path update:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:UseSharedCompilation=false
@@ -659,7 +668,7 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add a local PostgreSQL smoke path for seeded zones/seats, device-seat
-   assignment, and bearer-authenticated floor-map read verification.
+1. Run the full local PostgreSQL smoke path for Phase 3 against this branch,
+   including layout, installed apps, and device detail reads.
 2. Later, add Operator App sign-in UI and role-aware startup so staff can
    acquire protected bearer/refresh token snapshots without manual setup.
