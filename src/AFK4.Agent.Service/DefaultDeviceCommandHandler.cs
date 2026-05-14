@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AFK4.Agent.Service.Enforcement;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.Extensions.Options;
@@ -7,12 +8,11 @@ namespace AFK4.Agent.Service;
 
 public sealed class DefaultDeviceCommandHandler(
     IOptions<AgentOptions> options,
-    SessionLeaseValidator leaseValidator,
-    ISessionLeaseStore leaseStore) : IDeviceCommandHandler
+    ISessionEnforcementCoordinator enforcementCoordinator) : IDeviceCommandHandler
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public Task<DeviceCommandResultDto> HandleAsync(DeviceCommandDto command, CancellationToken cancellationToken)
+    public async Task<DeviceCommandResultDto> HandleAsync(DeviceCommandDto command, CancellationToken cancellationToken)
     {
         var agentOptions = options.Value;
         var status = "Accepted";
@@ -21,20 +21,29 @@ public sealed class DefaultDeviceCommandHandler(
         if (IsSessionLeaseCommand(command.Type))
         {
             var leaseResult = TryReadAndValidateLease(command);
-            if (!leaseResult.Result.IsValid)
+            if (leaseResult.Lease is null)
             {
                 status = "Rejected";
-                message = leaseResult.Result.Error ?? "Session lease is invalid.";
+                message = leaseResult.Error ?? "Session lease is invalid.";
+            }
+            else if (string.Equals(command.Type, "unlock", StringComparison.OrdinalIgnoreCase))
+            {
+                var enforcement = await enforcementCoordinator.UnlockAsync(leaseResult.Lease, cancellationToken);
+                status = enforcement.Status;
+                message = enforcement.Message;
             }
             else
             {
-                leaseStore.Save(leaseResult.Lease!);
-                message = "Session lease accepted.";
+                var enforcement = await enforcementCoordinator.RefreshLeaseAsync(leaseResult.Lease, cancellationToken);
+                status = enforcement.Status;
+                message = enforcement.Message;
             }
         }
         else if (string.Equals(command.Type, "lock", StringComparison.OrdinalIgnoreCase))
         {
-            leaseStore.Clear(ReadSessionId(command));
+            var enforcement = await enforcementCoordinator.LockAsync(ReadSessionId(command), cancellationToken);
+            status = enforcement.Status;
+            message = enforcement.Message;
         }
 
         var result = new DeviceCommandResultDto(
@@ -46,14 +55,14 @@ public sealed class DefaultDeviceCommandHandler(
             Message: message,
             ObservedAtUtc: DateTimeOffset.UtcNow);
 
-        return Task.FromResult(result);
+        return result;
     }
 
-    private (SessionLeaseDto? Lease, SessionLeaseValidationResult Result) TryReadAndValidateLease(DeviceCommandDto command)
+    private static (SessionLeaseDto? Lease, string? Error) TryReadAndValidateLease(DeviceCommandDto command)
     {
         if (!command.Payload.TryGetValue("sessionLease", out var leaseJson) || string.IsNullOrWhiteSpace(leaseJson))
         {
-            return (null, SessionLeaseValidationResult.Invalid("Command payload must include sessionLease."));
+            return (null, "Command payload must include sessionLease.");
         }
 
         try
@@ -61,15 +70,14 @@ public sealed class DefaultDeviceCommandHandler(
             var lease = JsonSerializer.Deserialize<SessionLeaseDto>(leaseJson, JsonOptions);
             if (lease is null)
             {
-                return (null, SessionLeaseValidationResult.Invalid("Command sessionLease could not be read."));
+                return (null, "Command sessionLease could not be read.");
             }
 
-            var result = leaseValidator.Validate(lease);
-            return (lease, result);
+            return (lease, null);
         }
         catch (JsonException)
         {
-            return (null, SessionLeaseValidationResult.Invalid("Command sessionLease is not valid JSON."));
+            return (null, "Command sessionLease is not valid JSON.");
         }
     }
 

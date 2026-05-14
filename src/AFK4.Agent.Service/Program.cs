@@ -9,6 +9,8 @@ builder.Services.AddHttpClient("platform");
 builder.Services.AddSingleton<ISessionLeaseStore, FileSessionLeaseStore>();
 builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();
 builder.Services.AddSingleton<SessionLeaseValidator>();
+builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();
+builder.Services.AddSingleton<ISessionEnforcementCoordinator, SessionEnforcementCoordinator>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
 builder.Services.AddSingleton<IDeviceCommandHandler, DefaultDeviceCommandHandler>();
 builder.Services.AddSingleton<IDeviceRealtimeClient, DeviceRealtimeClient>();
