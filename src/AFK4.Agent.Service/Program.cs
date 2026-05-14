@@ -1,6 +1,7 @@
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
+using AFK4.Agent.Service.Updates;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -26,6 +27,7 @@ builder.Services.AddSingleton<IDeviceCommandHandler, DefaultDeviceCommandHandler
 builder.Services.AddSingleton<IDeviceRealtimeClient, DeviceRealtimeClient>();
 builder.Services.AddSingleton<IInstalledAppInventoryCollector, WindowsInstalledAppInventoryCollector>();
 builder.Services.AddSingleton<IInstalledAppReporter, HttpInstalledAppReporter>();
+builder.Services.AddSingleton<IAgentUpdateClient, HttpAgentUpdateClient>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<NamedPipePlayerShellCommandServer>();
 

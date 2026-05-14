@@ -38,6 +38,8 @@ public sealed class AgentOptions
     public List<AgentLauncherAppOptions> LauncherApps { get; init; } = [];
 
     public List<string> DeniedProcessNames { get; init; } = [];
+
+    public string UpdateChannel { get; init; } = "stable";
 }
 
 public sealed class AgentLauncherAppOptions
