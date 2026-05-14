@@ -1,9 +1,9 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 8 Agent Enforcement And Player Shell is in progress on
-`codex-phase8-agent-enforcement-player-shell`; Tasks 1-4 are implemented with
-Agent production build verification, while xUnit test-project restore is
-blocked on this device by NuGet test-runner package fetch timeouts.
+Status: Phase 8 Agent Enforcement And Player Shell is implemented through
+Task 7 on `codex-phase8-agent-enforcement-player-shell`; Agent and Player Shell
+production builds are verified, while xUnit test-project restore is blocked on
+this device by NuGet test-runner package fetch timeouts.
 Last updated: 2026-05-14
 
 ## Scope
@@ -74,15 +74,33 @@ Implemented so far:
     instead of hardcoded `isLocked: true`.
 - Added grace monitor tests and Worker coverage for runtime lock-state
   heartbeat payloads.
+- Added Player Shell process supervision and local IPC:
+  - `IPlayerShellProcessSupervisor`;
+  - `PlayerShellProcessSupervisor`;
+  - process query/starter boundaries for testable supervision;
+  - `IPlayerShellStatePublisher`;
+  - named-pipe Player Shell state publishing from Agent;
+  - Player Shell named-pipe state client.
+- Added Player Shell process supervisor tests.
+- Added Player Shell MVVM session UI:
+  - `PlayerShellViewModel`;
+  - `RemainingTimeFormatter`;
+  - `LauncherAppViewModel`;
+  - fullscreen WPF layout for locked, active, warning, grace, and launcher
+    states;
+  - Player Shell test project and ViewModel/formatter tests.
+- Added local launcher and process policy foundation:
+  - Agent launcher allow-list options;
+  - process launcher boundary;
+  - process policy enforcer and denied-process terminator boundary;
+  - Player Shell command handler for `launch-app`;
+  - named-pipe Player Shell command server hosted by Agent;
+  - Player Shell launcher command client;
+  - launcher command and policy tests.
 
 Phase 8 remaining planned scope:
 
-- Player Shell process supervision/watchdog from the Agent;
-- local Agent-to-Shell state publishing over named pipes;
-- Player Shell locked, active-session, warning, offline-grace, and launcher
-  screens;
-- local allow-list based launcher command flow from Shell to Agent;
-- process allow/deny policy foundation with testable dry-run adapters;
+- full Phase 8 verification and local smoke evidence.
 
 Phase 8 keeps centralized updates/installers, reports, audit search, web admin,
 local server, microservices, non-Windows agents, and kernel drivers out of
@@ -95,6 +113,9 @@ Phase 8 commits on the branch:
 - `472683d feat: persist agent runtime lease state`
 - `be856cb feat: add agent session enforcement coordinator`
 - `e9f06e0 feat: enforce grace lease expiry in agent`
+- `da20a9c feat: supervise player shell runtime`
+- `39db4a4 feat: add player shell session UI`
+- `fc6cbcd feat: add local launcher policy foundation`
 
 Verification on 2026-05-14 from `D:\projects\afk4.net`:
 
@@ -102,6 +123,8 @@ Verification on 2026-05-14 from `D:\projects\afk4.net`:
 & 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Shared.Contracts/AFK4.Shared.Contracts.csproj --no-restore -p:UseSharedCompilation=false
 $env:DOTNET_CLI_TELEMETRY_OPTOUT='1'; $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'; & 'C:\Program Files\dotnet\dotnet.exe' restore src/AFK4.Agent.Service/AFK4.Agent.Service.csproj -p:NuGetAudit=false -v minimal
 & 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Agent.Service/AFK4.Agent.Service.csproj --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' restore src/AFK4.Player.Shell/AFK4.Player.Shell.csproj -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Player.Shell/AFK4.Player.Shell.csproj --no-restore -p:UseSharedCompilation=false
 ```
 
 Results:
@@ -109,6 +132,8 @@ Results:
 - Shared contracts build succeeded with 0 warnings and 0 errors.
 - Agent Service restore succeeded.
 - Agent Service build succeeded with 0 warnings and 0 errors.
+- Player Shell restore succeeded.
+- Player Shell build succeeded with 0 warnings and 0 errors.
 
 Verification blocker on this device:
 
@@ -1393,7 +1418,7 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Implement Phase 8 Task 5, Player Shell process supervision and local IPC, on
+1. Run Phase 8 Task 8 verification and local smoke on
    `codex-phase8-agent-enforcement-player-shell`.
 2. Keep centralized updates/installers, reports, audit search, web admin, local
    server, and microservices out of Phase 8 unless the PRD and architecture
