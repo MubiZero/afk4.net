@@ -270,6 +270,7 @@ src/
   AFK4.Agent.Service/        Windows Agent Service skeleton.
   AFK4.Operator.App/         WPF Operator App shell.
   AFK4.Player.Shell/         WPF Player Shell skeleton.
+  AFK4.Update.Publisher/     CLI for signing and publishing update artifacts.
 
 tests/
   AFK4.BuildingBlocks.Tests/
@@ -278,6 +279,7 @@ tests/
   AFK4.Agent.Service.Tests/
   AFK4.Operator.App.Tests/
   AFK4.Player.Shell.Tests/
+  AFK4.Update.Publisher.Tests/
 
 docs/superpowers/specs/
   2026-05-12-afk4-platform-architecture-design.md
@@ -323,7 +325,9 @@ PostgreSQL and apply EF migrations with the
 [local PostgreSQL smoke runbook](docs/operations/local-postgres-smoke.md).
 Installer enrollment and client rollout operating notes live in
 [Agent And Player Shell Installer Enrollment](docs/operations/agent-installer-enrollment.md)
-and [Client Update Rollout](docs/operations/client-update-rollout.md).
+and [Client Update Rollout](docs/operations/client-update-rollout.md). Update
+artifact publishing and signing automation is covered in
+[Update Package Publishing](docs/operations/update-package-publishing.md).
 
 Start the backend:
 
@@ -476,6 +480,11 @@ The first vertical slice foundation is implemented:
   configurable external install/rollback/restart adapters, interrupted-install
   recovery, and status progression through offered/downloading/downloaded/
   installing/installed/failed/rollback-started/rolled-back;
+- Update Publisher CLI for copying ready artifacts into deterministic hosting
+  paths, computing SHA-256, signing canonical metadata with ECDSA P-256, and
+  emitting `CreateUpdatePackageRequest` JSON;
+- PowerShell wrapper for publishing Windows client projects into zip artifacts
+  before signing/publishing them;
 - Operator App production floor-map/workflow shell;
 - Operator App Settings update status panel for technicians and managers;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
