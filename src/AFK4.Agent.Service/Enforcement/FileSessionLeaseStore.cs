@@ -104,7 +104,7 @@ public sealed class FileSessionLeaseStore : ISessionLeaseStore
                 JsonSerializer.Serialize(stream, lease, JsonOptions);
             }
 
-            File.Move(tempPath, leaseFilePath, overwrite: true);
+            File.Copy(tempPath, leaseFilePath, overwrite: true);
         }
         finally
         {

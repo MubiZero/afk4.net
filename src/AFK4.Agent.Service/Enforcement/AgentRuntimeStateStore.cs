@@ -78,7 +78,7 @@ public sealed class AgentRuntimeStateStore : IAgentRuntimeStateStore
                 JsonSerializer.Serialize(stream, state, JsonOptions);
             }
 
-            File.Move(tempPath, stateFilePath, overwrite: true);
+            File.Copy(tempPath, stateFilePath, overwrite: true);
         }
         finally
         {
