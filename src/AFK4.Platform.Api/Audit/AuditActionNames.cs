@@ -73,4 +73,6 @@ public static class AuditActionNames
     public const string ChangeUpdateRolloutState = "updates.rollouts.state.change";
 
     public const string ViewUpdateRollout = "updates.rollouts.view";
+
+    public const string ViewAudit = "audit.view";
 }

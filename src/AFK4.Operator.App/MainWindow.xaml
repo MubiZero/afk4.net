@@ -1025,6 +1025,143 @@
                                                Foreground="#B91C1C"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
+
+                                <StackPanel DataContext="{Binding AuditSearch}"
+                                            Margin="0,16,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.SelectedPanel.Key, RelativeSource={RelativeSource AncestorType=Grid}}"
+                                                             Value="audit">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Audit Search"
+                                                       FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#111827" />
+                                            <TextBlock Text="{Binding Summary}"
+                                                       Margin="0,4,0,0"
+                                                       Foreground="#4B5563" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Content="Refresh"
+                                                Command="{Binding RefreshCommand}"
+                                                MinWidth="92"
+                                                Height="32" />
+                                    </Grid>
+
+                                    <WrapPanel Margin="0,12,0,0">
+                                        <StackPanel Width="190"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Action"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding ActionFilter, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="130"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Outcome"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding OutcomeFilter, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="150"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Target"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding TargetTypeFilter, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="180"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="From UTC"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding FromUtcText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="180"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="To UTC"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding ToUtcText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="80"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Limit"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding LimitText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </WrapPanel>
+
+                                    <ItemsControl ItemsSource="{Binding Records}"
+                                                  Margin="0,8,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="White"
+                                                        BorderBrush="#D8DEE9"
+                                                        BorderThickness="1"
+                                                        CornerRadius="5"
+                                                        Padding="12"
+                                                        Margin="0,0,0,10">
+                                                    <StackPanel>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Action}"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#111827"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding Outcome}"
+                                                                       Foreground="#047857"
+                                                                       FontWeight="SemiBold"
+                                                                       Margin="10,0,0,0" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding TargetSummary}"
+                                                                   Margin="0,6,0,0"
+                                                                   Foreground="#4B5563"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding ActorSummary}"
+                                                                   Margin="0,4,0,0"
+                                                                   Foreground="#4B5563"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding CreatedAtText}"
+                                                                   Margin="0,4,0,0"
+                                                                   Foreground="#6B7280" />
+                                                        <TextBlock Text="{Binding DetailsJson}"
+                                                                   Margin="0,8,0,0"
+                                                                   Foreground="#374151"
+                                                                   TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#047857"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding ErrorMessage}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#B91C1C"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>

@@ -1,5 +1,6 @@
 using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.Settings;
+using AFK4.Operator.App.Audit;
 using AFK4.Operator.App.Updates;
 using AFK4.Shared.Contracts.Identity;
 
@@ -63,6 +64,21 @@ public sealed class SettingsWorkspaceViewModelTests
     }
 
     [Fact]
+    public void SettingsWorkspace_WithAuditPermission_ExposesAuditPanel()
+    {
+        var auditSearch = new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient());
+        var viewModel = new SettingsWorkspaceViewModel(
+            new HashSet<string> { StaffPermissionNames.ViewAudit },
+            technicianTools: null,
+            updateStatus: null,
+            auditSearch: auditSearch);
+
+        Assert.True(viewModel.HasAuditSearch);
+        Assert.Same(auditSearch, viewModel.AuditSearch);
+        Assert.Contains(viewModel.Panels, panel => panel.Key == "audit");
+    }
+
+    [Fact]
     public void SettingsWorkspace_WithDeviceCredentialPermission_ExposesTechnicianTools()
     {
         var technicianTools = new TechnicianDeviceWorkflowViewModel(new UnconfiguredOperatorDeviceApiClient());
@@ -80,10 +96,12 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var technicianTools = new TechnicianDeviceWorkflowViewModel(new UnconfiguredOperatorDeviceApiClient());
         var updateStatus = new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient());
+        var auditSearch = new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
             new HashSet<string> { StaffPermissionNames.ViewDeviceDetail },
             technicianTools,
-            updateStatus);
+            updateStatus,
+            auditSearch);
 
         viewModel.ApplyContext(OrganizationId, BranchId);
 
@@ -93,5 +111,7 @@ public sealed class SettingsWorkspaceViewModelTests
         Assert.Equal(BranchId.ToString("D"), technicianTools.BranchIdText);
         Assert.Equal(OrganizationId.ToString("D"), updateStatus.OrganizationIdText);
         Assert.Equal(BranchId.ToString("D"), updateStatus.BranchIdText);
+        Assert.Equal(OrganizationId.ToString("D"), auditSearch.OrganizationIdText);
+        Assert.Equal(BranchId.ToString("D"), auditSearch.BranchIdText);
     }
 }

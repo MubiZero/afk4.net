@@ -1,9 +1,9 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 9 Updates And Installers first slice is implemented, Docker
-PostgreSQL live smoke passes locally, Agent update execution/recovery adapter
-boundaries are implemented, and Operator App update status visibility is now
-available for staff with `updates.status.view`.
+Status: Phase 11 audit search first slice is implemented, Docker PostgreSQL
+live smoke passes locally for the update slice, Agent update execution/recovery
+adapter boundaries are implemented, and Operator App update status visibility
+plus audit search are available to permissioned staff.
 Last updated: 2026-05-14
 
 ## Scope
@@ -31,6 +31,57 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`
+
+## Phase 11 Audit Search First Slice
+
+Started on `codex/phase11-audit-search-ops` after the Phase 10 signature
+verification merge commit `329c72c`.
+
+The focused Phase 11 plan was added at
+`docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`.
+
+Implemented in the first Phase 11 slice:
+
+- Added shared audit search contracts for immutable audit rows and search
+  result envelopes.
+- Added `EfAuditSearchService` over existing `audit_records` with branch scope,
+  action/outcome/target/date filters, newest-first ordering, and capped limits.
+- Added `GET /api/branches/{branchId}/audit` protected by `audit.view`.
+- Added succeeded and denied `audit.view` audit rows for audit read attempts.
+- Added Operator App typed audit API client and Settings audit panel with
+  action, outcome, target, date, and limit filters.
+
+Targeted verification on 2026-05-14 from `D:\projects\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter AuditContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "EfAuditSearchServiceTests|AuditSearchEndpointTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --filter "OperatorAuditApiClientTests|AuditSearchWorkspaceViewModelTests|SettingsWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Audit contract serialization tests passed 1/1.
+- Platform API audit service/endpoint tests passed 5/5.
+- Operator audit/settings/shell targeted tests passed 17/17.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 508/508:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 66/66;
+  - Update.Publisher 3/3;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 97/97;
+  - Platform.Api 263/263.
+
+Remaining Phase 11 work:
+
+- shift, sales, gameplay time, cash operations, and operator-action reports;
+- Operator App reports workspace beyond the first Settings audit panel;
+- diagnostics dashboards and backup/restore runbooks.
 
 ## Phase 10 Agent Update Signature Verification
 
@@ -1701,12 +1752,13 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add production object storage/CDN hosting and key vault integration around
+1. Add Phase 11 shift and sales reports backed by the existing shift/POS
+   persistence.
+2. Add gameplay time, cash operations, and operator-action report summaries.
+3. Add production object storage/CDN hosting and key vault integration around
    the local publishing tool.
-2. Add Operator App package/rollout management workflow if package publishing
-   needs to happen before reports.
-3. Move to the reports/audit search/operations slice when update operational
-   visibility is deep enough for the MVP.
-4. Keep web admin, local server, microservices, non-Windows agents, and kernel
+4. Add Operator App package/rollout management workflow when update package
+   publishing needs to be run by operators instead of scripts.
+5. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.
