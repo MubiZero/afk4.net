@@ -1,4 +1,4 @@
-namespace AFK4.Update.Publisher;
+namespace AFK4.Shared.Contracts.Updates;
 
 public static class UpdatePackageSignatureAlgorithmNames
 {

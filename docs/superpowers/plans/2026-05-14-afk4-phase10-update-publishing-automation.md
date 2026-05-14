@@ -45,10 +45,8 @@ This slice adds:
 
 ## Follow-Up
 
-1. Add signature verification to the Agent package verifier using the published
-   public key configuration.
-2. Add a real production hosting provider adapter, likely object storage plus a
+1. Add a real production hosting provider adapter, likely object storage plus a
    CDN URL.
-3. Decide MSI/MSIX/WiX packaging per Windows client surface.
-4. Add CI release jobs only after the signing and hosting provider choices are
+2. Decide MSI/MSIX/WiX packaging per Windows client surface.
+3. Add CI release jobs only after the signing and hosting provider choices are
    explicit.

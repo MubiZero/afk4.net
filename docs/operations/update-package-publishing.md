@@ -80,6 +80,20 @@ The staff token must include `updates.packages.manage`. After registration,
 move the package through validation and rollout using
 `docs/operations/client-update-rollout.md`.
 
+## Configure Agent Verification
+
+Export the matching public key and configure it on every Agent that can receive
+the rollout:
+
+```powershell
+openssl ec -in C:\afk4-secrets\update-signing-key.pem -pubout -out C:\afk4-secrets\update-signing-public-key.pem
+```
+
+Set `Agent:UpdatePackageSigningPublicKeyPem` to the PEM content. The Agent
+verifies the artifact SHA-256 and the ECDSA P-256 signature before invoking
+the configured installer adapter. If the public key is missing, the Agent
+reports the update as failed and does not install the package.
+
 ## Verification
 
 Before widening a rollout:

@@ -380,9 +380,11 @@ controls the background update worker interval. For replacement and recovery
 experiments, configure `Agent:UpdateStateDirectory`,
 `Agent:UpdateRollbackExecutablePath`, `Agent:UpdateRollbackArgumentsTemplate`,
 `Agent:UpdateRestartExecutablePath`, and
-`Agent:UpdateRestartArgumentsTemplate`. Automatic credential propagation,
-signed binary hosting, and richer rollout automation are intentionally deferred
-to later slices.
+`Agent:UpdateRestartArgumentsTemplate`. `Agent:UpdatePackageSigningPublicKeyPem`
+must contain the public key that matches packages produced by the Update
+Publisher before update installation is allowed. Automatic credential
+propagation, production object storage, and richer rollout automation are
+intentionally deferred to later slices.
 
 ## Current Implementation State
 
@@ -476,10 +478,11 @@ The first vertical slice foundation is implemented:
   reads, device update checks, and device update status reports;
 - Agent update check/status HTTP client boundary;
 - Agent background update execution worker with component version reporting,
-  artifact download, SHA-256 verification, persisted recovery state,
-  configurable external install/rollback/restart adapters, interrupted-install
-  recovery, and status progression through offered/downloading/downloaded/
-  installing/installed/failed/rollback-started/rolled-back;
+  artifact download, SHA-256 and ECDSA package signature verification,
+  persisted recovery state, configurable external install/rollback/restart
+  adapters, interrupted-install recovery, and status progression through
+  offered/downloading/downloaded/installing/installed/failed/
+  rollback-started/rolled-back;
 - Update Publisher CLI for copying ready artifacts into deterministic hosting
   paths, computing SHA-256, signing canonical metadata with ECDSA P-256, and
   emitting `CreateUpdatePackageRequest` JSON;
