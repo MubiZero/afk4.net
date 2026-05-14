@@ -360,6 +360,11 @@ artifact publishing and signing automation is covered in
 [Update Package Publishing](docs/operations/update-package-publishing.md).
 The approved WiX/MSI packaging decision and Phase 13 implementation path are
 covered in [Client Packaging](docs/operations/client-packaging.md).
+The local package input build entrypoint is:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
+```
 
 Start the backend:
 
@@ -527,6 +532,9 @@ The first vertical slice foundation is implemented:
 - approved Phase 13 client packaging decision: WiX/MSI baseline for Operator
   App and coordinated gaming-PC Agent Service + Player Shell package, with
   MSIX deferred;
+- local Phase 13 client package input build script that publishes Operator App,
+  Agent Service, and Player Shell outputs under ignored
+  `artifacts/client-packages/publish/`;
 - Operator App production floor-map/workflow shell;
 - Operator App Settings update package/rollout management and status panel for
   technicians and managers;

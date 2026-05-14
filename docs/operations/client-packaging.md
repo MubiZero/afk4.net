@@ -92,6 +92,23 @@ Expected WiX version:
 7.0.0
 ```
 
+Verify the local package build script parses:
+
+```powershell
+powershell -NoProfile -Command "[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/build-client-packages.ps1), [ref] `$null, [ref] `$null) | Out-Null"
+```
+
+Publish Windows client package inputs for the next WiX MSI step:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
+  -Version 0.1.0-ci `
+  -Channel internal
+```
+
+The script writes publish outputs under ignored
+`artifacts/client-packages/publish/`.
+
 Until the Phase 13 MSI build scripts are implemented, use the existing update
 artifact publishing wrapper for internal signed update experiments:
 
@@ -108,5 +125,5 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
   -ReleaseNotes "Internal Agent Service validation build."
 ```
 
-The Phase 13 implementation plan adds `scripts/build-client-packages.ps1`,
-WiX MSI authoring, MSI update helper scripts, and a GitHub Actions workflow.
+The next Phase 13 implementation steps add WiX MSI authoring and a GitHub
+Actions workflow.
