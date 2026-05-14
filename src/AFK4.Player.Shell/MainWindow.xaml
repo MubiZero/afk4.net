@@ -6,11 +6,109 @@
         WindowStyle="None"
         ResizeMode="NoResize"
         Background="#0B1220">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </Window.Resources>
+
     <Grid>
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="520">
-            <TextBlock Text="AFK4" Foreground="White" FontSize="48" FontWeight="Bold" HorizontalAlignment="Center" />
-            <TextBlock Text="This PC is locked" Foreground="#D1D5DB" FontSize="24" Margin="0,24,0,0" HorizontalAlignment="Center" />
-            <TextBlock Text="Start a session from the operator desk." Foreground="#9CA3AF" FontSize="16" Margin="0,12,0,0" HorizontalAlignment="Center" />
-        </StackPanel>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="72" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="52" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#07111F" BorderBrush="#1F3A5F" BorderThickness="0,0,0,1" Padding="28,0">
+            <DockPanel LastChildFill="False">
+                <TextBlock DockPanel.Dock="Left"
+                           Text="AFK4"
+                           Foreground="White"
+                           FontSize="26"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <TextBlock DockPanel.Dock="Right"
+                           Text="{Binding RemainingTimeText}"
+                           Foreground="#E5E7EB"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="42">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,34,0,28">
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="White"
+                           FontSize="34"
+                           FontWeight="SemiBold"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap"
+                           MaxWidth="980" />
+                <Border Margin="0,18,0,0"
+                        Padding="14,8"
+                        Background="#3B2210"
+                        BorderBrush="#F59E0B"
+                        BorderThickness="1"
+                        Visibility="{Binding ShowWarning, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Session time or connectivity needs attention"
+                               Foreground="#FDE68A"
+                               FontSize="16"
+                               FontWeight="SemiBold" />
+                </Border>
+            </StackPanel>
+
+            <ItemsControl Grid.Row="1"
+                          ItemsSource="{Binding LauncherApps}"
+                          Visibility="{Binding ShowLauncher, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="4" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Margin="10"
+                                MinHeight="128"
+                                Padding="18"
+                                Command="{Binding DataContext.LaunchCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                CommandParameter="{Binding}"
+                                IsEnabled="{Binding IsAvailable}"
+                                Background="#10233A"
+                                BorderBrush="#2B5B84"
+                                BorderThickness="1"
+                                Foreground="White">
+                            <StackPanel>
+                                <TextBlock Text="{Binding DisplayName}"
+                                           FontSize="19"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding Category}"
+                                           Margin="0,8,0,0"
+                                           Foreground="#9CA3AF"
+                                           FontSize="13" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+
+        <Border Grid.Row="2" Background="#07111F" BorderBrush="#1F3A5F" BorderThickness="0,1,0,0" Padding="24,0">
+            <DockPanel>
+                <TextBlock Text="{Binding State}"
+                           Foreground="#9CA3AF"
+                           VerticalAlignment="Center"
+                           FontSize="13" />
+                <TextBlock DockPanel.Dock="Right"
+                           Text="{Binding LastCommandStatus}"
+                           Foreground="#9CA3AF"
+                           VerticalAlignment="Center"
+                           FontSize="13" />
+            </DockPanel>
+        </Border>
     </Grid>
 </Window>
