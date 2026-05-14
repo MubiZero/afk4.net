@@ -154,6 +154,73 @@ public sealed class EfUpdateService(
             : UpdateServiceResult<UpdateRolloutDto>.Ok(await ToDtoAsync(rollout, cancellationToken));
     }
 
+    public async Task<UpdateServiceResult<IReadOnlyList<UpdateRolloutStatusDto>>> ListRolloutStatusesAsync(
+        Guid organizationId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var rollouts = await dbContext.UpdateRollouts
+            .AsNoTracking()
+            .Where(rollout =>
+                rollout.OrganizationId == organizationId &&
+                rollout.BranchId == branchId)
+            .OrderByDescending(rollout => rollout.CreatedAtUtc)
+            .ThenBy(rollout => rollout.Component)
+            .ToListAsync(cancellationToken);
+
+        if (rollouts.Count == 0)
+        {
+            return UpdateServiceResult<IReadOnlyList<UpdateRolloutStatusDto>>.Ok([]);
+        }
+
+        var rolloutIds = rollouts
+            .Select(rollout => rollout.UpdateRolloutId)
+            .ToHashSet();
+        var targetRows = await dbContext.UpdateRolloutTargets
+            .AsNoTracking()
+            .Where(target =>
+                target.OrganizationId == organizationId &&
+                target.BranchId == branchId &&
+                target.DeviceId != null &&
+                rolloutIds.Contains(target.UpdateRolloutId))
+            .ToListAsync(cancellationToken);
+        var targetDeviceIdsByRollout = targetRows
+            .GroupBy(target => target.UpdateRolloutId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<Guid>)group
+                    .Select(target => target.DeviceId!.Value)
+                    .Distinct()
+                    .OrderBy(deviceId => deviceId)
+                    .ToList());
+
+        var statusRows = await dbContext.DeviceUpdateStatuses
+            .AsNoTracking()
+            .Where(status =>
+                status.OrganizationId == organizationId &&
+                status.BranchId == branchId &&
+                rolloutIds.Contains(status.UpdateRolloutId))
+            .ToListAsync(cancellationToken);
+        var statusesByRollout = statusRows
+            .GroupBy(status => status.UpdateRolloutId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<DeviceUpdateStatusSnapshotDto>)group
+                    .OrderBy(status => status.DeviceId)
+                    .ThenBy(status => status.Component)
+                    .Select(ToStatusSnapshot)
+                    .ToList());
+
+        var response = rollouts
+            .Select(rollout => ToStatusDto(
+                rollout,
+                targetDeviceIdsByRollout.GetValueOrDefault(rollout.UpdateRolloutId) ?? [],
+                statusesByRollout.GetValueOrDefault(rollout.UpdateRolloutId) ?? []))
+            .ToList();
+
+        return UpdateServiceResult<IReadOnlyList<UpdateRolloutStatusDto>>.Ok(response);
+    }
+
     public async Task<UpdateServiceResult<UpdatePackageDto>> ChangePackageStateAsync(
         Guid organizationId,
         Guid branchId,
@@ -452,6 +519,29 @@ public sealed class EfUpdateService(
             rollout.CompletedAtUtc);
     }
 
+    private static UpdateRolloutStatusDto ToStatusDto(
+        UpdateRolloutEntity rollout,
+        IReadOnlyList<Guid> targetDeviceIds,
+        IReadOnlyList<DeviceUpdateStatusSnapshotDto> deviceStatuses)
+    {
+        return new UpdateRolloutStatusDto(
+            rollout.UpdateRolloutId,
+            rollout.OrganizationId,
+            rollout.BranchId,
+            rollout.UpdatePackageId,
+            rollout.Component,
+            rollout.Version,
+            rollout.Channel,
+            rollout.State,
+            rollout.TargetKind,
+            targetDeviceIds,
+            rollout.BatchPercent,
+            rollout.CreatedAtUtc,
+            rollout.StartsAtUtc,
+            rollout.CompletedAtUtc,
+            deviceStatuses);
+    }
+
     private static UpdatePackageDto ToDto(UpdatePackageEntity package)
     {
         return new UpdatePackageDto(
@@ -478,6 +568,20 @@ public sealed class EfUpdateService(
             status.UpdateRolloutId,
             status.UpdatePackageId,
             status.Component,
+            status.Status,
+            status.Message,
+            status.UpdatedAtUtc);
+    }
+
+    private static DeviceUpdateStatusSnapshotDto ToStatusSnapshot(DeviceUpdateStatusEntity status)
+    {
+        return new DeviceUpdateStatusSnapshotDto(
+            status.DeviceId,
+            status.UpdateRolloutId,
+            status.UpdatePackageId,
+            status.Component,
+            status.InstalledVersion,
+            status.TargetVersion,
             status.Status,
             status.Message,
             status.UpdatedAtUtc);

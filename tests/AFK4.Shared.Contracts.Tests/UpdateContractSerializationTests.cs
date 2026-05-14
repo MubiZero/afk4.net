@@ -165,6 +165,47 @@ public sealed class UpdateContractSerializationTests
     }
 
     [Fact]
+    public void UpdateRolloutStatus_RoundTripsRolloutAndDeviceStatuses()
+    {
+        var rollout = new UpdateRolloutStatusDto(
+            UpdateRolloutId: Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"),
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            UpdatePackageId: Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"),
+            Component: UpdateComponentNames.AgentService,
+            Version: "1.2.3",
+            Channel: UpdateChannelNames.Beta,
+            State: UpdateRolloutStateNames.Active,
+            TargetKind: UpdateTargetKindNames.Device,
+            TargetDeviceIds: [Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f")],
+            BatchPercent: 50,
+            CreatedAtUtc: DateTimeOffset.Parse("2026-05-14T12:00:00Z"),
+            StartsAtUtc: DateTimeOffset.Parse("2026-05-14T12:30:00Z"),
+            CompletedAtUtc: null,
+            DeviceStatuses:
+            [
+                new DeviceUpdateStatusSnapshotDto(
+                    DeviceId: Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+                    UpdateRolloutId: Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"),
+                    UpdatePackageId: Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"),
+                    Component: UpdateComponentNames.AgentService,
+                    InstalledVersion: "1.2.2",
+                    TargetVersion: "1.2.3",
+                    Status: UpdateStatusNames.Installing,
+                    Message: "Install started.",
+                    UpdatedAtUtc: DateTimeOffset.Parse("2026-05-14T12:45:00Z"))
+            ]);
+
+        var copy = JsonSerializer.Deserialize<UpdateRolloutStatusDto>(JsonSerializer.Serialize(rollout));
+
+        Assert.NotNull(copy);
+        Assert.Equal(UpdateRolloutStateNames.Active, copy.State);
+        Assert.Equal(50, copy.BatchPercent);
+        Assert.Equal("1.2.3", copy.DeviceStatuses.Single().TargetVersion);
+        Assert.Equal(UpdateStatusNames.Installing, copy.DeviceStatuses.Single().Status);
+    }
+
+    [Fact]
     public void UpdateLifecycleRequests_RoundTripRequestedStateAndReason()
     {
         var packageRequest = new UpdatePackageStateChangeRequest(

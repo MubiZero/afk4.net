@@ -3187,6 +3187,65 @@ app.MapPost("/api/branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}/sta
     return Results.Ok(result.Response);
 });
 
+app.MapGet("/api/branches/{branchId:guid}/updates/rollouts", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IUpdateService updateService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewUpdateStatus,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewUpdateRollout,
+            "UpdateRollout",
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await updateService.ListRolloutStatusesAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToUpdateHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewUpdateRollout,
+        "UpdateRollout",
+        null,
+        AuditOutcome.Succeeded,
+        new { Count = result.Response!.Count },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
 app.MapGet("/api/branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}", async (
     Guid branchId,
     Guid rolloutId,

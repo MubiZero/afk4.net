@@ -22,6 +22,11 @@ public interface IUpdateService
         Guid rolloutId,
         CancellationToken cancellationToken);
 
+    Task<UpdateServiceResult<IReadOnlyList<UpdateRolloutStatusDto>>> ListRolloutStatusesAsync(
+        Guid organizationId,
+        Guid branchId,
+        CancellationToken cancellationToken);
+
     Task<UpdateServiceResult<UpdatePackageDto>> ChangePackageStateAsync(
         Guid organizationId,
         Guid branchId,

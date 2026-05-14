@@ -910,6 +910,121 @@
                                                Foreground="#B91C1C"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
+
+                                <StackPanel DataContext="{Binding UpdateStatus}"
+                                            Margin="0,16,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.SelectedPanel.Key, RelativeSource={RelativeSource AncestorType=Grid}}"
+                                                             Value="updates">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Update Status"
+                                                       FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#111827" />
+                                            <TextBlock Text="{Binding Summary}"
+                                                       Margin="0,4,0,0"
+                                                       Foreground="#4B5563" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Content="Refresh"
+                                                Command="{Binding RefreshCommand}"
+                                                MinWidth="92"
+                                                Height="32" />
+                                    </Grid>
+
+                                    <ItemsControl ItemsSource="{Binding Rollouts}"
+                                                  Margin="0,12,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="White"
+                                                        BorderBrush="#D8DEE9"
+                                                        BorderThickness="1"
+                                                        CornerRadius="5"
+                                                        Padding="12"
+                                                        Margin="0,0,0,10">
+                                                    <StackPanel>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Title}"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#111827" />
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding State}"
+                                                                       Foreground="#047857"
+                                                                       FontWeight="SemiBold"
+                                                                       Margin="10,0,0,0" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Channel}"
+                                                                   Margin="0,6,0,0"
+                                                                   Foreground="#4B5563" />
+                                                        <TextBlock Text="{Binding TargetSummary}"
+                                                                   Margin="0,4,0,0"
+                                                                   Foreground="#4B5563" />
+                                                        <TextBlock Text="{Binding ProgressSummary}"
+                                                                   Margin="0,4,0,0"
+                                                                   Foreground="#4B5563" />
+                                                        <TextBlock Text="{Binding ScheduleSummary}"
+                                                                   Margin="0,4,0,0"
+                                                                   Foreground="#6B7280" />
+
+                                                        <ItemsControl ItemsSource="{Binding DeviceStatuses}"
+                                                                      Margin="0,10,0,0">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Grid Margin="0,0,0,6">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="2*" />
+                                                                            <ColumnDefinition Width="*" />
+                                                                            <ColumnDefinition Width="*" />
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <TextBlock Text="{Binding DeviceIdText}"
+                                                                                   Foreground="#374151"
+                                                                                   TextTrimming="CharacterEllipsis" />
+                                                                        <TextBlock Grid.Column="1"
+                                                                                   Text="{Binding VersionSummary}"
+                                                                                   Foreground="#4B5563"
+                                                                                   Margin="8,0,0,0" />
+                                                                        <TextBlock Grid.Column="2"
+                                                                                   Text="{Binding Status}"
+                                                                                   Foreground="#111827"
+                                                                                   FontWeight="SemiBold"
+                                                                                   Margin="8,0,0,0" />
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#047857"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding ErrorMessage}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#B91C1C"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>

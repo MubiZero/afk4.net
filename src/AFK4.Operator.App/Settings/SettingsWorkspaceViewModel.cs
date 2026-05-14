@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.Mvvm;
+using AFK4.Operator.App.Updates;
 using AFK4.Shared.Contracts.Identity;
 
 namespace AFK4.Operator.App.Settings;
@@ -11,6 +12,7 @@ namespace AFK4.Operator.App.Settings;
 public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
 {
     private readonly TechnicianDeviceWorkflowViewModel? technicianTools;
+    private readonly UpdateStatusWorkspaceViewModel? updateStatus;
     private readonly RelayCommand selectPanelCommand;
     private string apiBaseUrlText = "http://localhost:5074";
     private string organizationIdText = string.Empty;
@@ -18,15 +20,30 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
     private SettingsPanelViewModel? selectedPanel;
 
     public SettingsWorkspaceViewModel(IReadOnlySet<string> permissions)
-        : this(permissions, technicianTools: null)
+        : this(
+            permissions,
+            technicianTools: null,
+            new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()))
     {
     }
 
     public SettingsWorkspaceViewModel(
         IReadOnlySet<string> permissions,
         TechnicianDeviceWorkflowViewModel? technicianTools)
+        : this(
+            permissions,
+            technicianTools,
+            new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()))
+    {
+    }
+
+    public SettingsWorkspaceViewModel(
+        IReadOnlySet<string> permissions,
+        TechnicianDeviceWorkflowViewModel? technicianTools,
+        UpdateStatusWorkspaceViewModel? updateStatus)
     {
         this.technicianTools = technicianTools;
+        this.updateStatus = updateStatus;
         Panels = [];
         selectPanelCommand = new RelayCommand(
             parameter =>
@@ -47,7 +64,11 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
 
     public TechnicianDeviceWorkflowViewModel? TechnicianTools => technicianTools;
 
+    public UpdateStatusWorkspaceViewModel? UpdateStatus => updateStatus;
+
     public bool HasTechnicianTools => technicianTools is not null && Panels.Any(panel => panel.Key == "devices");
+
+    public bool HasUpdateStatus => updateStatus is not null && Panels.Any(panel => panel.Key == "updates");
 
     public string ApiBaseUrlText
     {
@@ -80,6 +101,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
         OrganizationIdText = organizationId.ToString("D");
         BranchIdText = branchId.ToString("D");
         technicianTools?.ApplyContext(organizationId, branchId);
+        updateStatus?.ApplyContext(organizationId, branchId);
     }
 
     public void ApplyContext(Guid organizationId, Guid branchId, IReadOnlySet<string> permissions)
@@ -142,8 +164,14 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             AddPanel("roles", "Roles", "Staff access");
         }
 
+        if (permissions.Contains(StaffPermissionNames.ViewUpdateStatus))
+        {
+            AddPanel("updates", "Updates", "Rollout status");
+        }
+
         SelectedPanel = Panels.FirstOrDefault(panel => panel.Key == selectedKey) ?? Panels.FirstOrDefault();
         OnPropertyChanged(nameof(HasTechnicianTools));
+        OnPropertyChanged(nameof(HasUpdateStatus));
     }
 
     private void AddPanel(string key, string label, string description)
