@@ -163,4 +163,29 @@ public sealed class UpdateContractSerializationTests
         Assert.Equal(report.DeviceId, resultCopy.DeviceId);
         Assert.Equal("Download started.", resultCopy.Message);
     }
+
+    [Fact]
+    public void UpdateLifecycleRequests_RoundTripRequestedStateAndReason()
+    {
+        var packageRequest = new UpdatePackageStateChangeRequest(
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            State: UpdatePackageStateNames.Validated,
+            Reason: "Signature and hash verified.");
+        var rolloutRequest = new UpdateRolloutStateChangeRequest(
+            OrganizationId: packageRequest.OrganizationId,
+            State: UpdateRolloutStateNames.RollbackRequested,
+            Reason: "Install failure rate exceeded threshold.");
+
+        var packageCopy = JsonSerializer.Deserialize<UpdatePackageStateChangeRequest>(
+            JsonSerializer.Serialize(packageRequest));
+        var rolloutCopy = JsonSerializer.Deserialize<UpdateRolloutStateChangeRequest>(
+            JsonSerializer.Serialize(rolloutRequest));
+
+        Assert.NotNull(packageCopy);
+        Assert.NotNull(rolloutCopy);
+        Assert.Equal(UpdatePackageStateNames.Validated, packageCopy.State);
+        Assert.Equal("Signature and hash verified.", packageCopy.Reason);
+        Assert.Equal(UpdateRolloutStateNames.RollbackRequested, rolloutCopy.State);
+        Assert.Equal("Install failure rate exceeded threshold.", rolloutCopy.Reason);
+    }
 }
