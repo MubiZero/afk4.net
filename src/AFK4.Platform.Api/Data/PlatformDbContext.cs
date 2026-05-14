@@ -74,6 +74,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ReceiptEntity> Receipts => Set<ReceiptEntity>();
 
+    public DbSet<UpdatePackageEntity> UpdatePackages => Set<UpdatePackageEntity>();
+
+    public DbSet<UpdateRolloutEntity> UpdateRollouts => Set<UpdateRolloutEntity>();
+
+    public DbSet<UpdateRolloutTargetEntity> UpdateRolloutTargets => Set<UpdateRolloutTargetEntity>();
+
+    public DbSet<DeviceUpdateStatusEntity> DeviceUpdateStatuses => Set<DeviceUpdateStatusEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -499,6 +507,85 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 receipt.ReceiptNumber
             }).IsUnique();
             entity.HasIndex(receipt => receipt.PosSaleId);
+        });
+
+        modelBuilder.Entity<UpdatePackageEntity>(entity =>
+        {
+            entity.ToTable("update_packages");
+            entity.HasKey(package => package.UpdatePackageId);
+            entity.Property(package => package.Component).HasMaxLength(64).IsRequired();
+            entity.Property(package => package.Version).HasMaxLength(64).IsRequired();
+            entity.Property(package => package.Channel).HasMaxLength(32).IsRequired();
+            entity.Property(package => package.ArtifactUri).HasMaxLength(1024).IsRequired();
+            entity.Property(package => package.Sha256).HasMaxLength(128).IsRequired();
+            entity.Property(package => package.Signature).IsRequired();
+            entity.Property(package => package.SignatureAlgorithm).HasMaxLength(64).IsRequired();
+            entity.Property(package => package.State).HasMaxLength(32).IsRequired();
+            entity.Property(package => package.ReleaseNotes).HasMaxLength(2000).IsRequired();
+            entity.HasIndex(package => new
+            {
+                package.OrganizationId,
+                package.BranchId,
+                package.Component,
+                package.Version,
+                package.Channel
+            }).IsUnique();
+            entity.HasIndex(package => new { package.OrganizationId, package.BranchId, package.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<UpdateRolloutEntity>(entity =>
+        {
+            entity.ToTable("update_rollouts");
+            entity.HasKey(rollout => rollout.UpdateRolloutId);
+            entity.Property(rollout => rollout.Component).HasMaxLength(64).IsRequired();
+            entity.Property(rollout => rollout.Version).HasMaxLength(64).IsRequired();
+            entity.Property(rollout => rollout.Channel).HasMaxLength(32).IsRequired();
+            entity.Property(rollout => rollout.State).HasMaxLength(32).IsRequired();
+            entity.Property(rollout => rollout.TargetKind).HasMaxLength(32).IsRequired();
+            entity.Property(rollout => rollout.Reason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(rollout => new
+            {
+                rollout.OrganizationId,
+                rollout.BranchId,
+                rollout.Channel,
+                rollout.State,
+                rollout.StartsAtUtc
+            });
+            entity.HasIndex(rollout => rollout.UpdatePackageId);
+        });
+
+        modelBuilder.Entity<UpdateRolloutTargetEntity>(entity =>
+        {
+            entity.ToTable("update_rollout_targets");
+            entity.HasKey(target => target.UpdateRolloutTargetId);
+            entity.Property(target => target.TargetKind).HasMaxLength(32).IsRequired();
+            entity.HasIndex(target => new { target.UpdateRolloutId, target.DeviceId }).IsUnique();
+            entity.HasIndex(target => new { target.OrganizationId, target.BranchId, target.DeviceId });
+        });
+
+        modelBuilder.Entity<DeviceUpdateStatusEntity>(entity =>
+        {
+            entity.ToTable("device_update_statuses");
+            entity.HasKey(status => status.DeviceUpdateStatusId);
+            entity.Property(status => status.Component).HasMaxLength(64).IsRequired();
+            entity.Property(status => status.InstalledVersion).HasMaxLength(64).IsRequired();
+            entity.Property(status => status.TargetVersion).HasMaxLength(64).IsRequired();
+            entity.Property(status => status.Status).HasMaxLength(32).IsRequired();
+            entity.Property(status => status.Message).HasMaxLength(512).IsRequired();
+            entity.HasIndex(status => new
+            {
+                status.DeviceId,
+                status.UpdateRolloutId,
+                status.UpdatePackageId,
+                status.Component
+            }).IsUnique();
+            entity.HasIndex(status => new
+            {
+                status.OrganizationId,
+                status.BranchId,
+                status.Status,
+                status.UpdatedAtUtc
+            });
         });
     }
 }
