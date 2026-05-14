@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
@@ -16,15 +17,22 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
 {
     private const string WaitingForBackendConfirmation = "Waiting for backend confirmation";
     private const string LoadingReports = "Loading reports";
+    private const string ExportingReportCsv = "Exporting report CSV";
     private const string DefaultCurrencyCode = "USD";
 
     private readonly IOperatorShiftApiClient apiClient;
     private readonly IIdempotencyKeyFactory idempotencyKeyFactory;
+    private readonly IReportCsvFileWriter reportCsvFileWriter;
     private readonly AsyncRelayCommand loadCurrentShiftCommand;
     private readonly AsyncRelayCommand openShiftCommand;
     private readonly AsyncRelayCommand recordCashMovementCommand;
     private readonly AsyncRelayCommand closeShiftCommand;
     private readonly AsyncRelayCommand loadReportsCommand;
+    private readonly AsyncRelayCommand exportShiftReportCsvCommand;
+    private readonly AsyncRelayCommand exportSalesReportCsvCommand;
+    private readonly AsyncRelayCommand exportGameplayTimeReportCsvCommand;
+    private readonly AsyncRelayCommand exportCashOperationReportCsvCommand;
+    private readonly AsyncRelayCommand exportOperatorActionReportCsvCommand;
     private Guid organizationId;
     private Guid branchId;
     private ShiftDto? currentShift;
@@ -56,15 +64,29 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     public ShiftWorkspaceViewModel(
         IOperatorShiftApiClient apiClient,
         IIdempotencyKeyFactory idempotencyKeyFactory)
+        : this(apiClient, idempotencyKeyFactory, new UnconfiguredReportCsvFileWriter())
+    {
+    }
+
+    public ShiftWorkspaceViewModel(
+        IOperatorShiftApiClient apiClient,
+        IIdempotencyKeyFactory idempotencyKeyFactory,
+        IReportCsvFileWriter reportCsvFileWriter)
     {
         this.apiClient = apiClient;
         this.idempotencyKeyFactory = idempotencyKeyFactory;
+        this.reportCsvFileWriter = reportCsvFileWriter;
 
         loadCurrentShiftCommand = new AsyncRelayCommand(LoadCurrentShiftAsync, () => !IsBusy);
         openShiftCommand = new AsyncRelayCommand(OpenShiftAsync, () => !IsBusy && !CanRunMoneyWorkflows);
         recordCashMovementCommand = new AsyncRelayCommand(RecordCashMovementAsync, () => !IsBusy && CanRunMoneyWorkflows);
         closeShiftCommand = new AsyncRelayCommand(CloseShiftAsync, () => !IsBusy && CanRunMoneyWorkflows);
         loadReportsCommand = new AsyncRelayCommand(LoadReportsAsync, () => !IsBusy);
+        exportShiftReportCsvCommand = new AsyncRelayCommand(ExportShiftReportCsvAsync, () => !IsBusy);
+        exportSalesReportCsvCommand = new AsyncRelayCommand(ExportSalesReportCsvAsync, () => !IsBusy);
+        exportGameplayTimeReportCsvCommand = new AsyncRelayCommand(ExportGameplayTimeReportCsvAsync, () => !IsBusy);
+        exportCashOperationReportCsvCommand = new AsyncRelayCommand(ExportCashOperationReportCsvAsync, () => !IsBusy);
+        exportOperatorActionReportCsvCommand = new AsyncRelayCommand(ExportOperatorActionReportCsvAsync, () => !IsBusy);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -238,6 +260,16 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     public ICommand CloseShiftCommand => closeShiftCommand;
 
     public ICommand LoadReportsCommand => loadReportsCommand;
+
+    public ICommand ExportShiftReportCsvCommand => exportShiftReportCsvCommand;
+
+    public ICommand ExportSalesReportCsvCommand => exportSalesReportCsvCommand;
+
+    public ICommand ExportGameplayTimeReportCsvCommand => exportGameplayTimeReportCsvCommand;
+
+    public ICommand ExportCashOperationReportCsvCommand => exportCashOperationReportCsvCommand;
+
+    public ICommand ExportOperatorActionReportCsvCommand => exportOperatorActionReportCsvCommand;
 
     public void ApplyContext(Guid organizationId, Guid branchId)
     {
@@ -413,6 +445,86 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
             PendingOperation = null;
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
+        {
+            ErrorMessage = CreateUserFacingError(exception);
+            PendingOperation = null;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public Task ExportShiftReportCsvAsync(CancellationToken cancellationToken)
+    {
+        return ExportReportCsvAsync(
+            "afk4-shifts-report.csv",
+            apiClient.ExportShiftReportCsvAsync,
+            cancellationToken);
+    }
+
+    public Task ExportSalesReportCsvAsync(CancellationToken cancellationToken)
+    {
+        return ExportReportCsvAsync(
+            "afk4-sales-report.csv",
+            apiClient.ExportSalesReportCsvAsync,
+            cancellationToken);
+    }
+
+    public Task ExportGameplayTimeReportCsvAsync(CancellationToken cancellationToken)
+    {
+        return ExportReportCsvAsync(
+            "afk4-gameplay-time-report.csv",
+            apiClient.ExportGameplayTimeReportCsvAsync,
+            cancellationToken);
+    }
+
+    public Task ExportCashOperationReportCsvAsync(CancellationToken cancellationToken)
+    {
+        return ExportReportCsvAsync(
+            "afk4-cash-operations-report.csv",
+            apiClient.ExportCashOperationReportCsvAsync,
+            cancellationToken);
+    }
+
+    public Task ExportOperatorActionReportCsvAsync(CancellationToken cancellationToken)
+    {
+        return ExportReportCsvAsync(
+            "afk4-operator-actions-report.csv",
+            apiClient.ExportOperatorActionReportCsvAsync,
+            cancellationToken);
+    }
+
+    private async Task ExportReportCsvAsync(
+        string suggestedFileName,
+        Func<Guid, DateTimeOffset?, DateTimeOffset?, int?, CancellationToken, Task<string>> exportAsync,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetBranchContext(out var branchIdValue) ||
+            !TryParseReportFilters(out var fromUtc, out var toUtc, out var limit))
+        {
+            return;
+        }
+
+        ErrorMessage = null;
+        StatusMessage = null;
+        PendingOperation = ExportingReportCsv;
+        IsBusy = true;
+
+        try
+        {
+            var csv = await exportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
+            var savedPath = await reportCsvFileWriter.SaveAsync(suggestedFileName, csv, cancellationToken);
+            StatusMessage = savedPath is null
+                ? "CSV export cancelled."
+                : $"CSV exported to {savedPath}.";
+            PendingOperation = null;
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+            HttpRequestException or
+            IOException or
+            UnauthorizedAccessException)
         {
             ErrorMessage = CreateUserFacingError(exception);
             PendingOperation = null;
@@ -622,6 +734,11 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         recordCashMovementCommand.NotifyCanExecuteChanged();
         closeShiftCommand.NotifyCanExecuteChanged();
         loadReportsCommand.NotifyCanExecuteChanged();
+        exportShiftReportCsvCommand.NotifyCanExecuteChanged();
+        exportSalesReportCsvCommand.NotifyCanExecuteChanged();
+        exportGameplayTimeReportCsvCommand.NotifyCanExecuteChanged();
+        exportCashOperationReportCsvCommand.NotifyCanExecuteChanged();
+        exportOperatorActionReportCsvCommand.NotifyCanExecuteChanged();
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

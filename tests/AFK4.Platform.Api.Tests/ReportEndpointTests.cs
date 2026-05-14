@@ -26,6 +26,11 @@ public sealed class ReportEndpointTests
     [InlineData("/api/branches/{0}/reports/gameplay-time")]
     [InlineData("/api/branches/{0}/reports/cash-operations")]
     [InlineData("/api/branches/{0}/reports/operator-actions")]
+    [InlineData("/api/branches/{0}/reports/shifts/export.csv")]
+    [InlineData("/api/branches/{0}/reports/sales/export.csv")]
+    [InlineData("/api/branches/{0}/reports/gameplay-time/export.csv")]
+    [InlineData("/api/branches/{0}/reports/cash-operations/export.csv")]
+    [InlineData("/api/branches/{0}/reports/operator-actions/export.csv")]
     public async Task GetReport_WithoutStaffToken_ReturnsUnauthorized(string routeTemplate)
     {
         await using var factory = new PlatformApiFactory();
@@ -42,6 +47,11 @@ public sealed class ReportEndpointTests
     [InlineData("/api/branches/{0}/reports/gameplay-time", AuditActionNames.ViewGameplayTimeReport)]
     [InlineData("/api/branches/{0}/reports/cash-operations", AuditActionNames.ViewCashOperationReport)]
     [InlineData("/api/branches/{0}/reports/operator-actions", AuditActionNames.ViewOperatorActionReport)]
+    [InlineData("/api/branches/{0}/reports/shifts/export.csv", AuditActionNames.ViewShiftReport)]
+    [InlineData("/api/branches/{0}/reports/sales/export.csv", AuditActionNames.ViewSalesReport)]
+    [InlineData("/api/branches/{0}/reports/gameplay-time/export.csv", AuditActionNames.ViewGameplayTimeReport)]
+    [InlineData("/api/branches/{0}/reports/cash-operations/export.csv", AuditActionNames.ViewCashOperationReport)]
+    [InlineData("/api/branches/{0}/reports/operator-actions/export.csv", AuditActionNames.ViewOperatorActionReport)]
     public async Task GetReport_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit(
         string routeTemplate,
         string expectedAction)
@@ -187,6 +197,32 @@ public sealed class ReportEndpointTests
             .Where(record => record.Action == AuditActionNames.ViewOperatorActionReport)
             .SingleAsync();
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+    }
+
+    [Fact]
+    public async Task GetShiftReportExportCsv_WithAuditorRole_ReturnsCsvAttachmentAndWritesAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await SeedShiftReportDataAsync(factory);
+
+        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/shifts/export.csv?limit=1");
+        var csv = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/csv", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("utf-8", response.Content.Headers.ContentType?.CharSet);
+        Assert.Contains("afk4-shifts-report.csv", response.Content.Headers.ContentDisposition?.FileName);
+        Assert.StartsWith("shift_id,organization_id,branch_id,opened_by_staff_user_id", csv);
+        Assert.Contains($"{ShiftId:D},{TestIds.OrganizationId:D},{TestIds.BranchId:D}", csv);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.ViewShiftReport, audit.Action);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+        Assert.Contains("\"Format\":\"csv\"", audit.DetailsJson);
     }
 
     private static async Task SeedShiftReportDataAsync(PlatformApiFactory factory)

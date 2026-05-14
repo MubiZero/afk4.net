@@ -318,5 +318,55 @@ public sealed class OperatorShellViewModelTests
         {
             throw new NotSupportedException();
         }
+
+        public Task<string> ExportShiftReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportSalesReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportGameplayTimeReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportCashOperationReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportOperatorActionReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

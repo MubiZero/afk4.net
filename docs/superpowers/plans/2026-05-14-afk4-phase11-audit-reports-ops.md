@@ -1,6 +1,6 @@
 # AFK4 Phase 11 Audit, Reports, And Operations Plan
 
-Status: operational reports slice implemented
+Status: report CSV export slice implemented
 Last updated: 2026-05-14
 
 ## Goal
@@ -32,14 +32,20 @@ The implemented Phase 11 slices add:
   `reports.view`;
 - succeeded and denied audit records for report reads;
 - Operator App report loading inside the Shifts workspace;
+- CSV export endpoints for all five operational reports, protected by
+  `reports.view`, returning `text/csv` attachments, and audited with the same
+  report-read audit actions plus `Format = csv`;
+- Operator App typed CSV download methods and Shifts workspace export actions
+  that save report CSV files through a file-writer boundary;
 - focused tests for contracts, service behavior, endpoint authorization, API
-  client query construction, and ViewModel behavior.
+  client query construction, CSV formatting, CSV endpoints, and ViewModel
+  behavior.
 
 ## Non-Goals
 
 - No new audit table schema in this slice.
 - No new report table schema in this slice.
-- No report export format yet.
+- No PDF, XLSX, scheduled email, or cross-branch report bundle export yet.
 - No web admin panel.
 - No cross-branch owner dashboard yet.
 
@@ -57,6 +63,5 @@ The implemented Phase 11 slices add:
 
 ## Follow-Up
 
-1. Add report export formats when managers need shareable files.
-2. Add diagnostics and backup/restore runbooks after the core reports are
+1. Add diagnostics and backup/restore runbooks after the core reports are
    visible.

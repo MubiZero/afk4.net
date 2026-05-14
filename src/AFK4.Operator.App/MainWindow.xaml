@@ -787,6 +787,30 @@
                                             Command="{Binding LoadReportsCommand}"
                                             Padding="14,7"
                                             VerticalAlignment="Bottom" />
+                                    <WrapPanel Grid.Column="4"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Bottom">
+                                        <Button Content="Export Shifts"
+                                                Command="{Binding ExportShiftReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                        <Button Content="Export Sales"
+                                                Command="{Binding ExportSalesReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                        <Button Content="Export Time"
+                                                Command="{Binding ExportGameplayTimeReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                        <Button Content="Export Cash"
+                                                Command="{Binding ExportCashOperationReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                        <Button Content="Export Actions"
+                                                Command="{Binding ExportOperatorActionReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                    </WrapPanel>
                                 </Grid>
 
                                 <Grid Grid.Row="1"

@@ -284,6 +284,36 @@ public sealed class ShiftWorkspaceViewModelTests
         Assert.Equal("Report limit must be a positive whole number.", viewModel.ErrorMessage);
     }
 
+    [Fact]
+    public async Task ExportShiftReportCsvAsync_UsesFiltersAndSavesCsv()
+    {
+        var apiClient = new RecordingShiftApiClient
+        {
+            ShiftReportCsv = "shift_id,state\r\n1,open\r\n"
+        };
+        var fileWriter = new RecordingReportCsvFileWriter("C:\\exports\\afk4-shifts-report.csv");
+        var viewModel = new ShiftWorkspaceViewModel(
+            apiClient,
+            new FixedIdempotencyKeyFactory("unused"),
+            fileWriter);
+        viewModel.ApplyContext(OrganizationId, BranchId);
+        viewModel.ReportFromUtcText = "2026-05-14T00:00:00Z";
+        viewModel.ReportToUtcText = "2026-05-15T00:00:00Z";
+        viewModel.ReportLimitText = "25";
+
+        await viewModel.ExportShiftReportCsvAsync(CancellationToken.None);
+
+        Assert.Equal(1, apiClient.ShiftReportCsvCallCount);
+        Assert.Equal(BranchId, apiClient.LastShiftReportBranchId);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-14T00:00:00Z"), apiClient.LastReportFromUtc);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-15T00:00:00Z"), apiClient.LastReportToUtc);
+        Assert.Equal(25, apiClient.LastReportLimit);
+        Assert.Equal("afk4-shifts-report.csv", fileWriter.LastSuggestedFileName);
+        Assert.Equal("shift_id,state\r\n1,open\r\n", fileWriter.LastCsv);
+        Assert.Equal("CSV exported to C:\\exports\\afk4-shifts-report.csv.", viewModel.StatusMessage);
+        Assert.Null(viewModel.ErrorMessage);
+    }
+
     private static ShiftDto CreateShift(
         string state,
         long expectedCashMinorUnits = 51500,
@@ -346,6 +376,16 @@ public sealed class ShiftWorkspaceViewModelTests
 
         public OperatorActionReportResultDto OperatorActionReport { get; init; } = new([], 50, 0);
 
+        public string ShiftReportCsv { get; init; } = "shift_id,state\r\n1,open\r\n";
+
+        public string SalesReportCsv { get; init; } = "pos_sale_id,state\r\n1,paid\r\n";
+
+        public string GameplayTimeReportCsv { get; init; } = "session_id,state\r\n1,ended\r\n";
+
+        public string CashOperationReportCsv { get; init; } = "operation_id,type\r\n1,cash_in\r\n";
+
+        public string OperatorActionReportCsv { get; init; } = "action,count\r\nsessions.start,1\r\n";
+
         public int GetCurrentShiftCallCount { get; private set; }
 
         public int CashMovementCallCount { get; private set; }
@@ -353,6 +393,8 @@ public sealed class ShiftWorkspaceViewModelTests
         public int CloseShiftCallCount { get; private set; }
 
         public int ShiftReportCallCount { get; private set; }
+
+        public int ShiftReportCsvCallCount { get; private set; }
 
         public Guid LastOpenBranchId { get; private set; }
 
@@ -504,6 +546,94 @@ public sealed class ShiftWorkspaceViewModelTests
             LastReportToUtc = toUtc;
             LastReportLimit = limit;
             return Task.FromResult(OperatorActionReport);
+        }
+
+        public Task<string> ExportShiftReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            ShiftReportCsvCallCount++;
+            LastShiftReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(ShiftReportCsv);
+        }
+
+        public Task<string> ExportSalesReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            LastSalesReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(SalesReportCsv);
+        }
+
+        public Task<string> ExportGameplayTimeReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            LastGameplayTimeReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(GameplayTimeReportCsv);
+        }
+
+        public Task<string> ExportCashOperationReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            LastCashOperationReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(CashOperationReportCsv);
+        }
+
+        public Task<string> ExportOperatorActionReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            LastOperatorActionReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(OperatorActionReportCsv);
+        }
+    }
+
+    private sealed class RecordingReportCsvFileWriter(string savedPath) : IReportCsvFileWriter
+    {
+        public string? LastSuggestedFileName { get; private set; }
+
+        public string? LastCsv { get; private set; }
+
+        public Task<string?> SaveAsync(
+            string suggestedFileName,
+            string csv,
+            CancellationToken cancellationToken)
+        {
+            LastSuggestedFileName = suggestedFileName;
+            LastCsv = csv;
+            return Task.FromResult<string?>(savedPath);
         }
     }
 }

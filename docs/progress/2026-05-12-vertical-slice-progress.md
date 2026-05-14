@@ -1,10 +1,10 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 11 operational report slice is implemented, Docker PostgreSQL
-live smoke passes locally for the update slice, Agent update execution/recovery
+Status: Phase 11 report CSV export slice is implemented, Docker PostgreSQL live
+smoke passes locally for the update slice, Agent update execution/recovery
 adapter boundaries are implemented, and Operator App update status visibility,
-audit search, and branch-scoped operational reports are available to
-permissioned staff.
+audit search, branch-scoped operational reports, and report CSV exports are
+available to permissioned staff.
 Last updated: 2026-05-14
 
 ## Scope
@@ -33,6 +33,51 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`
+
+## Phase 11 Report CSV Export Slice
+
+Implemented on `codex/phase11-operational-reports` after the operational report
+summary commit `f2e94fd`.
+
+Implemented in this Phase 11 export slice:
+
+- Added a backend CSV formatter for shift, sales, gameplay time, cash
+  operation, and operator-action report DTOs.
+- Added `GET /api/branches/{branchId}/reports/*/export.csv` routes for all
+  five operational report families.
+- Export routes reuse the same report filters, `reports.view` permission, and
+  report-read audit actions as JSON report reads, with audit details marking
+  `Format = csv`.
+- CSV responses are returned as `text/csv` attachments with deterministic
+  manager-friendly filenames.
+- Added Operator App typed CSV download methods and Shifts workspace export
+  commands.
+- Added a file-writer boundary for Operator App CSV saves, with the production
+  implementation using the native Windows save-file dialog.
+- Added report CSV export buttons to the Operator App Shifts reports panel.
+
+Targeted verification on 2026-05-14 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "ReportEndpointTests|ReportCsvExporterTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorShiftApiClientTests|ShiftWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build src\AFK4.Operator.App\AFK4.Operator.App.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Platform report endpoint/exporter tests passed 28/28.
+- Operator shift/report/shell targeted tests passed 32/32.
+- Operator App project build succeeded with 0 warnings and 0 errors.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 560/560:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 3/3;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 111/111;
+  - Platform.Api 296/296.
 
 ## Phase 11 Gameplay, Cash Operations, And Operator Actions Reports Slice
 
@@ -83,7 +128,6 @@ Results:
 
 Remaining Phase 11 work:
 
-- export formats for report sharing;
 - diagnostics dashboards and backup/restore runbooks.
 
 ## Phase 11 Shift And Sales Reports Slice
@@ -1847,12 +1891,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add report export formats for manager/accountant sharing.
-2. Add production object storage/CDN hosting and key vault integration around
+1. Add production object storage/CDN hosting and key vault integration around
    the local publishing tool.
-3. Add Operator App package/rollout management workflow when update package
+2. Add Operator App package/rollout management workflow when update package
    publishing needs to be run by operators instead of scripts.
-4. Add diagnostics dashboards and backup/restore runbooks.
-5. Keep web admin, local server, microservices, non-Windows agents, and kernel
+3. Add diagnostics dashboards and backup/restore runbooks.
+4. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.

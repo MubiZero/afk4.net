@@ -61,7 +61,10 @@ public partial class MainWindow : Window
             sessionApiClient,
             new GuidIdempotencyKeyFactory());
         posViewModel = new PosWorkspaceViewModel(posApiClient, new GuidIdempotencyKeyFactory());
-        shiftViewModel = new ShiftWorkspaceViewModel(shiftApiClient, new GuidIdempotencyKeyFactory());
+        shiftViewModel = new ShiftWorkspaceViewModel(
+            shiftApiClient,
+            new GuidIdempotencyKeyFactory(),
+            new SaveFileReportCsvFileWriter());
         shellViewModel = new OperatorShellViewModel(
             new SignInViewModel(authApiClient),
             floorMapViewModel,

@@ -160,6 +160,16 @@ The current vertical slice exposes:
   token permission `reports.view`
 - `GET /api/branches/{branchId}/reports/operator-actions` with staff bearer
   token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/shifts/export.csv` with staff bearer
+  token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/sales/export.csv` with staff bearer
+  token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/gameplay-time/export.csv` with staff
+  bearer token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/cash-operations/export.csv` with
+  staff bearer token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/operator-actions/export.csv` with
+  staff bearer token permission `reports.view`
 - `POST /api/branches/{branchId}/pos/categories` with staff bearer token
   permission `pos.catalog.manage`
 - `POST /api/branches/{branchId}/pos/products` with staff bearer token
@@ -510,8 +520,12 @@ The first vertical slice foundation is implemented:
 - branch-scoped shift, sales, gameplay time, cash operation, and operator
   action report endpoints over existing session, shift, POS, payment, ledger,
   and audit persistence;
+- CSV export endpoints for all branch-scoped operational reports, using the
+  same filters, `reports.view` permission, and audit trail as report reads;
 - Operator App Shifts workspace report filters and report grids for shift,
   sales, gameplay time, cash operations, and operator actions;
+- Operator App Shifts workspace CSV export actions for all five operational
+  report families;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
   grace/offline, ending, and launcher states.
 
