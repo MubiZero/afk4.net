@@ -40,6 +40,34 @@ public sealed class AgentOptions
     public List<string> DeniedProcessNames { get; init; } = [];
 
     public string UpdateChannel { get; init; } = "stable";
+
+    public string UpdateStagingDirectory { get; init; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "AFK4",
+        "Agent",
+        "Updates");
+
+    public string UpdateInstallerExecutablePath { get; init; } = string.Empty;
+
+    public string UpdateInstallerArgumentsTemplate { get; init; } = "\"{PackagePath}\" --component \"{Component}\" --version \"{Version}\"";
+
+    public int UpdateInstallerTimeoutSeconds { get; init; } = 1800;
+
+    public int UpdateCheckIntervalSeconds { get; init; } = 300;
+
+    public string UpdateStateDirectory { get; init; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "AFK4",
+        "Agent",
+        "UpdateState");
+
+    public string UpdateRollbackExecutablePath { get; init; } = string.Empty;
+
+    public string UpdateRollbackArgumentsTemplate { get; init; } = "--component \"{Component}\" --version \"{TargetVersion}\" --artifact \"{ArtifactPath}\"";
+
+    public string UpdateRestartExecutablePath { get; init; } = string.Empty;
+
+    public string UpdateRestartArgumentsTemplate { get; init; } = "--component \"{Component}\" --version \"{TargetVersion}\"";
 }
 
 public sealed class AgentLauncherAppOptions

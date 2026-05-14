@@ -28,7 +28,18 @@ builder.Services.AddSingleton<IDeviceRealtimeClient, DeviceRealtimeClient>();
 builder.Services.AddSingleton<IInstalledAppInventoryCollector, WindowsInstalledAppInventoryCollector>();
 builder.Services.AddSingleton<IInstalledAppReporter, HttpInstalledAppReporter>();
 builder.Services.AddSingleton<IAgentUpdateClient, HttpAgentUpdateClient>();
+builder.Services.AddSingleton<IAgentComponentVersionProvider, AgentComponentVersionProvider>();
+builder.Services.AddSingleton<IUpdateArtifactDownloader, HttpUpdateArtifactDownloader>();
+builder.Services.AddSingleton<IUpdatePackageVerifier, Sha256UpdatePackageVerifier>();
+builder.Services.AddSingleton<IUpdateInstallStateStore, FileUpdateInstallStateStore>();
+builder.Services.AddSingleton<IUpdateInstallExecutor, ExternalProcessUpdateInstaller>();
+builder.Services.AddSingleton<IUpdateRollbackExecutor, ExternalProcessUpdateRollbackExecutor>();
+builder.Services.AddSingleton<IAgentRestartScheduler, ExternalProcessAgentRestartScheduler>();
+builder.Services.AddSingleton<IUpdateInstaller, SafeUpdateInstaller>();
+builder.Services.AddSingleton<IAgentUpdateCoordinator, AgentUpdateCoordinator>();
+builder.Services.AddSingleton<IUpdateRecoveryService, UpdateRecoveryService>();
 builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<AgentUpdateWorker>();
 builder.Services.AddHostedService<NamedPipePlayerShellCommandServer>();
 
 var host = builder.Build();

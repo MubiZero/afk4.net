@@ -242,8 +242,13 @@ reconciliation snapshots, drives a testable lock/unlock enforcement
 coordinator, supervises the Player Shell process, publishes Shell state over
 named pipes, accepts local Shell launcher commands, and applies a local
 allow/deny process policy foundation. It also has an update check/status HTTP
-client boundary. Later slices add automatic credential propagation, deeper
-Windows control, binary installer execution, and rollout/rollback automation.
+client boundary plus a background update execution worker that downloads
+artifacts, verifies SHA-256 package metadata, writes recovery state, invokes a
+configured installer adapter, schedules Agent restart through a configured
+external command, rolls back failed/interrupted installs, and reports rollout
+status progress without blocking the heartbeat loop. Later slices add
+automatic credential propagation, deeper Windows control, signed binary
+hosting, and richer rollout automation.
 
 ### Player Shell
 
@@ -361,9 +366,17 @@ variables before authenticated heartbeats succeed. For Phase 8 local
 enforcement and Shell IPC, configure `Agent:StateDirectory`,
 `Agent:PlayerShellExecutablePath`, optional Shell pipe names, and
 `Agent:LauncherApps`. For Phase 9 update checks, configure
-`Agent:UpdateChannel`. Automatic credential propagation, binary installer
-execution, and rollout/rollback automation are intentionally deferred to later
-slices.
+`Agent:UpdateChannel`; for local update execution experiments, also configure
+`Agent:UpdateStagingDirectory`, `Agent:UpdateInstallerExecutablePath`,
+`Agent:UpdateInstallerArgumentsTemplate`, and
+`Agent:UpdateInstallerTimeoutSeconds`. `Agent:UpdateCheckIntervalSeconds`
+controls the background update worker interval. For replacement and recovery
+experiments, configure `Agent:UpdateStateDirectory`,
+`Agent:UpdateRollbackExecutablePath`, `Agent:UpdateRollbackArgumentsTemplate`,
+`Agent:UpdateRestartExecutablePath`, and
+`Agent:UpdateRestartArgumentsTemplate`. Automatic credential propagation,
+signed binary hosting, and richer rollout automation are intentionally deferred
+to later slices.
 
 ## Current Implementation State
 
@@ -456,6 +469,11 @@ The first vertical slice foundation is implemented:
   creation, package/rollout state transitions, rollout status reads, device
   update checks, and device update status reports;
 - Agent update check/status HTTP client boundary;
+- Agent background update execution worker with component version reporting,
+  artifact download, SHA-256 verification, persisted recovery state,
+  configurable external install/rollback/restart adapters, interrupted-install
+  recovery, and status progression through offered/downloading/downloaded/
+  installing/installed/failed/rollback-started/rolled-back;
 - Operator App production floor-map/workflow shell;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
   grace/offline, ending, and launcher states.
@@ -470,8 +488,8 @@ Not implemented yet:
 - audit search and reports;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
-- binary update artifact hosting, installer build automation, in-place Agent
-  executable replacement, and rollback execution automation.
+- binary update artifact hosting, installer build automation, and richer
+  rollout automation.
 
 ## Engineering Rules
 

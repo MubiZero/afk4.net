@@ -1,9 +1,9 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 9 Updates And Installers first slice is implemented and
-automated verification passed on `codex-phase9-updates-installers`; live
-PostgreSQL smoke is blocked on this device by missing local database/runtime
-tooling.
+Status: Phase 9 Updates And Installers first slice is implemented, Docker
+PostgreSQL live smoke now passes locally, and the Agent update execution,
+replacement, rollback, restart, and recovery adapter boundaries are
+implemented.
 Last updated: 2026-05-14
 
 ## Scope
@@ -55,6 +55,11 @@ Implemented in Phase 9 first slice:
 - added device-credential update check/status endpoints for Agents;
 - added Agent update client boundary for checking available updates and
   reporting update progress;
+- added Agent update execution coordinator and background update worker with
+  component version reporting, artifact download, SHA-256 package verification,
+  persisted recovery state, configurable external install/rollback/restart
+  adapters, interrupted-install recovery, and offered/downloading/downloaded/
+  installing/installed/failed/rollback-started/rolled-back status progression;
 - added installer enrollment and rollout runbooks under `docs/operations/`;
 - updated README with Phase 9 routes, Agent update channel configuration, and
   implementation state.
@@ -86,11 +91,14 @@ Results:
 - Update contract serialization tests passed 5/5.
 - Phase 9 Platform API service/endpoint tests passed 18/18.
 - Agent update client tests passed 3/3.
+- Agent update execution, safe installer, rollback recovery, and background
+  update worker tests passed 10/10.
+- Full Agent Service tests passed 61/61.
 - Full solution build succeeded with 0 warnings and 0 errors.
-- Full solution tests passed 472/472:
+- Full solution tests passed 482/482:
   - BuildingBlocks 3/3;
   - Shared.Contracts 64/64;
-  - Agent.Service 51/51;
+  - Agent.Service 61/61;
   - Player.Shell 11/11;
   - Operator.App 87/87;
   - Platform.Api 256/256.
@@ -108,9 +116,12 @@ Verification notes:
   package, enrolls a device, creates a branch rollout, checks for updates,
   reports device update status, pauses/resumes/completes the rollout, and
   verifies update rows and audit rows.
-- The live PostgreSQL smoke could not complete on this device because Docker,
-  Podman, `psql`, `pg_ctl`, and a local PostgreSQL service are not available;
-  `localhost:5432` is closed. The attempted command was:
+- After Docker was installed on 2026-05-14, the repository `compose.yaml`
+  PostgreSQL service was started on `127.0.0.1:5432`, EF migrations were
+  applied through `20260514081906_AddUpdateRollouts`, and the ignored Phase 9
+  live PostgreSQL smoke harness passed. The harness used a temporary PostgreSQL
+  container on port `55543` because the original harness port `55439` was in a
+  Windows excluded port range. The command was:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File artifacts/phase9-update-smoke/phase9-update-smoke.ps1
@@ -119,16 +130,18 @@ powershell -ExecutionPolicy Bypass -File artifacts/phase9-update-smoke/phase9-up
 - Tooling checks on 2026-05-14:
 
 ```powershell
-Get-Command docker -ErrorAction SilentlyContinue
-Get-Command podman -ErrorAction SilentlyContinue
-Get-Command psql -ErrorAction SilentlyContinue
-Get-Command pg_ctl -ErrorAction SilentlyContinue
-Test-NetConnection -ComputerName localhost -Port 5432
-Get-Service | Where-Object { $_.Name -match 'postgres|docker|podman' -or $_.DisplayName -match 'PostgreSQL|Docker|Podman' }
+docker --version
+docker compose version
+docker compose up -d postgres
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+powershell -ExecutionPolicy Bypass -File artifacts/phase9-update-smoke/phase9-update-smoke.ps1
 ```
 
-- Results: all command lookups returned no executable, no matching service was
-  installed/running, and TCP connection to `localhost:5432` failed.
+- Results: Docker `29.4.3`, Compose `v5.1.3`, `afk4-postgres` healthy on
+  `127.0.0.1:5432`, Phase 9 smoke passed, and
+  `artifacts/phase9-update-smoke/phase9-update-smoke-result.json` reported
+  one validated package, one completed rollout, one installed device status,
+  first update check count `1`, and paused update check count `0`.
 
 Out of Phase 9 first-slice scope:
 
@@ -136,7 +149,7 @@ Out of Phase 9 first-slice scope:
   drivers;
 - binary artifact hosting and production signing key storage;
 - CI installer build automation;
-- in-place Agent executable replacement beyond a later testable adapter;
+- production binary artifact hosting and installer build automation;
 - Operator App update management UI;
 - reports, audit search, diagnostics dashboards, and backup/restore runbooks.
 
@@ -1553,11 +1566,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Install/start Docker Desktop or a local PostgreSQL 17 instance, then rerun
-   the ignored Phase 9 smoke harness:
-   `powershell -ExecutionPolicy Bypass -File artifacts/phase9-update-smoke/phase9-update-smoke.ps1`.
-2. After live PostgreSQL smoke passes, either add the Agent installer execution
-   adapter boundary or move to the reports/audit search/operations slice.
-3. Keep web admin, local server, microservices, non-Windows agents, and kernel
+1. Add Operator App update status visibility for technicians and managers.
+2. Add production binary artifact hosting/signing and installer build
+   automation around the existing Agent update adapter boundaries.
+3. Move to the reports/audit search/operations slice when update operational
+   visibility is deep enough for the MVP.
+4. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.
