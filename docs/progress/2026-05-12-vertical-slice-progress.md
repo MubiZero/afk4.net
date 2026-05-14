@@ -40,11 +40,16 @@ The focused Phase 9 plan was added at
 Implemented in Phase 9 first slice:
 
 - Added shared update contracts for package metadata, rollout targeting, device
-  update checks, and device update status reports;
+  update checks, device update status reports, and package/rollout lifecycle
+  requests;
 - added backend EF persistence for update packages, rollouts, rollout targets,
   and per-device update status with migration `AddUpdateRollouts`;
 - added staff-protected package/rollout/status endpoints with branch-scoped
   permissions and audit;
+- added package state transitions for registered, validated, rejected, and
+  retired package states;
+- added rollout state transitions for active, paused, completed,
+  rollback-requested, rolled-back, and cancelled rollout states;
 - added device-credential update check/status endpoints for Agents;
 - added Agent update client boundary for checking available updates and
   reporting update progress;
@@ -60,6 +65,8 @@ Phase 9 first-slice commits on the branch:
 - `fcaa5d3 feat: expose update rollout endpoints`
 - `1a33616 feat: add agent update client boundary`
 - `b5d6375 docs: add installer update runbooks`
+- `605899d feat: add update lifecycle contracts`
+- `dc10529 feat: add update lifecycle transitions`
 
 Verification on 2026-05-14 from `D:\projects\afk4.net`:
 
@@ -74,25 +81,25 @@ Verification on 2026-05-14 from `D:\projects\afk4.net`:
 
 Results:
 
-- Update contract serialization tests passed 4/4.
-- Phase 9 Platform API service/endpoint tests passed 12/12.
+- Update contract serialization tests passed 5/5.
+- Phase 9 Platform API service/endpoint tests passed 18/18.
 - Agent update client tests passed 3/3.
 - Full solution build succeeded with 0 warnings and 0 errors.
-- Full solution tests passed 465/465:
+- Full solution tests passed 472/472:
   - BuildingBlocks 3/3;
-  - Shared.Contracts 63/63;
+  - Shared.Contracts 64/64;
   - Agent.Service 51/51;
   - Player.Shell 11/11;
   - Operator.App 87/87;
-  - Platform.Api 250/250.
+  - Platform.Api 256/256.
 - EF migration idempotent SQL script generation succeeded; generated output is
   under ignored `artifacts/phase9-update-rollouts.sql`.
 
 Verification notes:
 
-- The endpoint tests cover package registration, rollout creation/status read,
-  device update check, and device update status report through the in-memory
-  test host.
+- The endpoint tests cover package registration, package state changes, rollout
+  creation/status read, rollout state changes, device update check, and device
+  update status report through the in-memory test host.
 - A live PostgreSQL smoke was not run for this first Phase 9 pass; migration
   generation and full automated verification passed locally.
 
