@@ -15,8 +15,13 @@ public sealed class EcdsaUpdatePackageSigner
         }
 
         var pem = await File.ReadAllTextAsync(privateKeyPemPath, cancellationToken);
+        return SignPem(pem, payload);
+    }
+
+    public string SignPem(string privateKeyPem, byte[] payload)
+    {
         using var ecdsa = ECDsa.Create();
-        ecdsa.ImportFromPem(pem);
+        ecdsa.ImportFromPem(privateKeyPem);
         var signature = ecdsa.SignData(
             payload,
             HashAlgorithmName.SHA256,

@@ -405,9 +405,12 @@ experiments, configure `Agent:UpdateStateDirectory`,
 `Agent:UpdateRestartExecutablePath`, and
 `Agent:UpdateRestartArgumentsTemplate`. `Agent:UpdatePackageSigningPublicKeyPem`
 must contain the public key that matches packages produced by the Update
-Publisher before update installation is allowed. Automatic credential
-propagation, production object storage, and richer rollout automation are
-intentionally deferred to later slices.
+Publisher before update installation is allowed. The Update Publisher can emit
+metadata for local file-system hosting or production-style presigned HTTP PUT
+artifact uploads with public CDN artifact URLs, and can read the signing key
+from a file or controlled environment variable. Automatic credential
+propagation, provider-specific object-store/CDN provisioning, and richer
+rollout automation are intentionally deferred to later slices.
 
 ## Current Implementation State
 
@@ -506,9 +509,10 @@ The first vertical slice foundation is implemented:
   adapters, interrupted-install recovery, and status progression through
   offered/downloading/downloaded/installing/installed/failed/
   rollback-started/rolled-back;
-- Update Publisher CLI for copying ready artifacts into deterministic hosting
-  paths, computing SHA-256, signing canonical metadata with ECDSA P-256, and
-  emitting `CreateUpdatePackageRequest` JSON;
+- Update Publisher CLI for publishing ready artifacts to deterministic local
+  hosting paths or presigned HTTP PUT upload URLs, computing SHA-256, signing
+  canonical metadata with ECDSA P-256 from a file or environment-provided PEM,
+  and emitting `CreateUpdatePackageRequest` JSON;
 - PowerShell wrapper for publishing Windows client projects into zip artifacts
   before signing/publishing them;
 - Operator App production floor-map/workflow shell;
@@ -538,8 +542,8 @@ Not implemented yet:
 - automatic Agent-side consumption of rotated credentials;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
-- binary update artifact hosting, installer build automation, richer rollout
-  automation, and Operator App package/rollout management UI.
+- provider-specific object-store/CDN provisioning, installer build automation,
+  richer rollout automation, and Operator App package/rollout management UI.
 
 ## Engineering Rules
 

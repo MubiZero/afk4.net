@@ -1,10 +1,11 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 11 report CSV export slice is implemented, Docker PostgreSQL live
-smoke passes locally for the update slice, Agent update execution/recovery
-adapter boundaries are implemented, and Operator App update status visibility,
-audit search, branch-scoped operational reports, and report CSV exports are
-available to permissioned staff.
+Status: Phase 11 report CSV export slice is implemented, the Phase 10 update
+publisher now has production-style artifact hosting and signing key source
+boundaries, Docker PostgreSQL live smoke passes locally for the update slice,
+Agent update execution/recovery adapter boundaries are implemented, and
+Operator App update status visibility, audit search, branch-scoped operational
+reports, and report CSV exports are available to permissioned staff.
 Last updated: 2026-05-14
 
 ## Scope
@@ -33,6 +34,44 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`
+
+## Phase 10 Production Artifact Hosting And Key Source Boundary
+
+Implemented on `codex/phase11-operational-reports` after the report CSV export
+commit `3133fd4`.
+
+Implemented in this Phase 10 follow-up:
+
+- Added `file-system` and `http-put` artifact-store selection to the Update
+  Publisher CLI.
+- Added presigned HTTP PUT artifact upload support with a separate public CDN
+  artifact URI recorded in `CreateUpdatePackageRequest`.
+- Added signing-key loading from a controlled environment variable so key
+  vaults, secret managers, or CI runners can inject the ECDSA PEM without a
+  file on disk.
+- Preserved the local file-system artifact publishing path and file-based
+  signing-key path for development use.
+- Updated the PowerShell wrapper and update package publishing runbook for both
+  artifact stores and both signing key sources.
+
+Targeted verification on 2026-05-14 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Update.Publisher.Tests\AFK4.Update.Publisher.Tests.csproj --filter FileSystemUpdatePackagePublisherTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Update Publisher targeted tests passed 6/6.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 563/563:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 6/6;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 111/111;
+  - Platform.Api 296/296.
 
 ## Phase 11 Report CSV Export Slice
 
@@ -308,7 +347,8 @@ Results:
 
 Remaining Phase 10 work:
 
-- production object storage/CDN adapter and key vault integration;
+- provider-specific object-store/CDN and key-vault SDK adapters only if the
+  presigned URL and environment-secret boundary is not enough for production;
 - MSI/MSIX authoring decision and CI release jobs.
 
 ## Phase 9 Operator Update Visibility Follow-Up
@@ -1891,10 +1931,10 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add production object storage/CDN hosting and key vault integration around
-   the local publishing tool.
-2. Add Operator App package/rollout management workflow when update package
+1. Add Operator App package/rollout management workflow when update package
    publishing needs to be run by operators instead of scripts.
+2. Decide MSI/MSIX/WiX packaging per Windows client surface and add CI release
+   jobs once provider choices are explicit.
 3. Add diagnostics dashboards and backup/restore runbooks.
 4. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated

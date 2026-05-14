@@ -16,14 +16,20 @@ param(
     [Parameter(Mandatory = $true)]
     [guid] $OrganizationId,
 
-    [Parameter(Mandatory = $true)]
+    [ValidateSet('file-system', 'http-put')]
+    [string] $ArtifactStore = 'file-system',
+
     [string] $HostingRoot,
 
-    [Parameter(Mandatory = $true)]
     [uri] $PublicBaseUri,
 
-    [Parameter(Mandatory = $true)]
+    [uri] $ArtifactUploadUri,
+
+    [uri] $ArtifactPublicUri,
+
     [string] $SigningKeyPath,
+
+    [string] $SigningKeyEnvVar,
 
     [Parameter(Mandatory = $true)]
     [string] $ReleaseNotes,
@@ -72,17 +78,48 @@ if (Test-Path -LiteralPath $artifactPath) {
 
 Compress-Archive -Path (Join-Path $publishRoot '*') -DestinationPath $artifactPath -CompressionLevel Optimal
 
-& $DotnetPath run --project (Join-Path $repoRoot 'src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj') -- `
-    --organization-id $OrganizationId `
-    --component $Component `
-    --version $Version `
-    --channel $Channel `
-    --artifact $artifactPath `
-    --hosting-root $HostingRoot `
-    --public-base-uri $PublicBaseUri.AbsoluteUri `
-    --signing-key $SigningKeyPath `
-    --release-notes $ReleaseNotes `
-    --output $requestPath
+$publisherArgs = @(
+    '--organization-id', $OrganizationId
+    '--component', $Component
+    '--version', $Version
+    '--channel', $Channel
+    '--artifact', $artifactPath
+    '--artifact-store', $ArtifactStore
+    '--release-notes', $ReleaseNotes
+    '--output', $requestPath
+)
+
+if ($ArtifactStore -eq 'file-system') {
+    if ([string]::IsNullOrWhiteSpace($HostingRoot) -or $null -eq $PublicBaseUri) {
+        throw "HostingRoot and PublicBaseUri are required when ArtifactStore is 'file-system'."
+    }
+
+    $publisherArgs += @('--hosting-root', $HostingRoot)
+    $publisherArgs += @('--public-base-uri', $PublicBaseUri.AbsoluteUri)
+}
+elseif ($ArtifactStore -eq 'http-put') {
+    if ($null -eq $ArtifactUploadUri -or $null -eq $ArtifactPublicUri) {
+        throw "ArtifactUploadUri and ArtifactPublicUri are required when ArtifactStore is 'http-put'."
+    }
+
+    $publisherArgs += @('--artifact-upload-uri', $ArtifactUploadUri.AbsoluteUri)
+    $publisherArgs += @('--artifact-public-uri', $ArtifactPublicUri.AbsoluteUri)
+}
+
+$hasSigningKeyPath = -not [string]::IsNullOrWhiteSpace($SigningKeyPath)
+$hasSigningKeyEnvVar = -not [string]::IsNullOrWhiteSpace($SigningKeyEnvVar)
+if ($hasSigningKeyPath -eq $hasSigningKeyEnvVar) {
+    throw "Specify exactly one signing key source: SigningKeyPath or SigningKeyEnvVar."
+}
+
+if ($hasSigningKeyPath) {
+    $publisherArgs += @('--signing-key', $SigningKeyPath)
+}
+else {
+    $publisherArgs += @('--signing-key-env-var', $SigningKeyEnvVar)
+}
+
+& $DotnetPath run --project (Join-Path $repoRoot 'src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj') -- @publisherArgs
 
 Write-Host "Artifact: $artifactPath"
 Write-Host "CreateUpdatePackageRequest: $requestPath"

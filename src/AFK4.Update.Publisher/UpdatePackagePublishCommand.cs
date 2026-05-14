@@ -25,7 +25,12 @@ public static class UpdatePackagePublishCommand
             await error.WriteLineAsync($"Published artifact: {result.PublishedArtifactPath}");
             return 0;
         }
-        catch (Exception exception) when (exception is ArgumentException or IOException or UnauthorizedAccessException or CryptographicException)
+        catch (Exception exception) when (
+            exception is ArgumentException or
+            IOException or
+            UnauthorizedAccessException or
+            CryptographicException or
+            HttpRequestException)
         {
             await error.WriteLineAsync(exception.Message);
             return 1;
@@ -36,10 +41,16 @@ public static class UpdatePackagePublishCommand
     {
         var values = ParsePairs(args);
         var organizationId = RequiredGuid(values, "--organization-id");
-        var publicBaseUri = RequiredUri(values, "--public-base-uri");
+        var artifactStoreKind = values.TryGetValue("--artifact-store", out var configuredArtifactStoreKind) &&
+            !string.IsNullOrWhiteSpace(configuredArtifactStoreKind)
+            ? configuredArtifactStoreKind
+            : UpdateArtifactStoreKindNames.FileSystem;
 
+        values.TryGetValue("--hosting-root", out var hostingRoot);
         values.TryGetValue("--published-file-name", out var publishedFileName);
         values.TryGetValue("--output", out var outputPath);
+        values.TryGetValue("--signing-key", out var signingKeyPath);
+        values.TryGetValue("--signing-key-env-var", out var signingKeyEnvironmentVariable);
 
         return new UpdatePackagePublishOptions(
             organizationId,
@@ -47,12 +58,16 @@ public static class UpdatePackagePublishCommand
             Required(values, "--version"),
             Required(values, "--channel"),
             Required(values, "--artifact"),
-            Required(values, "--hosting-root"),
-            publicBaseUri,
-            Required(values, "--signing-key"),
+            string.IsNullOrWhiteSpace(hostingRoot) ? null : hostingRoot,
+            OptionalUri(values, "--public-base-uri"),
+            string.IsNullOrWhiteSpace(signingKeyPath) ? null : signingKeyPath,
             Required(values, "--release-notes"),
             string.IsNullOrWhiteSpace(publishedFileName) ? null : publishedFileName,
-            string.IsNullOrWhiteSpace(outputPath) ? null : outputPath);
+            string.IsNullOrWhiteSpace(outputPath) ? null : outputPath,
+            artifactStoreKind,
+            OptionalUri(values, "--artifact-upload-uri"),
+            OptionalUri(values, "--artifact-public-uri"),
+            string.IsNullOrWhiteSpace(signingKeyEnvironmentVariable) ? null : signingKeyEnvironmentVariable);
     }
 
     private static Dictionary<string, string> ParsePairs(string[] args)
@@ -100,6 +115,18 @@ public static class UpdatePackagePublishCommand
             : throw new ArgumentException($"{name} must be an absolute URI.");
     }
 
+    private static Uri? OptionalUri(IReadOnlyDictionary<string, string> values, string name)
+    {
+        if (!values.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            ? uri
+            : throw new ArgumentException($"{name} must be an absolute URI.");
+    }
+
     private const string Usage = """
         AFK4.Update.Publisher
 
@@ -109,12 +136,23 @@ public static class UpdatePackagePublishCommand
           --version <version>
           --channel <internal|beta|stable>
           --artifact <path>
-          --hosting-root <directory>
-          --public-base-uri <uri>
-          --signing-key <ecdsa-private-key-pem-path>
           --release-notes <text>
 
+        File-system artifact publishing:
+          --hosting-root <directory>
+          --public-base-uri <uri>
+
+        HTTP PUT artifact publishing:
+          --artifact-store http-put
+          --artifact-upload-uri <presigned-upload-uri>
+          --artifact-public-uri <cdn-public-artifact-uri>
+
+        Signing key source, choose exactly one:
+          --signing-key <ecdsa-private-key-pem-path>
+          --signing-key-env-var <environment-variable-containing-ecdsa-private-key-pem>
+
         Optional:
+          --artifact-store <file-system|http-put>
           --published-file-name <file-name>
           --output <create-update-package-request-json-path>
         """;
