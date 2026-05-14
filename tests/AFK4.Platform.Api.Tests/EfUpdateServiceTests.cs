@@ -163,6 +163,54 @@ public sealed class EfUpdateServiceTests
     }
 
     [Fact]
+    public async Task ListRolloutStatusesAsync_ReturnsRolloutsWithDeviceStatusSnapshots()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        await SeedDeviceAsync(db, TestIds.DeviceId);
+        await SeedDeviceAsync(db, OtherDeviceId);
+        var package = await RegisterPackageAsync(service);
+        var rollout = await service.CreateRolloutAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateUpdateRolloutRequest(
+                TestIds.OrganizationId,
+                package.UpdatePackageId,
+                UpdateChannelNames.Beta,
+                UpdateTargetKindNames.Device,
+                [TestIds.DeviceId, OtherDeviceId],
+                BatchPercent: 50,
+                StartsAtUtc: Now,
+                Reason: "Targeted rollout."),
+            CancellationToken.None);
+        Assert.True(rollout.Succeeded);
+        Assert.NotNull(rollout.Response);
+        await service.ReportStatusAsync(
+            StatusReport(
+                rollout.Response.UpdateRolloutId,
+                package.UpdatePackageId,
+                UpdateStatusNames.Installing,
+                "install started"),
+            CancellationToken.None);
+
+        var result = await service.ListRolloutStatusesAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        var readBack = Assert.Single(result.Response);
+        Assert.Equal(rollout.Response.UpdateRolloutId, readBack.UpdateRolloutId);
+        Assert.Equal(2, readBack.TargetDeviceIds.Count);
+        var status = Assert.Single(readBack.DeviceStatuses);
+        Assert.Equal(TestIds.DeviceId, status.DeviceId);
+        Assert.Equal("1.2.2", status.InstalledVersion);
+        Assert.Equal("1.2.3", status.TargetVersion);
+        Assert.Equal(UpdateStatusNames.Installing, status.Status);
+    }
+
+    [Fact]
     public async Task ChangePackageStateAsync_ValidatesRegisteredPackage()
     {
         await using var db = CreateDbContext();

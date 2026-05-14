@@ -104,6 +104,56 @@ public sealed class UpdateEndpointTests
     }
 
     [Fact]
+    public async Task GetUpdateRollouts_WithTechnicianPermission_ReturnsStatusList()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        var enrollment = await EnrollDeviceAsync(client);
+        var package = await RegisterPackageAsync(client);
+        var rollout = await CreateBranchRolloutAsync(client, package.UpdatePackageId);
+        var statusRequest = new DeviceUpdateStatusReportRequest(
+            enrollment.OrganizationId,
+            enrollment.BranchId,
+            enrollment.DeviceId,
+            rollout.UpdateRolloutId,
+            package.UpdatePackageId,
+            UpdateComponentNames.AgentService,
+            InstalledVersion: "1.2.2",
+            TargetVersion: "1.2.3",
+            UpdateStatusNames.Installing,
+            Message: "install started",
+            ObservedAtUtc: DateTimeOffset.Parse("2026-05-14T14:06:00Z"));
+        using var statusMessage = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{enrollment.DeviceId}/updates/status")
+        {
+            Content = JsonContent.Create(statusRequest)
+        };
+        statusMessage.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
+        var statusResponse = await client.SendAsync(statusMessage);
+
+        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/updates/rollouts");
+        var rollouts = await response.Content.ReadFromJsonAsync<IReadOnlyList<UpdateRolloutStatusDto>>();
+
+        Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(rollouts);
+        var readBack = Assert.Single(rollouts);
+        Assert.Equal(rollout.UpdateRolloutId, readBack.UpdateRolloutId);
+        Assert.Equal(UpdateRolloutStateNames.Active, readBack.State);
+        var status = Assert.Single(readBack.DeviceStatuses);
+        Assert.Equal(enrollment.DeviceId, status.DeviceId);
+        Assert.Equal(UpdateStatusNames.Installing, status.Status);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var auditActions = await dbContext.AuditRecords
+            .OrderBy(audit => audit.CreatedAtUtc)
+            .Select(audit => audit.Action)
+            .ToListAsync();
+        Assert.Contains(AuditActionNames.ViewUpdateRollout, auditActions);
+    }
+
+    [Fact]
     public async Task PostUpdatePackageState_WithTechnicianPermission_ChangesStateAndWritesAudit()
     {
         await using var factory = new PlatformApiFactory();

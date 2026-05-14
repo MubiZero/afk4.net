@@ -1,9 +1,9 @@
 # AFK4 Vertical Slice Progress
 
 Status: Phase 9 Updates And Installers first slice is implemented, Docker
-PostgreSQL live smoke now passes locally, and the Agent update execution,
-replacement, rollback, restart, and recovery adapter boundaries are
-implemented.
+PostgreSQL live smoke passes locally, Agent update execution/recovery adapter
+boundaries are implemented, and Operator App update status visibility is now
+available for staff with `updates.status.view`.
 Last updated: 2026-05-14
 
 ## Scope
@@ -31,6 +31,50 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
 
+## Phase 9 Operator Update Visibility Follow-Up
+
+Implemented after the Phase 9 merge on 2026-05-14:
+
+- Added shared rollout status read contracts with per-device installed/target
+  version, status, message, and update timestamp snapshots.
+- Added backend `GET /api/branches/{branchId}/updates/rollouts` protected by
+  `updates.status.view`, returning rollout list rows plus device status
+  snapshots and writing update view audit records.
+- Added `IUpdateService.ListRolloutStatusesAsync` over the existing
+  update-rollout and device-status persistence tables.
+- Added Operator App typed update API client and Settings workspace update
+  status ViewModel.
+- Added an Updates panel in Operator App Settings for technicians/managers with
+  rollout target, batch, state, progress, schedule, and per-device status rows.
+- Allowed the Settings workspace to be visible for staff that only have
+  `updates.status.view`.
+
+Verification on 2026-05-14 from `D:\projects\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter UpdateContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "EfUpdateServiceTests|UpdateEndpointTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --filter "OperatorUpdateApiClientTests|UpdateStatusWorkspaceViewModelTests|SettingsWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Update contract serialization tests passed 6/6.
+- Phase 9 Platform API service/endpoint tests passed 20/20.
+- Operator update/settings/shell targeted tests passed 15/15.
+- Full Operator App tests passed 92/92.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 490/490:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 65/65;
+  - Agent.Service 61/61;
+  - Player.Shell 11/11;
+  - Operator.App 92/92;
+  - Platform.Api 258/258.
+
 ## Phase 9 Updates And Installers
 
 Started on `codex-phase9-updates-installers` after Phase 8 verification commit
@@ -53,6 +97,7 @@ Implemented in Phase 9 first slice:
 - added rollout state transitions for active, paused, completed,
   rollback-requested, rolled-back, and cancelled rollout states;
 - added device-credential update check/status endpoints for Agents;
+- added staff-protected rollout status list reads for Operator visibility;
 - added Agent update client boundary for checking available updates and
   reporting update progress;
 - added Agent update execution coordinator and background update worker with
@@ -150,7 +195,7 @@ Out of Phase 9 first-slice scope:
 - binary artifact hosting and production signing key storage;
 - CI installer build automation;
 - production binary artifact hosting and installer build automation;
-- Operator App update management UI;
+- Operator App update package/rollout management UI;
 - reports, audit search, diagnostics dashboards, and backup/restore runbooks.
 
 ## Phase 8 Agent Enforcement And Player Shell
@@ -1566,9 +1611,10 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add Operator App update status visibility for technicians and managers.
-2. Add production binary artifact hosting/signing and installer build
+1. Add production binary artifact hosting/signing and installer build
    automation around the existing Agent update adapter boundaries.
+2. Add Operator App package/rollout management workflow if package publishing
+   needs to happen before reports.
 3. Move to the reports/audit search/operations slice when update operational
    visibility is deep enough for the MVP.
 4. Keep web admin, local server, microservices, non-Windows agents, and kernel

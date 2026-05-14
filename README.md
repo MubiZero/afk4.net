@@ -198,6 +198,8 @@ The current vertical slice exposes:
   permission `updates.rollouts.manage`
 - `POST /api/branches/{branchId}/updates/rollouts/{rolloutId}/state` with
   staff bearer token permission `updates.rollouts.manage`
+- `GET /api/branches/{branchId}/updates/rollouts` with staff bearer token
+  permission `updates.status.view`
 - `GET /api/branches/{branchId}/updates/rollouts/{rolloutId}` with staff
   bearer token permission `updates.status.view`
 - `POST /api/devices/{deviceId}/updates/check` with device credential
@@ -229,7 +231,7 @@ The main working screen is the floor map. The current app includes staff
 sign-in, Windows-protected token storage, permission-filtered navigation,
 realtime floor-map loading, selected-seat session actions, player search,
 wallet/package summaries, POS, shifts, settings, technician device tools, and
-production hotkeys.
+update rollout status visibility, and production hotkeys.
 
 ### Agent Service
 
@@ -466,8 +468,8 @@ The first vertical slice foundation is implemented:
 - EF-backed update package, rollout, rollout target, and per-device status
   persistence with migration `AddUpdateRollouts`;
 - protected Phase 9 endpoints for update package registration, rollout
-  creation, package/rollout state transitions, rollout status reads, device
-  update checks, and device update status reports;
+  creation, package/rollout state transitions, rollout status list/detail
+  reads, device update checks, and device update status reports;
 - Agent update check/status HTTP client boundary;
 - Agent background update execution worker with component version reporting,
   artifact download, SHA-256 verification, persisted recovery state,
@@ -475,6 +477,7 @@ The first vertical slice foundation is implemented:
   recovery, and status progression through offered/downloading/downloaded/
   installing/installed/failed/rollback-started/rolled-back;
 - Operator App production floor-map/workflow shell;
+- Operator App Settings update status panel for technicians and managers;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
   grace/offline, ending, and launcher states.
 
@@ -488,8 +491,8 @@ Not implemented yet:
 - audit search and reports;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
-- binary update artifact hosting, installer build automation, and richer
-  rollout automation.
+- binary update artifact hosting, installer build automation, richer rollout
+  automation, and Operator App package/rollout management UI.
 
 ## Engineering Rules
 

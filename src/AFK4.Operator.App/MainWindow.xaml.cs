@@ -13,6 +13,7 @@ using AFK4.Operator.App.Sessions;
 using AFK4.Operator.App.Settings;
 using AFK4.Operator.App.Shell;
 using AFK4.Operator.App.Shifts;
+using AFK4.Operator.App.Updates;
 
 namespace AFK4.Operator.App;
 
@@ -43,9 +44,11 @@ public partial class MainWindow : Window
         var posApiClient = new HttpOperatorPosApiClient(apiHttpClient, tokenStore);
         var shiftApiClient = new HttpOperatorShiftApiClient(apiHttpClient, tokenStore);
         var deviceApiClient = new HttpOperatorDeviceApiClient(apiHttpClient, tokenStore);
+        var updateApiClient = new HttpOperatorUpdateApiClient(apiHttpClient, tokenStore);
         var settingsViewModel = new SettingsWorkspaceViewModel(
             new HashSet<string>(),
-            new TechnicianDeviceWorkflowViewModel(deviceApiClient))
+            new TechnicianDeviceWorkflowViewModel(deviceApiClient),
+            new UpdateStatusWorkspaceViewModel(updateApiClient))
         {
             ApiBaseUrlText = options.PlatformBaseUrl.ToString()
         };

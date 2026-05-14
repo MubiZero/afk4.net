@@ -9,6 +9,7 @@ using AFK4.Operator.App.Players;
 using AFK4.Operator.App.Pos;
 using AFK4.Operator.App.Settings;
 using AFK4.Operator.App.Shifts;
+using AFK4.Operator.App.Updates;
 using AFK4.Shared.Contracts.Identity;
 
 namespace AFK4.Operator.App.Shell;
@@ -39,7 +40,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
             new PlayerSearchViewModel(new UnconfiguredOperatorPlayerApiClient()),
             new PosWorkspaceViewModel(new UnconfiguredOperatorPosApiClient()),
             new ShiftWorkspaceViewModel(new UnconfiguredOperatorShiftApiClient()),
-            new SettingsWorkspaceViewModel(new HashSet<string>()))
+            CreateDefaultSettingsWorkspace())
     {
     }
 
@@ -50,7 +51,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
             new PlayerSearchViewModel(new UnconfiguredOperatorPlayerApiClient()),
             new PosWorkspaceViewModel(new UnconfiguredOperatorPosApiClient()),
             new ShiftWorkspaceViewModel(new UnconfiguredOperatorShiftApiClient()),
-            new SettingsWorkspaceViewModel(new HashSet<string>()))
+            CreateDefaultSettingsWorkspace())
     {
     }
 
@@ -64,7 +65,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
             players,
             new PosWorkspaceViewModel(new UnconfiguredOperatorPosApiClient()),
             new ShiftWorkspaceViewModel(new UnconfiguredOperatorShiftApiClient()),
-            new SettingsWorkspaceViewModel(new HashSet<string>()))
+            CreateDefaultSettingsWorkspace())
     {
     }
 
@@ -306,6 +307,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
                 StaffPermissionNames.ManageTariffs,
                 StaffPermissionNames.ManagePackages,
                 StaffPermissionNames.ManageRoles,
+                StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ViewAudit),
             _ => false
         };
@@ -314,6 +316,14 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     private static bool HasAny(IReadOnlySet<string> permissions, params string[] requiredPermissions)
     {
         return requiredPermissions.Any(permissions.Contains);
+    }
+
+    private static SettingsWorkspaceViewModel CreateDefaultSettingsWorkspace()
+    {
+        return new SettingsWorkspaceViewModel(
+            new HashSet<string>(),
+            technicianTools: null,
+            new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()));
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
