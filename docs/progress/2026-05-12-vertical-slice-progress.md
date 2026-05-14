@@ -30,6 +30,56 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-13-afk4-phase7-operator-app-production-ux.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
+
+## Phase 10 Update Publishing Automation
+
+Started on `codex/update-publisher-automation` after Operator update
+visibility merge commit `9dcfecf`.
+
+The focused Phase 10 plan was added at
+`docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`.
+
+Implemented in the first Phase 10 slice:
+
+- Added `AFK4.Update.Publisher`, a local CLI that takes an already-built update
+  artifact, copies it into a deterministic hosting path, computes SHA-256 and
+  size from the copied artifact, signs canonical package metadata with ECDSA
+  P-256 SHA-256, and emits `CreateUpdatePackageRequest` JSON for the existing
+  package registration endpoint.
+- Added a PowerShell wrapper at `scripts/publish-client-update.ps1` that
+  publishes a Windows client project, zips the publish output under ignored
+  `artifacts/update-packages/`, and calls the publisher.
+- Added `docs/operations/update-package-publishing.md` for local key handling,
+  artifact publishing, and package registration flow.
+
+Verification on 2026-05-14 from `D:\projects\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Update.Publisher.Tests/AFK4.Update.Publisher.Tests.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Update Publisher tests passed 3/3.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 493/493:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 65/65;
+  - Update.Publisher 3/3;
+  - Agent.Service 61/61;
+  - Player.Shell 11/11;
+  - Operator.App 92/92;
+  - Platform.Api 258/258.
+
+Remaining Phase 10 work:
+
+- Agent-side cryptographic signature verification against configured public
+  keys;
+- production object storage/CDN adapter and key vault integration;
+- MSI/MSIX authoring decision and CI release jobs.
 
 ## Phase 9 Operator Update Visibility Follow-Up
 
@@ -1611,12 +1661,14 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add production binary artifact hosting/signing and installer build
-   automation around the existing Agent update adapter boundaries.
-2. Add Operator App package/rollout management workflow if package publishing
+1. Add Agent-side cryptographic signature verification using configured update
+   package public keys.
+2. Add production object storage/CDN hosting and key vault integration around
+   the local publishing tool.
+3. Add Operator App package/rollout management workflow if package publishing
    needs to happen before reports.
-3. Move to the reports/audit search/operations slice when update operational
+4. Move to the reports/audit search/operations slice when update operational
    visibility is deep enough for the MVP.
-4. Keep web admin, local server, microservices, non-Windows agents, and kernel
+5. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.
