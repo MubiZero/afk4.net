@@ -22,6 +22,20 @@ public interface IUpdateService
         Guid rolloutId,
         CancellationToken cancellationToken);
 
+    Task<UpdateServiceResult<UpdatePackageDto>> ChangePackageStateAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid packageId,
+        UpdatePackageStateChangeRequest request,
+        CancellationToken cancellationToken);
+
+    Task<UpdateServiceResult<UpdateRolloutDto>> ChangeRolloutStateAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid rolloutId,
+        UpdateRolloutStateChangeRequest request,
+        CancellationToken cancellationToken);
+
     Task<UpdateServiceResult<DeviceUpdateCheckResponse>> CheckForUpdatesAsync(
         DeviceUpdateCheckRequest request,
         CancellationToken cancellationToken);

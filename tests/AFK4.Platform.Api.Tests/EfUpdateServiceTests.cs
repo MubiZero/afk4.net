@@ -162,6 +162,128 @@ public sealed class EfUpdateServiceTests
         Assert.Equal(Now.AddMinutes(5), stored.UpdatedAtUtc);
     }
 
+    [Fact]
+    public async Task ChangePackageStateAsync_ValidatesRegisteredPackage()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var package = await RegisterPackageAsync(service);
+
+        var result = await service.ChangePackageStateAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            package.UpdatePackageId,
+            new UpdatePackageStateChangeRequest(
+                TestIds.OrganizationId,
+                UpdatePackageStateNames.Validated,
+                "Signature and hash verified."),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(UpdatePackageStateNames.Validated, result.Response.State);
+        Assert.Equal(UpdatePackageStateNames.Validated, (await db.UpdatePackages.SingleAsync()).State);
+    }
+
+    [Fact]
+    public async Task ChangeRolloutStateAsync_PausedRolloutIsNotOfferedToDevice()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        await SeedDeviceAsync(db, TestIds.DeviceId);
+        var package = await RegisterPackageAsync(service);
+        var rollout = await service.CreateRolloutAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateUpdateRolloutRequest(
+                TestIds.OrganizationId,
+                package.UpdatePackageId,
+                UpdateChannelNames.Beta,
+                UpdateTargetKindNames.Branch,
+                [],
+                BatchPercent: 100,
+                StartsAtUtc: Now,
+                Reason: "Branch rollout."),
+            CancellationToken.None);
+        Assert.True(rollout.Succeeded);
+        Assert.NotNull(rollout.Response);
+
+        var paused = await service.ChangeRolloutStateAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            rollout.Response.UpdateRolloutId,
+            new UpdateRolloutStateChangeRequest(
+                TestIds.OrganizationId,
+                UpdateRolloutStateNames.Paused,
+                "Pause rollout while investigating failures."),
+            CancellationToken.None);
+        var check = await service.CheckForUpdatesAsync(
+            new DeviceUpdateCheckRequest(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                TestIds.DeviceId,
+                UpdateChannelNames.Beta,
+                Now.AddMinutes(1),
+                [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]),
+            CancellationToken.None);
+
+        Assert.True(paused.Succeeded);
+        Assert.NotNull(paused.Response);
+        Assert.Equal(UpdateRolloutStateNames.Paused, paused.Response.State);
+        Assert.True(check.Succeeded);
+        Assert.NotNull(check.Response);
+        Assert.Empty(check.Response.Updates);
+    }
+
+    [Fact]
+    public async Task ChangeRolloutStateAsync_RejectsTerminalRolloutTransition()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var package = await RegisterPackageAsync(service);
+        var rollout = await service.CreateRolloutAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateUpdateRolloutRequest(
+                TestIds.OrganizationId,
+                package.UpdatePackageId,
+                UpdateChannelNames.Beta,
+                UpdateTargetKindNames.Branch,
+                [],
+                BatchPercent: 100,
+                StartsAtUtc: Now,
+                Reason: "Branch rollout."),
+            CancellationToken.None);
+        Assert.True(rollout.Succeeded);
+        Assert.NotNull(rollout.Response);
+
+        var completed = await service.ChangeRolloutStateAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            rollout.Response.UpdateRolloutId,
+            new UpdateRolloutStateChangeRequest(
+                TestIds.OrganizationId,
+                UpdateRolloutStateNames.Completed,
+                "All devices installed."),
+            CancellationToken.None);
+        var restart = await service.ChangeRolloutStateAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            rollout.Response.UpdateRolloutId,
+            new UpdateRolloutStateChangeRequest(
+                TestIds.OrganizationId,
+                UpdateRolloutStateNames.Active,
+                "Restart completed rollout."),
+            CancellationToken.None);
+
+        Assert.True(completed.Succeeded);
+        Assert.NotNull(completed.Response);
+        Assert.Equal(UpdateRolloutStateNames.Completed, completed.Response.State);
+        Assert.NotNull(completed.Response.CompletedAtUtc);
+        Assert.False(restart.Succeeded);
+        Assert.Equal("Completed, rolled-back, and cancelled rollouts are terminal.", restart.Error);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()

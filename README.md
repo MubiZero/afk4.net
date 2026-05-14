@@ -192,8 +192,12 @@ The current vertical slice exposes:
   bearer token permission `devices.credentials.revoke`
 - `POST /api/branches/{branchId}/updates/packages` with staff bearer token
   permission `updates.packages.manage`
+- `POST /api/branches/{branchId}/updates/packages/{packageId}/state` with
+  staff bearer token permission `updates.packages.manage`
 - `POST /api/branches/{branchId}/updates/rollouts` with staff bearer token
   permission `updates.rollouts.manage`
+- `POST /api/branches/{branchId}/updates/rollouts/{rolloutId}/state` with
+  staff bearer token permission `updates.rollouts.manage`
 - `GET /api/branches/{branchId}/updates/rollouts/{rolloutId}` with staff
   bearer token permission `updates.status.view`
 - `POST /api/devices/{deviceId}/updates/check` with device credential
@@ -449,8 +453,8 @@ The first vertical slice foundation is implemented:
 - EF-backed update package, rollout, rollout target, and per-device status
   persistence with migration `AddUpdateRollouts`;
 - protected Phase 9 endpoints for update package registration, rollout
-  creation, rollout status reads, device update checks, and device update
-  status reports;
+  creation, package/rollout state transitions, rollout status reads, device
+  update checks, and device update status reports;
 - Agent update check/status HTTP client boundary;
 - Operator App production floor-map/workflow shell;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,

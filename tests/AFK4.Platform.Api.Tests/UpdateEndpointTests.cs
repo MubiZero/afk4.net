@@ -104,6 +104,98 @@ public sealed class UpdateEndpointTests
     }
 
     [Fact]
+    public async Task PostUpdatePackageState_WithTechnicianPermission_ChangesStateAndWritesAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        var package = await RegisterPackageAsync(client);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId}/updates/packages/{package.UpdatePackageId}/state",
+            new UpdatePackageStateChangeRequest(
+                TestIds.OrganizationId,
+                UpdatePackageStateNames.Validated,
+                "Signature and hash verified."));
+        var updated = await response.Content.ReadFromJsonAsync<UpdatePackageDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(updated);
+        Assert.Equal(UpdatePackageStateNames.Validated, updated.State);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var auditActions = await dbContext.AuditRecords
+            .OrderBy(audit => audit.CreatedAtUtc)
+            .Select(audit => audit.Action)
+            .ToListAsync();
+        Assert.Contains(AuditActionNames.ChangeUpdatePackageState, auditActions);
+    }
+
+    [Fact]
+    public async Task PostUpdateRolloutState_WithTechnicianPermission_PausesRollout()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        var enrollment = await EnrollDeviceAsync(client);
+        var package = await RegisterPackageAsync(client);
+        var rollout = await CreateBranchRolloutAsync(client, package.UpdatePackageId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId}/updates/rollouts/{rollout.UpdateRolloutId}/state",
+            new UpdateRolloutStateChangeRequest(
+                TestIds.OrganizationId,
+                UpdateRolloutStateNames.Paused,
+                "Pause rollout while investigating failures."));
+        var updated = await response.Content.ReadFromJsonAsync<UpdateRolloutDto>();
+        var checkRequest = new DeviceUpdateCheckRequest(
+            enrollment.OrganizationId,
+            enrollment.BranchId,
+            enrollment.DeviceId,
+            UpdateChannelNames.Beta,
+            CheckedAtUtc: DateTimeOffset.Parse("2026-05-14T14:05:00Z"),
+            InstalledComponents: [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]);
+        using var checkMessage = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{enrollment.DeviceId}/updates/check")
+        {
+            Content = JsonContent.Create(checkRequest)
+        };
+        checkMessage.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
+        var checkResponse = await client.SendAsync(checkMessage);
+        var checkBody = await checkResponse.Content.ReadFromJsonAsync<DeviceUpdateCheckResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(updated);
+        Assert.Equal(UpdateRolloutStateNames.Paused, updated.State);
+        Assert.Equal(HttpStatusCode.OK, checkResponse.StatusCode);
+        Assert.NotNull(checkBody);
+        Assert.Empty(checkBody.Updates);
+    }
+
+    [Fact]
+    public async Task PostUpdateRolloutState_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId}/updates/rollouts/{Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb")}/state",
+            new UpdateRolloutStateChangeRequest(
+                TestIds.OrganizationId,
+                UpdateRolloutStateNames.Paused,
+                "Pause rollout."));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.ChangeUpdateRolloutState, audit.Action);
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
+    }
+
+    [Fact]
     public async Task PostDeviceUpdateCheck_WithValidDeviceCredential_ReturnsAvailableUpdate()
     {
         await using var factory = new PlatformApiFactory();

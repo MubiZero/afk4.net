@@ -2985,6 +2985,74 @@ app.MapPost("/api/branches/{branchId:guid}/updates/packages", async (
     return Results.Ok(result.Response);
 });
 
+app.MapPost("/api/branches/{branchId:guid}/updates/packages/{packageId:guid}/state", async (
+    Guid branchId,
+    Guid packageId,
+    UpdatePackageStateChangeRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IUpdateService updateService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageUpdatePackages,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ChangeUpdatePackageState,
+            "UpdatePackage",
+            packageId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.State, request.Reason, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await updateService.ChangePackageStateAsync(
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        packageId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToUpdateHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ChangeUpdatePackageState,
+        "UpdatePackage",
+        packageId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { result.Response!.State, request.Reason },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/updates/rollouts", async (
     Guid branchId,
     CreateUpdateRolloutRequest request,
@@ -3046,6 +3114,74 @@ app.MapPost("/api/branches/{branchId:guid}/updates/rollouts", async (
         result.Response!.UpdateRolloutId.ToString("D"),
         AuditOutcome.Succeeded,
         new { result.Response.UpdatePackageId, result.Response.Channel, result.Response.TargetKind },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}/state", async (
+    Guid branchId,
+    Guid rolloutId,
+    UpdateRolloutStateChangeRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IUpdateService updateService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageUpdateRollouts,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ChangeUpdateRolloutState,
+            "UpdateRollout",
+            rolloutId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.State, request.Reason, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await updateService.ChangeRolloutStateAsync(
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        rolloutId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToUpdateHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ChangeUpdateRolloutState,
+        "UpdateRollout",
+        rolloutId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { result.Response!.State, request.Reason },
         cancellationToken);
 
     return Results.Ok(result.Response);

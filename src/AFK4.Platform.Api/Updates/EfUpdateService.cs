@@ -154,6 +154,102 @@ public sealed class EfUpdateService(
             : UpdateServiceResult<UpdateRolloutDto>.Ok(await ToDtoAsync(rollout, cancellationToken));
     }
 
+    public async Task<UpdateServiceResult<UpdatePackageDto>> ChangePackageStateAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid packageId,
+        UpdatePackageStateChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.OrganizationId != organizationId)
+        {
+            return UpdateServiceResult<UpdatePackageDto>.Invalid("OrganizationId must match the authenticated staff organization.");
+        }
+
+        var validation = ValidatePackageStateChange(request);
+        if (validation is not null)
+        {
+            return UpdateServiceResult<UpdatePackageDto>.Invalid(validation);
+        }
+
+        var package = await dbContext.UpdatePackages
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.OrganizationId == organizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.UpdatePackageId == packageId,
+                cancellationToken);
+
+        if (package is null)
+        {
+            return UpdateServiceResult<UpdatePackageDto>.Missing("Update package was not found.");
+        }
+
+        if (package.State == UpdatePackageStateNames.Retired)
+        {
+            return UpdateServiceResult<UpdatePackageDto>.Invalid("Retired update packages are terminal.");
+        }
+
+        package.State = request.State.Trim();
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return UpdateServiceResult<UpdatePackageDto>.Ok(ToDto(package));
+    }
+
+    public async Task<UpdateServiceResult<UpdateRolloutDto>> ChangeRolloutStateAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid rolloutId,
+        UpdateRolloutStateChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.OrganizationId != organizationId)
+        {
+            return UpdateServiceResult<UpdateRolloutDto>.Invalid("OrganizationId must match the authenticated staff organization.");
+        }
+
+        var validation = ValidateRolloutStateChange(request);
+        if (validation is not null)
+        {
+            return UpdateServiceResult<UpdateRolloutDto>.Invalid(validation);
+        }
+
+        var rollout = await dbContext.UpdateRollouts
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.OrganizationId == organizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.UpdateRolloutId == rolloutId,
+                cancellationToken);
+
+        if (rollout is null)
+        {
+            return UpdateServiceResult<UpdateRolloutDto>.Missing("Update rollout was not found.");
+        }
+
+        if (IsTerminalRolloutState(rollout.State))
+        {
+            return UpdateServiceResult<UpdateRolloutDto>.Invalid("Completed, rolled-back, and cancelled rollouts are terminal.");
+        }
+
+        var nextState = request.State.Trim();
+        if (rollout.State == UpdateRolloutStateNames.RollbackRequested &&
+            nextState is not UpdateRolloutStateNames.RolledBack and not UpdateRolloutStateNames.Cancelled)
+        {
+            return UpdateServiceResult<UpdateRolloutDto>.Invalid("Rollback-requested rollouts can only become rolled-back or cancelled.");
+        }
+
+        rollout.State = nextState;
+        if (IsTerminalRolloutState(nextState))
+        {
+            rollout.CompletedAtUtc = timeProvider.GetUtcNow();
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return UpdateServiceResult<UpdateRolloutDto>.Ok(await ToDtoAsync(rollout, cancellationToken));
+    }
+
     public async Task<UpdateServiceResult<DeviceUpdateCheckResponse>> CheckForUpdatesAsync(
         DeviceUpdateCheckRequest request,
         CancellationToken cancellationToken)
@@ -507,6 +603,56 @@ public sealed class EfUpdateService(
         return null;
     }
 
+    private static string? ValidatePackageStateChange(UpdatePackageStateChangeRequest request)
+    {
+        if (request.OrganizationId == Guid.Empty)
+        {
+            return "Organization id is required.";
+        }
+
+        if (request.State is not
+            UpdatePackageStateNames.Registered and not
+            UpdatePackageStateNames.Validated and not
+            UpdatePackageStateNames.Rejected and not
+            UpdatePackageStateNames.Retired)
+        {
+            return "Unsupported update package state.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return "State change reason is required.";
+        }
+
+        return null;
+    }
+
+    private static string? ValidateRolloutStateChange(UpdateRolloutStateChangeRequest request)
+    {
+        if (request.OrganizationId == Guid.Empty)
+        {
+            return "Organization id is required.";
+        }
+
+        if (request.State is not
+            UpdateRolloutStateNames.Active and not
+            UpdateRolloutStateNames.Paused and not
+            UpdateRolloutStateNames.Completed and not
+            UpdateRolloutStateNames.RollbackRequested and not
+            UpdateRolloutStateNames.RolledBack and not
+            UpdateRolloutStateNames.Cancelled)
+        {
+            return "Unsupported update rollout state.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return "State change reason is required.";
+        }
+
+        return null;
+    }
+
     private static bool IsSupportedComponent(string component)
     {
         return component is
@@ -535,5 +681,13 @@ public sealed class EfUpdateService(
             UpdateStatusNames.Failed or
             UpdateStatusNames.RollbackStarted or
             UpdateStatusNames.RolledBack;
+    }
+
+    private static bool IsTerminalRolloutState(string state)
+    {
+        return state is
+            UpdateRolloutStateNames.Completed or
+            UpdateRolloutStateNames.RolledBack or
+            UpdateRolloutStateNames.Cancelled;
     }
 }
