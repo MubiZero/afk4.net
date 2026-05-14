@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Windows;
+using AFK4.Operator.App.Audit;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Configuration;
 using AFK4.Operator.App.Devices;
@@ -45,10 +46,12 @@ public partial class MainWindow : Window
         var shiftApiClient = new HttpOperatorShiftApiClient(apiHttpClient, tokenStore);
         var deviceApiClient = new HttpOperatorDeviceApiClient(apiHttpClient, tokenStore);
         var updateApiClient = new HttpOperatorUpdateApiClient(apiHttpClient, tokenStore);
+        var auditApiClient = new HttpOperatorAuditApiClient(apiHttpClient, tokenStore);
         var settingsViewModel = new SettingsWorkspaceViewModel(
             new HashSet<string>(),
             new TechnicianDeviceWorkflowViewModel(deviceApiClient),
-            new UpdateStatusWorkspaceViewModel(updateApiClient))
+            new UpdateStatusWorkspaceViewModel(updateApiClient),
+            new AuditSearchWorkspaceViewModel(auditApiClient))
         {
             ApiBaseUrlText = options.PlatformBaseUrl.ToString()
         };

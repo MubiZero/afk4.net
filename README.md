@@ -202,6 +202,8 @@ The current vertical slice exposes:
   permission `updates.status.view`
 - `GET /api/branches/{branchId}/updates/rollouts/{rolloutId}` with staff
   bearer token permission `updates.status.view`
+- `GET /api/branches/{branchId}/audit` with staff bearer token permission
+  `audit.view`
 - `POST /api/devices/{deviceId}/updates/check` with device credential
   authentication
 - `POST /api/devices/{deviceId}/updates/status` with device credential
@@ -230,8 +232,8 @@ managers, technicians, accountants, and owners depending on permissions.
 The main working screen is the floor map. The current app includes staff
 sign-in, Windows-protected token storage, permission-filtered navigation,
 realtime floor-map loading, selected-seat session actions, player search,
-wallet/package summaries, POS, shifts, settings, technician device tools, and
-update rollout status visibility, and production hotkeys.
+wallet/package summaries, POS, shifts, settings, technician device tools,
+update rollout status visibility, audit search, and production hotkeys.
 
 ### Agent Service
 
@@ -490,6 +492,8 @@ The first vertical slice foundation is implemented:
   before signing/publishing them;
 - Operator App production floor-map/workflow shell;
 - Operator App Settings update status panel for technicians and managers;
+- Operator App Settings audit search panel for staff with `audit.view`;
+- branch-scoped audit search endpoint over immutable audit records;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
   grace/offline, ending, and launcher states.
 
@@ -500,7 +504,8 @@ Not implemented yet:
   it is added;
 - Operator App layout management UI;
 - automatic Agent-side consumption of rotated credentials;
-- audit search and reports;
+- shift, sales, gameplay, cash operations, and operator-action reports beyond
+  the first audit search slice;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
 - binary update artifact hosting, installer build automation, richer rollout

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using AFK4.Operator.App.Audit;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Mvvm;
@@ -323,7 +324,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         return new SettingsWorkspaceViewModel(
             new HashSet<string>(),
             technicianTools: null,
-            new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()));
+            new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()),
+            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()));
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

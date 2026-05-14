@@ -1,0 +1,79 @@
+using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Audit;
+using Microsoft.EntityFrameworkCore;
+
+namespace AFK4.Platform.Api.Audit;
+
+public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSearchService
+{
+    private const int DefaultLimit = 50;
+    private const int MaxLimit = 200;
+
+    public async Task<AuditSearchResultDto> SearchAsync(
+        Guid organizationId,
+        Guid branchId,
+        AuditSearchQuery query,
+        CancellationToken cancellationToken)
+    {
+        var limit = Math.Clamp(query.Limit ?? DefaultLimit, 1, MaxLimit);
+        var action = Normalize(query.Action);
+        var outcome = Normalize(query.Outcome);
+        var targetType = Normalize(query.TargetType);
+
+        var records = dbContext.AuditRecords
+            .AsNoTracking()
+            .Where(record =>
+                record.OrganizationId == organizationId &&
+                record.BranchId == branchId);
+
+        if (action is not null)
+        {
+            records = records.Where(record => record.Action == action);
+        }
+
+        if (outcome is not null)
+        {
+            records = records.Where(record => record.Outcome == outcome);
+        }
+
+        if (targetType is not null)
+        {
+            records = records.Where(record => record.TargetType == targetType);
+        }
+
+        if (query.FromUtc.HasValue)
+        {
+            records = records.Where(record => record.CreatedAtUtc >= query.FromUtc.Value);
+        }
+
+        if (query.ToUtc.HasValue)
+        {
+            records = records.Where(record => record.CreatedAtUtc <= query.ToUtc.Value);
+        }
+
+        var result = await records
+            .OrderByDescending(record => record.CreatedAtUtc)
+            .ThenByDescending(record => record.AuditRecordId)
+            .Take(limit)
+            .Select(record => new AuditRecordDto(
+                record.AuditRecordId,
+                record.OrganizationId,
+                record.BranchId,
+                record.ActorStaffUserId,
+                record.Action,
+                record.TargetType,
+                record.TargetId,
+                record.Outcome,
+                record.SourceApp,
+                record.DetailsJson,
+                record.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+
+        return new AuditSearchResultDto(result, limit);
+    }
+
+    private static string? Normalize(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+}

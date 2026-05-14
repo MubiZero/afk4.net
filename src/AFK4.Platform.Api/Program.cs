@@ -14,6 +14,7 @@ using AFK4.Platform.Api.Shifts;
 using AFK4.Platform.Api.Tenancy;
 using AFK4.Platform.Api.Updates;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Audit;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
@@ -55,6 +56,7 @@ builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
+builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
 builder.Services.AddScoped<EfShiftService>();
 builder.Services.AddScoped<IShiftService>(provider => provider.GetRequiredService<EfShiftService>());
 builder.Services.AddScoped<IOpenShiftResolver>(provider => provider.GetRequiredService<EfShiftService>());
@@ -3305,6 +3307,77 @@ app.MapGet("/api/branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}", as
         cancellationToken);
 
     return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/audit", async (
+    Guid branchId,
+    string? action,
+    string? outcome,
+    string? targetType,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IAuditSearchService auditSearchService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewAudit,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewAudit,
+            "AuditRecord",
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit);
+    var result = await auditSearchService.SearchAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewAudit,
+        "AuditRecord",
+        null,
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Records.Count,
+            result.Limit,
+            action,
+            outcome,
+            targetType,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
 });
 
 app.MapPost("/api/devices/{deviceId:guid}/updates/check", async (
