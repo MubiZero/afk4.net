@@ -50,6 +50,10 @@ public static class AuditActionNames
 
     public const string RecordCashMovement = "shifts.cash_movement";
 
+    public const string ViewShiftReport = "reports.shifts.view";
+
+    public const string ViewSalesReport = "reports.sales.view";
+
     public const string CreateProductCategory = "pos.categories.create";
 
     public const string CreateProduct = "pos.products.create";

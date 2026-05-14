@@ -146,5 +146,6 @@ public sealed class ShiftContractSerializationTests
         Assert.Equal("shifts.close", StaffPermissionNames.CloseShift);
         Assert.Equal("shifts.view", StaffPermissionNames.ViewShift);
         Assert.Equal("shifts.cash.manage", StaffPermissionNames.ManageShiftCash);
+        Assert.Equal("reports.view", StaffPermissionNames.ViewReports);
     }
 }

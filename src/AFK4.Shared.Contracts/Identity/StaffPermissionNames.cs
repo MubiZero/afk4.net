@@ -58,6 +58,8 @@ public static class StaffPermissionNames
 
     public const string ManageShiftCash = "shifts.cash.manage";
 
+    public const string ViewReports = "reports.view";
+
     public const string ManagePosCatalog = "pos.catalog.manage";
 
     public const string CreatePosSale = "pos.sales.create";

@@ -1,4 +1,5 @@
 using AFK4.Shared.Contracts.Shifts;
+using AFK4.Shared.Contracts.Reports;
 
 namespace AFK4.Operator.App.Shifts;
 
@@ -21,6 +22,20 @@ public interface IOperatorShiftApiClient
     Task<ShiftDto> CloseShiftAsync(
         Guid shiftId,
         CloseShiftRequest request,
+        CancellationToken cancellationToken);
+
+    Task<ShiftReportResultDto> GetShiftReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<SalesReportResultDto> GetSalesReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
         CancellationToken cancellationToken);
 }
 
@@ -52,6 +67,26 @@ public sealed class UnconfiguredOperatorShiftApiClient : IOperatorShiftApiClient
     public Task<ShiftDto> CloseShiftAsync(
         Guid shiftId,
         CloseShiftRequest request,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<ShiftReportResultDto> GetShiftReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<SalesReportResultDto> GetSalesReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
         CancellationToken cancellationToken)
     {
         throw CreateException();

@@ -5,6 +5,7 @@ using System.Text.Json;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Shifts;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Reports;
 using AFK4.Shared.Contracts.Shifts;
 
 namespace AFK4.Operator.App.Tests;
@@ -112,6 +113,48 @@ public sealed class OperatorShiftApiClientTests
         var body = DeserializeRequest<CloseShiftRequest>(handler.LastRequestBody);
         Assert.Equal("shift-close-001", body.IdempotencyKey);
         Assert.Equal(51500, body.CountedCash.MinorUnits);
+    }
+
+    [Fact]
+    public async Task GetShiftReportAsync_GetsBearerAuthenticatedReportWithFilters()
+    {
+        var handler = new RecordingHttpMessageHandler(_ => JsonContentResponse(new ShiftReportResultDto([], Limit: 25)));
+        var client = CreateClient(handler);
+
+        var report = await client.GetShiftReportAsync(
+            BranchId,
+            DateTimeOffset.Parse("2026-05-14T00:00:00Z"),
+            DateTimeOffset.Parse("2026-05-15T00:00:00Z"),
+            25,
+            CancellationToken.None);
+
+        Assert.Equal(25, report.Limit);
+        Assert.Equal(HttpMethod.Get, handler.LastMethod);
+        Assert.NotNull(handler.LastPathAndQuery);
+        Assert.StartsWith($"/api/branches/{BranchId:D}/reports/shifts?", handler.LastPathAndQuery);
+        Assert.Contains("fromUtc=", handler.LastPathAndQuery);
+        Assert.Contains("toUtc=", handler.LastPathAndQuery);
+        Assert.Contains("limit=25", handler.LastPathAndQuery);
+        Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
+    }
+
+    [Fact]
+    public async Task GetSalesReportAsync_GetsBearerAuthenticatedReport()
+    {
+        var handler = new RecordingHttpMessageHandler(_ => JsonContentResponse(new SalesReportResultDto(
+            [],
+            Limit: 50,
+            GrossSalesTotal: new MoneyDto("USD", 0),
+            RefundsTotal: new MoneyDto("USD", 0),
+            NetSalesTotal: new MoneyDto("USD", 0))));
+        var client = CreateClient(handler);
+
+        var report = await client.GetSalesReportAsync(BranchId, null, null, null, CancellationToken.None);
+
+        Assert.Equal(50, report.Limit);
+        Assert.Equal(HttpMethod.Get, handler.LastMethod);
+        Assert.Equal($"/api/branches/{BranchId:D}/reports/sales", handler.LastPathAndQuery);
+        Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
     private static HttpOperatorShiftApiClient CreateClient(RecordingHttpMessageHandler handler)
