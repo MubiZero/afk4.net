@@ -295,7 +295,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
                 StaffPermissionNames.ViewShift,
                 StaffPermissionNames.OpenShift,
                 StaffPermissionNames.CloseShift,
-                StaffPermissionNames.ManageShiftCash),
+                StaffPermissionNames.ManageShiftCash,
+                StaffPermissionNames.ViewReports),
             OperatorWorkspaceKind.Settings => HasAny(
                 permissions,
                 StaffPermissionNames.ViewDeviceDetail,

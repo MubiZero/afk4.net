@@ -10,6 +10,7 @@ using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
+using AFK4.Shared.Contracts.Reports;
 using AFK4.Shared.Contracts.Shifts;
 
 namespace AFK4.Operator.App.Tests;
@@ -86,6 +87,16 @@ public sealed class OperatorShellViewModelTests
         shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewPlayers));
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Players);
+    }
+
+    [Fact]
+    public void ApplySignedInContext_WithReportPermission_ShowsShifts()
+    {
+        var shell = new OperatorShellViewModel();
+
+        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewReports));
+
+        Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Shifts);
     }
 
     [Fact]
@@ -253,6 +264,26 @@ public sealed class OperatorShellViewModelTests
         public Task<ShiftDto> CloseShiftAsync(
             Guid shiftId,
             CloseShiftRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<ShiftReportResultDto> GetShiftReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<SalesReportResultDto> GetSalesReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();

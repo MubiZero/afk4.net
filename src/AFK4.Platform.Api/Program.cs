@@ -9,6 +9,7 @@ using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
+using AFK4.Platform.Api.Reports;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Platform.Api.Tenancy;
@@ -64,6 +65,7 @@ builder.Services.AddScoped<IInventoryService, EfInventoryService>();
 builder.Services.AddScoped<IPosService, EfPosService>();
 builder.Services.AddScoped<IPaymentProvider, ManualPaymentProvider>();
 builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
+builder.Services.AddScoped<IReportService, EfReportService>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
@@ -2352,6 +2354,136 @@ app.MapPost("/api/shifts/{shiftId:guid}/close", async (
         cancellationToken);
 
     return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/shifts", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewShiftReport,
+            "Report",
+            "shifts",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await reportService.GetShiftReportAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewShiftReport,
+        "Report",
+        "shifts",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Rows.Count,
+            result.Limit,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/sales", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewSalesReport,
+            "Report",
+            "sales",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await reportService.GetSalesReportAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewSalesReport,
+        "Report",
+        "sales",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Rows.Count,
+            result.Limit,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
 });
 
 app.MapPost("/api/branches/{branchId:guid}/pos/categories", async (

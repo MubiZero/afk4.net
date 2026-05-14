@@ -1,6 +1,7 @@
 using AFK4.Operator.App.Mvvm;
 using AFK4.Operator.App.Shifts;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Reports;
 using AFK4.Shared.Contracts.Shifts;
 
 namespace AFK4.Operator.App.Tests;
@@ -134,6 +135,90 @@ public sealed class ShiftWorkspaceViewModelTests
         Assert.Equal("Open shift is required before money operations.", viewModel.ErrorMessage);
     }
 
+    [Fact]
+    public async Task LoadReportsAsync_LoadsShiftAndSalesReports()
+    {
+        var apiClient = new RecordingShiftApiClient
+        {
+            ShiftReport = new ShiftReportResultDto(
+                [
+                    new ShiftReportRowDto(
+                        ShiftId,
+                        OrganizationId,
+                        BranchId,
+                        StaffUserId,
+                        StaffUserId,
+                        ShiftStateNames.Closed,
+                        new MoneyDto("USD", 50000),
+                        new MoneyDto("USD", 1500),
+                        new MoneyDto("USD", 2400),
+                        new MoneyDto("USD", 0),
+                        new MoneyDto("USD", 0),
+                        new MoneyDto("USD", 53900),
+                        new MoneyDto("USD", 53900),
+                        new MoneyDto("USD", 0),
+                        DateTimeOffset.Parse("2026-05-14T09:00:00Z"),
+                        DateTimeOffset.Parse("2026-05-14T18:00:00Z"))
+                ],
+                Limit: 25),
+            SalesReport = new SalesReportResultDto(
+                [
+                    new SalesReportRowDto(
+                        Guid.Parse("77777777-7777-4777-8777-777777777777"),
+                        OrganizationId,
+                        BranchId,
+                        ShiftId,
+                        StaffUserId,
+                        "paid",
+                        new MoneyDto("USD", 2400),
+                        new MoneyDto("USD", 2400),
+                        new MoneyDto("USD", 0),
+                        LineCount: 1,
+                        ItemQuantity: 2,
+                        CreatedAtUtc: DateTimeOffset.Parse("2026-05-14T12:00:00Z"),
+                        PaidAtUtc: DateTimeOffset.Parse("2026-05-14T12:01:00Z"),
+                        RefundedAtUtc: null,
+                        VoidedAtUtc: null)
+                ],
+                Limit: 25,
+                GrossSalesTotal: new MoneyDto("USD", 2400),
+                RefundsTotal: new MoneyDto("USD", 0),
+                NetSalesTotal: new MoneyDto("USD", 2400))
+        };
+        var viewModel = new ShiftWorkspaceViewModel(apiClient, new FixedIdempotencyKeyFactory("unused"));
+        viewModel.ApplyContext(OrganizationId, BranchId);
+        viewModel.ReportFromUtcText = "2026-05-14T00:00:00Z";
+        viewModel.ReportToUtcText = "2026-05-15T00:00:00Z";
+        viewModel.ReportLimitText = "25";
+
+        await viewModel.LoadReportsAsync(CancellationToken.None);
+
+        Assert.Equal(BranchId, apiClient.LastShiftReportBranchId);
+        Assert.Equal(BranchId, apiClient.LastSalesReportBranchId);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-14T00:00:00Z"), apiClient.LastReportFromUtc);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-15T00:00:00Z"), apiClient.LastReportToUtc);
+        Assert.Equal(25, apiClient.LastReportLimit);
+        Assert.Single(viewModel.ShiftReportRows);
+        Assert.Single(viewModel.SalesReportRows);
+        Assert.Equal("1 shifts loaded.", viewModel.ShiftReportSummary);
+        Assert.Equal("Gross USD 2400, refunds USD 0, net USD 2400.", viewModel.SalesReportSummary);
+        Assert.Equal("Reports loaded.", viewModel.StatusMessage);
+    }
+
+    [Fact]
+    public async Task LoadReportsAsync_RejectsInvalidLimit()
+    {
+        var apiClient = new RecordingShiftApiClient();
+        var viewModel = new ShiftWorkspaceViewModel(apiClient, new FixedIdempotencyKeyFactory("unused"));
+        viewModel.ApplyContext(OrganizationId, BranchId);
+        viewModel.ReportLimitText = "0";
+
+        await viewModel.LoadReportsAsync(CancellationToken.None);
+
+        Assert.Equal(0, apiClient.ShiftReportCallCount);
+        Assert.Equal("Report limit must be a positive whole number.", viewModel.ErrorMessage);
+    }
+
     private static ShiftDto CreateShift(
         string state,
         long expectedCashMinorUnits = 51500,
@@ -170,11 +255,22 @@ public sealed class ShiftWorkspaceViewModelTests
     {
         public ShiftDto? CurrentShift { get; init; } = CreateShift(ShiftStateNames.Open);
 
+        public ShiftReportResultDto ShiftReport { get; init; } = new([], 50);
+
+        public SalesReportResultDto SalesReport { get; init; } = new(
+            [],
+            50,
+            new MoneyDto("USD", 0),
+            new MoneyDto("USD", 0),
+            new MoneyDto("USD", 0));
+
         public int GetCurrentShiftCallCount { get; private set; }
 
         public int CashMovementCallCount { get; private set; }
 
         public int CloseShiftCallCount { get; private set; }
+
+        public int ShiftReportCallCount { get; private set; }
 
         public Guid LastOpenBranchId { get; private set; }
 
@@ -189,6 +285,16 @@ public sealed class ShiftWorkspaceViewModelTests
         public Guid LastCloseShiftId { get; private set; }
 
         public CloseShiftRequest? LastCloseRequest { get; private set; }
+
+        public Guid LastShiftReportBranchId { get; private set; }
+
+        public Guid LastSalesReportBranchId { get; private set; }
+
+        public DateTimeOffset? LastReportFromUtc { get; private set; }
+
+        public DateTimeOffset? LastReportToUtc { get; private set; }
+
+        public int? LastReportLimit { get; private set; }
 
         public Task<ShiftDto> OpenShiftAsync(
             Guid branchId,
@@ -239,6 +345,35 @@ public sealed class ShiftWorkspaceViewModelTests
                 ShiftStateNames.Closed,
                 expectedCashMinorUnits: 51500,
                 countedCashMinorUnits: request.CountedCash.MinorUnits));
+        }
+
+        public Task<ShiftReportResultDto> GetShiftReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            ShiftReportCallCount++;
+            LastShiftReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(ShiftReport);
+        }
+
+        public Task<SalesReportResultDto> GetSalesReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            LastSalesReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(SalesReport);
         }
     }
 }

@@ -2,8 +2,10 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Globalization;
 using System.Text.Json;
 using AFK4.Operator.App.Auth;
+using AFK4.Shared.Contracts.Reports;
 using AFK4.Shared.Contracts.Shifts;
 
 namespace AFK4.Operator.App.Shifts;
@@ -67,6 +69,30 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
             cancellationToken);
     }
 
+    public Task<ShiftReportResultDto> GetShiftReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetAsync<ShiftReportResultDto>(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/shifts", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<SalesReportResultDto> GetSalesReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetAsync<SalesReportResultDto>(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/sales", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
     private async Task<TResponse> SendAsync<TResponse, TRequest>(
         HttpMethod method,
         string requestUri,
@@ -80,6 +106,43 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
 
         var result = await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions, cancellationToken);
         return result ?? throw new InvalidOperationException("Platform API returned an empty shift response.");
+    }
+
+    private async Task<TResponse> SendGetAsync<TResponse>(
+        string requestUri,
+        CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Get, requestUri, cancellationToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var result = await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions, cancellationToken);
+        return result ?? throw new InvalidOperationException("Platform API returned an empty report response.");
+    }
+
+    private static string BuildReportUri(
+        string basePath,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit)
+    {
+        var query = new List<string>();
+        if (fromUtc is not null)
+        {
+            query.Add($"fromUtc={Uri.EscapeDataString(fromUtc.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))}");
+        }
+
+        if (toUtc is not null)
+        {
+            query.Add($"toUtc={Uri.EscapeDataString(toUtc.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))}");
+        }
+
+        if (limit is not null)
+        {
+            query.Add($"limit={limit.Value.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        return query.Count == 0 ? basePath : $"{basePath}?{string.Join("&", query)}";
     }
 
     private static async Task EnsureSuccessAsync(

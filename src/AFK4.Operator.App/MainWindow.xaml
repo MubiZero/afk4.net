@@ -213,6 +213,7 @@
                         </Grid.Style>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
@@ -736,6 +737,114 @@
                                            Foreground="#B91C1C"
                                            TextWrapping="Wrap" />
                             </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="2"
+                                Grid.ColumnSpan="3"
+                                Background="White"
+                                BorderBrush="#D8DEE9"
+                                BorderThickness="1"
+                                Padding="12"
+                                Margin="0,12,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="90" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0"
+                                                Margin="0,0,8,0">
+                                        <TextBlock Text="From UTC"
+                                                   Foreground="#4B5563" />
+                                        <TextBox Text="{Binding ReportFromUtcText, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="0,4,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                Margin="0,0,8,0">
+                                        <TextBlock Text="To UTC"
+                                                   Foreground="#4B5563" />
+                                        <TextBox Text="{Binding ReportToUtcText, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="0,4,0,0" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2"
+                                                Margin="0,0,8,0">
+                                        <TextBlock Text="Limit"
+                                                   Foreground="#4B5563" />
+                                        <TextBox Text="{Binding ReportLimitText, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="0,4,0,0" />
+                                    </StackPanel>
+                                    <Button Grid.Column="3"
+                                            Content="Load Reports"
+                                            Command="{Binding LoadReportsCommand}"
+                                            Padding="14,7"
+                                            VerticalAlignment="Bottom" />
+                                </Grid>
+
+                                <Grid Grid.Row="1"
+                                      Margin="0,12,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding ShiftReportSummary}"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding SalesReportSummary}"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+                                </Grid>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <DataGrid ItemsSource="{Binding ShiftReportRows}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MinHeight="150"
+                                              Margin="0,0,8,0">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Shift" Binding="{Binding ShiftId}" Width="80" />
+                                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="90" />
+                                            <DataGridTextColumn Header="Opened" Binding="{Binding OpenedAtUtc}" Width="120" />
+                                            <DataGridTextColumn Header="Expected" Binding="{Binding ExpectedCash}" Width="110" />
+                                            <DataGridTextColumn Header="Counted" Binding="{Binding CountedCash}" Width="110" />
+                                            <DataGridTextColumn Header="Diff" Binding="{Binding Difference}" Width="90" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <DataGrid Grid.Column="1"
+                                              ItemsSource="{Binding SalesReportRows}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MinHeight="150">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Sale" Binding="{Binding PosSaleId}" Width="80" />
+                                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="90" />
+                                            <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtUtc}" Width="120" />
+                                            <DataGridTextColumn Header="Total" Binding="{Binding Total}" Width="100" />
+                                            <DataGridTextColumn Header="Paid" Binding="{Binding PaidAmount}" Width="100" />
+                                            <DataGridTextColumn Header="Refund" Binding="{Binding RefundAmount}" Width="100" />
+                                            <DataGridTextColumn Header="Qty" Binding="{Binding ItemQuantity}" Width="60" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Grid>
                         </Border>
                     </Grid>
 

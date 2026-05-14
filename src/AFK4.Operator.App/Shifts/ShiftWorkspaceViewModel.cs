@@ -1,10 +1,13 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Reports;
 using AFK4.Shared.Contracts.Shifts;
 
 namespace AFK4.Operator.App.Shifts;
@@ -12,6 +15,7 @@ namespace AFK4.Operator.App.Shifts;
 public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
 {
     private const string WaitingForBackendConfirmation = "Waiting for backend confirmation";
+    private const string LoadingReports = "Loading reports";
     private const string DefaultCurrencyCode = "USD";
 
     private readonly IOperatorShiftApiClient apiClient;
@@ -20,6 +24,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     private readonly AsyncRelayCommand openShiftCommand;
     private readonly AsyncRelayCommand recordCashMovementCommand;
     private readonly AsyncRelayCommand closeShiftCommand;
+    private readonly AsyncRelayCommand loadReportsCommand;
     private Guid organizationId;
     private Guid branchId;
     private ShiftDto? currentShift;
@@ -30,6 +35,11 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     private string closingNote = string.Empty;
     private string cashMovementType = CashMovementTypeNames.CashIn;
     private string cashMovementReason = string.Empty;
+    private string reportFromUtcText = string.Empty;
+    private string reportToUtcText = string.Empty;
+    private string reportLimitText = "50";
+    private string shiftReportSummary = "No shift report loaded.";
+    private string salesReportSummary = "No sales report loaded.";
     private bool isBusy;
     private string? pendingOperation;
     private string? statusMessage;
@@ -51,6 +61,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         openShiftCommand = new AsyncRelayCommand(OpenShiftAsync, () => !IsBusy && !CanRunMoneyWorkflows);
         recordCashMovementCommand = new AsyncRelayCommand(RecordCashMovementAsync, () => !IsBusy && CanRunMoneyWorkflows);
         closeShiftCommand = new AsyncRelayCommand(CloseShiftAsync, () => !IsBusy && CanRunMoneyWorkflows);
+        loadReportsCommand = new AsyncRelayCommand(LoadReportsAsync, () => !IsBusy);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -84,6 +95,10 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     public long? CountedCashResultMinorUnits => CurrentShift?.CountedCash?.MinorUnits;
 
     public long? DifferenceMinorUnits => CurrentShift?.Difference?.MinorUnits;
+
+    public ObservableCollection<ShiftReportRowViewModel> ShiftReportRows { get; } = [];
+
+    public ObservableCollection<SalesReportRowViewModel> SalesReportRows { get; } = [];
 
     public long StartingCashMinorUnits
     {
@@ -127,6 +142,36 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         set => SetField(ref cashMovementReason, value);
     }
 
+    public string ReportFromUtcText
+    {
+        get => reportFromUtcText;
+        set => SetField(ref reportFromUtcText, value);
+    }
+
+    public string ReportToUtcText
+    {
+        get => reportToUtcText;
+        set => SetField(ref reportToUtcText, value);
+    }
+
+    public string ReportLimitText
+    {
+        get => reportLimitText;
+        set => SetField(ref reportLimitText, value);
+    }
+
+    public string ShiftReportSummary
+    {
+        get => shiftReportSummary;
+        private set => SetField(ref shiftReportSummary, value);
+    }
+
+    public string SalesReportSummary
+    {
+        get => salesReportSummary;
+        private set => SetField(ref salesReportSummary, value);
+    }
+
     public bool IsBusy
     {
         get => isBusy;
@@ -164,6 +209,8 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     public ICommand RecordCashMovementCommand => recordCashMovementCommand;
 
     public ICommand CloseShiftCommand => closeShiftCommand;
+
+    public ICommand LoadReportsCommand => loadReportsCommand;
 
     public void ApplyContext(Guid organizationId, Guid branchId)
     {
@@ -279,6 +326,52 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
             cancellationToken);
     }
 
+    public async Task LoadReportsAsync(CancellationToken cancellationToken)
+    {
+        if (!TryGetBranchContext(out var branchIdValue) ||
+            !TryParseReportFilters(out var fromUtc, out var toUtc, out var limit))
+        {
+            return;
+        }
+
+        ErrorMessage = null;
+        StatusMessage = null;
+        PendingOperation = LoadingReports;
+        IsBusy = true;
+
+        try
+        {
+            var shiftReport = await apiClient.GetShiftReportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
+            var salesReport = await apiClient.GetSalesReportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
+
+            ShiftReportRows.Clear();
+            foreach (var row in shiftReport.Rows)
+            {
+                ShiftReportRows.Add(new ShiftReportRowViewModel(row));
+            }
+
+            SalesReportRows.Clear();
+            foreach (var row in salesReport.Rows)
+            {
+                SalesReportRows.Add(new SalesReportRowViewModel(row));
+            }
+
+            ShiftReportSummary = $"{shiftReport.Rows.Count} shifts loaded.";
+            SalesReportSummary = $"Gross {FormatMoney(salesReport.GrossSalesTotal)}, refunds {FormatMoney(salesReport.RefundsTotal)}, net {FormatMoney(salesReport.NetSalesTotal)}.";
+            StatusMessage = "Reports loaded.";
+            PendingOperation = null;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
+        {
+            ErrorMessage = CreateUserFacingError(exception);
+            PendingOperation = null;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private async Task ExecuteBackendCommandAsync(
         Func<CancellationToken, Task> execute,
         CancellationToken cancellationToken)
@@ -387,6 +480,71 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         return true;
     }
 
+    private bool TryParseReportFilters(
+        out DateTimeOffset? fromUtc,
+        out DateTimeOffset? toUtc,
+        out int? limit)
+    {
+        fromUtc = null;
+        toUtc = null;
+        limit = null;
+
+        if (!TryParseOptionalDateTime(ReportFromUtcText, "Report from date/time is invalid.", out fromUtc) ||
+            !TryParseOptionalDateTime(ReportToUtcText, "Report to date/time is invalid.", out toUtc) ||
+            !TryParseOptionalPositiveInteger(ReportLimitText, "Report limit must be a positive whole number.", out limit))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryParseOptionalDateTime(
+        string value,
+        string message,
+        out DateTimeOffset? parsedValue)
+    {
+        parsedValue = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (DateTimeOffset.TryParse(
+            value.Trim(),
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out var parsed))
+        {
+            parsedValue = parsed;
+            return true;
+        }
+
+        SetValidationError(message);
+        return false;
+    }
+
+    private bool TryParseOptionalPositiveInteger(
+        string value,
+        string message,
+        out int? parsedValue)
+    {
+        parsedValue = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
+        {
+            parsedValue = parsed;
+            return true;
+        }
+
+        SetValidationError(message);
+        return false;
+    }
+
     private void SetValidationError(string message)
     {
         ErrorMessage = message;
@@ -412,6 +570,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         openShiftCommand.NotifyCanExecuteChanged();
         recordCashMovementCommand.NotifyCanExecuteChanged();
         closeShiftCommand.NotifyCanExecuteChanged();
+        loadReportsCommand.NotifyCanExecuteChanged();
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
@@ -429,5 +588,62 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private static string FormatMoney(MoneyDto money)
+    {
+        return $"{money.CurrencyCode} {money.MinorUnits}";
+    }
+}
+
+public sealed class ShiftReportRowViewModel(ShiftReportRowDto row)
+{
+    public string ShiftId => row.ShiftId.ToString("N")[..8];
+
+    public string State => row.State;
+
+    public string OpenedAtUtc => FormatDateTime(row.OpenedAtUtc);
+
+    public string ExpectedCash => FormatMoney(row.ExpectedCash);
+
+    public string CountedCash => row.CountedCash is null ? "" : FormatMoney(row.CountedCash);
+
+    public string Difference => row.Difference is null ? "" : FormatMoney(row.Difference);
+
+    private static string FormatDateTime(DateTimeOffset value)
+    {
+        return value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatMoney(MoneyDto money)
+    {
+        return $"{money.CurrencyCode} {money.MinorUnits}";
+    }
+}
+
+public sealed class SalesReportRowViewModel(SalesReportRowDto row)
+{
+    public string PosSaleId => row.PosSaleId.ToString("N")[..8];
+
+    public string State => row.State;
+
+    public string CreatedAtUtc => FormatDateTime(row.CreatedAtUtc);
+
+    public string Total => FormatMoney(row.Total);
+
+    public string PaidAmount => FormatMoney(row.PaidAmount);
+
+    public string RefundAmount => FormatMoney(row.RefundAmount);
+
+    public int ItemQuantity => row.ItemQuantity;
+
+    private static string FormatDateTime(DateTimeOffset value)
+    {
+        return value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatMoney(MoneyDto money)
+    {
+        return $"{money.CurrencyCode} {money.MinorUnits}";
     }
 }
