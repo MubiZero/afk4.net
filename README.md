@@ -77,8 +77,11 @@ keeps the short navigation version; the detailed source of truth is the
    Dev, staging, and production environments are defined separately. The
    backend deploys as one ASP.NET Core service at the start. Operator App,
    Agent Service, and Player Shell updates are centralized, signed, channelled,
-   staged, status-tracked, and rollback-capable. Installers and device
-   enrollment are part of the platform design. Details: [Deployment And Updates](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#deployment-and-updates).
+   staged, status-tracked, and rollback-capable. The MVP packaging baseline is
+   WiX/MSI: one Operator App MSI and one coordinated gaming-PC MSI for Agent
+   Service + Player Shell. Installers and device enrollment are part of the
+   platform design. Details: [Deployment And Updates](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#deployment-and-updates)
+   and [Client Packaging Design](docs/superpowers/specs/2026-05-14-afk4-client-packaging-design.md).
 
 9. **MVP Scope**
    The first full MVP includes multi-tenancy, WPF Operator App, Windows devices,
@@ -351,6 +354,8 @@ Installer enrollment and client rollout operating notes live in
 and [Client Update Rollout](docs/operations/client-update-rollout.md). Update
 artifact publishing and signing automation is covered in
 [Update Package Publishing](docs/operations/update-package-publishing.md).
+The approved WiX/MSI packaging decision and Phase 13 implementation path are
+covered in [Client Packaging](docs/operations/client-packaging.md).
 
 Start the backend:
 
@@ -515,6 +520,9 @@ The first vertical slice foundation is implemented:
   and emitting `CreateUpdatePackageRequest` JSON;
 - PowerShell wrapper for publishing Windows client projects into zip artifacts
   before signing/publishing them;
+- approved Phase 13 client packaging decision: WiX/MSI baseline for Operator
+  App and coordinated gaming-PC Agent Service + Player Shell package, with
+  MSIX deferred;
 - Operator App production floor-map/workflow shell;
 - Operator App Settings update package/rollout management and status panel for
   technicians and managers;
@@ -543,8 +551,8 @@ Not implemented yet:
 - automatic Agent-side consumption of rotated credentials;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
-- provider-specific object-store/CDN provisioning, installer build automation,
-  and richer rollout automation.
+- provider-specific object-store/CDN provisioning, WiX/MSI build scripts,
+  GitHub Actions release workflow, and richer rollout automation.
 
 ## Engineering Rules
 

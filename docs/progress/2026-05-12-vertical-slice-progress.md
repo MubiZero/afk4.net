@@ -1,7 +1,8 @@
 # AFK4 Vertical Slice Progress
 
 Status: Operator App update package/rollout management is implemented for
-already-published signed package metadata, Phase 11 report CSV export slice is
+already-published signed package metadata, Phase 13 WiX/MSI client packaging
+decision is approved and documented, Phase 11 report CSV export slice is
 implemented, the Phase 10 update publisher has production-style artifact
 hosting and signing key source boundaries, Docker PostgreSQL live smoke passes
 locally for the update slice, Agent update execution/recovery adapter
@@ -37,6 +38,39 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase12-operator-update-management.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
+
+## Phase 13 Client Packaging Decision
+
+Approved on `codex/phase11-operational-reports` after Phase 12 Operator update
+management.
+
+Decision:
+
+- Operator App uses its own WiX/MSI installer for the MVP.
+- Agent Service and Player Shell share one coordinated gaming-PC WiX/MSI
+  installer.
+- MSIX is deferred as a future optional Operator App distribution channel.
+- Agent Service and Player Shell do not use MSIX in the MVP because they need
+  per-machine install, Windows Service registration, controlled Shell
+  deployment, recovery behavior, and silent installer support.
+- Existing update rollout authority remains unchanged: externally hosted
+  artifacts, SHA-256, signed metadata, staged rollout, Agent verification,
+  status reporting, and rollback.
+
+Documentation added:
+
+- `docs/superpowers/specs/2026-05-14-afk4-client-packaging-design.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
+- `docs/operations/client-packaging.md`
+
+Next Phase 13 implementation work:
+
+- pin the WiX `wix` dotnet tool;
+- add MSI update helper scripts for install, rollback, and Agent restart;
+- add local package build entrypoint;
+- add Operator App and gaming-PC WiX scaffolding;
+- add a GitHub Actions client package workflow.
 
 ## Phase 12 Operator Update Management Slice
 
@@ -390,7 +424,7 @@ Remaining Phase 10 work:
 
 - provider-specific object-store/CDN and key-vault SDK adapters only if the
   presigned URL and environment-secret boundary is not enough for production;
-- MSI/MSIX authoring decision and CI release jobs.
+- Phase 13 WiX/MSI build scripts and CI release jobs.
 
 ## Phase 9 Operator Update Visibility Follow-Up
 
@@ -1972,8 +2006,8 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Decide MSI/MSIX/WiX packaging per Windows client surface and add CI release
-   jobs once provider choices are explicit.
+1. Implement the Phase 13 WiX/MSI local package build scripts and CI release
+   workflow.
 2. Add diagnostics dashboards and backup/restore runbooks.
 3. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
    presigned URL and environment-secret boundary is not enough for production.
