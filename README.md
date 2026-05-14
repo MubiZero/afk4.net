@@ -253,8 +253,8 @@ The main working screen is the floor map. The current app includes staff
 sign-in, Windows-protected token storage, permission-filtered navigation,
 realtime floor-map loading, selected-seat session actions, player search,
 wallet/package summaries, POS, shifts, settings, technician device tools,
-operational reports, update rollout status visibility, audit search, and
-production hotkeys.
+operational reports, update package/rollout management and status visibility,
+audit search, and production hotkeys.
 
 ### Agent Service
 
@@ -516,7 +516,8 @@ The first vertical slice foundation is implemented:
 - PowerShell wrapper for publishing Windows client projects into zip artifacts
   before signing/publishing them;
 - Operator App production floor-map/workflow shell;
-- Operator App Settings update status panel for technicians and managers;
+- Operator App Settings update package/rollout management and status panel for
+  technicians and managers;
 - Operator App Settings audit search panel for staff with `audit.view`;
 - branch-scoped audit search endpoint over immutable audit records;
 - shared report contracts and a `reports.view` permission for operational
@@ -543,7 +544,7 @@ Not implemented yet:
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
 - provider-specific object-store/CDN provisioning, installer build automation,
-  richer rollout automation, and Operator App package/rollout management UI.
+  and richer rollout automation.
 
 ## Engineering Rules
 

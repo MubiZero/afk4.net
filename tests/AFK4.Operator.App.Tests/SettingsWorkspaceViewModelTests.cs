@@ -64,6 +64,20 @@ public sealed class SettingsWorkspaceViewModelTests
     }
 
     [Fact]
+    public void SettingsWorkspace_WithUpdateManagementPermission_ExposesUpdatePanel()
+    {
+        var updateStatus = new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient());
+        var viewModel = new SettingsWorkspaceViewModel(
+            new HashSet<string> { StaffPermissionNames.ManageUpdatePackages },
+            technicianTools: null,
+            updateStatus);
+
+        Assert.True(viewModel.HasUpdateStatus);
+        Assert.Same(updateStatus, viewModel.UpdateStatus);
+        Assert.Contains(viewModel.Panels, panel => panel.Key == "updates");
+    }
+
+    [Fact]
     public void SettingsWorkspace_WithAuditPermission_ExposesAuditPanel()
     {
         var auditSearch = new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient());

@@ -187,9 +187,13 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             AddPanel("roles", "Roles", "Staff access");
         }
 
-        if (permissions.Contains(StaffPermissionNames.ViewUpdateStatus))
+        if (HasAny(
+            permissions,
+            StaffPermissionNames.ViewUpdateStatus,
+            StaffPermissionNames.ManageUpdatePackages,
+            StaffPermissionNames.ManageUpdateRollouts))
         {
-            AddPanel("updates", "Updates", "Rollout status");
+            AddPanel("updates", "Updates", "Packages and rollouts");
         }
 
         if (permissions.Contains(StaffPermissionNames.ViewAudit))

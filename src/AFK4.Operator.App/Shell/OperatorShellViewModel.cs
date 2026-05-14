@@ -310,6 +310,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
                 StaffPermissionNames.ManagePackages,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewUpdateStatus,
+                StaffPermissionNames.ManageUpdatePackages,
+                StaffPermissionNames.ManageUpdateRollouts,
                 StaffPermissionNames.ViewAudit),
             _ => false
         };

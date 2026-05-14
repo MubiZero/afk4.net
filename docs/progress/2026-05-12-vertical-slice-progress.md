@@ -1,11 +1,13 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 11 report CSV export slice is implemented, the Phase 10 update
-publisher now has production-style artifact hosting and signing key source
-boundaries, Docker PostgreSQL live smoke passes locally for the update slice,
-Agent update execution/recovery adapter boundaries are implemented, and
-Operator App update status visibility, audit search, branch-scoped operational
-reports, and report CSV exports are available to permissioned staff.
+Status: Operator App update package/rollout management is implemented for
+already-published signed package metadata, Phase 11 report CSV export slice is
+implemented, the Phase 10 update publisher has production-style artifact
+hosting and signing key source boundaries, Docker PostgreSQL live smoke passes
+locally for the update slice, Agent update execution/recovery adapter
+boundaries are implemented, and Operator App audit search, branch-scoped
+operational reports, and report CSV exports are available to permissioned
+staff.
 Last updated: 2026-05-14
 
 ## Scope
@@ -34,6 +36,45 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase12-operator-update-management.md`
+
+## Phase 12 Operator Update Management Slice
+
+Implemented on `codex/phase11-operational-reports` after the production update
+publishing boundary commit `254bce3`.
+
+Implemented in this Phase 12 first slice:
+
+- Extended the Operator App update API client with package registration,
+  package state change, rollout creation, and rollout state change methods over
+  the existing backend update endpoints.
+- Added Update Settings ViewModel inputs and commands for registering
+  already-published package metadata, validating/rejecting/retiring packages,
+  creating branch/device rollouts, and pausing/cancelling/rolling back rollouts.
+- Preserved rollout status refresh in the same Settings update panel.
+- Exposed the Settings update panel to staff with `updates.packages.manage`,
+  `updates.rollouts.manage`, or `updates.status.view`.
+- Added dense WPF Settings controls for package and rollout management.
+
+Targeted verification on 2026-05-14 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorUpdateApiClientTests|UpdateStatusWorkspaceViewModelTests|SettingsWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Operator App update/settings/shell targeted tests passed 28/28.
+- Full Operator App tests passed 121/121.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 573/573:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 6/6;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 121/121;
+  - Platform.Api 296/296.
 
 ## Phase 10 Production Artifact Hosting And Key Source Boundary
 
@@ -1931,11 +1972,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add Operator App package/rollout management workflow when update package
-   publishing needs to be run by operators instead of scripts.
-2. Decide MSI/MSIX/WiX packaging per Windows client surface and add CI release
+1. Decide MSI/MSIX/WiX packaging per Windows client surface and add CI release
    jobs once provider choices are explicit.
-3. Add diagnostics dashboards and backup/restore runbooks.
+2. Add diagnostics dashboards and backup/restore runbooks.
+3. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
+   presigned URL and environment-secret boundary is not enough for production.
 4. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.

@@ -69,6 +69,17 @@ public sealed class OperatorShellViewModelTests
     }
 
     [Fact]
+    public void ApplySignedInContext_WithUpdateManagementPermission_ShowsSettings()
+    {
+        var shell = new OperatorShellViewModel();
+
+        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ManageUpdateRollouts));
+
+        Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
+        Assert.Contains(shell.Settings.Panels, panel => panel.Key == "updates");
+    }
+
+    [Fact]
     public void ApplySignedInContext_WithAuditPermission_ShowsSettings()
     {
         var shell = new OperatorShellViewModel();
