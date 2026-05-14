@@ -19,4 +19,9 @@ public sealed class AgentOptions
     public string DeviceCredentialSecret { get; init; } = string.Empty;
 
     public string LeaseSigningPublicKeyPem { get; init; } = string.Empty;
+
+    public string StateDirectory { get; init; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "AFK4",
+        "Agent");
 }

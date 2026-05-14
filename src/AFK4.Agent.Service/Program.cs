@@ -1,11 +1,13 @@
 using AFK4.Agent.Service;
+using AFK4.Agent.Service.Enforcement;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection("Agent"));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient("platform");
-builder.Services.AddSingleton<ISessionLeaseStore, InMemorySessionLeaseStore>();
+builder.Services.AddSingleton<ISessionLeaseStore, FileSessionLeaseStore>();
+builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();
 builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
 builder.Services.AddSingleton<IDeviceCommandHandler, DefaultDeviceCommandHandler>();
