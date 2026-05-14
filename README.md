@@ -211,29 +211,33 @@ integrations.
 `AFK4.Operator.App` is the native Windows application for operators, cashiers,
 managers, technicians, accountants, and owners depending on permissions.
 
-The main working screen is the floor map. The current shell shows static seat
-cards, applies SignalR device status updates, stores staff tokens through
-Windows-protected storage, and includes a focused technician panel for device
-enrollment, command status inspection, and credential lifecycle operations.
-Later slices connect session actions, POS, players, shifts, settings, and
-role-aware navigation.
+The main working screen is the floor map. The current app includes staff
+sign-in, Windows-protected token storage, permission-filtered navigation,
+realtime floor-map loading, selected-seat session actions, player search,
+wallet/package summaries, POS, shifts, settings, technician device tools, and
+production hotkeys.
 
 ### Agent Service
 
-`AFK4.Agent.Service` is the Windows service skeleton for gaming PCs. It creates
-heartbeat payloads, sends enrollment-issued device credentials, posts
+`AFK4.Agent.Service` is the Windows service foundation for gaming PCs. It
+creates heartbeat payloads, sends enrollment-issued device credentials, posts
 heartbeats to the backend, reports Windows installed app inventory snapshots,
 connects to the realtime device hub, validates backend-signed session leases,
-stores the current active lease, and reports reconnect reconciliation snapshots.
-Later slices add installer enrollment bootstrap, local credential lifecycle
-workflows, real Windows lock/unlock enforcement, process policy, watchdog
-behavior, and updates.
+persists active lease/runtime state for restart recovery, reports reconnect
+reconciliation snapshots, drives a testable lock/unlock enforcement
+coordinator, supervises the Player Shell process, publishes Shell state over
+named pipes, accepts local Shell launcher commands, and applies a local
+allow/deny process policy foundation. Later slices add installer enrollment
+bootstrap, automatic credential propagation, deeper Windows control, signed
+updates, and rollout/rollback behavior.
 
 ### Player Shell
 
 `AFK4.Player.Shell` is the player-facing WPF shell shown on gaming PCs. It is a
 UI process, not a trusted business authority. The current shell is a fullscreen
-locked-state placeholder.
+MVVM UI for locked, active-session, warning, grace/offline, ending, and launcher
+states. It receives Agent-published state through local named pipes and sends
+launcher requests back to the Agent for validation.
 
 ## Repository Layout
 
@@ -252,6 +256,7 @@ tests/
   AFK4.Platform.Api.Tests/
   AFK4.Agent.Service.Tests/
   AFK4.Operator.App.Tests/
+  AFK4.Player.Shell.Tests/
 
 docs/superpowers/specs/
   2026-05-12-afk4-platform-architecture-design.md
@@ -327,7 +332,7 @@ Run the Player Shell:
 dotnet run --project src/AFK4.Player.Shell/AFK4.Player.Shell.csproj
 ```
 
-Run the Agent Service skeleton:
+Run the Agent Service:
 
 ```powershell
 dotnet run --project src/AFK4.Agent.Service/AFK4.Agent.Service.csproj
@@ -335,9 +340,12 @@ dotnet run --project src/AFK4.Agent.Service/AFK4.Agent.Service.csproj
 
 The Agent currently needs enrollment-derived `Agent:DeviceId` and
 `Agent:DeviceCredentialSecret` values from configuration or environment
-variables before authenticated heartbeats succeed. Real installer bootstrap,
-Operator/Agent credential lifecycle workflows, and automated credential
-propagation are intentionally deferred to later slices.
+variables before authenticated heartbeats succeed. For Phase 8 local
+enforcement and Shell IPC, configure `Agent:StateDirectory`,
+`Agent:PlayerShellExecutablePath`, optional Shell pipe names, and
+`Agent:LauncherApps`. Real installer bootstrap, automatic credential
+propagation, signed updates, and rollout/rollback are intentionally deferred to
+later slices.
 
 ## Current Implementation State
 
@@ -416,21 +424,27 @@ The first vertical slice foundation is implemented:
 - device enrollment code flow and credential issuance;
 - heartbeat and realtime registration credential validation;
 - persisted device heartbeat state and command status tracking;
-- Agent heartbeat payload factory and worker loop skeleton;
-- Operator App floor map shell;
-- Player Shell locked-state skeleton.
+- Agent heartbeat payload factory and worker loop;
+- Agent persistent runtime state and file-backed session lease storage;
+- Agent session enforcement coordinator for unlock, lease refresh, lock, and
+  lease expiry;
+- Agent Player Shell process supervision and local named-pipe state publishing;
+- Agent local launcher command handling and allow/deny process policy
+  foundation;
+- Operator App production floor-map/workflow shell;
+- Player Shell fullscreen MVVM session UI with locked, active, warning,
+  grace/offline, ending, and launcher states.
 
 Not implemented yet:
 
 - staff management workflows, custom roles, and role editing UI;
 - authorization coverage for every future operator-facing backend endpoint as
   it is added;
-- Operator App sign-in UI and role-aware navigation;
 - Operator App layout management UI;
 - automatic Agent-side consumption of rotated credentials;
-- Operator App session action UI;
 - audit search and reports;
-- Windows lock/unlock enforcement and launcher control;
+- deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
+  boundary;
 - signed updates, rollout, rollback, and installers.
 
 ## Engineering Rules

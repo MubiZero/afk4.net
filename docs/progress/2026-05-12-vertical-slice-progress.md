@@ -1,9 +1,8 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 8 Agent Enforcement And Player Shell is implemented through
-Task 7 on `codex-phase8-agent-enforcement-player-shell`; Agent and Player Shell
-production builds are verified, while xUnit test-project restore is blocked on
-this device by NuGet test-runner package fetch timeouts.
+Status: Phase 8 Agent Enforcement And Player Shell is implemented and locally
+verified on `codex-phase8-agent-enforcement-player-shell`; full solution
+build/test and local Player Shell IPC smoke passed on 2026-05-14.
 Last updated: 2026-05-14
 
 ## Scope
@@ -38,7 +37,7 @@ Started on `codex-phase8-agent-enforcement-player-shell` after `main` commit
 The focused Phase 8 plan was added at
 `docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`.
 
-Implemented so far:
+Implemented in Phase 8:
 
 - Added shared local Player Shell contracts under
   `AFK4.Shared.Contracts.Shell`:
@@ -98,9 +97,11 @@ Implemented so far:
   - Player Shell launcher command client;
   - launcher command and policy tests.
 
-Phase 8 remaining planned scope:
+Phase 8 Task 8 verification scope is complete:
 
-- full Phase 8 verification and local smoke evidence.
+- full Phase 8 targeted verification;
+- full solution build/test verification;
+- local Agent/Player Shell IPC smoke evidence.
 
 Phase 8 keeps centralized updates/installers, reports, audit search, web admin,
 local server, microservices, non-Windows agents, and kernel drivers out of
@@ -116,6 +117,7 @@ Phase 8 commits on the branch:
 - `da20a9c feat: supervise player shell runtime`
 - `39db4a4 feat: add player shell session UI`
 - `fc6cbcd feat: add local launcher policy foundation`
+- `c329e7 fix: overwrite persisted agent state safely`
 
 Verification on 2026-05-14 from `D:\projects\afk4.net`:
 
@@ -125,6 +127,12 @@ $env:DOTNET_CLI_TELEMETRY_OPTOUT='1'; $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
 & 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Agent.Service/AFK4.Agent.Service.csproj --no-restore -p:UseSharedCompilation=false
 & 'C:\Program Files\dotnet\dotnet.exe' restore src/AFK4.Player.Shell/AFK4.Player.Shell.csproj -p:NuGetAudit=false -v minimal
 & 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Player.Shell/AFK4.Player.Shell.csproj --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter PlayerShellContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter "AgentRuntimeStateStoreTests|FileSessionLeaseStoreTests|SessionEnforcementCoordinatorTests|GraceModeMonitorTests|PlayerShellProcessSupervisorTests|PlayerShellCommandHandlerTests|WorkerTests" --no-restore -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Player.Shell.Tests/AFK4.Player.Shell.Tests.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' run --project artifacts/phase8-smoke/Phase8Smoke.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false
 ```
 
 Results:
@@ -134,13 +142,29 @@ Results:
 - Agent Service build succeeded with 0 warnings and 0 errors.
 - Player Shell restore succeeded.
 - Player Shell build succeeded with 0 warnings and 0 errors.
+- Shared Phase 8 Player Shell contract tests passed 3/3.
+- Agent targeted Phase 8 tests passed 27/27.
+- Player Shell tests passed 11/11.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution test run passed 446/446:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 59/59;
+  - Agent.Service 48/48;
+  - Player.Shell 11/11;
+  - Operator.App 87/87;
+  - Platform.Api 238/238.
+- Local Agent/Player Shell IPC smoke passed with state publish/read,
+  allowed-launch command handling, and unavailable command-pipe rejection.
 
-Verification blocker on this device:
+Verification notes:
 
-- `dotnet test` for test projects could not complete because NuGet restore for
-  xUnit/test-runner package dependencies repeatedly timed out while fetching
-  packages. Production project restore/build works. The new tests are present
-  in the tree and should be run once the test package restore path is healthy.
+- Initial test-project restore hit transient NuGet timeout retries for
+  xUnit/coverlet packages, then completed successfully on this device.
+- The first targeted Agent test run found a Windows overwrite issue while
+  replacing persisted Agent state files. Commit `c329e7` switched the runtime
+  state and lease stores to overwrite via copy plus temp-file cleanup.
+- The local smoke harness lives under ignored `artifacts/phase8-smoke` and is
+  intentionally not tracked as production code.
 
 Known planning environment notes:
 
@@ -1418,8 +1442,8 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Run Phase 8 Task 8 verification and local smoke on
-   `codex-phase8-agent-enforcement-player-shell`.
-2. Keep centralized updates/installers, reports, audit search, web admin, local
-   server, and microservices out of Phase 8 unless the PRD and architecture
-   spec are updated first.
+1. Start the next focused plan for centralized updates/installers, reports, or
+   audit/operations work according to the MVP PRD.
+2. Keep web admin, local server, microservices, non-Windows agents, and kernel
+   drivers out of MVP scope unless the PRD and architecture spec are updated
+   first.
