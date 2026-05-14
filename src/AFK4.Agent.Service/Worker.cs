@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using AFK4.Agent.Service.Enforcement;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.Extensions.Options;
 
@@ -10,6 +11,8 @@ public sealed class Worker(
     IOptions<AgentOptions> options,
     IDeviceRealtimeClient realtimeClient,
     ISessionLeaseStore leaseStore,
+    IAgentRuntimeStateStore runtimeStateStore,
+    IGraceModeMonitor graceModeMonitor,
     IDeviceCommandHandler commandHandler,
     ISessionReconciliationReporter sessionReconciliationReporter,
     IInstalledAppInventoryCollector installedAppInventoryCollector,
@@ -34,12 +37,19 @@ public sealed class Worker(
         var client = httpClientFactory.CreateClient("platform");
         client.BaseAddress = agentOptions.PlatformBaseUrl;
 
+        await TryEnforceGraceModeAsync(stoppingToken);
         await TryReconcileSessionAsync(stoppingToken);
         await TryReportInstalledAppsAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var request = HeartbeatPayloadFactory.Create(agentOptions, isLocked: true, DateTimeOffset.UtcNow, leaseStore);
+            await TryEnforceGraceModeAsync(stoppingToken);
+            var runtimeState = runtimeStateStore.Current;
+            var request = HeartbeatPayloadFactory.Create(
+                agentOptions,
+                runtimeState.IsLocked,
+                DateTimeOffset.UtcNow,
+                leaseStore);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
                 Content = JsonContent.Create(request)
@@ -101,8 +111,9 @@ public sealed class Worker(
     {
         try
         {
+            var runtimeState = runtimeStateStore.Current;
             var response = await sessionReconciliationReporter.ReportAsync(
-                isLocked: true,
+                runtimeState.IsLocked,
                 observedAtUtc: DateTimeOffset.UtcNow,
                 cancellationToken);
             logger.LogInformation(
@@ -117,6 +128,22 @@ public sealed class Worker(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Session reconciliation failed. Continuing with heartbeat loop.");
+        }
+    }
+
+    private async Task TryEnforceGraceModeAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await graceModeMonitor.EnforceAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Grace mode enforcement failed. Continuing with heartbeat loop.");
         }
     }
 
