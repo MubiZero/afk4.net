@@ -1,5 +1,8 @@
 using System.Net.Http.Json;
+using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service;
@@ -10,6 +13,10 @@ public sealed class Worker(
     IOptions<AgentOptions> options,
     IDeviceRealtimeClient realtimeClient,
     ISessionLeaseStore leaseStore,
+    IAgentRuntimeStateStore runtimeStateStore,
+    IGraceModeMonitor graceModeMonitor,
+    IPlayerShellProcessSupervisor playerShellProcessSupervisor,
+    IPlayerShellStatePublisher playerShellStatePublisher,
     IDeviceCommandHandler commandHandler,
     ISessionReconciliationReporter sessionReconciliationReporter,
     IInstalledAppInventoryCollector installedAppInventoryCollector,
@@ -34,12 +41,21 @@ public sealed class Worker(
         var client = httpClientFactory.CreateClient("platform");
         client.BaseAddress = agentOptions.PlatformBaseUrl;
 
+        await TryEnforceGraceModeAsync(stoppingToken);
+        await TryMaintainPlayerShellAsync(stoppingToken);
         await TryReconcileSessionAsync(stoppingToken);
         await TryReportInstalledAppsAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            var request = HeartbeatPayloadFactory.Create(agentOptions, isLocked: true, DateTimeOffset.UtcNow, leaseStore);
+            await TryEnforceGraceModeAsync(stoppingToken);
+            await TryMaintainPlayerShellAsync(stoppingToken);
+            var runtimeState = runtimeStateStore.Current;
+            var request = HeartbeatPayloadFactory.Create(
+                agentOptions,
+                runtimeState.IsLocked,
+                DateTimeOffset.UtcNow,
+                leaseStore);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
                 Content = JsonContent.Create(request)
@@ -101,8 +117,9 @@ public sealed class Worker(
     {
         try
         {
+            var runtimeState = runtimeStateStore.Current;
             var response = await sessionReconciliationReporter.ReportAsync(
-                isLocked: true,
+                runtimeState.IsLocked,
                 observedAtUtc: DateTimeOffset.UtcNow,
                 cancellationToken);
             logger.LogInformation(
@@ -118,6 +135,77 @@ public sealed class Worker(
         {
             logger.LogWarning(exception, "Session reconciliation failed. Continuing with heartbeat loop.");
         }
+    }
+
+    private async Task TryEnforceGraceModeAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await graceModeMonitor.EnforceAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Grace mode enforcement failed. Continuing with heartbeat loop.");
+        }
+    }
+
+    private async Task TryMaintainPlayerShellAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var runtimeState = runtimeStateStore.Current;
+            await playerShellProcessSupervisor.EnsureRunningAsync(runtimeState, cancellationToken);
+            await playerShellStatePublisher.PublishAsync(CreatePlayerShellState(runtimeState), cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Player Shell supervision or state publishing failed. Continuing with heartbeat loop.");
+        }
+    }
+
+    private PlayerShellStateDto CreatePlayerShellState(AgentRuntimeState runtimeState)
+    {
+        var agentOptions = options.Value;
+        var lease = leaseStore.Current;
+        int? remainingSeconds = lease is null
+            ? null
+            : Math.Max(0, (int)(lease.ExpiresAtUtc - DateTimeOffset.UtcNow).TotalSeconds);
+
+        return new PlayerShellStateDto(
+            OrganizationId: agentOptions.OrganizationId,
+            BranchId: agentOptions.BranchId,
+            DeviceId: agentOptions.DeviceId,
+            State: runtimeState.State,
+            SessionId: lease?.SessionId ?? runtimeState.ActiveSessionId,
+            LeaseExpiresAtUtc: lease?.ExpiresAtUtc ?? runtimeState.LeaseExpiresAtUtc,
+            RemainingSeconds: remainingSeconds,
+            IsOnline: true,
+            IsGraceMode: string.Equals(runtimeState.State, PlayerShellStateNames.Grace, StringComparison.Ordinal),
+            WarningThresholdSeconds: 300,
+            Message: CreatePlayerShellMessage(runtimeState),
+            LauncherApps: []);
+    }
+
+    private static string CreatePlayerShellMessage(AgentRuntimeState runtimeState)
+    {
+        return runtimeState.State switch
+        {
+            PlayerShellStateNames.Active => "Session is active.",
+            PlayerShellStateNames.Grace => "Connection lost. Active session continues within the signed lease.",
+            PlayerShellStateNames.Ending => "Session is ending.",
+            PlayerShellStateNames.Maintenance => "This PC is under maintenance.",
+            PlayerShellStateNames.Offline => "Agent is offline.",
+            PlayerShellStateNames.Error => "This PC needs operator attention.",
+            _ => "This PC is locked."
+        };
     }
 
     private async Task TryReportInstalledAppsAsync(CancellationToken cancellationToken)

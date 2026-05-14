@@ -1,5 +1,7 @@
 using AFK4.Agent.Service;
+using AFK4.Agent.Service.Enforcement;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.Extensions.Options;
 
 namespace AFK4.Agent.Service.Tests;
@@ -19,8 +21,7 @@ public sealed class DefaultDeviceCommandHandlerTests
 
         var handler = new DefaultDeviceCommandHandler(
             options,
-            new SessionLeaseValidator(options, TimeProvider.System),
-            new InMemorySessionLeaseStore());
+            new AcceptingSessionEnforcementCoordinator());
         var command = new DeviceCommandDto(
             CommandId: Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94"),
             Type: "lock",
@@ -39,7 +40,31 @@ public sealed class DefaultDeviceCommandHandlerTests
         Assert.Equal(options.Value.DeviceId, result.DeviceId);
         Assert.Equal(command.CommandId, result.CommandId);
         Assert.Equal("Accepted", result.Status);
-        Assert.Equal("Command accepted by Agent skeleton.", result.Message);
+        Assert.Equal("Workstation lock requested.", result.Message);
         Assert.InRange(result.ObservedAtUtc, before, after);
+    }
+
+    private sealed class AcceptingSessionEnforcementCoordinator : ISessionEnforcementCoordinator
+    {
+        public Task<SessionEnforcementResult> UnlockAsync(
+            SessionLeaseDto lease,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(SessionEnforcementResult.Accepted("Session lease accepted."));
+        }
+
+        public Task<SessionEnforcementResult> RefreshLeaseAsync(
+            SessionLeaseDto lease,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(SessionEnforcementResult.Accepted("Session lease refreshed."));
+        }
+
+        public Task<SessionEnforcementResult> LockAsync(
+            Guid? sessionId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(SessionEnforcementResult.Accepted("Workstation lock requested."));
+        }
     }
 }

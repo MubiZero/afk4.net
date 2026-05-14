@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Agent.Service;
+using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Shell;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -33,6 +36,10 @@ public sealed class WorkerTests
             options,
             new ThrowingRealtimeClient(new InvalidOperationException("realtime unavailable")),
             new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -44,6 +51,46 @@ public sealed class WorkerTests
 
         Assert.Equal($"/api/devices/{options.Value.DeviceId}/heartbeat", handler.RequestUri?.PathAndQuery);
         Assert.Equal("device-secret", handler.CredentialSecret);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_HeartbeatUsesRuntimeLockState()
+    {
+        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var heartbeatAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new CapturingHeartbeatHandler(heartbeatAttempted, stopping);
+        var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
+        });
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            httpClientFactory,
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: false),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter());
+
+        await worker.StartAsync(stopping.Token);
+        await heartbeatAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.NotNull(handler.Request);
+        Assert.False(handler.Request.IsLocked);
     }
 
     [Fact]
@@ -70,6 +117,10 @@ public sealed class WorkerTests
             options,
             new NoOpRealtimeClient(),
             new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector(
@@ -116,6 +167,10 @@ public sealed class WorkerTests
             options,
             new NoOpRealtimeClient(),
             new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             new NoOpDeviceCommandHandler(options.Value),
             new RecordingSessionReconciliationReporter(calls),
             new StaticInstalledAppInventoryCollector(
@@ -168,6 +223,10 @@ public sealed class WorkerTests
             options,
             new NoOpRealtimeClient(),
             new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             commandHandler,
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -220,6 +279,55 @@ public sealed class WorkerTests
             CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpGraceModeMonitor : IGraceModeMonitor
+    {
+        public Task EnforceAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpPlayerShellProcessSupervisor : IPlayerShellProcessSupervisor
+    {
+        public Task EnsureRunningAsync(AgentRuntimeState runtimeState, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpPlayerShellStatePublisher : IPlayerShellStatePublisher
+    {
+        public Task PublishAsync(PlayerShellStateDto state, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingRuntimeStateStore(bool isLocked) : IAgentRuntimeStateStore
+    {
+        public AgentRuntimeState Current { get; private set; } = new(
+            State: isLocked ? PlayerShellStateNames.Locked : PlayerShellStateNames.Active,
+            IsLocked: isLocked,
+            ActiveSessionId: null,
+            LeaseExpiresAtUtc: null,
+            UpdatedAtUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"));
+
+        public void Save(AgentRuntimeState state)
+        {
+            Current = state;
+        }
+
+        public void MarkLocked(DateTimeOffset observedAtUtc)
+        {
+            Current = AgentRuntimeState.Locked(observedAtUtc);
+        }
+
+        public void MarkActive(SessionLeaseDto lease, DateTimeOffset observedAtUtc)
+        {
+            Current = AgentRuntimeState.Active(lease, observedAtUtc);
         }
     }
 
@@ -334,10 +442,13 @@ public sealed class WorkerTests
 
         public string? CredentialSecret { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public DeviceHeartbeatRequest? Request { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestUri = request.RequestUri;
             CredentialSecret = request.Headers.GetValues(DeviceCredentialHeaders.CredentialSecret).Single();
+            Request = await request.Content!.ReadFromJsonAsync<DeviceHeartbeatRequest>(cancellationToken: cancellationToken);
             heartbeatAttempted.TrySetResult();
             stopping.Cancel();
 
@@ -346,10 +457,10 @@ public sealed class WorkerTests
                 HeartbeatIntervalSeconds: 10,
                 Commands: []);
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(response)
-            });
+            };
         }
     }
 

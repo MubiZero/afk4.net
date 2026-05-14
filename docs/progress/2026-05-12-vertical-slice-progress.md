@@ -1,8 +1,9 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 7 Operator App Production UX is implemented, locally verified,
-live PostgreSQL operator-workflow smoked through the API-backed WPF ViewModel
-paths, and fast-forward merged to `main` at `55e56b4`.
+Status: Phase 9 Updates And Installers first slice is implemented, Docker
+PostgreSQL live smoke now passes locally, and the Agent update execution,
+replacement, rollback, restart, and recovery adapter boundaries are
+implemented.
 Last updated: 2026-05-14
 
 ## Scope
@@ -27,6 +28,274 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-13-afk4-phase5-billing-ledger-tariffs-packages.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase6-pos-inventory-shifts-receipts.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase7-operator-app-production-ux.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
+
+## Phase 9 Updates And Installers
+
+Started on `codex-phase9-updates-installers` after Phase 8 verification commit
+`24ed9b2`.
+
+The focused Phase 9 plan was added at
+`docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`.
+
+Implemented in Phase 9 first slice:
+
+- Added shared update contracts for package metadata, rollout targeting, device
+  update checks, device update status reports, and package/rollout lifecycle
+  requests;
+- added backend EF persistence for update packages, rollouts, rollout targets,
+  and per-device update status with migration `AddUpdateRollouts`;
+- added staff-protected package/rollout/status endpoints with branch-scoped
+  permissions and audit;
+- added package state transitions for registered, validated, rejected, and
+  retired package states;
+- added rollout state transitions for active, paused, completed,
+  rollback-requested, rolled-back, and cancelled rollout states;
+- added device-credential update check/status endpoints for Agents;
+- added Agent update client boundary for checking available updates and
+  reporting update progress;
+- added Agent update execution coordinator and background update worker with
+  component version reporting, artifact download, SHA-256 package verification,
+  persisted recovery state, configurable external install/rollback/restart
+  adapters, interrupted-install recovery, and offered/downloading/downloaded/
+  installing/installed/failed/rollback-started/rolled-back status progression;
+- added installer enrollment and rollout runbooks under `docs/operations/`;
+- updated README with Phase 9 routes, Agent update channel configuration, and
+  implementation state.
+
+Phase 9 first-slice commits on the branch:
+
+- `1896e17 docs: add phase 9 updates plan`
+- `32112c4 feat: add update rollout contracts`
+- `f7a83d5 feat: add update rollout persistence`
+- `fcaa5d3 feat: expose update rollout endpoints`
+- `1a33616 feat: add agent update client boundary`
+- `b5d6375 docs: add installer update runbooks`
+- `605899d feat: add update lifecycle contracts`
+- `dc10529 feat: add update lifecycle transitions`
+
+Verification on 2026-05-14 from `D:\projects\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter UpdateContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "EfUpdateServiceTests|UpdateEndpointTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter HttpAgentUpdateClientTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' ef migrations script --idempotent --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --output artifacts/phase9-update-rollouts.sql
+```
+
+Results:
+
+- Update contract serialization tests passed 5/5.
+- Phase 9 Platform API service/endpoint tests passed 18/18.
+- Agent update client tests passed 3/3.
+- Agent update execution, safe installer, rollback recovery, and background
+  update worker tests passed 10/10.
+- Full Agent Service tests passed 61/61.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 482/482:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 64/64;
+  - Agent.Service 61/61;
+  - Player.Shell 11/11;
+  - Operator.App 87/87;
+  - Platform.Api 256/256.
+- EF migration idempotent SQL script generation succeeded; generated output is
+  under ignored `artifacts/phase9-update-rollouts.sql`.
+
+Verification notes:
+
+- The endpoint tests cover package registration, package state changes, rollout
+  creation/status read, rollout state changes, device update check, and device
+  update status report through the in-memory test host.
+- A live PostgreSQL smoke harness was prepared under ignored
+  `artifacts/phase9-update-smoke/`. It starts a temporary PostgreSQL instance,
+  applies migrations, starts Platform API, registers and validates an update
+  package, enrolls a device, creates a branch rollout, checks for updates,
+  reports device update status, pauses/resumes/completes the rollout, and
+  verifies update rows and audit rows.
+- After Docker was installed on 2026-05-14, the repository `compose.yaml`
+  PostgreSQL service was started on `127.0.0.1:5432`, EF migrations were
+  applied through `20260514081906_AddUpdateRollouts`, and the ignored Phase 9
+  live PostgreSQL smoke harness passed. The harness used a temporary PostgreSQL
+  container on port `55543` because the original harness port `55439` was in a
+  Windows excluded port range. The command was:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File artifacts/phase9-update-smoke/phase9-update-smoke.ps1
+```
+
+- Tooling checks on 2026-05-14:
+
+```powershell
+docker --version
+docker compose version
+docker compose up -d postgres
+& 'C:\Program Files\dotnet\dotnet.exe' ef database update --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj
+powershell -ExecutionPolicy Bypass -File artifacts/phase9-update-smoke/phase9-update-smoke.ps1
+```
+
+- Results: Docker `29.4.3`, Compose `v5.1.3`, `afk4-postgres` healthy on
+  `127.0.0.1:5432`, Phase 9 smoke passed, and
+  `artifacts/phase9-update-smoke/phase9-update-smoke-result.json` reported
+  one validated package, one completed rollout, one installed device status,
+  first update check count `1`, and paused update check count `0`.
+
+Out of Phase 9 first-slice scope:
+
+- web admin, local club server, microservices, non-Windows agents, and kernel
+  drivers;
+- binary artifact hosting and production signing key storage;
+- CI installer build automation;
+- production binary artifact hosting and installer build automation;
+- Operator App update management UI;
+- reports, audit search, diagnostics dashboards, and backup/restore runbooks.
+
+## Phase 8 Agent Enforcement And Player Shell
+
+Started on `codex-phase8-agent-enforcement-player-shell` after `main` commit
+`1dc8dd2`.
+
+The focused Phase 8 plan was added at
+`docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`.
+
+Implemented in Phase 8:
+
+- Added shared local Player Shell contracts under
+  `AFK4.Shared.Contracts.Shell`:
+  - `PlayerShellStateNames`;
+  - `LauncherAppDto`;
+  - `PlayerShellStateDto`;
+  - `PlayerShellCommandDto`;
+  - `PlayerShellCommandResultDto`.
+- Added Player Shell contract serialization tests.
+- Added persistent Agent runtime state foundation:
+  - `AgentOptions.StateDirectory`;
+  - `AgentRuntimeState`;
+  - `IAgentRuntimeStateStore`;
+  - file-backed `AgentRuntimeStateStore`;
+  - file-backed `FileSessionLeaseStore`;
+  - registration of file-backed lease storage in the Agent runtime.
+- Added Agent runtime/lease persistence tests.
+- Added Agent session enforcement coordinator:
+  - `ISessionEnforcementCoordinator`;
+  - `SessionEnforcementCoordinator`;
+  - `IWorkstationLockController`;
+  - MVP-safe `WorkstationLockController` boundary;
+  - `SessionEnforcementResult`;
+  - command handler delegation for `unlock`, `refresh-session-lease`, and
+    `lock`.
+- Added enforcement coordinator tests and updated existing command handler
+  tests to use the coordinator path.
+- Added grace lease expiry enforcement:
+  - `IGraceModeMonitor`;
+  - `GraceModeMonitor`;
+  - Worker integration before reconciliation and before each heartbeat;
+  - heartbeat and reconciliation now use `IAgentRuntimeStateStore.Current`
+    instead of hardcoded `isLocked: true`.
+- Added grace monitor tests and Worker coverage for runtime lock-state
+  heartbeat payloads.
+- Added Player Shell process supervision and local IPC:
+  - `IPlayerShellProcessSupervisor`;
+  - `PlayerShellProcessSupervisor`;
+  - process query/starter boundaries for testable supervision;
+  - `IPlayerShellStatePublisher`;
+  - named-pipe Player Shell state publishing from Agent;
+  - Player Shell named-pipe state client.
+- Added Player Shell process supervisor tests.
+- Added Player Shell MVVM session UI:
+  - `PlayerShellViewModel`;
+  - `RemainingTimeFormatter`;
+  - `LauncherAppViewModel`;
+  - fullscreen WPF layout for locked, active, warning, grace, and launcher
+    states;
+  - Player Shell test project and ViewModel/formatter tests.
+- Added local launcher and process policy foundation:
+  - Agent launcher allow-list options;
+  - process launcher boundary;
+  - process policy enforcer and denied-process terminator boundary;
+  - Player Shell command handler for `launch-app`;
+  - named-pipe Player Shell command server hosted by Agent;
+  - Player Shell launcher command client;
+  - launcher command and policy tests.
+
+Phase 8 Task 8 verification scope is complete:
+
+- full Phase 8 targeted verification;
+- full solution build/test verification;
+- local Agent/Player Shell IPC smoke evidence.
+
+Phase 8 keeps centralized updates/installers, reports, audit search, web admin,
+local server, microservices, non-Windows agents, and kernel drivers out of
+scope.
+
+Phase 8 commits on the branch:
+
+- `5e66fa9 docs: add phase 8 agent shell plan`
+- `ec8f84f feat: add player shell local contracts`
+- `472683d feat: persist agent runtime lease state`
+- `be856cb feat: add agent session enforcement coordinator`
+- `e9f06e0 feat: enforce grace lease expiry in agent`
+- `da20a9c feat: supervise player shell runtime`
+- `39db4a4 feat: add player shell session UI`
+- `fc6cbcd feat: add local launcher policy foundation`
+- `c329e7 fix: overwrite persisted agent state safely`
+
+Verification on 2026-05-14 from `D:\projects\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Shared.Contracts/AFK4.Shared.Contracts.csproj --no-restore -p:UseSharedCompilation=false
+$env:DOTNET_CLI_TELEMETRY_OPTOUT='1'; $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'; & 'C:\Program Files\dotnet\dotnet.exe' restore src/AFK4.Agent.Service/AFK4.Agent.Service.csproj -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Agent.Service/AFK4.Agent.Service.csproj --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' restore src/AFK4.Player.Shell/AFK4.Player.Shell.csproj -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Player.Shell/AFK4.Player.Shell.csproj --no-restore -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter PlayerShellContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter "AgentRuntimeStateStoreTests|FileSessionLeaseStoreTests|SessionEnforcementCoordinatorTests|GraceModeMonitorTests|PlayerShellProcessSupervisorTests|PlayerShellCommandHandlerTests|WorkerTests" --no-restore -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Player.Shell.Tests/AFK4.Player.Shell.Tests.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' run --project artifacts/phase8-smoke/Phase8Smoke.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false
+```
+
+Results:
+
+- Shared contracts build succeeded with 0 warnings and 0 errors.
+- Agent Service restore succeeded.
+- Agent Service build succeeded with 0 warnings and 0 errors.
+- Player Shell restore succeeded.
+- Player Shell build succeeded with 0 warnings and 0 errors.
+- Shared Phase 8 Player Shell contract tests passed 3/3.
+- Agent targeted Phase 8 tests passed 27/27.
+- Player Shell tests passed 11/11.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution test run passed 446/446:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 59/59;
+  - Agent.Service 48/48;
+  - Player.Shell 11/11;
+  - Operator.App 87/87;
+  - Platform.Api 238/238.
+- Local Agent/Player Shell IPC smoke passed with state publish/read,
+  allowed-launch command handling, and unavailable command-pipe rejection.
+
+Verification notes:
+
+- Initial test-project restore hit transient NuGet timeout retries for
+  xUnit/coverlet packages, then completed successfully on this device.
+- The first targeted Agent test run found a Windows overwrite issue while
+  replacing persisted Agent state files. Commit `c329e7` switched the runtime
+  state and lease stores to overwrite via copy plus temp-file cleanup.
+- The local smoke harness lives under ignored `artifacts/phase8-smoke` and is
+  intentionally not tracked as production code.
+
+Known planning environment notes:
+
+- The current working clone is `D:\projects\afk4.net`; `AGENTS.md` still names
+  `D:\afk4.net` as the historical project root.
+- Git and .NET SDK `10.0.203` are installed on this device.
+- Creating the branch required elevated filesystem access to update `.git`.
 
 ## Phase 7 Operator App Production UX
 
@@ -1297,8 +1566,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Plan Phase 8 Agent Enforcement And Player Shell on a new `codex/phase8-*`
-   branch using the PRD and architecture scope as the boundary.
-2. Keep centralized updates/installers, reports, audit search, web admin, local
-   server, and microservices out of Phase 8 unless the PRD and architecture
-   spec are updated first.
+1. Add Operator App update status visibility for technicians and managers.
+2. Add production binary artifact hosting/signing and installer build
+   automation around the existing Agent update adapter boundaries.
+3. Move to the reports/audit search/operations slice when update operational
+   visibility is deep enough for the MVP.
+4. Keep web admin, local server, microservices, non-Windows agents, and kernel
+   drivers out of MVP scope unless the PRD and architecture spec are updated
+   first.

@@ -63,4 +63,14 @@ public static class AuditActionNames
     public const string RefundPosSale = "pos.sales.refund";
 
     public const string VoidPosSale = "pos.sales.void";
+
+    public const string RegisterUpdatePackage = "updates.packages.register";
+
+    public const string ChangeUpdatePackageState = "updates.packages.state.change";
+
+    public const string CreateUpdateRollout = "updates.rollouts.create";
+
+    public const string ChangeUpdateRolloutState = "updates.rollouts.state.change";
+
+    public const string ViewUpdateRollout = "updates.rollouts.view";
 }

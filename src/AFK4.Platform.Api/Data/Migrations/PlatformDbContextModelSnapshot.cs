@@ -426,6 +426,68 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("device_seat_assignments", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.DeviceUpdateStatusEntity", b =>
+                {
+                    b.Property<Guid>("DeviceUpdateStatusId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Component")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("FirstReportedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InstalledVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TargetVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("UpdatePackageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UpdateRolloutId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("DeviceUpdateStatusId");
+
+                    b.HasIndex("DeviceId", "UpdateRolloutId", "UpdatePackageId", "Component")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "BranchId", "Status", "UpdatedAtUtc");
+
+                    b.ToTable("device_update_statuses", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.LedgerEntryEntity", b =>
                 {
                     b.Property<Guid>("LedgerEntryId")
@@ -1536,6 +1598,186 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "BranchId", "EffectiveFromUtc");
 
                     b.ToTable("tariff_versions", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.UpdatePackageEntity", b =>
+                {
+                    b.Property<Guid>("UpdatePackageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ArtifactUri")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Component")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReleaseNotes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Signature")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SignatureAlgorithm")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("UpdatePackageId");
+
+                    b.HasIndex("OrganizationId", "BranchId", "CreatedAtUtc");
+
+                    b.HasIndex("OrganizationId", "BranchId", "Component", "Version", "Channel")
+                        .IsUnique();
+
+                    b.ToTable("update_packages", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.UpdateRolloutEntity", b =>
+                {
+                    b.Property<Guid>("UpdateRolloutId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("BatchPercent")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Component")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TargetKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("UpdatePackageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("UpdateRolloutId");
+
+                    b.HasIndex("UpdatePackageId");
+
+                    b.HasIndex("OrganizationId", "BranchId", "Channel", "State", "StartsAtUtc");
+
+                    b.ToTable("update_rollouts", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.UpdateRolloutTargetEntity", b =>
+                {
+                    b.Property<Guid>("UpdateRolloutTargetId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeviceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("UpdateRolloutId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UpdateRolloutTargetId");
+
+                    b.HasIndex("UpdateRolloutId", "DeviceId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "BranchId", "DeviceId");
+
+                    b.ToTable("update_rollout_targets", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.ZoneEntity", b =>

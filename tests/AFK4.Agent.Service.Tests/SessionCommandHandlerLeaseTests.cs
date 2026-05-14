@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using AFK4.Agent.Service;
+using AFK4.Agent.Service.Enforcement;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.Extensions.Options;
@@ -23,7 +24,7 @@ public sealed class SessionCommandHandlerLeaseTests
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var lease = CreateSignedLease(key, sequence: 1);
         var store = new InMemorySessionLeaseStore();
-        var handler = CreateHandler(key, store);
+        var handler = CreateHandler(key, store, out _, out _);
 
         var result = await handler.HandleAsync(CreateCommand("unlock", lease), CancellationToken.None);
 
@@ -37,7 +38,7 @@ public sealed class SessionCommandHandlerLeaseTests
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var lease = CreateSignedLease(key, sequence: 1);
         var store = new InMemorySessionLeaseStore();
-        var handler = CreateHandler(key, store);
+        var handler = CreateHandler(key, store, out _, out _);
 
         var result = await handler.HandleAsync(CreateCommand("unlock", lease, useBackendJson: true), CancellationToken.None);
 
@@ -50,7 +51,7 @@ public sealed class SessionCommandHandlerLeaseTests
     {
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var store = new InMemorySessionLeaseStore();
-        var handler = CreateHandler(key, store);
+        var handler = CreateHandler(key, store, out _, out _);
         var command = new DeviceCommandDto(
             CommandId: Guid.NewGuid(),
             Type: "unlock",
@@ -75,7 +76,7 @@ public sealed class SessionCommandHandlerLeaseTests
         var newLease = CreateSignedLease(key, sequence: 2);
         var store = new InMemorySessionLeaseStore();
         store.Save(oldLease);
-        var handler = CreateHandler(key, store);
+        var handler = CreateHandler(key, store, out _, out _);
 
         var result = await handler.HandleAsync(CreateCommand("refresh-session-lease", newLease), CancellationToken.None);
 
@@ -90,7 +91,7 @@ public sealed class SessionCommandHandlerLeaseTests
         var lease = CreateSignedLease(key, sequence: 1);
         var store = new InMemorySessionLeaseStore();
         store.Save(lease);
-        var handler = CreateHandler(key, store);
+        var handler = CreateHandler(key, store, out var runtimeStore, out var lockController);
         var command = new DeviceCommandDto(
             CommandId: Guid.NewGuid(),
             Type: "lock",
@@ -105,9 +106,15 @@ public sealed class SessionCommandHandlerLeaseTests
 
         Assert.Equal("Accepted", result.Status);
         Assert.Null(store.Current);
+        Assert.True(runtimeStore.Current.IsLocked);
+        Assert.Equal(1, lockController.LockCount);
     }
 
-    private static DefaultDeviceCommandHandler CreateHandler(ECDsa key, InMemorySessionLeaseStore store)
+    private static DefaultDeviceCommandHandler CreateHandler(
+        ECDsa key,
+        InMemorySessionLeaseStore store,
+        out RecordingRuntimeStateStore runtimeStore,
+        out RecordingWorkstationLockController lockController)
     {
         var options = Options.Create(new AgentOptions
         {
@@ -118,8 +125,16 @@ public sealed class SessionCommandHandlerLeaseTests
             LeaseSigningPublicKeyPem = key.ExportSubjectPublicKeyInfoPem()
         });
         var validator = new SessionLeaseValidator(options, new FixedTimeProvider(Now));
+        runtimeStore = new RecordingRuntimeStateStore();
+        lockController = new RecordingWorkstationLockController();
+        var coordinator = new SessionEnforcementCoordinator(
+            validator,
+            store,
+            runtimeStore,
+            lockController,
+            new FixedTimeProvider(Now));
 
-        return new DefaultDeviceCommandHandler(options, validator, store);
+        return new DefaultDeviceCommandHandler(options, coordinator);
     }
 
     private static DeviceCommandDto CreateCommand(string type, SessionLeaseDto lease, bool useBackendJson = false)
@@ -164,6 +179,45 @@ public sealed class SessionCommandHandlerLeaseTests
         public override DateTimeOffset GetUtcNow()
         {
             return now;
+        }
+    }
+
+    private sealed class RecordingRuntimeStateStore : IAgentRuntimeStateStore
+    {
+        public AgentRuntimeState Current { get; private set; } = AgentRuntimeState.Locked(Now);
+
+        public void Save(AgentRuntimeState state)
+        {
+            Current = state;
+        }
+
+        public void MarkLocked(DateTimeOffset observedAtUtc)
+        {
+            Current = AgentRuntimeState.Locked(observedAtUtc);
+        }
+
+        public void MarkActive(SessionLeaseDto lease, DateTimeOffset observedAtUtc)
+        {
+            Current = AgentRuntimeState.Active(lease, observedAtUtc);
+        }
+    }
+
+    private sealed class RecordingWorkstationLockController : IWorkstationLockController
+    {
+        public int LockCount { get; private set; }
+
+        public int UnlockCount { get; private set; }
+
+        public Task LockAsync(CancellationToken cancellationToken)
+        {
+            LockCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task UnlockAsync(CancellationToken cancellationToken)
+        {
+            UnlockCount++;
+            return Task.CompletedTask;
         }
     }
 }
