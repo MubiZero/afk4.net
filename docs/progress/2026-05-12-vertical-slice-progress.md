@@ -1,8 +1,7 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 8 Agent Enforcement And Player Shell is implemented and locally
-verified on `codex-phase8-agent-enforcement-player-shell`; full solution
-build/test and local Player Shell IPC smoke passed on 2026-05-14.
+Status: Phase 9 Updates And Installers has started on
+`codex-phase9-updates-installers` after Phase 8 local verification.
 Last updated: 2026-05-14
 
 ## Scope
@@ -28,6 +27,38 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-13-afk4-phase6-pos-inventory-shifts-receipts.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase7-operator-app-production-ux.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
+
+## Phase 9 Updates And Installers
+
+Started on `codex-phase9-updates-installers` after Phase 8 verification commit
+`24ed9b2`.
+
+The focused Phase 9 plan was added at
+`docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`.
+
+Planned first implementation scope:
+
+- shared update contracts for package metadata, rollout targeting, device
+  update checks, and device update status reports;
+- backend EF persistence for update packages, rollouts, rollout targets, and
+  per-device update status;
+- staff-protected package/rollout/status endpoints with branch-scoped
+  permissions and audit;
+- device-credential update check/status endpoints for Agents;
+- Agent update client boundary for checking available updates and reporting
+  update progress;
+- installer enrollment and rollout runbooks.
+
+Out of Phase 9 first-slice scope:
+
+- web admin, local club server, microservices, non-Windows agents, and kernel
+  drivers;
+- binary artifact hosting and production signing key storage;
+- CI installer build automation;
+- in-place Agent executable replacement beyond a later testable adapter;
+- Operator App update management UI;
+- reports, audit search, diagnostics dashboards, and backup/restore runbooks.
 
 ## Phase 8 Agent Enforcement And Player Shell
 
@@ -1442,8 +1473,9 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Start the next focused plan for centralized updates/installers, reports, or
-   audit/operations work according to the MVP PRD.
-2. Keep web admin, local server, microservices, non-Windows agents, and kernel
+1. Implement Phase 9 Task 2 shared update contracts and serialization tests.
+2. Implement backend update package/rollout persistence and device status
+   reporting before adding installer execution.
+3. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.
