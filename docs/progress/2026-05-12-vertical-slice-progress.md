@@ -1,8 +1,8 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 7 Operator App Production UX is implemented, locally verified,
-live PostgreSQL operator-workflow smoked through the API-backed WPF ViewModel
-paths, and fast-forward merged to `main` at `55e56b4`.
+Status: Phase 8 Agent Enforcement And Player Shell planning is started on
+`codex-phase8-agent-enforcement-player-shell`; Phase 7 remains the latest
+implemented and verified product slice.
 Last updated: 2026-05-14
 
 ## Scope
@@ -27,6 +27,41 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-13-afk4-phase5-billing-ledger-tariffs-packages.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase6-pos-inventory-shifts-receipts.md`
 - `docs/superpowers/plans/2026-05-13-afk4-phase7-operator-app-production-ux.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`
+
+## Phase 8 Agent Enforcement And Player Shell
+
+Started planning on `codex-phase8-agent-enforcement-player-shell` after
+`main` commit `1dc8dd2`.
+
+The focused Phase 8 plan was added at
+`docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`.
+
+Planned Phase 8 scope:
+
+- persistent Agent runtime state and signed-lease storage for reboot recovery;
+- Agent lock/unlock enforcement coordinator driven by backend-approved device
+  commands;
+- lease expiry and grace-mode lock behavior;
+- Player Shell process supervision/watchdog from the Agent;
+- local Agent-to-Shell state publishing over named pipes;
+- Player Shell locked, active-session, warning, offline-grace, and launcher
+  screens;
+- local allow-list based launcher command flow from Shell to Agent;
+- process allow/deny policy foundation with testable dry-run adapters;
+- heartbeat/reconciliation payloads that report actual lock/session state
+  instead of hardcoded locked state.
+
+Phase 8 keeps centralized updates/installers, reports, audit search, web admin,
+local server, microservices, non-Windows agents, and kernel drivers out of
+scope.
+
+Known planning environment notes:
+
+- The current working clone is `D:\projects\afk4.net`; `AGENTS.md` still names
+  `D:\afk4.net` as the historical project root.
+- Git and .NET SDK `10.0.203` are installed on this device.
+- Creating the branch required elevated filesystem access to update `.git`.
 
 ## Phase 7 Operator App Production UX
 
@@ -1297,8 +1332,8 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Plan Phase 8 Agent Enforcement And Player Shell on a new `codex/phase8-*`
-   branch using the PRD and architecture scope as the boundary.
+1. Implement Phase 8 Task 1, shared Player Shell local contracts, with TDD on
+   `codex-phase8-agent-enforcement-player-shell`.
 2. Keep centralized updates/installers, reports, audit search, web admin, local
    server, and microservices out of Phase 8 unless the PRD and architecture
    spec are updated first.
