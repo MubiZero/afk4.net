@@ -190,6 +190,16 @@ The current vertical slice exposes:
   permission `devices.credentials.rotate`
 - `POST /api/devices/{deviceId}/credentials/{credentialId}/revoke` with staff
   bearer token permission `devices.credentials.revoke`
+- `POST /api/branches/{branchId}/updates/packages` with staff bearer token
+  permission `updates.packages.manage`
+- `POST /api/branches/{branchId}/updates/rollouts` with staff bearer token
+  permission `updates.rollouts.manage`
+- `GET /api/branches/{branchId}/updates/rollouts/{rolloutId}` with staff
+  bearer token permission `updates.status.view`
+- `POST /api/devices/{deviceId}/updates/check` with device credential
+  authentication
+- `POST /api/devices/{deviceId}/updates/status` with device credential
+  authentication
 - SignalR hub at `/hubs/devices`
 - SignalR client event `deviceStatusChanged`
 - SignalR device command events `deviceCommand` and `deviceCommandResult`
@@ -227,9 +237,9 @@ persists active lease/runtime state for restart recovery, reports reconnect
 reconciliation snapshots, drives a testable lock/unlock enforcement
 coordinator, supervises the Player Shell process, publishes Shell state over
 named pipes, accepts local Shell launcher commands, and applies a local
-allow/deny process policy foundation. Later slices add installer enrollment
-bootstrap, automatic credential propagation, deeper Windows control, signed
-updates, and rollout/rollback behavior.
+allow/deny process policy foundation. It also has an update check/status HTTP
+client boundary. Later slices add automatic credential propagation, deeper
+Windows control, binary installer execution, and rollout/rollback automation.
 
 ### Player Shell
 
@@ -300,6 +310,9 @@ Expected for the current vertical slice:
 For the PostgreSQL-backed device persistence path, first start local
 PostgreSQL and apply EF migrations with the
 [local PostgreSQL smoke runbook](docs/operations/local-postgres-smoke.md).
+Installer enrollment and client rollout operating notes live in
+[Agent And Player Shell Installer Enrollment](docs/operations/agent-installer-enrollment.md)
+and [Client Update Rollout](docs/operations/client-update-rollout.md).
 
 Start the backend:
 
@@ -343,9 +356,10 @@ The Agent currently needs enrollment-derived `Agent:DeviceId` and
 variables before authenticated heartbeats succeed. For Phase 8 local
 enforcement and Shell IPC, configure `Agent:StateDirectory`,
 `Agent:PlayerShellExecutablePath`, optional Shell pipe names, and
-`Agent:LauncherApps`. Real installer bootstrap, automatic credential
-propagation, signed updates, and rollout/rollback are intentionally deferred to
-later slices.
+`Agent:LauncherApps`. For Phase 9 update checks, configure
+`Agent:UpdateChannel`. Automatic credential propagation, binary installer
+execution, and rollout/rollback automation are intentionally deferred to later
+slices.
 
 ## Current Implementation State
 
@@ -431,6 +445,13 @@ The first vertical slice foundation is implemented:
 - Agent Player Shell process supervision and local named-pipe state publishing;
 - Agent local launcher command handling and allow/deny process policy
   foundation;
+- shared update package, rollout, device check, and device status contracts;
+- EF-backed update package, rollout, rollout target, and per-device status
+  persistence with migration `AddUpdateRollouts`;
+- protected Phase 9 endpoints for update package registration, rollout
+  creation, rollout status reads, device update checks, and device update
+  status reports;
+- Agent update check/status HTTP client boundary;
 - Operator App production floor-map/workflow shell;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
   grace/offline, ending, and launcher states.
@@ -445,7 +466,8 @@ Not implemented yet:
 - audit search and reports;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
-- signed updates, rollout, rollback, and installers.
+- binary update artifact hosting, installer build automation, in-place Agent
+  executable replacement, and rollback execution automation.
 
 ## Engineering Rules
 
