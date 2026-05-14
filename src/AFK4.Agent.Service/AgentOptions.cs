@@ -24,4 +24,12 @@ public sealed class AgentOptions
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
         "AFK4",
         "Agent");
+
+    public string PlayerShellExecutablePath { get; init; } = string.Empty;
+
+    public string PlayerShellStartArguments { get; init; } = string.Empty;
+
+    public string PlayerShellPipeName { get; init; } = "afk4-player-shell";
+
+    public int PlayerShellPipeConnectionTimeoutMilliseconds { get; init; } = 250;
 }

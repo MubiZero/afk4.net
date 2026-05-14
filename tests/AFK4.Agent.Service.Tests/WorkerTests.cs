@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Shell;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shell;
@@ -37,6 +38,8 @@ public sealed class WorkerTests
             new InMemorySessionLeaseStore(),
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -75,6 +78,8 @@ public sealed class WorkerTests
             new InMemorySessionLeaseStore(),
             new RecordingRuntimeStateStore(isLocked: false),
             new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -114,6 +119,8 @@ public sealed class WorkerTests
             new InMemorySessionLeaseStore(),
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector(
@@ -162,6 +169,8 @@ public sealed class WorkerTests
             new InMemorySessionLeaseStore(),
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             new NoOpDeviceCommandHandler(options.Value),
             new RecordingSessionReconciliationReporter(calls),
             new StaticInstalledAppInventoryCollector(
@@ -216,6 +225,8 @@ public sealed class WorkerTests
             new InMemorySessionLeaseStore(),
             new RecordingRuntimeStateStore(isLocked: true),
             new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
             commandHandler,
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
@@ -274,6 +285,22 @@ public sealed class WorkerTests
     private sealed class NoOpGraceModeMonitor : IGraceModeMonitor
     {
         public Task EnforceAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpPlayerShellProcessSupervisor : IPlayerShellProcessSupervisor
+    {
+        public Task EnsureRunningAsync(AgentRuntimeState runtimeState, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpPlayerShellStatePublisher : IPlayerShellStatePublisher
+    {
+        public Task PublishAsync(PlayerShellStateDto state, CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
         }

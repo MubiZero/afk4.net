@@ -1,5 +1,6 @@
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Shell;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -12,6 +13,10 @@ builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();
 builder.Services.AddSingleton<ISessionEnforcementCoordinator, SessionEnforcementCoordinator>();
 builder.Services.AddSingleton<IGraceModeMonitor, GraceModeMonitor>();
+builder.Services.AddSingleton<IPlayerShellProcessQuery, PlayerShellProcessQuery>();
+builder.Services.AddSingleton<IPlayerShellProcessStarter, PlayerShellProcessStarter>();
+builder.Services.AddSingleton<IPlayerShellProcessSupervisor, PlayerShellProcessSupervisor>();
+builder.Services.AddSingleton<IPlayerShellStatePublisher, NamedPipePlayerShellStateServer>();
 builder.Services.AddSingleton<ISessionReconciliationReporter, SessionReconciliationReporter>();
 builder.Services.AddSingleton<IDeviceCommandHandler, DefaultDeviceCommandHandler>();
 builder.Services.AddSingleton<IDeviceRealtimeClient, DeviceRealtimeClient>();
