@@ -31,5 +31,26 @@ public sealed class AgentOptions
 
     public string PlayerShellPipeName { get; init; } = "afk4-player-shell";
 
+    public string PlayerShellCommandPipeName { get; init; } = "afk4-player-shell-commands";
+
     public int PlayerShellPipeConnectionTimeoutMilliseconds { get; init; } = 250;
+
+    public List<AgentLauncherAppOptions> LauncherApps { get; init; } = [];
+
+    public List<string> DeniedProcessNames { get; init; } = [];
+}
+
+public sealed class AgentLauncherAppOptions
+{
+    public string AppId { get; init; } = string.Empty;
+
+    public string DisplayName { get; init; } = string.Empty;
+
+    public string Category { get; init; } = "Games";
+
+    public string ExecutablePath { get; init; } = string.Empty;
+
+    public string Arguments { get; init; } = string.Empty;
+
+    public bool IsEnabled { get; init; } = true;
 }

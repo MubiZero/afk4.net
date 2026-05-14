@@ -18,11 +18,12 @@ public partial class MainWindow : Window
         InitializeComponent();
         var options = new PlayerShellOptions
         {
-            PipeName = Environment.GetEnvironmentVariable("AFK4_PLAYER_SHELL_PIPE_NAME") ?? "afk4-player-shell"
+            PipeName = Environment.GetEnvironmentVariable("AFK4_PLAYER_SHELL_PIPE_NAME") ?? "afk4-player-shell",
+            CommandPipeName = Environment.GetEnvironmentVariable("AFK4_PLAYER_SHELL_COMMAND_PIPE_NAME") ?? "afk4-player-shell-commands"
         };
 
         stateClient = new NamedPipePlayerShellStateClient(options);
-        viewModel = new PlayerShellViewModel(NoOpLauncherCommandClient.Instance);
+        viewModel = new PlayerShellViewModel(new LauncherCommandClient(options));
         viewModel.ApplyState(new PlayerShellStateDto(
             OrganizationId: Guid.Empty,
             BranchId: Guid.Empty,
