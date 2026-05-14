@@ -1,7 +1,7 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 9 Updates And Installers has started on
-`codex-phase9-updates-installers` after Phase 8 local verification.
+Status: Phase 9 Updates And Installers first slice is implemented and locally
+verified on `codex-phase9-updates-installers`.
 Last updated: 2026-05-14
 
 ## Scope
@@ -37,18 +37,64 @@ Started on `codex-phase9-updates-installers` after Phase 8 verification commit
 The focused Phase 9 plan was added at
 `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`.
 
-Planned first implementation scope:
+Implemented in Phase 9 first slice:
 
-- shared update contracts for package metadata, rollout targeting, device
+- Added shared update contracts for package metadata, rollout targeting, device
   update checks, and device update status reports;
-- backend EF persistence for update packages, rollouts, rollout targets, and
-  per-device update status;
-- staff-protected package/rollout/status endpoints with branch-scoped
+- added backend EF persistence for update packages, rollouts, rollout targets,
+  and per-device update status with migration `AddUpdateRollouts`;
+- added staff-protected package/rollout/status endpoints with branch-scoped
   permissions and audit;
-- device-credential update check/status endpoints for Agents;
-- Agent update client boundary for checking available updates and reporting
-  update progress;
-- installer enrollment and rollout runbooks.
+- added device-credential update check/status endpoints for Agents;
+- added Agent update client boundary for checking available updates and
+  reporting update progress;
+- added installer enrollment and rollout runbooks under `docs/operations/`;
+- updated README with Phase 9 routes, Agent update channel configuration, and
+  implementation state.
+
+Phase 9 first-slice commits on the branch:
+
+- `1896e17 docs: add phase 9 updates plan`
+- `32112c4 feat: add update rollout contracts`
+- `f7a83d5 feat: add update rollout persistence`
+- `fcaa5d3 feat: expose update rollout endpoints`
+- `1a33616 feat: add agent update client boundary`
+- `b5d6375 docs: add installer update runbooks`
+
+Verification on 2026-05-14 from `D:\projects\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter UpdateContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --filter "EfUpdateServiceTests|UpdateEndpointTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter HttpAgentUpdateClientTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' ef migrations script --idempotent --project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --startup-project src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --output artifacts/phase9-update-rollouts.sql
+```
+
+Results:
+
+- Update contract serialization tests passed 4/4.
+- Phase 9 Platform API service/endpoint tests passed 12/12.
+- Agent update client tests passed 3/3.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 465/465:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 63/63;
+  - Agent.Service 51/51;
+  - Player.Shell 11/11;
+  - Operator.App 87/87;
+  - Platform.Api 250/250.
+- EF migration idempotent SQL script generation succeeded; generated output is
+  under ignored `artifacts/phase9-update-rollouts.sql`.
+
+Verification notes:
+
+- The endpoint tests cover package registration, rollout creation/status read,
+  device update check, and device update status report through the in-memory
+  test host.
+- A live PostgreSQL smoke was not run for this first Phase 9 pass; migration
+  generation and full automated verification passed locally.
 
 Out of Phase 9 first-slice scope:
 
@@ -1473,9 +1519,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Implement Phase 9 Task 2 shared update contracts and serialization tests.
-2. Implement backend update package/rollout persistence and device status
-   reporting before adding installer execution.
+1. Decide whether to continue Phase 9 with a live PostgreSQL update rollout
+   smoke and an Agent installer execution adapter, or move to the reports/audit
+   search/operations slice.
+2. If continuing updates, add rollout state transitions for pause, rollback
+   request, rolled-back, completed, and package validation/retirement.
 3. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.
