@@ -1,8 +1,9 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 8 Agent Enforcement And Player Shell planning is started on
-`codex-phase8-agent-enforcement-player-shell`; Phase 7 remains the latest
-implemented and verified product slice.
+Status: Phase 8 Agent Enforcement And Player Shell is in progress on
+`codex-phase8-agent-enforcement-player-shell`; Tasks 1-4 are implemented with
+Agent production build verification, while xUnit test-project restore is
+blocked on this device by NuGet test-runner package fetch timeouts.
 Last updated: 2026-05-14
 
 ## Scope
@@ -31,30 +32,90 @@ The implementation plans for this slice live in:
 
 ## Phase 8 Agent Enforcement And Player Shell
 
-Started planning on `codex-phase8-agent-enforcement-player-shell` after
-`main` commit `1dc8dd2`.
+Started on `codex-phase8-agent-enforcement-player-shell` after `main` commit
+`1dc8dd2`.
 
 The focused Phase 8 plan was added at
 `docs/superpowers/plans/2026-05-14-afk4-phase8-agent-enforcement-player-shell.md`.
 
-Planned Phase 8 scope:
+Implemented so far:
 
-- persistent Agent runtime state and signed-lease storage for reboot recovery;
-- Agent lock/unlock enforcement coordinator driven by backend-approved device
-  commands;
-- lease expiry and grace-mode lock behavior;
+- Added shared local Player Shell contracts under
+  `AFK4.Shared.Contracts.Shell`:
+  - `PlayerShellStateNames`;
+  - `LauncherAppDto`;
+  - `PlayerShellStateDto`;
+  - `PlayerShellCommandDto`;
+  - `PlayerShellCommandResultDto`.
+- Added Player Shell contract serialization tests.
+- Added persistent Agent runtime state foundation:
+  - `AgentOptions.StateDirectory`;
+  - `AgentRuntimeState`;
+  - `IAgentRuntimeStateStore`;
+  - file-backed `AgentRuntimeStateStore`;
+  - file-backed `FileSessionLeaseStore`;
+  - registration of file-backed lease storage in the Agent runtime.
+- Added Agent runtime/lease persistence tests.
+- Added Agent session enforcement coordinator:
+  - `ISessionEnforcementCoordinator`;
+  - `SessionEnforcementCoordinator`;
+  - `IWorkstationLockController`;
+  - MVP-safe `WorkstationLockController` boundary;
+  - `SessionEnforcementResult`;
+  - command handler delegation for `unlock`, `refresh-session-lease`, and
+    `lock`.
+- Added enforcement coordinator tests and updated existing command handler
+  tests to use the coordinator path.
+- Added grace lease expiry enforcement:
+  - `IGraceModeMonitor`;
+  - `GraceModeMonitor`;
+  - Worker integration before reconciliation and before each heartbeat;
+  - heartbeat and reconciliation now use `IAgentRuntimeStateStore.Current`
+    instead of hardcoded `isLocked: true`.
+- Added grace monitor tests and Worker coverage for runtime lock-state
+  heartbeat payloads.
+
+Phase 8 remaining planned scope:
+
 - Player Shell process supervision/watchdog from the Agent;
 - local Agent-to-Shell state publishing over named pipes;
 - Player Shell locked, active-session, warning, offline-grace, and launcher
   screens;
 - local allow-list based launcher command flow from Shell to Agent;
 - process allow/deny policy foundation with testable dry-run adapters;
-- heartbeat/reconciliation payloads that report actual lock/session state
-  instead of hardcoded locked state.
 
 Phase 8 keeps centralized updates/installers, reports, audit search, web admin,
 local server, microservices, non-Windows agents, and kernel drivers out of
 scope.
+
+Phase 8 commits on the branch:
+
+- `5e66fa9 docs: add phase 8 agent shell plan`
+- `ec8f84f feat: add player shell local contracts`
+- `472683d feat: persist agent runtime lease state`
+- `be856cb feat: add agent session enforcement coordinator`
+- `e9f06e0 feat: enforce grace lease expiry in agent`
+
+Verification on 2026-05-14 from `D:\projects\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Shared.Contracts/AFK4.Shared.Contracts.csproj --no-restore -p:UseSharedCompilation=false
+$env:DOTNET_CLI_TELEMETRY_OPTOUT='1'; $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'; & 'C:\Program Files\dotnet\dotnet.exe' restore src/AFK4.Agent.Service/AFK4.Agent.Service.csproj -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build src/AFK4.Agent.Service/AFK4.Agent.Service.csproj --no-restore -p:UseSharedCompilation=false
+```
+
+Results:
+
+- Shared contracts build succeeded with 0 warnings and 0 errors.
+- Agent Service restore succeeded.
+- Agent Service build succeeded with 0 warnings and 0 errors.
+
+Verification blocker on this device:
+
+- `dotnet test` for test projects could not complete because NuGet restore for
+  xUnit/test-runner package dependencies repeatedly timed out while fetching
+  packages. Production project restore/build works. The new tests are present
+  in the tree and should be run once the test package restore path is healthy.
 
 Known planning environment notes:
 
@@ -1332,7 +1393,7 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Implement Phase 8 Task 1, shared Player Shell local contracts, with TDD on
+1. Implement Phase 8 Task 5, Player Shell process supervision and local IPC, on
    `codex-phase8-agent-enforcement-player-shell`.
 2. Keep centralized updates/installers, reports, audit search, web admin, local
    server, and microservices out of Phase 8 unless the PRD and architecture
