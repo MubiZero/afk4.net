@@ -79,6 +79,19 @@ keeps Agent restart scheduling outside the currently running Agent process.
 
 ## Current Commands
 
+Restore repository-local tools before packaging work:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' tool restore
+& 'C:\Program Files\dotnet\dotnet.exe' wix --version
+```
+
+Expected WiX version:
+
+```text
+7.0.0
+```
+
 Until the Phase 13 MSI build scripts are implemented, use the existing update
 artifact publishing wrapper for internal signed update experiments:
 
@@ -97,4 +110,3 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
 
 The Phase 13 implementation plan adds `scripts/build-client-packages.ps1`,
 WiX MSI authoring, MSI update helper scripts, and a GitHub Actions workflow.
-

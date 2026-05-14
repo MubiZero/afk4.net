@@ -320,6 +320,9 @@ docs/superpowers/plans/
 - Git for Windows.
 - .NET SDK `10.0.203` or another compatible .NET 10 SDK allowed by
   `global.json` feature-band roll-forward.
+- Repository-local .NET tools restored with `dotnet tool restore`. The tool
+  manifest pins `dotnet-ef` for migrations and `wix` for Phase 13 client MSI
+  packaging.
 - PostgreSQL for runtime device persistence. Set
   `ConnectionStrings__PlatformDatabase` for local API runs that exercise device
   enrollment, credentials, heartbeat state, or command status.
@@ -335,6 +338,7 @@ dotnet --list-sdks
 From the repository root:
 
 ```powershell
+dotnet tool restore
 dotnet build AFK4.sln
 dotnet test AFK4.sln
 ```
