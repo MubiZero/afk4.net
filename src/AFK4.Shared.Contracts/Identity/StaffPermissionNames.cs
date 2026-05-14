@@ -74,6 +74,12 @@ public static class StaffPermissionNames
 
     public const string ViewReceipt = "receipts.view";
 
+    public const string ManageUpdatePackages = "updates.packages.manage";
+
+    public const string ManageUpdateRollouts = "updates.rollouts.manage";
+
+    public const string ViewUpdateStatus = "updates.status.view";
+
     public const string ManageRoles = "identity.roles.manage";
 
     public const string ViewAudit = "audit.view";

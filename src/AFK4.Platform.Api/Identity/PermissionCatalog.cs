@@ -45,6 +45,9 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageInventoryStock,
                 StaffPermissionNames.ViewInventory,
                 StaffPermissionNames.ViewReceipt,
+                StaffPermissionNames.ManageUpdatePackages,
+                StaffPermissionNames.ManageUpdateRollouts,
+                StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit
             },
@@ -86,6 +89,9 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageInventoryStock,
                 StaffPermissionNames.ViewInventory,
                 StaffPermissionNames.ViewReceipt,
+                StaffPermissionNames.ManageUpdatePackages,
+                StaffPermissionNames.ManageUpdateRollouts,
+                StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.ShiftSupervisor] = new HashSet<string>
@@ -118,6 +124,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.VoidPosSale,
                 StaffPermissionNames.ViewInventory,
                 StaffPermissionNames.ViewReceipt,
+                StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.CashierOperator] = new HashSet<string>
@@ -151,7 +158,10 @@ public static class PermissionCatalog
                 StaffPermissionNames.RevokeDeviceCredential,
                 StaffPermissionNames.ViewDeviceDetail,
                 StaffPermissionNames.ViewFloorMap,
-                StaffPermissionNames.ViewInventory
+                StaffPermissionNames.ViewInventory,
+                StaffPermissionNames.ManageUpdatePackages,
+                StaffPermissionNames.ManageUpdateRollouts,
+                StaffPermissionNames.ViewUpdateStatus
             },
             [StaffRoleNames.AccountantAuditor] = new HashSet<string>
             {
@@ -163,6 +173,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.ViewShift,
                 StaffPermissionNames.ViewInventory,
                 StaffPermissionNames.ViewReceipt,
+                StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ViewAudit
             }
         };

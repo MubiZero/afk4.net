@@ -12,6 +12,7 @@ using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Platform.Api.Tenancy;
+using AFK4.Platform.Api.Updates;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
@@ -24,6 +25,7 @@ using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
+using AFK4.Shared.Contracts.Updates;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -68,6 +70,7 @@ builder.Services.AddScoped<ITariffService, EfTariffService>();
 builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
 builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
+builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 
 var app = builder.Build();
 
@@ -2916,11 +2919,272 @@ app.MapGet("/api/receipts/{receiptId:guid}", async (
     return Results.Ok(ToDto(receipt.Entity!));
 });
 
+app.MapPost("/api/branches/{branchId:guid}/updates/packages", async (
+    Guid branchId,
+    CreateUpdatePackageRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IUpdateService updateService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageUpdatePackages,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.RegisterUpdatePackage,
+            "UpdatePackage",
+            null,
+            AuditOutcome.Denied,
+            new { request.Component, request.Version, request.Channel, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await updateService.RegisterPackageAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToUpdateHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.RegisterUpdatePackage,
+        "UpdatePackage",
+        result.Response!.UpdatePackageId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { result.Response.Component, result.Response.Version, result.Response.Channel },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/updates/rollouts", async (
+    Guid branchId,
+    CreateUpdateRolloutRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IUpdateService updateService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageUpdateRollouts,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateUpdateRollout,
+            "UpdateRollout",
+            null,
+            AuditOutcome.Denied,
+            new { request.UpdatePackageId, request.Channel, request.TargetKind, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await updateService.CreateRolloutAsync(
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToUpdateHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateUpdateRollout,
+        "UpdateRollout",
+        result.Response!.UpdateRolloutId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { result.Response.UpdatePackageId, result.Response.Channel, result.Response.TargetKind },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}", async (
+    Guid branchId,
+    Guid rolloutId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IUpdateService updateService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewUpdateStatus,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewUpdateRollout,
+            "UpdateRollout",
+            rolloutId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await updateService.GetRolloutAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        rolloutId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToUpdateHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewUpdateRollout,
+        "UpdateRollout",
+        rolloutId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { result.Response!.State },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/updates/check", async (
+    Guid deviceId,
+    DeviceUpdateCheckRequest request,
+    HttpContext httpContext,
+    IDeviceCredentialValidator credentialValidator,
+    IUpdateService updateService,
+    CancellationToken cancellationToken) =>
+{
+    if (deviceId != request.DeviceId)
+    {
+        return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+    }
+
+    var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await updateService.CheckForUpdatesAsync(request, cancellationToken);
+
+    return ToUpdateHttpResult(result);
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/updates/status", async (
+    Guid deviceId,
+    DeviceUpdateStatusReportRequest request,
+    HttpContext httpContext,
+    IDeviceCredentialValidator credentialValidator,
+    IUpdateService updateService,
+    CancellationToken cancellationToken) =>
+{
+    if (deviceId != request.DeviceId)
+    {
+        return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+    }
+
+    var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await updateService.ReportStatusAsync(request, cancellationToken);
+
+    return ToUpdateHttpResult(result);
+});
+
 app.MapHub<DeviceHub>("/hubs/devices");
 
 app.Run();
 
 static IResult ToHttpResult<TResponse>(BillingCommandServiceResult<TResponse> result)
+{
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { Error = result.Error });
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    return Results.Ok(result.Response);
+}
+
+static IResult ToUpdateHttpResult<TResponse>(UpdateServiceResult<TResponse> result)
 {
     if (result.Conflict)
     {
