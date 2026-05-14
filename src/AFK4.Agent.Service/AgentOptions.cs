@@ -68,6 +68,8 @@ public sealed class AgentOptions
     public string UpdateRestartExecutablePath { get; init; } = string.Empty;
 
     public string UpdateRestartArgumentsTemplate { get; init; } = "--component \"{Component}\" --version \"{TargetVersion}\"";
+
+    public string UpdatePackageSigningPublicKeyPem { get; init; } = string.Empty;
 }
 
 public sealed class AgentLauncherAppOptions

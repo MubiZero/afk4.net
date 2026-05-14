@@ -32,6 +32,48 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
 
+## Phase 10 Agent Update Signature Verification
+
+Implemented after the Phase 10 publisher merge on 2026-05-14:
+
+- Moved update package signature algorithm names and canonical package metadata
+  payload construction into shared update contracts so the publisher and Agent
+  verify the same bytes.
+- Added `Agent:UpdatePackageSigningPublicKeyPem`.
+- Extended `Sha256UpdatePackageVerifier` to reject unsupported algorithms,
+  missing verification public keys, invalid signatures, and modified signed
+  metadata before invoking installer execution.
+- Documented Agent public-key configuration in the update package publishing
+  runbook.
+
+Verification on 2026-05-14 from `D:\projects\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter Sha256UpdatePackageVerifierTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Update.Publisher.Tests/AFK4.Update.Publisher.Tests.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --filter UpdateContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Targeted Agent update verifier tests passed 4/4.
+- Full Agent Service tests passed 65/65.
+- Update Publisher tests passed 3/3 after moving canonical signature helpers to
+  shared contracts.
+- Update contract serialization tests passed 6/6.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 497/497:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 65/65;
+  - Update.Publisher 3/3;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 92/92;
+  - Platform.Api 258/258.
+
 ## Phase 10 Update Publishing Automation
 
 Started on `codex/update-publisher-automation` after Operator update
@@ -76,8 +118,6 @@ Results:
 
 Remaining Phase 10 work:
 
-- Agent-side cryptographic signature verification against configured public
-  keys;
 - production object storage/CDN adapter and key vault integration;
 - MSI/MSIX authoring decision and CI release jobs.
 
@@ -1661,14 +1701,12 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add Agent-side cryptographic signature verification using configured update
-   package public keys.
-2. Add production object storage/CDN hosting and key vault integration around
+1. Add production object storage/CDN hosting and key vault integration around
    the local publishing tool.
-3. Add Operator App package/rollout management workflow if package publishing
+2. Add Operator App package/rollout management workflow if package publishing
    needs to happen before reports.
-4. Move to the reports/audit search/operations slice when update operational
+3. Move to the reports/audit search/operations slice when update operational
    visibility is deep enough for the MVP.
-5. Keep web admin, local server, microservices, non-Windows agents, and kernel
+4. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.
