@@ -211,6 +211,260 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             Money(resultCurrencyCode, grossSalesTotal + refundsTotal));
     }
 
+    public async Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+        Guid organizationId,
+        Guid branchId,
+        ReportSearchQuery query,
+        CancellationToken cancellationToken)
+    {
+        var limit = NormalizeLimit(query.Limit);
+        var sessionsQuery = dbContext.Sessions
+            .AsNoTracking()
+            .Where(session =>
+                session.OrganizationId == organizationId &&
+                session.BranchId == branchId &&
+                session.StartedAtUtc.HasValue);
+
+        if (query.FromUtc is not null)
+        {
+            var fromUtc = query.FromUtc.Value;
+            sessionsQuery = sessionsQuery.Where(session => session.StartedAtUtc >= fromUtc);
+        }
+
+        if (query.ToUtc is not null)
+        {
+            var toUtc = query.ToUtc.Value;
+            sessionsQuery = sessionsQuery.Where(session => session.StartedAtUtc <= toUtc);
+        }
+
+        var sessions = await sessionsQuery
+            .OrderByDescending(session => session.StartedAtUtc)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+        var sessionIds = sessions.Select(session => session.SessionId).ToHashSet();
+        var ledgerEntries = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry =>
+                entry.OrganizationId == organizationId &&
+                entry.BranchId == branchId &&
+                entry.SessionId.HasValue &&
+                sessionIds.Contains(entry.SessionId.Value) &&
+                (entry.EntryType == LedgerEntryTypeNames.GameplayCharge ||
+                 entry.EntryType == LedgerEntryTypeNames.PostpaidDebt ||
+                 entry.EntryType == LedgerEntryTypeNames.PackageConsumption ||
+                 entry.EntryType == LedgerEntryTypeNames.BonusConsumption))
+            .ToListAsync(cancellationToken);
+
+        var rows = sessions.Select(session =>
+        {
+            var entries = ledgerEntries
+                .Where(entry => entry.SessionId == session.SessionId)
+                .ToList();
+            var currencyCode = entries.FirstOrDefault()?.CurrencyCode ?? DefaultCurrencyCode;
+            var gameplayRevenue = entries.Sum(entry => entry.EntryType switch
+            {
+                LedgerEntryTypeNames.GameplayCharge => Math.Abs(entry.AmountMinorUnits),
+                LedgerEntryTypeNames.PostpaidDebt => entry.AmountMinorUnits,
+                _ => 0
+            });
+            var packageSeconds = entries
+                .Where(entry => entry.EntryType == LedgerEntryTypeNames.PackageConsumption)
+                .Sum(entry => Math.Abs(entry.QuantitySeconds));
+            var bonusSeconds = entries
+                .Where(entry => entry.EntryType == LedgerEntryTypeNames.BonusConsumption)
+                .Sum(entry => Math.Abs(entry.QuantitySeconds));
+
+            return new GameplayTimeReportRowDto(
+                session.SessionId,
+                session.OrganizationId,
+                session.BranchId,
+                session.SeatId,
+                session.DeviceId,
+                session.CreatedByStaffUserId,
+                session.PlayerKind,
+                session.PlayerAccountId,
+                session.State,
+                CalculateDurationSeconds(session.StartedAtUtc, session.EndedAtUtc, session.EndsAtUtc),
+                packageSeconds,
+                bonusSeconds,
+                Money(currencyCode, gameplayRevenue),
+                session.StartedAtUtc,
+                session.EndedAtUtc,
+                session.EndsAtUtc);
+        }).ToList();
+
+        var resultCurrencyCode = rows.FirstOrDefault()?.GameplayRevenue.CurrencyCode ?? DefaultCurrencyCode;
+
+        return new GameplayTimeReportResultDto(
+            rows,
+            limit,
+            rows.Sum(row => row.DurationSeconds),
+            rows.Sum(row => row.PackageSeconds),
+            rows.Sum(row => row.BonusSeconds),
+            Money(resultCurrencyCode, rows.Sum(row => row.GameplayRevenue.MinorUnits)));
+    }
+
+    public async Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+        Guid organizationId,
+        Guid branchId,
+        ReportSearchQuery query,
+        CancellationToken cancellationToken)
+    {
+        var limit = NormalizeLimit(query.Limit);
+        var cashMovementsQuery = dbContext.CashMovements
+            .AsNoTracking()
+            .Where(movement => movement.OrganizationId == organizationId && movement.BranchId == branchId);
+        var paymentsQuery = dbContext.Payments
+            .AsNoTracking()
+            .Where(payment =>
+                payment.OrganizationId == organizationId &&
+                payment.BranchId == branchId &&
+                payment.PaymentMethod == PaymentMethodNames.Cash);
+        var ledgerEntriesQuery = dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry =>
+                entry.OrganizationId == organizationId &&
+                entry.BranchId == branchId &&
+                entry.ShiftId.HasValue &&
+                (entry.EntryType == LedgerEntryTypeNames.TopUp ||
+                 entry.EntryType == LedgerEntryTypeNames.DebtPayment ||
+                 entry.EntryType == LedgerEntryTypeNames.ManualCorrection ||
+                 entry.EntryType == LedgerEntryTypeNames.Refund));
+
+        if (query.FromUtc is not null)
+        {
+            var fromUtc = query.FromUtc.Value;
+            cashMovementsQuery = cashMovementsQuery.Where(movement => movement.CreatedAtUtc >= fromUtc);
+            paymentsQuery = paymentsQuery.Where(payment => payment.CreatedAtUtc >= fromUtc);
+            ledgerEntriesQuery = ledgerEntriesQuery.Where(entry => entry.CreatedAtUtc >= fromUtc);
+        }
+
+        if (query.ToUtc is not null)
+        {
+            var toUtc = query.ToUtc.Value;
+            cashMovementsQuery = cashMovementsQuery.Where(movement => movement.CreatedAtUtc <= toUtc);
+            paymentsQuery = paymentsQuery.Where(payment => payment.CreatedAtUtc <= toUtc);
+            ledgerEntriesQuery = ledgerEntriesQuery.Where(entry => entry.CreatedAtUtc <= toUtc);
+        }
+
+        var cashMovements = await cashMovementsQuery.ToListAsync(cancellationToken);
+        var payments = await paymentsQuery.ToListAsync(cancellationToken);
+        var ledgerEntries = await ledgerEntriesQuery.ToListAsync(cancellationToken);
+        var rows = cashMovements
+            .Select(movement => new CashOperationReportRowDto(
+                movement.CashMovementId,
+                movement.OrganizationId,
+                movement.BranchId,
+                movement.ShiftId,
+                movement.CreatedByStaffUserId,
+                "cash_movement",
+                movement.MovementType,
+                Money(movement.CurrencyCode, movement.MovementType == CashMovementTypeNames.CashIn
+                    ? movement.AmountMinorUnits
+                    : -movement.AmountMinorUnits),
+                movement.Reason,
+                movement.CreatedAtUtc))
+            .Concat(payments.Select(payment => new CashOperationReportRowDto(
+                payment.PaymentId,
+                payment.OrganizationId,
+                payment.BranchId,
+                payment.ShiftId,
+                payment.CreatedByStaffUserId,
+                "pos_payment",
+                payment.PaymentKind,
+                Money(payment.CurrencyCode, payment.AmountMinorUnits),
+                payment.Note,
+                payment.CreatedAtUtc)))
+            .Concat(ledgerEntries.Select(entry => new CashOperationReportRowDto(
+                entry.LedgerEntryId,
+                entry.OrganizationId,
+                entry.BranchId,
+                entry.ShiftId,
+                entry.CreatedByStaffUserId,
+                "ledger_entry",
+                entry.EntryType,
+                Money(entry.CurrencyCode, entry.EntryType == LedgerEntryTypeNames.DebtPayment
+                    ? -entry.AmountMinorUnits
+                    : entry.AmountMinorUnits),
+                entry.Reason,
+                entry.CreatedAtUtc)))
+            .OrderByDescending(row => row.CreatedAtUtc)
+            .ThenByDescending(row => row.OperationId)
+            .Take(limit)
+            .ToList();
+        var resultCurrencyCode = rows.FirstOrDefault()?.CashImpact.CurrencyCode ?? DefaultCurrencyCode;
+        var cashInTotal = rows
+            .Where(row => row.CashImpact.MinorUnits > 0)
+            .Sum(row => row.CashImpact.MinorUnits);
+        var cashOutTotal = rows
+            .Where(row => row.CashImpact.MinorUnits < 0)
+            .Sum(row => row.CashImpact.MinorUnits);
+
+        return new CashOperationReportResultDto(
+            rows,
+            limit,
+            Money(resultCurrencyCode, cashInTotal),
+            Money(resultCurrencyCode, cashOutTotal),
+            Money(resultCurrencyCode, cashInTotal + cashOutTotal));
+    }
+
+    public async Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+        Guid organizationId,
+        Guid branchId,
+        ReportSearchQuery query,
+        CancellationToken cancellationToken)
+    {
+        var limit = NormalizeLimit(query.Limit);
+        var auditQuery = dbContext.AuditRecords
+            .AsNoTracking()
+            .Where(record => record.OrganizationId == organizationId && record.BranchId == branchId);
+
+        if (query.FromUtc is not null)
+        {
+            var fromUtc = query.FromUtc.Value;
+            auditQuery = auditQuery.Where(record => record.CreatedAtUtc >= fromUtc);
+        }
+
+        if (query.ToUtc is not null)
+        {
+            var toUtc = query.ToUtc.Value;
+            auditQuery = auditQuery.Where(record => record.CreatedAtUtc <= toUtc);
+        }
+
+        var auditRecords = await auditQuery.ToListAsync(cancellationToken);
+        var actorIds = auditRecords
+            .Where(record => record.ActorStaffUserId.HasValue)
+            .Select(record => record.ActorStaffUserId!.Value)
+            .Distinct()
+            .ToList();
+        var actorNames = await dbContext.StaffUsers
+            .AsNoTracking()
+            .Where(user => user.OrganizationId == organizationId && actorIds.Contains(user.StaffUserId))
+            .ToDictionaryAsync(user => user.StaffUserId, user => user.DisplayName, cancellationToken);
+        var rows = auditRecords
+            .GroupBy(record => new
+            {
+                record.ActorStaffUserId,
+                record.Action,
+                record.Outcome
+            })
+            .Select(group => new OperatorActionReportRowDto(
+                group.Key.ActorStaffUserId,
+                GetActorDisplayName(group.Key.ActorStaffUserId, actorNames),
+                group.Key.Action,
+                group.Key.Outcome,
+                group.Count(),
+                group.Min(record => record.CreatedAtUtc),
+                group.Max(record => record.CreatedAtUtc)))
+            .OrderByDescending(row => row.LastAtUtc)
+            .ThenBy(row => row.ActorDisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.Action, StringComparer.Ordinal)
+            .Take(limit)
+            .ToList();
+
+        return new OperatorActionReportResultDto(rows, limit, auditRecords.Count);
+    }
+
     private static int NormalizeLimit(int? limit)
     {
         return limit is null or <= 0 ? DefaultLimit : Math.Min(limit.Value, MaxLimit);
@@ -219,6 +473,40 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
     private static bool IsCurrency(string actual, string expected)
     {
         return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int CalculateDurationSeconds(
+        DateTimeOffset? startedAtUtc,
+        DateTimeOffset? endedAtUtc,
+        DateTimeOffset? endsAtUtc)
+    {
+        if (startedAtUtc is null)
+        {
+            return 0;
+        }
+
+        var effectiveEnd = endedAtUtc ?? endsAtUtc;
+        if (effectiveEnd is null || effectiveEnd <= startedAtUtc)
+        {
+            return 0;
+        }
+
+        return (int)Math.Min(int.MaxValue, Math.Floor((effectiveEnd.Value - startedAtUtc.Value).TotalSeconds));
+    }
+
+    private static string GetActorDisplayName(
+        Guid? actorStaffUserId,
+        IReadOnlyDictionary<Guid, string> actorNames)
+    {
+        if (actorStaffUserId is null)
+        {
+            return "System";
+        }
+
+        return actorNames.TryGetValue(actorStaffUserId.Value, out var displayName) &&
+            !string.IsNullOrWhiteSpace(displayName)
+            ? displayName
+            : actorStaffUserId.Value.ToString("N")[..8];
     }
 
     private static MoneyDto Money(string currencyCode, long minorUnits)

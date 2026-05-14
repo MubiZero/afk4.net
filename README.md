@@ -154,6 +154,12 @@ The current vertical slice exposes:
   permission `reports.view`
 - `GET /api/branches/{branchId}/reports/sales` with staff bearer token
   permission `reports.view`
+- `GET /api/branches/{branchId}/reports/gameplay-time` with staff bearer token
+  permission `reports.view`
+- `GET /api/branches/{branchId}/reports/cash-operations` with staff bearer
+  token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/operator-actions` with staff bearer
+  token permission `reports.view`
 - `POST /api/branches/{branchId}/pos/categories` with staff bearer token
   permission `pos.catalog.manage`
 - `POST /api/branches/{branchId}/pos/products` with staff bearer token
@@ -237,7 +243,7 @@ The main working screen is the floor map. The current app includes staff
 sign-in, Windows-protected token storage, permission-filtered navigation,
 realtime floor-map loading, selected-seat session actions, player search,
 wallet/package summaries, POS, shifts, settings, technician device tools,
-shift/sales reports, update rollout status visibility, audit search, and
+operational reports, update rollout status visibility, audit search, and
 production hotkeys.
 
 ### Agent Service
@@ -499,11 +505,13 @@ The first vertical slice foundation is implemented:
 - Operator App Settings update status panel for technicians and managers;
 - Operator App Settings audit search panel for staff with `audit.view`;
 - branch-scoped audit search endpoint over immutable audit records;
-- shared report contracts and a `reports.view` permission for shift/sales
+- shared report contracts and a `reports.view` permission for operational
   report reads;
-- branch-scoped shift and sales report endpoints over existing shift, POS,
-  payment, cash movement, and shift-linked ledger persistence;
-- Operator App Shifts workspace report filters and shift/sales report grids;
+- branch-scoped shift, sales, gameplay time, cash operation, and operator
+  action report endpoints over existing session, shift, POS, payment, ledger,
+  and audit persistence;
+- Operator App Shifts workspace report filters and report grids for shift,
+  sales, gameplay time, cash operations, and operator actions;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
   grace/offline, ending, and launcher states.
 
@@ -514,8 +522,6 @@ Not implemented yet:
   it is added;
 - Operator App layout management UI;
 - automatic Agent-side consumption of rotated credentials;
-- gameplay time, cash operations, and operator-action reports beyond the first
-  shift/sales report slice;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
 - binary update artifact hosting, installer build automation, richer rollout

@@ -791,6 +791,11 @@
 
                                 <Grid Grid.Row="1"
                                       Margin="0,12,0,8">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
@@ -802,9 +807,27 @@
                                                Text="{Binding SalesReportSummary}"
                                                Foreground="#4B5563"
                                                TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding GameplayTimeReportSummary}"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1"
+                                               Grid.Column="1"
+                                               Text="{Binding CashOperationReportSummary}"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2"
+                                               Grid.ColumnSpan="2"
+                                               Text="{Binding OperatorActionReportSummary}"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
                                 </Grid>
 
                                 <Grid Grid.Row="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
@@ -843,6 +866,66 @@
                                             <DataGridTextColumn Header="Qty" Binding="{Binding ItemQuantity}" Width="60" />
                                         </DataGrid.Columns>
                                     </DataGrid>
+
+                                    <Grid Grid.Row="1"
+                                          Grid.ColumnSpan="2"
+                                          Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <DataGrid ItemsSource="{Binding GameplayTimeReportRows}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False"
+                                                  HeadersVisibility="Column"
+                                                  MinHeight="130"
+                                                  Margin="0,0,8,0">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Session" Binding="{Binding SessionId}" Width="80" />
+                                                <DataGridTextColumn Header="State" Binding="{Binding State}" Width="80" />
+                                                <DataGridTextColumn Header="Started" Binding="{Binding StartedAtUtc}" Width="120" />
+                                                <DataGridTextColumn Header="Secs" Binding="{Binding DurationSeconds}" Width="70" />
+                                                <DataGridTextColumn Header="Pkg" Binding="{Binding PackageSeconds}" Width="70" />
+                                                <DataGridTextColumn Header="Bonus" Binding="{Binding BonusSeconds}" Width="70" />
+                                                <DataGridTextColumn Header="Revenue" Binding="{Binding GameplayRevenue}" Width="100" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <DataGrid Grid.Column="1"
+                                                  ItemsSource="{Binding CashOperationReportRows}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False"
+                                                  HeadersVisibility="Column"
+                                                  MinHeight="130"
+                                                  Margin="0,0,8,0">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Op" Binding="{Binding OperationId}" Width="70" />
+                                                <DataGridTextColumn Header="Source" Binding="{Binding SourceType}" Width="100" />
+                                                <DataGridTextColumn Header="Type" Binding="{Binding OperationType}" Width="100" />
+                                                <DataGridTextColumn Header="Impact" Binding="{Binding CashImpact}" Width="100" />
+                                                <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtUtc}" Width="120" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <DataGrid Grid.Column="2"
+                                                  ItemsSource="{Binding OperatorActionReportRows}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False"
+                                                  HeadersVisibility="Column"
+                                                  MinHeight="130">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Actor" Binding="{Binding ActorDisplayName}" Width="120" />
+                                                <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="140" />
+                                                <DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="90" />
+                                                <DataGridTextColumn Header="Count" Binding="{Binding Count}" Width="60" />
+                                                <DataGridTextColumn Header="Last" Binding="{Binding LastAtUtc}" Width="120" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
                                 </Grid>
                             </Grid>
                         </Border>

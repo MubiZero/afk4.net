@@ -15,4 +15,22 @@ public interface IReportService
         Guid branchId,
         ReportSearchQuery query,
         CancellationToken cancellationToken);
+
+    Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+        Guid organizationId,
+        Guid branchId,
+        ReportSearchQuery query,
+        CancellationToken cancellationToken);
+
+    Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+        Guid organizationId,
+        Guid branchId,
+        ReportSearchQuery query,
+        CancellationToken cancellationToken);
+
+    Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+        Guid organizationId,
+        Guid branchId,
+        ReportSearchQuery query,
+        CancellationToken cancellationToken);
 }

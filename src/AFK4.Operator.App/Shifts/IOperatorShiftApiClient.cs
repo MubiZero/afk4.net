@@ -37,6 +37,27 @@ public interface IOperatorShiftApiClient
         DateTimeOffset? toUtc,
         int? limit,
         CancellationToken cancellationToken);
+
+    Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
 }
 
 public sealed class UnconfiguredOperatorShiftApiClient : IOperatorShiftApiClient
@@ -83,6 +104,36 @@ public sealed class UnconfiguredOperatorShiftApiClient : IOperatorShiftApiClient
     }
 
     public Task<SalesReportResultDto> GetSalesReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
         Guid branchId,
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,

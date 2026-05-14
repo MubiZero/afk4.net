@@ -93,6 +93,42 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
             cancellationToken);
     }
 
+    public Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetAsync<GameplayTimeReportResultDto>(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/gameplay-time", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetAsync<CashOperationReportResultDto>(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/cash-operations", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetAsync<OperatorActionReportResultDto>(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/operator-actions", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
     private async Task<TResponse> SendAsync<TResponse, TRequest>(
         HttpMethod method,
         string requestUri,

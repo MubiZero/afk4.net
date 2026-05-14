@@ -1,9 +1,10 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 11 shift/sales report slice is implemented, Docker PostgreSQL
+Status: Phase 11 operational report slice is implemented, Docker PostgreSQL
 live smoke passes locally for the update slice, Agent update execution/recovery
 adapter boundaries are implemented, and Operator App update status visibility,
-audit search, and first reports are available to permissioned staff.
+audit search, and branch-scoped operational reports are available to
+permissioned staff.
 Last updated: 2026-05-14
 
 ## Scope
@@ -32,6 +33,58 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`
+
+## Phase 11 Gameplay, Cash Operations, And Operator Actions Reports Slice
+
+Implemented on `codex/phase11-operational-reports` after the shift/sales
+report merge commit `f300fdc`.
+
+Implemented in this Phase 11 operational reports slice:
+
+- Added shared report contracts for gameplay time, cash operations, and
+  operator-action summaries.
+- Extended `EfReportService` over existing sessions, shift-linked ledger
+  entries, cash movements, POS cash payments/refunds, and audit records.
+- Added `GET /api/branches/{branchId}/reports/gameplay-time`,
+  `GET /api/branches/{branchId}/reports/cash-operations`, and
+  `GET /api/branches/{branchId}/reports/operator-actions`, all protected by
+  `reports.view` and audited on succeeded or denied reads.
+- Extended the Operator App Shifts workspace typed API client and report loader
+  to fetch all five report families with one date/limit filter set.
+- Added Operator App report grids and summaries for gameplay duration/revenue,
+  cash impact, and operator action groups.
+
+Targeted verification on 2026-05-14 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter ReportContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "EfReportServiceTests|ReportEndpointTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorShiftApiClientTests|ShiftWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build src\AFK4.Operator.App\AFK4.Operator.App.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Report contract serialization tests passed 6/6.
+- Report Platform API service/endpoint tests passed 20/20.
+- Operator shift/report targeted tests passed 26/26.
+- Operator App project build succeeded with 0 warnings and 0 errors.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 541/541:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 3/3;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 105/105;
+  - Platform.Api 283/283.
+
+Remaining Phase 11 work:
+
+- export formats for report sharing;
+- diagnostics dashboards and backup/restore runbooks.
 
 ## Phase 11 Shift And Sales Reports Slice
 
@@ -78,12 +131,6 @@ Results:
   - Operator.App 102/102;
   - Platform.Api 271/271.
 
-Remaining Phase 11 work:
-
-- gameplay time, cash operations, and operator-action reports;
-- export formats for report sharing;
-- diagnostics dashboards and backup/restore runbooks.
-
 ## Phase 11 Audit Search First Slice
 
 Started on `codex/phase11-audit-search-ops` after the Phase 10 signature
@@ -128,8 +175,8 @@ Results:
   - Operator.App 97/97;
   - Platform.Api 263/263.
 
-Remaining Phase 11 work after the audit-search slice was tracked in the
-subsequent shift/sales reports section above.
+Remaining Phase 11 work after the audit-search slice is tracked in the
+subsequent report sections above.
 
 ## Phase 10 Agent Update Signature Verification
 
@@ -1800,12 +1847,12 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add gameplay time, cash operations, and operator-action report summaries.
-2. Add report export formats for manager/accountant sharing.
-3. Add production object storage/CDN hosting and key vault integration around
+1. Add report export formats for manager/accountant sharing.
+2. Add production object storage/CDN hosting and key vault integration around
    the local publishing tool.
-4. Add Operator App package/rollout management workflow when update package
+3. Add Operator App package/rollout management workflow when update package
    publishing needs to be run by operators instead of scripts.
+4. Add diagnostics dashboards and backup/restore runbooks.
 5. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.

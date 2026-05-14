@@ -136,7 +136,7 @@ public sealed class ShiftWorkspaceViewModelTests
     }
 
     [Fact]
-    public async Task LoadReportsAsync_LoadsShiftAndSalesReports()
+    public async Task LoadReportsAsync_LoadsAllOperationalReports()
     {
         var apiClient = new RecordingShiftApiClient
         {
@@ -183,7 +183,63 @@ public sealed class ShiftWorkspaceViewModelTests
                 Limit: 25,
                 GrossSalesTotal: new MoneyDto("USD", 2400),
                 RefundsTotal: new MoneyDto("USD", 0),
-                NetSalesTotal: new MoneyDto("USD", 2400))
+                NetSalesTotal: new MoneyDto("USD", 2400)),
+            GameplayTimeReport = new GameplayTimeReportResultDto(
+                [
+                    new GameplayTimeReportRowDto(
+                        Guid.Parse("88888888-8888-4888-8888-888888888888"),
+                        OrganizationId,
+                        BranchId,
+                        Guid.Parse("99999999-9999-4999-8999-999999999999"),
+                        Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"),
+                        StaffUserId,
+                        "guest",
+                        null,
+                        "ended",
+                        DurationSeconds: 7200,
+                        PackageSeconds: 0,
+                        BonusSeconds: 0,
+                        GameplayRevenue: new MoneyDto("USD", 12000),
+                        StartedAtUtc: DateTimeOffset.Parse("2026-05-14T10:00:00Z"),
+                        EndedAtUtc: DateTimeOffset.Parse("2026-05-14T12:00:00Z"),
+                        EndsAtUtc: DateTimeOffset.Parse("2026-05-14T12:00:00Z"))
+                ],
+                Limit: 25,
+                TotalDurationSeconds: 7200,
+                TotalPackageSeconds: 0,
+                TotalBonusSeconds: 0,
+                GameplayRevenueTotal: new MoneyDto("USD", 12000)),
+            CashOperationReport = new CashOperationReportResultDto(
+                [
+                    new CashOperationReportRowDto(
+                        Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"),
+                        OrganizationId,
+                        BranchId,
+                        ShiftId,
+                        StaffUserId,
+                        "cash_movement",
+                        CashMovementTypeNames.CashIn,
+                        new MoneyDto("USD", 5000),
+                        "drawer correction",
+                        DateTimeOffset.Parse("2026-05-14T11:00:00Z"))
+                ],
+                Limit: 25,
+                CashInTotal: new MoneyDto("USD", 5000),
+                CashOutTotal: new MoneyDto("USD", 0),
+                NetCashTotal: new MoneyDto("USD", 5000)),
+            OperatorActionReport = new OperatorActionReportResultDto(
+                [
+                    new OperatorActionReportRowDto(
+                        StaffUserId,
+                        "Manager One",
+                        "sessions.start",
+                        "succeeded",
+                        Count: 3,
+                        FirstAtUtc: DateTimeOffset.Parse("2026-05-14T10:00:00Z"),
+                        LastAtUtc: DateTimeOffset.Parse("2026-05-14T12:00:00Z"))
+                ],
+                Limit: 25,
+                TotalActionCount: 3)
         };
         var viewModel = new ShiftWorkspaceViewModel(apiClient, new FixedIdempotencyKeyFactory("unused"));
         viewModel.ApplyContext(OrganizationId, BranchId);
@@ -195,13 +251,22 @@ public sealed class ShiftWorkspaceViewModelTests
 
         Assert.Equal(BranchId, apiClient.LastShiftReportBranchId);
         Assert.Equal(BranchId, apiClient.LastSalesReportBranchId);
+        Assert.Equal(BranchId, apiClient.LastGameplayTimeReportBranchId);
+        Assert.Equal(BranchId, apiClient.LastCashOperationReportBranchId);
+        Assert.Equal(BranchId, apiClient.LastOperatorActionReportBranchId);
         Assert.Equal(DateTimeOffset.Parse("2026-05-14T00:00:00Z"), apiClient.LastReportFromUtc);
         Assert.Equal(DateTimeOffset.Parse("2026-05-15T00:00:00Z"), apiClient.LastReportToUtc);
         Assert.Equal(25, apiClient.LastReportLimit);
         Assert.Single(viewModel.ShiftReportRows);
         Assert.Single(viewModel.SalesReportRows);
+        Assert.Single(viewModel.GameplayTimeReportRows);
+        Assert.Single(viewModel.CashOperationReportRows);
+        Assert.Single(viewModel.OperatorActionReportRows);
         Assert.Equal("1 shifts loaded.", viewModel.ShiftReportSummary);
         Assert.Equal("Gross USD 2400, refunds USD 0, net USD 2400.", viewModel.SalesReportSummary);
+        Assert.Equal("Gameplay 7200 seconds, package 0, bonus 0, revenue USD 12000.", viewModel.GameplayTimeReportSummary);
+        Assert.Equal("Cash in USD 5000, cash out USD 0, net USD 5000.", viewModel.CashOperationReportSummary);
+        Assert.Equal("3 operator actions across 1 groups.", viewModel.OperatorActionReportSummary);
         Assert.Equal("Reports loaded.", viewModel.StatusMessage);
     }
 
@@ -264,6 +329,23 @@ public sealed class ShiftWorkspaceViewModelTests
             new MoneyDto("USD", 0),
             new MoneyDto("USD", 0));
 
+        public GameplayTimeReportResultDto GameplayTimeReport { get; init; } = new(
+            [],
+            50,
+            0,
+            0,
+            0,
+            new MoneyDto("USD", 0));
+
+        public CashOperationReportResultDto CashOperationReport { get; init; } = new(
+            [],
+            50,
+            new MoneyDto("USD", 0),
+            new MoneyDto("USD", 0),
+            new MoneyDto("USD", 0));
+
+        public OperatorActionReportResultDto OperatorActionReport { get; init; } = new([], 50, 0);
+
         public int GetCurrentShiftCallCount { get; private set; }
 
         public int CashMovementCallCount { get; private set; }
@@ -289,6 +371,12 @@ public sealed class ShiftWorkspaceViewModelTests
         public Guid LastShiftReportBranchId { get; private set; }
 
         public Guid LastSalesReportBranchId { get; private set; }
+
+        public Guid LastGameplayTimeReportBranchId { get; private set; }
+
+        public Guid LastCashOperationReportBranchId { get; private set; }
+
+        public Guid LastOperatorActionReportBranchId { get; private set; }
 
         public DateTimeOffset? LastReportFromUtc { get; private set; }
 
@@ -374,6 +462,48 @@ public sealed class ShiftWorkspaceViewModelTests
             LastReportToUtc = toUtc;
             LastReportLimit = limit;
             return Task.FromResult(SalesReport);
+        }
+
+        public Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            LastGameplayTimeReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(GameplayTimeReport);
+        }
+
+        public Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            LastCashOperationReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(CashOperationReport);
+        }
+
+        public Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            LastOperatorActionReportBranchId = branchId;
+            LastReportFromUtc = fromUtc;
+            LastReportToUtc = toUtc;
+            LastReportLimit = limit;
+            return Task.FromResult(OperatorActionReport);
         }
     }
 }

@@ -157,6 +157,33 @@ public sealed class OperatorShiftApiClientTests
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
+    [Theory]
+    [InlineData("gameplay-time")]
+    [InlineData("cash-operations")]
+    [InlineData("operator-actions")]
+    public async Task GetOperationalReportAsync_GetsBearerAuthenticatedReport(string reportName)
+    {
+        var handler = new RecordingHttpMessageHandler(_ => JsonContentResponse(CreateEmptyOperationalReport(reportName)));
+        var client = CreateClient(handler);
+
+        switch (reportName)
+        {
+            case "gameplay-time":
+                await client.GetGameplayTimeReportAsync(BranchId, null, null, null, CancellationToken.None);
+                break;
+            case "cash-operations":
+                await client.GetCashOperationReportAsync(BranchId, null, null, null, CancellationToken.None);
+                break;
+            case "operator-actions":
+                await client.GetOperatorActionReportAsync(BranchId, null, null, null, CancellationToken.None);
+                break;
+        }
+
+        Assert.Equal(HttpMethod.Get, handler.LastMethod);
+        Assert.Equal($"/api/branches/{BranchId:D}/reports/{reportName}", handler.LastPathAndQuery);
+        Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
+    }
+
     private static HttpOperatorShiftApiClient CreateClient(RecordingHttpMessageHandler handler)
     {
         return new HttpOperatorShiftApiClient(new HttpClient(handler)
@@ -184,6 +211,28 @@ public sealed class OperatorShiftApiClientTests
             isClosed ? "balanced" : string.Empty,
             DateTimeOffset.Parse("2026-05-14T09:00:00Z"),
             isClosed ? DateTimeOffset.Parse("2026-05-14T18:00:00Z") : null);
+    }
+
+    private static object CreateEmptyOperationalReport(string reportName)
+    {
+        return reportName switch
+        {
+            "gameplay-time" => new GameplayTimeReportResultDto(
+                [],
+                Limit: 50,
+                TotalDurationSeconds: 0,
+                TotalPackageSeconds: 0,
+                TotalBonusSeconds: 0,
+                GameplayRevenueTotal: new MoneyDto("USD", 0)),
+            "cash-operations" => new CashOperationReportResultDto(
+                [],
+                Limit: 50,
+                CashInTotal: new MoneyDto("USD", 0),
+                CashOutTotal: new MoneyDto("USD", 0),
+                NetCashTotal: new MoneyDto("USD", 0)),
+            "operator-actions" => new OperatorActionReportResultDto([], Limit: 50, TotalActionCount: 0),
+            _ => throw new ArgumentOutOfRangeException(nameof(reportName), reportName, null)
+        };
     }
 
     private static T DeserializeRequest<T>(string? json)

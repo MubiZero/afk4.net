@@ -2486,6 +2486,201 @@ app.MapGet("/api/branches/{branchId:guid}/reports/sales", async (
     return Results.Ok(result);
 });
 
+app.MapGet("/api/branches/{branchId:guid}/reports/gameplay-time", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewGameplayTimeReport,
+            "Report",
+            "gameplay-time",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await reportService.GetGameplayTimeReportAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewGameplayTimeReport,
+        "Report",
+        "gameplay-time",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Rows.Count,
+            result.Limit,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/cash-operations", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewCashOperationReport,
+            "Report",
+            "cash-operations",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await reportService.GetCashOperationReportAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewCashOperationReport,
+        "Report",
+        "cash-operations",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Rows.Count,
+            result.Limit,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewOperatorActionReport,
+            "Report",
+            "operator-actions",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await reportService.GetOperatorActionReportAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewOperatorActionReport,
+        "Report",
+        "operator-actions",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Rows.Count,
+            result.Limit,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/pos/categories", async (
     Guid branchId,
     CreateProductCategoryRequest request,

@@ -54,6 +54,12 @@ public static class AuditActionNames
 
     public const string ViewSalesReport = "reports.sales.view";
 
+    public const string ViewGameplayTimeReport = "reports.gameplay_time.view";
+
+    public const string ViewCashOperationReport = "reports.cash_operations.view";
+
+    public const string ViewOperatorActionReport = "reports.operator_actions.view";
+
     public const string CreateProductCategory = "pos.categories.create";
 
     public const string CreateProduct = "pos.products.create";

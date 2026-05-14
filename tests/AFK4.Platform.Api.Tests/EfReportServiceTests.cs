@@ -35,10 +35,10 @@ public sealed class EfReportServiceTests
         SeedPayment(db, closedShiftId, Guid.NewGuid(), PaymentMethodNames.Cash, "payment", 2400);
         SeedPayment(db, closedShiftId, Guid.NewGuid(), PaymentMethodNames.Cash, "refund", -1200);
         SeedPayment(db, closedShiftId, Guid.NewGuid(), PaymentMethodNames.CardManual, "payment", 9999);
-        SeedLedgerEntry(db, closedShiftId, LedgerEntryTypeNames.TopUp, 10000);
-        SeedLedgerEntry(db, closedShiftId, LedgerEntryTypeNames.DebtPayment, -3000);
-        SeedLedgerEntry(db, closedShiftId, LedgerEntryTypeNames.ManualCorrection, -500);
-        SeedLedgerEntry(db, closedShiftId, LedgerEntryTypeNames.GameplayCharge, -9000);
+        SeedShiftLedgerEntry(db, closedShiftId, LedgerEntryTypeNames.TopUp, 10000);
+        SeedShiftLedgerEntry(db, closedShiftId, LedgerEntryTypeNames.DebtPayment, -3000);
+        SeedShiftLedgerEntry(db, closedShiftId, LedgerEntryTypeNames.ManualCorrection, -500);
+        SeedShiftLedgerEntry(db, closedShiftId, LedgerEntryTypeNames.GameplayCharge, -9000);
         await db.SaveChangesAsync();
 
         var result = await service.GetShiftReportAsync(
@@ -115,6 +115,145 @@ public sealed class EfReportServiceTests
             });
     }
 
+    [Fact]
+    public async Task GetGameplayTimeReportAsync_ReturnsSessionRowsWithLedgerAggregates()
+    {
+        await using var db = CreateDbContext();
+        var service = new EfReportService(db);
+        var endedSessionId = Guid.Parse("44444444-4444-4444-8444-444444444444");
+        var activeSessionId = Guid.Parse("55555555-5555-4555-8555-555555555555");
+        SeedSession(db, endedSessionId, "registered", ReportDay.AddHours(10), ReportDay.AddHours(12));
+        SeedSession(db, activeSessionId, "guest", ReportDay.AddHours(13), null, ReportDay.AddHours(15));
+        SeedSession(
+            db,
+            Guid.Parse("66666666-6666-4666-8666-666666666666"),
+            "guest",
+            ReportDay.AddHours(14),
+            ReportDay.AddHours(15),
+            branchId: OtherBranchId);
+        SeedSessionLedgerEntry(db, endedSessionId, LedgerEntryTypeNames.GameplayCharge, -12000);
+        SeedSessionLedgerEntry(db, endedSessionId, LedgerEntryTypeNames.PostpaidDebt, 3000);
+        SeedSessionLedgerEntry(db, endedSessionId, LedgerEntryTypeNames.PackageConsumption, 0, quantitySeconds: -1800);
+        SeedSessionLedgerEntry(db, endedSessionId, LedgerEntryTypeNames.BonusConsumption, 0, quantitySeconds: -600);
+        await db.SaveChangesAsync();
+
+        var result = await service.GetGameplayTimeReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10),
+            CancellationToken.None);
+
+        Assert.Equal(14400, result.TotalDurationSeconds);
+        Assert.Equal(1800, result.TotalPackageSeconds);
+        Assert.Equal(600, result.TotalBonusSeconds);
+        Assert.Equal(15000, result.GameplayRevenueTotal.MinorUnits);
+        Assert.Collection(
+            result.Rows,
+            first =>
+            {
+                Assert.Equal(activeSessionId, first.SessionId);
+                Assert.Equal(7200, first.DurationSeconds);
+                Assert.Equal(0, first.GameplayRevenue.MinorUnits);
+            },
+            second =>
+            {
+                Assert.Equal(endedSessionId, second.SessionId);
+                Assert.Equal(7200, second.DurationSeconds);
+                Assert.Equal(1800, second.PackageSeconds);
+                Assert.Equal(600, second.BonusSeconds);
+                Assert.Equal(15000, second.GameplayRevenue.MinorUnits);
+            });
+    }
+
+    [Fact]
+    public async Task GetCashOperationReportAsync_ReturnsCashImpactRowsAndTotals()
+    {
+        await using var db = CreateDbContext();
+        var service = new EfReportService(db);
+        var shiftId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+        var saleId = Guid.Parse("77777777-7777-4777-8777-777777777777");
+        SeedShift(db, shiftId, ShiftStateNames.Open, ReportDay.AddHours(8), countedCash: 0);
+        SeedCashMovement(db, shiftId, CashMovementTypeNames.CashIn, 5000, ReportDay.AddHours(9));
+        SeedCashMovement(db, shiftId, CashMovementTypeNames.CashOut, 1000, ReportDay.AddHours(10));
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Cash, "payment", 2400, ReportDay.AddHours(11));
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Cash, "refund", -1200, ReportDay.AddHours(12));
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.CardManual, "payment", 9999, ReportDay.AddHours(13));
+        SeedShiftLedgerEntry(db, shiftId, LedgerEntryTypeNames.TopUp, 10000, createdAtUtc: ReportDay.AddHours(14));
+        SeedShiftLedgerEntry(db, shiftId, LedgerEntryTypeNames.DebtPayment, -3000, createdAtUtc: ReportDay.AddHours(15));
+        SeedShiftLedgerEntry(db, shiftId, LedgerEntryTypeNames.ManualCorrection, -500, createdAtUtc: ReportDay.AddHours(16));
+        SeedShiftLedgerEntry(db, shiftId, LedgerEntryTypeNames.Refund, -700, createdAtUtc: ReportDay.AddHours(17));
+        await db.SaveChangesAsync();
+
+        var result = await service.GetCashOperationReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 20),
+            CancellationToken.None);
+
+        Assert.Equal(20400, result.CashInTotal.MinorUnits);
+        Assert.Equal(-3400, result.CashOutTotal.MinorUnits);
+        Assert.Equal(17000, result.NetCashTotal.MinorUnits);
+        Assert.Equal(8, result.Rows.Count);
+        Assert.Equal(LedgerEntryTypeNames.Refund, result.Rows[0].OperationType);
+        Assert.Equal(-700, result.Rows[0].CashImpact.MinorUnits);
+        Assert.DoesNotContain(result.Rows, row => row.OperationType == PaymentMethodNames.CardManual);
+    }
+
+    [Fact]
+    public async Task GetOperatorActionReportAsync_GroupsAuditRowsByActorActionAndOutcome()
+    {
+        await using var db = CreateDbContext();
+        var service = new EfReportService(db);
+        db.StaffUsers.Add(new StaffUserEntity
+        {
+            StaffUserId = ActorStaffUserId,
+            OrganizationId = TestIds.OrganizationId,
+            UserName = "manager",
+            NormalizedUserName = "MANAGER",
+            DisplayName = "Manager One",
+            PasswordHash = "hash",
+            IsActive = true,
+            CreatedAtUtc = ReportDay
+        });
+        SeedAuditRecord(db, ActorStaffUserId, "sessions.start", "succeeded", ReportDay.AddHours(9));
+        SeedAuditRecord(db, ActorStaffUserId, "sessions.start", "succeeded", ReportDay.AddHours(10));
+        SeedAuditRecord(db, ActorStaffUserId, "sessions.end", "denied", ReportDay.AddHours(11));
+        SeedAuditRecord(db, null, "system.cleanup", "succeeded", ReportDay.AddHours(12));
+        SeedAuditRecord(db, ActorStaffUserId, "sessions.start", "succeeded", ReportDay.AddHours(13), branchId: OtherBranchId);
+        await db.SaveChangesAsync();
+
+        var result = await service.GetOperatorActionReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10),
+            CancellationToken.None);
+
+        Assert.Equal(4, result.TotalActionCount);
+        Assert.Collection(
+            result.Rows,
+            first =>
+            {
+                Assert.Null(first.ActorStaffUserId);
+                Assert.Equal("System", first.ActorDisplayName);
+                Assert.Equal("system.cleanup", first.Action);
+                Assert.Equal(1, first.Count);
+            },
+            second =>
+            {
+                Assert.Equal(ActorStaffUserId, second.ActorStaffUserId);
+                Assert.Equal("Manager One", second.ActorDisplayName);
+                Assert.Equal("sessions.end", second.Action);
+                Assert.Equal("denied", second.Outcome);
+                Assert.Equal(1, second.Count);
+            },
+            third =>
+            {
+                Assert.Equal(ActorStaffUserId, third.ActorStaffUserId);
+                Assert.Equal("sessions.start", third.Action);
+                Assert.Equal(2, third.Count);
+            });
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -156,7 +295,8 @@ public sealed class EfReportServiceTests
         PlatformDbContext db,
         Guid shiftId,
         string movementType,
-        long amountMinorUnits)
+        long amountMinorUnits,
+        DateTimeOffset? createdAtUtc = null)
     {
         db.CashMovements.Add(new CashMovementEntity
         {
@@ -169,7 +309,37 @@ public sealed class EfReportServiceTests
             CurrencyCode = "TJS",
             AmountMinorUnits = amountMinorUnits,
             Reason = "report seed",
-            CreatedAtUtc = ReportDay.AddHours(10)
+            CreatedAtUtc = createdAtUtc ?? ReportDay.AddHours(10)
+        });
+    }
+
+    private static void SeedSession(
+        PlatformDbContext db,
+        Guid sessionId,
+        string playerKind,
+        DateTimeOffset startedAtUtc,
+        DateTimeOffset? endedAtUtc,
+        DateTimeOffset? endsAtUtc = null,
+        Guid? branchId = null)
+    {
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = sessionId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = branchId ?? TestIds.BranchId,
+            SeatId = Guid.NewGuid(),
+            DeviceId = Guid.NewGuid(),
+            CreatedByStaffUserId = ActorStaffUserId,
+            PlayerKind = playerKind,
+            PlayerAccountId = playerKind == "registered" ? Guid.NewGuid() : null,
+            TariffRuleVersionId = "tariff-v1",
+            State = endedAtUtc is null ? "active" : "ended",
+            RequestedAtUtc = startedAtUtc.AddMinutes(-1),
+            StartedAtUtc = startedAtUtc,
+            EndsAtUtc = endsAtUtc ?? endedAtUtc,
+            EndedAtUtc = endedAtUtc,
+            CurrentLeaseId = null,
+            UpdatedAtUtc = endedAtUtc ?? startedAtUtc
         });
     }
 
@@ -229,7 +399,8 @@ public sealed class EfReportServiceTests
         Guid saleId,
         string paymentMethod,
         string paymentKind,
-        long amountMinorUnits)
+        long amountMinorUnits,
+        DateTimeOffset? createdAtUtc = null)
     {
         db.Payments.Add(new PaymentEntity
         {
@@ -245,15 +416,17 @@ public sealed class EfReportServiceTests
             CurrencyCode = "TJS",
             AmountMinorUnits = amountMinorUnits,
             Note = "report seed",
-            CreatedAtUtc = ReportDay.AddHours(12)
+            CreatedAtUtc = createdAtUtc ?? ReportDay.AddHours(12)
         });
     }
 
-    private static void SeedLedgerEntry(
+    private static void SeedShiftLedgerEntry(
         PlatformDbContext db,
         Guid shiftId,
         string entryType,
-        long amountMinorUnits)
+        long amountMinorUnits,
+        int quantitySeconds = 0,
+        DateTimeOffset? createdAtUtc = null)
     {
         db.LedgerEntries.Add(new LedgerEntryEntity
         {
@@ -267,13 +440,66 @@ public sealed class EfReportServiceTests
             EntryType = entryType,
             AccountType = LedgerAccountTypeNames.Wallet,
             AmountMinorUnits = amountMinorUnits,
-            QuantitySeconds = 0,
+            QuantitySeconds = quantitySeconds,
+            CurrencyCode = "TJS",
+            Description = entryType,
+            Reason = "report seed",
+            ReversesLedgerEntryId = null,
+            CreatedByStaffUserId = ActorStaffUserId,
+            CreatedAtUtc = createdAtUtc ?? ReportDay.AddHours(11)
+        });
+    }
+
+    private static void SeedSessionLedgerEntry(
+        PlatformDbContext db,
+        Guid sessionId,
+        string entryType,
+        long amountMinorUnits,
+        int quantitySeconds = 0)
+    {
+        db.LedgerEntries.Add(new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ShiftId = Guid.NewGuid(),
+            PlayerAccountId = Guid.NewGuid(),
+            SessionId = sessionId,
+            PlayerPackageId = null,
+            EntryType = entryType,
+            AccountType = LedgerAccountTypeNames.Wallet,
+            AmountMinorUnits = amountMinorUnits,
+            QuantitySeconds = quantitySeconds,
             CurrencyCode = "TJS",
             Description = entryType,
             Reason = "report seed",
             ReversesLedgerEntryId = null,
             CreatedByStaffUserId = ActorStaffUserId,
             CreatedAtUtc = ReportDay.AddHours(11)
+        });
+    }
+
+    private static void SeedAuditRecord(
+        PlatformDbContext db,
+        Guid? actorStaffUserId,
+        string action,
+        string outcome,
+        DateTimeOffset createdAtUtc,
+        Guid? branchId = null)
+    {
+        db.AuditRecords.Add(new AuditRecordEntity
+        {
+            AuditRecordId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = branchId ?? TestIds.BranchId,
+            ActorStaffUserId = actorStaffUserId,
+            Action = action,
+            TargetType = "ReportSeed",
+            TargetId = null,
+            Outcome = outcome,
+            SourceApp = "test",
+            DetailsJson = "{}",
+            CreatedAtUtc = createdAtUtc
         });
     }
 }

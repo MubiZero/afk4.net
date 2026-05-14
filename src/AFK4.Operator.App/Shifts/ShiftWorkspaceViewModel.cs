@@ -40,6 +40,9 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     private string reportLimitText = "50";
     private string shiftReportSummary = "No shift report loaded.";
     private string salesReportSummary = "No sales report loaded.";
+    private string gameplayTimeReportSummary = "No gameplay time report loaded.";
+    private string cashOperationReportSummary = "No cash operation report loaded.";
+    private string operatorActionReportSummary = "No operator action report loaded.";
     private bool isBusy;
     private string? pendingOperation;
     private string? statusMessage;
@@ -99,6 +102,12 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     public ObservableCollection<ShiftReportRowViewModel> ShiftReportRows { get; } = [];
 
     public ObservableCollection<SalesReportRowViewModel> SalesReportRows { get; } = [];
+
+    public ObservableCollection<GameplayTimeReportRowViewModel> GameplayTimeReportRows { get; } = [];
+
+    public ObservableCollection<CashOperationReportRowViewModel> CashOperationReportRows { get; } = [];
+
+    public ObservableCollection<OperatorActionReportRowViewModel> OperatorActionReportRows { get; } = [];
 
     public long StartingCashMinorUnits
     {
@@ -170,6 +179,24 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     {
         get => salesReportSummary;
         private set => SetField(ref salesReportSummary, value);
+    }
+
+    public string GameplayTimeReportSummary
+    {
+        get => gameplayTimeReportSummary;
+        private set => SetField(ref gameplayTimeReportSummary, value);
+    }
+
+    public string CashOperationReportSummary
+    {
+        get => cashOperationReportSummary;
+        private set => SetField(ref cashOperationReportSummary, value);
+    }
+
+    public string OperatorActionReportSummary
+    {
+        get => operatorActionReportSummary;
+        private set => SetField(ref operatorActionReportSummary, value);
     }
 
     public bool IsBusy
@@ -343,6 +370,9 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         {
             var shiftReport = await apiClient.GetShiftReportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
             var salesReport = await apiClient.GetSalesReportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
+            var gameplayTimeReport = await apiClient.GetGameplayTimeReportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
+            var cashOperationReport = await apiClient.GetCashOperationReportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
+            var operatorActionReport = await apiClient.GetOperatorActionReportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
 
             ShiftReportRows.Clear();
             foreach (var row in shiftReport.Rows)
@@ -356,8 +386,29 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
                 SalesReportRows.Add(new SalesReportRowViewModel(row));
             }
 
+            GameplayTimeReportRows.Clear();
+            foreach (var row in gameplayTimeReport.Rows)
+            {
+                GameplayTimeReportRows.Add(new GameplayTimeReportRowViewModel(row));
+            }
+
+            CashOperationReportRows.Clear();
+            foreach (var row in cashOperationReport.Rows)
+            {
+                CashOperationReportRows.Add(new CashOperationReportRowViewModel(row));
+            }
+
+            OperatorActionReportRows.Clear();
+            foreach (var row in operatorActionReport.Rows)
+            {
+                OperatorActionReportRows.Add(new OperatorActionReportRowViewModel(row));
+            }
+
             ShiftReportSummary = $"{shiftReport.Rows.Count} shifts loaded.";
             SalesReportSummary = $"Gross {FormatMoney(salesReport.GrossSalesTotal)}, refunds {FormatMoney(salesReport.RefundsTotal)}, net {FormatMoney(salesReport.NetSalesTotal)}.";
+            GameplayTimeReportSummary = $"Gameplay {gameplayTimeReport.TotalDurationSeconds} seconds, package {gameplayTimeReport.TotalPackageSeconds}, bonus {gameplayTimeReport.TotalBonusSeconds}, revenue {FormatMoney(gameplayTimeReport.GameplayRevenueTotal)}.";
+            CashOperationReportSummary = $"Cash in {FormatMoney(cashOperationReport.CashInTotal)}, cash out {FormatMoney(cashOperationReport.CashOutTotal)}, net {FormatMoney(cashOperationReport.NetCashTotal)}.";
+            OperatorActionReportSummary = $"{operatorActionReport.TotalActionCount} operator actions across {operatorActionReport.Rows.Count} groups.";
             StatusMessage = "Reports loaded.";
             PendingOperation = null;
         }
@@ -646,4 +697,64 @@ public sealed class SalesReportRowViewModel(SalesReportRowDto row)
     {
         return $"{money.CurrencyCode} {money.MinorUnits}";
     }
+}
+
+public sealed class GameplayTimeReportRowViewModel(GameplayTimeReportRowDto row)
+{
+    public string SessionId => row.SessionId.ToString("N")[..8];
+
+    public string State => row.State;
+
+    public string StartedAtUtc => row.StartedAtUtc is null ? "" : FormatDateTime(row.StartedAtUtc.Value);
+
+    public int DurationSeconds => row.DurationSeconds;
+
+    public int PackageSeconds => row.PackageSeconds;
+
+    public int BonusSeconds => row.BonusSeconds;
+
+    public string GameplayRevenue => FormatMoney(row.GameplayRevenue);
+
+    private static string FormatDateTime(DateTimeOffset value)
+    {
+        return value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatMoney(MoneyDto money)
+    {
+        return $"{money.CurrencyCode} {money.MinorUnits}";
+    }
+}
+
+public sealed class CashOperationReportRowViewModel(CashOperationReportRowDto row)
+{
+    public string OperationId => row.OperationId.ToString("N")[..8];
+
+    public string SourceType => row.SourceType;
+
+    public string OperationType => row.OperationType;
+
+    public string CashImpact => FormatMoney(row.CashImpact);
+
+    public string CreatedAtUtc => row.CreatedAtUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+
+    public string Reason => row.Reason;
+
+    private static string FormatMoney(MoneyDto money)
+    {
+        return $"{money.CurrencyCode} {money.MinorUnits}";
+    }
+}
+
+public sealed class OperatorActionReportRowViewModel(OperatorActionReportRowDto row)
+{
+    public string ActorDisplayName => row.ActorDisplayName;
+
+    public string Action => row.Action;
+
+    public string Outcome => row.Outcome;
+
+    public int Count => row.Count;
+
+    public string LastAtUtc => row.LastAtUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 }
