@@ -402,7 +402,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("runs-on: ubuntu-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("timeout-minutes: 5", workflow, StringComparison.Ordinal);
         Assert.Contains("run_windows: ${{ steps.filter.outputs.run_windows }}", workflow, StringComparison.Ordinal);
-        Assert.Contains("git diff --name-only $base $head", workflow, StringComparison.Ordinal);
+        Assert.Contains("git diff --name-only \"$base...$head\"", workflow, StringComparison.Ordinal);
+        Assert.Contains(".config/dotnet-tools.json", workflow, StringComparison.Ordinal);
         Assert.Contains("run_windows=$($runWindows.ToString().ToLowerInvariant())", workflow, StringComparison.Ordinal);
         Assert.Contains("$env:GITHUB_OUTPUT", workflow, StringComparison.Ordinal);
 
