@@ -26,7 +26,7 @@ public sealed class DefaultDeviceCommandHandler(
                 status = "Rejected";
                 message = leaseResult.Error ?? "Session lease is invalid.";
             }
-            else if (string.Equals(command.Type, "unlock", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(command.Type, DeviceCommandTypeNames.Unlock, StringComparison.OrdinalIgnoreCase))
             {
                 var enforcement = await enforcementCoordinator.UnlockAsync(leaseResult.Lease, cancellationToken);
                 status = enforcement.Status;
@@ -39,7 +39,7 @@ public sealed class DefaultDeviceCommandHandler(
                 message = enforcement.Message;
             }
         }
-        else if (string.Equals(command.Type, "lock", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(command.Type, DeviceCommandTypeNames.Lock, StringComparison.OrdinalIgnoreCase))
         {
             var enforcement = await enforcementCoordinator.LockAsync(ReadSessionId(command), cancellationToken);
             status = enforcement.Status;
@@ -83,8 +83,8 @@ public sealed class DefaultDeviceCommandHandler(
 
     private static bool IsSessionLeaseCommand(string commandType)
     {
-        return string.Equals(commandType, "unlock", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(commandType, "refresh-session-lease", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(commandType, DeviceCommandTypeNames.Unlock, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(commandType, DeviceCommandTypeNames.RefreshSessionLease, StringComparison.OrdinalIgnoreCase);
     }
 
     private static Guid? ReadSessionId(DeviceCommandDto command)
