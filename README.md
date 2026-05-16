@@ -369,6 +369,8 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Vers
 It publishes Operator App, Agent Service, and Player Shell outputs, then builds
 the Operator App MSI and coordinated gaming-PC MSI under ignored
 `artifacts/client-packages/`.
+The same command is used by the manual GitHub Actions workflow
+`.github/workflows/client-packages.yml`.
 
 Start the backend:
 
@@ -539,6 +541,8 @@ The first vertical slice foundation is implemented:
 - local Phase 13 client package script that publishes Operator App, Agent
   Service, and Player Shell outputs, then builds Operator App and coordinated
   gaming-PC WiX/MSI artifacts under ignored `artifacts/client-packages/`;
+- manual GitHub Actions workflow for building, testing, packaging, and
+  uploading client MSI artifacts;
 - Operator App production floor-map/workflow shell;
 - Operator App Settings update package/rollout management and status panel for
   technicians and managers;

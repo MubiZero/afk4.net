@@ -121,6 +121,15 @@ afk4-operator-app-<version>-<channel>.msi
 afk4-gaming-pc-<version>-<channel>.msi
 ```
 
+CI uses the same command through the manual GitHub Actions workflow:
+
+```text
+.github/workflows/client-packages.yml
+```
+
+The workflow restores .NET tools, builds and tests the solution, runs
+`scripts/build-client-packages.ps1`, and uploads the generated MSI artifacts.
+
 For older zip-based internal signed update experiments, the existing update
 artifact publishing wrapper remains available:
 
@@ -137,5 +146,6 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
   -ReleaseNotes "Internal Agent Service validation build."
 ```
 
-The next Phase 13 implementation step adds a GitHub Actions workflow over the
-same local package command.
+Production release jobs can later extend this workflow with Authenticode
+signing, object-storage upload, and Update Publisher registration once those
+provider choices are explicit.
