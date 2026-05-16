@@ -121,6 +121,35 @@ afk4-operator-app-<version>-<channel>.msi
 afk4-gaming-pc-<version>-<channel>.msi
 ```
 
+## Authenticode Signing
+
+Internal package builds may remain unsigned. Stable production package builds
+must be Authenticode-signed before update metadata is published.
+
+Sign ready MSI artifacts with a PFX supplied outside the repository:
+
+```powershell
+$env:AFK4_AUTHENTICODE_PFX_PASSWORD = '<supplied by release environment>'
+
+powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
+  -PackageDirectory artifacts/client-packages `
+  -CertificatePath C:\afk4-secrets\afk4-authenticode.pfx `
+  -CertificatePasswordEnvVar AFK4_AUTHENTICODE_PFX_PASSWORD
+```
+
+Sign with a certificate already installed on the release runner:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
+  -PackageDirectory artifacts/client-packages `
+  -CertificateSha1 '<certificate-thumbprint>' `
+  -CertificateStoreLocation LocalMachine `
+  -CertificateStoreName My
+```
+
+The script uses `signtool.exe` and fails when no signing source is configured.
+It does not download certificates or read secrets from repository files.
+
 CI uses the same command through the manual GitHub Actions workflow:
 
 ```text
@@ -129,6 +158,9 @@ CI uses the same command through the manual GitHub Actions workflow:
 
 The workflow restores .NET tools, builds and tests the solution, runs
 `scripts/build-client-packages.ps1`, and uploads the generated MSI artifacts.
+Guarded workflow switches can also sign MSI artifacts, publish update metadata,
+upload generated request JSON, and register requests with the Platform API when
+release inputs and protected secrets are supplied.
 
 For older zip-based internal signed update experiments, the existing update
 artifact publishing wrapper remains available:
@@ -146,6 +178,5 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
   -ReleaseNotes "Internal Agent Service validation build."
 ```
 
-Production release jobs can later extend this workflow with Authenticode
-signing, object-storage upload, and Update Publisher registration once those
-provider choices are explicit.
+Production release jobs still need explicit certificate authority/storage and
+object-store/CDN decisions before stable-channel rollout.

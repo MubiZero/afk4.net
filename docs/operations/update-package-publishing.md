@@ -128,6 +128,50 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
   -ReleaseNotes "Stable Agent Service release."
 ```
 
+## Publish Ready MSI Packages
+
+After `scripts/build-client-packages.ps1` has created MSI artifacts, publish
+signed update metadata without republishing the projects:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 `
+  -Version 1.2.3 `
+  -Channel internal `
+  -OrganizationId 0c04d6c0-bfa8-4e26-9263-fc0d307d0f08 `
+  -PackageDirectory artifacts/client-packages `
+  -OutputDirectory artifacts/update-packages `
+  -ArtifactStore file-system `
+  -HostingRoot C:\afk4-updates `
+  -PublicBaseUri https://updates.afk4.test/packages/ `
+  -SigningKeyPath C:\afk4-secrets\update-signing-key.pem `
+  -ReleaseNotes "Internal MSI validation build."
+```
+
+The Operator App MSI generates one request JSON for `operator-app`. The
+coordinated gaming-PC MSI generates two request JSON files, one for
+`agent-service` and one for `player-shell`, both pointing at the same MSI
+artifact.
+
+For production-style object storage/CDN publishing:
+
+```powershell
+$env:AFK4_UPDATE_SIGNING_KEY_PEM = '<PEM supplied by release environment>'
+
+powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 `
+  -Version 1.2.3 `
+  -Channel stable `
+  -OrganizationId 0c04d6c0-bfa8-4e26-9263-fc0d307d0f08 `
+  -PackageDirectory artifacts/client-packages `
+  -OutputDirectory artifacts/update-packages `
+  -ArtifactStore http-put `
+  -OperatorArtifactUploadUri "https://storage-provider.example/operator-upload-token" `
+  -OperatorArtifactPublicUri "https://cdn.afk4.example/operator-app/stable/1.2.3/afk4-operator-app-1.2.3-stable.msi" `
+  -GamingPcArtifactUploadUri "https://storage-provider.example/gaming-pc-upload-token" `
+  -GamingPcArtifactPublicUri "https://cdn.afk4.example/gaming-pc/stable/1.2.3/afk4-gaming-pc-1.2.3-stable.msi" `
+  -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
+  -ReleaseNotes "Stable Windows client release."
+```
+
 ## Register The Package
 
 POST the generated JSON to:
@@ -136,9 +180,28 @@ POST the generated JSON to:
 POST /api/branches/{branchId}/updates/packages
 ```
 
-The staff token must include `updates.packages.manage`. After registration,
-move the package through validation and rollout using
+The staff token must include `updates.packages.manage`. Register generated
+request JSON files with a short-lived token supplied outside the repository:
+
+```powershell
+$env:AFK4_UPDATE_REGISTRATION_TOKEN = '<short-lived staff access token>'
+
+powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
+  -PlatformBaseUrl https://platform.afk4.example `
+  -BranchId acfc0212-967f-4d84-94be-9003387b09c2 `
+  -RequestDirectory artifacts/update-packages `
+  -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
+```
+
+Registration leaves package state as `registered`. A human or Operator App
+workflow still validates packages and creates rollouts using
 `docs/operations/client-update-rollout.md`.
+
+When GitHub Actions registers packages, the repository or environment variable
+`AFK4_ALLOWED_PLATFORM_BASE_URLS` must contain the allowed Platform API base
+URLs. The workflow compares the dispatch `platform_base_url` input with that
+allowlist before using `AFK4_UPDATE_REGISTRATION_TOKEN`, so the token cannot be
+sent to arbitrary dispatch input hosts.
 
 ## Configure Agent Verification
 
