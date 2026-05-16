@@ -41,6 +41,7 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase12-operator-update-management.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
 - `docs/superpowers/plans/2026-05-16-afk4-phase14-diagnostics-backup.md`
+- `docs/superpowers/plans/2026-05-16-afk4-heartbeat-lease-refresh-follow-up.md`
 
 ## Phase 14 Diagnostics And Backup
 
@@ -2116,11 +2117,14 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add Authenticode signing and CI Update Publisher registration once
+1. Implement the heartbeat lease refresh follow-up so the backend can compare
+   Agent-reported lease snapshots with authoritative active sessions and enqueue
+   `unlock`, `refresh-session-lease`, or `lock` commands when needed.
+2. Add Authenticode signing and CI Update Publisher registration once
    production release credentials and artifact hosting are explicit.
-2. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
+3. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
    presigned URL and environment-secret boundary is not enough for production.
-3. Rehearse PostgreSQL restore against staging data before production launch.
-4. Keep web admin, local server, microservices, non-Windows agents, and kernel
+4. Rehearse PostgreSQL restore against staging data before production launch.
+5. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.
