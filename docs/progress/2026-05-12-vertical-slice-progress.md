@@ -1,14 +1,15 @@
 # AFK4 Vertical Slice Progress
 
-Status: Operator App update package/rollout management is implemented for
+Status: Phase 14 branch diagnostics and PostgreSQL backup/restore runbook are
+implemented, Operator App update package/rollout management is implemented for
 already-published signed package metadata, Phase 13 WiX/MSI client packaging
-scripts and CI release workflow are implemented, Phase 11 report CSV export slice is
-implemented, the Phase 10 update publisher has production-style artifact
-hosting and signing key source boundaries, Docker PostgreSQL live smoke passes
-locally for the update slice, Agent update execution/recovery adapter
-boundaries are implemented, and Operator App audit search, branch-scoped
-operational reports, and report CSV exports are available to permissioned
-staff.
+scripts and CI release workflow are implemented, Phase 11 report CSV export
+slice is implemented, the Phase 10 update publisher has production-style
+artifact hosting and signing key source boundaries, Docker PostgreSQL live
+smoke passes locally for the update slice, Agent update execution/recovery
+adapter boundaries are implemented, and Operator App audit search,
+branch-scoped operational reports, report CSV exports, and branch diagnostics
+are available to permissioned staff.
 Last updated: 2026-05-16
 
 ## Scope
@@ -43,20 +44,68 @@ The implementation plans for this slice live in:
 
 ## Phase 14 Diagnostics And Backup
 
-Started on `codex/phase11-operational-reports` after Phase 13 client packaging
-and CI.
+Implemented on `codex/phase11-operational-reports` after Phase 13 client
+packaging and CI.
 
 Design and implementation plan added:
 
 - `docs/superpowers/specs/2026-05-16-afk4-diagnostics-backup-design.md`
 - `docs/superpowers/plans/2026-05-16-afk4-phase14-diagnostics-backup.md`
 
-Planned Phase 14 implementation:
+Implemented in Phase 14:
 
-- branch-scoped diagnostics read endpoint protected by `diagnostics.view`;
-- diagnostics read audit records for allowed and denied access;
-- Operator App Settings diagnostics panel for permissioned staff;
-- PostgreSQL backup/restore operations runbook.
+- added shared diagnostics DTO contracts and `diagnostics.view`;
+- added branch-scoped diagnostics read endpoint protected by
+  `diagnostics.view`;
+- mapped diagnostics access to owner, branch manager, shift supervisor,
+  technician, and accountant/auditor roles;
+- added diagnostics read audit records for allowed and denied access;
+- added Operator App Settings diagnostics client, ViewModel, and panel for
+  permissioned staff;
+- added `docs/operations/postgres-backup-restore.md` with custom-format backup,
+  restore rehearsal, migration rehearsal, and post-restore smoke checks.
+
+Phase 14 commits:
+
+- `48154c7 docs: add diagnostics backup plan`
+- `47a067a feat: add branch diagnostics endpoint`
+- `a985927 feat: add operator diagnostics panel`
+
+Targeted verification on 2026-05-16 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter DiagnosticsContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "EfBranchDiagnosticsServiceTests|BranchDiagnosticsEndpointTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorDiagnosticsApiClientTests|DiagnosticsWorkspaceViewModelTests|SettingsWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+rg -n "postgres-backup-restore|pg_dump|pg_restore|Phase 14|diagnostics\.view" README.md docs
+```
+
+Results:
+
+- diagnostics contract tests passed 2/2;
+- Platform API diagnostics service/endpoint tests passed 5/5;
+- Operator diagnostics/settings/shell targeted tests passed 22/22;
+- docs references for the runbook, `pg_dump`, `pg_restore`, Phase 14, and
+  `diagnostics.view` were found.
+
+Full verification on 2026-05-16 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+```
+
+Results:
+
+- full solution build succeeded with 0 warnings and 0 errors;
+- full solution tests passed 591/591:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 73/73;
+  - Update.Publisher 6/6;
+  - Agent.Service 71/71;
+  - Player.Shell 11/11;
+  - Platform.Api 301/301;
+  - Operator.App 126/126.
 
 ## Phase 13 Client Packaging And CI
 
@@ -2027,6 +2076,9 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
+- `a985927 feat: add operator diagnostics panel`
+- `47a067a feat: add branch diagnostics endpoint`
+- `48154c7 docs: add diagnostics backup plan`
 - `62aec89 feat: integrate operator production layout`
 - `bf6836f feat: add operator settings workspace`
 - `ca1040b feat: add operator shift workflow`
@@ -2064,11 +2116,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add diagnostics dashboards and backup/restore runbooks.
-2. Add Authenticode signing and CI Update Publisher registration once
+1. Add Authenticode signing and CI Update Publisher registration once
    production release credentials and artifact hosting are explicit.
-3. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
+2. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
    presigned URL and environment-secret boundary is not enough for production.
+3. Rehearse PostgreSQL restore against staging data before production launch.
 4. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.

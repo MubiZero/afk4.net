@@ -360,6 +360,8 @@ artifact publishing and signing automation is covered in
 [Update Package Publishing](docs/operations/update-package-publishing.md).
 The approved WiX/MSI packaging decision and Phase 13 implementation path are
 covered in [Client Packaging](docs/operations/client-packaging.md).
+PostgreSQL backup and restore rehearsal is covered in
+[PostgreSQL Backup And Restore](docs/operations/postgres-backup-restore.md).
 The local package input build entrypoint is:
 
 ```powershell
@@ -547,7 +549,10 @@ The first vertical slice foundation is implemented:
 - Operator App Settings update package/rollout management and status panel for
   technicians and managers;
 - Operator App Settings audit search panel for staff with `audit.view`;
+- Operator App Settings diagnostics panel for staff with `diagnostics.view`;
 - branch-scoped audit search endpoint over immutable audit records;
+- branch-scoped diagnostics endpoint over device heartbeat, command, rollout,
+  and update status persistence;
 - shared report contracts and a `reports.view` permission for operational
   report reads;
 - branch-scoped shift, sales, gameplay time, cash operation, and operator
@@ -559,6 +564,8 @@ The first vertical slice foundation is implemented:
   sales, gameplay time, cash operations, and operator actions;
 - Operator App Shifts workspace CSV export actions for all five operational
   report families;
+- PostgreSQL backup/restore runbook with custom-format backup, restore
+  rehearsal, migration rehearsal, and post-restore smoke checks;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
   grace/offline, ending, and launcher states.
 
@@ -571,8 +578,9 @@ Not implemented yet:
 - automatic Agent-side consumption of rotated credentials;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
-- provider-specific object-store/CDN provisioning, WiX/MSI build scripts,
-  GitHub Actions release workflow, and richer rollout automation.
+- Authenticode signing, production Update Publisher registration automation,
+  provider-specific object-store/CDN provisioning, and richer rollout
+  automation.
 
 ## Engineering Rules
 
