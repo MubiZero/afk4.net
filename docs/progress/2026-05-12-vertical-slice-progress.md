@@ -92,6 +92,11 @@ implementation evidence are needed.
   - `scripts/register-update-package-requests.ps1`
 - Manual GitHub Actions workflow for build/test/package, optional signing,
   optional metadata publishing, and guarded package registration.
+- Cost-aware GitHub Actions workflows:
+  - PR verification with branch-protection-safe result job and conditional
+    Windows build/test execution.
+  - Package smoke for unsigned MSI validation on `main` and manual dispatch.
+  - Manual release package workflow with short artifact retention.
 
 ### Operations Docs
 
@@ -131,10 +136,20 @@ Additional verification from the Authenticode CI registration slice:
 CI checks on PR #9 were not configured, so the recorded confidence is local
 verification plus PR review, not enforced repository branch protection.
 
+Cost-aware CI configuration verification on 2026-05-16:
+
+- targeted client release automation tests passed locally;
+- workflow-content tests cover PR verification, package smoke, and manual
+  package workflow cost controls;
+- remote GitHub Actions validation still needs to be observed on the first PR
+  after these workflows are pushed.
+
 ## Known Gaps
 
 - No real staging/prod environment is configured in the repository.
-- GitHub PR checks are not yet mandatory release gates.
+- GitHub Actions workflows are defined in the repository, but branch protection
+  and the first observed remote PR run are still required before they become
+  mandatory release gates.
 - Staff management workflows, custom roles, and role editing UI are not
   implemented.
 - Operator App layout management UI is not implemented.
@@ -153,7 +168,9 @@ verification plus PR review, not enforced repository branch protection.
 ## Recommended Next Work
 
 1. Create a production-like staging environment for Platform API and PostgreSQL.
-2. Add mandatory GitHub Actions checks for build, tests, and packaging smoke.
+2. Push the cost-aware GitHub Actions CI branch, observe the first remote PR
+   verification run, then enable branch protection for the `PR Verification
+   Result` check.
 3. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
    enrolled Windows gaming PC.
 4. Rehearse PostgreSQL backup, restore, and migration against staging data.
