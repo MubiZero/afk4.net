@@ -404,6 +404,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("run_windows: ${{ steps.filter.outputs.run_windows }}", workflow, StringComparison.Ordinal);
         Assert.Contains("git diff --name-only $base $head", workflow, StringComparison.Ordinal);
         Assert.Contains("run_windows=$($runWindows.ToString().ToLowerInvariant())", workflow, StringComparison.Ordinal);
+        Assert.Contains("$env:GITHUB_OUTPUT", workflow, StringComparison.Ordinal);
 
         Assert.Contains("build-test-windows:", workflow, StringComparison.Ordinal);
         Assert.Contains("if: ${{ needs.changes.outputs.run_windows == 'true' }}", workflow, StringComparison.Ordinal);
