@@ -66,6 +66,77 @@ function Require-Directory {
     return (Resolve-Path -LiteralPath $Path).Path
 }
 
+function Resolve-OutputDirectory {
+    param(
+        [string] $Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw "OutputDirectory is required."
+    }
+
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        throw "OutputDirectory '$Path' must be a directory."
+    }
+
+    return (New-Item -ItemType Directory -Path $Path -Force).FullName
+}
+
+function Assert-FilenameSafeVersion {
+    param(
+        [string] $Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        throw 'Version is required.'
+    }
+
+    if ($Value -eq '.' -or $Value -eq '..') {
+        throw 'Version must be filename-safe: it cannot contain path separators or invalid filename characters.'
+    }
+
+    $invalidCharacters = [System.IO.Path]::GetInvalidFileNameChars()
+    if ($Value.IndexOfAny($invalidCharacters) -ge 0) {
+        throw 'Version must be filename-safe: it cannot contain path separators or invalid filename characters.'
+    }
+}
+
+function Assert-PathInsideDirectory {
+    param(
+        [string] $Root,
+        [string] $Path,
+        [string] $Description
+    )
+
+    $rootFullPath = [System.IO.Path]::GetFullPath($Root)
+    $pathFullPath = [System.IO.Path]::GetFullPath($Path)
+    $rootWithSeparator = $rootFullPath.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+
+    if (-not $pathFullPath.StartsWith($rootWithSeparator, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "$Description must stay under '$rootFullPath'."
+    }
+
+    return $pathFullPath
+}
+
+function Require-AbsoluteUri {
+    param(
+        [uri] $Value,
+        [string] $Name,
+        [string] $RequiredMessage
+    )
+
+    if ($null -eq $Value) {
+        throw $RequiredMessage
+    }
+
+    if (-not $Value.IsAbsoluteUri) {
+        throw "$Name must be an absolute URI."
+    }
+}
+
 function Add-SigningKeyArguments {
     param(
         [string[]] $Arguments
@@ -135,9 +206,11 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path $repoRoot 'artifacts/update-packages'
 }
 
+Assert-FilenameSafeVersion $Version
+
 $resolvedDotnetPath = Require-File $DotnetPath 'dotnet executable'
 $resolvedPackageDirectory = Require-Directory $PackageDirectory 'Package directory'
-$resolvedOutputDirectory = (New-Item -ItemType Directory -Path $OutputDirectory -Force).FullName
+$resolvedOutputDirectory = Resolve-OutputDirectory $OutputDirectory
 
 $operatorMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-operator-app-$Version-$Channel.msi") 'Operator App MSI'
 $gamingPcMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-gaming-pc-$Version-$Channel.msi") 'Gaming-PC MSI'
@@ -161,18 +234,13 @@ if ($ArtifactStore -eq 'file-system') {
         throw 'HostingRoot is required when ArtifactStore is file-system.'
     }
 
-    if ($null -eq $PublicBaseUri) {
-        throw 'PublicBaseUri is required when ArtifactStore is file-system.'
-    }
+    Require-AbsoluteUri $PublicBaseUri 'PublicBaseUri' 'PublicBaseUri is required when ArtifactStore is file-system.'
 }
 else {
-    if ($null -eq $OperatorArtifactUploadUri -or $null -eq $OperatorArtifactPublicUri) {
-        throw 'OperatorArtifactUploadUri and OperatorArtifactPublicUri are required when ArtifactStore is http-put.'
-    }
-
-    if ($null -eq $GamingPcArtifactUploadUri -or $null -eq $GamingPcArtifactPublicUri) {
-        throw 'GamingPcArtifactUploadUri and GamingPcArtifactPublicUri are required when ArtifactStore is http-put.'
-    }
+    Require-AbsoluteUri $OperatorArtifactUploadUri 'OperatorArtifactUploadUri' 'OperatorArtifactUploadUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $OperatorArtifactPublicUri 'OperatorArtifactPublicUri' 'OperatorArtifactPublicUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $GamingPcArtifactUploadUri 'GamingPcArtifactUploadUri' 'GamingPcArtifactUploadUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $GamingPcArtifactPublicUri 'GamingPcArtifactPublicUri' 'GamingPcArtifactPublicUri is required when ArtifactStore is http-put.'
 }
 
 $publisherProject = Join-Path $repoRoot 'src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj'
@@ -180,21 +248,21 @@ $requests = @(
     [pscustomobject]@{
         Component = 'operator-app'
         ArtifactPath = $operatorMsi
-        RequestPath = Join-Path $resolvedOutputDirectory "operator-app-$Version-$Channel-request.json"
+        RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "operator-app-$Version-$Channel-request.json") 'Update package request path'
         ArtifactUploadUri = $OperatorArtifactUploadUri
         ArtifactPublicUri = $OperatorArtifactPublicUri
     },
     [pscustomobject]@{
         Component = 'agent-service'
         ArtifactPath = $gamingPcMsi
-        RequestPath = Join-Path $resolvedOutputDirectory "agent-service-$Version-$Channel-request.json"
+        RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "agent-service-$Version-$Channel-request.json") 'Update package request path'
         ArtifactUploadUri = $GamingPcArtifactUploadUri
         ArtifactPublicUri = $GamingPcArtifactPublicUri
     },
     [pscustomobject]@{
         Component = 'player-shell'
         ArtifactPath = $gamingPcMsi
-        RequestPath = Join-Path $resolvedOutputDirectory "player-shell-$Version-$Channel-request.json"
+        RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "player-shell-$Version-$Channel-request.json") 'Update package request path'
         ArtifactUploadUri = $GamingPcArtifactUploadUri
         ArtifactPublicUri = $GamingPcArtifactPublicUri
     }

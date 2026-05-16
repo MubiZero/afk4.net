@@ -97,11 +97,169 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|operator-app", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|agent-service", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|player-shell", StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--organization-id|0c04d6c0-bfa8-4e26-9263-fc0d307d0f08", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--artifact-store|file-system", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--hosting-root|" + Path.Combine(tempRoot, "hosted"), invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--public-base-uri|https://updates.afk4.test/packages/", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--signing-key|" + signingKeyPath, invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--release-notes|Internal MSI release.", invocation, StringComparison.Ordinal));
         Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + operatorMsi, StringComparison.Ordinal)));
         Assert.Equal(2, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + gamingPcMsi, StringComparison.Ordinal)));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("operator-app-1.2.3-internal-request.json", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("agent-service-1.2.3-internal-request.json", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("player-shell-1.2.3-internal-request.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PublishClientMsiUpdates_WithHttpPut_UsesArtifactSpecificUrisAndSigningKeyEnvironmentName()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var packageDirectory = Path.Combine(tempRoot, "client-packages");
+        var outputDirectory = Path.Combine(tempRoot, "update-packages");
+        Directory.CreateDirectory(packageDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        var operatorMsi = Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-beta.msi");
+        var gamingPcMsi = Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.3-beta.msi");
+        File.WriteAllText(operatorMsi, "operator");
+        File.WriteAllText(gamingPcMsi, "gaming-pc");
+        var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-http-put-args.log");
+        var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/publish-client-msi-updates.ps1"),
+            "-Version", "1.2.3",
+            "-Channel", "beta",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
+            "-PackageDirectory", packageDirectory,
+            "-OutputDirectory", outputDirectory,
+            "-ArtifactStore", "http-put",
+            "-OperatorArtifactUploadUri", "https://upload.afk4.test/operator",
+            "-OperatorArtifactPublicUri", "https://cdn.afk4.test/operator.msi",
+            "-GamingPcArtifactUploadUri", "https://upload.afk4.test/gaming-pc",
+            "-GamingPcArtifactPublicUri", "https://cdn.afk4.test/gaming-pc.msi",
+            "-SigningKeyEnvVar", "AFK4_UPDATE_SIGNING_PRIVATE_KEY",
+            "-ReleaseNotes", "Beta MSI release.",
+            "-DotnetPath", fakeDotnetPath);
+
+        Assert.Equal(0, result.ExitCode);
+        var dotnetInvocations = File.ReadAllLines(dotnetArgumentsPath);
+        Assert.Equal(3, dotnetInvocations.Length);
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--artifact-store|http-put", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--signing-key-env-var|AFK4_UPDATE_SIGNING_PRIVATE_KEY", invocation, StringComparison.Ordinal));
+        Assert.DoesNotContain(dotnetInvocations, invocation => invocation.Contains("--signing-key|", StringComparison.Ordinal));
+
+        var operatorInvocation = Assert.Single(dotnetInvocations, invocation => invocation.Contains("--component|operator-app", StringComparison.Ordinal));
+        Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/operator", operatorInvocation, StringComparison.Ordinal);
+        Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/operator.msi", operatorInvocation, StringComparison.Ordinal);
+
+        foreach (var component in new[] { "agent-service", "player-shell" })
+        {
+            var invocation = Assert.Single(dotnetInvocations, candidate => candidate.Contains("--component|" + component, StringComparison.Ordinal));
+            Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/gaming-pc", invocation, StringComparison.Ordinal);
+            Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/gaming-pc.msi", invocation, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void PublishClientMsiUpdates_WhenPublisherFails_ReturnsNonZeroWithComponentMessage()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var packageDirectory = Path.Combine(tempRoot, "client-packages");
+        var outputDirectory = Path.Combine(tempRoot, "update-packages");
+        Directory.CreateDirectory(packageDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi"), "operator");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.3-internal.msi"), "gaming-pc");
+        var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(Path.Combine(tempRoot, "dotnet-failure-args.log"), exitCode: 23);
+        var signingKeyPath = Path.Combine(tempRoot, "update-signing-key.pem");
+        File.WriteAllText(signingKeyPath, "pem");
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/publish-client-msi-updates.ps1"),
+            "-Version", "1.2.3",
+            "-Channel", "internal",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
+            "-PackageDirectory", packageDirectory,
+            "-OutputDirectory", outputDirectory,
+            "-ArtifactStore", "file-system",
+            "-HostingRoot", Path.Combine(tempRoot, "hosted"),
+            "-PublicBaseUri", "https://updates.afk4.test/packages/",
+            "-SigningKeyPath", signingKeyPath,
+            "-ReleaseNotes", "Internal MSI release.",
+            "-DotnetPath", fakeDotnetPath);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("AFK4.Update.Publisher failed for component", result.StandardError + result.StandardOutput);
+    }
+
+    [Fact]
+    public void PublishClientMsiUpdates_WithUnsafeVersion_FailsBeforePublisher()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var packageDirectory = Path.Combine(tempRoot, "client-packages");
+        var outputDirectory = Path.Combine(tempRoot, "update-packages");
+        Directory.CreateDirectory(packageDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-unsafe-version-args.log");
+        var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
+        var signingKeyPath = Path.Combine(tempRoot, "update-signing-key.pem");
+        File.WriteAllText(signingKeyPath, "pem");
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/publish-client-msi-updates.ps1"),
+            "-Version", "..\\1.2.3",
+            "-Channel", "internal",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
+            "-PackageDirectory", packageDirectory,
+            "-OutputDirectory", outputDirectory,
+            "-ArtifactStore", "file-system",
+            "-HostingRoot", Path.Combine(tempRoot, "hosted"),
+            "-PublicBaseUri", "https://updates.afk4.test/packages/",
+            "-SigningKeyPath", signingKeyPath,
+            "-ReleaseNotes", "Internal MSI release.",
+            "-DotnetPath", fakeDotnetPath);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Version must be filename-safe", result.StandardError + result.StandardOutput);
+        Assert.False(File.Exists(dotnetArgumentsPath));
+    }
+
+    [Fact]
+    public void PublishClientMsiUpdates_WithRelativePublicBaseUri_FailsWithClearMessage()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var packageDirectory = Path.Combine(tempRoot, "client-packages");
+        var outputDirectory = Path.Combine(tempRoot, "update-packages");
+        Directory.CreateDirectory(packageDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi"), "operator");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.3-internal.msi"), "gaming-pc");
+        var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-relative-uri-args.log");
+        var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
+        var signingKeyPath = Path.Combine(tempRoot, "update-signing-key.pem");
+        File.WriteAllText(signingKeyPath, "pem");
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/publish-client-msi-updates.ps1"),
+            "-Version", "1.2.3",
+            "-Channel", "internal",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
+            "-PackageDirectory", packageDirectory,
+            "-OutputDirectory", outputDirectory,
+            "-ArtifactStore", "file-system",
+            "-HostingRoot", Path.Combine(tempRoot, "hosted"),
+            "-PublicBaseUri", "packages/",
+            "-SigningKeyPath", signingKeyPath,
+            "-ReleaseNotes", "Internal MSI release.",
+            "-DotnetPath", fakeDotnetPath);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("PublicBaseUri must be an absolute URI.", result.StandardError + result.StandardOutput);
+        Assert.False(File.Exists(dotnetArgumentsPath));
     }
 
     [Fact]
@@ -399,7 +557,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         return "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
     }
 
-    private string CreateFakeDotnetThatRecordsArguments(string capturePath)
+    private string CreateFakeDotnetThatRecordsArguments(string capturePath, int exitCode = 0)
     {
         var fakeDotnetPath = Path.Combine(tempRoot, $"fake-dotnet-{Guid.NewGuid():N}.cmd");
         File.WriteAllText(
@@ -418,7 +576,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             "goto capture" + Environment.NewLine +
             ":done" + Environment.NewLine +
             ">>\"" + capturePath + "\" echo(!line!" + Environment.NewLine +
-            "exit /b 0" + Environment.NewLine);
+            "exit /b " + exitCode.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
         return fakeDotnetPath;
     }
 
