@@ -38,6 +38,10 @@ function Resolve-RequestFiles {
                 throw "RequestPath '$path' was not found."
             }
 
+            if ([System.IO.Path]::GetFileName($path) -notlike '*-request.json') {
+                throw "RequestPath must reference *-request.json files."
+            }
+
             $resolved += (Resolve-Path -LiteralPath $path).Path
         }
 
@@ -62,6 +66,10 @@ function Resolve-RequestFiles {
 
 if ($null -eq $PlatformBaseUrl -or -not $PlatformBaseUrl.IsAbsoluteUri) {
     throw "PlatformBaseUrl must be an absolute URI."
+}
+
+if ($PlatformBaseUrl.Scheme -ne 'http' -and $PlatformBaseUrl.Scheme -ne 'https') {
+    throw "PlatformBaseUrl must use http or https scheme."
 }
 
 $hasDirectToken = -not [string]::IsNullOrWhiteSpace($AccessToken)

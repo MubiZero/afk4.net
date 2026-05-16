@@ -81,9 +81,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     {
         Directory.CreateDirectory(tempRoot);
         var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
+        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service"}""";
         await File.WriteAllTextAsync(
             requestPath,
-            """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service"}""");
+            requestBody);
         var port = GetFreeTcpPort();
         var baseUrl = $"http://127.0.0.1:{port}/";
         using var listener = new HttpListener();
@@ -132,7 +133,191 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal("POST", capturedRequest.Method);
         Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequest.Path);
         Assert.Equal("Bearer test-token", capturedRequest.Authorization);
-        Assert.Contains("\"component\":\"agent-service\"", capturedRequest.Body, StringComparison.Ordinal);
+        Assert.Equal(requestBody, capturedRequest.Body);
+    }
+
+    [Fact]
+    public async Task RegisterUpdatePackageRequests_WhenPlatformReturnsError_ExitsNonZero()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
+        await File.WriteAllTextAsync(requestPath, """{"component":"agent-service"}""");
+        var port = GetFreeTcpPort();
+        var baseUrl = $"http://127.0.0.1:{port}/";
+        using var listener = new HttpListener();
+        listener.Prefixes.Add(baseUrl);
+        listener.Start();
+
+        var capturedRequestTask = Task.Run(async () =>
+        {
+            var context = await listener.GetContextAsync();
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            var body = await reader.ReadToEndAsync();
+            context.Response.StatusCode = 500;
+            context.Response.Close();
+            return body;
+        });
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestPath", requestPath,
+            "-AccessToken", "test-token");
+
+        if (!capturedRequestTask.IsCompleted)
+        {
+            listener.Stop();
+        }
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Equal("""{"component":"agent-service"}""", await capturedRequestTask.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public void RegisterUpdatePackageRequests_WithoutAccessTokenSource_FailsClosed()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
+        File.WriteAllText(requestPath, """{"component":"agent-service"}""");
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", "http://127.0.0.1:9",
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestPath", requestPath);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Specify exactly one access token source", result.StandardError + result.StandardOutput);
+    }
+
+    [Fact]
+    public void RegisterUpdatePackageRequests_WithBothAccessTokenSources_FailsClosed()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
+        File.WriteAllText(requestPath, """{"component":"agent-service"}""");
+
+        var result = RunPowerShell(
+            environment: new Dictionary<string, string?>
+            {
+                ["AFK4_TEST_REGISTRATION_TOKEN"] = "test-token-from-env"
+            },
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", "http://127.0.0.1:9",
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestPath", requestPath,
+            "-AccessToken", "test-token",
+            "-AccessTokenEnvVar", "AFK4_TEST_REGISTRATION_TOKEN");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Specify exactly one access token source", result.StandardError + result.StandardOutput);
+    }
+
+    [Fact]
+    public async Task RegisterUpdatePackageRequests_WithRequestDirectory_PostsRequestJsonInNameOrder()
+    {
+        var requestDirectory = Path.Combine(tempRoot, "requests");
+        Directory.CreateDirectory(requestDirectory);
+        var firstBody = """{"component":"agent-service","order":1}""";
+        var secondBody = """{"component":"operator-app","order":2}""";
+        var thirdBody = """{"component":"player-shell","order":3}""";
+        await File.WriteAllTextAsync(Path.Combine(requestDirectory, "02-operator-app-request.json"), secondBody);
+        await File.WriteAllTextAsync(Path.Combine(requestDirectory, "01-agent-service-request.json"), firstBody);
+        await File.WriteAllTextAsync(Path.Combine(requestDirectory, "03-player-shell-request.json"), thirdBody);
+        await File.WriteAllTextAsync(Path.Combine(requestDirectory, "00-ignored.json"), """{"component":"ignored"}""");
+        var port = GetFreeTcpPort();
+        var baseUrl = $"http://127.0.0.1:{port}/";
+        using var listener = new HttpListener();
+        listener.Prefixes.Add(baseUrl);
+        listener.Start();
+
+        var capturedRequestsTask = Task.Run(async () =>
+        {
+            var requests = new List<CapturedHttpRequest>();
+            for (var index = 0; index < 3; index++)
+            {
+                var context = await listener.GetContextAsync();
+                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                var body = await reader.ReadToEndAsync();
+                context.Response.StatusCode = 201;
+                context.Response.ContentType = "application/json";
+                var responseBody = Encoding.UTF8.GetBytes("""{"updatePackageId":"4a8f4f55-cc8e-49ce-9f69-98e9db9c8be7"}""");
+                await context.Response.OutputStream.WriteAsync(responseBody);
+                context.Response.Close();
+                var requestUriPath = context.Request.Url is null
+                    ? string.Empty
+                    : context.Request.Url.AbsolutePath;
+                var authorization = context.Request.Headers["Authorization"];
+                requests.Add(new CapturedHttpRequest(
+                    context.Request.HttpMethod,
+                    requestUriPath,
+                    authorization is null ? string.Empty : authorization,
+                    body));
+            }
+
+            return requests;
+        });
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestDirectory", requestDirectory,
+            "-AccessToken", "test-token");
+
+        if (result.ExitCode != 0)
+        {
+            listener.Stop();
+        }
+
+        Assert.Equal(0, result.ExitCode);
+        var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(new[] { firstBody, secondBody, thirdBody }, capturedRequests.Select(request => request.Body));
+        Assert.All(capturedRequests, request => Assert.Equal("POST", request.Method));
+        Assert.All(capturedRequests, request => Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", request.Path));
+        Assert.All(capturedRequests, request => Assert.Equal("Bearer test-token", request.Authorization));
+    }
+
+    [Fact]
+    public void RegisterUpdatePackageRequests_WithNonRequestJsonPath_FailsClosed()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal.json");
+        File.WriteAllText(requestPath, """{"component":"agent-service"}""");
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", "http://127.0.0.1:9",
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestPath", requestPath,
+            "-AccessToken", "test-token");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("RequestPath must reference *-request.json files.", result.StandardError + result.StandardOutput);
+    }
+
+    [Fact]
+    public void RegisterUpdatePackageRequests_WithNonHttpPlatformBaseUrl_FailsClosed()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
+        File.WriteAllText(requestPath, """{"component":"agent-service"}""");
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", "file:///tmp/afk4",
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestPath", requestPath,
+            "-AccessToken", "test-token");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("PlatformBaseUrl must use http or https scheme.", result.StandardError + result.StandardOutput);
     }
 
     [Fact]
