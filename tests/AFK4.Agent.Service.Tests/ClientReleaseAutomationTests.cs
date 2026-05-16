@@ -36,6 +36,75 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void PublishClientMsiUpdatesScript_ParsesRequiredParameters()
+    {
+        var ast = ParseScript("scripts/publish-client-msi-updates.ps1", out var errors);
+
+        Assert.Empty(errors);
+        AssertParameter(ast, "Version");
+        AssertParameter(ast, "Channel");
+        AssertParameter(ast, "OrganizationId");
+        AssertParameter(ast, "PackageDirectory");
+        AssertParameter(ast, "OutputDirectory");
+        AssertParameter(ast, "ArtifactStore");
+        AssertParameter(ast, "HostingRoot");
+        AssertParameter(ast, "PublicBaseUri");
+        AssertParameter(ast, "OperatorArtifactUploadUri");
+        AssertParameter(ast, "OperatorArtifactPublicUri");
+        AssertParameter(ast, "GamingPcArtifactUploadUri");
+        AssertParameter(ast, "GamingPcArtifactPublicUri");
+        AssertParameter(ast, "SigningKeyPath");
+        AssertParameter(ast, "SigningKeyEnvVar");
+        AssertParameter(ast, "ReleaseNotes");
+        AssertParameter(ast, "DotnetPath");
+    }
+
+    [Fact]
+    public void PublishClientMsiUpdates_InvokesPublisherForOperatorAgentAndPlayerShell()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var packageDirectory = Path.Combine(tempRoot, "client-packages");
+        var outputDirectory = Path.Combine(tempRoot, "update-packages");
+        Directory.CreateDirectory(packageDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        var operatorMsi = Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi");
+        var gamingPcMsi = Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.3-internal.msi");
+        File.WriteAllText(operatorMsi, "operator");
+        File.WriteAllText(gamingPcMsi, "gaming-pc");
+        var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-args.log");
+        var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
+        var signingKeyPath = Path.Combine(tempRoot, "update-signing-key.pem");
+        File.WriteAllText(signingKeyPath, "pem");
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/publish-client-msi-updates.ps1"),
+            "-Version", "1.2.3",
+            "-Channel", "internal",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
+            "-PackageDirectory", packageDirectory,
+            "-OutputDirectory", outputDirectory,
+            "-ArtifactStore", "file-system",
+            "-HostingRoot", Path.Combine(tempRoot, "hosted"),
+            "-PublicBaseUri", "https://updates.afk4.test/packages/",
+            "-SigningKeyPath", signingKeyPath,
+            "-ReleaseNotes", "Internal MSI release.",
+            "-DotnetPath", fakeDotnetPath);
+
+        Assert.Equal(0, result.ExitCode);
+        var dotnetInvocations = File.ReadAllLines(dotnetArgumentsPath);
+        Assert.Equal(3, dotnetInvocations.Length);
+        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|operator-app", StringComparison.Ordinal));
+        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|agent-service", StringComparison.Ordinal));
+        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|player-shell", StringComparison.Ordinal));
+        Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + operatorMsi, StringComparison.Ordinal)));
+        Assert.Equal(2, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + gamingPcMsi, StringComparison.Ordinal)));
+        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("operator-app-1.2.3-internal-request.json", StringComparison.Ordinal));
+        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("agent-service-1.2.3-internal-request.json", StringComparison.Ordinal));
+        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("player-shell-1.2.3-internal-request.json", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void SignClientPackagesScript_SearchesWindowsSdkSigntoolLocations()
     {
         var script = File.ReadAllText(ScriptPath("scripts/sign-client-packages.ps1"));
@@ -328,6 +397,29 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     private static string ToPowerShellSingleQuotedLiteral(string value)
     {
         return "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+    }
+
+    private string CreateFakeDotnetThatRecordsArguments(string capturePath)
+    {
+        var fakeDotnetPath = Path.Combine(tempRoot, $"fake-dotnet-{Guid.NewGuid():N}.cmd");
+        File.WriteAllText(
+            fakeDotnetPath,
+            "@echo off" + Environment.NewLine +
+            "setlocal EnableDelayedExpansion" + Environment.NewLine +
+            "set \"line=\"" + Environment.NewLine +
+            ":capture" + Environment.NewLine +
+            "if \"%~1\"==\"\" goto done" + Environment.NewLine +
+            "if defined line (" + Environment.NewLine +
+            "  set \"line=!line!^|%~1\"" + Environment.NewLine +
+            ") else (" + Environment.NewLine +
+            "  set \"line=%~1\"" + Environment.NewLine +
+            ")" + Environment.NewLine +
+            "shift" + Environment.NewLine +
+            "goto capture" + Environment.NewLine +
+            ":done" + Environment.NewLine +
+            ">>\"" + capturePath + "\" echo(!line!" + Environment.NewLine +
+            "exit /b 0" + Environment.NewLine);
+        return fakeDotnetPath;
     }
 
     private string CreateFakeSigntoolThatRecordsArguments(string capturePath, int exitCode)
