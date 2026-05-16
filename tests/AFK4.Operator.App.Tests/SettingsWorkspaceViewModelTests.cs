@@ -1,6 +1,7 @@
 using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.Settings;
 using AFK4.Operator.App.Audit;
+using AFK4.Operator.App.Diagnostics;
 using AFK4.Operator.App.Updates;
 using AFK4.Shared.Contracts.Identity;
 
@@ -93,6 +94,22 @@ public sealed class SettingsWorkspaceViewModelTests
     }
 
     [Fact]
+    public void SettingsWorkspace_WithDiagnosticsPermission_ExposesDiagnosticsPanel()
+    {
+        var diagnostics = new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient());
+        var viewModel = new SettingsWorkspaceViewModel(
+            new HashSet<string> { StaffPermissionNames.ViewDiagnostics },
+            technicianTools: null,
+            updateStatus: null,
+            auditSearch: null,
+            diagnostics: diagnostics);
+
+        Assert.True(viewModel.HasDiagnostics);
+        Assert.Same(diagnostics, viewModel.Diagnostics);
+        Assert.Contains(viewModel.Panels, panel => panel.Key == "diagnostics");
+    }
+
+    [Fact]
     public void SettingsWorkspace_WithDeviceCredentialPermission_ExposesTechnicianTools()
     {
         var technicianTools = new TechnicianDeviceWorkflowViewModel(new UnconfiguredOperatorDeviceApiClient());
@@ -111,11 +128,13 @@ public sealed class SettingsWorkspaceViewModelTests
         var technicianTools = new TechnicianDeviceWorkflowViewModel(new UnconfiguredOperatorDeviceApiClient());
         var updateStatus = new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient());
         var auditSearch = new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient());
+        var diagnostics = new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
             new HashSet<string> { StaffPermissionNames.ViewDeviceDetail },
             technicianTools,
             updateStatus,
-            auditSearch);
+            auditSearch,
+            diagnostics);
 
         viewModel.ApplyContext(OrganizationId, BranchId);
 
@@ -127,5 +146,7 @@ public sealed class SettingsWorkspaceViewModelTests
         Assert.Equal(BranchId.ToString("D"), updateStatus.BranchIdText);
         Assert.Equal(OrganizationId.ToString("D"), auditSearch.OrganizationIdText);
         Assert.Equal(BranchId.ToString("D"), auditSearch.BranchIdText);
+        Assert.Equal(OrganizationId.ToString("D"), diagnostics.OrganizationIdText);
+        Assert.Equal(BranchId.ToString("D"), diagnostics.BranchIdText);
     }
 }

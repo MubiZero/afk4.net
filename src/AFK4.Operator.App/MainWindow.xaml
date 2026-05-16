@@ -1428,6 +1428,167 @@
                                                TextWrapping="Wrap" />
                                 </StackPanel>
 
+                                <StackPanel DataContext="{Binding Diagnostics}"
+                                            Margin="0,16,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.SelectedPanel.Key, RelativeSource={RelativeSource AncestorType=Grid}}"
+                                                             Value="diagnostics">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Diagnostics"
+                                                       FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#111827" />
+                                            <TextBlock Text="{Binding Summary}"
+                                                       Margin="0,4,0,0"
+                                                       Foreground="#4B5563" />
+                                            <TextBlock Text="{Binding GeneratedAtUtcText}"
+                                                       Margin="0,2,0,0"
+                                                       Foreground="#6B7280" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Content="Refresh"
+                                                Command="{Binding RefreshCommand}"
+                                                MinWidth="92"
+                                                Height="32" />
+                                    </Grid>
+
+                                    <UniformGrid Columns="3"
+                                                 Margin="0,14,0,0">
+                                        <Border BorderBrush="#D8DEE9"
+                                                BorderThickness="1"
+                                                Padding="10"
+                                                Margin="0,0,8,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Devices"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#111827" />
+                                                <TextBlock Text="{Binding TotalDevices, StringFormat=Total {0}}"
+                                                           Margin="0,6,0,0"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding OnlineDevices, StringFormat=Online {0}}"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding LockedDevices, StringFormat=Locked {0}}"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding StaleDeviceCount, StringFormat=Stale {0}}"
+                                                           Foreground="#B91C1C" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border BorderBrush="#D8DEE9"
+                                                BorderThickness="1"
+                                                Padding="10"
+                                                Margin="0,0,8,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Commands"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#111827" />
+                                                <TextBlock Text="{Binding PendingCommandCount, StringFormat=Pending {0}}"
+                                                           Margin="0,6,0,0"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding FailedCommandCount, StringFormat=Failed {0}}"
+                                                           Foreground="#B91C1C" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border BorderBrush="#D8DEE9"
+                                                BorderThickness="1"
+                                                Padding="10">
+                                            <StackPanel>
+                                                <TextBlock Text="Updates"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#111827" />
+                                                <TextBlock Text="{Binding ActiveRolloutCount, StringFormat=Active rollouts {0}}"
+                                                           Margin="0,6,0,0"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding InstallingDeviceCount, StringFormat=Installing {0}}"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding FailedUpdateCount, StringFormat=Failed {0}}"
+                                                           Foreground="#B91C1C" />
+                                                <TextBlock Text="{Binding RollbackDeviceCount, StringFormat=Rollback {0}}"
+                                                           Foreground="#4B5563" />
+                                            </StackPanel>
+                                        </Border>
+                                    </UniformGrid>
+
+                                    <TextBlock Text="Stale Devices"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827"
+                                               Margin="0,16,0,6" />
+                                    <DataGrid ItemsSource="{Binding StaleDevices}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MinHeight="120">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="140" />
+                                            <DataGridTextColumn Header="State" Binding="{Binding StateSummary}" Width="130" />
+                                            <DataGridTextColumn Header="Heartbeat" Binding="{Binding HeartbeatSummary}" Width="220" />
+                                            <DataGridTextColumn Header="Version" Binding="{Binding VersionSummary}" Width="220" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <TextBlock Text="Failed Commands"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827"
+                                               Margin="0,16,0,6" />
+                                    <DataGrid ItemsSource="{Binding FailedCommands}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MinHeight="120">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="140" />
+                                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="110" />
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
+                                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="240" />
+                                            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedAtUtc}" Width="150" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <TextBlock Text="Failed Updates"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827"
+                                               Margin="0,16,0,6" />
+                                    <DataGrid ItemsSource="{Binding FailedUpdates}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MinHeight="120">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="140" />
+                                            <DataGridTextColumn Header="Component" Binding="{Binding Component}" Width="120" />
+                                            <DataGridTextColumn Header="Target" Binding="{Binding TargetVersion}" Width="100" />
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
+                                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="240" />
+                                            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedAtUtc}" Width="150" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#047857"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding ErrorMessage}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#B91C1C"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
                                 <StackPanel DataContext="{Binding AuditSearch}"
                                             Margin="0,16,0,0">
                                     <StackPanel.Style>

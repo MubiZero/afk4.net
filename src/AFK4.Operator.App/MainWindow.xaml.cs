@@ -3,6 +3,7 @@ using System.Windows;
 using AFK4.Operator.App.Audit;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Configuration;
+using AFK4.Operator.App.Diagnostics;
 using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Hotkeys;
@@ -47,11 +48,13 @@ public partial class MainWindow : Window
         var deviceApiClient = new HttpOperatorDeviceApiClient(apiHttpClient, tokenStore);
         var updateApiClient = new HttpOperatorUpdateApiClient(apiHttpClient, tokenStore);
         var auditApiClient = new HttpOperatorAuditApiClient(apiHttpClient, tokenStore);
+        var diagnosticsApiClient = new HttpOperatorDiagnosticsApiClient(apiHttpClient, tokenStore);
         var settingsViewModel = new SettingsWorkspaceViewModel(
             new HashSet<string>(),
             new TechnicianDeviceWorkflowViewModel(deviceApiClient),
             new UpdateStatusWorkspaceViewModel(updateApiClient),
-            new AuditSearchWorkspaceViewModel(auditApiClient))
+            new AuditSearchWorkspaceViewModel(auditApiClient),
+            new DiagnosticsWorkspaceViewModel(diagnosticsApiClient))
         {
             ApiBaseUrlText = options.PlatformBaseUrl.ToString()
         };

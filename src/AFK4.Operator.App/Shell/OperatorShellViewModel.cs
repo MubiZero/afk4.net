@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using AFK4.Operator.App.Audit;
 using AFK4.Operator.App.Auth;
+using AFK4.Operator.App.Diagnostics;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Operator.App.Players;
@@ -312,6 +313,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
                 StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ManageUpdatePackages,
                 StaffPermissionNames.ManageUpdateRollouts,
+                StaffPermissionNames.ViewDiagnostics,
                 StaffPermissionNames.ViewAudit),
             _ => false
         };
@@ -328,7 +330,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
             new HashSet<string>(),
             technicianTools: null,
             new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()),
-            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()));
+            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()));
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

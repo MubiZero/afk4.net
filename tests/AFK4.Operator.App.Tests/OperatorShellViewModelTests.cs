@@ -91,6 +91,17 @@ public sealed class OperatorShellViewModelTests
     }
 
     [Fact]
+    public void ApplySignedInContext_WithDiagnosticsPermission_ShowsSettings()
+    {
+        var shell = new OperatorShellViewModel();
+
+        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewDiagnostics));
+
+        Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
+        Assert.Contains(shell.Settings.Panels, panel => panel.Key == "diagnostics");
+    }
+
+    [Fact]
     public void ApplySignedInContext_WithPlayerViewPermission_ShowsPlayers()
     {
         var shell = new OperatorShellViewModel();
