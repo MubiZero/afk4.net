@@ -69,6 +69,17 @@ public sealed class OperatorShellViewModelTests
     }
 
     [Fact]
+    public void ApplySignedInContext_WithUpdateManagementPermission_ShowsSettings()
+    {
+        var shell = new OperatorShellViewModel();
+
+        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ManageUpdateRollouts));
+
+        Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
+        Assert.Contains(shell.Settings.Panels, panel => panel.Key == "updates");
+    }
+
+    [Fact]
     public void ApplySignedInContext_WithAuditPermission_ShowsSettings()
     {
         var shell = new OperatorShellViewModel();
@@ -77,6 +88,17 @@ public sealed class OperatorShellViewModelTests
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
         Assert.Contains(shell.Settings.Panels, panel => panel.Key == "audit");
+    }
+
+    [Fact]
+    public void ApplySignedInContext_WithDiagnosticsPermission_ShowsSettings()
+    {
+        var shell = new OperatorShellViewModel();
+
+        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewDiagnostics));
+
+        Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
+        Assert.Contains(shell.Settings.Panels, panel => panel.Key == "diagnostics");
     }
 
     [Fact]
@@ -280,6 +302,86 @@ public sealed class OperatorShellViewModelTests
         }
 
         public Task<SalesReportResultDto> GetSalesReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportShiftReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportSalesReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportGameplayTimeReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportCashOperationReportCsvAsync(
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<string> ExportOperatorActionReportCsvAsync(
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,

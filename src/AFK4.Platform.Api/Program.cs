@@ -1,7 +1,9 @@
 using System.Text.Json;
+using System.Text;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
@@ -16,6 +18,7 @@ using AFK4.Platform.Api.Tenancy;
 using AFK4.Platform.Api.Updates;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Audit;
+using AFK4.Shared.Contracts.Diagnostics;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
@@ -24,6 +27,7 @@ using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
+using AFK4.Shared.Contracts.Reports;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
@@ -58,6 +62,8 @@ builder.Services.AddScoped<StaffAuthorizationService>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
+builder.Services.AddSingleton(new BranchDiagnosticsOptions());
+builder.Services.AddScoped<IBranchDiagnosticsService, EfBranchDiagnosticsService>();
 builder.Services.AddScoped<EfShiftService>();
 builder.Services.AddScoped<IShiftService>(provider => provider.GetRequiredService<EfShiftService>());
 builder.Services.AddScoped<IOpenShiftResolver>(provider => provider.GetRequiredService<EfShiftService>());
@@ -2486,6 +2492,398 @@ app.MapGet("/api/branches/{branchId:guid}/reports/sales", async (
     return Results.Ok(result);
 });
 
+app.MapGet("/api/branches/{branchId:guid}/reports/gameplay-time", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewGameplayTimeReport,
+            "Report",
+            "gameplay-time",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await reportService.GetGameplayTimeReportAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewGameplayTimeReport,
+        "Report",
+        "gameplay-time",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Rows.Count,
+            result.Limit,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/cash-operations", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewCashOperationReport,
+            "Report",
+            "cash-operations",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await reportService.GetCashOperationReportAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewCashOperationReport,
+        "Report",
+        "cash-operations",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Rows.Count,
+            result.Limit,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewOperatorActionReport,
+            "Report",
+            "operator-actions",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await reportService.GetOperatorActionReportAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewOperatorActionReport,
+        "Report",
+        "operator-actions",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Count = result.Rows.Count,
+            result.Limit,
+            fromUtc,
+            toUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/shifts/export.csv", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    return await ExportReportCsvAsync(
+        branchId,
+        fromUtc,
+        toUtc,
+        limit,
+        authorizationService,
+        auditRecordWriter,
+        reportService,
+        AuditActionNames.ViewShiftReport,
+        "shifts",
+        "afk4-shifts-report.csv",
+        static (service, organizationId, scopedBranchId, query, token) =>
+            service.GetShiftReportAsync(organizationId, scopedBranchId, query, token),
+        ReportCsvExporter.ExportShiftReport,
+        cancellationToken);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/sales/export.csv", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    return await ExportReportCsvAsync(
+        branchId,
+        fromUtc,
+        toUtc,
+        limit,
+        authorizationService,
+        auditRecordWriter,
+        reportService,
+        AuditActionNames.ViewSalesReport,
+        "sales",
+        "afk4-sales-report.csv",
+        static (service, organizationId, scopedBranchId, query, token) =>
+            service.GetSalesReportAsync(organizationId, scopedBranchId, query, token),
+        ReportCsvExporter.ExportSalesReport,
+        cancellationToken);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/gameplay-time/export.csv", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    return await ExportReportCsvAsync(
+        branchId,
+        fromUtc,
+        toUtc,
+        limit,
+        authorizationService,
+        auditRecordWriter,
+        reportService,
+        AuditActionNames.ViewGameplayTimeReport,
+        "gameplay-time",
+        "afk4-gameplay-time-report.csv",
+        static (service, organizationId, scopedBranchId, query, token) =>
+            service.GetGameplayTimeReportAsync(organizationId, scopedBranchId, query, token),
+        ReportCsvExporter.ExportGameplayTimeReport,
+        cancellationToken);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/cash-operations/export.csv", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    return await ExportReportCsvAsync(
+        branchId,
+        fromUtc,
+        toUtc,
+        limit,
+        authorizationService,
+        auditRecordWriter,
+        reportService,
+        AuditActionNames.ViewCashOperationReport,
+        "cash-operations",
+        "afk4-cash-operations-report.csv",
+        static (service, organizationId, scopedBranchId, query, token) =>
+            service.GetCashOperationReportAsync(organizationId, scopedBranchId, query, token),
+        ReportCsvExporter.ExportCashOperationReport,
+        cancellationToken);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions/export.csv", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    CancellationToken cancellationToken) =>
+{
+    return await ExportReportCsvAsync(
+        branchId,
+        fromUtc,
+        toUtc,
+        limit,
+        authorizationService,
+        auditRecordWriter,
+        reportService,
+        AuditActionNames.ViewOperatorActionReport,
+        "operator-actions",
+        "afk4-operator-actions-report.csv",
+        static (service, organizationId, scopedBranchId, query, token) =>
+            service.GetOperatorActionReportAsync(organizationId, scopedBranchId, query, token),
+        ReportCsvExporter.ExportOperatorActionReport,
+        cancellationToken);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/diagnostics", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IBranchDiagnosticsService diagnosticsService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewDiagnostics,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewDiagnostics,
+            "Diagnostics",
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await diagnosticsService.GetAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewDiagnostics,
+        "Diagnostics",
+        null,
+        AuditOutcome.Succeeded,
+        new
+        {
+            result.DeviceSummary.TotalDevices,
+            result.DeviceSummary.StaleDevices,
+            result.CommandSummary.PendingCommands,
+            result.CommandSummary.FailedCommands,
+            result.UpdateSummary.ActiveRollouts,
+            result.UpdateSummary.FailedDevices
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/pos/categories", async (
     Guid branchId,
     CreateProductCategoryRequest request,
@@ -3627,6 +4025,95 @@ static async Task WriteAuditAsync(
         "PlatformApi",
         JsonSerializer.Serialize(details)),
         cancellationToken);
+}
+
+static async Task<IResult> ExportReportCsvAsync<TReport>(
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    string auditAction,
+    string targetId,
+    string fileName,
+    Func<IReportService, Guid, Guid, ReportSearchQuery, CancellationToken, Task<TReport>> loadReportAsync,
+    Func<TReport, string> exportCsv,
+    CancellationToken cancellationToken)
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            auditAction,
+            "Report",
+            targetId,
+            AuditOutcome.Denied,
+            new { Format = "csv", authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var result = await loadReportAsync(
+        reportService,
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+    var csv = exportCsv(result);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        auditAction,
+        "Report",
+        targetId,
+        AuditOutcome.Succeeded,
+        new
+        {
+            Format = "csv",
+            Count = GetReportRowCount(result),
+            fromUtc,
+            toUtc,
+            limit
+        },
+        cancellationToken);
+
+    return Results.File(
+        Encoding.UTF8.GetBytes(csv),
+        "text/csv; charset=utf-8",
+        fileDownloadName: fileName);
+}
+
+static int GetReportRowCount<TReport>(TReport report)
+{
+    return report switch
+    {
+        ShiftReportResultDto shiftReport => shiftReport.Rows.Count,
+        SalesReportResultDto salesReport => salesReport.Rows.Count,
+        GameplayTimeReportResultDto gameplayTimeReport => gameplayTimeReport.Rows.Count,
+        CashOperationReportResultDto cashOperationReport => cashOperationReport.Rows.Count,
+        OperatorActionReportResultDto operatorActionReport => operatorActionReport.Rows.Count,
+        _ => 0
+    };
 }
 
 static async Task<PlayerAccountEntity?> LoadPlayerForStaffAsync(

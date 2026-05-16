@@ -49,6 +49,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageUpdatePackages,
                 StaffPermissionNames.ManageUpdateRollouts,
                 StaffPermissionNames.ViewUpdateStatus,
+                StaffPermissionNames.ViewDiagnostics,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit
             },
@@ -94,6 +95,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageUpdatePackages,
                 StaffPermissionNames.ManageUpdateRollouts,
                 StaffPermissionNames.ViewUpdateStatus,
+                StaffPermissionNames.ViewDiagnostics,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.ShiftSupervisor] = new HashSet<string>
@@ -128,6 +130,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.ViewInventory,
                 StaffPermissionNames.ViewReceipt,
                 StaffPermissionNames.ViewUpdateStatus,
+                StaffPermissionNames.ViewDiagnostics,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.CashierOperator] = new HashSet<string>
@@ -164,7 +167,8 @@ public static class PermissionCatalog
                 StaffPermissionNames.ViewInventory,
                 StaffPermissionNames.ManageUpdatePackages,
                 StaffPermissionNames.ManageUpdateRollouts,
-                StaffPermissionNames.ViewUpdateStatus
+                StaffPermissionNames.ViewUpdateStatus,
+                StaffPermissionNames.ViewDiagnostics
             },
             [StaffRoleNames.AccountantAuditor] = new HashSet<string>
             {
@@ -178,6 +182,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.ViewInventory,
                 StaffPermissionNames.ViewReceipt,
                 StaffPermissionNames.ViewUpdateStatus,
+                StaffPermissionNames.ViewDiagnostics,
                 StaffPermissionNames.ViewAudit
             }
         };

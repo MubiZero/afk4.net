@@ -787,10 +787,39 @@
                                             Command="{Binding LoadReportsCommand}"
                                             Padding="14,7"
                                             VerticalAlignment="Bottom" />
+                                    <WrapPanel Grid.Column="4"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Bottom">
+                                        <Button Content="Export Shifts"
+                                                Command="{Binding ExportShiftReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                        <Button Content="Export Sales"
+                                                Command="{Binding ExportSalesReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                        <Button Content="Export Time"
+                                                Command="{Binding ExportGameplayTimeReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                        <Button Content="Export Cash"
+                                                Command="{Binding ExportCashOperationReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                        <Button Content="Export Actions"
+                                                Command="{Binding ExportOperatorActionReportCsvCommand}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,7" />
+                                    </WrapPanel>
                                 </Grid>
 
                                 <Grid Grid.Row="1"
                                       Margin="0,12,0,8">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
@@ -802,9 +831,27 @@
                                                Text="{Binding SalesReportSummary}"
                                                Foreground="#4B5563"
                                                TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding GameplayTimeReportSummary}"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1"
+                                               Grid.Column="1"
+                                               Text="{Binding CashOperationReportSummary}"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2"
+                                               Grid.ColumnSpan="2"
+                                               Text="{Binding OperatorActionReportSummary}"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
                                 </Grid>
 
                                 <Grid Grid.Row="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
@@ -843,6 +890,66 @@
                                             <DataGridTextColumn Header="Qty" Binding="{Binding ItemQuantity}" Width="60" />
                                         </DataGrid.Columns>
                                     </DataGrid>
+
+                                    <Grid Grid.Row="1"
+                                          Grid.ColumnSpan="2"
+                                          Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <DataGrid ItemsSource="{Binding GameplayTimeReportRows}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False"
+                                                  HeadersVisibility="Column"
+                                                  MinHeight="130"
+                                                  Margin="0,0,8,0">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Session" Binding="{Binding SessionId}" Width="80" />
+                                                <DataGridTextColumn Header="State" Binding="{Binding State}" Width="80" />
+                                                <DataGridTextColumn Header="Started" Binding="{Binding StartedAtUtc}" Width="120" />
+                                                <DataGridTextColumn Header="Secs" Binding="{Binding DurationSeconds}" Width="70" />
+                                                <DataGridTextColumn Header="Pkg" Binding="{Binding PackageSeconds}" Width="70" />
+                                                <DataGridTextColumn Header="Bonus" Binding="{Binding BonusSeconds}" Width="70" />
+                                                <DataGridTextColumn Header="Revenue" Binding="{Binding GameplayRevenue}" Width="100" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <DataGrid Grid.Column="1"
+                                                  ItemsSource="{Binding CashOperationReportRows}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False"
+                                                  HeadersVisibility="Column"
+                                                  MinHeight="130"
+                                                  Margin="0,0,8,0">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Op" Binding="{Binding OperationId}" Width="70" />
+                                                <DataGridTextColumn Header="Source" Binding="{Binding SourceType}" Width="100" />
+                                                <DataGridTextColumn Header="Type" Binding="{Binding OperationType}" Width="100" />
+                                                <DataGridTextColumn Header="Impact" Binding="{Binding CashImpact}" Width="100" />
+                                                <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtUtc}" Width="120" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+
+                                        <DataGrid Grid.Column="2"
+                                                  ItemsSource="{Binding OperatorActionReportRows}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  CanUserAddRows="False"
+                                                  HeadersVisibility="Column"
+                                                  MinHeight="130">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Actor" Binding="{Binding ActorDisplayName}" Width="120" />
+                                                <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="140" />
+                                                <DataGridTextColumn Header="Outcome" Binding="{Binding Outcome}" Width="90" />
+                                                <DataGridTextColumn Header="Count" Binding="{Binding Count}" Width="60" />
+                                                <DataGridTextColumn Header="Last" Binding="{Binding LastAtUtc}" Width="120" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
                                 </Grid>
                             </Grid>
                         </Border>
@@ -1055,6 +1162,192 @@
                                                 Height="32" />
                                     </Grid>
 
+                                    <Separator Margin="0,14,0,14" />
+
+                                    <TextBlock Text="Register Package"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <StackPanel Width="140"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Component"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding ComponentText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="100"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Version"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding VersionText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="90"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Channel"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding ChannelText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="90"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Size"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding SizeBytesText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                    <TextBlock Text="Artifact URI"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding ArtifactUriText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <TextBlock Text="SHA-256"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding Sha256Text, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <TextBlock Text="Signature"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding SignatureText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <TextBlock Text="Signature algorithm"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding SignatureAlgorithmText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <TextBlock Text="Release notes"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding ReleaseNotesText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <Button Content="Register Package"
+                                            Command="{Binding RegisterPackageCommand}"
+                                            Height="32"
+                                            HorizontalAlignment="Left"
+                                            MinWidth="140" />
+                                    <TextBlock Text="{Binding LastPackageIdText, StringFormat=Last package {0}}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+
+                                    <Separator Margin="0,14,0,14" />
+
+                                    <TextBlock Text="Package State"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <StackPanel Width="260"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Package ID"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding PackageStatePackageIdText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="120"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="State"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding PackageStateText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                    <TextBlock Text="Reason"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding PackageStateReasonText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <Button Content="Change Package State"
+                                            Command="{Binding ChangePackageStateCommand}"
+                                            Height="32"
+                                            HorizontalAlignment="Left"
+                                            MinWidth="170" />
+
+                                    <Separator Margin="0,14,0,14" />
+
+                                    <TextBlock Text="Create Rollout"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <StackPanel Width="260"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Package ID"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding RolloutPackageIdText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="90"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Channel"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding RolloutChannelText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="90"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Target"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding TargetKindText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="80"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Batch"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding BatchPercentText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                    <TextBlock Text="Target device IDs"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding TargetDeviceIdsText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <TextBlock Text="Starts at UTC"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding StartsAtUtcText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <TextBlock Text="Reason"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding RolloutReasonText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <Button Content="Create Rollout"
+                                            Command="{Binding CreateRolloutCommand}"
+                                            Height="32"
+                                            HorizontalAlignment="Left"
+                                            MinWidth="140" />
+                                    <TextBlock Text="{Binding LastRolloutIdText, StringFormat=Last rollout {0}}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#4B5563"
+                                               TextWrapping="Wrap" />
+
+                                    <Separator Margin="0,14,0,14" />
+
+                                    <TextBlock Text="Rollout State"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827" />
+                                    <WrapPanel Margin="0,8,0,0">
+                                        <StackPanel Width="260"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="Rollout ID"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding RolloutStateRolloutIdText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Width="150"
+                                                    Margin="0,0,8,8">
+                                            <TextBlock Text="State"
+                                                       Foreground="#4B5563" />
+                                            <TextBox Text="{Binding RolloutStateText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                    <TextBlock Text="Reason"
+                                               Foreground="#4B5563" />
+                                    <TextBox Text="{Binding RolloutStateReasonText, UpdateSourceTrigger=PropertyChanged}"
+                                             Margin="0,4,0,8" />
+                                    <Button Content="Change Rollout State"
+                                            Command="{Binding ChangeRolloutStateCommand}"
+                                            Height="32"
+                                            HorizontalAlignment="Left"
+                                            MinWidth="170" />
+
+                                    <Separator Margin="0,14,0,14" />
+
                                     <ItemsControl ItemsSource="{Binding Rollouts}"
                                                   Margin="0,12,0,0">
                                         <ItemsControl.ItemTemplate>
@@ -1124,6 +1417,167 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#047857"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding ErrorMessage}"
+                                               Margin="0,8,0,0"
+                                               Foreground="#B91C1C"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <StackPanel DataContext="{Binding Diagnostics}"
+                                            Margin="0,16,0,0">
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DataContext.SelectedPanel.Key, RelativeSource={RelativeSource AncestorType=Grid}}"
+                                                             Value="diagnostics">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Diagnostics"
+                                                       FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#111827" />
+                                            <TextBlock Text="{Binding Summary}"
+                                                       Margin="0,4,0,0"
+                                                       Foreground="#4B5563" />
+                                            <TextBlock Text="{Binding GeneratedAtUtcText}"
+                                                       Margin="0,2,0,0"
+                                                       Foreground="#6B7280" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Content="Refresh"
+                                                Command="{Binding RefreshCommand}"
+                                                MinWidth="92"
+                                                Height="32" />
+                                    </Grid>
+
+                                    <UniformGrid Columns="3"
+                                                 Margin="0,14,0,0">
+                                        <Border BorderBrush="#D8DEE9"
+                                                BorderThickness="1"
+                                                Padding="10"
+                                                Margin="0,0,8,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Devices"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#111827" />
+                                                <TextBlock Text="{Binding TotalDevices, StringFormat=Total {0}}"
+                                                           Margin="0,6,0,0"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding OnlineDevices, StringFormat=Online {0}}"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding LockedDevices, StringFormat=Locked {0}}"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding StaleDeviceCount, StringFormat=Stale {0}}"
+                                                           Foreground="#B91C1C" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border BorderBrush="#D8DEE9"
+                                                BorderThickness="1"
+                                                Padding="10"
+                                                Margin="0,0,8,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Commands"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#111827" />
+                                                <TextBlock Text="{Binding PendingCommandCount, StringFormat=Pending {0}}"
+                                                           Margin="0,6,0,0"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding FailedCommandCount, StringFormat=Failed {0}}"
+                                                           Foreground="#B91C1C" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border BorderBrush="#D8DEE9"
+                                                BorderThickness="1"
+                                                Padding="10">
+                                            <StackPanel>
+                                                <TextBlock Text="Updates"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#111827" />
+                                                <TextBlock Text="{Binding ActiveRolloutCount, StringFormat=Active rollouts {0}}"
+                                                           Margin="0,6,0,0"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding InstallingDeviceCount, StringFormat=Installing {0}}"
+                                                           Foreground="#4B5563" />
+                                                <TextBlock Text="{Binding FailedUpdateCount, StringFormat=Failed {0}}"
+                                                           Foreground="#B91C1C" />
+                                                <TextBlock Text="{Binding RollbackDeviceCount, StringFormat=Rollback {0}}"
+                                                           Foreground="#4B5563" />
+                                            </StackPanel>
+                                        </Border>
+                                    </UniformGrid>
+
+                                    <TextBlock Text="Stale Devices"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827"
+                                               Margin="0,16,0,6" />
+                                    <DataGrid ItemsSource="{Binding StaleDevices}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MinHeight="120">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="140" />
+                                            <DataGridTextColumn Header="State" Binding="{Binding StateSummary}" Width="130" />
+                                            <DataGridTextColumn Header="Heartbeat" Binding="{Binding HeartbeatSummary}" Width="220" />
+                                            <DataGridTextColumn Header="Version" Binding="{Binding VersionSummary}" Width="220" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <TextBlock Text="Failed Commands"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827"
+                                               Margin="0,16,0,6" />
+                                    <DataGrid ItemsSource="{Binding FailedCommands}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MinHeight="120">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="140" />
+                                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="110" />
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
+                                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="240" />
+                                            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedAtUtc}" Width="150" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <TextBlock Text="Failed Updates"
+                                               FontWeight="SemiBold"
+                                               Foreground="#111827"
+                                               Margin="0,16,0,6" />
+                                    <DataGrid ItemsSource="{Binding FailedUpdates}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MinHeight="120">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Machine" Binding="{Binding MachineName}" Width="140" />
+                                            <DataGridTextColumn Header="Component" Binding="{Binding Component}" Width="120" />
+                                            <DataGridTextColumn Header="Target" Binding="{Binding TargetVersion}" Width="100" />
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100" />
+                                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="240" />
+                                            <DataGridTextColumn Header="Updated" Binding="{Binding UpdatedAtUtc}" Width="150" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
 
                                     <TextBlock Text="{Binding StatusMessage}"
                                                Margin="0,8,0,0"

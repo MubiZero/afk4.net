@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using AFK4.Shared.Contracts.Updates;
 
@@ -90,6 +92,77 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
     }
 
     [Fact]
+    public async Task PublishAsync_WithHttpPutArtifactStore_UploadsArtifactAndUsesPublicArtifactUri()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var artifactPath = Path.Combine(tempRoot, "agent.zip");
+        var artifactBytes = new byte[] { 0x10, 0x20, 0x30 };
+        await File.WriteAllBytesAsync(artifactPath, artifactBytes);
+        var privateKeyPath = CreatePrivateKeyPem(out _);
+        var handler = new RecordingHttpMessageHandler();
+        var publisher = new FileSystemUpdatePackagePublisher(httpClient: new HttpClient(handler));
+
+        var result = await publisher.PublishAsync(
+            new UpdatePackagePublishOptions(
+                OrganizationId,
+                UpdateComponentNames.AgentService,
+                "1.2.4",
+                UpdateChannelNames.Stable,
+                artifactPath,
+                HostingRoot: string.Empty,
+                PublicBaseUri: null,
+                privateKeyPath,
+                "Stable Agent update.",
+                ArtifactStoreKind: UpdateArtifactStoreKindNames.HttpPut,
+                ArtifactUploadUri: new Uri("https://storage.example.test/upload-token"),
+                PublicArtifactUri: new Uri("https://cdn.example.test/agent-service/stable/1.2.4/agent.zip")),
+            CancellationToken.None);
+
+        Assert.Equal("https://cdn.example.test/agent-service/stable/1.2.4/agent.zip", result.Request.ArtifactUri);
+        Assert.Equal("https://storage.example.test/upload-token", handler.LastRequestUri?.ToString());
+        Assert.Equal(HttpMethod.Put, handler.LastMethod);
+        Assert.Equal(artifactBytes, handler.LastBody);
+        Assert.Equal("http-put:https://cdn.example.test/agent-service/stable/1.2.4/agent.zip", result.PublishedArtifactPath);
+    }
+
+    [Fact]
+    public async Task PublishAsync_WithEnvironmentSigningKey_DoesNotRequireKeyFile()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var artifactPath = Path.Combine(tempRoot, "shell.zip");
+        await File.WriteAllTextAsync(artifactPath, "shell");
+        _ = CreatePrivateKeyPem(out _);
+        var privateKeyPem = await File.ReadAllTextAsync(Path.Combine(tempRoot, "update-signing-key.pem"));
+        const string envVarName = "AFK4_TEST_UPDATE_SIGNING_KEY_PEM";
+        Environment.SetEnvironmentVariable(envVarName, privateKeyPem);
+        try
+        {
+            var publisher = new FileSystemUpdatePackagePublisher();
+
+            var result = await publisher.PublishAsync(
+                new UpdatePackagePublishOptions(
+                    OrganizationId,
+                    UpdateComponentNames.PlayerShell,
+                    "2.0.0",
+                    UpdateChannelNames.Internal,
+                    artifactPath,
+                    Path.Combine(tempRoot, "hosted"),
+                    new Uri("https://updates.afk4.test/packages/"),
+                    SigningPrivateKeyPemPath: null,
+                    "Internal Shell update.",
+                    SigningPrivateKeyPemEnvironmentVariable: envVarName),
+                CancellationToken.None);
+
+            Assert.Equal(UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363, result.Request.SignatureAlgorithm);
+            Assert.False(string.IsNullOrWhiteSpace(result.Request.Signature));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(envVarName, null);
+        }
+    }
+
+    [Fact]
     public void Parse_ReadsRequiredCommandLineArguments()
     {
         var options = UpdatePackagePublishCommand.Parse(
@@ -111,6 +184,30 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
         Assert.Equal(UpdateComponentNames.PlayerShell, options.Component);
         Assert.Equal("shell-2.0.0.msix", options.PublishedFileName);
         Assert.Equal("request.json", options.RequestJsonOutputPath);
+    }
+
+    [Fact]
+    public void Parse_ReadsHttpPutAndEnvironmentSigningKeyArguments()
+    {
+        var options = UpdatePackagePublishCommand.Parse(
+        [
+            "--organization-id", OrganizationId.ToString("D"),
+            "--component", UpdateComponentNames.AgentService,
+            "--version", "3.0.0",
+            "--channel", UpdateChannelNames.Stable,
+            "--artifact", "agent.zip",
+            "--artifact-store", UpdateArtifactStoreKindNames.HttpPut,
+            "--artifact-upload-uri", "https://storage.example.test/upload-token",
+            "--artifact-public-uri", "https://cdn.example.test/agent-service/stable/3.0.0/agent.zip",
+            "--signing-key-env-var", "AFK4_UPDATE_SIGNING_KEY_PEM",
+            "--release-notes", "Stable Agent update."
+        ]);
+
+        Assert.Equal(UpdateArtifactStoreKindNames.HttpPut, options.ArtifactStoreKind);
+        Assert.Equal("https://storage.example.test/upload-token", options.ArtifactUploadUri?.ToString());
+        Assert.Equal("https://cdn.example.test/agent-service/stable/3.0.0/agent.zip", options.PublicArtifactUri?.ToString());
+        Assert.Equal("AFK4_UPDATE_SIGNING_KEY_PEM", options.SigningPrivateKeyPemEnvironmentVariable);
+        Assert.Null(options.SigningPrivateKeyPemPath);
     }
 
     private string CreatePrivateKeyPem(out string publicKeyPem)
@@ -140,5 +237,27 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
             Convert.FromBase64String(request.Signature),
             HashAlgorithmName.SHA256,
             DSASignatureFormat.IeeeP1363FixedFieldConcatenation);
+    }
+
+    private sealed class RecordingHttpMessageHandler : HttpMessageHandler
+    {
+        public HttpMethod? LastMethod { get; private set; }
+
+        public Uri? LastRequestUri { get; private set; }
+
+        public byte[]? LastBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            LastMethod = request.Method;
+            LastRequestUri = request.RequestUri;
+            LastBody = request.Content is null
+                ? []
+                : await request.Content.ReadAsByteArrayAsync(cancellationToken);
+
+            return new HttpResponseMessage(HttpStatusCode.Created);
+        }
     }
 }

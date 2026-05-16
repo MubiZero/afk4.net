@@ -77,8 +77,11 @@ keeps the short navigation version; the detailed source of truth is the
    Dev, staging, and production environments are defined separately. The
    backend deploys as one ASP.NET Core service at the start. Operator App,
    Agent Service, and Player Shell updates are centralized, signed, channelled,
-   staged, status-tracked, and rollback-capable. Installers and device
-   enrollment are part of the platform design. Details: [Deployment And Updates](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#deployment-and-updates).
+   staged, status-tracked, and rollback-capable. The MVP packaging baseline is
+   WiX/MSI: one Operator App MSI and one coordinated gaming-PC MSI for Agent
+   Service + Player Shell. Installers and device enrollment are part of the
+   platform design. Details: [Deployment And Updates](docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md#deployment-and-updates)
+   and [Client Packaging Design](docs/superpowers/specs/2026-05-14-afk4-client-packaging-design.md).
 
 9. **MVP Scope**
    The first full MVP includes multi-tenancy, WPF Operator App, Windows devices,
@@ -154,6 +157,22 @@ The current vertical slice exposes:
   permission `reports.view`
 - `GET /api/branches/{branchId}/reports/sales` with staff bearer token
   permission `reports.view`
+- `GET /api/branches/{branchId}/reports/gameplay-time` with staff bearer token
+  permission `reports.view`
+- `GET /api/branches/{branchId}/reports/cash-operations` with staff bearer
+  token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/operator-actions` with staff bearer
+  token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/shifts/export.csv` with staff bearer
+  token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/sales/export.csv` with staff bearer
+  token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/gameplay-time/export.csv` with staff
+  bearer token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/cash-operations/export.csv` with
+  staff bearer token permission `reports.view`
+- `GET /api/branches/{branchId}/reports/operator-actions/export.csv` with
+  staff bearer token permission `reports.view`
 - `POST /api/branches/{branchId}/pos/categories` with staff bearer token
   permission `pos.catalog.manage`
 - `POST /api/branches/{branchId}/pos/products` with staff bearer token
@@ -237,8 +256,8 @@ The main working screen is the floor map. The current app includes staff
 sign-in, Windows-protected token storage, permission-filtered navigation,
 realtime floor-map loading, selected-seat session actions, player search,
 wallet/package summaries, POS, shifts, settings, technician device tools,
-shift/sales reports, update rollout status visibility, audit search, and
-production hotkeys.
+operational reports, update package/rollout management and status visibility,
+audit search, and production hotkeys.
 
 ### Agent Service
 
@@ -301,6 +320,9 @@ docs/superpowers/plans/
 - Git for Windows.
 - .NET SDK `10.0.203` or another compatible .NET 10 SDK allowed by
   `global.json` feature-band roll-forward.
+- Repository-local .NET tools restored with `dotnet tool restore`. The tool
+  manifest pins `dotnet-ef` for migrations and `wix` for Phase 13 client MSI
+  packaging.
 - PostgreSQL for runtime device persistence. Set
   `ConnectionStrings__PlatformDatabase` for local API runs that exercise device
   enrollment, credentials, heartbeat state, or command status.
@@ -316,6 +338,7 @@ dotnet --list-sdks
 From the repository root:
 
 ```powershell
+dotnet tool restore
 dotnet build AFK4.sln
 dotnet test AFK4.sln
 ```
@@ -335,6 +358,21 @@ Installer enrollment and client rollout operating notes live in
 and [Client Update Rollout](docs/operations/client-update-rollout.md). Update
 artifact publishing and signing automation is covered in
 [Update Package Publishing](docs/operations/update-package-publishing.md).
+The approved WiX/MSI packaging decision and Phase 13 implementation path are
+covered in [Client Packaging](docs/operations/client-packaging.md).
+PostgreSQL backup and restore rehearsal is covered in
+[PostgreSQL Backup And Restore](docs/operations/postgres-backup-restore.md).
+The local package input build entrypoint is:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
+```
+
+It publishes Operator App, Agent Service, and Player Shell outputs, then builds
+the Operator App MSI and coordinated gaming-PC MSI under ignored
+`artifacts/client-packages/`.
+The same command is used by the manual GitHub Actions workflow
+`.github/workflows/client-packages.yml`.
 
 Start the backend:
 
@@ -389,9 +427,12 @@ experiments, configure `Agent:UpdateStateDirectory`,
 `Agent:UpdateRestartExecutablePath`, and
 `Agent:UpdateRestartArgumentsTemplate`. `Agent:UpdatePackageSigningPublicKeyPem`
 must contain the public key that matches packages produced by the Update
-Publisher before update installation is allowed. Automatic credential
-propagation, production object storage, and richer rollout automation are
-intentionally deferred to later slices.
+Publisher before update installation is allowed. The Update Publisher can emit
+metadata for local file-system hosting or production-style presigned HTTP PUT
+artifact uploads with public CDN artifact URLs, and can read the signing key
+from a file or controlled environment variable. Automatic credential
+propagation, provider-specific object-store/CDN provisioning, and richer
+rollout automation are intentionally deferred to later slices.
 
 ## Current Implementation State
 
@@ -490,20 +531,41 @@ The first vertical slice foundation is implemented:
   adapters, interrupted-install recovery, and status progression through
   offered/downloading/downloaded/installing/installed/failed/
   rollback-started/rolled-back;
-- Update Publisher CLI for copying ready artifacts into deterministic hosting
-  paths, computing SHA-256, signing canonical metadata with ECDSA P-256, and
-  emitting `CreateUpdatePackageRequest` JSON;
+- Update Publisher CLI for publishing ready artifacts to deterministic local
+  hosting paths or presigned HTTP PUT upload URLs, computing SHA-256, signing
+  canonical metadata with ECDSA P-256 from a file or environment-provided PEM,
+  and emitting `CreateUpdatePackageRequest` JSON;
 - PowerShell wrapper for publishing Windows client projects into zip artifacts
   before signing/publishing them;
+- approved Phase 13 client packaging decision: WiX/MSI baseline for Operator
+  App and coordinated gaming-PC Agent Service + Player Shell package, with
+  MSIX deferred;
+- local Phase 13 client package script that publishes Operator App, Agent
+  Service, and Player Shell outputs, then builds Operator App and coordinated
+  gaming-PC WiX/MSI artifacts under ignored `artifacts/client-packages/`;
+- manual GitHub Actions workflow for building, testing, packaging, and
+  uploading client MSI artifacts;
 - Operator App production floor-map/workflow shell;
-- Operator App Settings update status panel for technicians and managers;
+- Operator App Settings update package/rollout management and status panel for
+  technicians and managers;
 - Operator App Settings audit search panel for staff with `audit.view`;
+- Operator App Settings diagnostics panel for staff with `diagnostics.view`;
 - branch-scoped audit search endpoint over immutable audit records;
-- shared report contracts and a `reports.view` permission for shift/sales
+- branch-scoped diagnostics endpoint over device heartbeat, command, rollout,
+  and update status persistence;
+- shared report contracts and a `reports.view` permission for operational
   report reads;
-- branch-scoped shift and sales report endpoints over existing shift, POS,
-  payment, cash movement, and shift-linked ledger persistence;
-- Operator App Shifts workspace report filters and shift/sales report grids;
+- branch-scoped shift, sales, gameplay time, cash operation, and operator
+  action report endpoints over existing session, shift, POS, payment, ledger,
+  and audit persistence;
+- CSV export endpoints for all branch-scoped operational reports, using the
+  same filters, `reports.view` permission, and audit trail as report reads;
+- Operator App Shifts workspace report filters and report grids for shift,
+  sales, gameplay time, cash operations, and operator actions;
+- Operator App Shifts workspace CSV export actions for all five operational
+  report families;
+- PostgreSQL backup/restore runbook with custom-format backup, restore
+  rehearsal, migration rehearsal, and post-restore smoke checks;
 - Player Shell fullscreen MVVM session UI with locked, active, warning,
   grace/offline, ending, and launcher states.
 
@@ -514,12 +576,11 @@ Not implemented yet:
   it is added;
 - Operator App layout management UI;
 - automatic Agent-side consumption of rotated credentials;
-- gameplay time, cash operations, and operator-action reports beyond the first
-  shift/sales report slice;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
-- binary update artifact hosting, installer build automation, richer rollout
-  automation, and Operator App package/rollout management UI.
+- Authenticode signing, production Update Publisher registration automation,
+  provider-specific object-store/CDN provisioning, and richer rollout
+  automation.
 
 ## Engineering Rules
 

@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using AFK4.Operator.App.Audit;
+using AFK4.Operator.App.Diagnostics;
 using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Operator.App.Updates;
@@ -15,6 +16,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
     private readonly TechnicianDeviceWorkflowViewModel? technicianTools;
     private readonly UpdateStatusWorkspaceViewModel? updateStatus;
     private readonly AuditSearchWorkspaceViewModel? auditSearch;
+    private readonly DiagnosticsWorkspaceViewModel? diagnostics;
     private readonly RelayCommand selectPanelCommand;
     private string apiBaseUrlText = "http://localhost:5074";
     private string organizationIdText = string.Empty;
@@ -26,7 +28,8 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             permissions,
             technicianTools: null,
             new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()),
-            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()))
+            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()))
     {
     }
 
@@ -37,7 +40,8 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             permissions,
             technicianTools,
             new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()),
-            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()))
+            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()))
     {
     }
 
@@ -49,7 +53,8 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             permissions,
             technicianTools,
             updateStatus,
-            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()))
+            new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()))
     {
     }
 
@@ -58,10 +63,26 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
         TechnicianDeviceWorkflowViewModel? technicianTools,
         UpdateStatusWorkspaceViewModel? updateStatus,
         AuditSearchWorkspaceViewModel? auditSearch)
+        : this(
+            permissions,
+            technicianTools,
+            updateStatus,
+            auditSearch,
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()))
+    {
+    }
+
+    public SettingsWorkspaceViewModel(
+        IReadOnlySet<string> permissions,
+        TechnicianDeviceWorkflowViewModel? technicianTools,
+        UpdateStatusWorkspaceViewModel? updateStatus,
+        AuditSearchWorkspaceViewModel? auditSearch,
+        DiagnosticsWorkspaceViewModel? diagnostics)
     {
         this.technicianTools = technicianTools;
         this.updateStatus = updateStatus;
         this.auditSearch = auditSearch;
+        this.diagnostics = diagnostics;
         Panels = [];
         selectPanelCommand = new RelayCommand(
             parameter =>
@@ -86,11 +107,15 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
 
     public AuditSearchWorkspaceViewModel? AuditSearch => auditSearch;
 
+    public DiagnosticsWorkspaceViewModel? Diagnostics => diagnostics;
+
     public bool HasTechnicianTools => technicianTools is not null && Panels.Any(panel => panel.Key == "devices");
 
     public bool HasUpdateStatus => updateStatus is not null && Panels.Any(panel => panel.Key == "updates");
 
     public bool HasAuditSearch => auditSearch is not null && Panels.Any(panel => panel.Key == "audit");
+
+    public bool HasDiagnostics => diagnostics is not null && Panels.Any(panel => panel.Key == "diagnostics");
 
     public string ApiBaseUrlText
     {
@@ -125,6 +150,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
         technicianTools?.ApplyContext(organizationId, branchId);
         updateStatus?.ApplyContext(organizationId, branchId);
         auditSearch?.ApplyContext(organizationId, branchId);
+        diagnostics?.ApplyContext(organizationId, branchId);
     }
 
     public void ApplyContext(Guid organizationId, Guid branchId, IReadOnlySet<string> permissions)
@@ -187,9 +213,13 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             AddPanel("roles", "Roles", "Staff access");
         }
 
-        if (permissions.Contains(StaffPermissionNames.ViewUpdateStatus))
+        if (HasAny(
+            permissions,
+            StaffPermissionNames.ViewUpdateStatus,
+            StaffPermissionNames.ManageUpdatePackages,
+            StaffPermissionNames.ManageUpdateRollouts))
         {
-            AddPanel("updates", "Updates", "Rollout status");
+            AddPanel("updates", "Updates", "Packages and rollouts");
         }
 
         if (permissions.Contains(StaffPermissionNames.ViewAudit))
@@ -197,10 +227,16 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             AddPanel("audit", "Audit", "Operator actions");
         }
 
+        if (permissions.Contains(StaffPermissionNames.ViewDiagnostics))
+        {
+            AddPanel("diagnostics", "Diagnostics", "Branch health");
+        }
+
         SelectedPanel = Panels.FirstOrDefault(panel => panel.Key == selectedKey) ?? Panels.FirstOrDefault();
         OnPropertyChanged(nameof(HasTechnicianTools));
         OnPropertyChanged(nameof(HasUpdateStatus));
         OnPropertyChanged(nameof(HasAuditSearch));
+        OnPropertyChanged(nameof(HasDiagnostics));
     }
 
     private void AddPanel(string key, string label, string description)

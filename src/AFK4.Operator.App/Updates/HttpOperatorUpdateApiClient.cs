@@ -37,6 +37,87 @@ public sealed class HttpOperatorUpdateApiClient(HttpClient httpClient, IOperator
         return result ?? throw new InvalidOperationException("Platform API returned an empty update status response.");
     }
 
+    public Task<UpdatePackageDto> RegisterPackageAsync(
+        Guid branchId,
+        CreateUpdatePackageRequest request,
+        CancellationToken cancellationToken)
+    {
+        return SendJsonAsync<CreateUpdatePackageRequest, UpdatePackageDto>(
+            HttpMethod.Post,
+            $"/api/branches/{branchId:D}/updates/packages",
+            request,
+            "update package registration",
+            cancellationToken);
+    }
+
+    public Task<UpdatePackageDto> ChangePackageStateAsync(
+        Guid branchId,
+        Guid updatePackageId,
+        UpdatePackageStateChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        return SendJsonAsync<UpdatePackageStateChangeRequest, UpdatePackageDto>(
+            HttpMethod.Post,
+            $"/api/branches/{branchId:D}/updates/packages/{updatePackageId:D}/state",
+            request,
+            "update package state change",
+            cancellationToken);
+    }
+
+    public Task<UpdateRolloutDto> CreateRolloutAsync(
+        Guid branchId,
+        CreateUpdateRolloutRequest request,
+        CancellationToken cancellationToken)
+    {
+        return SendJsonAsync<CreateUpdateRolloutRequest, UpdateRolloutDto>(
+            HttpMethod.Post,
+            $"/api/branches/{branchId:D}/updates/rollouts",
+            request,
+            "update rollout creation",
+            cancellationToken);
+    }
+
+    public Task<UpdateRolloutDto> ChangeRolloutStateAsync(
+        Guid branchId,
+        Guid updateRolloutId,
+        UpdateRolloutStateChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        return SendJsonAsync<UpdateRolloutStateChangeRequest, UpdateRolloutDto>(
+            HttpMethod.Post,
+            $"/api/branches/{branchId:D}/updates/rollouts/{updateRolloutId:D}/state",
+            request,
+            "update rollout state change",
+            cancellationToken);
+    }
+
+    private async Task<TResponse> SendJsonAsync<TRequest, TResponse>(
+        HttpMethod method,
+        string path,
+        TRequest body,
+        string operationName,
+        CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(method, path, cancellationToken);
+        request.Content = JsonContent.Create(body, options: JsonOptions);
+
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Platform API returned {(int)response.StatusCode} {response.ReasonPhrase}: {errorBody}",
+                inner: null,
+                response.StatusCode);
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<TResponse>(
+            JsonOptions,
+            cancellationToken);
+
+        return result ?? throw new InvalidOperationException($"Platform API returned an empty {operationName} response.");
+    }
+
     private async Task<HttpRequestMessage> CreateRequestAsync(
         HttpMethod method,
         string path,

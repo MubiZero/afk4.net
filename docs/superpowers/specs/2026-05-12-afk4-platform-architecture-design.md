@@ -346,9 +346,24 @@ Update requirements:
 
 ### Installers
 
-Operator App has its own installer.
+The MVP client packaging baseline is WiX-authored MSI packages.
 
-Agent Service and Player Shell share a gaming-PC installer or coordinated installer flow. Device enrollment uses a secure branch/device enrollment token, QR code, or short code flow.
+Operator App has its own WiX/MSI installer. Agent Service and Player Shell
+share one coordinated gaming-PC WiX/MSI installer because the gaming-PC surface
+needs per-machine installation, Windows Service registration, controlled Shell
+deployment, recovery metadata, and silent install support. MSIX is deferred as
+a future optional Operator App distribution channel and is not used for Agent
+Service or Player Shell in the MVP.
+
+Update artifacts continue to use the central update package model: externally
+hosted binary artifact, SHA-256 hash, signed package metadata, staged rollout,
+status reporting, and rollback. Agents invoke MSI install or rollback through
+the existing external install, rollback, and restart adapter boundary after
+package hash and signature verification.
+
+Device enrollment uses a secure branch/device enrollment token, QR code, or
+short code flow. Installers must not ship durable device credentials or signing
+keys.
 
 ## Security Baseline
 
@@ -566,6 +581,6 @@ The following decisions are intentionally deferred to focused implementation spe
 - Exact PostgreSQL schema layout by module.
 - Exact API route and contract naming.
 - Agent Windows policy implementation details.
-- Update package signing format.
 - Payment and receipt provider plugin contract.
 - First production hosting provider and deployment topology.
+- Optional future MSIX/App Installer distribution channel for Operator App.

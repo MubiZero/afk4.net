@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Shifts;
@@ -157,6 +158,71 @@ public sealed class OperatorShiftApiClientTests
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
+    [Theory]
+    [InlineData("gameplay-time")]
+    [InlineData("cash-operations")]
+    [InlineData("operator-actions")]
+    public async Task GetOperationalReportAsync_GetsBearerAuthenticatedReport(string reportName)
+    {
+        var handler = new RecordingHttpMessageHandler(_ => JsonContentResponse(CreateEmptyOperationalReport(reportName)));
+        var client = CreateClient(handler);
+
+        switch (reportName)
+        {
+            case "gameplay-time":
+                await client.GetGameplayTimeReportAsync(BranchId, null, null, null, CancellationToken.None);
+                break;
+            case "cash-operations":
+                await client.GetCashOperationReportAsync(BranchId, null, null, null, CancellationToken.None);
+                break;
+            case "operator-actions":
+                await client.GetOperatorActionReportAsync(BranchId, null, null, null, CancellationToken.None);
+                break;
+        }
+
+        Assert.Equal(HttpMethod.Get, handler.LastMethod);
+        Assert.Equal($"/api/branches/{BranchId:D}/reports/{reportName}", handler.LastPathAndQuery);
+        Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
+    }
+
+    [Theory]
+    [InlineData("shifts")]
+    [InlineData("sales")]
+    [InlineData("gameplay-time")]
+    [InlineData("cash-operations")]
+    [InlineData("operator-actions")]
+    public async Task ExportReportCsvAsync_GetsBearerAuthenticatedCsvWithFilters(string reportName)
+    {
+        var handler = new RecordingHttpMessageHandler(_ => CsvContentResponse("id,state\r\n1,open\r\n"));
+        var client = CreateClient(handler);
+
+        var csv = reportName switch
+        {
+            "shifts" => await client.ExportShiftReportCsvAsync(
+                BranchId,
+                DateTimeOffset.Parse("2026-05-14T00:00:00Z"),
+                null,
+                25,
+                CancellationToken.None),
+            "sales" => await client.ExportSalesReportCsvAsync(BranchId, null, null, null, CancellationToken.None),
+            "gameplay-time" => await client.ExportGameplayTimeReportCsvAsync(BranchId, null, null, null, CancellationToken.None),
+            "cash-operations" => await client.ExportCashOperationReportCsvAsync(BranchId, null, null, null, CancellationToken.None),
+            "operator-actions" => await client.ExportOperatorActionReportCsvAsync(BranchId, null, null, null, CancellationToken.None),
+            _ => throw new ArgumentOutOfRangeException(nameof(reportName), reportName, null)
+        };
+
+        Assert.Equal("id,state\r\n1,open\r\n", csv);
+        Assert.Equal(HttpMethod.Get, handler.LastMethod);
+        Assert.NotNull(handler.LastPathAndQuery);
+        Assert.StartsWith($"/api/branches/{BranchId:D}/reports/{reportName}/export.csv", handler.LastPathAndQuery);
+        Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
+        if (reportName == "shifts")
+        {
+            Assert.Contains("fromUtc=", handler.LastPathAndQuery);
+            Assert.Contains("limit=25", handler.LastPathAndQuery);
+        }
+    }
+
     private static HttpOperatorShiftApiClient CreateClient(RecordingHttpMessageHandler handler)
     {
         return new HttpOperatorShiftApiClient(new HttpClient(handler)
@@ -186,6 +252,28 @@ public sealed class OperatorShiftApiClientTests
             isClosed ? DateTimeOffset.Parse("2026-05-14T18:00:00Z") : null);
     }
 
+    private static object CreateEmptyOperationalReport(string reportName)
+    {
+        return reportName switch
+        {
+            "gameplay-time" => new GameplayTimeReportResultDto(
+                [],
+                Limit: 50,
+                TotalDurationSeconds: 0,
+                TotalPackageSeconds: 0,
+                TotalBonusSeconds: 0,
+                GameplayRevenueTotal: new MoneyDto("USD", 0)),
+            "cash-operations" => new CashOperationReportResultDto(
+                [],
+                Limit: 50,
+                CashInTotal: new MoneyDto("USD", 0),
+                CashOutTotal: new MoneyDto("USD", 0),
+                NetCashTotal: new MoneyDto("USD", 0)),
+            "operator-actions" => new OperatorActionReportResultDto([], Limit: 50, TotalActionCount: 0),
+            _ => throw new ArgumentOutOfRangeException(nameof(reportName), reportName, null)
+        };
+    }
+
     private static T DeserializeRequest<T>(string? json)
     {
         Assert.False(string.IsNullOrWhiteSpace(json));
@@ -199,6 +287,14 @@ public sealed class OperatorShiftApiClientTests
         return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = JsonContent.Create(body)
+        };
+    }
+
+    private static HttpResponseMessage CsvContentResponse(string body)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(body, Encoding.UTF8, "text/csv")
         };
     }
 

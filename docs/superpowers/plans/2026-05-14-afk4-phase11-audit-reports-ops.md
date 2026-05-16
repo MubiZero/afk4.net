@@ -1,14 +1,13 @@
 # AFK4 Phase 11 Audit, Reports, And Operations Plan
 
-Status: shift/sales reports slice implemented
+Status: report CSV export slice implemented
 Last updated: 2026-05-14
 
 ## Goal
 
 Expose operational accountability data to managers, owners, supervisors, and
 auditors without adding a web admin panel. Phase 11 starts with branch-scoped
-audit search and then adds shift/sales reports over the existing operational
-persistence.
+audit search and then adds operational reports over the existing persistence.
 
 ## Scope
 
@@ -21,22 +20,32 @@ The implemented Phase 11 slices add:
 - Operator App typed audit API client;
 - Operator App Settings audit panel with action, outcome, target, date, and
   limit filters;
-- shared shift and sales report contracts;
-- backend branch-scoped shift and sales reports over existing shift, POS,
-  payment, cash movement, and shift-linked ledger data;
+- shared shift, sales, gameplay time, cash operation, and operator action
+  report contracts;
+- backend branch-scoped operational reports over existing shift, session, POS,
+  payment, cash movement, shift-linked ledger, and audit data;
 - `GET /api/branches/{branchId}/reports/shifts` and
   `GET /api/branches/{branchId}/reports/sales` protected by `reports.view`;
+- `GET /api/branches/{branchId}/reports/gameplay-time`,
+  `GET /api/branches/{branchId}/reports/cash-operations`, and
+  `GET /api/branches/{branchId}/reports/operator-actions` protected by
+  `reports.view`;
 - succeeded and denied audit records for report reads;
 - Operator App report loading inside the Shifts workspace;
+- CSV export endpoints for all five operational reports, protected by
+  `reports.view`, returning `text/csv` attachments, and audited with the same
+  report-read audit actions plus `Format = csv`;
+- Operator App typed CSV download methods and Shifts workspace export actions
+  that save report CSV files through a file-writer boundary;
 - focused tests for contracts, service behavior, endpoint authorization, API
-  client query construction, and ViewModel behavior.
+  client query construction, CSV formatting, CSV endpoints, and ViewModel
+  behavior.
 
 ## Non-Goals
 
 - No new audit table schema in this slice.
 - No new report table schema in this slice.
-- No gameplay, cash operations, or operator-action reports yet.
-- No report export format yet.
+- No PDF, XLSX, scheduled email, or cross-branch report bundle export yet.
 - No web admin panel.
 - No cross-branch owner dashboard yet.
 
@@ -48,13 +57,11 @@ The implemented Phase 11 slices add:
 - Staff must hold `audit.view` before reading audit rows.
 - Reading audit data is itself audited.
 - Report reads are tenant- and branch-scoped.
-- Staff must hold `reports.view` before reading shift/sales reports.
+- Staff must hold `reports.view` before reading operational reports.
 - Reading report data is itself audited.
 - Shift report cash math follows the same signs as shift close.
 
 ## Follow-Up
 
-1. Add gameplay time, cash operations, and operator-action report summaries.
-2. Add report export formats when managers need shareable files.
-3. Add diagnostics and backup/restore runbooks after the core reports are
+1. Add diagnostics and backup/restore runbooks after the core reports are
    visible.

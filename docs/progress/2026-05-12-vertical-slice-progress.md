@@ -1,10 +1,16 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 11 shift/sales report slice is implemented, Docker PostgreSQL
-live smoke passes locally for the update slice, Agent update execution/recovery
-adapter boundaries are implemented, and Operator App update status visibility,
-audit search, and first reports are available to permissioned staff.
-Last updated: 2026-05-14
+Status: Phase 14 branch diagnostics and PostgreSQL backup/restore runbook are
+implemented, Operator App update package/rollout management is implemented for
+already-published signed package metadata, Phase 13 WiX/MSI client packaging
+scripts and CI release workflow are implemented, Phase 11 report CSV export
+slice is implemented, the Phase 10 update publisher has production-style
+artifact hosting and signing key source boundaries, Docker PostgreSQL live
+smoke passes locally for the update slice, Agent update execution/recovery
+adapter boundaries are implemented, and Operator App audit search,
+branch-scoped operational reports, report CSV exports, and branch diagnostics
+are available to permissioned staff.
+Last updated: 2026-05-16
 
 ## Scope
 
@@ -32,6 +38,318 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase9-updates-installers.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase10-update-publishing-automation.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase12-operator-update-management.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
+- `docs/superpowers/plans/2026-05-16-afk4-phase14-diagnostics-backup.md`
+
+## Phase 14 Diagnostics And Backup
+
+Implemented on `codex/phase11-operational-reports` after Phase 13 client
+packaging and CI.
+
+Design and implementation plan added:
+
+- `docs/superpowers/specs/2026-05-16-afk4-diagnostics-backup-design.md`
+- `docs/superpowers/plans/2026-05-16-afk4-phase14-diagnostics-backup.md`
+
+Implemented in Phase 14:
+
+- added shared diagnostics DTO contracts and `diagnostics.view`;
+- added branch-scoped diagnostics read endpoint protected by
+  `diagnostics.view`;
+- mapped diagnostics access to owner, branch manager, shift supervisor,
+  technician, and accountant/auditor roles;
+- added diagnostics read audit records for allowed and denied access;
+- added Operator App Settings diagnostics client, ViewModel, and panel for
+  permissioned staff;
+- added `docs/operations/postgres-backup-restore.md` with custom-format backup,
+  restore rehearsal, migration rehearsal, and post-restore smoke checks.
+
+Phase 14 commits:
+
+- `48154c7 docs: add diagnostics backup plan`
+- `47a067a feat: add branch diagnostics endpoint`
+- `a985927 feat: add operator diagnostics panel`
+
+Targeted verification on 2026-05-16 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter DiagnosticsContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "EfBranchDiagnosticsServiceTests|BranchDiagnosticsEndpointTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorDiagnosticsApiClientTests|DiagnosticsWorkspaceViewModelTests|SettingsWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+rg -n "postgres-backup-restore|pg_dump|pg_restore|Phase 14|diagnostics\.view" README.md docs
+```
+
+Results:
+
+- diagnostics contract tests passed 2/2;
+- Platform API diagnostics service/endpoint tests passed 5/5;
+- Operator diagnostics/settings/shell targeted tests passed 22/22;
+- docs references for the runbook, `pg_dump`, `pg_restore`, Phase 14, and
+  `diagnostics.view` were found.
+
+Full verification on 2026-05-16 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+```
+
+Results:
+
+- full solution build succeeded with 0 warnings and 0 errors;
+- full solution tests passed 591/591:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 73/73;
+  - Update.Publisher 6/6;
+  - Agent.Service 71/71;
+  - Player.Shell 11/11;
+  - Platform.Api 301/301;
+  - Operator.App 126/126.
+
+## Phase 13 Client Packaging And CI
+
+Implemented on `codex/phase11-operational-reports` after Phase 12 Operator
+update management.
+
+Decision:
+
+- Operator App uses its own WiX/MSI installer for the MVP.
+- Agent Service and Player Shell share one coordinated gaming-PC WiX/MSI
+  installer.
+- MSIX is deferred as a future optional Operator App distribution channel.
+- Agent Service and Player Shell do not use MSIX in the MVP because they need
+  per-machine install, Windows Service registration, controlled Shell
+  deployment, recovery behavior, and silent installer support.
+- Existing update rollout authority remains unchanged: externally hosted
+  artifacts, SHA-256, signed metadata, staged rollout, Agent verification,
+  status reporting, and rollback.
+
+Documentation added:
+
+- `docs/superpowers/specs/2026-05-14-afk4-client-packaging-design.md`
+- `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
+- `docs/operations/client-packaging.md`
+
+Implemented in Phase 13:
+
+- pinned the WiX `wix` dotnet tool at `7.0.0`;
+- added MSI update helper scripts for install, rollback, and Agent restart;
+- added tests that parse helper scripts, require explicit `-acceptEula wix7`,
+  and guard against unsupported WiX `Files Exclude` authoring;
+- added `scripts/build-client-packages.ps1` to publish Operator App, Agent
+  Service, and Player Shell outputs, stage WiX inputs, and build MSI artifacts;
+- added WiX package authoring for the Operator App MSI and coordinated
+  gaming-PC Agent Service + Player Shell MSI;
+- added `.github/workflows/client-packages.yml` as a manual Windows workflow
+  that restores tools, builds, tests, builds client MSIs, and uploads artifacts.
+
+Phase 13 commits:
+
+- `c747e6c docs: add client packaging decision`
+- `ccf9a8b chore: pin wix packaging tool`
+- `8f835a6 feat: add msi update helper scripts`
+- `706a65f feat: add client package build script`
+- `24abc92 feat: add wix msi packaging scaffold`
+- `e29c651 ci: add client package workflow`
+
+Verification on 2026-05-16 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' tool restore
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
+Get-ChildItem artifacts\client-packages\*.msi | Select-Object Name,Length
+```
+
+Results:
+
+- tool restore succeeded for `dotnet-ef` `10.0.4` and `wix` `7.0.0`;
+- full solution build succeeded with 0 warnings and 0 errors;
+- full solution tests passed 579/579:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 6/6;
+  - Agent.Service 71/71;
+  - Player.Shell 11/11;
+  - Operator.App 121/121;
+  - Platform.Api 296/296;
+- client package build produced:
+  - `afk4-operator-app-0.1.0-ci-internal.msi` at 622,592 bytes;
+  - `afk4-gaming-pc-0.1.0-ci-internal.msi` at 991,232 bytes.
+
+## Phase 12 Operator Update Management Slice
+
+Implemented on `codex/phase11-operational-reports` after the production update
+publishing boundary commit `254bce3`.
+
+Implemented in this Phase 12 first slice:
+
+- Extended the Operator App update API client with package registration,
+  package state change, rollout creation, and rollout state change methods over
+  the existing backend update endpoints.
+- Added Update Settings ViewModel inputs and commands for registering
+  already-published package metadata, validating/rejecting/retiring packages,
+  creating branch/device rollouts, and pausing/cancelling/rolling back rollouts.
+- Preserved rollout status refresh in the same Settings update panel.
+- Exposed the Settings update panel to staff with `updates.packages.manage`,
+  `updates.rollouts.manage`, or `updates.status.view`.
+- Added dense WPF Settings controls for package and rollout management.
+
+Targeted verification on 2026-05-14 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorUpdateApiClientTests|UpdateStatusWorkspaceViewModelTests|SettingsWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Operator App update/settings/shell targeted tests passed 28/28.
+- Full Operator App tests passed 121/121.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 573/573:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 6/6;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 121/121;
+  - Platform.Api 296/296.
+
+## Phase 10 Production Artifact Hosting And Key Source Boundary
+
+Implemented on `codex/phase11-operational-reports` after the report CSV export
+commit `3133fd4`.
+
+Implemented in this Phase 10 follow-up:
+
+- Added `file-system` and `http-put` artifact-store selection to the Update
+  Publisher CLI.
+- Added presigned HTTP PUT artifact upload support with a separate public CDN
+  artifact URI recorded in `CreateUpdatePackageRequest`.
+- Added signing-key loading from a controlled environment variable so key
+  vaults, secret managers, or CI runners can inject the ECDSA PEM without a
+  file on disk.
+- Preserved the local file-system artifact publishing path and file-based
+  signing-key path for development use.
+- Updated the PowerShell wrapper and update package publishing runbook for both
+  artifact stores and both signing key sources.
+
+Targeted verification on 2026-05-14 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Update.Publisher.Tests\AFK4.Update.Publisher.Tests.csproj --filter FileSystemUpdatePackagePublisherTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Update Publisher targeted tests passed 6/6.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 563/563:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 6/6;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 111/111;
+  - Platform.Api 296/296.
+
+## Phase 11 Report CSV Export Slice
+
+Implemented on `codex/phase11-operational-reports` after the operational report
+summary commit `f2e94fd`.
+
+Implemented in this Phase 11 export slice:
+
+- Added a backend CSV formatter for shift, sales, gameplay time, cash
+  operation, and operator-action report DTOs.
+- Added `GET /api/branches/{branchId}/reports/*/export.csv` routes for all
+  five operational report families.
+- Export routes reuse the same report filters, `reports.view` permission, and
+  report-read audit actions as JSON report reads, with audit details marking
+  `Format = csv`.
+- CSV responses are returned as `text/csv` attachments with deterministic
+  manager-friendly filenames.
+- Added Operator App typed CSV download methods and Shifts workspace export
+  commands.
+- Added a file-writer boundary for Operator App CSV saves, with the production
+  implementation using the native Windows save-file dialog.
+- Added report CSV export buttons to the Operator App Shifts reports panel.
+
+Targeted verification on 2026-05-14 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "ReportEndpointTests|ReportCsvExporterTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorShiftApiClientTests|ShiftWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build src\AFK4.Operator.App\AFK4.Operator.App.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Platform report endpoint/exporter tests passed 28/28.
+- Operator shift/report/shell targeted tests passed 32/32.
+- Operator App project build succeeded with 0 warnings and 0 errors.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 560/560:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 3/3;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 111/111;
+  - Platform.Api 296/296.
+
+## Phase 11 Gameplay, Cash Operations, And Operator Actions Reports Slice
+
+Implemented on `codex/phase11-operational-reports` after the shift/sales
+report merge commit `f300fdc`.
+
+Implemented in this Phase 11 operational reports slice:
+
+- Added shared report contracts for gameplay time, cash operations, and
+  operator-action summaries.
+- Extended `EfReportService` over existing sessions, shift-linked ledger
+  entries, cash movements, POS cash payments/refunds, and audit records.
+- Added `GET /api/branches/{branchId}/reports/gameplay-time`,
+  `GET /api/branches/{branchId}/reports/cash-operations`, and
+  `GET /api/branches/{branchId}/reports/operator-actions`, all protected by
+  `reports.view` and audited on succeeded or denied reads.
+- Extended the Operator App Shifts workspace typed API client and report loader
+  to fetch all five report families with one date/limit filter set.
+- Added Operator App report grids and summaries for gameplay duration/revenue,
+  cash impact, and operator action groups.
+
+Targeted verification on 2026-05-14 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter ReportContractSerializationTests -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "EfReportServiceTests|ReportEndpointTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorShiftApiClientTests|ShiftWorkspaceViewModelTests|OperatorShellViewModelTests" -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build src\AFK4.Operator.App\AFK4.Operator.App.csproj -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- Report contract serialization tests passed 6/6.
+- Report Platform API service/endpoint tests passed 20/20.
+- Operator shift/report targeted tests passed 26/26.
+- Operator App project build succeeded with 0 warnings and 0 errors.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Full solution tests passed 541/541:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 3/3;
+  - Agent.Service 65/65;
+  - Player.Shell 11/11;
+  - Operator.App 105/105;
+  - Platform.Api 283/283.
+
+Remaining Phase 11 work:
+
+- diagnostics dashboards and backup/restore runbooks.
 
 ## Phase 11 Shift And Sales Reports Slice
 
@@ -78,12 +396,6 @@ Results:
   - Operator.App 102/102;
   - Platform.Api 271/271.
 
-Remaining Phase 11 work:
-
-- gameplay time, cash operations, and operator-action reports;
-- export formats for report sharing;
-- diagnostics dashboards and backup/restore runbooks.
-
 ## Phase 11 Audit Search First Slice
 
 Started on `codex/phase11-audit-search-ops` after the Phase 10 signature
@@ -128,8 +440,8 @@ Results:
   - Operator.App 97/97;
   - Platform.Api 263/263.
 
-Remaining Phase 11 work after the audit-search slice was tracked in the
-subsequent shift/sales reports section above.
+Remaining Phase 11 work after the audit-search slice is tracked in the
+subsequent report sections above.
 
 ## Phase 10 Agent Update Signature Verification
 
@@ -217,8 +529,9 @@ Results:
 
 Remaining Phase 10 work:
 
-- production object storage/CDN adapter and key vault integration;
-- MSI/MSIX authoring decision and CI release jobs.
+- provider-specific object-store/CDN and key-vault SDK adapters only if the
+  presigned URL and environment-secret boundary is not enough for production;
+- Phase 13 WiX/MSI build scripts and CI release jobs.
 
 ## Phase 9 Operator Update Visibility Follow-Up
 
@@ -1763,6 +2076,9 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recent Key Commits
 
+- `a985927 feat: add operator diagnostics panel`
+- `47a067a feat: add branch diagnostics endpoint`
+- `48154c7 docs: add diagnostics backup plan`
 - `62aec89 feat: integrate operator production layout`
 - `bf6836f feat: add operator settings workspace`
 - `ca1040b feat: add operator shift workflow`
@@ -1800,12 +2116,11 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Add gameplay time, cash operations, and operator-action report summaries.
-2. Add report export formats for manager/accountant sharing.
-3. Add production object storage/CDN hosting and key vault integration around
-   the local publishing tool.
-4. Add Operator App package/rollout management workflow when update package
-   publishing needs to be run by operators instead of scripts.
-5. Keep web admin, local server, microservices, non-Windows agents, and kernel
+1. Add Authenticode signing and CI Update Publisher registration once
+   production release credentials and artifact hosting are explicit.
+2. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
+   presigned URL and environment-secret boundary is not enough for production.
+3. Rehearse PostgreSQL restore against staging data before production launch.
+4. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.

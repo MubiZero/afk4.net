@@ -37,6 +37,62 @@ public interface IOperatorShiftApiClient
         DateTimeOffset? toUtc,
         int? limit,
         CancellationToken cancellationToken);
+
+    Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<string> ExportShiftReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<string> ExportSalesReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<string> ExportGameplayTimeReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<string> ExportCashOperationReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
+
+    Task<string> ExportOperatorActionReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken);
 }
 
 public sealed class UnconfiguredOperatorShiftApiClient : IOperatorShiftApiClient
@@ -83,6 +139,86 @@ public sealed class UnconfiguredOperatorShiftApiClient : IOperatorShiftApiClient
     }
 
     public Task<SalesReportResultDto> GetSalesReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<string> ExportShiftReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<string> ExportSalesReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<string> ExportGameplayTimeReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<string> ExportCashOperationReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<string> ExportOperatorActionReportCsvAsync(
         Guid branchId,
         DateTimeOffset? fromUtc,
         DateTimeOffset? toUtc,

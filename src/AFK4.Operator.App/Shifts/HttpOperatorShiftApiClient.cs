@@ -93,6 +93,102 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
             cancellationToken);
     }
 
+    public Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetAsync<GameplayTimeReportResultDto>(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/gameplay-time", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<CashOperationReportResultDto> GetCashOperationReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetAsync<CashOperationReportResultDto>(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/cash-operations", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<OperatorActionReportResultDto> GetOperatorActionReportAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetAsync<OperatorActionReportResultDto>(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/operator-actions", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<string> ExportShiftReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetStringAsync(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/shifts/export.csv", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<string> ExportSalesReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetStringAsync(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/sales/export.csv", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<string> ExportGameplayTimeReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetStringAsync(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/gameplay-time/export.csv", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<string> ExportCashOperationReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetStringAsync(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/cash-operations/export.csv", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
+    public Task<string> ExportOperatorActionReportCsvAsync(
+        Guid branchId,
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        return SendGetStringAsync(
+            BuildReportUri($"/api/branches/{branchId:D}/reports/operator-actions/export.csv", fromUtc, toUtc, limit),
+            cancellationToken);
+    }
+
     private async Task<TResponse> SendAsync<TResponse, TRequest>(
         HttpMethod method,
         string requestUri,
@@ -118,6 +214,17 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
 
         var result = await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions, cancellationToken);
         return result ?? throw new InvalidOperationException("Platform API returned an empty report response.");
+    }
+
+    private async Task<string> SendGetStringAsync(
+        string requestUri,
+        CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Get, requestUri, cancellationToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     private static string BuildReportUri(

@@ -12,15 +12,14 @@ public sealed class FileSystemUpdatePackagePublisher
     };
 
     private readonly EcdsaUpdatePackageSigner signer;
+    private readonly HttpClient httpClient;
 
-    public FileSystemUpdatePackagePublisher()
-        : this(new EcdsaUpdatePackageSigner())
+    public FileSystemUpdatePackagePublisher(
+        EcdsaUpdatePackageSigner? signer = null,
+        HttpClient? httpClient = null)
     {
-    }
-
-    public FileSystemUpdatePackagePublisher(EcdsaUpdatePackageSigner signer)
-    {
-        this.signer = signer;
+        this.signer = signer ?? new EcdsaUpdatePackageSigner();
+        this.httpClient = httpClient ?? new HttpClient();
     }
 
     public async Task<UpdatePackagePublishResult> PublishAsync(
@@ -30,41 +29,27 @@ public sealed class FileSystemUpdatePackagePublisher
         Validate(options);
 
         var artifactPath = Path.GetFullPath(options.ArtifactPath);
-        var hostingRoot = Path.GetFullPath(options.HostingRoot);
-        var publishedFileName = GetPublishedFileName(options, artifactPath);
-        var relativeDirectory = Path.Combine(
-            SanitizePathSegment(options.Component),
-            SanitizePathSegment(options.Channel),
-            SanitizePathSegment(options.Version));
-        var targetDirectory = Path.GetFullPath(Path.Combine(hostingRoot, relativeDirectory));
-        var targetPath = Path.GetFullPath(Path.Combine(targetDirectory, publishedFileName));
-
-        EnsureInsideRoot(hostingRoot, targetPath);
-        Directory.CreateDirectory(targetDirectory);
-        File.Copy(artifactPath, targetPath, overwrite: false);
-
-        var sha256 = await ComputeSha256Async(targetPath, cancellationToken);
-        var sizeBytes = new FileInfo(targetPath).Length;
-        var artifactUri = CreateArtifactUri(options.PublicBaseUri, relativeDirectory, publishedFileName);
+        var publishedArtifact = await PublishArtifactAsync(options, artifactPath, cancellationToken);
         var payload = UpdatePackageSignaturePayload.Create(
             options.Component,
             options.Version,
             options.Channel,
-            artifactUri,
-            sha256,
-            sizeBytes,
+            publishedArtifact.ArtifactUri,
+            publishedArtifact.Sha256,
+            publishedArtifact.SizeBytes,
             options.ReleaseNotes);
-        var signature = await signer.SignAsync(options.SigningPrivateKeyPemPath, payload, cancellationToken);
+        var privateKeyPem = await LoadSigningPrivateKeyPemAsync(options, cancellationToken);
+        var signature = signer.SignPem(privateKeyPem, payload);
         var request = new CreateUpdatePackageRequest(
             options.OrganizationId,
             options.Component.Trim(),
             options.Version.Trim(),
             options.Channel.Trim(),
-            artifactUri,
-            sha256,
+            publishedArtifact.ArtifactUri,
+            publishedArtifact.Sha256,
             signature,
             UpdatePackageSignatureAlgorithmNames.EcdsaP256Sha256IeeeP1363,
-            sizeBytes,
+            publishedArtifact.SizeBytes,
             options.ReleaseNotes.Trim());
         var requestJson = JsonSerializer.Serialize(request, JsonOptions);
 
@@ -80,7 +65,7 @@ public sealed class FileSystemUpdatePackagePublisher
             await File.WriteAllTextAsync(outputPath, requestJson, cancellationToken);
         }
 
-        return new UpdatePackagePublishResult(targetPath, requestJson, request);
+        return new UpdatePackagePublishResult(publishedArtifact.Location, requestJson, request);
     }
 
     private static void Validate(UpdatePackagePublishOptions options)
@@ -115,10 +100,128 @@ public sealed class FileSystemUpdatePackagePublisher
             throw new FileNotFoundException("Update artifact was not found.", options.ArtifactPath);
         }
 
-        if (string.IsNullOrWhiteSpace(options.HostingRoot))
+        if (!IsSupportedArtifactStoreKind(options.ArtifactStoreKind))
         {
-            throw new ArgumentException("Hosting root is required.", nameof(options));
+            throw new ArgumentException("Unsupported artifact store kind.", nameof(options));
         }
+
+        if (options.ArtifactStoreKind == UpdateArtifactStoreKindNames.FileSystem)
+        {
+            if (string.IsNullOrWhiteSpace(options.HostingRoot))
+            {
+                throw new ArgumentException("Hosting root is required.", nameof(options));
+            }
+
+            if (options.PublicBaseUri is null)
+            {
+                throw new ArgumentException("Public base URI is required for file-system artifact publishing.", nameof(options));
+            }
+        }
+
+        if (options.ArtifactStoreKind == UpdateArtifactStoreKindNames.HttpPut)
+        {
+            if (options.ArtifactUploadUri is null)
+            {
+                throw new ArgumentException("Artifact upload URI is required for http-put artifact publishing.", nameof(options));
+            }
+
+            if (options.PublicArtifactUri is null)
+            {
+                throw new ArgumentException("Public artifact URI is required for http-put artifact publishing.", nameof(options));
+            }
+        }
+
+        var hasKeyFile = !string.IsNullOrWhiteSpace(options.SigningPrivateKeyPemPath);
+        var hasKeyEnvironmentVariable = !string.IsNullOrWhiteSpace(options.SigningPrivateKeyPemEnvironmentVariable);
+        if (hasKeyFile == hasKeyEnvironmentVariable)
+        {
+            throw new ArgumentException(
+                "Specify exactly one signing key source: --signing-key or --signing-key-env-var.",
+                nameof(options));
+        }
+    }
+
+    private async Task<PublishedArtifact> PublishArtifactAsync(
+        UpdatePackagePublishOptions options,
+        string artifactPath,
+        CancellationToken cancellationToken)
+    {
+        return options.ArtifactStoreKind switch
+        {
+            UpdateArtifactStoreKindNames.FileSystem => await PublishFileSystemArtifactAsync(options, artifactPath, cancellationToken),
+            UpdateArtifactStoreKindNames.HttpPut => await PublishHttpPutArtifactAsync(options, artifactPath, cancellationToken),
+            _ => throw new ArgumentException("Unsupported artifact store kind.", nameof(options))
+        };
+    }
+
+    private static async Task<PublishedArtifact> PublishFileSystemArtifactAsync(
+        UpdatePackagePublishOptions options,
+        string artifactPath,
+        CancellationToken cancellationToken)
+    {
+        var hostingRoot = Path.GetFullPath(options.HostingRoot!);
+        var publishedFileName = GetPublishedFileName(options, artifactPath);
+        var relativeDirectory = Path.Combine(
+            SanitizePathSegment(options.Component),
+            SanitizePathSegment(options.Channel),
+            SanitizePathSegment(options.Version));
+        var targetDirectory = Path.GetFullPath(Path.Combine(hostingRoot, relativeDirectory));
+        var targetPath = Path.GetFullPath(Path.Combine(targetDirectory, publishedFileName));
+
+        EnsureInsideRoot(hostingRoot, targetPath);
+        Directory.CreateDirectory(targetDirectory);
+        File.Copy(artifactPath, targetPath, overwrite: false);
+
+        var sha256 = await ComputeSha256Async(targetPath, cancellationToken);
+        var sizeBytes = new FileInfo(targetPath).Length;
+        var artifactUri = CreateArtifactUri(options.PublicBaseUri!, relativeDirectory, publishedFileName);
+        return new PublishedArtifact(targetPath, artifactUri, sha256, sizeBytes);
+    }
+
+    private async Task<PublishedArtifact> PublishHttpPutArtifactAsync(
+        UpdatePackagePublishOptions options,
+        string artifactPath,
+        CancellationToken cancellationToken)
+    {
+        var sha256 = await ComputeSha256Async(artifactPath, cancellationToken);
+        var sizeBytes = new FileInfo(artifactPath).Length;
+
+        await using var artifactStream = File.OpenRead(artifactPath);
+        using var request = new HttpRequestMessage(HttpMethod.Put, options.ArtifactUploadUri)
+        {
+            Content = new StreamContent(artifactStream)
+        };
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        return new PublishedArtifact(
+            $"http-put:{options.PublicArtifactUri}",
+            options.PublicArtifactUri!.ToString(),
+            sha256,
+            sizeBytes);
+    }
+
+    private static async Task<string> LoadSigningPrivateKeyPemAsync(
+        UpdatePackagePublishOptions options,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(options.SigningPrivateKeyPemPath))
+        {
+            if (!File.Exists(options.SigningPrivateKeyPemPath))
+            {
+                throw new FileNotFoundException(
+                    "Update signing private key was not found.",
+                    options.SigningPrivateKeyPemPath);
+            }
+
+            return await File.ReadAllTextAsync(options.SigningPrivateKeyPemPath, cancellationToken);
+        }
+
+        var variableName = options.SigningPrivateKeyPemEnvironmentVariable!;
+        var privateKeyPem = Environment.GetEnvironmentVariable(variableName);
+        return string.IsNullOrWhiteSpace(privateKeyPem)
+            ? throw new ArgumentException($"Signing key environment variable '{variableName}' is missing or empty.", nameof(options))
+            : privateKeyPem;
     }
 
     private static string GetPublishedFileName(UpdatePackagePublishOptions options, string artifactPath)
@@ -189,4 +292,17 @@ public sealed class FileSystemUpdatePackagePublisher
             UpdateChannelNames.Beta or
             UpdateChannelNames.Internal;
     }
+
+    private static bool IsSupportedArtifactStoreKind(string artifactStoreKind)
+    {
+        return artifactStoreKind is
+            UpdateArtifactStoreKindNames.FileSystem or
+            UpdateArtifactStoreKindNames.HttpPut;
+    }
+
+    private sealed record PublishedArtifact(
+        string Location,
+        string ArtifactUri,
+        string Sha256,
+        long SizeBytes);
 }
