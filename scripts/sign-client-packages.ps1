@@ -27,7 +27,7 @@ function Resolve-SigntoolExecutable {
     )
 
     if (-not [string]::IsNullOrWhiteSpace($ConfiguredPath)) {
-        if (-not (Test-Path -LiteralPath $ConfiguredPath)) {
+        if (-not (Test-Path -LiteralPath $ConfiguredPath -PathType Leaf)) {
             throw "signtool executable was not found at '$ConfiguredPath'."
         }
 
@@ -39,7 +39,68 @@ function Resolve-SigntoolExecutable {
         return $command.Source
     }
 
+    $windowsSdkSigntool = Find-WindowsSdkSigntoolExecutable
+    if ($null -ne $windowsSdkSigntool) {
+        return $windowsSdkSigntool
+    }
+
     throw "signtool.exe was not found. Install the Windows SDK or pass -SigntoolPath."
+}
+
+function Find-WindowsSdkSigntoolExecutable {
+    $candidateRoots = @()
+    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+    $programFiles = [Environment]::GetEnvironmentVariable('ProgramFiles')
+    $programW6432 = [Environment]::GetEnvironmentVariable('ProgramW6432')
+
+    foreach ($basePath in @($programFilesX86, $programFiles, $programW6432)) {
+        if (-not [string]::IsNullOrWhiteSpace($basePath)) {
+            $candidateRoots += Join-Path (Join-Path (Join-Path $basePath 'Windows Kits') '10') 'bin'
+        }
+    }
+
+    $candidates = @()
+    foreach ($candidateRoot in @($candidateRoots | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $candidateRoot -PathType Container)) {
+            continue
+        }
+
+        $versionDirectories = @(Get-ChildItem -LiteralPath $candidateRoot -Directory -ErrorAction SilentlyContinue)
+        foreach ($versionDirectory in $versionDirectories) {
+            $version = $versionDirectory.Name -as [version]
+            if ($null -eq $version) {
+                continue
+            }
+
+            foreach ($architecture in @('x64', 'x86', 'arm64', 'arm')) {
+                $signtoolPath = Join-Path (Join-Path $versionDirectory.FullName $architecture) 'signtool.exe'
+                if (Test-Path -LiteralPath $signtoolPath -PathType Leaf) {
+                    $architecturePriority = 1
+                    if ($architecture -eq 'x64') {
+                        $architecturePriority = 0
+                    }
+
+                    $candidates += [pscustomobject]@{
+                        Path = (Resolve-Path -LiteralPath $signtoolPath).Path
+                        Version = $version
+                        ArchitecturePriority = $architecturePriority
+                    }
+                }
+            }
+        }
+    }
+
+    if ($candidates.Count -eq 0) {
+        return $null
+    }
+
+    $sortProperties = @(
+        @{ Expression = { $_.ArchitecturePriority }; Descending = $false }
+        @{ Expression = { $_.Version }; Descending = $true }
+        @{ Expression = { $_.Path }; Descending = $false }
+    )
+    $sortedCandidates = @($candidates | Sort-Object $sortProperties)
+    return $sortedCandidates[0].Path
 }
 
 function Resolve-PackageFiles {
@@ -60,11 +121,11 @@ function Resolve-PackageFiles {
     if ($explicitPaths.Count -gt 0) {
         $resolved = @()
         foreach ($path in $explicitPaths) {
-            if (-not (Test-Path -LiteralPath $path)) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
                 throw "Package '$path' was not found."
             }
 
-            if ([System.IO.Path]::GetExtension($path) -ne '.msi') {
+            if (-not [string]::Equals([System.IO.Path]::GetExtension($path), '.msi', [StringComparison]::OrdinalIgnoreCase)) {
                 throw "Package '$path' must be an .msi file."
             }
 
@@ -79,7 +140,7 @@ function Resolve-PackageFiles {
         $ConfiguredPackageDirectory = Join-Path $repoRoot 'artifacts/client-packages'
     }
 
-    if (-not (Test-Path -LiteralPath $ConfiguredPackageDirectory)) {
+    if (-not (Test-Path -LiteralPath $ConfiguredPackageDirectory -PathType Container)) {
         throw "Package directory '$ConfiguredPackageDirectory' was not found."
     }
 
@@ -105,7 +166,7 @@ if ([string]::IsNullOrWhiteSpace($TimestampUrl)) {
 $signArgs = @('sign', '/fd', 'SHA256', '/tr', $TimestampUrl, '/td', 'SHA256')
 
 if ($usingPfx) {
-    if (-not (Test-Path -LiteralPath $CertificatePath)) {
+    if (-not (Test-Path -LiteralPath $CertificatePath -PathType Leaf)) {
         throw "CertificatePath '$CertificatePath' was not found."
     }
 
