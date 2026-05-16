@@ -395,6 +395,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- main", workflow, StringComparison.Ordinal);
         Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
         Assert.Contains("concurrency:", workflow, StringComparison.Ordinal);
+        Assert.Contains("group: pr-verification-${{ github.workflow }}-${{ github.event.pull_request.number }}", workflow, StringComparison.Ordinal);
         Assert.Contains("cancel-in-progress: true", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("paths-ignore:", workflow, StringComparison.Ordinal);
 
