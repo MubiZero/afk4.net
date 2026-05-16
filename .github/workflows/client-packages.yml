@@ -105,6 +105,7 @@ jobs:
           INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}
           INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}
           INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+          ALLOWED_PLATFORM_BASE_URLS: ${{ vars.AFK4_ALLOWED_PLATFORM_BASE_URLS }}
         run: |
           if ($env:INPUT_CHANNEL -eq 'stable' -and ($env:INPUT_SIGN_PACKAGES -ne 'true' -or $env:INPUT_PUBLISH_UPDATE_METADATA -ne 'true')) {
             throw "Stable releases require signing and update metadata publishing."
@@ -132,6 +133,23 @@ jobs:
 
           if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true' -and ([string]::IsNullOrWhiteSpace($env:INPUT_PLATFORM_BASE_URL) -or [string]::IsNullOrWhiteSpace($env:INPUT_BRANCH_ID))) {
             throw "platform_base_url and branch_id are required when register_update_packages=true."
+          }
+
+          if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true' -and [string]::IsNullOrWhiteSpace($env:ALLOWED_PLATFORM_BASE_URLS)) {
+            throw "AFK4_ALLOWED_PLATFORM_BASE_URLS is required when register_update_packages=true."
+          }
+
+          if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true') {
+            $requestedPlatformBaseUrl = $env:INPUT_PLATFORM_BASE_URL.Trim().TrimEnd('/')
+            $allowedPlatformBaseUrls = @(
+              $env:ALLOWED_PLATFORM_BASE_URLS -split '[,;\r\n]+' |
+                ForEach-Object { $_.Trim().TrimEnd('/') } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+            )
+
+            if ($allowedPlatformBaseUrls -notcontains $requestedPlatformBaseUrl) {
+              throw "platform_base_url is not in AFK4_ALLOWED_PLATFORM_BASE_URLS."
+            }
           }
 
       - name: Setup .NET
