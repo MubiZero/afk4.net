@@ -1,5 +1,8 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Management.Automation.Language;
 
 namespace AFK4.Agent.Service.Tests;
@@ -57,6 +60,79 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "SigningKeyEnvVar");
         AssertParameter(ast, "ReleaseNotes");
         AssertParameter(ast, "DotnetPath");
+    }
+
+    [Fact]
+    public void RegisterUpdatePackageRequestsScript_ParsesRequiredParameters()
+    {
+        var ast = ParseScript("scripts/register-update-package-requests.ps1", out var errors);
+
+        Assert.Empty(errors);
+        AssertParameter(ast, "PlatformBaseUrl");
+        AssertParameter(ast, "BranchId");
+        AssertParameter(ast, "RequestPath");
+        AssertParameter(ast, "RequestDirectory");
+        AssertParameter(ast, "AccessToken");
+        AssertParameter(ast, "AccessTokenEnvVar");
+    }
+
+    [Fact]
+    public async Task RegisterUpdatePackageRequests_PostsRequestJsonWithBearerToken()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
+        await File.WriteAllTextAsync(
+            requestPath,
+            """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service"}""");
+        var port = GetFreeTcpPort();
+        var baseUrl = $"http://127.0.0.1:{port}/";
+        using var listener = new HttpListener();
+        listener.Prefixes.Add(baseUrl);
+        listener.Start();
+
+        var capturedRequestTask = Task.Run(async () =>
+        {
+            var context = await listener.GetContextAsync();
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            var body = await reader.ReadToEndAsync();
+            context.Response.StatusCode = 201;
+            context.Response.ContentType = "application/json";
+            var responseBody = Encoding.UTF8.GetBytes("""{"updatePackageId":"4a8f4f55-cc8e-49ce-9f69-98e9db9c8be7"}""");
+            await context.Response.OutputStream.WriteAsync(responseBody);
+            context.Response.Close();
+            var requestUriPath = context.Request.Url is null
+                ? string.Empty
+                : context.Request.Url.AbsolutePath;
+            var authorization = context.Request.Headers["Authorization"];
+            return new CapturedHttpRequest(
+                context.Request.HttpMethod,
+                requestUriPath,
+                authorization is null ? string.Empty : authorization,
+                body);
+        });
+
+        var result = RunPowerShell(
+            environment: new Dictionary<string, string?>
+            {
+                ["AFK4_TEST_REGISTRATION_TOKEN"] = "test-token"
+            },
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestPath", requestPath,
+            "-AccessTokenEnvVar", "AFK4_TEST_REGISTRATION_TOKEN");
+
+        if (result.ExitCode != 0)
+        {
+            listener.Stop();
+        }
+
+        Assert.Equal(0, result.ExitCode);
+        var capturedRequest = await capturedRequestTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("POST", capturedRequest.Method);
+        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequest.Path);
+        Assert.Equal("Bearer test-token", capturedRequest.Authorization);
+        Assert.Contains("\"component\":\"agent-service\"", capturedRequest.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -480,6 +556,15 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             parameter => string.Equals(parameter.Name.VariablePath.UserPath, parameterName, StringComparison.Ordinal));
     }
 
+    private static int GetFreeTcpPort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
+    }
+
     private static ProcessResult RunPowerShell(
         IReadOnlyDictionary<string, string?>? environment,
         params string[] arguments)
@@ -596,6 +681,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             "exit /b " + exitCode.ToString(CultureInfo.InvariantCulture) + Environment.NewLine);
         return fakeSigntoolPath;
     }
+
+    private sealed record CapturedHttpRequest(string Method, string Path, string Authorization, string Body);
 
     private sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
 }
