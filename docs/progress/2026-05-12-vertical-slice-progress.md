@@ -1,13 +1,14 @@
 # AFK4 Vertical Slice Progress
 
-Status: the heartbeat lease refresh follow-up is implemented, Phase 14 branch
-diagnostics and PostgreSQL backup/restore runbook are implemented, Operator App
-update package/rollout management is implemented for already-published signed
-package metadata, Phase 13 WiX/MSI client packaging scripts and CI release
-workflow are implemented, Phase 11 report CSV export slice is implemented, the
-Phase 10 update publisher has production-style artifact hosting and signing key
-source boundaries, Docker PostgreSQL live smoke passes locally for the update
-slice, Agent update execution/recovery adapter boundaries are implemented, and
+Status: the heartbeat lease refresh follow-up is implemented, the Authenticode
+CI registration slice is implemented, Phase 14 branch diagnostics and
+PostgreSQL backup/restore runbook are implemented, Operator App update
+package/rollout management is implemented for already-published signed package
+metadata, Phase 13 WiX/MSI client packaging scripts and CI release workflow are
+implemented, Phase 11 report CSV export slice is implemented, the Phase 10
+update publisher has production-style artifact hosting and signing key source
+boundaries, Docker PostgreSQL live smoke passes locally for the update slice,
+Agent update execution/recovery adapter boundaries are implemented, and
 Operator App audit search, branch-scoped operational reports, report CSV
 exports, and branch diagnostics are available to permissioned staff.
 Last updated: 2026-05-16
@@ -42,6 +43,7 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
 - `docs/superpowers/plans/2026-05-16-afk4-phase14-diagnostics-backup.md`
 - `docs/superpowers/plans/2026-05-16-afk4-heartbeat-lease-refresh-follow-up.md`
+- `docs/superpowers/plans/2026-05-16-afk4-authenticode-ci-registration.md`
 
 ## Heartbeat Lease Refresh Follow-Up
 
@@ -174,6 +176,31 @@ Results:
   - Player.Shell 11/11;
   - Platform.Api 301/301;
   - Operator.App 126/126.
+
+## Authenticode CI Registration Slice
+
+Implemented on `codex/authenticode-ci-registration` after the heartbeat lease
+refresh follow-up and Phase 13 client packaging.
+
+Implemented in this slice:
+
+- provider-neutral Authenticode signing for ready MSI artifacts through
+  `scripts/sign-client-packages.ps1` and `signtool.exe`;
+- MSI update metadata publishing through the existing `AFK4.Update.Publisher`
+  via `scripts/publish-client-msi-updates.ps1`;
+- backend registration of generated request JSON through the existing
+  `POST /api/branches/{branchId}/updates/packages` endpoint via
+  `scripts/register-update-package-requests.ps1`;
+- guarded GitHub Actions workflow switches for artifact-only, signed, metadata
+  publishing, and release-registration package runs;
+- allowlisted registration host checks through `AFK4_ALLOWED_PLATFORM_BASE_URLS`
+  before `AFK4_UPDATE_REGISTRATION_TOKEN` can be sent to the Platform API host
+  supplied by workflow dispatch input.
+
+Remaining production decisions stay outside this slice: final certificate
+authority, certificate storage policy, object-store/CDN provider, presigned URL
+automation, and whether package registration later uses a service credential
+instead of a short-lived staff token.
 
 ## Phase 13 Client Packaging And CI
 
@@ -2188,8 +2215,8 @@ device API client, and technician workflow ViewModel behavior.
    real enrolled device before widening runtime rollout.
 2. Tune production lease duration and heartbeat refresh threshold after real
    Agent telemetry confirms command cadence.
-3. Add Authenticode signing and CI Update Publisher registration once
-   production release credentials and artifact hosting are explicit.
+3. Choose production Authenticode certificate authority/storage, object-store
+   or CDN hosting, presigned URL automation, and registration credential policy.
 4. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
    presigned URL and environment-secret boundary is not enough for production.
 5. Rehearse PostgreSQL restore against staging data before production launch.

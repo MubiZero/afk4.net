@@ -16,6 +16,69 @@ on:
           - internal
           - beta
           - stable
+      sign_packages:
+        description: Authenticode-sign generated MSI artifacts
+        required: true
+        default: false
+        type: boolean
+      publish_update_metadata:
+        description: Publish signed update metadata for generated MSI artifacts
+        required: true
+        default: false
+        type: boolean
+      register_update_packages:
+        description: Register generated update package request JSON with Platform API
+        required: true
+        default: false
+        type: boolean
+      organization_id:
+        description: Organization id for update package metadata
+        required: false
+        type: string
+      branch_id:
+        description: Branch id for backend update package registration
+        required: false
+        type: string
+      platform_base_url:
+        description: Platform API base URL used only when register_update_packages is true
+        required: false
+        type: string
+      artifact_store:
+        description: Update artifact store mode
+        required: true
+        default: file-system
+        type: choice
+        options:
+          - file-system
+          - http-put
+      hosting_root:
+        description: File-system hosting root used when artifact_store is file-system
+        required: false
+        type: string
+      public_base_uri:
+        description: Public base URI used when artifact_store is file-system
+        required: false
+        type: string
+      operator_artifact_upload_uri:
+        description: Presigned upload URI for the Operator App MSI
+        required: false
+        type: string
+      operator_artifact_public_uri:
+        description: Public download URI for the Operator App MSI
+        required: false
+        type: string
+      gaming_pc_artifact_upload_uri:
+        description: Presigned upload URI for the coordinated gaming-PC MSI
+        required: false
+        type: string
+      gaming_pc_artifact_public_uri:
+        description: Public download URI for the coordinated gaming-PC MSI
+        required: false
+        type: string
+      release_notes:
+        description: Release notes embedded in signed update package metadata
+        required: false
+        type: string
 
 jobs:
   build-client-packages:
@@ -23,6 +86,71 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Guard release mode
+        shell: pwsh
+        env:
+          INPUT_CHANNEL: ${{ inputs.channel }}
+          INPUT_SIGN_PACKAGES: ${{ inputs.sign_packages }}
+          INPUT_PUBLISH_UPDATE_METADATA: ${{ inputs.publish_update_metadata }}
+          INPUT_REGISTER_UPDATE_PACKAGES: ${{ inputs.register_update_packages }}
+          INPUT_ORGANIZATION_ID: ${{ inputs.organization_id }}
+          INPUT_BRANCH_ID: ${{ inputs.branch_id }}
+          INPUT_PLATFORM_BASE_URL: ${{ inputs.platform_base_url }}
+          INPUT_ARTIFACT_STORE: ${{ inputs.artifact_store }}
+          INPUT_HOSTING_ROOT: ${{ inputs.hosting_root }}
+          INPUT_PUBLIC_BASE_URI: ${{ inputs.public_base_uri }}
+          INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}
+          INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}
+          INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}
+          INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}
+          INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+          ALLOWED_PLATFORM_BASE_URLS: ${{ vars.AFK4_ALLOWED_PLATFORM_BASE_URLS }}
+        run: |
+          if ($env:INPUT_CHANNEL -eq 'stable' -and ($env:INPUT_SIGN_PACKAGES -ne 'true' -or $env:INPUT_PUBLISH_UPDATE_METADATA -ne 'true')) {
+            throw "Stable releases require signing and update metadata publishing."
+          }
+
+          if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true' -and $env:INPUT_PUBLISH_UPDATE_METADATA -ne 'true') {
+            throw "Backend registration requires publish_update_metadata=true."
+          }
+
+          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and [string]::IsNullOrWhiteSpace($env:INPUT_ORGANIZATION_ID)) {
+            throw "organization_id is required when publish_update_metadata=true."
+          }
+
+          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and [string]::IsNullOrWhiteSpace($env:INPUT_RELEASE_NOTES)) {
+            throw "release_notes is required when publish_update_metadata=true."
+          }
+
+          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 'file-system' -and ([string]::IsNullOrWhiteSpace($env:INPUT_HOSTING_ROOT) -or [string]::IsNullOrWhiteSpace($env:INPUT_PUBLIC_BASE_URI))) {
+            throw "hosting_root and public_base_uri are required when artifact_store=file-system."
+          }
+
+          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 'http-put' -and ([string]::IsNullOrWhiteSpace($env:INPUT_OPERATOR_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_OPERATOR_ARTIFACT_PUBLIC_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI))) {
+            throw "operator and gaming-PC upload/public URIs are required when artifact_store=http-put."
+          }
+
+          if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true' -and ([string]::IsNullOrWhiteSpace($env:INPUT_PLATFORM_BASE_URL) -or [string]::IsNullOrWhiteSpace($env:INPUT_BRANCH_ID))) {
+            throw "platform_base_url and branch_id are required when register_update_packages=true."
+          }
+
+          if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true' -and [string]::IsNullOrWhiteSpace($env:ALLOWED_PLATFORM_BASE_URLS)) {
+            throw "AFK4_ALLOWED_PLATFORM_BASE_URLS is required when register_update_packages=true."
+          }
+
+          if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true') {
+            $requestedPlatformBaseUrl = $env:INPUT_PLATFORM_BASE_URL.Trim().TrimEnd('/')
+            $allowedPlatformBaseUrls = @(
+              $env:ALLOWED_PLATFORM_BASE_URLS -split '[,;\r\n]+' |
+                ForEach-Object { $_.Trim().TrimEnd('/') } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+            )
+
+            if ($allowedPlatformBaseUrls -notcontains $requestedPlatformBaseUrl) {
+              throw "platform_base_url is not in AFK4_ALLOWED_PLATFORM_BASE_URLS."
+            }
+          }
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -43,8 +171,114 @@ jobs:
 
       - name: Build client packages
         shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
         run: |
-          powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version "${{ inputs.version }}" -Channel "${{ inputs.channel }}"
+          powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version $env:INPUT_VERSION -Channel $env:INPUT_CHANNEL
+
+      - name: Prepare Authenticode certificate
+        if: ${{ inputs.sign_packages }}
+        shell: pwsh
+        env:
+          AFK4_AUTHENTICODE_PFX_BASE64: ${{ secrets.AFK4_AUTHENTICODE_PFX_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:AFK4_AUTHENTICODE_PFX_BASE64)) {
+            throw "AFK4_AUTHENTICODE_PFX_BASE64 secret is required when sign_packages=true."
+          }
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'afk4-authenticode-signing.pfx'
+          [System.IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:AFK4_AUTHENTICODE_PFX_BASE64))
+          "AFK4_AUTHENTICODE_CERTIFICATE_PATH=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Sign client packages
+        if: ${{ inputs.sign_packages }}
+        shell: pwsh
+        env:
+          AFK4_AUTHENTICODE_PFX_PASSWORD: ${{ secrets.AFK4_AUTHENTICODE_PFX_PASSWORD }}
+        run: |
+          powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
+            -PackageDirectory artifacts/client-packages `
+            -CertificatePath "$env:AFK4_AUTHENTICODE_CERTIFICATE_PATH" `
+            -CertificatePasswordEnvVar AFK4_AUTHENTICODE_PFX_PASSWORD
+
+          $signExitCode = $LASTEXITCODE
+          if (-not [string]::IsNullOrWhiteSpace($env:AFK4_AUTHENTICODE_CERTIFICATE_PATH)) {
+            Remove-Item -LiteralPath $env:AFK4_AUTHENTICODE_CERTIFICATE_PATH -Force -ErrorAction SilentlyContinue
+          }
+
+          if ($signExitCode -ne 0) {
+            exit $signExitCode
+          }
+
+      - name: Publish update metadata
+        if: ${{ inputs.publish_update_metadata }}
+        shell: pwsh
+        env:
+          AFK4_UPDATE_SIGNING_KEY_PEM: ${{ secrets.AFK4_UPDATE_SIGNING_KEY_PEM }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
+          INPUT_ORGANIZATION_ID: ${{ inputs.organization_id }}
+          INPUT_ARTIFACT_STORE: ${{ inputs.artifact_store }}
+          INPUT_HOSTING_ROOT: ${{ inputs.hosting_root }}
+          INPUT_PUBLIC_BASE_URI: ${{ inputs.public_base_uri }}
+          INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}
+          INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}
+          INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}
+          INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}
+          INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_SIGNING_KEY_PEM)) {
+            throw "AFK4_UPDATE_SIGNING_KEY_PEM secret is required when publish_update_metadata=true."
+          }
+
+          $arguments = @(
+            '-Version', $env:INPUT_VERSION,
+            '-Channel', $env:INPUT_CHANNEL,
+            '-OrganizationId', $env:INPUT_ORGANIZATION_ID,
+            '-PackageDirectory', 'artifacts/client-packages',
+            '-OutputDirectory', 'artifacts/update-packages',
+            '-ArtifactStore', $env:INPUT_ARTIFACT_STORE,
+            '-SigningKeyEnvVar', 'AFK4_UPDATE_SIGNING_KEY_PEM',
+            '-ReleaseNotes', $env:INPUT_RELEASE_NOTES)
+
+          if ($env:INPUT_ARTIFACT_STORE -eq 'file-system') {
+            $arguments += @('-HostingRoot', $env:INPUT_HOSTING_ROOT)
+            $arguments += @('-PublicBaseUri', $env:INPUT_PUBLIC_BASE_URI)
+          }
+          else {
+            $arguments += @('-OperatorArtifactUploadUri', $env:INPUT_OPERATOR_ARTIFACT_UPLOAD_URI)
+            $arguments += @('-OperatorArtifactPublicUri', $env:INPUT_OPERATOR_ARTIFACT_PUBLIC_URI)
+            $arguments += @('-GamingPcArtifactUploadUri', $env:INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI)
+            $arguments += @('-GamingPcArtifactPublicUri', $env:INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI)
+          }
+
+          powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 @arguments
+
+      - name: Upload update package requests
+        if: ${{ inputs.publish_update_metadata }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: afk4-update-package-requests-${{ inputs.version }}-${{ inputs.channel }}
+          path: artifacts/update-packages/*-request.json
+
+      - name: Register update packages
+        if: ${{ inputs.register_update_packages }}
+        shell: pwsh
+        env:
+          AFK4_UPDATE_REGISTRATION_TOKEN: ${{ secrets.AFK4_UPDATE_REGISTRATION_TOKEN }}
+          INPUT_PLATFORM_BASE_URL: ${{ inputs.platform_base_url }}
+          INPUT_BRANCH_ID: ${{ inputs.branch_id }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_REGISTRATION_TOKEN)) {
+            throw "AFK4_UPDATE_REGISTRATION_TOKEN secret is required when register_update_packages=true."
+          }
+
+          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
+            -PlatformBaseUrl $env:INPUT_PLATFORM_BASE_URL `
+            -BranchId $env:INPUT_BRANCH_ID `
+            -RequestDirectory artifacts/update-packages `
+            -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
 
       - name: Upload client packages
         uses: actions/upload-artifact@v4

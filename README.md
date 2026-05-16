@@ -373,6 +373,13 @@ the Operator App MSI and coordinated gaming-PC MSI under ignored
 `artifacts/client-packages/`.
 The same command is used by the manual GitHub Actions workflow
 `.github/workflows/client-packages.yml`.
+For signed release jobs, run `scripts/sign-client-packages.ps1` against the
+generated MSI artifacts, then run `scripts/publish-client-msi-updates.ps1` to
+create signed update package request JSON, and optionally
+`scripts/register-update-package-requests.ps1` to register those requests with
+the Platform API. Secrets, certificates, presigned upload URLs, generated
+request JSON, and MSI artifacts stay outside source control or under ignored
+`artifacts/`.
 
 Start the backend:
 
@@ -543,8 +550,15 @@ The first vertical slice foundation is implemented:
 - local Phase 13 client package script that publishes Operator App, Agent
   Service, and Player Shell outputs, then builds Operator App and coordinated
   gaming-PC WiX/MSI artifacts under ignored `artifacts/client-packages/`;
-- manual GitHub Actions workflow for building, testing, packaging, and
-  uploading client MSI artifacts;
+- provider-neutral Authenticode signing script for ready MSI artifacts using
+  `signtool.exe`, PFX input, or Windows certificate store selection;
+- MSI update metadata publishing script that maps the Operator App MSI to
+  `operator-app` and the coordinated gaming-PC MSI to both `agent-service` and
+  `player-shell`;
+- backend registration script for generated update package request JSON files;
+- manual GitHub Actions workflow for building, testing, packaging, uploading
+  client MSI artifacts, optionally signing/publishing/registering releases, and
+  allowlisting the registration Platform API base URL;
 - Operator App production floor-map/workflow shell;
 - Operator App Settings update package/rollout management and status panel for
   technicians and managers;
@@ -578,9 +592,9 @@ Not implemented yet:
 - automatic Agent-side consumption of rotated credentials;
 - deeper Windows lock/unlock enforcement beyond the current MVP-safe adapter
   boundary;
-- Authenticode signing, production Update Publisher registration automation,
-  provider-specific object-store/CDN provisioning, and richer rollout
-  automation.
+- production Authenticode certificate authority/storage decisions,
+  provider-specific object-store/CDN provisioning, presigned URL automation,
+  dedicated registration service credentials, and richer rollout automation.
 
 ## Engineering Rules
 
