@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,9 @@ namespace AFK4.Platform.Api.Devices;
 
 public sealed class DeviceHeartbeatService(
     IHubContext<DeviceHub> hubContext,
-    PlatformDbContext dbContext) : IDeviceHeartbeatService
+    PlatformDbContext dbContext,
+    IHeartbeatSessionCommandPlanner sessionCommandPlanner,
+    IDeviceCommandDispatchService commandDispatchService) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
@@ -43,6 +46,15 @@ public sealed class DeviceHeartbeatService(
             ObservedAtUtc: request.ObservedAtUtc);
 
         await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
+
+        if (device is not null)
+        {
+            var plannedCommands = await sessionCommandPlanner.PlanAsync(deviceId, request, cancellationToken);
+            foreach (var plan in plannedCommands)
+            {
+                await commandDispatchService.EnqueueAsync(plan.DeviceId, plan.Command, cancellationToken);
+            }
+        }
 
         var pendingCommands = await dbContext.DeviceCommands
             .AsNoTracking()

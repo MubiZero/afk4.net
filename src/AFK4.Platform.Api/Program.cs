@@ -74,6 +74,7 @@ builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 builder.Services.AddScoped<IReportService, EfReportService>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
+builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
 builder.Services.AddScoped<ITariffService, EfTariffService>();

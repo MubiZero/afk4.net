@@ -1,15 +1,15 @@
 # AFK4 Vertical Slice Progress
 
-Status: Phase 14 branch diagnostics and PostgreSQL backup/restore runbook are
-implemented, Operator App update package/rollout management is implemented for
-already-published signed package metadata, Phase 13 WiX/MSI client packaging
-scripts and CI release workflow are implemented, Phase 11 report CSV export
-slice is implemented, the Phase 10 update publisher has production-style
-artifact hosting and signing key source boundaries, Docker PostgreSQL live
-smoke passes locally for the update slice, Agent update execution/recovery
-adapter boundaries are implemented, and Operator App audit search,
-branch-scoped operational reports, report CSV exports, and branch diagnostics
-are available to permissioned staff.
+Status: the heartbeat lease refresh follow-up is implemented, Phase 14 branch
+diagnostics and PostgreSQL backup/restore runbook are implemented, Operator App
+update package/rollout management is implemented for already-published signed
+package metadata, Phase 13 WiX/MSI client packaging scripts and CI release
+workflow are implemented, Phase 11 report CSV export slice is implemented, the
+Phase 10 update publisher has production-style artifact hosting and signing key
+source boundaries, Docker PostgreSQL live smoke passes locally for the update
+slice, Agent update execution/recovery adapter boundaries are implemented, and
+Operator App audit search, branch-scoped operational reports, report CSV
+exports, and branch diagnostics are available to permissioned staff.
 Last updated: 2026-05-16
 
 ## Scope
@@ -42,6 +42,73 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
 - `docs/superpowers/plans/2026-05-16-afk4-phase14-diagnostics-backup.md`
 - `docs/superpowers/plans/2026-05-16-afk4-heartbeat-lease-refresh-follow-up.md`
+
+## Heartbeat Lease Refresh Follow-Up
+
+Implemented on `codex/heartbeat-lease-refresh` after preserving the useful
+idea from the deleted `codex/phase8-agent-enforcement-player-shell` branch.
+
+Implemented in this follow-up:
+
+- added shared `DeviceCommandTypeNames` for stable `lock`, `unlock`, and
+  `refresh-session-lease` transport names used by backend and Agent paths;
+- added a session-owned `EfHeartbeatSessionCommandPlanner` that compares
+  heartbeat lease snapshots with authoritative cloud sessions;
+- heartbeat can now plan `unlock` with a fresh signed lease when the Agent has
+  no matching active lease, `refresh-session-lease` when the matching lease is
+  stale or near expiry, and `lock` when the cloud session is missing or ending;
+- duplicate pending session commands for the same device/session are suppressed
+  before new lease issuance;
+- `DeviceHeartbeatService` now enqueues planned commands through the existing
+  device command dispatch/store path before returning pending commands in the
+  heartbeat response;
+- no session creation, billing ledger append, tariff, package, POS, shift, or
+  Player Shell trust-boundary behavior changed.
+
+Targeted TDD verification on 2026-05-16 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter DeviceCommandTypeNamesTests --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "DefaultDeviceCommandHandlerTests|SessionCommandHandlerLeaseTests" --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "EfHeartbeatSessionCommandPlannerTests|DeviceHeartbeatServicePersistenceTests|DeviceHeartbeatEndpointTests|SessionReconciliationEndpointTests|SessionEndpointTests|EfSessionCommandServiceTests|EfSessionBillingIntegrationTests" --no-restore -p:UseSharedCompilation=false -p:NuGetAudit=false -v minimal
+```
+
+Results:
+
+- `DeviceCommandTypeNamesTests` first failed with the expected missing
+  `DeviceCommandTypeNames` compile error, then passed 1/1;
+- `EfHeartbeatSessionCommandPlannerTests` first failed with the expected
+  missing planner compile error, then passed 6/6;
+- heartbeat integration first failed because `DeviceHeartbeatService` had no
+  planner/dispatch integration, then passed through
+  `DeviceHeartbeatServicePersistenceTests`;
+- Agent command/lease handling targeted tests passed 6/6;
+- Platform API heartbeat/session/reconciliation targeted tests passed 40/40.
+
+Full verification on 2026-05-16 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+```
+
+Results:
+
+- full solution build succeeded with 0 warnings and 0 errors;
+- full solution tests passed 599/599:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 74/74;
+  - Update.Publisher 6/6;
+  - Agent.Service 71/71;
+  - Player.Shell 11/11;
+  - Platform.Api 308/308;
+  - Operator.App 126/126.
+
+Remaining caveat:
+
+- production `SessionLeaseOptions.LeaseMinutes` and the five-minute heartbeat
+  refresh threshold should be tuned only after real Agent heartbeat telemetry
+  confirms the desired command cadence.
 
 ## Phase 14 Diagnostics And Backup
 
@@ -2117,14 +2184,15 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Implement the heartbeat lease refresh follow-up so the backend can compare
-   Agent-reported lease snapshots with authoritative active sessions and enqueue
-   `unlock`, `refresh-session-lease`, or `lock` commands when needed.
-2. Add Authenticode signing and CI Update Publisher registration once
+1. Run a PostgreSQL/API/Agent live smoke for heartbeat lease refresh with a
+   real enrolled device before widening runtime rollout.
+2. Tune production lease duration and heartbeat refresh threshold after real
+   Agent telemetry confirms command cadence.
+3. Add Authenticode signing and CI Update Publisher registration once
    production release credentials and artifact hosting are explicit.
-3. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
+4. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
    presigned URL and environment-secret boundary is not enough for production.
-4. Rehearse PostgreSQL restore against staging data before production launch.
-5. Keep web admin, local server, microservices, non-Windows agents, and kernel
+5. Rehearse PostgreSQL restore against staging data before production launch.
+6. Keep web admin, local server, microservices, non-Windows agents, and kernel
    drivers out of MVP scope unless the PRD and architecture spec are updated
    first.
