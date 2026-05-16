@@ -4,27 +4,37 @@
 
 The repository root is `D:\afk4.net`.
 
-Use Windows/PowerShell by default. Do not switch to WSL unless the user explicitly asks for it.
+Use Windows/PowerShell by default. Do not switch to WSL unless the user
+explicitly asks for it.
 
 ## Required Context For Every New Session
 
-Before changing code or plans, read:
+Before changing code, product scope, architecture, or plans, read:
 
 - `README.md`
 - `docs/product/AFK4-MVP-PRD.md`
 - `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`
-- `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md`
 - `docs/progress/2026-05-12-vertical-slice-progress.md`
+- `docs/roadmap/production-readiness.md`
 
 Source-of-truth order:
 
 1. `docs/product/AFK4-MVP-PRD.md` explains what product is being built and why.
-2. `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md` explains how the platform is architected.
-3. `docs/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md` explains the first implemented technical slice.
-4. `docs/progress/2026-05-12-vertical-slice-progress.md` explains current implementation status, known deviations, and next recommended work.
+2. `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`
+   explains architecture, module boundaries, and fixed technical decisions.
+3. `docs/progress/2026-05-12-vertical-slice-progress.md` explains the current
+   implemented state, known deviations, latest verification, and next work.
+4. `docs/roadmap/production-readiness.md` explains what still blocks pilot and
+   commercial production.
 5. `README.md` is the concise entry point and navigation document.
 
-Do not rely on chat history for product decisions when these files answer the question.
+Do not rely on chat history for product or architecture decisions when these
+files answer the question.
+
+Historical phase plans under `docs/superpowers/plans/` and archived progress
+logs under `docs/archive/` are reference material. Read them only when the
+current task touches that historical slice or the current progress file points
+there.
 
 ## Product Decisions That Must Not Be Reopened Casually
 
@@ -42,20 +52,28 @@ Do not rely on chat history for product decisions when these files answer the qu
 - Offline behavior is grace mode for already active sessions only.
 - Billing uses an immutable ledger, not a mutable balance field.
 - MVP is multi-tenant from the start.
-- POS, inventory, shifts, receipts, audit, and centralized updates are part of the MVP.
-- Full event sourcing, kernel drivers, web admin, Linux/macOS agents, and local server are out of MVP scope.
+- POS, inventory, shifts, receipts, audit, reports, and centralized updates are
+  part of the MVP.
+- Full event sourcing, kernel drivers, web admin, Linux/macOS agents, mobile
+  app, country-specific fiscal integrations, and local server are out of MVP
+  scope.
 
-If a user asks to change one of these decisions, update the architecture spec first, then update or create an implementation plan.
+If a user asks to change one of these decisions, update the PRD and architecture
+spec first, then update or create an implementation plan.
 
 ## Progress Tracking
 
-Do not store volatile delivery status in this file. Current implementation
-state, known deviations, latest verification, and recommended next work belong
-in `docs/progress/`.
+Do not store volatile delivery status in this file.
 
-For the current vertical slice, read:
+Use:
 
-- `docs/progress/2026-05-12-vertical-slice-progress.md`
+- `docs/progress/2026-05-12-vertical-slice-progress.md` for current state,
+  verification, known deviations, and recommended next work.
+- `docs/roadmap/production-readiness.md` for launch blockers and release gates.
+- `docs/archive/` for historical evidence that should not be required context.
+
+Keep progress files short enough to be useful in future agent sessions. Archive
+large historical logs instead of making them mandatory reading.
 
 ## Local Tooling
 
@@ -77,44 +95,56 @@ Expected SDK:
 10.0.203 [C:\Program Files\dotnet\sdk]
 ```
 
-The current PowerShell process may not always have `dotnet` in `PATH`. Use the full path above if `dotnet` is not recognized.
-
-The project currently targets .NET SDK `10.0.203`.
+The current PowerShell process may not always have `dotnet` in `PATH`. Use the
+full path above if `dotnet` is not recognized.
 
 ## Engineering Workflow
 
 - Prefer small, focused changes.
-- Follow the existing spec and plan before inventing new structure.
-- Use TDD for domain rules, contracts, endpoint behavior, Agent behavior, and ViewModels.
+- Follow the PRD, architecture spec, current progress, and focused plan before
+  inventing new structure.
+- Use TDD for domain rules, contracts, endpoint behavior, Agent behavior, and
+  ViewModels.
 - Keep backend module boundaries explicit.
 - Do not let modules directly mutate another module's data.
-- Keep shared DTOs in a contracts project.
+- Keep shared DTOs in `AFK4.Shared.Contracts`.
 - Keep domain models separate from transport DTOs.
 - Require idempotency for critical money, session, POS, and device commands.
 - Verify with fresh commands before claiming build, tests, or completion.
 - Commit coherent units of work with clear messages.
+- Do not revert user changes unless explicitly asked.
 
 ## Windows App Guidance
 
-Operator App should feel like dense operator software, not a marketing dashboard.
+Operator App should feel like dense operator software, not a marketing
+dashboard.
 
 - Main screen is the floor map.
 - Support fast cashier/operator workflows.
 - Favor MVVM and testable ViewModels.
-- Keep local cache as UI acceleration only, never as financial or session authority.
+- Keep local cache as UI acceleration only, never as financial or session
+  authority.
 - Critical actions must wait for backend confirmation.
 
-Player Shell is a controlled player-facing UI and must not be trusted for authorization, billing, or session decisions.
+Player Shell is a controlled player-facing UI and must not be trusted for
+authorization, billing, or session decisions.
 
 ## Documentation Rules
 
-When a major decision changes:
+When a major product or architecture decision changes:
 
-1. Update `docs/product/AFK4-MVP-PRD.md` if product scope, user goals, journeys, or MVP boundaries change.
-2. Update the architecture spec if technical architecture, module boundaries, or platform decisions change.
-3. Update the delivery plan set if sequencing changes.
-4. Create or update the focused implementation plan.
-5. Self-review for incomplete markers, contradictions, and missing coverage.
-6. Commit the docs before implementing code.
+1. Update `docs/product/AFK4-MVP-PRD.md` if product scope, user goals, journeys,
+   or MVP boundaries change.
+2. Update the architecture spec if technical architecture, module boundaries, or
+   platform decisions change.
+3. Update `docs/roadmap/production-readiness.md` if launch sequencing or
+   production gates change.
+4. Update `docs/progress/2026-05-12-vertical-slice-progress.md` if current
+   implementation state, latest verification, or recommended next work changes.
+5. Create or update a focused implementation plan only when the work needs one.
+6. Self-review for incomplete markers, contradictions, stale links, and missing
+   coverage.
+7. Commit the docs before implementing dependent code.
 
-When a change only affects implementation detail inside an approved scope, update the focused plan or code without rewriting the PRD.
+When a change only affects implementation detail inside approved scope, update
+the focused plan or code without rewriting the PRD.
