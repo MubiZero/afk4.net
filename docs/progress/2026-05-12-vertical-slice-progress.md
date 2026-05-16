@@ -2,14 +2,14 @@
 
 Status: Operator App update package/rollout management is implemented for
 already-published signed package metadata, Phase 13 WiX/MSI client packaging
-decision is approved and documented, Phase 11 report CSV export slice is
+scripts and CI release workflow are implemented, Phase 11 report CSV export slice is
 implemented, the Phase 10 update publisher has production-style artifact
 hosting and signing key source boundaries, Docker PostgreSQL live smoke passes
 locally for the update slice, Agent update execution/recovery adapter
 boundaries are implemented, and Operator App audit search, branch-scoped
 operational reports, and report CSV exports are available to permissioned
 staff.
-Last updated: 2026-05-14
+Last updated: 2026-05-16
 
 ## Scope
 
@@ -40,10 +40,10 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase12-operator-update-management.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
 
-## Phase 13 Client Packaging Decision
+## Phase 13 Client Packaging And CI
 
-Approved on `codex/phase11-operational-reports` after Phase 12 Operator update
-management.
+Implemented on `codex/phase11-operational-reports` after Phase 12 Operator
+update management.
 
 Decision:
 
@@ -64,13 +64,53 @@ Documentation added:
 - `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
 - `docs/operations/client-packaging.md`
 
-Next Phase 13 implementation work:
+Implemented in Phase 13:
 
-- pin the WiX `wix` dotnet tool;
-- add MSI update helper scripts for install, rollback, and Agent restart;
-- add local package build entrypoint;
-- add Operator App and gaming-PC WiX scaffolding;
-- add a GitHub Actions client package workflow.
+- pinned the WiX `wix` dotnet tool at `7.0.0`;
+- added MSI update helper scripts for install, rollback, and Agent restart;
+- added tests that parse helper scripts, require explicit `-acceptEula wix7`,
+  and guard against unsupported WiX `Files Exclude` authoring;
+- added `scripts/build-client-packages.ps1` to publish Operator App, Agent
+  Service, and Player Shell outputs, stage WiX inputs, and build MSI artifacts;
+- added WiX package authoring for the Operator App MSI and coordinated
+  gaming-PC Agent Service + Player Shell MSI;
+- added `.github/workflows/client-packages.yml` as a manual Windows workflow
+  that restores tools, builds, tests, builds client MSIs, and uploads artifacts.
+
+Phase 13 commits:
+
+- `c747e6c docs: add client packaging decision`
+- `ccf9a8b chore: pin wix packaging tool`
+- `8f835a6 feat: add msi update helper scripts`
+- `706a65f feat: add client package build script`
+- `24abc92 feat: add wix msi packaging scaffold`
+- `e29c651 ci: add client package workflow`
+
+Verification on 2026-05-16 from `D:\afk4.net`:
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' tool restore
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
+Get-ChildItem artifacts\client-packages\*.msi | Select-Object Name,Length
+```
+
+Results:
+
+- tool restore succeeded for `dotnet-ef` `10.0.4` and `wix` `7.0.0`;
+- full solution build succeeded with 0 warnings and 0 errors;
+- full solution tests passed 579/579:
+  - BuildingBlocks 3/3;
+  - Shared.Contracts 71/71;
+  - Update.Publisher 6/6;
+  - Agent.Service 71/71;
+  - Player.Shell 11/11;
+  - Operator.App 121/121;
+  - Platform.Api 296/296;
+- client package build produced:
+  - `afk4-operator-app-0.1.0-ci-internal.msi` at 622,592 bytes;
+  - `afk4-gaming-pc-0.1.0-ci-internal.msi` at 991,232 bytes.
 
 ## Phase 12 Operator Update Management Slice
 
@@ -2006,9 +2046,9 @@ device API client, and technician workflow ViewModel behavior.
 
 ## Recommended Next Work
 
-1. Implement the Phase 13 WiX/MSI local package build scripts and CI release
-   workflow.
-2. Add diagnostics dashboards and backup/restore runbooks.
+1. Add diagnostics dashboards and backup/restore runbooks.
+2. Add Authenticode signing and CI Update Publisher registration once
+   production release credentials and artifact hosting are explicit.
 3. Add provider-specific object-store/CDN and key-vault SDK adapters only if the
    presigned URL and environment-secret boundary is not enough for production.
 4. Keep web admin, local server, microservices, non-Windows agents, and kernel
