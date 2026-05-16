@@ -84,5 +84,7 @@ public static class AuditActionNames
 
     public const string ViewUpdateRollout = "updates.rollouts.view";
 
+    public const string ViewDiagnostics = "diagnostics.view";
+
     public const string ViewAudit = "audit.view";
 }

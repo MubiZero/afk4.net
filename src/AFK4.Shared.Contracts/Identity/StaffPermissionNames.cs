@@ -82,6 +82,8 @@ public static class StaffPermissionNames
 
     public const string ViewUpdateStatus = "updates.status.view";
 
+    public const string ViewDiagnostics = "diagnostics.view";
+
     public const string ManageRoles = "identity.roles.manage";
 
     public const string ViewAudit = "audit.view";
