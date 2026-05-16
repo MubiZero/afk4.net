@@ -136,8 +136,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal(requestBody, capturedRequest.Body);
     }
 
-    [Fact]
-    public async Task RegisterUpdatePackageRequests_WhenPlatformReturnsError_ExitsNonZero()
+    [Theory]
+    [InlineData(500)]
+    [InlineData(401)]
+    public async Task RegisterUpdatePackageRequests_WhenPlatformReturnsError_ExitsNonZero(int statusCode)
     {
         Directory.CreateDirectory(tempRoot);
         var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
@@ -153,7 +155,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             var context = await listener.GetContextAsync();
             using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
             var body = await reader.ReadToEndAsync();
-            context.Response.StatusCode = 500;
+            context.Response.StatusCode = statusCode;
             context.Response.Close();
             return body;
         });
