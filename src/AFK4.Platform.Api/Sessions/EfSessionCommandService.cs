@@ -147,7 +147,7 @@ public sealed class EfSessionCommandService(
             var command = await deviceCommandDispatchService.EnqueueAsync(
                 assignment.DeviceId,
                 new CreateDeviceCommandRequest(
-                    Type: "unlock",
+                    Type: DeviceCommandTypeNames.Unlock,
                     Payload: new Dictionary<string, string>
                     {
                         ["sessionId"] = sessionId.ToString("D"),
@@ -275,7 +275,7 @@ public sealed class EfSessionCommandService(
             var command = await deviceCommandDispatchService.EnqueueAsync(
                 session.DeviceId,
                 new CreateDeviceCommandRequest(
-                    Type: "refresh-session-lease",
+                    Type: DeviceCommandTypeNames.RefreshSessionLease,
                     Payload: LeasePayload(session.SessionId, lease, "session-extend")),
                 cancellationToken);
             deviceIdToNotify = session.DeviceId;
@@ -374,7 +374,7 @@ public sealed class EfSessionCommandService(
             var lockCommand = await deviceCommandDispatchService.EnqueueAsync(
                 oldDeviceId,
                 new CreateDeviceCommandRequest(
-                    Type: "lock",
+                    Type: DeviceCommandTypeNames.Lock,
                     Payload: new Dictionary<string, string>
                     {
                         ["sessionId"] = session.SessionId.ToString("D"),
@@ -385,7 +385,7 @@ public sealed class EfSessionCommandService(
             var unlockCommand = await deviceCommandDispatchService.EnqueueAsync(
                 assignment.DeviceId,
                 new CreateDeviceCommandRequest(
-                    Type: "unlock",
+                    Type: DeviceCommandTypeNames.Unlock,
                     Payload: LeasePayload(session.SessionId, lease, "session-transfer")),
                 cancellationToken);
             commandsToNotify.Add((assignment.DeviceId, unlockCommand));
@@ -461,7 +461,7 @@ public sealed class EfSessionCommandService(
             var command = await deviceCommandDispatchService.EnqueueAsync(
                 session.DeviceId,
                 new CreateDeviceCommandRequest(
-                    Type: "lock",
+                    Type: DeviceCommandTypeNames.Lock,
                     Payload: new Dictionary<string, string>
                     {
                         ["sessionId"] = session.SessionId.ToString("D"),
