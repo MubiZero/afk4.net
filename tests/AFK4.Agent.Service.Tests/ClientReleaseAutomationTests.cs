@@ -323,6 +323,29 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void ClientPackagesWorkflow_ContainsGuardedSigningPublishingAndRegistrationSteps()
+    {
+        var workflow = File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml"));
+
+        Assert.Contains("sign_packages:", workflow, StringComparison.Ordinal);
+        Assert.Contains("publish_update_metadata:", workflow, StringComparison.Ordinal);
+        Assert.Contains("register_update_packages:", workflow, StringComparison.Ordinal);
+        Assert.Contains("platform_base_url:", workflow, StringComparison.Ordinal);
+        Assert.Contains("Stable releases require signing and update metadata publishing.", workflow, StringComparison.Ordinal);
+        Assert.Contains("Backend registration requires publish_update_metadata=true.", workflow, StringComparison.Ordinal);
+        Assert.Contains("scripts/sign-client-packages.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("scripts/publish-client-msi-updates.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("scripts/register-update-package-requests.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_AUTHENTICODE_PFX_BASE64", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_UPDATE_SIGNING_KEY_PEM", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_UPDATE_REGISTRATION_TOKEN", workflow, StringComparison.Ordinal);
+        Assert.Contains("artifacts/update-packages/*-request.json", workflow, StringComparison.Ordinal);
+        Assert.Contains("-AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("-AccessToken $", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("-AccessToken \"", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PublishClientMsiUpdates_InvokesPublisherForOperatorAgentAndPlayerShell()
     {
         Directory.CreateDirectory(tempRoot);
