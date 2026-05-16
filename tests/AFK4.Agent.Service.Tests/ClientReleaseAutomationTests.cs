@@ -438,6 +438,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("cancel-in-progress: true", workflow, StringComparison.Ordinal);
         Assert.Contains("runs-on: windows-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("timeout-minutes: 60", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \".config/dotnet-tools.json\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"src/AFK4.Shared.Contracts/**\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"src/AFK4.BuildingBlocks/**\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-operator-app-0.1.0-ci-internal.msi", workflow, StringComparison.Ordinal);

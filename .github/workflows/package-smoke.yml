@@ -6,16 +6,20 @@ on:
       - main
     paths:
       - ".github/workflows/package-smoke.yml"
+      - ".config/dotnet-tools.json"
       - "installers/**"
       - "scripts/build-client-packages.ps1"
       - "scripts/install-afk4-update-msi.ps1"
       - "scripts/rollback-afk4-update-msi.ps1"
       - "scripts/restart-afk4-agent-service.ps1"
+      - "src/AFK4.Shared.Contracts/**"
+      - "src/AFK4.BuildingBlocks/**"
       - "src/AFK4.Operator.App/**"
       - "src/AFK4.Agent.Service/**"
       - "src/AFK4.Player.Shell/**"
       - "Directory.Build.props"
       - "Directory.Packages.props"
+      - "NuGet.config"
       - "global.json"
       - "AFK4.sln"
   workflow_dispatch:
