@@ -656,7 +656,7 @@ Create `installers\gaming-pc\Package.wxs`:
     </Feature>
 
     <ComponentGroup Id="AgentServiceFiles" Directory="AgentServiceFolder">
-      <Files Include="$(var.AgentServicePublishDir)\**" Exclude="$(var.AgentServicePublishDir)\AFK4.Agent.Service.exe" />
+      <Files Include="$(var.AgentServiceSupportDir)\**" />
     </ComponentGroup>
 
     <Component Id="AgentServiceRegistration" Directory="AgentServiceFolder" Guid="{1D0F3E02-6939-4A77-B937-9888F7C89C98}">
@@ -695,16 +695,17 @@ Create `installers\gaming-pc\Package.wxs`:
 Extend `scripts\build-client-packages.ps1` so it invokes:
 
 ```powershell
-& $DotnetPath wix build (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
     -d "PackageVersion=$Version" `
     -d "OperatorAppPublishDir=$(Join-Path $publishRoot "operator-app-$Version-$Channel")" `
     -o (Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi")
 
-& $DotnetPath wix build (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
     -d "PackageVersion=$Version" `
     -d "AgentServicePublishDir=$(Join-Path $publishRoot "agent-service-$Version-$Channel")" `
+    -d "AgentServiceSupportDir=$(Join-Path $artifactRoot 'wix-inputs/agent-service-support')" `
     -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
-    -d "UpdateHelperDir=$(Join-Path $repoRoot 'scripts')" `
+    -d "UpdateHelperDir=$(Join-Path $artifactRoot 'wix-inputs/update-helpers')" `
     -o (Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi")
 ```
 

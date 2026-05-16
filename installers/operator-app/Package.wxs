@@ -1,0 +1,25 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="AFK4 Operator App"
+      Manufacturer="AFK4"
+      Version="$(var.PackageVersion)"
+      UpgradeCode="{5B345D78-17AE-4CC7-9FE7-7E5F4203FAF1}"
+      Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4 Operator App is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="AFK4RootFolder" Name="AFK4">
+        <Directory Id="OperatorAppFolder" Name="Operator App" />
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="AFK4 Operator App" Level="1">
+      <ComponentGroupRef Id="OperatorAppFiles" />
+    </Feature>
+
+    <ComponentGroup Id="OperatorAppFiles" Directory="OperatorAppFolder">
+      <Files Include="$(var.OperatorAppPublishDir)\**" />
+    </ComponentGroup>
+  </Package>
+</Wix>

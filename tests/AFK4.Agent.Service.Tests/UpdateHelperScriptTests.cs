@@ -23,6 +23,27 @@ public sealed class UpdateHelperScriptTests
                 StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void ClientPackageBuildScript_ExplicitlyAcceptsWix7EulaForCiBuilds()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
+        var script = File.ReadAllText(scriptPath);
+
+        Assert.Contains("-acceptEula", script, StringComparison.Ordinal);
+        Assert.Contains("wix7", script, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("installers/operator-app/Package.wxs")]
+    [InlineData("installers/gaming-pc/Package.wxs")]
+    public void WixPackages_DoNotUseUnsupportedFilesExcludeAttribute(string packagePath)
+    {
+        var absolutePath = Path.GetFullPath(Path.Combine(GetRepositoryRoot(), packagePath));
+        var package = File.ReadAllText(absolutePath);
+
+        Assert.DoesNotContain(" Exclude=", package, StringComparison.Ordinal);
+    }
+
     private static string GetRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

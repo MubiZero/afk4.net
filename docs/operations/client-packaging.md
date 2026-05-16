@@ -92,13 +92,17 @@ Expected WiX version:
 7.0.0
 ```
 
+WiX v7 requires explicit OSMF EULA acceptance for build and CI usage. The
+Phase 13 build script passes `-acceptEula wix7` to each `wix build` invocation
+after explicit project approval.
+
 Verify the local package build script parses:
 
 ```powershell
 powershell -NoProfile -Command "[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/build-client-packages.ps1), [ref] `$null, [ref] `$null) | Out-Null"
 ```
 
-Publish Windows client package inputs for the next WiX MSI step:
+Build Windows client package inputs and MSI artifacts:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
@@ -107,10 +111,18 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
 ```
 
 The script writes publish outputs under ignored
-`artifacts/client-packages/publish/`.
+`artifacts/client-packages/publish/` and MSI artifacts under ignored
+`artifacts/client-packages/`.
 
-Until the Phase 13 MSI build scripts are implemented, use the existing update
-artifact publishing wrapper for internal signed update experiments:
+Expected MSI artifact names:
+
+```text
+afk4-operator-app-<version>-<channel>.msi
+afk4-gaming-pc-<version>-<channel>.msi
+```
+
+For older zip-based internal signed update experiments, the existing update
+artifact publishing wrapper remains available:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
@@ -125,5 +137,5 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
   -ReleaseNotes "Internal Agent Service validation build."
 ```
 
-The next Phase 13 implementation steps add WiX MSI authoring and a GitHub
-Actions workflow.
+The next Phase 13 implementation step adds a GitHub Actions workflow over the
+same local package command.
