@@ -386,6 +386,77 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void PrVerificationWorkflow_UsesCostAwareRequiredResultGate()
+    {
+        var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/pr-verification.yml")));
+
+        Assert.Contains("name: PR Verification", workflow, StringComparison.Ordinal);
+        Assert.Contains("pull_request:", workflow, StringComparison.Ordinal);
+        Assert.Contains("- main", workflow, StringComparison.Ordinal);
+        Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
+        Assert.Contains("concurrency:", workflow, StringComparison.Ordinal);
+        Assert.Contains("cancel-in-progress: true", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("paths-ignore:", workflow, StringComparison.Ordinal);
+
+        Assert.Contains("changes:", workflow, StringComparison.Ordinal);
+        Assert.Contains("runs-on: ubuntu-latest", workflow, StringComparison.Ordinal);
+        Assert.Contains("timeout-minutes: 5", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_windows: ${{ steps.filter.outputs.run_windows }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("git diff --name-only $base $head", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_windows=$($runWindows.ToString().ToLowerInvariant())", workflow, StringComparison.Ordinal);
+
+        Assert.Contains("build-test-windows:", workflow, StringComparison.Ordinal);
+        Assert.Contains("if: ${{ needs.changes.outputs.run_windows == 'true' }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("runs-on: windows-latest", workflow, StringComparison.Ordinal);
+        Assert.Contains("timeout-minutes: 45", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/setup-dotnet@v4", workflow, StringComparison.Ordinal);
+        Assert.Contains("global-json-file: global.json", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet restore AFK4.sln", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
+
+        Assert.Contains("pr-verification-result:", workflow, StringComparison.Ordinal);
+        Assert.Contains("if: ${{ always() }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("Windows build/test gate did not pass.", workflow, StringComparison.Ordinal);
+        Assert.Contains("No Windows-relevant changes detected; skipping paid Windows runner.", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PackageSmokeWorkflow_BuildsUnsignedMsiArtifactsWithShortRetention()
+    {
+        var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/package-smoke.yml")));
+
+        Assert.Contains("name: Package Smoke", workflow, StringComparison.Ordinal);
+        Assert.Contains("push:", workflow, StringComparison.Ordinal);
+        Assert.Contains("- main", workflow, StringComparison.Ordinal);
+        Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
+        Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
+        Assert.Contains("concurrency:", workflow, StringComparison.Ordinal);
+        Assert.Contains("cancel-in-progress: true", workflow, StringComparison.Ordinal);
+        Assert.Contains("runs-on: windows-latest", workflow, StringComparison.Ordinal);
+        Assert.Contains("timeout-minutes: 60", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
+        Assert.Contains("powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-operator-app-0.1.0-ci-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-gaming-pc-0.1.0-ci-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/upload-artifact@v4", workflow, StringComparison.Ordinal);
+        Assert.Contains("if-no-files-found: error", workflow, StringComparison.Ordinal);
+        Assert.Contains("retention-days: 3", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ClientPackagesWorkflow_UsesCostControlsForManualReleaseRuns()
+    {
+        var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml")));
+
+        Assert.Contains("timeout-minutes: 90", workflow, StringComparison.Ordinal);
+        Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
+        Assert.Contains("if-no-files-found: error", workflow, StringComparison.Ordinal);
+        Assert.Equal(2, CountOccurrences(workflow, "retention-days: 3"));
+    }
+
+    [Fact]
     public void PublishClientMsiUpdates_InvokesPublisherForOperatorAgentAndPlayerShell()
     {
         Directory.CreateDirectory(tempRoot);
@@ -809,6 +880,24 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     private static string NormalizeLineEndings(string value)
     {
         return value.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\r", "\n", StringComparison.Ordinal);
+    }
+
+    private static int CountOccurrences(string value, string needle)
+    {
+        var count = 0;
+        var startIndex = 0;
+
+        while (true)
+        {
+            var index = value.IndexOf(needle, startIndex, StringComparison.Ordinal);
+            if (index < 0)
+            {
+                return count;
+            }
+
+            count++;
+            startIndex = index + needle.Length;
+        }
     }
 
     private static string ExtractWorkflowStep(string workflow, string stepName)
