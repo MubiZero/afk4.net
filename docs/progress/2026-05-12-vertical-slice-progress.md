@@ -39,6 +39,24 @@ The implementation plans for this slice live in:
 - `docs/superpowers/plans/2026-05-14-afk4-phase11-audit-reports-ops.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase12-operator-update-management.md`
 - `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
+- `docs/superpowers/plans/2026-05-16-afk4-phase14-diagnostics-backup.md`
+
+## Phase 14 Diagnostics And Backup
+
+Started on `codex/phase11-operational-reports` after Phase 13 client packaging
+and CI.
+
+Design and implementation plan added:
+
+- `docs/superpowers/specs/2026-05-16-afk4-diagnostics-backup-design.md`
+- `docs/superpowers/plans/2026-05-16-afk4-phase14-diagnostics-backup.md`
+
+Planned Phase 14 implementation:
+
+- branch-scoped diagnostics read endpoint protected by `diagnostics.view`;
+- diagnostics read audit records for allowed and denied access;
+- Operator App Settings diagnostics panel for permissioned staff;
+- PostgreSQL backup/restore operations runbook.
 
 ## Phase 13 Client Packaging And CI
 
