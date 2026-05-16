@@ -153,8 +153,11 @@ jobs:
 
       - name: Build client packages
         shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
         run: |
-          powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version "${{ inputs.version }}" -Channel "${{ inputs.channel }}"
+          powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version $env:INPUT_VERSION -Channel $env:INPUT_CHANNEL
 
       - name: Prepare Authenticode certificate
         if: ${{ inputs.sign_packages }}
@@ -180,6 +183,15 @@ jobs:
             -PackageDirectory artifacts/client-packages `
             -CertificatePath "$env:AFK4_AUTHENTICODE_CERTIFICATE_PATH" `
             -CertificatePasswordEnvVar AFK4_AUTHENTICODE_PFX_PASSWORD
+
+          $signExitCode = $LASTEXITCODE
+          if (-not [string]::IsNullOrWhiteSpace($env:AFK4_AUTHENTICODE_CERTIFICATE_PATH)) {
+            Remove-Item -LiteralPath $env:AFK4_AUTHENTICODE_CERTIFICATE_PATH -Force -ErrorAction SilentlyContinue
+          }
+
+          if ($signExitCode -ne 0) {
+            exit $signExitCode
+          }
 
       - name: Publish update metadata
         if: ${{ inputs.publish_update_metadata }}
@@ -237,14 +249,16 @@ jobs:
         shell: pwsh
         env:
           AFK4_UPDATE_REGISTRATION_TOKEN: ${{ secrets.AFK4_UPDATE_REGISTRATION_TOKEN }}
+          INPUT_PLATFORM_BASE_URL: ${{ inputs.platform_base_url }}
+          INPUT_BRANCH_ID: ${{ inputs.branch_id }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_REGISTRATION_TOKEN)) {
             throw "AFK4_UPDATE_REGISTRATION_TOKEN secret is required when register_update_packages=true."
           }
 
           powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
-            -PlatformBaseUrl "${{ inputs.platform_base_url }}" `
-            -BranchId "${{ inputs.branch_id }}" `
+            -PlatformBaseUrl $env:INPUT_PLATFORM_BASE_URL `
+            -BranchId $env:INPUT_BRANCH_ID `
             -RequestDirectory artifacts/update-packages `
             -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
 

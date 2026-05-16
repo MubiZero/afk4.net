@@ -326,6 +326,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     public void ClientPackagesWorkflow_ContainsGuardedSigningPublishingAndRegistrationSteps()
     {
         var workflow = File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml"));
+        var buildStep = ExtractWorkflowStep(workflow, "Build client packages");
+        var publishStep = ExtractWorkflowStep(workflow, "Publish update metadata");
+        var registrationStep = ExtractWorkflowStep(workflow, "Register update packages");
+        var registrationRunBlock = ExtractWorkflowRunBlock(registrationStep);
 
         Assert.Contains("sign_packages:", workflow, StringComparison.Ordinal);
         Assert.Contains("publish_update_metadata:", workflow, StringComparison.Ordinal);
@@ -340,9 +344,38 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("AFK4_UPDATE_SIGNING_KEY_PEM", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_UPDATE_REGISTRATION_TOKEN", workflow, StringComparison.Ordinal);
         Assert.Contains("artifacts/update-packages/*-request.json", workflow, StringComparison.Ordinal);
-        Assert.Contains("-AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("-AccessToken $", workflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("-AccessToken \"", workflow, StringComparison.Ordinal);
+
+        Assert.Contains("INPUT_VERSION: ${{ inputs.version }}", buildStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_CHANNEL: ${{ inputs.channel }}", buildStep, StringComparison.Ordinal);
+        Assert.Contains("-Version $env:INPUT_VERSION", buildStep, StringComparison.Ordinal);
+        Assert.Contains("-Channel $env:INPUT_CHANNEL", buildStep, StringComparison.Ordinal);
+
+        Assert.Contains("INPUT_VERSION: ${{ inputs.version }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_CHANNEL: ${{ inputs.channel }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_ORGANIZATION_ID: ${{ inputs.organization_id }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_ARTIFACT_STORE: ${{ inputs.artifact_store }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_HOSTING_ROOT: ${{ inputs.hosting_root }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_PUBLIC_BASE_URI: ${{ inputs.public_base_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$env:INPUT_VERSION", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$env:INPUT_CHANNEL", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$env:INPUT_ORGANIZATION_ID", publishStep, StringComparison.Ordinal);
+        Assert.Contains("-SigningKeyEnvVar', 'AFK4_UPDATE_SIGNING_KEY_PEM'", publishStep, StringComparison.Ordinal);
+
+        Assert.Contains("INPUT_PLATFORM_BASE_URL: ${{ inputs.platform_base_url }}", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_BRANCH_ID: ${{ inputs.branch_id }}", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-PlatformBaseUrl $env:INPUT_PLATFORM_BASE_URL", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-BranchId $env:INPUT_BRANCH_ID", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN", registrationStep, StringComparison.Ordinal);
+        Assert.DoesNotContain("${{ inputs.platform_base_url }}", registrationRunBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("${{ inputs.branch_id }}", registrationRunBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            workflow.Split(Environment.NewLine),
+            line => line.Contains("-AccessToken", StringComparison.Ordinal)
+                && !line.Contains("-AccessTokenEnvVar", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -764,6 +797,25 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains(
             ast.ParamBlock.Parameters,
             parameter => string.Equals(parameter.Name.VariablePath.UserPath, parameterName, StringComparison.Ordinal));
+    }
+
+    private static string ExtractWorkflowStep(string workflow, string stepName)
+    {
+        var marker = "      - name: " + stepName;
+        var start = workflow.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"Workflow step '{stepName}' was not found.");
+
+        var next = workflow.IndexOf(Environment.NewLine + "      - name: ", start + marker.Length, StringComparison.Ordinal);
+        return next < 0 ? workflow[start..] : workflow[start..next];
+    }
+
+    private static string ExtractWorkflowRunBlock(string workflowStep)
+    {
+        const string marker = "        run: |";
+        var start = workflowStep.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, "Workflow step run block was not found.");
+
+        return workflowStep[start..];
     }
 
     private static int GetFreeTcpPort()
