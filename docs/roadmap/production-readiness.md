@@ -67,7 +67,10 @@ Minimum bar:
 
    Make GitHub Actions build and test the solution on every PR. Add a packaging
    smoke for the client MSI workflow so release artifacts are not produced from
-   unverified code.
+   unverified code. GitHub Actions billing is enabled, but workflows must be
+   cost-aware: avoid unnecessary manual remote runs, use Windows hosted runners
+   only where they add required coverage, cancel stale PR runs, set timeouts,
+   and keep artifact retention short.
 
 3. **Real Device Smoke**
 
