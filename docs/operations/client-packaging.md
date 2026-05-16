@@ -129,7 +129,7 @@ must be Authenticode-signed before update metadata is published.
 Sign ready MSI artifacts with a PFX supplied outside the repository:
 
 ```powershell
-$env:AFK4_AUTHENTICODE_PFX_PASSWORD = '<supplied by release environment>'
+$env:AFK4_AUTHENTICODE_PFX_PASSWORD = 'example-pfx-password-from-release-runner'
 
 powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
   -PackageDirectory artifacts/client-packages `
@@ -142,7 +142,7 @@ Sign with a certificate already installed on the release runner:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
   -PackageDirectory artifacts/client-packages `
-  -CertificateSha1 '<certificate-thumbprint>' `
+  -CertificateSha1 0123456789abcdef0123456789abcdef01234567 `
   -CertificateStoreLocation LocalMachine `
   -CertificateStoreName My
 ```

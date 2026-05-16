@@ -185,10 +185,12 @@ refresh follow-up and Phase 13 client packaging.
 Implemented in this slice:
 
 - provider-neutral Authenticode signing for ready MSI artifacts through
-  `signtool.exe`;
-- MSI update metadata publishing through the existing `AFK4.Update.Publisher`;
+  `scripts/sign-client-packages.ps1` and `signtool.exe`;
+- MSI update metadata publishing through the existing `AFK4.Update.Publisher`
+  via `scripts/publish-client-msi-updates.ps1`;
 - backend registration of generated request JSON through the existing
-  `POST /api/branches/{branchId}/updates/packages` endpoint;
+  `POST /api/branches/{branchId}/updates/packages` endpoint via
+  `scripts/register-update-package-requests.ps1`;
 - guarded GitHub Actions workflow switches for artifact-only, signed, metadata
   publishing, and release-registration package runs;
 - allowlisted registration host checks through `AFK4_ALLOWED_PLATFORM_BASE_URLS`

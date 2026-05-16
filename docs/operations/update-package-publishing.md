@@ -67,7 +67,7 @@ presigned upload URL from the object-storage provider and decide the public CDN
 URL that Agents will download from. Then publish with `http-put`:
 
 ```powershell
-$env:AFK4_UPDATE_SIGNING_KEY_PEM = '<PEM supplied by key vault at runtime>'
+$env:AFK4_UPDATE_SIGNING_KEY_PEM = '-----BEGIN EC PRIVATE KEY-----...example release runner secret...-----END EC PRIVATE KEY-----'
 
 & 'C:\Program Files\dotnet\dotnet.exe' run --project src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj -- `
   --organization-id 0c04d6c0-bfa8-4e26-9263-fc0d307d0f08 `
@@ -155,7 +155,7 @@ artifact.
 For production-style object storage/CDN publishing:
 
 ```powershell
-$env:AFK4_UPDATE_SIGNING_KEY_PEM = '<PEM supplied by release environment>'
+$env:AFK4_UPDATE_SIGNING_KEY_PEM = '-----BEGIN EC PRIVATE KEY-----...example release runner secret...-----END EC PRIVATE KEY-----'
 
 powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 `
   -Version 1.2.3 `
@@ -184,7 +184,7 @@ The staff token must include `updates.packages.manage`. Register generated
 request JSON files with a short-lived token supplied outside the repository:
 
 ```powershell
-$env:AFK4_UPDATE_REGISTRATION_TOKEN = '<short-lived staff access token>'
+$env:AFK4_UPDATE_REGISTRATION_TOKEN = 'example-short-lived-staff-access-token'
 
 powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
   -PlatformBaseUrl https://platform.afk4.example `
