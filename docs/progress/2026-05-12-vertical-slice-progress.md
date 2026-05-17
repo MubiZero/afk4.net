@@ -426,6 +426,16 @@ evidence, and pass/fail recording before the real-device gate can be closed.
   deleted after merge. This completed the first real Coolify staging deploy,
   real staging DNS/TLS verification, post-rotation staging smoke, and
   container health-check hardening.
+- PR #17, `Add real device smoke runbook`, merged into `main` on
+  2026-05-17 with squash merge commit
+  `560be2d84c5bc4099fb35e33a2c1e8a027d72740`. The PR head was
+  `ae7d1b8f011017711112998f930e9bca3166f8e4`, and remote
+  `PR Verification Result` passed for that head in workflow run
+  `25988314062`. The remote branch `codex/real-device-smoke` was deleted after
+  merge. This prepared the repeatable staging runbook for one real Windows
+  gaming PC and added Windows Service host lifetime wiring for the Agent
+  Service, but the real hardware smoke still needs execution and recorded
+  evidence.
 
 ## Historical Reference
 
