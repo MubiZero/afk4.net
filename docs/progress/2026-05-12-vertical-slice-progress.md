@@ -334,20 +334,17 @@ Coolify VPS staging rehearsal on 2026-05-17:
 
 ## Recommended Next Work
 
-1. Finish PR review for `codex/coolify-staging-rehearsal`, keep the current
-   head behind a green remote `PR Verification Result`, and merge only after
-   explicit approval.
-2. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
+1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-3. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
+2. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
    enrolled Windows gaming PC.
-4. Rehearse PostgreSQL backup, restore, and migration against staging data.
-5. Choose production Authenticode certificate authority/storage, object-store
+3. Rehearse PostgreSQL backup, restore, and migration against staging data.
+4. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
    policy.
-6. Harden Agent production behavior: rotated credential consumption,
+5. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
-7. Implement the minimum admin/configuration workflows needed for a pilot club:
+6. Implement the minimum admin/configuration workflows needed for a pilot club:
    staff management, role assignment, and layout management.
 
 ## Recent Integration Notes
@@ -367,9 +364,16 @@ Coolify VPS staging rehearsal on 2026-05-17:
   `d761998eb086f7128bcce08ec414adba927b9fd7`, and remote
   `PR Verification Result` passed for that head in workflow run
   `25982865673`. The remote branch
-  `codex/staging-coolify-container-deploy` was deleted after merge. The next
-  recommended follow-up branch is `codex/coolify-staging-rehearsal` to run the
-  Coolify deployment on the VPS and record real staging smoke evidence.
+  `codex/staging-coolify-container-deploy` was deleted after merge.
+- PR #16, `Rehearse Coolify staging deploy`, merged into `main` on
+  2026-05-17 with squash merge commit
+  `e0614f6e68463224e5fca678de6e2a841eb924b6`. The PR head was
+  `fb6f1b82cca2a951e0c722f0c71a2fd690f1270f`, and remote
+  `PR Verification Result` passed for that head in workflow run
+  `25986777751`. The remote branch `codex/coolify-staging-rehearsal` was
+  deleted after merge. This completed the first real Coolify staging deploy,
+  real staging DNS/TLS verification, post-rotation staging smoke, and
+  container health-check hardening.
 
 ## Historical Reference
 
