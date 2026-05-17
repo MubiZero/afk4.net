@@ -60,14 +60,13 @@ Minimum bar:
 1. **Staging Infrastructure**
 
    Deploy the Platform API and PostgreSQL in a production-like environment.
-   The next staging path is container-first for a Linux VPS managed by Coolify:
-   Coolify builds and deploys the Platform API container, manages or connects
-   PostgreSQL, injects secrets through environment variables, and exposes the
-   backend through its configured domain/TLS routing. The repository now has
-   the Coolify-oriented Platform API Dockerfile, staging environment template,
-   PostgreSQL fallback compose definition, and
-   `docs/operations/coolify-staging-deploy.md`. The remaining gate is to run
-   the procedure on the VPS and record migration plus smoke evidence.
+   The first Coolify-managed Linux VPS staging rehearsal was executed on
+   2026-05-17 from `codex/coolify-staging-rehearsal`: Coolify built the
+   Platform API container from the repository, ran a managed PostgreSQL
+   service, applied EF migrations explicitly, and passed backend health/auth
+   smoke on a temporary `sslip.io` host. Remaining staging hardening gates are
+   real staging DNS/TLS without `curl -k`, runtime-only secret settings in
+   Coolify, and secret/token rotation after the rehearsal.
 
 2. **CI Gate**
 
@@ -113,9 +112,9 @@ Minimum bar:
 - Production hosting provider and deployment topology are not selected for
   commercial production.
 - Production environments are not codified.
-- The Coolify-first staging path is documented and container build inputs are
-  present, but the real Linux VPS staging deployment has not been executed or
-  smoke-tested yet.
+- Coolify-first staging is deployed and smoke-tested on a temporary `sslip.io`
+  host, but pilot-grade staging DNS/TLS and runtime-only Coolify secret
+  settings still need to be finalized.
 - Automated mandatory PR checks are not enforced by GitHub rulesets on the
   current private repository plan; manual green-check merge discipline is
   recorded in `AGENTS.md`.
@@ -134,6 +133,9 @@ Minimum bar:
 - Production Authenticode certificate authority is undecided.
 - Certificate storage policy is undecided.
 - ECDSA update metadata signing key storage policy is undecided.
+- The Coolify API token shared for the staging rehearsal must be rotated.
+- Staging database/session secrets should be rotated after Coolify variables
+  are confirmed runtime-only.
 - Object-store/CDN provider and presigned upload automation are undecided.
 - Update package registration currently supports short-lived staff tokens;
   service credential policy is still open.
@@ -164,16 +166,16 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. `codex/coolify-staging-rehearsal`
-
-   Execute the Coolify staging runbook on the Linux VPS, apply migrations
-   against staging PostgreSQL, run health/smoke verification, and record the
-   evidence in the progress snapshot.
-
-2. `codex/real-device-smoke`
+1. `codex/real-device-smoke`
 
    Create a focused smoke checklist/script set for one real Windows gaming PC
    covering Agent, Shell, sessions, lock/unlock, updates, diagnostics, and logs.
+
+2. `codex/staging-dns-tls-and-secret-hardening`
+
+   Replace the temporary `sslip.io` staging host with a real staging DNS/TLS
+   path, mark Coolify app secrets runtime-only through a verified management
+   path, and rotate the rehearsal API/database/session secrets.
 
 3. `codex/postgres-restore-rehearsal`
 
