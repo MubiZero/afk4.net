@@ -451,6 +451,38 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
   lifecycle still needs a normal `ending` completion/reconciliation path so a
   seat/device can be reused without manual database edits.
 
+Player Shell and session end hardening branch verification on 2026-05-17:
+
+- branch `codex/staging-gaming-pc-bootstrapper` now disables Agent Service
+  Player Shell auto-start by default and gates any future auto-start behind an
+  explicit `Agent__PlayerShellAutoStartEnabled=true` setting plus an
+  interactive user-session check. The Agent still publishes Shell state over
+  the named pipe, so the current smoke/pilot path is to launch the visible
+  Player Shell from the logged-in Windows desktop session.
+- backend command-result processing now finalizes an `ending` session to
+  `ended` when the Agent reports the matching `lock` command as accepted or
+  completed. The finalization clears `CurrentLeaseId`, writes `EndedAtUtc`, and
+  records a `session-ended` event. Duplicate accepted lock results do not
+  create duplicate finalization events, and a second session can start on the
+  same seat/device after finalization.
+- local verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~PlayerShellProcessSupervisorTests|FullyQualifiedName~RealDeviceSmokeRunbookTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter FullyQualifiedName~DeviceCommandEndpointTests --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: Agent targeted tests passed 8/8; device command endpoint tests passed
+  16/16; full solution build completed with 0 warnings and 0 errors; full
+  no-build solution tests passed 654/654; `git diff --check` was clean.
+- this has not yet been re-smoked on the Windows 11 staging VM or Coolify.
+  Repeat the one-click setup/session start/end path and record whether the
+  service avoids session-0 Shell competition and whether session reuse works
+  without manual SQL.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -478,17 +510,16 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
-- Player Shell visibility from the Agent Service still needs hardening: a
-  service-started Shell process in session `0` can coexist with a manually
-  launched visible Shell and consume named-pipe state first. The first VM smoke
-  passed after killing duplicate Shell processes and restarting the visible
-  Shell, but production behavior needs a deterministic interactive-session
-  launch/supervision strategy.
-- Session end currently leaves the smoke session in `ending` after the Agent
-  accepts `lock`, which blocks starting a new session on the same seat/device
-  until manual staging data cleanup or reactivation is performed. Production
-  needs an explicit end/finalization/reconciliation path that advances the
-  session to a reusable terminal state without SQL.
+- Player Shell service-session competition is mitigated in code by disabling
+  Agent Service Shell auto-start by default and requiring an interactive
+  user-session context for any future auto-start. A deterministic
+  interactive-session launcher/supervisor is still a production hardening item;
+  the smoke/pilot path remains manual visible Shell launch from the logged-in
+  desktop session.
+- Session end finalization is implemented in code for accepted/completed lock
+  command results and targeted tests cover session reuse plus duplicate results.
+  This still needs a real Windows VM/Coolify smoke repeat before closing the
+  operational gate.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -505,25 +536,22 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
+2. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
+   second clean Windows 11 VM or physical Windows PC. Confirm the Agent Service
+   does not create a competing session-0 Shell by default, the manually visible
+   Shell receives state, and a second session can start on the same seat/device
+   after an accepted lock result without SQL.
+3. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
-3. Harden Player Shell launch/supervision so the service does not create a
-   session-0 Shell that competes with the visible interactive Shell for named
-   pipe state.
-4. Add or fix session end finalization so `ending` sessions become reusable
-   terminal sessions after the Agent accepts lock.
-5. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
-   second clean Windows 11 VM or physical Windows PC after the two hardening
-   items above, unless a quick independent hardware sanity check is needed
-   first.
-6. Rehearse PostgreSQL backup, restore, and migration against staging data.
-7. Choose production Authenticode certificate authority/storage, object-store
+4. Rehearse PostgreSQL backup, restore, and migration against staging data.
+5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
    policy.
-8. Harden Agent production behavior: rotated credential consumption,
+6. Harden Agent production behavior: deterministic interactive-session Player
+   Shell launch/supervision, rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
-9. Implement the minimum admin/configuration workflows needed for a pilot club:
+7. Implement the minimum admin/configuration workflows needed for a pilot club:
    staff management, role assignment, and layout management.
 
 ## Recent Integration Notes

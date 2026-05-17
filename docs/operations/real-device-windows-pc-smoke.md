@@ -54,10 +54,10 @@ Not included:
   the enforcement adapter. If the physical Windows desktop does not actually
   lock or unlock, record that as a real enforcement gap rather than inventing a
   pass.
-- Player Shell visibility from a service-started process depends on the
-  current user-session launch behavior. If the service-started Shell is not
-  visible, manually launch the Shell in the interactive Windows session and
-  record whether named-pipe state updates are received.
+- Player Shell auto-start from the Agent Service is disabled by default for
+  MVP hardening. Launch the Shell from the logged-in interactive Windows
+  session for this smoke, and record whether named-pipe state updates are
+  received. Do not enable service-session Shell auto-start as a pass shortcut.
 - Do not commit secrets, filled environment files, database URLs, staff
   passwords, device credential secrets, PEM files, MSI artifacts, or smoke
   transcripts containing secrets.
@@ -531,9 +531,7 @@ the Windows uninstall registry keys and record the result.
 
 ## Player Shell Visible State
 
-First check whether the service-started Shell is visible in the interactive
-user session. If it is not visible, manually start the Shell from the logged-in
-desktop session:
+Start the Shell from the logged-in desktop session:
 
 ```powershell
 & 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe'
@@ -547,21 +545,22 @@ Expected before a session starts:
   locked.
 
 If the Shell cannot receive named-pipe state from the service, record the
-failure and capture whether the Shell was service-started or manually started.
+failure and capture the Shell process session/user context.
 
 If the visible Shell remains locked while
 `C:\ProgramData\AFK4\Agent\runtime-state.json` shows `state=active`, check for
-duplicate Shell processes. The Windows Service can start a non-visible Shell in
-session `0` while a manually launched Shell runs in the logged-in user session;
-the session-0 process may receive the named-pipe state first.
+duplicate Shell processes. The hardened Agent Service should not auto-start a
+non-visible Shell in session `0` by default; if such a process appears, record
+it as a regression.
 
 ```powershell
 Get-Process AFK4.Player.Shell -IncludeUserName -ErrorAction SilentlyContinue |
   Select-Object Id, SessionId, UserName, Path
 ```
 
-For manual smoke evidence, stop the duplicate Shell processes and relaunch the
-visible Shell from the interactive desktop session:
+For manual smoke evidence after any duplicate-process regression, stop the
+duplicate Shell processes and relaunch the visible Shell from the interactive
+desktop session:
 
 ```powershell
 Get-Process AFK4.Player.Shell -ErrorAction SilentlyContinue |
@@ -572,9 +571,8 @@ Start-Sleep -Seconds 1
 & 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe'
 ```
 
-Record this as a Player Shell service-supervision hardening gap, not as a
-backend/session failure, when local runtime state and backend device status are
-already correct.
+Record this as a Player Shell supervision regression, not as a backend/session
+failure, when local runtime state and backend device status are already correct.
 
 ## Session Start And Unlock Smoke
 
@@ -684,15 +682,38 @@ Expected:
 - Agent receives or fetches a `lock` command;
 - command status becomes accepted or completed according to current Agent
   behavior;
+- backend advances the session from `ending` to `ended` after the accepted or
+  completed `lock` command result;
 - local lease is cleared;
 - Player Shell state returns to locked;
 - physical lock result is recorded honestly.
 
 After lock is accepted, confirm the seat/device can be reused through the
-normal product path. If the backend still reports the session as `ending` and
-blocks a new session with `Seat or device already has an active session`, record
-that as a session-finalization gap. Do not use manual SQL reactivation as pass
-evidence; it is acceptable only as a temporary staging inspection aid.
+normal product path by starting a second short session with a new idempotency
+key. If the backend still reports the session as `ending` or blocks the second
+start with `Seat or device already has an active session`, record that as a
+session-finalization regression. Do not use manual SQL reactivation as pass
+evidence.
+
+```powershell
+$restartSessionBody = @{
+    organizationId = $organizationId
+    seatId = $seatId
+    durationMinutes = 10
+    tariffRuleVersionId = $tariffVersion.tariffVersionId
+    idempotencyKey = "real-device-smoke-restart-$runId"
+    playerAccountId = $player.playerAccountId
+    billingMode = 'postpaid_debt'
+    tariffVersionId = $tariffVersion.tariffVersionId
+} | ConvertTo-Json -Depth 8
+
+$restartedSession = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/sessions/start" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $restartSessionBody
+```
 
 ## Update Check And Status Smoke
 
@@ -806,6 +827,9 @@ Overall pass requires:
 - lease expiry behavior is observed when the network-disconnect step is run;
 - session end creates a lock command and Agent returns local runtime state to
   locked;
+- accepted or completed lock command result advances the backend session to
+  `ended`;
+- a second session can start on the same seat/device without SQL cleanup;
 - Player Shell visible state is observed or a concrete Shell/session-launch
   blocker is recorded;
 - diagnostics show the device, command, and update summaries;
@@ -822,6 +846,9 @@ Fail the smoke, or mark it partial, when:
 - signed lease validation rejects the backend-issued lease;
 - physical lock/unlock is claimed without evidence;
 - Player Shell state is claimed without a visible screenshot or runtime log.
+- a service-session `AFK4.Player.Shell.exe` competes with the visible Shell for
+  named-pipe state;
+- session reuse requires manual SQL after an accepted lock result.
 
 ## Cleanup
 
