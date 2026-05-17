@@ -75,6 +75,31 @@ Use:
 Keep progress files short enough to be useful in future agent sessions. Archive
 large historical logs instead of making them mandatory reading.
 
+Before ending any session that changed code, workflows, deployment/operations
+docs, implementation plans, product scope, architecture, CI/release behavior, or
+merge state, explicitly check whether the current progress snapshot or
+production roadmap must be updated. If the implemented state, latest
+verification, known gaps, recommended next work, release gates, or recent
+integration notes changed, update the relevant progress documents in the same
+branch before the final response and before merge.
+
+Do not leave important project state only in chat, PR descriptions, branch
+names, commit messages, or GitHub check output. Persist durable status in:
+
+- `docs/progress/2026-05-12-vertical-slice-progress.md` for what is now true,
+  what was verified, what remains broken or missing, and what should happen
+  next.
+- `docs/roadmap/production-readiness.md` for launch blockers, release gates,
+  staging/production sequencing, and operational readiness changes.
+
+When a PR is merged, record notable merged work in the progress snapshot if it
+changes current capabilities, verification evidence, gaps, or next work. Include
+PR numbers, merge commits, important remote CI results, and any follow-up branch
+names when they will matter to the next agent.
+
+If no progress document update is needed after a task, say so briefly in the
+final response and explain why.
+
 ## Local Tooling
 
 Git is installed here:
