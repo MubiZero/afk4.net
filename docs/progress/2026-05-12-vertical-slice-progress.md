@@ -245,6 +245,10 @@ Coolify VPS staging rehearsal on 2026-05-17:
   - Coolify-managed PostgreSQL `afk4-staging-postgres`;
   - temporary public staging host
     `https://afk4-staging.207.180.237.97.sslip.io`.
+- real staging DNS/TLS was configured after the initial rehearsal:
+  `afk4.staging.mubi.dev` resolves to `207.180.237.97`, and
+  `curl.exe -i https://afk4.staging.mubi.dev/api/health` returns HTTP 200
+  without `curl -k`.
 - preferred Coolify-managed PostgreSQL was used, not the fallback compose
   resource.
 - EF migrations were applied explicitly from the release workstation after a
@@ -267,9 +271,11 @@ Coolify VPS staging rehearsal on 2026-05-17:
 
   ```powershell
   curl.exe -k -i --max-time 30 https://afk4-staging.207.180.237.97.sslip.io/api/health
+  curl.exe -i --max-time 30 https://afk4.staging.mubi.dev/api/health
   ```
 
-  Result: HTTP 200 with `{"status":"ok",...}`.
+  Result: HTTP 200 with `{"status":"ok",...}`. The real staging domain passes
+  TLS validation without the insecure curl flag.
 
   ```powershell
   curl.exe -k -i --max-time 30 -H "Content-Type: application/json" --data-binary "@-" https://afk4-staging.207.180.237.97.sslip.io/api/auth/staff/sign-in
@@ -290,8 +296,7 @@ Coolify VPS staging rehearsal on 2026-05-17:
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
-  temporary `sslip.io` host, but pilot-grade staging still needs a real staging
-  DNS name/TLS check that works without `curl -k`.
+  real `afk4.staging.mubi.dev` domain with TLS validation.
 - Coolify API-created application variables were observed as build-time and
   runtime variables in this Coolify version. Before pilot or production, mark
   `ConnectionStrings__PlatformDatabase` and `Sessions__SigningPrivateKeyPem`
@@ -326,9 +331,8 @@ Coolify VPS staging rehearsal on 2026-05-17:
    explicit approval.
 2. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-3. Configure a real staging DNS name/TLS path, mark Coolify app secrets
-   runtime-only, rotate affected staging secrets, and keep the temporary
-   `sslip.io` endpoint only as rehearsal evidence.
+3. Mark Coolify app secrets runtime-only, rotate affected staging secrets, and
+   keep the temporary `sslip.io` endpoint only as rehearsal evidence.
 4. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
    enrolled Windows gaming PC.
 5. Rehearse PostgreSQL backup, restore, and migration against staging data.
