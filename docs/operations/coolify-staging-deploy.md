@@ -90,6 +90,11 @@ ConnectionStrings__PlatformDatabase=<Coolify PostgreSQL connection string>
 Sessions__SigningPrivateKeyPem=<Coolify secret PEM>
 ```
 
+For Linux containers, include `GSS Encryption Mode=Disable` in the Npgsql
+connection string unless Kerberos/GSS encryption is intentionally configured.
+Npgsql can otherwise log a harmless fallback message about
+`libgssapi_krb5.so.2` being unavailable in minimal runtime images.
+
 Generate the session lease key outside the repository. Example with Git for
 Windows OpenSSL on a trusted release workstation:
 

@@ -206,12 +206,34 @@ Coolify staging container deploy branch verification on 2026-05-17:
   docker compose -f deploy/coolify/staging-postgres.fallback.compose.yaml config
   ```
 
-- Docker CLI is installed, but the local Docker Desktop Linux daemon was not
-  running, so the Platform API image build could not be completed locally. The
-  attempted command was:
+- after Docker Desktop was started, the Platform API image built successfully
+  from the Coolify repo-root context:
 
   ```powershell
   docker build -f src/AFK4.Platform.Api/Dockerfile -t afk4-platform-api:staging-check .
+  ```
+
+- local container smoke passed:
+  - API container ran as non-root user `app`, listened on port `8080`, and
+    returned `status = ok` from `/api/health` through host port `18080`;
+  - fallback PostgreSQL compose resource became healthy with no public port
+    published;
+  - EF migrations were applied from a Linux .NET SDK one-off container on the
+    same Docker network after an explicit restore inside that container;
+  - PostgreSQL `__EFMigrationsHistory` contained 9 migrations through
+    `20260514081906_AddUpdateRollouts`;
+  - API container connected to PostgreSQL and returned the expected HTTP 401
+    for a DB-backed sign-in attempt with a missing staff user;
+  - staging connection strings now include `GSS Encryption Mode=Disable` to
+    avoid harmless `libgssapi_krb5.so.2` fallback noise in minimal Linux
+    runtime containers.
+- a later repeat full runtime image rebuild reached MCR but failed on an
+  external `403 Forbidden` metadata response for
+  `mcr.microsoft.com/dotnet/aspnet:10.0`; the Dockerfile build stage still
+  rebuilt successfully from the current tree with:
+
+  ```powershell
+  docker build --target build -f src/AFK4.Platform.Api/Dockerfile -t afk4-platform-api:staging-build-stage-check .
   ```
 
 ## Known Gaps

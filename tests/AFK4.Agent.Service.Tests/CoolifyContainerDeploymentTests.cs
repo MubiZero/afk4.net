@@ -63,6 +63,7 @@ public sealed class CoolifyContainerDeploymentTests
         Assert.Contains("ASPNETCORE_ENVIRONMENT=Staging", envTemplate, StringComparison.Ordinal);
         Assert.Contains("ASPNETCORE_URLS=http://+:8080", envTemplate, StringComparison.Ordinal);
         Assert.Contains("ConnectionStrings__PlatformDatabase=", envTemplate, StringComparison.Ordinal);
+        Assert.Contains("GSS Encryption Mode=Disable", envTemplate, StringComparison.Ordinal);
         Assert.Contains("Sessions__SigningPrivateKeyPem=", envTemplate, StringComparison.Ordinal);
         Assert.Contains("AFK4_STAGING_PUBLIC_BASE_URL=", envTemplate, StringComparison.Ordinal);
         Assert.Contains("<coolify", envTemplate, StringComparison.OrdinalIgnoreCase);
@@ -99,6 +100,7 @@ public sealed class CoolifyContainerDeploymentTests
         Assert.Contains("src/AFK4.Platform.Api/Dockerfile", runbook, StringComparison.Ordinal);
         Assert.Contains("deploy/coolify/staging.env.template", runbook, StringComparison.Ordinal);
         Assert.Contains("ConnectionStrings__PlatformDatabase", runbook, StringComparison.Ordinal);
+        Assert.Contains("GSS Encryption Mode=Disable", runbook, StringComparison.Ordinal);
         Assert.Contains("dotnet ef database update", runbook, StringComparison.Ordinal);
         Assert.Contains("--idempotent", runbook, StringComparison.Ordinal);
         Assert.Contains("/api/health", runbook, StringComparison.Ordinal);
