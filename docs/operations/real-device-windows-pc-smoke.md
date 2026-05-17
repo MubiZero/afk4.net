@@ -101,8 +101,9 @@ Windows gaming PC:
 - Windows 10/11 x64.
 - Local Administrator access.
 - Outbound HTTPS access to `https://afk4.staging.mubi.dev`.
-- .NET Desktop Runtime compatible with the current .NET 10 client packages,
-  because the current MSI publish path is framework-dependent.
+- The current internal Gaming PC MSI publishes Agent Service and Player Shell
+  as self-contained `win-x64` outputs, so a separate .NET Desktop Runtime
+  install is not required for the MSI smoke path.
 - A clean test Windows user session where Player Shell can be observed.
 
 ## Prepare Staging Data
@@ -547,6 +548,33 @@ Expected before a session starts:
 
 If the Shell cannot receive named-pipe state from the service, record the
 failure and capture whether the Shell was service-started or manually started.
+
+If the visible Shell remains locked while
+`C:\ProgramData\AFK4\Agent\runtime-state.json` shows `state=active`, check for
+duplicate Shell processes. The Windows Service can start a non-visible Shell in
+session `0` while a manually launched Shell runs in the logged-in user session;
+the session-0 process may receive the named-pipe state first.
+
+```powershell
+Get-Process AFK4.Player.Shell -IncludeUserName -ErrorAction SilentlyContinue |
+  Select-Object Id, SessionId, UserName, Path
+```
+
+For manual smoke evidence, stop the duplicate Shell processes and relaunch the
+visible Shell from the interactive desktop session:
+
+```powershell
+Get-Process AFK4.Player.Shell -ErrorAction SilentlyContinue |
+  Stop-Process -Force
+
+Start-Sleep -Seconds 1
+
+& 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe'
+```
+
+Record this as a Player Shell service-supervision hardening gap, not as a
+backend/session failure, when local runtime state and backend device status are
+already correct.
 
 ## Session Start And Unlock Smoke
 

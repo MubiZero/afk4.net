@@ -424,9 +424,26 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
   exe was rebuilt, MSI summary metadata reports `x64;0`, and administrative
   extraction confirms `PFiles64\AFK4\Player Shell\AFK4.Player.Shell.exe` is
   present.
-- the rebuilt x64 bootstrapper still needs to be re-run on the current Windows
-  11 VM or a clean VM before continuing the session/Player Shell visible-state
-  smoke.
+- the rebuilt x64 bootstrapper was rerun on the same Windows 11 VM. The Agent
+  service installed under `C:\Program Files\AFK4\Agent Service`, the Player
+  Shell executable existed under `C:\Program Files\AFK4\Player Shell`, and the
+  setup UI enrolled staging device `bf44adb1-0681-49f5-81cc-7ceec3d371a7`
+  with backend heartbeat evidence.
+- a real staging session smoke then passed on that VM:
+  session `90531bf3-3f37-4112-9c6a-7682e498fb9f` started as `active`,
+  produced an `unlock` command accepted by the Agent, wrote
+  `session-lease.json` plus `runtime-state.json` with `state=active`, and the
+  visible Player Shell showed `Session is active` with remaining time.
+  Ending the session produced an accepted `lock` command, cleared
+  `session-lease.json`, wrote `runtime-state.json` with `state=locked`, and the
+  visible Shell returned to locked.
+- one manual Player Shell visibility gap was observed: the service had started
+  an additional `AFK4.Player.Shell.exe` in session `0` as `NT AUTHORITY\SYSTEM`,
+  while the manually visible Shell ran in the interactive user session. The
+  session-0 Shell could receive named-pipe state first, leaving the visible
+  Shell stale. Killing both Shell processes and restarting the visible Shell
+  allowed it to receive the active/locked state. Treat this as a Player Shell
+  service-supervision hardening item.
 
 ## Known Gaps
 
@@ -448,15 +465,19 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
   needs to be executed on physical Windows 10/11 hardware.
 - The staging one-click Gaming PC setup executable path exists in code, and the
   staging public lease verification key is committed for reproducible release
-  workstation packaging. One Windows 11 VM reached install/enroll/heartbeat
-  evidence, but that run used the pre-x64 MSI artifact; rerun with the rebuilt
-  x64 setup exe before treating Agent/Shell path validation as passing.
+  workstation packaging. One Windows 11 VM passed rebuilt x64
+  install/enroll/heartbeat plus session start/end and visible Player Shell
+  state evidence. Repeat on a second clean VM or physical Windows PC before
+  treating the gate as broadly validated.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
-- Player Shell visibility from the Agent Service still needs real user-session
-  validation; the manual smoke allows a manually launched Shell for visible
-  state evidence if service-started UI is not visible.
+- Player Shell visibility from the Agent Service still needs hardening: a
+  service-started Shell process in session `0` can coexist with a manually
+  launched visible Shell and consume named-pipe state first. The first VM smoke
+  passed after killing duplicate Shell processes and restarting the visible
+  Shell, but production behavior needs a deterministic interactive-session
+  launch/supervision strategy.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -476,10 +497,9 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 2. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
-3. Reinstall the rebuilt x64
-   `afk4-gaming-pc-setup-0.1.0-ci-internal.exe` on the Windows 11 smoke VM,
-   confirm it installs under `C:\Program Files\AFK4`, then continue the
-   session/Player Shell smoke and repeat on the second clean VM.
+3. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
+   second clean Windows 11 VM or physical Windows PC, and keep the duplicate
+   Shell process behavior recorded as a hardening follow-up.
 4. Rehearse PostgreSQL backup, restore, and migration against staging data.
 5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential

@@ -92,13 +92,15 @@ Minimum bar:
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
    A staging-only one-click Gaming PC setup executable path now exists for clean
    Windows 11 smoke VMs, and the staging public lease verification key is
-   committed for reproducible packaging. One Windows 11 VM reached
-   install/enroll/heartbeat evidence, then exposed a pre-x64 MSI packaging
-   defect where Agent files installed under `C:\Program Files (x86)` while
-   machine config pointed Shell supervision at `C:\Program Files`. The package
-   build now emits the gaming-PC MSI as x64, but the gate remains open until the
-   rebuilt setup and full smoke path are executed on Windows 10/11 hardware or
-   VMs and evidence is recorded.
+   committed for reproducible packaging. One Windows 11 VM passed rebuilt x64
+   install/enroll/heartbeat plus session start/end, signed lease, local runtime
+   state, and visible Player Shell active/locked evidence. The smoke also
+   exposed a service-supervision hardening gap: a service-started Shell process
+   in session `0` can coexist with a manually launched visible Shell and consume
+   named-pipe state first. The gate remains open until the rebuilt setup and
+   full smoke path are repeated on a second clean VM or physical Windows 10/11
+   device, with the Shell launch strategy hardened or explicitly operationally
+   constrained.
 
 4. **Backup And Restore Rehearsal**
 
@@ -161,13 +163,14 @@ Minimum bar:
   real-device smoke runbook.
 - A staging-only Gaming PC setup bootstrapper exists in code, with a committed
   staging public lease verification key for release workstation builds. A first
-  Windows 11 VM reached staging install/enroll/heartbeat evidence, but the
-  rebuilt x64 setup exe still needs reinstall validation plus the full
-  session/Player Shell smoke on two clean Windows 11 VMs.
+  Windows 11 VM passed rebuilt x64 install/enroll/heartbeat, session
+  start/end, signed lease, local runtime state, and visible Player Shell
+  active/locked evidence. Repeat on a second clean VM or physical Windows PC.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell visibility from service supervision needs real interactive
-  Windows session validation; manual Shell launch is acceptable for the first
-  visible-state smoke if the service-started process is not visible.
+  Windows session hardening. The first VM smoke passed with a manually launched
+  visible Shell after duplicate service-session Shell processes were killed;
+  production needs deterministic interactive-session launch/supervision.
 - Reboot recovery must be exercised on physical PCs.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.
@@ -191,12 +194,12 @@ Minimum bar:
 
 1. Real-device smoke execution
 
-   Reinstall the rebuilt x64 staging Gaming PC setup exe on the current Windows
-   11 smoke VM, confirm Agent/Shell files land under `C:\Program Files\AFK4`,
-   run it on the second clean Windows 11 VM, then execute
+   Repeat the rebuilt x64 staging Gaming PC setup exe on a second clean Windows
+   11 VM or physical Windows PC, then execute
    `docs/operations/real-device-windows-pc-smoke.md` evidence collection for
    install, heartbeat, Agent/Shell state, sessions, and command handling.
-   Record pass/fail results in the progress snapshot.
+   Record pass/fail results and any duplicate Shell process behavior in the
+   progress snapshot.
 
 2. `codex/postgres-restore-rehearsal`
 
