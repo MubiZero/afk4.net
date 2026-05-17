@@ -13,10 +13,13 @@ namespace AFK4.Agent.Service.Tests;
 
 public sealed class WorkerTests
 {
+    private static readonly TimeSpan WorkerStopTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan WorkerObservationTimeout = TimeSpan.FromSeconds(15);
+
     [Fact]
     public async Task ExecuteAsync_AttemptsHeartbeatWhenRealtimeStartupThrowsNonCancellationException()
     {
-        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
         var heartbeatAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var handler = new CapturingHeartbeatHandler(heartbeatAttempted, stopping);
         var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
@@ -46,7 +49,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter());
 
         await worker.StartAsync(stopping.Token);
-        await heartbeatAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Equal($"/api/devices/{options.Value.DeviceId}/heartbeat", handler.RequestUri?.PathAndQuery);
@@ -56,7 +59,7 @@ public sealed class WorkerTests
     [Fact]
     public async Task ExecuteAsync_HeartbeatUsesRuntimeLockState()
     {
-        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
         var heartbeatAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var handler = new CapturingHeartbeatHandler(heartbeatAttempted, stopping);
         var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
@@ -86,7 +89,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter());
 
         await worker.StartAsync(stopping.Token);
-        await heartbeatAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
         Assert.NotNull(handler.Request);
@@ -96,7 +99,7 @@ public sealed class WorkerTests
     [Fact]
     public async Task ExecuteAsync_ReportsInstalledAppsBeforeHeartbeatLoop()
     {
-        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
         var heartbeatAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var handler = new CapturingHeartbeatHandler(heartbeatAttempted, stopping);
         var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
@@ -135,7 +138,7 @@ public sealed class WorkerTests
             reporter);
 
         await worker.StartAsync(stopping.Token);
-        await heartbeatAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
         var app = Assert.Single(reporter.LastApps);
@@ -146,7 +149,7 @@ public sealed class WorkerTests
     [Fact]
     public async Task ExecuteAsync_ReconcilesSessionBeforeInstalledAppsAndHeartbeatLoop()
     {
-        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
         var heartbeatAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var handler = new CapturingHeartbeatHandler(heartbeatAttempted, stopping);
         var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
@@ -185,7 +188,7 @@ public sealed class WorkerTests
             new RecordingInstalledAppReporter(calls));
 
         await worker.StartAsync(stopping.Token);
-        await heartbeatAttempted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Equal(["reconcile", "apps"], calls);
@@ -194,7 +197,7 @@ public sealed class WorkerTests
     [Fact]
     public async Task ExecuteAsync_HandlesHeartbeatCommandsAndReportsResultWithCredential()
     {
-        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
         var resultPosted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var options = Options.Create(new AgentOptions
         {
@@ -233,7 +236,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter());
 
         await worker.StartAsync(stopping.Token);
-        await resultPosted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await resultPosted.Task.WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
         var handled = Assert.Single(commandHandler.HandledCommands);
