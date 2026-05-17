@@ -136,20 +136,22 @@ Additional verification from the Authenticode CI registration slice:
 CI checks on PR #9 were not configured, so the recorded confidence is local
 verification plus PR review, not enforced repository branch protection.
 
-Cost-aware CI configuration verification on 2026-05-16:
+Cost-aware CI configuration verification on 2026-05-17:
 
 - targeted client release automation tests passed locally;
 - workflow-content tests cover PR verification, package smoke, and manual
   package workflow cost controls;
-- remote GitHub Actions validation still needs to be observed on the first PR
-  after these workflows are pushed.
+- PR #11 remote `PR Verification` passed on GitHub:
+  - `Detect Relevant Changes`;
+  - `Build And Test Windows`;
+  - `PR Verification Result`.
 
 ## Known Gaps
 
 - No real staging/prod environment is configured in the repository.
-- GitHub Actions workflows are defined in the repository, but branch protection
-  and the first observed remote PR run are still required before they become
-  mandatory release gates.
+- GitHub Actions workflows are defined and PR #11 remote verification passed,
+  but branch protection still needs to require `PR Verification Result` before
+  CI becomes a mandatory release gate.
 - Staff management workflows, custom roles, and role editing UI are not
   implemented.
 - Operator App layout management UI is not implemented.
@@ -168,9 +170,8 @@ Cost-aware CI configuration verification on 2026-05-16:
 ## Recommended Next Work
 
 1. Create a production-like staging environment for Platform API and PostgreSQL.
-2. Push the cost-aware GitHub Actions CI branch, observe the first remote PR
-   verification run, then enable branch protection for the `PR Verification
-   Result` check.
+2. Enable branch protection for the `PR Verification Result` check after PR #11
+   is merged.
 3. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
    enrolled Windows gaming PC.
 4. Rehearse PostgreSQL backup, restore, and migration against staging data.

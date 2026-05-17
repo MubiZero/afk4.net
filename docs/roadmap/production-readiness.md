@@ -70,9 +70,9 @@ Minimum bar:
    packaging manual and guarded. GitHub Actions billing is enabled, but
    workflows must avoid unnecessary manual remote runs, use Windows hosted
    runners only where they add required coverage, cancel stale PR runs, set
-   timeouts, and keep artifact retention short. After the first successful
-   remote PR run, enable branch protection for the `PR Verification Result`
-   check.
+   timeouts, and keep artifact retention short. PR #11 produced the first
+   successful remote `PR Verification` run; after merge, enable branch
+   protection for the `PR Verification Result` check.
 
 3. **Real Device Smoke**
 
