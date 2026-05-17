@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,6 +12,10 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed class DeviceCommandEndpointTests
 {
+    private static readonly Guid SeatId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+    private static readonly Guid ZoneId = Guid.Parse("44444444-4444-4444-8444-444444444444");
+    private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-13T10:00:00Z");
+
     [Fact]
     public async Task PostDeviceCommand_WithoutStaffToken_ReturnsUnauthorized()
     {
@@ -167,6 +172,87 @@ public sealed class DeviceCommandEndpointTests
         Assert.Equal("Accepted", command.Status);
         Assert.Equal("handled from heartbeat fallback", command.Message);
         Assert.Equal(result.ObservedAtUtc, command.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task PostDeviceCommandResult_WithAcceptedLockForEndingSession_FinalizesSession()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var enrollment = await EnrollDeviceAsync(client, factory);
+        await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
+        var started = await StartSessionAsync(client, "start-finalize-lock");
+        var ending = await EndSessionAsync(client, started.Session.SessionId, "end-finalize-lock");
+        var lockCommand = Assert.Single(ending.DeviceCommands);
+        var result = CreateCommandResult(enrollment, lockCommand, "Accepted", "Workstation lock requested.", Now.AddMinutes(3));
+
+        var response = await PostCommandResultAsync(client, enrollment, result);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var session = await dbContext.Sessions.SingleAsync(candidate => candidate.SessionId == started.Session.SessionId);
+        Assert.Equal(SessionStateNames.Ended, session.State);
+        Assert.Equal(result.ObservedAtUtc, session.EndedAtUtc);
+        Assert.Null(session.CurrentLeaseId);
+        Assert.Contains(
+            await dbContext.SessionEvents.Where(sessionEvent => sessionEvent.SessionId == session.SessionId).ToListAsync(),
+            sessionEvent => sessionEvent.EventType == "session-ended");
+    }
+
+    [Fact]
+    public async Task PostDeviceCommandResult_WithDuplicateAcceptedLockForEndingSession_DoesNotCreateDuplicateFinalization()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var enrollment = await EnrollDeviceAsync(client, factory);
+        await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
+        var started = await StartSessionAsync(client, "start-duplicate-lock");
+        var ending = await EndSessionAsync(client, started.Session.SessionId, "end-duplicate-lock");
+        var lockCommand = Assert.Single(ending.DeviceCommands);
+        var firstResult = CreateCommandResult(enrollment, lockCommand, "Accepted", "Workstation lock requested.", Now.AddMinutes(3));
+        var duplicateResult = CreateCommandResult(enrollment, lockCommand, "Accepted", "duplicate accepted result", Now.AddMinutes(4));
+
+        var firstResponse = await PostCommandResultAsync(client, enrollment, firstResult);
+        var duplicateResponse = await PostCommandResultAsync(client, enrollment, duplicateResult);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, duplicateResponse.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var session = await dbContext.Sessions.SingleAsync(candidate => candidate.SessionId == started.Session.SessionId);
+        Assert.Equal(SessionStateNames.Ended, session.State);
+        Assert.Equal(firstResult.ObservedAtUtc, session.EndedAtUtc);
+        Assert.Single(await dbContext.SessionEvents
+            .Where(sessionEvent =>
+                sessionEvent.SessionId == session.SessionId &&
+                sessionEvent.EventType == "session-ended")
+            .ToListAsync());
+    }
+
+    [Fact]
+    public async Task PostDeviceCommandResult_WithAcceptedLockForEndingSession_AllowsNewSessionOnSameSeatAndDevice()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var enrollment = await EnrollDeviceAsync(client, factory);
+        await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
+        var started = await StartSessionAsync(client, "start-before-finalization");
+        var ending = await EndSessionAsync(client, started.Session.SessionId, "end-before-finalization");
+        var lockCommand = Assert.Single(ending.DeviceCommands);
+        var result = CreateCommandResult(enrollment, lockCommand, "Accepted", "Workstation lock requested.", Now.AddMinutes(3));
+
+        var lockResultResponse = await PostCommandResultAsync(client, enrollment, result);
+        var restart = await StartSessionAsync(client, "start-after-finalization");
+
+        Assert.Equal(HttpStatusCode.OK, lockResultResponse.StatusCode);
+        Assert.Equal(SessionStateNames.Active, restart.Session.State);
+        Assert.Equal(SeatId, restart.Session.SeatId);
+        Assert.Equal(enrollment.DeviceId, restart.Session.DeviceId);
+        Assert.NotEqual(started.Session.SessionId, restart.Session.SessionId);
     }
 
     [Fact]
@@ -361,6 +447,104 @@ public sealed class DeviceCommandEndpointTests
         Assert.NotNull(body);
 
         return body;
+    }
+
+    private static async Task SeedSeatAssignmentAsync(PlatformApiFactory factory, Guid deviceId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.Zones.Add(new ZoneEntity
+        {
+            ZoneId = ZoneId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            Name = "Main Hall",
+            SortOrder = 1,
+            CreatedAtUtc = Now
+        });
+        dbContext.Seats.Add(new SeatEntity
+        {
+            SeatId = SeatId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ZoneId = ZoneId,
+            Name = "PC-001",
+            SortOrder = 1,
+            CreatedAtUtc = Now
+        });
+        dbContext.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+        {
+            DeviceSeatAssignmentId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = SeatId,
+            DeviceId = deviceId,
+            AttachedAtUtc = Now
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task<SessionCommandResponse> StartSessionAsync(HttpClient client, string idempotencyKey)
+    {
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", idempotencyKey));
+        var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+
+        return body;
+    }
+
+    private static async Task<SessionCommandResponse> EndSessionAsync(
+        HttpClient client,
+        Guid sessionId,
+        string idempotencyKey)
+    {
+        var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId:D}/end",
+            new EndSessionRequest("operator-end", idempotencyKey));
+        var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(SessionStateNames.Ending, body.Session.State);
+
+        return body;
+    }
+
+    private static DeviceCommandResultDto CreateCommandResult(
+        DeviceEnrollmentResponse enrollment,
+        DeviceCommandDto command,
+        string status,
+        string message,
+        DateTimeOffset observedAtUtc)
+    {
+        return new DeviceCommandResultDto(
+            enrollment.OrganizationId,
+            enrollment.BranchId,
+            enrollment.DeviceId,
+            command.CommandId,
+            Status: status,
+            Message: message,
+            ObservedAtUtc: observedAtUtc);
+    }
+
+    private static Task<HttpResponseMessage> PostCommandResultAsync(
+        HttpClient client,
+        DeviceEnrollmentResponse enrollment,
+        DeviceCommandResultDto result)
+    {
+        var message = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/devices/{enrollment.DeviceId:D}/commands/{result.CommandId:D}/result")
+        {
+            Content = JsonContent.Create(result)
+        };
+        message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
+
+        return client.SendAsync(message);
     }
 
     private static async Task SeedPendingCommandAsync(
