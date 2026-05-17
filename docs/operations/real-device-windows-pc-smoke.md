@@ -688,6 +688,12 @@ Expected:
 - Player Shell state returns to locked;
 - physical lock result is recorded honestly.
 
+After lock is accepted, confirm the seat/device can be reused through the
+normal product path. If the backend still reports the session as `ending` and
+blocks a new session with `Seat or device already has an active session`, record
+that as a session-finalization gap. Do not use manual SQL reactivation as pass
+evidence; it is acceptable only as a temporary staging inspection aid.
+
 ## Update Check And Status Smoke
 
 Run this baseline check even when no package is being offered. It verifies the

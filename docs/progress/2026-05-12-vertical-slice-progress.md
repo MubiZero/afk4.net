@@ -444,6 +444,12 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
   Shell stale. Killing both Shell processes and restarting the visible Shell
   allowed it to receive the active/locked state. Treat this as a Player Shell
   service-supervision hardening item.
+- after the lock smoke, the same staging session was manually moved from
+  `ending` back to `active` in Coolify PostgreSQL only to leave the VM in an
+  active visible Shell state for continued inspection. This SQL reactivation is
+  not a valid production or pilot operator path. It highlights that the session
+  lifecycle still needs a normal `ending` completion/reconciliation path so a
+  seat/device can be reused without manual database edits.
 
 ## Known Gaps
 
@@ -478,6 +484,11 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
   passed after killing duplicate Shell processes and restarting the visible
   Shell, but production behavior needs a deterministic interactive-session
   launch/supervision strategy.
+- Session end currently leaves the smoke session in `ending` after the Agent
+  accepts `lock`, which blocks starting a new session on the same seat/device
+  until manual staging data cleanup or reactivation is performed. Production
+  needs an explicit end/finalization/reconciliation path that advances the
+  session to a reusable terminal state without SQL.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -497,16 +508,22 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 2. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
-3. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
-   second clean Windows 11 VM or physical Windows PC, and keep the duplicate
-   Shell process behavior recorded as a hardening follow-up.
-4. Rehearse PostgreSQL backup, restore, and migration against staging data.
-5. Choose production Authenticode certificate authority/storage, object-store
+3. Harden Player Shell launch/supervision so the service does not create a
+   session-0 Shell that competes with the visible interactive Shell for named
+   pipe state.
+4. Add or fix session end finalization so `ending` sessions become reusable
+   terminal sessions after the Agent accepts lock.
+5. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
+   second clean Windows 11 VM or physical Windows PC after the two hardening
+   items above, unless a quick independent hardware sanity check is needed
+   first.
+6. Rehearse PostgreSQL backup, restore, and migration against staging data.
+7. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
    policy.
-6. Harden Agent production behavior: rotated credential consumption,
+8. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
-7. Implement the minimum admin/configuration workflows needed for a pilot club:
+9. Implement the minimum admin/configuration workflows needed for a pilot club:
    staff management, role assignment, and layout management.
 
 ## Recent Integration Notes
