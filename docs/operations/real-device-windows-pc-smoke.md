@@ -334,7 +334,7 @@ release.
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
   -Version 0.1.0-ci `
   -Channel internal `
-  -StagingLeasePublicKeyPath C:\AFK4-Secrets\staging-session-signing-public.pem
+  -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem
 ```
 
 Preferred path for clean Windows 11 VMs: copy this single file to the VM and

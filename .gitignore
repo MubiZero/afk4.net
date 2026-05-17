@@ -16,6 +16,7 @@ artifacts/
 *.pfx
 *.p12
 *.pem
+!deploy/coolify/staging-session-signing-public.pem
 *.key
 secrets/
 Secrets/

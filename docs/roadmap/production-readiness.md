@@ -91,9 +91,9 @@ Minimum bar:
    `docs/operations/real-device-windows-pc-smoke.md`, and the Agent host is
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
    A staging-only one-click Gaming PC setup executable path now exists for clean
-   Windows 11 smoke VMs, but it still needs packaging with the real staging
-   public key and execution evidence. The gate remains open until the setup and
-   smoke path are executed on Windows 10/11 hardware or VMs and evidence is
+   Windows 11 smoke VMs, and the staging public lease verification key is
+   committed for reproducible packaging. The gate remains open until the setup
+   and smoke path are executed on Windows 10/11 hardware or VMs and evidence is
    recorded.
 
 4. **Backup And Restore Rehearsal**
@@ -155,9 +155,9 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring, but real service startup must still be validated through the
   real-device smoke runbook.
-- A staging-only Gaming PC setup bootstrapper exists in code, but the generated
-  exe still needs to be built on the Windows release workstation and run on the
-  two clean Windows 11 VMs.
+- A staging-only Gaming PC setup bootstrapper exists in code, with a committed
+  staging public lease verification key for release workstation builds. The
+  generated exe still needs to be run on the two clean Windows 11 VMs.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell visibility from service supervision needs real interactive
   Windows session validation; manual Shell launch is acceptable for the first

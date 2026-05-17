@@ -133,11 +133,10 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Vers
 ```
 
 Build the staging one-click Gaming PC setup executable for clean Windows 11
-smoke VMs by supplying the staging session lease public key from outside the
-repository:
+smoke VMs by supplying the committed staging session lease public key:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal -StagingLeasePublicKeyPath C:\AFK4-Secrets\staging-session-signing-public.pem
+powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem
 ```
 
 Signed release jobs then use:

@@ -386,8 +386,8 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 
 - setup single-file `win-x64` publish with embedded dummy MSI and dummy public
   key resources passed locally, producing `AFK4.GamingPc.Setup.exe`; real VM
-  packaging still requires the real Gaming PC MSI and staging public key on the
-  Windows release workstation.
+  packaging still requires the real Gaming PC MSI on the Windows release
+  workstation.
 
 - full solution build passed in this Linux shell when Windows targeting was
   explicitly enabled:
@@ -401,8 +401,10 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
   assemblies require `Microsoft.WindowsDesktop.App` and existing release
   automation tests invoke `powershell.exe`; these remain Windows-runner
   verification items rather than product failures.
-- the bootstrapper has not yet been built on the release workstation with the
-  real staging public key and has not yet been run on the two Windows 11 VMs.
+- the staging public lease verification key is now committed at
+  `deploy/coolify/staging-session-signing-public.pem`; the matching private key
+  is stored only in Coolify as `Sessions__SigningPrivateKeyPem`.
+- the bootstrapper has not yet been run on the two Windows 11 VMs.
 
 ## Known Gaps
 
@@ -422,9 +424,10 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook, but the runbook still
   needs to be executed on physical Windows 10/11 hardware.
-- The staging one-click Gaming PC setup executable path exists in code, but it
-  still needs Windows release-workstation packaging with the real staging public
-  key and execution evidence on the two clean Windows 11 VMs.
+- The staging one-click Gaming PC setup executable path exists in code, and the
+  staging public lease verification key is committed for reproducible release
+  workstation packaging. It still needs execution evidence on the two clean
+  Windows 11 VMs.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
@@ -451,8 +454,8 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
 3. Build `afk4-gaming-pc-setup-0.1.0-ci-internal.exe` on the Windows release
-   workstation with the real staging public key, run it on both clean Windows
-   11 VMs, and record install/enrollment/heartbeat evidence.
+   workstation with the committed staging public key, run it on both clean
+   Windows 11 VMs, and record install/enrollment/heartbeat evidence.
 4. Rehearse PostgreSQL backup, restore, and migration against staging data.
 5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
