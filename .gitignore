@@ -11,3 +11,11 @@ TestResults/
 artifacts/
 .superpowers/
 .worktrees/
+.env
+.env.*
+*.pfx
+*.p12
+*.pem
+*.key
+secrets/
+Secrets/
