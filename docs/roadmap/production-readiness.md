@@ -65,9 +65,9 @@ Minimum bar:
    Platform API container from the repository, ran a managed PostgreSQL
    service, applied EF migrations explicitly, and passed backend health/auth
    smoke. The real staging domain `afk4.staging.mubi.dev` resolves to the
-   Coolify VPS and passes `/api/health` over trusted TLS. Remaining staging
-   hardening gates are runtime-only secret settings in Coolify and
-   secret/token rotation after the rehearsal.
+   Coolify VPS and passes `/api/health` over trusted TLS. The rehearsal API
+   token and staging database/session secrets were rotated after the
+   hardening pass.
 
 2. **CI Gate**
 
@@ -114,8 +114,8 @@ Minimum bar:
   commercial production.
 - Production environments are not codified.
 - Coolify-first staging is deployed and smoke-tested on
-  `afk4.staging.mubi.dev`, but runtime-only Coolify secret settings still need
-  to be finalized.
+  `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
+  after the rehearsal.
 - Automated mandatory PR checks are not enforced by GitHub rulesets on the
   current private repository plan; manual green-check merge discipline is
   recorded in `AGENTS.md`.
@@ -134,9 +134,8 @@ Minimum bar:
 - Production Authenticode certificate authority is undecided.
 - Certificate storage policy is undecided.
 - ECDSA update metadata signing key storage policy is undecided.
-- The Coolify API token shared for the staging rehearsal must be rotated.
-- Staging database/session secrets should be rotated after Coolify variables
-  are confirmed runtime-only.
+- The Coolify API token and staging database/session secrets used during the
+  rehearsal were rotated; future secret exchange must stay out of chat.
 - Object-store/CDN provider and presigned upload automation are undecided.
 - Update package registration currently supports short-lived staff tokens;
   service credential policy is still open.
@@ -172,17 +171,12 @@ Minimum bar:
    Create a focused smoke checklist/script set for one real Windows gaming PC
    covering Agent, Shell, sessions, lock/unlock, updates, diagnostics, and logs.
 
-2. `codex/staging-secret-rotation-hardening`
-
-   Mark Coolify app secrets runtime-only through a verified management path
-   and rotate the rehearsal API/database/session secrets.
-
-3. `codex/postgres-restore-rehearsal`
+2. `codex/postgres-restore-rehearsal`
 
    Execute the backup/restore runbook against staging-like data and record
    evidence in progress docs.
 
-4. `codex/pilot-admin-setup`
+3. `codex/pilot-admin-setup`
 
    Add or document the minimum pilot setup path for organization, branch,
    staff, roles, layout, devices, tariffs, and POS catalog.

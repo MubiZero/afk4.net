@@ -283,6 +283,18 @@ Coolify VPS staging rehearsal on 2026-05-17:
 
   Result: HTTP 401 for a missing staff user, proving the API reached the
   migrated PostgreSQL database rather than failing with a database error.
+- post-hardening verification after the Coolify API token, staging database
+  password, and session signing key were rotated by the operator:
+
+  ```powershell
+  Resolve-DnsName afk4.staging.mubi.dev
+  curl.exe -i --max-time 30 https://afk4.staging.mubi.dev/api/health
+  curl.exe -i --max-time 30 -H "Content-Type: application/json" --data-binary "@-" https://afk4.staging.mubi.dev/api/auth/staff/sign-in
+  ```
+
+  Result: DNS still resolved to `207.180.237.97`, health returned HTTP 200
+  with `status = ok`, and fake staff sign-in returned HTTP 401 against the
+  rotated database/session configuration.
 - local verification for the branch:
 
   ```powershell
@@ -297,13 +309,9 @@ Coolify VPS staging rehearsal on 2026-05-17:
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
   real `afk4.staging.mubi.dev` domain with TLS validation.
-- Coolify API-created application variables were observed as build-time and
-  runtime variables in this Coolify version. Before pilot or production, mark
-  `ConnectionStrings__PlatformDatabase` and `Sessions__SigningPrivateKeyPem`
-  runtime-only in the Coolify UI or another verified management path, then
-  rotate affected staging secrets.
-- Rotate the Coolify API token used for the rehearsal because it was shared in
-  chat for this session.
+- Coolify API token rotation and staging database/session secret rotation were
+  completed after the rehearsal. Keep future secret handling out of chat and
+  prefer Coolify UI/runtime-only settings for sensitive application variables.
 - GitHub Actions workflows are defined and verified, but GitHub rulesets are
   not enforced for the current private repository plan. Until branch protection
   becomes available, PR merges must manually require a green
@@ -331,17 +339,15 @@ Coolify VPS staging rehearsal on 2026-05-17:
    explicit approval.
 2. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-3. Mark Coolify app secrets runtime-only, rotate affected staging secrets, and
-   keep the temporary `sslip.io` endpoint only as rehearsal evidence.
-4. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
+3. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
    enrolled Windows gaming PC.
-5. Rehearse PostgreSQL backup, restore, and migration against staging data.
-6. Choose production Authenticode certificate authority/storage, object-store
+4. Rehearse PostgreSQL backup, restore, and migration against staging data.
+5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
    policy.
-7. Harden Agent production behavior: rotated credential consumption,
+6. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
-8. Implement the minimum admin/configuration workflows needed for a pilot club:
+7. Implement the minimum admin/configuration workflows needed for a pilot club:
    staff management, role assignment, and layout management.
 
 ## Recent Integration Notes
