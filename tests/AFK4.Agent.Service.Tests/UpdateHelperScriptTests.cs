@@ -33,6 +33,17 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("wix7", script, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ClientPackageBuildScript_BuildsGamingPcMsiAsX64Package()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
+        var script = File.ReadAllText(scriptPath);
+        var gamingPcBuild = script[
+            script.IndexOf("installers/gaming-pc/Package.wxs", StringComparison.Ordinal)..];
+
+        Assert.Contains("-arch x64", gamingPcBuild, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("installers/operator-app/Package.wxs")]
     [InlineData("installers/gaming-pc/Package.wxs")]

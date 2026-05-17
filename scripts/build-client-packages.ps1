@@ -135,6 +135,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
+    -arch x64 `
     -d "PackageVersion=$msiVersion" `
     -d "AgentServicePublishDir=$agentServicePublishDir" `
     -d "AgentServiceSupportDir=$agentServiceSupportDir" `

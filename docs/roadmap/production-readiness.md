@@ -92,9 +92,13 @@ Minimum bar:
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
    A staging-only one-click Gaming PC setup executable path now exists for clean
    Windows 11 smoke VMs, and the staging public lease verification key is
-   committed for reproducible packaging. The gate remains open until the setup
-   and smoke path are executed on Windows 10/11 hardware or VMs and evidence is
-   recorded.
+   committed for reproducible packaging. One Windows 11 VM reached
+   install/enroll/heartbeat evidence, then exposed a pre-x64 MSI packaging
+   defect where Agent files installed under `C:\Program Files (x86)` while
+   machine config pointed Shell supervision at `C:\Program Files`. The package
+   build now emits the gaming-PC MSI as x64, but the gate remains open until the
+   rebuilt setup and full smoke path are executed on Windows 10/11 hardware or
+   VMs and evidence is recorded.
 
 4. **Backup And Restore Rehearsal**
 
@@ -156,8 +160,10 @@ Minimum bar:
   wiring, but real service startup must still be validated through the
   real-device smoke runbook.
 - A staging-only Gaming PC setup bootstrapper exists in code, with a committed
-  staging public lease verification key for release workstation builds. The
-  generated exe still needs to be run on the two clean Windows 11 VMs.
+  staging public lease verification key for release workstation builds. A first
+  Windows 11 VM reached staging install/enroll/heartbeat evidence, but the
+  rebuilt x64 setup exe still needs reinstall validation plus the full
+  session/Player Shell smoke on two clean Windows 11 VMs.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell visibility from service supervision needs real interactive
   Windows session validation; manual Shell launch is acceptable for the first
@@ -185,10 +191,12 @@ Minimum bar:
 
 1. Real-device smoke execution
 
-   Build the staging Gaming PC setup exe, run it on the two clean Windows 11
-   VMs, then execute `docs/operations/real-device-windows-pc-smoke.md` evidence
-   collection for install, heartbeat, Agent/Shell state, sessions, and command
-   handling. Record pass/fail results in the progress snapshot.
+   Reinstall the rebuilt x64 staging Gaming PC setup exe on the current Windows
+   11 smoke VM, confirm Agent/Shell files land under `C:\Program Files\AFK4`,
+   run it on the second clean Windows 11 VM, then execute
+   `docs/operations/real-device-windows-pc-smoke.md` evidence collection for
+   install, heartbeat, Agent/Shell state, sessions, and command handling.
+   Record pass/fail results in the progress snapshot.
 
 2. `codex/postgres-restore-rehearsal`
 

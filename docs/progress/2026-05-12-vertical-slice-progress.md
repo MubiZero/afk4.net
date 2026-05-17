@@ -411,7 +411,22 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
   red/green, the setup exe was rebuilt with the repo-relative key path, and
   binary inspection confirmed both the public-key resource name and public-key
   PEM payload are present in the generated exe.
-- the bootstrapper has not yet been run on the two Windows 11 VMs.
+- a Windows 11 VM smoke on `DESKTOP-DTMPO0V` then enrolled successfully against
+  staging as device `3ba8737c-f94b-4ea4-bc25-014af468784f`; the setup UI
+  observed backend heartbeat evidence, and staging device diagnostics showed
+  the device online with Agent/Shell version `0.1.0`.
+- the same VM exposed a packaging defect after install: WiX produced a 32-bit
+  MSI, so Windows installed the Agent under `C:\Program Files (x86)\AFK4\...`
+  while the bootstrapper machine config pointed
+  `Agent__PlayerShellExecutablePath` at `C:\Program Files\AFK4\Player Shell`.
+  `scripts/build-client-packages.ps1` now passes `-arch x64` for the
+  gaming-PC MSI; the regression test was verified red/green, the staging setup
+  exe was rebuilt, MSI summary metadata reports `x64;0`, and administrative
+  extraction confirms `PFiles64\AFK4\Player Shell\AFK4.Player.Shell.exe` is
+  present.
+- the rebuilt x64 bootstrapper still needs to be re-run on the current Windows
+  11 VM or a clean VM before continuing the session/Player Shell visible-state
+  smoke.
 
 ## Known Gaps
 
@@ -433,8 +448,9 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
   needs to be executed on physical Windows 10/11 hardware.
 - The staging one-click Gaming PC setup executable path exists in code, and the
   staging public lease verification key is committed for reproducible release
-  workstation packaging. It still needs execution evidence on the two clean
-  Windows 11 VMs.
+  workstation packaging. One Windows 11 VM reached install/enroll/heartbeat
+  evidence, but that run used the pre-x64 MSI artifact; rerun with the rebuilt
+  x64 setup exe before treating Agent/Shell path validation as passing.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
@@ -460,9 +476,10 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 2. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
-3. Build `afk4-gaming-pc-setup-0.1.0-ci-internal.exe` on the Windows release
-   workstation with the committed staging public key, run it on both clean
-   Windows 11 VMs, and record install/enrollment/heartbeat evidence.
+3. Reinstall the rebuilt x64
+   `afk4-gaming-pc-setup-0.1.0-ci-internal.exe` on the Windows 11 smoke VM,
+   confirm it installs under `C:\Program Files\AFK4`, then continue the
+   session/Player Shell smoke and repeat on the second clean VM.
 4. Rehearse PostgreSQL backup, restore, and migration against staging data.
 5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
