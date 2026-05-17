@@ -15,10 +15,16 @@ public interface IPlayerShellProcessStarter
     void Start(string executablePath, string arguments);
 }
 
+public interface IPlayerShellLaunchContext
+{
+    bool IsInteractiveUserSession();
+}
+
 public sealed class PlayerShellProcessSupervisor(
     IOptions<AgentOptions> options,
     IPlayerShellProcessQuery processQuery,
     IPlayerShellProcessStarter processStarter,
+    IPlayerShellLaunchContext launchContext,
     ILogger<PlayerShellProcessSupervisor> logger) : IPlayerShellProcessSupervisor
 {
     private static readonly HashSet<string> StatesRequiringShell = new(StringComparer.Ordinal)
@@ -36,6 +42,18 @@ public sealed class PlayerShellProcessSupervisor(
     {
         if (!StatesRequiringShell.Contains(runtimeState.State))
         {
+            return Task.CompletedTask;
+        }
+
+        if (!options.Value.PlayerShellAutoStartEnabled)
+        {
+            logger.LogDebug("Player Shell auto-start is disabled; state publishing remains active.");
+            return Task.CompletedTask;
+        }
+
+        if (!launchContext.IsInteractiveUserSession())
+        {
+            logger.LogInformation("Player Shell auto-start skipped because the Agent is not running in an interactive user session.");
             return Task.CompletedTask;
         }
 
@@ -61,6 +79,14 @@ public sealed class PlayerShellProcessSupervisor(
         logger.LogInformation("Player Shell process start requested for {ExecutablePath}.", executablePath);
 
         return Task.CompletedTask;
+    }
+}
+
+public sealed class PlayerShellLaunchContext : IPlayerShellLaunchContext
+{
+    public bool IsInteractiveUserSession()
+    {
+        return Environment.UserInteractive && Process.GetCurrentProcess().SessionId != 0;
     }
 }
 
