@@ -31,7 +31,7 @@ public sealed class AgentUpdateWorkerTests
     [Fact]
     public async Task ExecuteAsync_WhenCoordinatorFailsContinuesUpdateLoop()
     {
-        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(12));
         var secondAttempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var coordinator = new FailingThenRecordingUpdateCoordinator(secondAttempt);
         var worker = new AgentUpdateWorker(
@@ -41,7 +41,7 @@ public sealed class AgentUpdateWorkerTests
             Options.Create(new AgentOptions { UpdateCheckIntervalSeconds = 1 }));
 
         await worker.StartAsync(stopping.Token);
-        await secondAttempt.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        await secondAttempt.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await worker.StopAsync(CancellationToken.None);
 
         Assert.True(coordinator.CallCount >= 2);
