@@ -12,6 +12,8 @@ public sealed class CoolifyContainerDeploymentTests
         Assert.Contains("COPY [\"src/AFK4.Platform.Api/AFK4.Platform.Api.csproj\"", dockerfile, StringComparison.Ordinal);
         Assert.Contains("dotnet restore \"src/AFK4.Platform.Api/AFK4.Platform.Api.csproj\"", dockerfile, StringComparison.Ordinal);
         Assert.Contains("dotnet publish \"src/AFK4.Platform.Api/AFK4.Platform.Api.csproj\"", dockerfile, StringComparison.Ordinal);
+        Assert.Contains("apt-get install -y --no-install-recommends curl wget", dockerfile, StringComparison.Ordinal);
+        Assert.Contains("rm -rf /var/lib/apt/lists/*", dockerfile, StringComparison.Ordinal);
         Assert.Contains("ASPNETCORE_URLS=http://+:8080", dockerfile, StringComparison.Ordinal);
         Assert.Contains("EXPOSE 8080", dockerfile, StringComparison.Ordinal);
         Assert.Contains("USER app", dockerfile, StringComparison.Ordinal);
@@ -62,10 +64,13 @@ public sealed class CoolifyContainerDeploymentTests
 
         Assert.Contains("ASPNETCORE_ENVIRONMENT=Staging", envTemplate, StringComparison.Ordinal);
         Assert.Contains("ASPNETCORE_URLS=http://+:8080", envTemplate, StringComparison.Ordinal);
+        Assert.Contains("AllowedHosts=<coolify-staging-domain>;localhost;127.0.0.1", envTemplate, StringComparison.Ordinal);
         Assert.Contains("ConnectionStrings__PlatformDatabase=", envTemplate, StringComparison.Ordinal);
+        Assert.Contains("SSL Mode=Disable", envTemplate, StringComparison.Ordinal);
         Assert.Contains("GSS Encryption Mode=Disable", envTemplate, StringComparison.Ordinal);
         Assert.Contains("Sessions__SigningPrivateKeyPem=", envTemplate, StringComparison.Ordinal);
         Assert.Contains("AFK4_STAGING_PUBLIC_BASE_URL=", envTemplate, StringComparison.Ordinal);
+        Assert.Contains("runtime-only", envTemplate, StringComparison.Ordinal);
         Assert.Contains("<coolify", envTemplate, StringComparison.OrdinalIgnoreCase);
 
         Assert.DoesNotContain("Host=localhost", envTemplate, StringComparison.OrdinalIgnoreCase);
@@ -100,6 +105,12 @@ public sealed class CoolifyContainerDeploymentTests
         Assert.Contains("src/AFK4.Platform.Api/Dockerfile", runbook, StringComparison.Ordinal);
         Assert.Contains("deploy/coolify/staging.env.template", runbook, StringComparison.Ordinal);
         Assert.Contains("ConnectionStrings__PlatformDatabase", runbook, StringComparison.Ordinal);
+        Assert.Contains("AllowedHosts=<coolify-staging-domain>;localhost;127.0.0.1", runbook, StringComparison.Ordinal);
+        Assert.Contains("http://localhost:8080/api/health", runbook, StringComparison.Ordinal);
+        Assert.Contains("runtime-only", runbook, StringComparison.Ordinal);
+        Assert.Contains("curl", runbook, StringComparison.Ordinal);
+        Assert.Contains("wget", runbook, StringComparison.Ordinal);
+        Assert.Contains("SSL Mode=Disable", runbook, StringComparison.Ordinal);
         Assert.Contains("GSS Encryption Mode=Disable", runbook, StringComparison.Ordinal);
         Assert.Contains("dotnet ef database update", runbook, StringComparison.Ordinal);
         Assert.Contains("--idempotent", runbook, StringComparison.Ordinal);

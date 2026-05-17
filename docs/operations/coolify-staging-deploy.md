@@ -41,7 +41,9 @@ Use these Coolify settings for the Platform API app:
 
 The Dockerfile publishes only `src/AFK4.Platform.Api` and its shared project
 references. The app reads the PostgreSQL connection from
-`ConnectionStrings__PlatformDatabase`.
+`ConnectionStrings__PlatformDatabase`. The runtime image includes `curl` and
+`wget` so Coolify can execute Dockerfile-based container health checks inside
+the container.
 
 ## Create PostgreSQL
 
@@ -78,22 +80,29 @@ separate Coolify compose/service resource from
 6. Configure the public staging domain and TLS in Coolify.
 7. Copy variable names from `deploy/coolify/staging.env.template` into Coolify.
 8. Fill values in Coolify only; do not create a filled env file in the repo.
+9. Mark application variables as runtime-only in Coolify. Do not expose
+   `ConnectionStrings__PlatformDatabase` or `Sessions__SigningPrivateKeyPem`
+   as build-time variables.
+10. Include `localhost` and `127.0.0.1` in `AllowedHosts` so Coolify's
+    in-container health check can call `http://localhost:8080/api/health`.
 
 Required Platform API variables:
 
 ```text
 ASPNETCORE_ENVIRONMENT=Staging
 ASPNETCORE_URLS=http://+:8080
-AllowedHosts=<coolify-staging-domain>
+AllowedHosts=<coolify-staging-domain>;localhost;127.0.0.1
 AFK4_STAGING_PUBLIC_BASE_URL=https://<coolify-staging-domain>
 ConnectionStrings__PlatformDatabase=<Coolify PostgreSQL connection string>
 Sessions__SigningPrivateKeyPem=<Coolify secret PEM>
 ```
 
-For Linux containers, include `GSS Encryption Mode=Disable` in the Npgsql
-connection string unless Kerberos/GSS encryption is intentionally configured.
-Npgsql can otherwise log a harmless fallback message about
-`libgssapi_krb5.so.2` being unavailable in minimal runtime images.
+For Coolify internal PostgreSQL, include `SSL Mode=Disable` unless SSL has been
+explicitly configured for that database. For Linux containers, include
+`GSS Encryption Mode=Disable` in the Npgsql connection string unless
+Kerberos/GSS encryption is intentionally configured. Npgsql can otherwise log a
+harmless fallback message about `libgssapi_krb5.so.2` being unavailable in
+minimal runtime images.
 
 Generate the session lease key outside the repository. Example with Git for
 Windows OpenSSL on a trusted release workstation:

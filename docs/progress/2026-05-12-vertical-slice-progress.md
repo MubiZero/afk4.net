@@ -236,11 +236,82 @@ Coolify staging container deploy branch verification on 2026-05-17:
   docker build --target build -f src/AFK4.Platform.Api/Dockerfile -t afk4-platform-api:staging-build-stage-check .
   ```
 
+Coolify VPS staging rehearsal on 2026-05-17:
+
+- branch `codex/coolify-staging-rehearsal` created the first real Coolify
+  staging resources:
+  - Coolify project `AFK4`, environment `staging`;
+  - application `afk4-platform-api-staging`;
+  - Coolify-managed PostgreSQL `afk4-staging-postgres`;
+  - temporary public staging host
+    `https://afk4-staging.207.180.237.97.sslip.io`.
+- real staging DNS/TLS was configured after the initial rehearsal:
+  `afk4.staging.mubi.dev` resolves to `207.180.237.97`, and
+  `curl.exe -i https://afk4.staging.mubi.dev/api/health` returns HTTP 200
+  without `curl -k`.
+- preferred Coolify-managed PostgreSQL was used, not the fallback compose
+  resource.
+- EF migrations were applied explicitly from the release workstation after a
+  temporary PostgreSQL public port was opened and then closed. Migration
+  verification listed all 9 migrations through
+  `20260514081906_AddUpdateRollouts`; `Test-NetConnection` confirmed the
+  temporary port was closed after verification.
+- Initial deploy attempts exposed two runbook/container details:
+  - Coolify Dockerfile health checks execute from inside the container and need
+    both `curl` and `wget` available in this Coolify version;
+  - `AllowedHosts` must include `localhost` and `127.0.0.1` because Coolify's
+    in-container health check calls `http://localhost:8080/api/health`.
+- the branch updates the Platform API Dockerfile and Coolify runbook/template
+  to cover those findings, and keeps invariant coverage in
+  `CoolifyContainerDeploymentTests`.
+- Coolify deploy `r9ahy05ujzwk0hjzhxpdfhlc` completed successfully for branch
+  `codex/coolify-staging-rehearsal`; app and database status were both
+  `running:healthy`.
+- smoke evidence:
+
+  ```powershell
+  curl.exe -k -i --max-time 30 https://afk4-staging.207.180.237.97.sslip.io/api/health
+  curl.exe -i --max-time 30 https://afk4.staging.mubi.dev/api/health
+  ```
+
+  Result: HTTP 200 with `{"status":"ok",...}`. The real staging domain passes
+  TLS validation without the insecure curl flag.
+
+  ```powershell
+  curl.exe -k -i --max-time 30 -H "Content-Type: application/json" --data-binary "@-" https://afk4-staging.207.180.237.97.sslip.io/api/auth/staff/sign-in
+  ```
+
+  Result: HTTP 401 for a missing staff user, proving the API reached the
+  migrated PostgreSQL database rather than failing with a database error.
+- post-hardening verification after the Coolify API token, staging database
+  password, and session signing key were rotated by the operator:
+
+  ```powershell
+  Resolve-DnsName afk4.staging.mubi.dev
+  curl.exe -i --max-time 30 https://afk4.staging.mubi.dev/api/health
+  curl.exe -i --max-time 30 -H "Content-Type: application/json" --data-binary "@-" https://afk4.staging.mubi.dev/api/auth/staff/sign-in
+  ```
+
+  Result: DNS still resolved to `207.180.237.97`, health returned HTTP 200
+  with `status = ok`, and fake staff sign-in returned HTTP 401 against the
+  rotated database/session configuration.
+- local verification for the branch:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~CoolifyContainerDeploymentTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: targeted invariant tests passed, and solution build passed with
+  0 warnings and 0 errors.
+
 ## Known Gaps
 
-- Containerized Coolify staging deployment artifacts and runbook are present in
-  the repository, but no real VPS staging deployment, migration run, or smoke
-  evidence has been recorded yet.
+- Real Coolify staging now exists and passes backend health/auth smoke on the
+  real `afk4.staging.mubi.dev` domain with TLS validation.
+- Coolify API token rotation and staging database/session secret rotation were
+  completed after the rehearsal. Keep future secret handling out of chat and
+  prefer Coolify UI/runtime-only settings for sensitive application variables.
 - GitHub Actions workflows are defined and verified, but GitHub rulesets are
   not enforced for the current private repository plan. Until branch protection
   becomes available, PR merges must manually require a green
@@ -263,9 +334,9 @@ Coolify staging container deploy branch verification on 2026-05-17:
 
 ## Recommended Next Work
 
-1. Use `docs/operations/coolify-staging-deploy.md` to create the first real
-   Coolify staging deployment for Platform API and PostgreSQL on the Linux VPS,
-   then record migration and smoke evidence.
+1. Finish PR review for `codex/coolify-staging-rehearsal`, keep the current
+   head behind a green remote `PR Verification Result`, and merge only after
+   explicit approval.
 2. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
 3. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
