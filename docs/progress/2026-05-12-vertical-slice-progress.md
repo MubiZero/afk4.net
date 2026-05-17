@@ -404,6 +404,13 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 - the staging public lease verification key is now committed at
   `deploy/coolify/staging-session-signing-public.pem`; the matching private key
   is stored only in Coolify as `Sessions__SigningPrivateKeyPem`.
+- after the first Windows 11 VM bootstrapper attempt failed because the setup
+  exe did not contain the embedded public-key resource, the build script was
+  fixed to resolve `-StagingLeasePublicKeyPath` to an absolute path before
+  passing it to MSBuild; the targeted packaging invariant test was verified
+  red/green, the setup exe was rebuilt with the repo-relative key path, and
+  binary inspection confirmed both the public-key resource name and public-key
+  PEM payload are present in the generated exe.
 - the bootstrapper has not yet been run on the two Windows 11 VMs.
 
 ## Known Gaps

@@ -460,6 +460,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("StagingLeasePublicKeyPath", script, StringComparison.Ordinal);
         Assert.Contains("AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj", script, StringComparison.Ordinal);
         Assert.Contains("GamingPcMsiPath=", script, StringComparison.Ordinal);
+        Assert.Contains("$resolvedStagingLeasePublicKeyPath", script, StringComparison.Ordinal);
+        Assert.Contains("Resolve-Path -LiteralPath $StagingLeasePublicKeyPath", script, StringComparison.Ordinal);
         Assert.Contains("StagingLeasePublicKeyPath=", script, StringComparison.Ordinal);
         Assert.Contains("PublishSingleFile=true", script, StringComparison.Ordinal);
         Assert.Contains("SelfContained=true", script, StringComparison.Ordinal);

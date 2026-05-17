@@ -41,6 +41,11 @@ if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -and -not (Tes
     throw "Staging lease public key file was not found at '$StagingLeasePublicKeyPath'."
 }
 
+$resolvedStagingLeasePublicKeyPath = ''
+if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
+    $resolvedStagingLeasePublicKeyPath = (Resolve-Path -LiteralPath $StagingLeasePublicKeyPath).Path
+}
+
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $artifactRoot = Join-Path $repoRoot 'artifacts/client-packages'
 $publishRoot = Join-Path $artifactRoot 'publish'
@@ -155,7 +160,7 @@ if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
         --self-contained true `
         -o $setupPublishDir `
         -p:GamingPcMsiPath="$gamingPcMsiPath" `
-        -p:StagingLeasePublicKeyPath="$StagingLeasePublicKeyPath" `
+        -p:StagingLeasePublicKeyPath="$resolvedStagingLeasePublicKeyPath" `
         -p:PublishSingleFile=true `
         -p:SelfContained=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `
