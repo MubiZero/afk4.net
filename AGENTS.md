@@ -114,6 +114,25 @@ full path above if `dotnet` is not recognized.
 - Commit coherent units of work with clear messages.
 - Do not revert user changes unless explicitly asked.
 
+## GitHub Actions And PR Merge Discipline
+
+GitHub Actions billing is enabled for this repository, but paid CI minutes must
+be used carefully.
+
+- Do not trigger remote GitHub Actions runs casually. Prefer local build/test
+  verification while iterating, and push only coherent changes that are ready
+  for remote validation.
+- Treat `PR Verification Result` as the required PR gate for normal merges.
+- Do not merge a PR until the latest commit on the PR branch has a green remote
+  `PR Verification Result` check.
+- If GitHub branch protection or rulesets are unavailable for the current
+  private repository plan, enforce the same rule manually: inspect the PR checks
+  and wait for green CI before merge.
+- Do not rely only on skipped, cancelled, stale, or earlier workflow runs. The
+  green check must belong to the current PR head commit.
+- Keep Windows hosted runner use cost-aware: rely on conditional PR workflow
+  paths, stale-run cancellation, timeouts, and short artifact retention.
+
 ## Windows App Guidance
 
 Operator App should feel like dense operator software, not a marketing

@@ -80,9 +80,13 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build-client-packages:
     runs-on: windows-latest
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -261,6 +265,8 @@ jobs:
         with:
           name: afk4-update-package-requests-${{ inputs.version }}-${{ inputs.channel }}
           path: artifacts/update-packages/*-request.json
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Register update packages
         if: ${{ inputs.register_update_packages }}
@@ -285,3 +291,5 @@ jobs:
         with:
           name: afk4-client-packages-${{ inputs.version }}-${{ inputs.channel }}
           path: artifacts/client-packages/*.msi
+          if-no-files-found: error
+          retention-days: 3

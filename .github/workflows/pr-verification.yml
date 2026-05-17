@@ -1,0 +1,131 @@
+name: PR Verification
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-verification-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect Relevant Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_windows: ${{ steps.filter.outputs.run_windows }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Windows-relevant changes
+        id: filter
+        shell: pwsh
+        run: |
+          $base = "${{ github.event.pull_request.base.sha }}"
+          $head = "${{ github.event.pull_request.head.sha }}"
+          $changed = git diff --name-only "$base...$head"
+          $relevantPrefixes = @(
+            ".github/workflows/",
+            "installers/",
+            "scripts/",
+            "src/",
+            "tests/"
+          )
+          $relevantFiles = @(
+            "AFK4.sln",
+            ".config/dotnet-tools.json",
+            "Directory.Build.props",
+            "Directory.Packages.props",
+            "global.json",
+            "NuGet.config"
+          )
+          $runWindows = $false
+
+          foreach ($path in $changed) {
+            if ($relevantFiles -contains $path) {
+              $runWindows = $true
+              break
+            }
+
+            foreach ($prefix in $relevantPrefixes) {
+              if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $runWindows = $true
+                break
+              }
+            }
+
+            if ($runWindows) {
+              break
+            }
+          }
+
+          Write-Host "Changed paths:"
+          $changed | ForEach-Object { Write-Host " - $_" }
+          Write-Host "Run Windows build/test: $runWindows"
+          "run_windows=$($runWindows.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+  build-test-windows:
+    name: Build And Test Windows
+    needs: changes
+    if: ${{ needs.changes.outputs.run_windows == 'true' }}
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Restore
+        run: dotnet restore AFK4.sln
+
+      - name: Build
+        run: dotnet build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+
+      - name: Test
+        run: dotnet test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+
+  pr-verification-result:
+    name: PR Verification Result
+    needs:
+      - changes
+      - build-test-windows
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check result
+        shell: pwsh
+        run: |
+          $changesResult = "${{ needs.changes.result }}"
+          $runWindows = "${{ needs.changes.outputs.run_windows }}"
+          $windowsResult = "${{ needs.build-test-windows.result }}"
+
+          if ($changesResult -ne "success") {
+            throw "Change detection failed. Result: $changesResult"
+          }
+
+          if ($runWindows -eq "true" -and $windowsResult -ne "success") {
+            throw "Windows build/test gate did not pass. Result: $windowsResult"
+          }
+
+          if ($runWindows -ne "true") {
+            Write-Host "No Windows-relevant changes detected; skipping paid Windows runner."
+          }
+          else {
+            Write-Host "Windows build/test gate passed."
+          }

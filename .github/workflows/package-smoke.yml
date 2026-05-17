@@ -1,0 +1,75 @@
+name: Package Smoke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/package-smoke.yml"
+      - ".config/dotnet-tools.json"
+      - "installers/**"
+      - "scripts/build-client-packages.ps1"
+      - "scripts/install-afk4-update-msi.ps1"
+      - "scripts/rollback-afk4-update-msi.ps1"
+      - "scripts/restart-afk4-agent-service.ps1"
+      - "src/AFK4.Shared.Contracts/**"
+      - "src/AFK4.BuildingBlocks/**"
+      - "src/AFK4.Operator.App/**"
+      - "src/AFK4.Agent.Service/**"
+      - "src/AFK4.Player.Shell/**"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - "NuGet.config"
+      - "global.json"
+      - "AFK4.sln"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-smoke:
+    name: Build Unsigned MSI Packages
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Build client packages
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
+
+      - name: Verify MSI artifacts
+        shell: pwsh
+        run: |
+          $expectedArtifacts = @(
+            "artifacts/client-packages/afk4-operator-app-0.1.0-ci-internal.msi",
+            "artifacts/client-packages/afk4-gaming-pc-0.1.0-ci-internal.msi"
+          )
+
+          foreach ($artifact in $expectedArtifacts) {
+            if (-not (Test-Path -LiteralPath $artifact)) {
+              throw "Expected MSI artifact was not produced: $artifact"
+            }
+          }
+
+      - name: Upload MSI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: afk4-package-smoke-msi-0.1.0-ci-internal
+          path: artifacts/client-packages/*.msi
+          if-no-files-found: error
+          retention-days: 3

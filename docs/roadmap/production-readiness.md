@@ -65,9 +65,14 @@ Minimum bar:
 
 2. **CI Gate**
 
-   Make GitHub Actions build and test the solution on every PR. Add a packaging
-   smoke for the client MSI workflow so release artifacts are not produced from
-   unverified code.
+   Use cost-aware GitHub Actions workflows to build and test relevant pull
+   requests, run package smoke for client MSI artifacts, and keep release
+   packaging manual and guarded. GitHub Actions billing is enabled, but
+   workflows must avoid unnecessary manual remote runs, use Windows hosted
+   runners only where they add required coverage, cancel stale PR runs, set
+   timeouts, and keep artifact retention short. PR #11 produced the first
+   successful remote `PR Verification` run; after merge, enable branch
+   protection for the `PR Verification Result` check.
 
 3. **Real Device Smoke**
 
@@ -145,26 +150,22 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. `codex/ci-required-checks`
-
-   Add PR build/test gates and packaging smoke.
-
-2. `codex/staging-deploy-runbook`
+1. `codex/staging-deploy-runbook`
 
    Document and script the first staging deployment path, environment variables,
    migrations, and smoke commands.
 
-3. `codex/real-device-smoke`
+2. `codex/real-device-smoke`
 
    Create a focused smoke checklist/script set for one real Windows gaming PC
    covering Agent, Shell, sessions, lock/unlock, updates, diagnostics, and logs.
 
-4. `codex/postgres-restore-rehearsal`
+3. `codex/postgres-restore-rehearsal`
 
    Execute the backup/restore runbook against staging-like data and record
    evidence in progress docs.
 
-5. `codex/pilot-admin-setup`
+4. `codex/pilot-admin-setup`
 
    Add or document the minimum pilot setup path for organization, branch,
    staff, roles, layout, devices, tariffs, and POS catalog.

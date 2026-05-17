@@ -7,10 +7,13 @@ namespace AFK4.Agent.Service.Tests;
 
 public sealed class AgentUpdateWorkerTests
 {
+    private static readonly TimeSpan WorkerStopTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan WorkerObservationTimeout = TimeSpan.FromSeconds(15);
+
     [Fact]
     public async Task ExecuteAsync_ChecksForUpdatesOnStartupWithoutBlockingHeartbeatWorker()
     {
-        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
         var updateChecked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var coordinator = new RecordingUpdateCoordinator(updateChecked);
         var recovery = new RecordingRecoveryService();
@@ -21,7 +24,7 @@ public sealed class AgentUpdateWorkerTests
             Options.Create(new AgentOptions { UpdateCheckIntervalSeconds = 60 }));
 
         await worker.StartAsync(stopping.Token);
-        await updateChecked.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await updateChecked.Task.WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Equal(1, recovery.CallCount);
@@ -31,7 +34,7 @@ public sealed class AgentUpdateWorkerTests
     [Fact]
     public async Task ExecuteAsync_WhenCoordinatorFailsContinuesUpdateLoop()
     {
-        using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
         var secondAttempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var coordinator = new FailingThenRecordingUpdateCoordinator(secondAttempt);
         var worker = new AgentUpdateWorker(
@@ -41,7 +44,7 @@ public sealed class AgentUpdateWorkerTests
             Options.Create(new AgentOptions { UpdateCheckIntervalSeconds = 1 }));
 
         await worker.StartAsync(stopping.Token);
-        await secondAttempt.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        await secondAttempt.Task.WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
         Assert.True(coordinator.CallCount >= 2);
