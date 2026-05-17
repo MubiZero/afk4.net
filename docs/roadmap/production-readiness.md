@@ -86,7 +86,12 @@ Minimum bar:
 
    Enroll a real Windows 10/11 gaming PC. Validate device credential auth,
    heartbeat, SignalR commands, session start/end, lease refresh, lock/unlock,
-   Player Shell state, installed app report, and diagnostics.
+   Player Shell state, installed app report, and diagnostics. A repeatable
+   manual staging runbook now exists at
+   `docs/operations/real-device-windows-pc-smoke.md`, and the Agent host is
+   wired for Windows Service runtime under service name `AFK4.Agent.Service`.
+   The gate remains open until the runbook is executed on physical hardware and
+   evidence is recorded.
 
 4. **Backup And Restore Rehearsal**
 
@@ -144,7 +149,13 @@ Minimum bar:
 
 - Automatic Agent-side consumption of rotated device credentials is not
   implemented.
+- Agent service registration now has matching Windows Service host lifetime
+  wiring, but real service startup must still be validated through the
+  real-device smoke runbook.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
+- Player Shell visibility from service supervision needs real interactive
+  Windows session validation; manual Shell launch is acceptable for the first
+  visible-state smoke if the service-started process is not visible.
 - Reboot recovery must be exercised on physical PCs.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.
@@ -166,10 +177,11 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. `codex/real-device-smoke`
+1. Real-device smoke execution
 
-   Create a focused smoke checklist/script set for one real Windows gaming PC
-   covering Agent, Shell, sessions, lock/unlock, updates, diagnostics, and logs.
+   Execute `docs/operations/real-device-windows-pc-smoke.md` against one real
+   Windows gaming PC, collect logs/screenshots/backend evidence, and record
+   pass/fail results in the progress snapshot.
 
 2. `codex/postgres-restore-rehearsal`
 
