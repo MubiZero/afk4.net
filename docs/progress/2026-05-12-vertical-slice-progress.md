@@ -290,6 +290,15 @@ Coolify staging container deploy branch verification on 2026-05-17:
   with merge commit `8bf9d9e7823f5c932ed4ee8dd5d92b855423bdef`.
 - PR #12, `Opt GitHub Actions into Node 24`, merged into `main` on 2026-05-17
   with merge commit `aa8e1b9c1d3504e9c64de6a4aa6872692728fe35`.
+- PR #15, `Add Coolify staging container deploy path`, merged into `main` on
+  2026-05-17 with squash merge commit
+  `e1f2623bf24bf6b37d3308e2ec6778bb48fdda6d`. The PR head was
+  `d761998eb086f7128bcce08ec414adba927b9fd7`, and remote
+  `PR Verification Result` passed for that head in workflow run
+  `25982865673`. The remote branch
+  `codex/staging-coolify-container-deploy` was deleted after merge. The next
+  recommended follow-up branch is `codex/coolify-staging-rehearsal` to run the
+  Coolify deployment on the VPS and record real staging smoke evidence.
 
 ## Historical Reference
 
