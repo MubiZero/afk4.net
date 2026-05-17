@@ -2,10 +2,15 @@ using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
 using AFK4.Agent.Service.Shell;
 using AFK4.Agent.Service.Updates;
+using Microsoft.Extensions.Hosting.WindowsServices;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection("Agent"));
+builder.Services.AddWindowsService(options =>
+{
+    options.ServiceName = "AFK4.Agent.Service";
+});
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient("platform");
 builder.Services.AddSingleton<ISessionLeaseStore, FileSessionLeaseStore>();

@@ -62,6 +62,9 @@ implementation evidence are needed.
 - Signed session lease validation and persistent lease/runtime state.
 - Reconnect reconciliation snapshots.
 - Lock/unlock enforcement coordinator through testable adapter boundaries.
+- Agent host is wired for Windows Service lifetime so the WiX-registered
+  `AFK4.Agent.Service` service can run under the Windows Service Control
+  Manager during real-device smoke.
 - Player Shell process supervision.
 - Named-pipe Shell state publishing and Shell launcher command handling.
 - Allow/deny process policy foundation.
@@ -108,6 +111,9 @@ implementation evidence are needed.
   running health/smoke checks.
 - Agent installer enrollment runbook.
 - Client update rollout runbook.
+- Real Windows gaming PC smoke runbook for staging Platform API, Agent Service,
+  Player Shell, sessions, leases, lock/unlock evidence, installed apps,
+  diagnostics, and update check/status boundaries.
 - Client packaging runbook.
 - Update package publishing runbook.
 - PostgreSQL backup/restore rehearsal runbook.
@@ -305,6 +311,42 @@ Coolify VPS staging rehearsal on 2026-05-17:
   Result: targeted invariant tests passed, and solution build passed with
   0 warnings and 0 errors.
 
+Real-device smoke preparation branch verification on 2026-05-17:
+
+- branch `codex/real-device-smoke` adds
+  `docs/operations/real-device-windows-pc-smoke.md`, links it from
+  `README.md`, and adds invariant coverage in
+  `RealDeviceSmokeRunbookTests`;
+- the Agent Service now references
+  `Microsoft.Extensions.Hosting.WindowsServices` and calls
+  `AddWindowsService` with service name `AFK4.Agent.Service`, matching the
+  WiX service registration used by the gaming-PC MSI;
+- targeted red/green verification for the new real-device smoke invariants
+  passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter FullyQualifiedName~RealDeviceSmokeRunbookTests -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 2 passed, 0 failed, 0 skipped.
+- full local solution build passed with 0 warnings and 0 errors:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+- full local no-build solution tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 638 passed, 0 failed, 0 skipped.
+
+The runbook preparation does not claim the real Windows PC smoke has been
+executed. It explicitly requires operator-performed PC steps, screenshots/log
+evidence, and pass/fail recording before the real-device gate can be closed.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -321,8 +363,17 @@ Coolify VPS staging rehearsal on 2026-05-17:
   implemented.
 - Operator App layout management UI is not implemented.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
+- Real Windows PC smoke has a repeatable staging runbook, but the runbook still
+  needs to be executed on physical Windows 10/11 hardware.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
-  beyond adapter-level automated tests.
+  beyond adapter-level automated tests; if physical desktop lock/unlock does
+  not occur, record that as an enforcement hardening gap rather than as a pass.
+- Player Shell visibility from the Agent Service still needs real user-session
+  validation; the manual smoke allows a manually launched Shell for visible
+  state evidence if service-started UI is not visible.
+- Operator App staging observation needs either a staging-configured build or a
+  future runtime configuration path because the current app default API URL is
+  `http://localhost:5074`.
 - Production Authenticode certificate authority/storage is undecided.
 - Object-store/CDN provider and presigned URL automation are undecided.
 - Dedicated service credential policy for update package registration is
@@ -336,8 +387,9 @@ Coolify VPS staging rehearsal on 2026-05-17:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
-   enrolled Windows gaming PC.
+2. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
+   enrolled Windows gaming PC and record actual pass/fail evidence, including
+   any physical lock/unlock or Player Shell visibility gaps.
 3. Rehearse PostgreSQL backup, restore, and migration against staging data.
 4. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential

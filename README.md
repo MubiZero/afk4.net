@@ -116,6 +116,7 @@ exact current verification notes.
 ## Local Runbooks
 
 - [Coolify Staging Deploy](docs/operations/coolify-staging-deploy.md)
+- [Real Device Windows PC Smoke](docs/operations/real-device-windows-pc-smoke.md)
 - [Local PostgreSQL And Device Smoke](docs/operations/local-postgres-smoke.md)
 - [Client Packaging](docs/operations/client-packaging.md)
 - [Update Package Publishing](docs/operations/update-package-publishing.md)
