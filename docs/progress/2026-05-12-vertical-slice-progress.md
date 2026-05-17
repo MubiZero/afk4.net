@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 ## Purpose
 
@@ -97,6 +97,8 @@ implementation evidence are needed.
     Windows build/test execution.
   - Package smoke for unsigned MSI validation on `main` and manual dispatch.
   - Manual release package workflow with short artifact retention.
+  - JavaScript actions are opted into Node 24 execution with
+    `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`.
 
 ### Operations Docs
 
@@ -141,17 +143,32 @@ Cost-aware CI configuration verification on 2026-05-17:
 - targeted client release automation tests passed locally;
 - workflow-content tests cover PR verification, package smoke, and manual
   package workflow cost controls;
-- PR #11 remote `PR Verification` passed on GitHub:
+- PR #11, `Add cost-aware GitHub Actions CI`, merged into `main`;
+- PR #11 remote `PR Verification` passed on GitHub before merge:
   - `Detect Relevant Changes`;
   - `Build And Test Windows`;
   - `PR Verification Result`.
+- post-merge `Package Smoke` on `main` passed and uploaded unsigned MSI smoke
+  artifacts.
+
+Node 24 GitHub Actions verification on 2026-05-17:
+
+- PR #12, `Opt GitHub Actions into Node 24`, merged into `main`;
+- workflow-content tests require the Node 24 opt-in flag on all GitHub Actions
+  workflows;
+- PR #12 remote `PR Verification` passed on GitHub with JavaScript actions
+  forced to run on Node 24;
+- post-merge `Package Smoke` on `main` passed with `checkout`, `setup-dotnet`,
+  and `upload-artifact` forced to run on Node 24.
 
 ## Known Gaps
 
 - No real staging/prod environment is configured in the repository.
-- GitHub Actions workflows are defined and PR #11 remote verification passed,
-  but branch protection still needs to require `PR Verification Result` before
-  CI becomes a mandatory release gate.
+- GitHub Actions workflows are defined and verified, but GitHub rulesets are
+  not enforced for the current private repository plan. Until branch protection
+  becomes available, PR merges must manually require a green
+  `PR Verification Result` on the current head commit, as recorded in
+  `AGENTS.md`.
 - Staff management workflows, custom roles, and role editing UI are not
   implemented.
 - Operator App layout management UI is not implemented.
@@ -169,9 +186,10 @@ Cost-aware CI configuration verification on 2026-05-17:
 
 ## Recommended Next Work
 
-1. Create a production-like staging environment for Platform API and PostgreSQL.
-2. Enable branch protection for the `PR Verification Result` check after PR #11
-   is merged.
+1. Create a containerized Coolify staging deployment for Platform API and
+   PostgreSQL on the Linux VPS.
+2. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
+   commit must have a green remote `PR Verification Result`.
 3. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
    enrolled Windows gaming PC.
 4. Rehearse PostgreSQL backup, restore, and migration against staging data.
@@ -190,6 +208,10 @@ Cost-aware CI configuration verification on 2026-05-17:
   `6f11e140d9c45b1592f71dc6c3e056fdb272c710`.
 - The feature branch `codex/authenticode-ci-registration` was deleted after
   merge.
+- PR #11, `Add cost-aware GitHub Actions CI`, merged into `main` on 2026-05-17
+  with merge commit `8bf9d9e7823f5c932ed4ee8dd5d92b855423bdef`.
+- PR #12, `Opt GitHub Actions into Node 24`, merged into `main` on 2026-05-17
+  with merge commit `aa8e1b9c1d3504e9c64de6a4aa6872692728fe35`.
 
 ## Historical Reference
 

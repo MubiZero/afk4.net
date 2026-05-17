@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-16
+Last updated: 2026-05-17
 
 ## Purpose
 
@@ -60,8 +60,11 @@ Minimum bar:
 1. **Staging Infrastructure**
 
    Deploy the Platform API and PostgreSQL in a production-like environment.
-   Configure TLS, domain, environment variables, secrets, logging, health, and
-   EF migrations.
+   The next staging path is container-first for a Linux VPS managed by Coolify:
+   Coolify builds and deploys the Platform API container, manages or connects
+   PostgreSQL, injects secrets through environment variables, and exposes the
+   backend through its configured domain/TLS routing. Configure logging, health,
+   and EF migration procedure as part of this runbook.
 
 2. **CI Gate**
 
@@ -70,9 +73,11 @@ Minimum bar:
    packaging manual and guarded. GitHub Actions billing is enabled, but
    workflows must avoid unnecessary manual remote runs, use Windows hosted
    runners only where they add required coverage, cancel stale PR runs, set
-   timeouts, and keep artifact retention short. PR #11 produced the first
-   successful remote `PR Verification` run; after merge, enable branch
-   protection for the `PR Verification Result` check.
+   timeouts, and keep artifact retention short. PR #11 merged the cost-aware CI
+   gate, and PR #12 opted GitHub JavaScript actions into Node 24 execution.
+   GitHub rulesets are not enforced on the current private repository plan, so
+   merges must manually follow `AGENTS.md`: the current PR head commit needs a
+   green remote `PR Verification Result` before merge.
 
 3. **Real Device Smoke**
 
@@ -102,9 +107,14 @@ Minimum bar:
 
 ### Infrastructure And Release
 
-- Production hosting provider and deployment topology are not selected.
+- Production hosting provider and deployment topology are not selected for
+  commercial production.
 - Staging and production environments are not codified.
-- Mandatory PR checks and branch protection are not configured.
+- Coolify on the Linux VPS is the next intended staging deployment path, but
+  the container build/deploy runbook is not implemented yet.
+- Automated mandatory PR checks are not enforced by GitHub rulesets on the
+  current private repository plan; manual green-check merge discipline is
+  recorded in `AGENTS.md`.
 - Migration rehearsal is documented but not automated.
 - No production incident/rollback checklist exists for backend deployment.
 
@@ -150,10 +160,12 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. `codex/staging-deploy-runbook`
+1. `codex/staging-coolify-container-deploy`
 
-   Document and script the first staging deployment path, environment variables,
-   migrations, and smoke commands.
+   Add containerized Platform API deployment support and document the first
+   Coolify-managed staging path for the Linux VPS, including environment
+   variables, PostgreSQL connection, migrations, health checks, and smoke
+   commands.
 
 2. `codex/real-device-smoke`
 
