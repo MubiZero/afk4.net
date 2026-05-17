@@ -347,6 +347,63 @@ The runbook preparation does not claim the real Windows PC smoke has been
 executed. It explicitly requires operator-performed PC steps, screenshots/log
 evidence, and pass/fail recording before the real-device gate can be closed.
 
+Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
+
+- branch `codex/staging-gaming-pc-bootstrapper` adds a staging-only one-click
+  Windows setup executable path for clean Windows 11 smoke VMs:
+  `src/AFK4.GamingPc.Setup` plus testable orchestration in
+  `src/AFK4.GamingPc.Setup.Core`;
+- the setup executable targets `https://afk4.staging.mubi.dev`, the current
+  staging organization, and the current staging branch; it asks only for staff
+  username/password, creates a short-lived enrollment code, enrolls the current
+  VM, installs the bundled Gaming PC MSI, writes Agent machine configuration,
+  starts `AFK4.Agent.Service`, and waits for backend heartbeat evidence;
+- `scripts/build-client-packages.ps1` can now emit
+  `artifacts/client-packages/afk4-gaming-pc-setup-<version>-<channel>.exe`
+  when supplied `-StagingLeasePublicKeyPath` from outside the repository;
+- the gaming-PC package publish path now publishes Agent Service and Player
+  Shell as self-contained `win-x64` outputs so a clean VM does not need a
+  separate .NET Desktop Runtime install before the MSI can run;
+- targeted setup tests passed locally:
+
+  ```bash
+  dotnet test tests/AFK4.GamingPc.Setup.Tests/AFK4.GamingPc.Setup.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 9 passed, 0 failed, 0 skipped.
+- targeted packaging invariant test passed locally:
+
+  ```bash
+  dotnet test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~BuildClientPackagesScript_PublishesStagingGamingPcSetupExeWithEmbeddedMsi" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 1 passed, 0 failed, 0 skipped.
+- setup project build passed locally:
+
+  ```bash
+  dotnet build src/AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+- setup single-file `win-x64` publish with embedded dummy MSI and dummy public
+  key resources passed locally, producing `AFK4.GamingPc.Setup.exe`; real VM
+  packaging still requires the real Gaming PC MSI and staging public key on the
+  Windows release workstation.
+
+- full solution build passed in this Linux shell when Windows targeting was
+  explicitly enabled:
+
+  ```bash
+  dotnet build AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+- full solution tests were attempted with `EnableWindowsTargeting=true` but
+  could not complete in this Linux shell because the existing WPF test
+  assemblies require `Microsoft.WindowsDesktop.App` and existing release
+  automation tests invoke `powershell.exe`; these remain Windows-runner
+  verification items rather than product failures.
+- the bootstrapper has not yet been built on the release workstation with the
+  real staging public key and has not yet been run on the two Windows 11 VMs.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -365,6 +422,9 @@ evidence, and pass/fail recording before the real-device gate can be closed.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook, but the runbook still
   needs to be executed on physical Windows 10/11 hardware.
+- The staging one-click Gaming PC setup executable path exists in code, but it
+  still needs Windows release-workstation packaging with the real staging public
+  key and execution evidence on the two clean Windows 11 VMs.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
@@ -390,13 +450,16 @@ evidence, and pass/fail recording before the real-device gate can be closed.
 2. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
-3. Rehearse PostgreSQL backup, restore, and migration against staging data.
-4. Choose production Authenticode certificate authority/storage, object-store
+3. Build `afk4-gaming-pc-setup-0.1.0-ci-internal.exe` on the Windows release
+   workstation with the real staging public key, run it on both clean Windows
+   11 VMs, and record install/enrollment/heartbeat evidence.
+4. Rehearse PostgreSQL backup, restore, and migration against staging data.
+5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
    policy.
-5. Harden Agent production behavior: rotated credential consumption,
+6. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
-6. Implement the minimum admin/configuration workflows needed for a pilot club:
+7. Implement the minimum admin/configuration workflows needed for a pilot club:
    staff management, role assignment, and layout management.
 
 ## Recent Integration Notes

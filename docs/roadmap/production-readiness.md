@@ -90,8 +90,11 @@ Minimum bar:
    manual staging runbook now exists at
    `docs/operations/real-device-windows-pc-smoke.md`, and the Agent host is
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
-   The gate remains open until the runbook is executed on physical hardware and
-   evidence is recorded.
+   A staging-only one-click Gaming PC setup executable path now exists for clean
+   Windows 11 smoke VMs, but it still needs packaging with the real staging
+   public key and execution evidence. The gate remains open until the setup and
+   smoke path are executed on Windows 10/11 hardware or VMs and evidence is
+   recorded.
 
 4. **Backup And Restore Rehearsal**
 
@@ -152,6 +155,9 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring, but real service startup must still be validated through the
   real-device smoke runbook.
+- A staging-only Gaming PC setup bootstrapper exists in code, but the generated
+  exe still needs to be built on the Windows release workstation and run on the
+  two clean Windows 11 VMs.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell visibility from service supervision needs real interactive
   Windows session validation; manual Shell launch is acceptable for the first
@@ -179,9 +185,10 @@ Minimum bar:
 
 1. Real-device smoke execution
 
-   Execute `docs/operations/real-device-windows-pc-smoke.md` against one real
-   Windows gaming PC, collect logs/screenshots/backend evidence, and record
-   pass/fail results in the progress snapshot.
+   Build the staging Gaming PC setup exe, run it on the two clean Windows 11
+   VMs, then execute `docs/operations/real-device-windows-pc-smoke.md` evidence
+   collection for install, heartbeat, Agent/Shell state, sessions, and command
+   handling. Record pass/fail results in the progress snapshot.
 
 2. `codex/postgres-restore-rehearsal`
 

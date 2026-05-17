@@ -453,6 +453,22 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void BuildClientPackagesScript_PublishesStagingGamingPcSetupExeWithEmbeddedMsi()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
+
+        Assert.Contains("StagingLeasePublicKeyPath", script, StringComparison.Ordinal);
+        Assert.Contains("AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("GamingPcMsiPath=", script, StringComparison.Ordinal);
+        Assert.Contains("StagingLeasePublicKeyPath=", script, StringComparison.Ordinal);
+        Assert.Contains("PublishSingleFile=true", script, StringComparison.Ordinal);
+        Assert.Contains("SelfContained=true", script, StringComparison.Ordinal);
+        Assert.Contains("afk4-gaming-pc-setup-$Version-$Channel.exe", script, StringComparison.Ordinal);
+        Assert.Contains("agent-service", script, StringComparison.Ordinal);
+        Assert.Contains("player-shell", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ClientPackagesWorkflow_UsesCostControlsForManualReleaseRuns()
     {
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml")));

@@ -9,7 +9,9 @@ param(
 
     [string] $Runtime = 'win-x64',
 
-    [string] $DotnetPath = 'C:\Program Files\dotnet\dotnet.exe'
+    [string] $DotnetPath = 'C:\Program Files\dotnet\dotnet.exe',
+
+    [string] $StagingLeasePublicKeyPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,6 +35,10 @@ function ConvertTo-MsiVersion {
 
 if (-not (Test-Path -LiteralPath $DotnetPath)) {
     throw "dotnet executable was not found at '$DotnetPath'."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -and -not (Test-Path -LiteralPath $StagingLeasePublicKeyPath)) {
+    throw "Staging lease public key file was not found at '$StagingLeasePublicKeyPath'."
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -60,9 +66,9 @@ if (Test-Path -LiteralPath $wixInputRoot) {
 New-Item -ItemType Directory -Force -Path $wixInputRoot | Out-Null
 
 $projects = @(
-    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj' },
-    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj' },
-    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj' }
+    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
+    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $true },
+    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $true }
 )
 
 foreach ($project in $projects) {
@@ -80,7 +86,7 @@ foreach ($project in $projects) {
     & $DotnetPath publish (Join-Path $repoRoot $project.Path) `
         -c $Configuration `
         -r $Runtime `
-        --self-contained false `
+        --self-contained $($project.SelfContained.ToString().ToLowerInvariant()) `
         -o $output `
         -p:NuGetAudit=false `
         -p:UseSharedCompilation=false
@@ -111,10 +117,13 @@ foreach ($helperScript in $updateHelperScripts) {
     Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/$helperScript") -Destination $updateHelperDir -Force
 }
 
+$operatorMsiPath = Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi"
+$gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi"
+
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
     -d "PackageVersion=$msiVersion" `
     -d "OperatorAppPublishDir=$(Join-Path $publishRoot "operator-app-$Version-$Channel")" `
-    -o (Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi")
+    -o $operatorMsiPath
 
 if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for Operator App MSI with exit code $LASTEXITCODE."
@@ -126,13 +135,47 @@ if ($LASTEXITCODE -ne 0) {
     -d "AgentServiceSupportDir=$agentServiceSupportDir" `
     -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
     -d "UpdateHelperDir=$updateHelperDir" `
-    -o (Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi")
+    -o $gamingPcMsiPath
 
 if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for gaming-PC MSI with exit code $LASTEXITCODE."
 }
 
+if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
+    $setupPublishDir = Join-Path $publishRoot "gaming-pc-setup-$Version-$Channel"
+    $setupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe"
+
+    if (Test-Path -LiteralPath $setupPublishDir) {
+        Remove-Item -LiteralPath $setupPublishDir -Recurse -Force
+    }
+
+    & $DotnetPath publish (Join-Path $repoRoot 'src/AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj') `
+        -c $Configuration `
+        -r $Runtime `
+        --self-contained true `
+        -o $setupPublishDir `
+        -p:GamingPcMsiPath="$gamingPcMsiPath" `
+        -p:StagingLeasePublicKeyPath="$StagingLeasePublicKeyPath" `
+        -p:PublishSingleFile=true `
+        -p:SelfContained=true `
+        -p:IncludeNativeLibrariesForSelfExtract=true `
+        -p:PublishTrimmed=false `
+        -p:NuGetAudit=false `
+        -p:UseSharedCompilation=false
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet publish failed for Gaming PC setup bootstrapper with exit code $LASTEXITCODE."
+    }
+
+    Copy-Item -LiteralPath (Join-Path $setupPublishDir 'AFK4.GamingPc.Setup.exe') -Destination $setupArtifactPath -Force
+}
+
 Write-Host "Published client package inputs under $publishRoot"
 Write-Host "MSI artifacts:"
-Write-Host (Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi")
-Write-Host (Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi")
+Write-Host $operatorMsiPath
+Write-Host $gamingPcMsiPath
+
+if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
+    Write-Host "Setup artifact:"
+    Write-Host (Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe")
+}

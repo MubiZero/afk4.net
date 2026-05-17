@@ -46,6 +46,10 @@ Not included:
   `http://localhost:5074` base URL. Use it in this staging smoke only if a
   staging-configured build is prepared; otherwise use the API commands below
   and treat Operator App as optional observation only.
+- The preferred Windows 11 VM install path is now the staging Gaming PC setup
+  executable. It is built on the release workstation and copied to the VM; the
+  VM does not need the repository, .NET SDK, PowerShell runbook execution, or
+  manual Agent environment-variable commands.
 - `WorkstationLockController` currently records lock/unlock requests through
   the enforcement adapter. If the physical Windows desktop does not actually
   lock or unlock, record that as a real enforcement gap rather than inventing a
@@ -329,10 +333,25 @@ release.
 
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
   -Version 0.1.0-ci `
-  -Channel internal
+  -Channel internal `
+  -StagingLeasePublicKeyPath C:\AFK4-Secrets\staging-session-signing-public.pem
 ```
 
-Copy this file to the Windows gaming PC through a secure internal channel:
+Preferred path for clean Windows 11 VMs: copy this single file to the VM and
+run it as administrator:
+
+```text
+artifacts/client-packages/afk4-gaming-pc-setup-0.1.0-ci-internal.exe
+```
+
+The setup executable is staging-only for now. It has the staging Platform API,
+organization, and branch fixed at build time. It asks for staff username and
+password, creates the enrollment code, enrolls the VM, installs the bundled MSI,
+writes Agent machine configuration, starts `AFK4.Agent.Service`, and waits for
+backend heartbeat evidence.
+
+Fallback/manual path: copy this MSI to the Windows gaming PC through a secure
+internal channel and follow the explicit configuration commands below.
 
 ```text
 artifacts/client-packages/afk4-gaming-pc-0.1.0-ci-internal.msi
@@ -413,7 +432,12 @@ $assignSql | psql $env:AFK4_STAGING_DATABASE_URL
 
 ## Configure The Windows Gaming PC
 
-Run these commands from an elevated PowerShell prompt on the Windows gaming PC.
+Skip this section when using
+`afk4-gaming-pc-setup-0.1.0-ci-internal.exe`; the setup executable performs
+these actions itself.
+
+Run these commands from an elevated PowerShell prompt on the Windows gaming PC
+only when using the fallback MSI path.
 Replace placeholders with values from the enrollment response and the staging
 lease public key file supplied outside the repository.
 
