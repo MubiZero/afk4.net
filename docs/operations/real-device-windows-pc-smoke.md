@@ -683,7 +683,9 @@ Expected:
 - command status becomes accepted or completed according to current Agent
   behavior;
 - backend advances the session from `ending` to `ended` after the accepted or
-  completed `lock` command result;
+  completed `lock` command result, either directly from command-result
+  processing or from the next heartbeat recovery check if the result was already
+  persisted;
 - local lease is cleared;
 - Player Shell state returns to locked;
 - physical lock result is recorded honestly.
@@ -692,7 +694,8 @@ After lock is accepted, confirm the seat/device can be reused through the
 normal product path by starting a second short session with a new idempotency
 key. If the backend still reports the session as `ending` or blocks the second
 start with `Seat or device already has an active session`, record that as a
-session-finalization regression. Do not use manual SQL reactivation as pass
+session-finalization regression after confirming at least one heartbeat has
+arrived after the accepted lock. Do not use manual SQL reactivation as pass
 evidence.
 
 ```powershell

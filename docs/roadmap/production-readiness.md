@@ -99,10 +99,10 @@ Minimum bar:
    missing `ending` session finalization after accepted lock. Both are now
    mitigated in code on `codex/staging-gaming-pc-bootstrapper`: Agent Service
    Shell auto-start is disabled by default and guarded by an interactive
-   session check, and accepted/completed lock command results finalize sessions
-   to `ended` so the seat/device can be reused. The gate remains open until the
-   rebuilt setup and full smoke path are repeated on a second clean VM or
-   physical Windows 10/11 device.
+   session check, and accepted/completed lock command results or the next
+   heartbeat finalization fallback move sessions to `ended` so the seat/device
+   can be reused. The gate remains open until the rebuilt setup and full smoke
+   path are repeated on a second clean VM or physical Windows 10/11 device.
 
 4. **Backup And Restore Rehearsal**
 
@@ -175,9 +175,11 @@ Minimum bar:
   interactive-session launch/supervision; smoke/pilot should manually launch
   the visible Shell from the logged-in desktop session.
 - Session end/finalization is implemented in code for accepted/completed lock
-  command results, including duplicate-result idempotency and seat/device reuse.
-  It still needs a real staging VM or physical PC smoke repeat before the gate
-  is closed operationally.
+  command results and heartbeat recovery when accepted lock results were
+  already persisted for an `ending` session, including duplicate-result
+  idempotency and seat/device reuse tests. It still needs a real staging VM or
+  physical PC smoke repeat after redeploy before the gate is closed
+  operationally.
 - Reboot recovery must be exercised on physical PCs.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.

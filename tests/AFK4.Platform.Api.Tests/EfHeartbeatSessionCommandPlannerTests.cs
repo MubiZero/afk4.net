@@ -192,6 +192,47 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
         Assert.Empty(db.SessionEvents);
     }
 
+    [Fact]
+    public async Task PlanAsync_WithEndingCloudSessionAndAcceptedLock_FinalizesSessionWithoutDuplicateLock()
+    {
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(
+            db,
+            SessionStateNames.Ending,
+            currentLeaseSequence: 1,
+            currentLeaseExpiresAtUtc: Now.AddMinutes(10));
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Lock,
+            "Accepted",
+            Now.AddMinutes(2),
+            new Dictionary<string, string>
+            {
+                ["sessionId"] = SessionId.ToString("D"),
+                ["reason"] = "heartbeat-session-ending"
+            });
+        await db.SaveChangesAsync();
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: SessionId),
+            CancellationToken.None);
+
+        Assert.Empty(plans);
+
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Ended, session.State);
+        Assert.Equal(Now.AddMinutes(2), session.EndedAtUtc);
+        Assert.Null(session.CurrentLeaseId);
+        Assert.Equal(Now.AddMinutes(2), session.UpdatedAtUtc);
+
+        var sessionEvent = await db.SessionEvents.SingleAsync();
+        Assert.Equal("session-ended", sessionEvent.EventType);
+        Assert.Equal(DeviceId, sessionEvent.DeviceId);
+        Assert.Contains("heartbeat-lock-result", sessionEvent.DetailsJson);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -308,6 +349,26 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
             PayloadJson = JsonSerializer.Serialize(lease, JsonOptions),
             RevokedAtUtc = null
         };
+    }
+
+    private static void SeedDeviceCommand(
+        PlatformDbContext dbContext,
+        string type,
+        string status,
+        DateTimeOffset updatedAtUtc,
+        Dictionary<string, string> payload)
+    {
+        dbContext.DeviceCommands.Add(new DeviceCommandEntity
+        {
+            CommandId = Guid.NewGuid(),
+            DeviceId = DeviceId,
+            Type = type,
+            PayloadJson = JsonSerializer.Serialize(payload, JsonOptions),
+            Status = status,
+            Message = "seeded command result",
+            CreatedAtUtc = updatedAtUtc.AddMinutes(-1),
+            UpdatedAtUtc = updatedAtUtc
+        });
     }
 
     private sealed class RecordingSessionLeaseSigner : ISessionLeaseSigner

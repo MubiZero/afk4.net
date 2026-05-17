@@ -465,23 +465,32 @@ Player Shell and session end hardening branch verification on 2026-05-17:
   records a `session-ended` event. Duplicate accepted lock results do not
   create duplicate finalization events, and a second session can start on the
   same seat/device after finalization.
+- a 2026-05-17 staging VM re-smoke exposed a recovery case where accepted lock
+  results were already persisted while the session remained `ending`. The
+  heartbeat command planner now treats an accepted/completed matching lock as a
+  finalization signal before planning another lock, so stale `ending` sessions
+  can converge to `ended` on the next heartbeat without SQL cleanup.
 - local verification passed:
 
   ```powershell
   & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~PlayerShellProcessSupervisorTests|FullyQualifiedName~RealDeviceSmokeRunbookTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
   & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter FullyQualifiedName~DeviceCommandEndpointTests --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "FullyQualifiedName~EfHeartbeatSessionCommandPlannerTests|FullyQualifiedName~DeviceCommandEndpointTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
   & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
   & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
   & 'C:\Program Files\Git\cmd\git.exe' diff --check
   ```
 
   Result: Agent targeted tests passed 8/8; device command endpoint tests passed
-  16/16; full solution build completed with 0 warnings and 0 errors; full
-  no-build solution tests passed 654/654; `git diff --check` was clean.
-- this has not yet been re-smoked on the Windows 11 staging VM or Coolify.
-  Repeat the one-click setup/session start/end path and record whether the
-  service avoids session-0 Shell competition and whether session reuse works
-  without manual SQL.
+  16/16 before the heartbeat fallback and the combined heartbeat planner/device
+  command endpoint regression set passed 23/23 after it; full solution build
+  completed with 0 warnings and 0 errors; full no-build solution tests passed
+  655/655; `git diff --check` was clean.
+- this has partial Windows 11 staging VM evidence: the rebuilt setup enrolled,
+  no service-session Player Shell was running before the visible manual Shell
+  launch, session start/unlock worked, and physical/visible lock was observed.
+  Session reuse still needs a repeat after the heartbeat finalization fallback
+  is deployed.
 
 ## Known Gaps
 
@@ -517,9 +526,10 @@ Player Shell and session end hardening branch verification on 2026-05-17:
   the smoke/pilot path remains manual visible Shell launch from the logged-in
   desktop session.
 - Session end finalization is implemented in code for accepted/completed lock
-  command results and targeted tests cover session reuse plus duplicate results.
-  This still needs a real Windows VM/Coolify smoke repeat before closing the
-  operational gate.
+  command results and as a heartbeat recovery fallback when an accepted lock is
+  already persisted for an `ending` session. Targeted tests cover session reuse,
+  duplicate results, and heartbeat convergence. This still needs a real Windows
+  VM/Coolify smoke repeat after redeploy before closing the operational gate.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
