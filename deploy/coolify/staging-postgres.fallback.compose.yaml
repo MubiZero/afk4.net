@@ -1,0 +1,21 @@
+# Fallback only: prefer a Coolify-managed PostgreSQL service for staging.
+# Use this compose resource only when the managed service path is unavailable.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${AFK4_STAGING_POSTGRES_DB:-afk4_staging}
+      POSTGRES_USER: ${AFK4_STAGING_POSTGRES_USER:-afk4_app}
+      POSTGRES_PASSWORD: ${AFK4_STAGING_POSTGRES_PASSWORD:?set AFK4_STAGING_POSTGRES_PASSWORD in Coolify secrets}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - afk4-staging-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  afk4-staging-postgres-data:

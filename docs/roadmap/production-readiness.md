@@ -63,8 +63,11 @@ Minimum bar:
    The next staging path is container-first for a Linux VPS managed by Coolify:
    Coolify builds and deploys the Platform API container, manages or connects
    PostgreSQL, injects secrets through environment variables, and exposes the
-   backend through its configured domain/TLS routing. Configure logging, health,
-   and EF migration procedure as part of this runbook.
+   backend through its configured domain/TLS routing. The repository now has
+   the Coolify-oriented Platform API Dockerfile, staging environment template,
+   PostgreSQL fallback compose definition, and
+   `docs/operations/coolify-staging-deploy.md`. The remaining gate is to run
+   the procedure on the VPS and record migration plus smoke evidence.
 
 2. **CI Gate**
 
@@ -109,9 +112,10 @@ Minimum bar:
 
 - Production hosting provider and deployment topology are not selected for
   commercial production.
-- Staging and production environments are not codified.
-- Coolify on the Linux VPS is the next intended staging deployment path, but
-  the container build/deploy runbook is not implemented yet.
+- Production environments are not codified.
+- The Coolify-first staging path is documented and container build inputs are
+  present, but the real Linux VPS staging deployment has not been executed or
+  smoke-tested yet.
 - Automated mandatory PR checks are not enforced by GitHub rulesets on the
   current private repository plan; manual green-check merge discipline is
   recorded in `AGENTS.md`.
@@ -160,12 +164,11 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. `codex/staging-coolify-container-deploy`
+1. `codex/coolify-staging-rehearsal`
 
-   Add containerized Platform API deployment support and document the first
-   Coolify-managed staging path for the Linux VPS, including environment
-   variables, PostgreSQL connection, migrations, health checks, and smoke
-   commands.
+   Execute the Coolify staging runbook on the Linux VPS, apply migrations
+   against staging PostgreSQL, run health/smoke verification, and record the
+   evidence in the progress snapshot.
 
 2. `codex/real-device-smoke`
 

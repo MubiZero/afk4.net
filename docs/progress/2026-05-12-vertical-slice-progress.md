@@ -103,6 +103,9 @@ implementation evidence are needed.
 ### Operations Docs
 
 - Local PostgreSQL smoke runbook.
+- Coolify staging deploy runbook for building the Platform API container from
+  the repo, connecting Coolify-managed PostgreSQL, applying EF migrations, and
+  running health/smoke checks.
 - Agent installer enrollment runbook.
 - Client update rollout runbook.
 - Client packaging runbook.
@@ -161,9 +164,83 @@ Node 24 GitHub Actions verification on 2026-05-17:
 - post-merge `Package Smoke` on `main` passed with `checkout`, `setup-dotnet`,
   and `upload-artifact` forced to run on Node 24.
 
+Coolify staging container deploy branch verification on 2026-05-17:
+
+- branch `codex/staging-coolify-container-deploy` adds a Platform API
+  Dockerfile for Coolify repo builds, root `.dockerignore` and `.gitignore`
+  secret-file guards, staging env template, fallback PostgreSQL compose
+  definition, and
+  `docs/operations/coolify-staging-deploy.md`;
+- targeted invariant tests for the Coolify container deploy content passed
+  locally:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~CoolifyContainerDeploymentTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 6 passed, 0 failed, 0 skipped.
+- full local solution build passed with 0 warnings and 0 errors:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+- full local no-build solution tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 636 passed, 0 failed, 0 skipped.
+- Platform API Release publish passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' publish src/AFK4.Platform.Api/AFK4.Platform.Api.csproj -c Release --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -o artifacts/platform-api-publish-check -v minimal
+  ```
+
+- fallback PostgreSQL compose config rendered successfully with a dummy local
+  password used only for syntax validation:
+
+  ```powershell
+  $env:AFK4_STAGING_POSTGRES_PASSWORD = 'dummy-config-check-only'
+  docker compose -f deploy/coolify/staging-postgres.fallback.compose.yaml config
+  ```
+
+- after Docker Desktop was started, the Platform API image built successfully
+  from the Coolify repo-root context:
+
+  ```powershell
+  docker build -f src/AFK4.Platform.Api/Dockerfile -t afk4-platform-api:staging-check .
+  ```
+
+- local container smoke passed:
+  - API container ran as non-root user `app`, listened on port `8080`, and
+    returned `status = ok` from `/api/health` through host port `18080`;
+  - fallback PostgreSQL compose resource became healthy with no public port
+    published;
+  - EF migrations were applied from a Linux .NET SDK one-off container on the
+    same Docker network after an explicit restore inside that container;
+  - PostgreSQL `__EFMigrationsHistory` contained 9 migrations through
+    `20260514081906_AddUpdateRollouts`;
+  - API container connected to PostgreSQL and returned the expected HTTP 401
+    for a DB-backed sign-in attempt with a missing staff user;
+  - staging connection strings now include `GSS Encryption Mode=Disable` to
+    avoid harmless `libgssapi_krb5.so.2` fallback noise in minimal Linux
+    runtime containers.
+- a later repeat full runtime image rebuild reached MCR but failed on an
+  external `403 Forbidden` metadata response for
+  `mcr.microsoft.com/dotnet/aspnet:10.0`; the Dockerfile build stage still
+  rebuilt successfully from the current tree with:
+
+  ```powershell
+  docker build --target build -f src/AFK4.Platform.Api/Dockerfile -t afk4-platform-api:staging-build-stage-check .
+  ```
+
 ## Known Gaps
 
-- No real staging/prod environment is configured in the repository.
+- Containerized Coolify staging deployment artifacts and runbook are present in
+  the repository, but no real VPS staging deployment, migration run, or smoke
+  evidence has been recorded yet.
 - GitHub Actions workflows are defined and verified, but GitHub rulesets are
   not enforced for the current private repository plan. Until branch protection
   becomes available, PR merges must manually require a green
@@ -186,8 +263,9 @@ Node 24 GitHub Actions verification on 2026-05-17:
 
 ## Recommended Next Work
 
-1. Create a containerized Coolify staging deployment for Platform API and
-   PostgreSQL on the Linux VPS.
+1. Use `docs/operations/coolify-staging-deploy.md` to create the first real
+   Coolify staging deployment for Platform API and PostgreSQL on the Linux VPS,
+   then record migration and smoke evidence.
 2. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
 3. Run full PostgreSQL/API/Operator/Agent/Player Shell live smoke with a real
