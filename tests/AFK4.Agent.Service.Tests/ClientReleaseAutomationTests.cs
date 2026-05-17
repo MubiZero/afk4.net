@@ -463,6 +463,17 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal(2, CountOccurrences(workflow, "retention-days: 3"));
     }
 
+    [Theory]
+    [InlineData(".github/workflows/client-packages.yml")]
+    [InlineData(".github/workflows/package-smoke.yml")]
+    [InlineData(".github/workflows/pr-verification.yml")]
+    public void GitHubActionsWorkflows_OptIntoNode24JavascriptActions(string workflowPath)
+    {
+        var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(workflowPath)));
+
+        Assert.Contains("env:\n  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true", workflow, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void PublishClientMsiUpdates_InvokesPublisherForOperatorAgentAndPlayerShell()
     {
