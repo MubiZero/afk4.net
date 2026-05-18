@@ -569,6 +569,19 @@ Staging VM Shell state delivery finding on 2026-05-18:
   without SQL cleanup. Cleanup ending of session
   `6ec17520-45f3-4f63-a30d-8685d4ee5fc8` also returned the seat to `Locked` on
   the first heartbeat poll.
+- after PR #18 was merged and Coolify staging was redeployed from `main` commit
+  `97dcd870d62b57eb4e6865612ada23ea9d735a22`, public health returned HTTP
+  200 at `2026-05-18T09:20:08Z`. A second no-SQL main-deploy reuse smoke passed
+  with run id `20260518092114`: session
+  `47902334-8536-4883-98f2-f65d6e55cf6e` started active, unlock command
+  `cb5f8f0c-7085-44e1-98c8-212c0c580959` was accepted, end produced lock
+  command `b889e576-66ca-4137-b91d-bb5d5cf6142e`, and the seat/device reached
+  `Locked` on the second poll. Session
+  `d8318f5f-0607-4522-a9b5-5f0ab7324478` then started on the same seat/device
+  without SQL cleanup, unlock command `7bb0b05b-4e75-46b1-a33a-038234f3b3a5`
+  was accepted, cleanup lock command
+  `7c582e80-1c9b-4313-959e-1fec906e9939` was accepted, and the final snapshot
+  was `Locked`, no active session, device online, device locked.
 - local targeted regression verification passed:
 
   ```powershell
