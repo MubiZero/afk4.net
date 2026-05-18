@@ -748,6 +748,15 @@ Pilot device-seat assignment branch verification on 2026-05-18:
   end/finalization reuse hardening, and Windows 11 VM post-redeploy smoke
   evidence. The remaining runtime gate is physical Windows hardware smoke plus
   reboot/update recovery.
+- PR #19, `Add pilot device-seat assignment API`, merged into `main` on
+  2026-05-18 with squash merge commit
+  `c5a7f64788997d22a4c2c01b456bfc50cd97f61e`. The PR head was
+  `ced20d5e838e7d7eeb81cf5624481e62a485cd81`, and remote
+  `PR Verification Result` passed for that head in workflow run
+  `26025698119`. The remote branch `codex/pilot-admin-setup` was deleted after
+  merge. This added the staff-authorized device-seat assignment API, staging
+  setup assignment through the API, and runbook updates so future staging smoke
+  device assignment does not require direct PostgreSQL edits.
 
 ## Historical Reference
 
