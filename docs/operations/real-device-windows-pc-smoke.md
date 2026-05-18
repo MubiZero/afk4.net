@@ -1,7 +1,7 @@
 # Real Device Windows PC Smoke Runbook
 
 Status: manual staging smoke path  
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Purpose
 
@@ -54,10 +54,10 @@ Not included:
   the enforcement adapter. If the physical Windows desktop does not actually
   lock or unlock, record that as a real enforcement gap rather than inventing a
   pass.
-- Player Shell auto-start from the Agent Service is disabled by default for
-  MVP hardening. Launch the Shell from the logged-in interactive Windows
-  session for this smoke, and record whether named-pipe state updates are
-  received. Do not enable service-session Shell auto-start as a pass shortcut.
+- Player Shell auto-start is expected to run from the Agent Service by launching
+  into the active interactive Windows session. A Shell process in service
+  session `0` is still a regression. If no interactive user session exists, the
+  Agent must skip Shell launch and continue heartbeat/state publishing.
 - Do not commit secrets, filled environment files, database URLs, staff
   passwords, device credential secrets, PEM files, MSI artifacts, or smoke
   transcripts containing secrets.
@@ -467,6 +467,7 @@ $leasePublicKeyPem = Get-Content -Raw -LiteralPath $publicKeyPath
 [Environment]::SetEnvironmentVariable('Agent__DeviceCredentialSecret', $deviceCredentialSecret, 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__LeaseSigningPublicKeyPem', $leasePublicKeyPem, 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__PlayerShellExecutablePath', 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe', 'Machine')
+[Environment]::SetEnvironmentVariable('Agent__PlayerShellAutoStartEnabled', 'True', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateChannel', 'internal', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateInstallerExecutablePath', 'powershell.exe', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateInstallerArgumentsTemplate', '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\install-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"', 'Machine')
@@ -531,21 +532,42 @@ the Windows uninstall registry keys and record the result.
 
 ## Player Shell Visible State
 
-Start the Shell from the logged-in desktop session:
+Keep a real Windows desktop user logged in, start or restart
+`AFK4.Agent.Service`, and wait for at least one heartbeat loop. The Agent should
+auto-start Player Shell in the logged-in interactive session.
+
+Verify the Shell process context:
 
 ```powershell
-& 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe'
+Get-Process AFK4.Player.Shell -IncludeUserName -ErrorAction SilentlyContinue |
+  Select-Object Id, SessionId, UserName, Path
 ```
 
 Expected before a session starts:
 
 - Player Shell window is visible full-screen or maximized;
+- the Shell process runs in the logged-in user's session, not session `0`;
 - state text shows locked/offline until the first Agent state publish arrives;
 - after a state publish, state is `locked` and the message says the PC is
   locked.
 
+If the Agent does not auto-start the Shell, record the failure before using any
+manual fallback. Capture service status, Application event log entries, and
+whether an active user session existed:
+
+```powershell
+sc.exe query AFK4.Agent.Service
+quser
+Get-WinEvent -LogName Application -MaxEvents 100 |
+  Where-Object { $_.ProviderName -like '*AFK4*' -or $_.Message -like '*Player Shell*' } |
+  Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message
+```
+
 If the Shell cannot receive named-pipe state from the service, record the
 failure and capture the Shell process session/user context.
+The Agent state pipe is expected to keep serving the latest state, so a
+correctly running Shell must not require a manual restart to observe active or
+locked state changes.
 
 If the visible Shell remains locked while
 `C:\ProgramData\AFK4\Agent\runtime-state.json` shows `state=active`, check for
@@ -558,9 +580,9 @@ Get-Process AFK4.Player.Shell -IncludeUserName -ErrorAction SilentlyContinue |
   Select-Object Id, SessionId, UserName, Path
 ```
 
-For manual smoke evidence after any duplicate-process regression, stop the
-duplicate Shell processes and relaunch the visible Shell from the interactive
-desktop session:
+Manual launch is only a diagnostic fallback after recording an auto-start or
+duplicate-process regression. For fallback evidence, stop duplicate Shell
+processes and relaunch the visible Shell from the interactive desktop session:
 
 ```powershell
 Get-Process AFK4.Player.Shell -ErrorAction SilentlyContinue |
@@ -826,6 +848,9 @@ Overall pass requires:
 - installed apps are reported and visible in device detail;
 - session start returns backend approval and creates an unlock command;
 - Agent accepts the signed lease and records active runtime state;
+- Player Shell is auto-started by the Agent into the interactive desktop
+  session, or a concrete auto-start blocker is recorded before any manual
+  fallback;
 - lease refresh is observed or the wait was intentionally skipped and recorded;
 - lease expiry behavior is observed when the network-disconnect step is run;
 - session end creates a lock command and Agent returns local runtime state to

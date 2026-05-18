@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Purpose
 
@@ -98,11 +98,12 @@ Minimum bar:
    exposed two hardening gaps: service-started session-0 Shell competition and
    missing `ending` session finalization after accepted lock. Both are now
    mitigated in code on `codex/staging-gaming-pc-bootstrapper`: Agent Service
-   Shell auto-start is disabled by default and guarded by an interactive
-   session check, and accepted/completed lock command results or the next
-   heartbeat finalization fallback move sessions to `ended` so the seat/device
-   can be reused. The gate remains open until the rebuilt setup and full smoke
-   path are repeated on a second clean VM or physical Windows 10/11 device.
+   Shell auto-start targets the active interactive Windows session with
+   session-aware process detection, and accepted/completed lock command results
+   or the next heartbeat finalization fallback move sessions to `ended` so the
+   seat/device can be reused. The gate remains open until the rebuilt setup and
+   full smoke path are repeated on a second clean VM or physical Windows 10/11
+   device.
 
 4. **Backup And Restore Rehearsal**
 
@@ -167,19 +168,23 @@ Minimum bar:
   staging public lease verification key for release workstation builds. A first
   Windows 11 VM passed rebuilt x64 install/enroll/heartbeat, session
   start/end, signed lease, local runtime state, and visible Player Shell
-  active/locked evidence. Repeat on a second clean VM or physical Windows PC.
+  active/locked evidence. A second Windows 11 VM smoke confirmed
+  interactive-session Shell auto-start and active-state delivery without manual
+  Shell restart after the long-lived state pipe fix.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
-- Player Shell service-session competition is mitigated in code by disabling
-  service auto-start by default and requiring an interactive session context for
-  any future auto-start. Production still needs deterministic
-  interactive-session launch/supervision; smoke/pilot should manually launch
-  the visible Shell from the logged-in desktop session.
+- Player Shell service-session competition is mitigated in code by
+  session-aware process detection and Agent-driven launch into the active
+  interactive Windows session. The Agent-to-Shell state pipe now serves the
+  latest state to late or restarted Shell clients instead of relying on a short
+  publish timing window. This still needs a rebuilt staging VM or physical PC
+  smoke repeat before the operational gate is closed.
 - Session end/finalization is implemented in code for accepted/completed lock
   command results and heartbeat recovery when accepted lock results were
   already persisted for an `ending` session, including duplicate-result
-  idempotency and seat/device reuse tests. It still needs a real staging VM or
-  physical PC smoke repeat after redeploy before the gate is closed
-  operationally.
+  idempotency and seat/device reuse tests. The currently deployed staging
+  backend still left the second VM smoke session in `Ending` after accepted
+  lock, so staging must be redeployed from this branch and the reuse smoke must
+  be repeated before the gate is closed operationally.
 - Reboot recovery must be exercised on physical PCs.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.
@@ -204,27 +209,25 @@ Minimum bar:
 1. Real-device smoke execution
 
    Repeat the rebuilt x64 staging Gaming PC setup exe on a second clean Windows
-   11 VM or physical Windows PC after the hardening commits on
-   `codex/staging-gaming-pc-bootstrapper`, then execute
+   11 VM or physical Windows PC after the interactive Shell launch and session
+   finalization hardening commits on `codex/staging-gaming-pc-bootstrapper`,
+   then execute
    `docs/operations/real-device-windows-pc-smoke.md` evidence collection for
    install, heartbeat, Agent/Shell state, sessions, command handling, and
-   second-session reuse. Record pass/fail results and any duplicate Shell
-   process behavior in the progress snapshot.
+   second-session reuse after redeploying staging backend from this branch.
+   Record pass/fail results and any duplicate Shell process behavior in the
+   progress snapshot.
 
 2. `codex/postgres-restore-rehearsal`
 
    Execute the backup/restore runbook against staging-like data and record
    evidence in progress docs.
 
-3. `codex/player-shell-interactive-session-launcher`
-
-   Replace the manual visible Shell launch path with deterministic
-   interactive-session launch/supervision once the MVP smoke path is stable.
-
-4. `codex/pilot-admin-setup`
+3. `codex/pilot-admin-setup`
 
    Add or document the minimum pilot setup path for organization, branch,
-   staff, roles, layout, devices, tariffs, and POS catalog.
+   staff, roles, layout, device-seat assignment, devices, tariffs, and POS
+   catalog.
 
 ## Decision Rules
 

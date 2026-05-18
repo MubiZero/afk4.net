@@ -16,6 +16,7 @@ public sealed class AgentMachineConfigurationWriter : IAgentMachineConfiguration
         Write("Agent__DeviceCredentialSecret", enrollment.CredentialSecret);
         Write("Agent__LeaseSigningPublicKeyPem", request.LeaseSigningPublicKeyPem);
         Write("Agent__PlayerShellExecutablePath", StagingSetupDefaults.PlayerShellExecutablePath);
+        Write("Agent__PlayerShellAutoStartEnabled", bool.TrueString);
         Write("Agent__UpdateChannel", StagingSetupDefaults.UpdateChannel);
         Write("Agent__UpdateInstallerExecutablePath", StagingSetupDefaults.UpdateInstallerExecutablePath);
         Write("Agent__UpdateInstallerArgumentsTemplate", StagingSetupDefaults.UpdateInstallerArgumentsTemplate);

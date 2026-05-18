@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Purpose
 
@@ -492,6 +492,84 @@ Player Shell and session end hardening branch verification on 2026-05-17:
   Session reuse still needs a repeat after the heartbeat finalization fallback
   is deployed.
 
+Interactive Player Shell auto-start hardening on 2026-05-18:
+
+- branch `codex/staging-gaming-pc-bootstrapper` now re-enables Player Shell
+  auto-start by default, but no longer starts Shell from service session `0`.
+  The Agent resolves the active interactive Windows console session, checks for
+  an existing Shell process in that same session, and launches Shell there
+  through the Windows user-token path. If no interactive session exists, Shell
+  launch is skipped while heartbeat and named-pipe state publishing continue.
+- process detection is now session-aware, so a stale or accidental
+  `AFK4.Player.Shell.exe` in session `0` does not satisfy supervision for the
+  logged-in desktop session.
+- the staging Gaming PC setup writer explicitly sets
+  `Agent__PlayerShellAutoStartEnabled=True` for rebuilt smoke packages.
+- the real-device smoke runbook now expects Agent-driven interactive-session
+  Shell auto-start. Manual Shell launch is a diagnostic fallback only after an
+  auto-start or duplicate-process failure is recorded.
+- local verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter FullyQualifiedName~PlayerShellProcessSupervisorTests --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~PlayerShellProcessSupervisorTests|FullyQualifiedName~RealDeviceSmokeRunbookTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.GamingPc.Setup.Tests\AFK4.GamingPc.Setup.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: Player Shell process supervisor tests passed 9/9; targeted
+  Agent Shell/runbook tests passed 11/11; Gaming PC setup tests passed 9/9;
+  full solution build completed with 0 warnings and 0 errors; full no-build
+  solution tests passed 658/658; `git diff --check` was clean.
+
+Staging VM Shell state delivery finding on 2026-05-18:
+
+- a rebuilt staging Gaming PC setup executable installed and enrolled Windows
+  11 VM device `8999549a-e1c1-4b25-8df5-ae8111d8fb97`; backend heartbeat
+  reported the device online, and Agent auto-started
+  `AFK4.Player.Shell.exe` in interactive user session `1` for `vm\mubi`, not
+  service session `0`.
+- after a staging SQL cleanup of stale session
+  `329f4d61-f9c1-49f1-a3c5-6b91651ad35f`, API session start passed for
+  session `992624cf-77d1-413b-8e51-6f88872183eb`; unlock command
+  `4b8ac0c7-b872-4274-9379-3f7d61b79ee9` was accepted, floor map moved to
+  `Active`, device lock state moved to `false`, and the VM wrote active
+  `runtime-state.json` plus matching `session-lease.json`.
+- the visible Player Shell remained on its initial locked screen until the
+  Shell process was restarted. This confirmed a named-pipe timing race in the
+  Agent-to-Shell state path: the old Agent state publisher opened a pipe only
+  during a short publish window, so a running Shell could miss the active state.
+- the Agent state publisher now keeps a long-lived named-pipe server with the
+  latest Player Shell state. Late or restarted Shell clients receive the latest
+  state on connection instead of relying on a short timing window.
+- after rebuilding the staging Gaming PC setup with the long-lived state pipe,
+  a second VM enrollment produced device
+  `c5bda42b-77ea-4794-8523-72029c234541`. The backend reported heartbeat
+  online, a manual staging SQL assignment attached it to the smoke seat, and
+  session `a02f6e5e-a1aa-4dbf-8075-eaecf24efccf` started successfully. The
+  visible Shell auto-started in session `1` and changed to `Session is active`
+  without manual restart; VM `runtime-state.json` and `session-lease.json`
+  matched the backend session id.
+- ending that session produced lock command
+  `e950241c-23c8-481f-b6a7-e302a13646cc`; the Agent accepted the command,
+  local device state returned locked, and the Shell returned locked. The
+  deployed staging backend still left the session in `Ending`, confirming the
+  session finalization code on this branch still needs staging redeploy before
+  the second-session reuse gate can pass without SQL cleanup.
+- local targeted regression verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~NamedPipePlayerShellStateServerTests|FullyQualifiedName~PlayerShellProcessSupervisorTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: targeted Agent Shell state/supervisor tests passed 11/11; full
+  solution build completed with 0 warnings and 0 errors; full no-build solution
+  tests passed 660/660.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -519,17 +597,15 @@ Player Shell and session end hardening branch verification on 2026-05-17:
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
-- Player Shell service-session competition is mitigated in code by disabling
-  Agent Service Shell auto-start by default and requiring an interactive
-  user-session context for any future auto-start. A deterministic
-  interactive-session launcher/supervisor is still a production hardening item;
-  the smoke/pilot path remains manual visible Shell launch from the logged-in
-  desktop session.
+- Player Shell service-session competition and missed state delivery are
+  mitigated in code and have Windows 11 VM evidence for interactive-session
+  auto-start plus active-state delivery without manual Shell restart.
 - Session end finalization is implemented in code for accepted/completed lock
   command results and as a heartbeat recovery fallback when an accepted lock is
   already persisted for an `ending` session. Targeted tests cover session reuse,
-  duplicate results, and heartbeat convergence. This still needs a real Windows
-  VM/Coolify smoke repeat after redeploy before closing the operational gate.
+  duplicate results, and heartbeat convergence. The current deployed staging
+  backend still leaves the VM smoke session in `Ending`; staging must be
+  redeployed from this branch before closing the session reuse gate.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -547,10 +623,10 @@ Player Shell and session end hardening branch verification on 2026-05-17:
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
 2. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
-   second clean Windows 11 VM or physical Windows PC. Confirm the Agent Service
-   does not create a competing session-0 Shell by default, the manually visible
-   Shell receives state, and a second session can start on the same seat/device
-   after an accepted lock result without SQL.
+   second clean Windows 11 VM or physical Windows PC after redeploying staging
+   backend from this branch. Confirm the accepted lock result advances the
+   backend session to `ended` and a second session can start on the same
+   seat/device without SQL.
 3. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
@@ -558,11 +634,11 @@ Player Shell and session end hardening branch verification on 2026-05-17:
 5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
    policy.
-6. Harden Agent production behavior: deterministic interactive-session Player
-   Shell launch/supervision, rotated credential consumption,
+6. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
 7. Implement the minimum admin/configuration workflows needed for a pilot club:
-   staff management, role assignment, and layout management.
+   staff management, role assignment, layout management, and device-seat
+   assignment so future smoke runs do not require direct database edits.
 
 ## Recent Integration Notes
 
