@@ -627,6 +627,13 @@ Pilot device-seat assignment branch verification on 2026-05-18:
   tests passed 10/10; real-device smoke runbook tests passed 2/2; full solution
   build completed with 0 warnings and 0 errors; full no-build solution tests
   passed 667/667.
+- after PR #19 was merged and Coolify staging was redeployed from `main` commit
+  `d0335fb760a4a6897220f185428939e3e83b0e22`, public health returned HTTP 200
+  at `2026-05-18T09:55:17Z`. The deployed assignment endpoint accepted
+  assigning device `c5bda42b-77ea-4794-8523-72029c234541` to smoke seat
+  `9f3adbd3-957e-4dc8-8d34-a6bfa56b9275` without SQL and returned assignment
+  `c16ab13c-9801-4ac3-9323-31fadd17eff4`; device detail then showed seat
+  `REAL-PC-SMOKE-001`, online, and locked.
 
 ## Known Gaps
 
