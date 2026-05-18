@@ -25,8 +25,9 @@ public sealed class GamingPcSetupOrchestratorTests
         Assert.True(msi.WasInstalled);
         Assert.True(config.WasWritten);
         Assert.Contains(StagingSetupDefaults.AgentServiceName, service.StartedServices);
+        Assert.Equal(api.Enrollment.DeviceId, api.AssignedDeviceId);
         Assert.Equal(
-            ["Health", "SignIn", "EnrollmentCode", "Enroll", "InstallMsi", "ConfigureAgent", "StartService", "Heartbeat"],
+            ["Health", "SignIn", "EnrollmentCode", "Enroll", "AssignSeat", "InstallMsi", "ConfigureAgent", "StartService", "Heartbeat"],
             result.Steps.Where(step => step.Status is SetupStepStatus.Succeeded).Select(step => step.Step).ToArray());
     }
 
@@ -150,6 +151,8 @@ public sealed class GamingPcSetupOrchestratorTests
             "device-secret",
             DateTimeOffset.UtcNow);
 
+        public Guid? AssignedDeviceId { get; private set; }
+
         public DeviceDetailDto DeviceDetail { get; init; } = CreateDeviceDetail(
             isOnline: true,
             lastHeartbeatAtUtc: DateTimeOffset.UtcNow);
@@ -187,6 +190,22 @@ public sealed class GamingPcSetupOrchestratorTests
             string machineName,
             CancellationToken cancellationToken) =>
             Task.FromResult(Enrollment);
+
+        public Task<DeviceSeatAssignmentDto> AssignDeviceToSmokeSeatAsync(
+            string accessToken,
+            Guid deviceId,
+            CancellationToken cancellationToken)
+        {
+            AssignedDeviceId = deviceId;
+            return Task.FromResult(new DeviceSeatAssignmentDto(
+                Guid.Parse("66666666-6666-4666-8666-666666666666"),
+                StagingSetupDefaults.OrganizationId,
+                StagingSetupDefaults.BranchId,
+                StagingSetupDefaults.SmokeSeatId,
+                deviceId,
+                DateTimeOffset.UtcNow,
+                DetachedAtUtc: null));
+        }
 
         public Task<DeviceDetailDto> GetDeviceDetailAsync(
             string accessToken,

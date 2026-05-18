@@ -72,6 +72,7 @@ The smoke exercises these API boundaries:
 | Staff auth | `POST /api/auth/staff/sign-in` |
 | Enrollment code | `POST /api/branches/{branchId}/device-enrollment-codes` |
 | Device enrollment | `POST /api/devices/enroll` |
+| Device assignment | `POST /api/branches/{branchId}/devices/{deviceId}/seat-assignment` |
 | Heartbeat | `POST /api/devices/{deviceId}/heartbeat` |
 | SignalR | `/hubs/devices` |
 | Installed apps | `POST /api/devices/{deviceId}/installed-apps/report` |
@@ -91,9 +92,11 @@ Release workstation:
 - Git for Windows.
 - .NET SDK `10.0.203`.
 - `psql` access to staging through a trusted shell, private network path, or
-  temporary approved tunnel.
+  temporary approved tunnel only when bootstrapping a completely fresh staging
+  organization/branch/seat dataset. Existing staging smoke data should use the
+  API path below and should not require direct database edits.
 - Staging database URL available only in the current shell as
-  `AFK4_STAGING_DATABASE_URL`.
+  `AFK4_STAGING_DATABASE_URL` when the one-time seed step is required.
 - Staging session lease public key PEM available outside the repository.
 
 Windows gaming PC:
@@ -346,8 +349,9 @@ artifacts/client-packages/afk4-gaming-pc-setup-0.1.0-ci-internal.exe
 ```
 
 The setup executable is staging-only for now. It has the staging Platform API,
-organization, and branch fixed at build time. It asks for staff username and
-password, creates the enrollment code, enrolls the VM, installs the bundled MSI,
+organization, branch, and smoke seat fixed at build time. It asks for staff
+username and password, creates the enrollment code, enrolls the VM, assigns the
+device to the smoke seat through the Platform API, installs the bundled MSI,
 writes Agent machine configuration, starts `AFK4.Agent.Service`, and waits for
 backend heartbeat evidence.
 
@@ -401,39 +405,24 @@ $enrollment = Invoke-RestMethod `
 
 Assign the enrolled device to the smoke seat:
 
-This direct SQL assignment is a temporary staging-only workaround until a
-pilot-safe setup endpoint, admin workflow, or trusted internal tool exists.
-Do not treat direct database edits as the normal path for future smoke runs or
-production onboarding.
+Skip this manual API call when using
+`afk4-gaming-pc-setup-0.1.0-ci-internal.exe`; the setup executable assigns the
+enrolled device to the staging smoke seat automatically.
 
 ```powershell
-$assignmentId = [Guid]::NewGuid().ToString('D')
+$assignDeviceSeatBody = @{
+    organizationId = $organizationId
+    seatId = $seatId
+} | ConvertTo-Json -Depth 4
 
-$assignSql = @"
-UPDATE device_seat_assignments
-SET "DetachedAtUtc" = now()
-WHERE ("SeatId" = '$seatId' OR "DeviceId" = '$($enrollment.deviceId)')
-  AND "DetachedAtUtc" IS NULL;
+$assignment = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/devices/$($enrollment.deviceId)/seat-assignment" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $assignDeviceSeatBody
 
-INSERT INTO device_seat_assignments (
-    "DeviceSeatAssignmentId",
-    "OrganizationId",
-    "BranchId",
-    "SeatId",
-    "DeviceId",
-    "AttachedAtUtc",
-    "DetachedAtUtc")
-VALUES (
-    '$assignmentId',
-    '$organizationId',
-    '$branchId',
-    '$seatId',
-    '$($enrollment.deviceId)',
-    now(),
-    NULL);
-"@
-
-$assignSql | psql $env:AFK4_STAGING_DATABASE_URL
+$assignment
 ```
 
 ## Configure The Windows Gaming PC

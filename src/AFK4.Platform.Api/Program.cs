@@ -913,6 +913,166 @@ app.MapGet("/api/devices/{deviceId:guid}", async (
         RecentCommands: recentCommands));
 });
 
+app.MapPost("/api/branches/{branchId:guid}/devices/{deviceId:guid}/seat-assignment", async (
+    Guid branchId,
+    Guid deviceId,
+    AssignDeviceSeatRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var device = await dbContext.Devices
+        .SingleOrDefaultAsync(
+            candidate => candidate.DeviceId == deviceId && candidate.BranchId == branchId,
+            cancellationToken);
+
+    if (device is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.AssignDeviceSeat,
+        cancellationToken);
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: authorization.StaffContext!.OrganizationId,
+            BranchId: branchId,
+            ActorStaffUserId: authorization.StaffContext.StaffUserId,
+            Action: AuditActionNames.AssignDeviceSeat,
+            TargetType: "Device",
+            TargetId: deviceId.ToString("D"),
+            Outcome: AuditOutcome.Denied,
+            SourceApp: "PlatformApi",
+            DetailsJson: JsonSerializer.Serialize(new
+            {
+                request.SeatId,
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId is required." });
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId ||
+        request.OrganizationId != device.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization and device." });
+    }
+
+    if (request.SeatId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "SeatId is required." });
+    }
+
+    var seat = await dbContext.Seats
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.SeatId == request.SeatId &&
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.BranchId == branchId,
+            cancellationToken);
+
+    if (seat is null)
+    {
+        return Results.NotFound();
+    }
+
+    var hasActiveSession = await dbContext.Sessions
+        .AsNoTracking()
+        .AnyAsync(
+            candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.BranchId == branchId &&
+                (candidate.SeatId == request.SeatId || candidate.DeviceId == deviceId) &&
+                (candidate.State == SessionStateNames.Active ||
+                 candidate.State == SessionStateNames.Paused ||
+                 candidate.State == SessionStateNames.Ending),
+            cancellationToken);
+
+    if (hasActiveSession)
+    {
+        return Results.Conflict(new { Error = "Seat or device has an active, paused, or ending session." });
+    }
+
+    var now = timeProvider.GetUtcNow();
+    var activeAssignments = await dbContext.DeviceSeatAssignments
+        .Where(
+            candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.BranchId == branchId &&
+                candidate.DetachedAtUtc == null &&
+                (candidate.SeatId == request.SeatId || candidate.DeviceId == deviceId))
+        .OrderByDescending(candidate => candidate.AttachedAtUtc)
+        .ThenByDescending(candidate => candidate.DeviceSeatAssignmentId)
+        .ToListAsync(cancellationToken);
+
+    var currentAssignment = activeAssignments.FirstOrDefault(
+        candidate => candidate.SeatId == request.SeatId && candidate.DeviceId == deviceId);
+
+    if (currentAssignment is not null)
+    {
+        foreach (var assignment in activeAssignments.Where(candidate => candidate.DeviceSeatAssignmentId != currentAssignment.DeviceSeatAssignmentId))
+        {
+            assignment.DetachedAtUtc = now;
+        }
+    }
+    else
+    {
+        foreach (var assignment in activeAssignments)
+        {
+            assignment.DetachedAtUtc = now;
+        }
+
+        currentAssignment = new DeviceSeatAssignmentEntity
+        {
+            DeviceSeatAssignmentId = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
+            BranchId = branchId,
+            SeatId = request.SeatId,
+            DeviceId = deviceId,
+            AttachedAtUtc = now
+        };
+        dbContext.DeviceSeatAssignments.Add(currentAssignment);
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: request.OrganizationId,
+        BranchId: branchId,
+        ActorStaffUserId: authorization.StaffContext.StaffUserId,
+        Action: AuditActionNames.AssignDeviceSeat,
+        TargetType: "DeviceSeatAssignment",
+        TargetId: currentAssignment.DeviceSeatAssignmentId.ToString("D"),
+        Outcome: AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: JsonSerializer.Serialize(new
+        {
+            request.SeatId,
+            DeviceId = deviceId
+        })),
+        cancellationToken);
+
+    return Results.Ok(ToDeviceSeatAssignmentDto(currentAssignment));
+});
+
 app.MapPost("/api/devices/{deviceId:guid}/commands", async (
     Guid deviceId,
     CreateDeviceCommandRequest request,
@@ -4362,6 +4522,18 @@ static ReceiptDto ToDto(ReceiptEntity receipt)
         receipt.ReceiptType,
         new MoneyDto(receipt.CurrencyCode, receipt.TotalMinorUnits),
         receipt.CreatedAtUtc);
+}
+
+static DeviceSeatAssignmentDto ToDeviceSeatAssignmentDto(DeviceSeatAssignmentEntity assignment)
+{
+    return new DeviceSeatAssignmentDto(
+        assignment.DeviceSeatAssignmentId,
+        assignment.OrganizationId,
+        assignment.BranchId,
+        assignment.SeatId,
+        assignment.DeviceId,
+        assignment.AttachedAtUtc,
+        assignment.DetachedAtUtc);
 }
 
 static async Task<IResult> CompleteReconciliationAsync(

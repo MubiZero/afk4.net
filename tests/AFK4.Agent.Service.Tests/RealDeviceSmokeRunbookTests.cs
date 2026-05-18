@@ -21,6 +21,7 @@ public sealed class RealDeviceSmokeRunbookTests
         Assert.Contains("https://afk4.staging.mubi.dev", runbook, StringComparison.Ordinal);
         Assert.Contains("Windows 10/11", runbook, StringComparison.Ordinal);
         Assert.Contains("POST /api/devices/enroll", runbook, StringComparison.Ordinal);
+        Assert.Contains("POST /api/branches/{branchId}/devices/{deviceId}/seat-assignment", runbook, StringComparison.Ordinal);
         Assert.Contains("POST /api/devices/{deviceId}/heartbeat", runbook, StringComparison.Ordinal);
         Assert.Contains("/hubs/devices", runbook, StringComparison.Ordinal);
         Assert.Contains("POST /api/branches/{branchId}/sessions/start", runbook, StringComparison.Ordinal);
