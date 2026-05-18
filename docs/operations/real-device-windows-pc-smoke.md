@@ -401,6 +401,11 @@ $enrollment = Invoke-RestMethod `
 
 Assign the enrolled device to the smoke seat:
 
+This direct SQL assignment is a temporary staging-only workaround until a
+pilot-safe setup endpoint, admin workflow, or trusted internal tool exists.
+Do not treat direct database edits as the normal path for future smoke runs or
+production onboarding.
+
 ```powershell
 $assignmentId = [Guid]::NewGuid().ToString('D')
 

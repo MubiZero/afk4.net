@@ -447,9 +447,10 @@ Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 - after the lock smoke, the same staging session was manually moved from
   `ending` back to `active` in Coolify PostgreSQL only to leave the VM in an
   active visible Shell state for continued inspection. This SQL reactivation is
-  not a valid production or pilot operator path. It highlights that the session
-  lifecycle still needs a normal `ending` completion/reconciliation path so a
-  seat/device can be reused without manual database edits.
+  not a valid production or pilot operator path. At the time, it highlighted
+  that the session lifecycle needed a normal `ending`
+  completion/reconciliation path so a seat/device could be reused without
+  manual database edits.
 
 Player Shell and session end hardening branch verification on 2026-05-17:
 
@@ -486,11 +487,12 @@ Player Shell and session end hardening branch verification on 2026-05-17:
   command endpoint regression set passed 23/23 after it; full solution build
   completed with 0 warnings and 0 errors; full no-build solution tests passed
   655/655; `git diff --check` was clean.
-- this has partial Windows 11 staging VM evidence: the rebuilt setup enrolled,
-  no service-session Player Shell was running before the visible manual Shell
-  launch, session start/unlock worked, and physical/visible lock was observed.
-  Session reuse still needs a repeat after the heartbeat finalization fallback
-  is deployed.
+- at this point the branch had partial Windows 11 staging VM evidence: the
+  rebuilt setup enrolled, no service-session Player Shell was running before
+  the visible manual Shell launch, session start/unlock worked, and
+  physical/visible lock was observed. Session reuse still needed a repeat after
+  the heartbeat finalization fallback was deployed; that VM reuse gap is
+  addressed by the 2026-05-18 post-redeploy smoke below.
 
 Interactive Player Shell auto-start hardening on 2026-05-18:
 
@@ -552,12 +554,21 @@ Staging VM Shell state delivery finding on 2026-05-18:
   visible Shell auto-started in session `1` and changed to `Session is active`
   without manual restart; VM `runtime-state.json` and `session-lease.json`
   matched the backend session id.
-- ending that session produced lock command
+- ending that session initially produced lock command
   `e950241c-23c8-481f-b6a7-e302a13646cc`; the Agent accepted the command,
-  local device state returned locked, and the Shell returned locked. The
-  deployed staging backend still left the session in `Ending`, confirming the
-  session finalization code on this branch still needs staging redeploy before
-  the second-session reuse gate can pass without SQL cleanup.
+  local device state returned locked, and the Shell returned locked. Before
+  staging was redeployed from the branch, the deployed backend still left the
+  session in `Ending`.
+- after Coolify staging was redeployed to commit
+  `560c8a17448a52e33e366d7a0abd2990005019d5`, health returned HTTP 200 and the
+  stale `Ending` session converged to locked/ended without SQL. A no-SQL reuse
+  smoke then passed on the same VM/seat: session
+  `06ccc56c-c615-48f0-822c-ff9e3313c2a9` started active, ended, and the floor
+  map returned to `Locked` on the first heartbeat poll; session
+  `6ec17520-45f3-4f63-a30d-8685d4ee5fc8` then started on the same seat/device
+  without SQL cleanup. Cleanup ending of session
+  `6ec17520-45f3-4f63-a30d-8685d4ee5fc8` also returned the seat to `Locked` on
+  the first heartbeat poll.
 - local targeted regression verification passed:
 
   ```powershell
@@ -603,9 +614,8 @@ Staging VM Shell state delivery finding on 2026-05-18:
 - Session end finalization is implemented in code for accepted/completed lock
   command results and as a heartbeat recovery fallback when an accepted lock is
   already persisted for an `ending` session. Targeted tests cover session reuse,
-  duplicate results, and heartbeat convergence. The current deployed staging
-  backend still leaves the VM smoke session in `Ending`; staging must be
-  redeployed from this branch before closing the session reuse gate.
+  duplicate results, and heartbeat convergence; post-redeploy Windows 11 VM
+  smoke confirmed no-SQL reuse on the same seat/device.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -623,10 +633,8 @@ Staging VM Shell state delivery finding on 2026-05-18:
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
 2. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
-   second clean Windows 11 VM or physical Windows PC after redeploying staging
-   backend from this branch. Confirm the accepted lock result advances the
-   backend session to `ended` and a second session can start on the same
-   seat/device without SQL.
+   physical Windows PC, or a second clean Windows 11 VM if physical hardware is
+   unavailable, to broaden confidence beyond the current VM.
 3. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
