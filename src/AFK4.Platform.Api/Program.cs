@@ -76,6 +76,7 @@ builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
+builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
 builder.Services.AddScoped<ITariffService, EfTariffService>();
 builder.Services.AddScoped<IPackageService, EfPackageService>();
@@ -613,6 +614,7 @@ app.MapPost("/api/devices/{deviceId:guid}/commands/{commandId:guid}/result", asy
     HttpContext httpContext,
     IDeviceCredentialValidator credentialValidator,
     IDeviceCommandStore commandStore,
+    ISessionCommandResultProcessor sessionCommandResultProcessor,
     IHubContext<DeviceHub> hubContext,
     CancellationToken cancellationToken) =>
 {
@@ -633,6 +635,7 @@ app.MapPost("/api/devices/{deviceId:guid}/commands/{commandId:guid}/result", asy
     }
 
     await commandStore.ApplyResultAsync(result, cancellationToken);
+    await sessionCommandResultProcessor.ProcessAsync(result, cancellationToken);
     await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceCommandResult, result, cancellationToken);
 
     return Results.Ok();

@@ -16,11 +16,17 @@ public sealed class PlayerShellProcessSupervisorTests
         using var executable = TemporaryExecutable.Create();
         var processQuery = new RecordingProcessQuery(isRunning: false);
         var processStarter = new RecordingProcessStarter();
-        var supervisor = CreateSupervisor(executable.Path, processQuery, processStarter);
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            processQuery,
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false));
 
         await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
 
         Assert.Equal(executable.Path, processStarter.LastExecutablePath);
+        Assert.Equal(7, processStarter.LastLaunchTarget?.SessionId);
         Assert.Equal(1, processStarter.StartCount);
     }
 
@@ -30,7 +36,12 @@ public sealed class PlayerShellProcessSupervisorTests
         using var executable = TemporaryExecutable.Create();
         var processQuery = new RecordingProcessQuery(isRunning: true);
         var processStarter = new RecordingProcessStarter();
-        var supervisor = CreateSupervisor(executable.Path, processQuery, processStarter);
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            processQuery,
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false));
 
         await supervisor.EnsureRunningAsync(AgentRuntimeState.Active(CreateLease(), DateTimeOffset.UtcNow), CancellationToken.None);
 
@@ -43,7 +54,12 @@ public sealed class PlayerShellProcessSupervisorTests
         using var executable = TemporaryExecutable.Create();
         var processQuery = new SequenceProcessQuery([true, false]);
         var processStarter = new RecordingProcessStarter();
-        var supervisor = CreateSupervisor(executable.Path, processQuery, processStarter);
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            processQuery,
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false));
         var runtimeState = AgentRuntimeState.Active(CreateLease(), DateTimeOffset.UtcNow);
 
         await supervisor.EnsureRunningAsync(runtimeState, CancellationToken.None);
@@ -57,26 +73,132 @@ public sealed class PlayerShellProcessSupervisorTests
     {
         var processQuery = new RecordingProcessQuery(isRunning: false);
         var processStarter = new RecordingProcessStarter();
-        var supervisor = CreateSupervisor(string.Empty, processQuery, processStarter);
+        var supervisor = CreateSupervisor(
+            string.Empty,
+            processQuery,
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false));
 
         await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
 
         Assert.Equal(0, processStarter.StartCount);
     }
 
+    [Fact]
+    public async Task EnsureRunningAsync_DoesNotStartShellWhenAutoStartDisabled()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var processQuery = new RecordingProcessQuery(isRunning: false);
+        var processStarter = new RecordingProcessStarter();
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            processQuery,
+            processStarter,
+            autoStartEnabled: false,
+            activeUserSession: new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false));
+
+        await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
+
+        Assert.Equal(0, processStarter.StartCount);
+    }
+
+    [Fact]
+    public async Task EnsureRunningAsync_DoesNotStartShellWhenNoActiveUserSessionExists()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var processQuery = new RecordingProcessQuery(isRunning: false);
+        var processStarter = new RecordingProcessStarter();
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            processQuery,
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: null);
+
+        await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
+
+        Assert.Equal(0, processStarter.StartCount);
+    }
+
+    [Fact]
+    public async Task EnsureRunningAsync_IgnoresShellRunningInDifferentSession()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var processQuery = new SessionAwareProcessQuery(runningSessionId: 0);
+        var processStarter = new RecordingProcessStarter();
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            processQuery,
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false));
+
+        await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
+
+        Assert.Equal(1, processStarter.StartCount);
+        Assert.Equal(7, processQuery.LastRequestedSessionId);
+    }
+
+    [Fact]
+    public async Task EnsureRunningAsync_AutoStartIsEnabledByDefault()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var processQuery = new RecordingProcessQuery(isRunning: false);
+        var processStarter = new RecordingProcessStarter();
+        var supervisor = new PlayerShellProcessSupervisor(
+            Options.Create(new AgentOptions
+            {
+                PlayerShellExecutablePath = executable.Path
+            }),
+            processQuery,
+            processStarter,
+            new FixedShellLaunchContext(new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false)),
+            NullLogger<PlayerShellProcessSupervisor>.Instance);
+
+        await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
+
+        Assert.Equal(1, processStarter.StartCount);
+    }
+
+    [Fact]
+    public async Task EnsureRunningAsync_DoesNotThrowWhenInteractiveLaunchFails()
+    {
+        using var executable = TemporaryExecutable.Create();
+        var processQuery = new RecordingProcessQuery(isRunning: false);
+        var processStarter = new RecordingProcessStarter
+        {
+            Exception = new InvalidOperationException("token unavailable")
+        };
+        var supervisor = CreateSupervisor(
+            executable.Path,
+            processQuery,
+            processStarter,
+            autoStartEnabled: true,
+            activeUserSession: new PlayerShellLaunchTarget(7, IsCurrentProcessSession: false));
+
+        await supervisor.EnsureRunningAsync(AgentRuntimeState.Locked(DateTimeOffset.UtcNow), CancellationToken.None);
+
+        Assert.Equal(1, processStarter.StartCount);
+    }
+
     private static PlayerShellProcessSupervisor CreateSupervisor(
         string executablePath,
         IPlayerShellProcessQuery processQuery,
-        IPlayerShellProcessStarter processStarter)
+        IPlayerShellProcessStarter processStarter,
+        bool autoStartEnabled = false,
+        PlayerShellLaunchTarget? activeUserSession = null)
     {
         return new PlayerShellProcessSupervisor(
             Options.Create(new AgentOptions
             {
                 PlayerShellExecutablePath = executablePath,
-                PlayerShellStartArguments = "--from-test"
+                PlayerShellStartArguments = "--from-test",
+                PlayerShellAutoStartEnabled = autoStartEnabled
             }),
             processQuery,
             processStarter,
+            new FixedShellLaunchContext(activeUserSession),
             NullLogger<PlayerShellProcessSupervisor>.Instance);
     }
 
@@ -98,7 +220,7 @@ public sealed class PlayerShellProcessSupervisorTests
 
     private sealed class RecordingProcessQuery(bool isRunning) : IPlayerShellProcessQuery
     {
-        public bool IsRunning(string executablePath)
+        public bool IsRunning(string executablePath, int sessionId)
         {
             return isRunning;
         }
@@ -108,7 +230,7 @@ public sealed class PlayerShellProcessSupervisorTests
     {
         private int index;
 
-        public bool IsRunning(string executablePath)
+        public bool IsRunning(string executablePath, int sessionId)
         {
             var value = values[Math.Min(index, values.Count - 1)];
             index++;
@@ -116,19 +238,48 @@ public sealed class PlayerShellProcessSupervisorTests
         }
     }
 
+    private sealed class SessionAwareProcessQuery(int runningSessionId) : IPlayerShellProcessQuery
+    {
+        public int? LastRequestedSessionId { get; private set; }
+
+        public bool IsRunning(string executablePath, int sessionId)
+        {
+            LastRequestedSessionId = sessionId;
+            return sessionId == runningSessionId;
+        }
+    }
+
     private sealed class RecordingProcessStarter : IPlayerShellProcessStarter
     {
         public int StartCount { get; private set; }
+
+        public Exception? Exception { get; init; }
 
         public string? LastExecutablePath { get; private set; }
 
         public string? LastArguments { get; private set; }
 
-        public void Start(string executablePath, string arguments)
+        public PlayerShellLaunchTarget? LastLaunchTarget { get; private set; }
+
+        public void Start(string executablePath, string arguments, PlayerShellLaunchTarget launchTarget)
         {
             StartCount++;
             LastExecutablePath = executablePath;
             LastArguments = arguments;
+            LastLaunchTarget = launchTarget;
+
+            if (Exception is not null)
+            {
+                throw Exception;
+            }
+        }
+    }
+
+    private sealed class FixedShellLaunchContext(PlayerShellLaunchTarget? activeUserSession) : IPlayerShellLaunchContext
+    {
+        public PlayerShellLaunchTarget? GetActiveUserSession()
+        {
+            return activeUserSession;
         }
     }
 

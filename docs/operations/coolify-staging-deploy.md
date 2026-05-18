@@ -114,9 +114,12 @@ $publicKeyPath = Join-Path $env:TEMP 'afk4-staging-session-lease-public.pem'
 & 'C:\Program Files\Git\usr\bin\openssl.exe' ec -in $privateKeyPath -pubout -out $publicKeyPath
 ```
 
-Paste the private PEM into Coolify as `Sessions__SigningPrivateKeyPem`. Store
-the public PEM in the secure Agent configuration channel for Windows Agent
-staging smoke; the Platform API does not need that public key to start.
+Paste the private PEM into Coolify as `Sessions__SigningPrivateKeyPem`. The
+matching public PEM is not secret and should be committed at
+`deploy/coolify/staging-session-signing-public.pem` so every release
+workstation can build the staging Gaming PC setup executable with the same
+Agent lease verification key. When rotating the staging private key in Coolify,
+replace this public PEM in the same change.
 
 ## EF Migration Order
 

@@ -1,7 +1,7 @@
 # Real Device Windows PC Smoke Runbook
 
 Status: manual staging smoke path  
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Purpose
 
@@ -46,14 +46,18 @@ Not included:
   `http://localhost:5074` base URL. Use it in this staging smoke only if a
   staging-configured build is prepared; otherwise use the API commands below
   and treat Operator App as optional observation only.
+- The preferred Windows 11 VM install path is now the staging Gaming PC setup
+  executable. It is built on the release workstation and copied to the VM; the
+  VM does not need the repository, .NET SDK, PowerShell runbook execution, or
+  manual Agent environment-variable commands.
 - `WorkstationLockController` currently records lock/unlock requests through
   the enforcement adapter. If the physical Windows desktop does not actually
   lock or unlock, record that as a real enforcement gap rather than inventing a
   pass.
-- Player Shell visibility from a service-started process depends on the
-  current user-session launch behavior. If the service-started Shell is not
-  visible, manually launch the Shell in the interactive Windows session and
-  record whether named-pipe state updates are received.
+- Player Shell auto-start is expected to run from the Agent Service by launching
+  into the active interactive Windows session. A Shell process in service
+  session `0` is still a regression. If no interactive user session exists, the
+  Agent must skip Shell launch and continue heartbeat/state publishing.
 - Do not commit secrets, filled environment files, database URLs, staff
   passwords, device credential secrets, PEM files, MSI artifacts, or smoke
   transcripts containing secrets.
@@ -97,8 +101,9 @@ Windows gaming PC:
 - Windows 10/11 x64.
 - Local Administrator access.
 - Outbound HTTPS access to `https://afk4.staging.mubi.dev`.
-- .NET Desktop Runtime compatible with the current .NET 10 client packages,
-  because the current MSI publish path is framework-dependent.
+- The current internal Gaming PC MSI publishes Agent Service and Player Shell
+  as self-contained `win-x64` outputs, so a separate .NET Desktop Runtime
+  install is not required for the MSI smoke path.
 - A clean test Windows user session where Player Shell can be observed.
 
 ## Prepare Staging Data
@@ -329,10 +334,25 @@ release.
 
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
   -Version 0.1.0-ci `
-  -Channel internal
+  -Channel internal `
+  -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem
 ```
 
-Copy this file to the Windows gaming PC through a secure internal channel:
+Preferred path for clean Windows 11 VMs: copy this single file to the VM and
+run it as administrator:
+
+```text
+artifacts/client-packages/afk4-gaming-pc-setup-0.1.0-ci-internal.exe
+```
+
+The setup executable is staging-only for now. It has the staging Platform API,
+organization, and branch fixed at build time. It asks for staff username and
+password, creates the enrollment code, enrolls the VM, installs the bundled MSI,
+writes Agent machine configuration, starts `AFK4.Agent.Service`, and waits for
+backend heartbeat evidence.
+
+Fallback/manual path: copy this MSI to the Windows gaming PC through a secure
+internal channel and follow the explicit configuration commands below.
 
 ```text
 artifacts/client-packages/afk4-gaming-pc-0.1.0-ci-internal.msi
@@ -381,6 +401,11 @@ $enrollment = Invoke-RestMethod `
 
 Assign the enrolled device to the smoke seat:
 
+This direct SQL assignment is a temporary staging-only workaround until a
+pilot-safe setup endpoint, admin workflow, or trusted internal tool exists.
+Do not treat direct database edits as the normal path for future smoke runs or
+production onboarding.
+
 ```powershell
 $assignmentId = [Guid]::NewGuid().ToString('D')
 
@@ -413,7 +438,12 @@ $assignSql | psql $env:AFK4_STAGING_DATABASE_URL
 
 ## Configure The Windows Gaming PC
 
-Run these commands from an elevated PowerShell prompt on the Windows gaming PC.
+Skip this section when using
+`afk4-gaming-pc-setup-0.1.0-ci-internal.exe`; the setup executable performs
+these actions itself.
+
+Run these commands from an elevated PowerShell prompt on the Windows gaming PC
+only when using the fallback MSI path.
 Replace placeholders with values from the enrollment response and the staging
 lease public key file supplied outside the repository.
 
@@ -442,6 +472,7 @@ $leasePublicKeyPem = Get-Content -Raw -LiteralPath $publicKeyPath
 [Environment]::SetEnvironmentVariable('Agent__DeviceCredentialSecret', $deviceCredentialSecret, 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__LeaseSigningPublicKeyPem', $leasePublicKeyPem, 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__PlayerShellExecutablePath', 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe', 'Machine')
+[Environment]::SetEnvironmentVariable('Agent__PlayerShellAutoStartEnabled', 'True', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateChannel', 'internal', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateInstallerExecutablePath', 'powershell.exe', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateInstallerArgumentsTemplate', '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\install-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"', 'Machine')
@@ -506,23 +537,69 @@ the Windows uninstall registry keys and record the result.
 
 ## Player Shell Visible State
 
-First check whether the service-started Shell is visible in the interactive
-user session. If it is not visible, manually start the Shell from the logged-in
-desktop session:
+Keep a real Windows desktop user logged in, start or restart
+`AFK4.Agent.Service`, and wait for at least one heartbeat loop. The Agent should
+auto-start Player Shell in the logged-in interactive session.
+
+Verify the Shell process context:
 
 ```powershell
-& 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe'
+Get-Process AFK4.Player.Shell -IncludeUserName -ErrorAction SilentlyContinue |
+  Select-Object Id, SessionId, UserName, Path
 ```
 
 Expected before a session starts:
 
 - Player Shell window is visible full-screen or maximized;
+- the Shell process runs in the logged-in user's session, not session `0`;
 - state text shows locked/offline until the first Agent state publish arrives;
 - after a state publish, state is `locked` and the message says the PC is
   locked.
 
+If the Agent does not auto-start the Shell, record the failure before using any
+manual fallback. Capture service status, Application event log entries, and
+whether an active user session existed:
+
+```powershell
+sc.exe query AFK4.Agent.Service
+quser
+Get-WinEvent -LogName Application -MaxEvents 100 |
+  Where-Object { $_.ProviderName -like '*AFK4*' -or $_.Message -like '*Player Shell*' } |
+  Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message
+```
+
 If the Shell cannot receive named-pipe state from the service, record the
-failure and capture whether the Shell was service-started or manually started.
+failure and capture the Shell process session/user context.
+The Agent state pipe is expected to keep serving the latest state, so a
+correctly running Shell must not require a manual restart to observe active or
+locked state changes.
+
+If the visible Shell remains locked while
+`C:\ProgramData\AFK4\Agent\runtime-state.json` shows `state=active`, check for
+duplicate Shell processes. The hardened Agent Service should not auto-start a
+non-visible Shell in session `0` by default; if such a process appears, record
+it as a regression.
+
+```powershell
+Get-Process AFK4.Player.Shell -IncludeUserName -ErrorAction SilentlyContinue |
+  Select-Object Id, SessionId, UserName, Path
+```
+
+Manual launch is only a diagnostic fallback after recording an auto-start or
+duplicate-process regression. For fallback evidence, stop duplicate Shell
+processes and relaunch the visible Shell from the interactive desktop session:
+
+```powershell
+Get-Process AFK4.Player.Shell -ErrorAction SilentlyContinue |
+  Stop-Process -Force
+
+Start-Sleep -Seconds 1
+
+& 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe'
+```
+
+Record this as a Player Shell supervision regression, not as a backend/session
+failure, when local runtime state and backend device status are already correct.
 
 ## Session Start And Unlock Smoke
 
@@ -632,9 +709,41 @@ Expected:
 - Agent receives or fetches a `lock` command;
 - command status becomes accepted or completed according to current Agent
   behavior;
+- backend advances the session from `ending` to `ended` after the accepted or
+  completed `lock` command result, either directly from command-result
+  processing or from the next heartbeat recovery check if the result was already
+  persisted;
 - local lease is cleared;
 - Player Shell state returns to locked;
 - physical lock result is recorded honestly.
+
+After lock is accepted, confirm the seat/device can be reused through the
+normal product path by starting a second short session with a new idempotency
+key. If the backend still reports the session as `ending` or blocks the second
+start with `Seat or device already has an active session`, record that as a
+session-finalization regression after confirming at least one heartbeat has
+arrived after the accepted lock. Do not use manual SQL reactivation as pass
+evidence.
+
+```powershell
+$restartSessionBody = @{
+    organizationId = $organizationId
+    seatId = $seatId
+    durationMinutes = 10
+    tariffRuleVersionId = $tariffVersion.tariffVersionId
+    idempotencyKey = "real-device-smoke-restart-$runId"
+    playerAccountId = $player.playerAccountId
+    billingMode = 'postpaid_debt'
+    tariffVersionId = $tariffVersion.tariffVersionId
+} | ConvertTo-Json -Depth 8
+
+$restartedSession = Invoke-RestMethod `
+    "$baseUrl/api/branches/$branchId/sessions/start" `
+    -Method Post `
+    -Headers $staffHeaders `
+    -ContentType 'application/json' `
+    -Body $restartSessionBody
+```
 
 ## Update Check And Status Smoke
 
@@ -744,10 +853,16 @@ Overall pass requires:
 - installed apps are reported and visible in device detail;
 - session start returns backend approval and creates an unlock command;
 - Agent accepts the signed lease and records active runtime state;
+- Player Shell is auto-started by the Agent into the interactive desktop
+  session, or a concrete auto-start blocker is recorded before any manual
+  fallback;
 - lease refresh is observed or the wait was intentionally skipped and recorded;
 - lease expiry behavior is observed when the network-disconnect step is run;
 - session end creates a lock command and Agent returns local runtime state to
   locked;
+- accepted or completed lock command result advances the backend session to
+  `ended`;
+- a second session can start on the same seat/device without SQL cleanup;
 - Player Shell visible state is observed or a concrete Shell/session-launch
   blocker is recorded;
 - diagnostics show the device, command, and update summaries;
@@ -764,6 +879,9 @@ Fail the smoke, or mark it partial, when:
 - signed lease validation rejects the backend-issued lease;
 - physical lock/unlock is claimed without evidence;
 - Player Shell state is claimed without a visible screenshot or runtime log.
+- a service-session `AFK4.Player.Shell.exe` competes with the visible Shell for
+  named-pipe state;
+- session reuse requires manual SQL after an accepted lock result.
 
 ## Cleanup
 

@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Purpose
 
@@ -347,6 +347,240 @@ The runbook preparation does not claim the real Windows PC smoke has been
 executed. It explicitly requires operator-performed PC steps, screenshots/log
 evidence, and pass/fail recording before the real-device gate can be closed.
 
+Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
+
+- branch `codex/staging-gaming-pc-bootstrapper` adds a staging-only one-click
+  Windows setup executable path for clean Windows 11 smoke VMs:
+  `src/AFK4.GamingPc.Setup` plus testable orchestration in
+  `src/AFK4.GamingPc.Setup.Core`;
+- the setup executable targets `https://afk4.staging.mubi.dev`, the current
+  staging organization, and the current staging branch; it asks only for staff
+  username/password, creates a short-lived enrollment code, enrolls the current
+  VM, installs the bundled Gaming PC MSI, writes Agent machine configuration,
+  starts `AFK4.Agent.Service`, and waits for backend heartbeat evidence;
+- `scripts/build-client-packages.ps1` can now emit
+  `artifacts/client-packages/afk4-gaming-pc-setup-<version>-<channel>.exe`
+  when supplied `-StagingLeasePublicKeyPath` from outside the repository;
+- the gaming-PC package publish path now publishes Agent Service and Player
+  Shell as self-contained `win-x64` outputs so a clean VM does not need a
+  separate .NET Desktop Runtime install before the MSI can run;
+- targeted setup tests passed locally:
+
+  ```bash
+  dotnet test tests/AFK4.GamingPc.Setup.Tests/AFK4.GamingPc.Setup.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 9 passed, 0 failed, 0 skipped.
+- targeted packaging invariant test passed locally:
+
+  ```bash
+  dotnet test tests/AFK4.Agent.Service.Tests/AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~BuildClientPackagesScript_PublishesStagingGamingPcSetupExeWithEmbeddedMsi" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 1 passed, 0 failed, 0 skipped.
+- setup project build passed locally:
+
+  ```bash
+  dotnet build src/AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+- setup single-file `win-x64` publish with embedded dummy MSI and dummy public
+  key resources passed locally, producing `AFK4.GamingPc.Setup.exe`; real VM
+  packaging still requires the real Gaming PC MSI on the Windows release
+  workstation.
+
+- full solution build passed in this Linux shell when Windows targeting was
+  explicitly enabled:
+
+  ```bash
+  dotnet build AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+- full solution tests were attempted with `EnableWindowsTargeting=true` but
+  could not complete in this Linux shell because the existing WPF test
+  assemblies require `Microsoft.WindowsDesktop.App` and existing release
+  automation tests invoke `powershell.exe`; these remain Windows-runner
+  verification items rather than product failures.
+- the staging public lease verification key is now committed at
+  `deploy/coolify/staging-session-signing-public.pem`; the matching private key
+  is stored only in Coolify as `Sessions__SigningPrivateKeyPem`.
+- after the first Windows 11 VM bootstrapper attempt failed because the setup
+  exe did not contain the embedded public-key resource, the build script was
+  fixed to resolve `-StagingLeasePublicKeyPath` to an absolute path before
+  passing it to MSBuild; the targeted packaging invariant test was verified
+  red/green, the setup exe was rebuilt with the repo-relative key path, and
+  binary inspection confirmed both the public-key resource name and public-key
+  PEM payload are present in the generated exe.
+- a Windows 11 VM smoke on `DESKTOP-DTMPO0V` then enrolled successfully against
+  staging as device `3ba8737c-f94b-4ea4-bc25-014af468784f`; the setup UI
+  observed backend heartbeat evidence, and staging device diagnostics showed
+  the device online with Agent/Shell version `0.1.0`.
+- the same VM exposed a packaging defect after install: WiX produced a 32-bit
+  MSI, so Windows installed the Agent under `C:\Program Files (x86)\AFK4\...`
+  while the bootstrapper machine config pointed
+  `Agent__PlayerShellExecutablePath` at `C:\Program Files\AFK4\Player Shell`.
+  `scripts/build-client-packages.ps1` now passes `-arch x64` for the
+  gaming-PC MSI; the regression test was verified red/green, the staging setup
+  exe was rebuilt, MSI summary metadata reports `x64;0`, and administrative
+  extraction confirms `PFiles64\AFK4\Player Shell\AFK4.Player.Shell.exe` is
+  present.
+- the rebuilt x64 bootstrapper was rerun on the same Windows 11 VM. The Agent
+  service installed under `C:\Program Files\AFK4\Agent Service`, the Player
+  Shell executable existed under `C:\Program Files\AFK4\Player Shell`, and the
+  setup UI enrolled staging device `bf44adb1-0681-49f5-81cc-7ceec3d371a7`
+  with backend heartbeat evidence.
+- a real staging session smoke then passed on that VM:
+  session `90531bf3-3f37-4112-9c6a-7682e498fb9f` started as `active`,
+  produced an `unlock` command accepted by the Agent, wrote
+  `session-lease.json` plus `runtime-state.json` with `state=active`, and the
+  visible Player Shell showed `Session is active` with remaining time.
+  Ending the session produced an accepted `lock` command, cleared
+  `session-lease.json`, wrote `runtime-state.json` with `state=locked`, and the
+  visible Shell returned to locked.
+- one manual Player Shell visibility gap was observed: the service had started
+  an additional `AFK4.Player.Shell.exe` in session `0` as `NT AUTHORITY\SYSTEM`,
+  while the manually visible Shell ran in the interactive user session. The
+  session-0 Shell could receive named-pipe state first, leaving the visible
+  Shell stale. Killing both Shell processes and restarting the visible Shell
+  allowed it to receive the active/locked state. Treat this as a Player Shell
+  service-supervision hardening item.
+- after the lock smoke, the same staging session was manually moved from
+  `ending` back to `active` in Coolify PostgreSQL only to leave the VM in an
+  active visible Shell state for continued inspection. This SQL reactivation is
+  not a valid production or pilot operator path. At the time, it highlighted
+  that the session lifecycle needed a normal `ending`
+  completion/reconciliation path so a seat/device could be reused without
+  manual database edits.
+
+Player Shell and session end hardening branch verification on 2026-05-17:
+
+- branch `codex/staging-gaming-pc-bootstrapper` now disables Agent Service
+  Player Shell auto-start by default and gates any future auto-start behind an
+  explicit `Agent__PlayerShellAutoStartEnabled=true` setting plus an
+  interactive user-session check. The Agent still publishes Shell state over
+  the named pipe, so the current smoke/pilot path is to launch the visible
+  Player Shell from the logged-in Windows desktop session.
+- backend command-result processing now finalizes an `ending` session to
+  `ended` when the Agent reports the matching `lock` command as accepted or
+  completed. The finalization clears `CurrentLeaseId`, writes `EndedAtUtc`, and
+  records a `session-ended` event. Duplicate accepted lock results do not
+  create duplicate finalization events, and a second session can start on the
+  same seat/device after finalization.
+- a 2026-05-17 staging VM re-smoke exposed a recovery case where accepted lock
+  results were already persisted while the session remained `ending`. The
+  heartbeat command planner now treats an accepted/completed matching lock as a
+  finalization signal before planning another lock, so stale `ending` sessions
+  can converge to `ended` on the next heartbeat without SQL cleanup.
+- local verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~PlayerShellProcessSupervisorTests|FullyQualifiedName~RealDeviceSmokeRunbookTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter FullyQualifiedName~DeviceCommandEndpointTests --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "FullyQualifiedName~EfHeartbeatSessionCommandPlannerTests|FullyQualifiedName~DeviceCommandEndpointTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: Agent targeted tests passed 8/8; device command endpoint tests passed
+  16/16 before the heartbeat fallback and the combined heartbeat planner/device
+  command endpoint regression set passed 23/23 after it; full solution build
+  completed with 0 warnings and 0 errors; full no-build solution tests passed
+  655/655; `git diff --check` was clean.
+- at this point the branch had partial Windows 11 staging VM evidence: the
+  rebuilt setup enrolled, no service-session Player Shell was running before
+  the visible manual Shell launch, session start/unlock worked, and
+  physical/visible lock was observed. Session reuse still needed a repeat after
+  the heartbeat finalization fallback was deployed; that VM reuse gap is
+  addressed by the 2026-05-18 post-redeploy smoke below.
+
+Interactive Player Shell auto-start hardening on 2026-05-18:
+
+- branch `codex/staging-gaming-pc-bootstrapper` now re-enables Player Shell
+  auto-start by default, but no longer starts Shell from service session `0`.
+  The Agent resolves the active interactive Windows console session, checks for
+  an existing Shell process in that same session, and launches Shell there
+  through the Windows user-token path. If no interactive session exists, Shell
+  launch is skipped while heartbeat and named-pipe state publishing continue.
+- process detection is now session-aware, so a stale or accidental
+  `AFK4.Player.Shell.exe` in session `0` does not satisfy supervision for the
+  logged-in desktop session.
+- the staging Gaming PC setup writer explicitly sets
+  `Agent__PlayerShellAutoStartEnabled=True` for rebuilt smoke packages.
+- the real-device smoke runbook now expects Agent-driven interactive-session
+  Shell auto-start. Manual Shell launch is a diagnostic fallback only after an
+  auto-start or duplicate-process failure is recorded.
+- local verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter FullyQualifiedName~PlayerShellProcessSupervisorTests --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~PlayerShellProcessSupervisorTests|FullyQualifiedName~RealDeviceSmokeRunbookTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.GamingPc.Setup.Tests\AFK4.GamingPc.Setup.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: Player Shell process supervisor tests passed 9/9; targeted
+  Agent Shell/runbook tests passed 11/11; Gaming PC setup tests passed 9/9;
+  full solution build completed with 0 warnings and 0 errors; full no-build
+  solution tests passed 658/658; `git diff --check` was clean.
+
+Staging VM Shell state delivery finding on 2026-05-18:
+
+- a rebuilt staging Gaming PC setup executable installed and enrolled Windows
+  11 VM device `8999549a-e1c1-4b25-8df5-ae8111d8fb97`; backend heartbeat
+  reported the device online, and Agent auto-started
+  `AFK4.Player.Shell.exe` in interactive user session `1` for `vm\mubi`, not
+  service session `0`.
+- after a staging SQL cleanup of stale session
+  `329f4d61-f9c1-49f1-a3c5-6b91651ad35f`, API session start passed for
+  session `992624cf-77d1-413b-8e51-6f88872183eb`; unlock command
+  `4b8ac0c7-b872-4274-9379-3f7d61b79ee9` was accepted, floor map moved to
+  `Active`, device lock state moved to `false`, and the VM wrote active
+  `runtime-state.json` plus matching `session-lease.json`.
+- the visible Player Shell remained on its initial locked screen until the
+  Shell process was restarted. This confirmed a named-pipe timing race in the
+  Agent-to-Shell state path: the old Agent state publisher opened a pipe only
+  during a short publish window, so a running Shell could miss the active state.
+- the Agent state publisher now keeps a long-lived named-pipe server with the
+  latest Player Shell state. Late or restarted Shell clients receive the latest
+  state on connection instead of relying on a short timing window.
+- after rebuilding the staging Gaming PC setup with the long-lived state pipe,
+  a second VM enrollment produced device
+  `c5bda42b-77ea-4794-8523-72029c234541`. The backend reported heartbeat
+  online, a manual staging SQL assignment attached it to the smoke seat, and
+  session `a02f6e5e-a1aa-4dbf-8075-eaecf24efccf` started successfully. The
+  visible Shell auto-started in session `1` and changed to `Session is active`
+  without manual restart; VM `runtime-state.json` and `session-lease.json`
+  matched the backend session id.
+- ending that session initially produced lock command
+  `e950241c-23c8-481f-b6a7-e302a13646cc`; the Agent accepted the command,
+  local device state returned locked, and the Shell returned locked. Before
+  staging was redeployed from the branch, the deployed backend still left the
+  session in `Ending`.
+- after Coolify staging was redeployed to commit
+  `560c8a17448a52e33e366d7a0abd2990005019d5`, health returned HTTP 200 and the
+  stale `Ending` session converged to locked/ended without SQL. A no-SQL reuse
+  smoke then passed on the same VM/seat: session
+  `06ccc56c-c615-48f0-822c-ff9e3313c2a9` started active, ended, and the floor
+  map returned to `Locked` on the first heartbeat poll; session
+  `6ec17520-45f3-4f63-a30d-8685d4ee5fc8` then started on the same seat/device
+  without SQL cleanup. Cleanup ending of session
+  `6ec17520-45f3-4f63-a30d-8685d4ee5fc8` also returned the seat to `Locked` on
+  the first heartbeat poll.
+- local targeted regression verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~NamedPipePlayerShellStateServerTests|FullyQualifiedName~PlayerShellProcessSupervisorTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: targeted Agent Shell state/supervisor tests passed 11/11; full
+  solution build completed with 0 warnings and 0 errors; full no-build solution
+  tests passed 660/660.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -365,12 +599,23 @@ evidence, and pass/fail recording before the real-device gate can be closed.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook, but the runbook still
   needs to be executed on physical Windows 10/11 hardware.
+- The staging one-click Gaming PC setup executable path exists in code, and the
+  staging public lease verification key is committed for reproducible release
+  workstation packaging. One Windows 11 VM passed rebuilt x64
+  install/enroll/heartbeat plus session start/end and visible Player Shell
+  state evidence. Repeat on a second clean VM or physical Windows PC before
+  treating the gate as broadly validated.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
-- Player Shell visibility from the Agent Service still needs real user-session
-  validation; the manual smoke allows a manually launched Shell for visible
-  state evidence if service-started UI is not visible.
+- Player Shell service-session competition and missed state delivery are
+  mitigated in code and have Windows 11 VM evidence for interactive-session
+  auto-start plus active-state delivery without manual Shell restart.
+- Session end finalization is implemented in code for accepted/completed lock
+  command results and as a heartbeat recovery fallback when an accepted lock is
+  already persisted for an `ending` session. Targeted tests cover session reuse,
+  duplicate results, and heartbeat convergence; post-redeploy Windows 11 VM
+  smoke confirmed no-SQL reuse on the same seat/device.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -387,17 +632,21 @@ evidence, and pass/fail recording before the real-device gate can be closed.
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
+2. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
+   physical Windows PC, or a second clean Windows 11 VM if physical hardware is
+   unavailable, to broaden confidence beyond the current VM.
+3. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
-3. Rehearse PostgreSQL backup, restore, and migration against staging data.
-4. Choose production Authenticode certificate authority/storage, object-store
+4. Rehearse PostgreSQL backup, restore, and migration against staging data.
+5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
    policy.
-5. Harden Agent production behavior: rotated credential consumption,
+6. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
-6. Implement the minimum admin/configuration workflows needed for a pilot club:
-   staff management, role assignment, and layout management.
+7. Implement the minimum admin/configuration workflows needed for a pilot club:
+   staff management, role assignment, layout management, and device-seat
+   assignment so future smoke runs do not require direct database edits.
 
 ## Recent Integration Notes
 

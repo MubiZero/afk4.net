@@ -1,4 +1,5 @@
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Platform.Api.Sessions;
 using Microsoft.AspNetCore.SignalR;
 
 namespace AFK4.Platform.Api.Devices;
@@ -7,7 +8,8 @@ public sealed class DeviceHub(
     ILogger<DeviceHub> logger,
     IDeviceCredentialValidator credentialValidator,
     IDeviceConnectionRegistry connectionRegistry,
-    IDeviceCommandStore commandStore) : Hub
+    IDeviceCommandStore commandStore,
+    ISessionCommandResultProcessor sessionCommandResultProcessor) : Hub
 {
     public async Task RegisterDeviceAsync(DeviceConnectionRequest request)
     {
@@ -52,6 +54,7 @@ public sealed class DeviceHub(
         }
 
         await commandStore.ApplyResultAsync(result, Context.ConnectionAborted);
+        await sessionCommandResultProcessor.ProcessAsync(result, Context.ConnectionAborted);
 
         await Clients.All.SendAsync(
             DeviceRealtimeEvents.DeviceCommandResult,

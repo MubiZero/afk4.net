@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-17
+Last updated: 2026-05-18
 
 ## Purpose
 
@@ -90,8 +90,21 @@ Minimum bar:
    manual staging runbook now exists at
    `docs/operations/real-device-windows-pc-smoke.md`, and the Agent host is
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
-   The gate remains open until the runbook is executed on physical hardware and
-   evidence is recorded.
+   A staging-only one-click Gaming PC setup executable path now exists for clean
+   Windows 11 smoke VMs, and the staging public lease verification key is
+   committed for reproducible packaging. One Windows 11 VM passed rebuilt x64
+   install/enroll/heartbeat plus session start/end, signed lease, local runtime
+   state, and visible Player Shell active/locked evidence. The smoke also
+   exposed two hardening gaps: service-started session-0 Shell competition and
+   missing `ending` session finalization after accepted lock. Both are now
+   mitigated in code on `codex/staging-gaming-pc-bootstrapper`: Agent Service
+   Shell auto-start targets the active interactive Windows session with
+   session-aware process detection, and accepted/completed lock command results
+   or the next heartbeat finalization fallback move sessions to `ended` so the
+   seat/device can be reused. After staging was redeployed from that branch,
+   the Windows 11 VM reuse smoke passed without SQL cleanup. The gate remains
+   open for physical Windows 10/11 hardware evidence and reboot/update
+   recovery.
 
 4. **Backup And Restore Rehearsal**
 
@@ -152,10 +165,28 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring, but real service startup must still be validated through the
   real-device smoke runbook.
+- A staging-only Gaming PC setup bootstrapper exists in code, with a committed
+  staging public lease verification key for release workstation builds. A first
+  Windows 11 VM passed rebuilt x64 install/enroll/heartbeat, session
+  start/end, signed lease, local runtime state, and visible Player Shell
+  active/locked evidence. A second Windows 11 VM smoke confirmed
+  interactive-session Shell auto-start and active-state delivery without manual
+  Shell restart after the long-lived state pipe fix.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
-- Player Shell visibility from service supervision needs real interactive
-  Windows session validation; manual Shell launch is acceptable for the first
-  visible-state smoke if the service-started process is not visible.
+- Player Shell service-session competition is mitigated in code by
+  session-aware process detection and Agent-driven launch into the active
+  interactive Windows session. The Agent-to-Shell state pipe now serves the
+  latest state to late or restarted Shell clients instead of relying on a short
+  publish timing window. A rebuilt Windows 11 staging VM confirmed active-state
+  delivery without manual Shell restart; physical PC smoke is still needed
+  before the operational gate is closed.
+- Session end/finalization is implemented in code for accepted/completed lock
+  command results and heartbeat recovery when accepted lock results were
+  already persisted for an `ending` session, including duplicate-result
+  idempotency and seat/device reuse tests. After staging was redeployed from
+  `codex/staging-gaming-pc-bootstrapper`, Windows 11 VM smoke confirmed an
+  ended session returned the seat/device to locked and a second session started
+  on the same seat without SQL cleanup.
 - Reboot recovery must be exercised on physical PCs.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.
@@ -179,9 +210,11 @@ Minimum bar:
 
 1. Real-device smoke execution
 
-   Execute `docs/operations/real-device-windows-pc-smoke.md` against one real
-   Windows gaming PC, collect logs/screenshots/backend evidence, and record
-   pass/fail results in the progress snapshot.
+   Repeat `docs/operations/real-device-windows-pc-smoke.md` on physical
+   Windows 10/11 hardware, or on a second clean Windows 11 VM if physical
+   hardware is unavailable, to broaden confidence beyond the current VM smoke.
+   Record pass/fail results and any duplicate Shell process behavior in the
+   progress snapshot.
 
 2. `codex/postgres-restore-rehearsal`
 
@@ -191,7 +224,8 @@ Minimum bar:
 3. `codex/pilot-admin-setup`
 
    Add or document the minimum pilot setup path for organization, branch,
-   staff, roles, layout, devices, tariffs, and POS catalog.
+   staff, roles, layout, device-seat assignment, devices, tariffs, and POS
+   catalog.
 
 ## Decision Rules
 

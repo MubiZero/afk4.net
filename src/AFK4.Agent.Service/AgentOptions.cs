@@ -29,6 +29,8 @@ public sealed class AgentOptions
 
     public string PlayerShellStartArguments { get; init; } = string.Empty;
 
+    public bool PlayerShellAutoStartEnabled { get; init; } = true;
+
     public string PlayerShellPipeName { get; init; } = "afk4-player-shell";
 
     public string PlayerShellCommandPipeName { get; init; } = "afk4-player-shell-commands";

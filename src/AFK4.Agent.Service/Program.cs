@@ -24,6 +24,7 @@ builder.Services.AddSingleton<IRunningProcessTerminator, RunningProcessTerminato
 builder.Services.AddSingleton<IProcessPolicyEnforcer, ProcessPolicyEnforcer>();
 builder.Services.AddSingleton<IPlayerShellProcessQuery, PlayerShellProcessQuery>();
 builder.Services.AddSingleton<IPlayerShellProcessStarter, PlayerShellProcessStarter>();
+builder.Services.AddSingleton<IPlayerShellLaunchContext, PlayerShellLaunchContext>();
 builder.Services.AddSingleton<IPlayerShellProcessSupervisor, PlayerShellProcessSupervisor>();
 builder.Services.AddSingleton<IPlayerShellStatePublisher, NamedPipePlayerShellStateServer>();
 builder.Services.AddSingleton<IPlayerShellCommandHandler, PlayerShellCommandHandler>();

@@ -15,8 +15,10 @@ public sealed class EfHeartbeatSessionCommandPlanner(
     TimeProvider timeProvider) : IHeartbeatSessionCommandPlanner
 {
     private const string HeartbeatLeaseEventType = "session-lease-refreshed-by-heartbeat";
+    private const string SessionEndedEventType = "session-ended";
     private static readonly TimeSpan RefreshThreshold = TimeSpan.FromMinutes(5);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly string[] AcceptedTerminalStatuses = ["Accepted", "Completed"];
     private static readonly string[] PlanningSessionStates =
     [
         SessionStateNames.Active,
@@ -58,6 +60,11 @@ public sealed class EfHeartbeatSessionCommandPlanner(
 
         if (session.State == SessionStateNames.Ending)
         {
+            if (await TryFinalizeEndingSessionFromAcceptedLockAsync(session, cancellationToken))
+            {
+                return [];
+            }
+
             return await PlanLockAsync(
                 deviceId,
                 session.SessionId,
@@ -158,6 +165,66 @@ public sealed class EfHeartbeatSessionCommandPlanner(
             .ToListAsync(cancellationToken);
 
         return commands.Any(payloadJson => TryReadSessionId(payloadJson) == sessionId);
+    }
+
+    private async Task<bool> TryFinalizeEndingSessionFromAcceptedLockAsync(
+        SessionEntity session,
+        CancellationToken cancellationToken)
+    {
+        var acceptedLockCommands = await dbContext.DeviceCommands
+            .AsNoTracking()
+            .Where(command =>
+                command.DeviceId == session.DeviceId &&
+                command.Type == DeviceCommandTypeNames.Lock &&
+                AcceptedTerminalStatuses.Contains(command.Status))
+            .OrderByDescending(command => command.UpdatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var acceptedLockCommand = acceptedLockCommands.FirstOrDefault(
+            command => TryReadSessionId(command.PayloadJson) == session.SessionId);
+        if (acceptedLockCommand is null)
+        {
+            return false;
+        }
+
+        var endedAtUtc = acceptedLockCommand.UpdatedAtUtc == default
+            ? timeProvider.GetUtcNow()
+            : acceptedLockCommand.UpdatedAtUtc;
+        session.State = SessionStateNames.Ended;
+        session.EndedAtUtc = endedAtUtc;
+        session.CurrentLeaseId = null;
+        session.UpdatedAtUtc = endedAtUtc;
+
+        var hasSessionEndedEvent = await dbContext.SessionEvents.AnyAsync(
+            sessionEvent =>
+                sessionEvent.SessionId == session.SessionId &&
+                sessionEvent.EventType == SessionEndedEventType,
+            cancellationToken);
+        if (!hasSessionEndedEvent)
+        {
+            dbContext.SessionEvents.Add(new SessionEventEntity
+            {
+                SessionEventId = Guid.NewGuid(),
+                SessionId = session.SessionId,
+                OrganizationId = session.OrganizationId,
+                BranchId = session.BranchId,
+                EventType = SessionEndedEventType,
+                ActorStaffUserId = null,
+                DeviceId = session.DeviceId,
+                CreatedAtUtc = endedAtUtc,
+                DetailsJson = JsonSerializer.Serialize(new
+                {
+                    reason = "heartbeat-lock-result",
+                    acceptedLockCommand.CommandId,
+                    acceptedLockCommand.Status,
+                    acceptedLockCommand.Message
+                }, JsonOptions)
+            });
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 
     private static Guid? TryReadSessionId(string payloadJson)
