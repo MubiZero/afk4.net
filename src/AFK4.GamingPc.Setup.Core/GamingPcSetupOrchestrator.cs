@@ -83,6 +83,15 @@ public sealed class GamingPcSetupOrchestrator(
             return Failed();
         }
 
+        if (!await RunStepAsync("AssignSeat", "Assigning device to staging smoke seat.", async () =>
+        {
+            var assignment = await apiClient.AssignDeviceToSmokeSeatAsync(accessToken, enrollment!.DeviceId, cancellationToken);
+            return SetupStepResult.Succeeded("AssignSeat", "Device assigned to staging smoke seat.", assignment.SeatId.ToString("D"));
+        }))
+        {
+            return Failed(enrollment?.DeviceId);
+        }
+
         if (!await RunStepAsync("InstallMsi", "Installing Gaming PC client.", async () =>
         {
             serviceController.StopIfExists(StagingSetupDefaults.AgentServiceName);

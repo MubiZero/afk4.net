@@ -122,7 +122,9 @@ Minimum bar:
 
    Document exactly how to create the first organization, branch, staff users,
    roles, zones, seats, devices, tariffs, POS products, and update channels for
-   a pilot club.
+   a pilot club. Device-seat assignment now has a staff-authorized Platform API
+   path and staging setup integration, but the rest of the pilot setup path
+   still needs either runbook or UI coverage.
 
 ## Commercial Production Blockers
 
@@ -196,6 +198,8 @@ Minimum bar:
 - Staff management workflow is not implemented.
 - Custom roles and role editing UI are not implemented.
 - Branch layout management UI is not implemented.
+- Device-seat assignment has a staff-authorized API path and staging smoke
+  setup integration, but no Operator App management UI yet.
 - Pilot can work with seeded/manual setup, but commercial production needs
   operator-safe configuration screens.
 
@@ -224,8 +228,9 @@ Minimum bar:
 3. `codex/pilot-admin-setup`
 
    Add or document the minimum pilot setup path for organization, branch,
-   staff, roles, layout, device-seat assignment, devices, tariffs, and POS
-   catalog.
+   staff, roles, layout, devices, tariffs, and POS catalog. Device-seat
+   assignment has a backend/API path; continue from the remaining setup
+   surfaces and Operator App workflows.
 
 ## Decision Rules
 

@@ -13,5 +13,7 @@ public interface ISetupApiClient
 
     Task<DeviceEnrollmentResponse> EnrollDeviceAsync(string enrollmentCode, string machineName, CancellationToken cancellationToken);
 
+    Task<DeviceSeatAssignmentDto> AssignDeviceToSmokeSeatAsync(string accessToken, Guid deviceId, CancellationToken cancellationToken);
+
     Task<DeviceDetailDto> GetDeviceDetailAsync(string accessToken, Guid deviceId, CancellationToken cancellationToken);
 }

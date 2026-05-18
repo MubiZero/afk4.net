@@ -79,6 +79,26 @@ public sealed class SetupApiClient(HttpClient httpClient) : ISetupApiClient
         return await ReadRequiredAsync<DeviceEnrollmentResponse>(response, cancellationToken);
     }
 
+    public async Task<DeviceSeatAssignmentDto> AssignDeviceToSmokeSeatAsync(
+        string accessToken,
+        Guid deviceId,
+        CancellationToken cancellationToken)
+    {
+        var request = new AssignDeviceSeatRequest(
+            StagingSetupDefaults.OrganizationId,
+            StagingSetupDefaults.SmokeSeatId);
+
+        using var message = CreateAuthorizedRequest(
+            HttpMethod.Post,
+            $"api/branches/{StagingSetupDefaults.BranchId:D}/devices/{deviceId:D}/seat-assignment",
+            accessToken);
+        message.Content = JsonContent.Create(request, options: JsonOptions);
+
+        using var response = await httpClient.SendAsync(message, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await ReadRequiredAsync<DeviceSeatAssignmentDto>(response, cancellationToken);
+    }
+
     public async Task<DeviceDetailDto> GetDeviceDetailAsync(
         string accessToken,
         Guid deviceId,

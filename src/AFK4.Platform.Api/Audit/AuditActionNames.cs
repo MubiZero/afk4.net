@@ -12,6 +12,8 @@ public static class AuditActionNames
 
     public const string RevokeDeviceCredential = "devices.credentials.revoke";
 
+    public const string AssignDeviceSeat = "devices.seat_assignment.assign";
+
     public const string StartSession = "sessions.start";
 
     public const string ExtendSession = "sessions.extend";

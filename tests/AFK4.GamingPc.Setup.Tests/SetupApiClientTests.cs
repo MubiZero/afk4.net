@@ -78,6 +78,34 @@ public sealed class SetupApiClientTests
         Assert.Contains(StagingSetupDefaults.AgentVersion, body);
     }
 
+    [Fact]
+    public async Task AssignDeviceToSmokeSeatAsync_PostsAuthorizedAssignmentRequest()
+    {
+        var deviceId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        var handler = new RecordingHandler(_ => JsonResponse(new DeviceSeatAssignmentDto(
+            Guid.Parse("66666666-6666-4666-8666-666666666666"),
+            StagingSetupDefaults.OrganizationId,
+            StagingSetupDefaults.BranchId,
+            StagingSetupDefaults.SmokeSeatId,
+            deviceId,
+            DateTimeOffset.UtcNow,
+            DetachedAtUtc: null)));
+        var client = CreateClient(handler);
+
+        await client.AssignDeviceToSmokeSeatAsync("access-token", deviceId, CancellationToken.None);
+
+        var request = handler.Requests.Single();
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal(
+            $"https://afk4.staging.mubi.dev/api/branches/{StagingSetupDefaults.BranchId:D}/devices/{deviceId:D}/seat-assignment",
+            request.RequestUri!.ToString());
+        Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+        Assert.Equal("access-token", request.Headers.Authorization.Parameter);
+        var body = handler.RequestBodies.Single();
+        Assert.Contains(StagingSetupDefaults.OrganizationId.ToString("D"), body);
+        Assert.Contains(StagingSetupDefaults.SmokeSeatId.ToString("D"), body);
+    }
+
     private static SetupApiClient CreateClient(HttpMessageHandler handler) =>
         new(new HttpClient(handler) { BaseAddress = StagingSetupDefaults.PlatformBaseUrl });
 
@@ -91,10 +119,17 @@ public sealed class SetupApiClientTests
     {
         public List<HttpRequestMessage> Requests { get; } = [];
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public List<string> RequestBodies { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests.Add(request);
-            return Task.FromResult(respond(request));
+            if (request.Content is not null)
+            {
+                RequestBodies.Add(await request.Content.ReadAsStringAsync(cancellationToken));
+            }
+
+            return respond(request);
         }
     }
 }

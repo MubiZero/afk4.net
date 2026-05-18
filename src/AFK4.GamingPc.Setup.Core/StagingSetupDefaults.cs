@@ -8,6 +8,8 @@ public static class StagingSetupDefaults
 
     public static readonly Guid BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
 
+    public static readonly Guid SmokeSeatId = Guid.Parse("9f3adbd3-957e-4dc8-8d34-a6bfa56b9275");
+
     public const string EnvironmentName = "AFK4 Staging";
 
     public const string AgentServiceName = "AFK4.Agent.Service";

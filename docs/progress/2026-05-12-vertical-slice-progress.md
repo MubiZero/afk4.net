@@ -29,8 +29,8 @@ implementation evidence are needed.
 - Branch-scoped authorization for implemented operator-facing endpoints.
 - Device enrollment, credential issuance, heartbeat validation, command
   dispatch/status, command result fallback, credential rotation, and revocation.
-- Persisted zones, seats, device-seat assignments, floor-map reads, installed
-  app reporting, and device detail projections.
+- Persisted zones, seats, staff-authorized device-seat assignment, floor-map
+  reads, installed app reporting, and device detail projections.
 - Session start, extend, transfer, end, signed leases, reconciliation, and
   heartbeat-driven lock/unlock/lease-refresh command planning.
 - Immutable ledger-backed wallet, debt, packages, refunds, manual corrections,
@@ -594,6 +594,40 @@ Staging VM Shell state delivery finding on 2026-05-18:
   solution build completed with 0 warnings and 0 errors; full no-build solution
   tests passed 660/660.
 
+Pilot device-seat assignment branch verification on 2026-05-18:
+
+- branch `codex/pilot-admin-setup` adds a staff-authorized device-seat
+  assignment API at
+  `POST /api/branches/{branchId}/devices/{deviceId}/seat-assignment`.
+- the endpoint requires the new `devices.seat_assignment.assign` permission,
+  granted to owner, branch manager, and technician roles. It writes audit
+  records for successful and denied attempts.
+- assignment is desired-state/idempotent for the same active device/seat pair:
+  repeated requests return the current assignment instead of creating duplicate
+  active rows. Conflicting active assignments for the target seat or device are
+  detached before the new assignment is written.
+- assignment is rejected with `409 Conflict` while the target seat or device
+  has an active, paused, or ending session, preserving session/device
+  consistency.
+- the staging Gaming PC setup executable now assigns the enrolled device to the
+  fixed staging smoke seat through this API before installing/configuring the
+  Agent. The real-device smoke runbook now uses the API assignment path and
+  treats direct SQL as only a one-time fresh staging seed requirement.
+- local verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "FullyQualifiedName~DeviceSeatAssignmentEndpointTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.GamingPc.Setup.Tests\AFK4.GamingPc.Setup.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~RealDeviceSmokeRunbookTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: device-seat assignment endpoint tests passed 6/6; Gaming PC setup
+  tests passed 10/10; real-device smoke runbook tests passed 2/2; full solution
+  build completed with 0 warnings and 0 errors; full no-build solution tests
+  passed 667/667.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -609,6 +643,9 @@ Staging VM Shell state delivery finding on 2026-05-18:
 - Staff management workflows, custom roles, and role editing UI are not
   implemented.
 - Operator App layout management UI is not implemented.
+- Device-seat assignment now has an authorized Platform API path and staging
+  setup integration, but Operator App UI for device/seat management is not
+  implemented.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook, but the runbook still
   needs to be executed on physical Windows 10/11 hardware.
@@ -658,8 +695,9 @@ Staging VM Shell state delivery finding on 2026-05-18:
 6. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
 7. Implement the minimum admin/configuration workflows needed for a pilot club:
-   staff management, role assignment, layout management, and device-seat
-   assignment so future smoke runs do not require direct database edits.
+   staff management, role assignment, layout management, device management UI,
+   tariffs, and POS setup. Device-seat assignment now has an API path, but the
+   operator-facing setup surface is still missing.
 
 ## Recent Integration Notes
 
