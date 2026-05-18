@@ -634,6 +634,20 @@ Pilot device-seat assignment branch verification on 2026-05-18:
   `9f3adbd3-957e-4dc8-8d34-a6bfa56b9275` without SQL and returned assignment
   `c16ab13c-9801-4ac3-9323-31fadd17eff4`; device detail then showed seat
   `REAL-PC-SMOKE-001`, online, and locked.
+- the staging setup executable was rebuilt from current `main` and installed
+  on the Windows 11 VM, enrolling device
+  `0588fb59-3edb-4704-bbdb-094e12417cf1`. The setup flow assigned that device
+  to smoke seat `9f3adbd3-957e-4dc8-8d34-a6bfa56b9275` through the Platform API
+  and observed backend heartbeat evidence; no direct database edit was used.
+  A no-SQL setup smoke then passed: session
+  `eb3b44f0-6c2e-4479-b45d-5b0d2c48f7d5` started on the new device, unlock
+  command `9bf9d5de-fa4b-446d-b7bb-40ea6aecebe7` was accepted, end lock command
+  `7570e4f9-c35e-4557-aece-235baa420254` was accepted, and the seat returned
+  to `Locked`. Session `68c787cf-77a3-4615-af2a-d77757bafe30` then started on
+  the same seat/device without SQL cleanup, unlock command
+  `6893a06e-3150-4e7f-a637-cf52fb6a013c` was accepted, cleanup lock command
+  `564a3c9c-aebe-43a5-943a-9ad129101b7e` was accepted, and the final snapshot
+  was `Locked`, no active session, new device online, and new device locked.
 
 ## Known Gaps
 
