@@ -355,6 +355,12 @@ device to the smoke seat through the Platform API, installs the bundled MSI,
 writes Agent machine configuration, starts `AFK4.Agent.Service`, and waits for
 backend heartbeat evidence.
 
+Use this setup executable only for clean-machine bootstrap. Do not use rebuilt
+setup executables as the update path for already enrolled PCs; those machines
+must be updated through the signed/internal MSI update rollout flow so the Agent
+downloads, verifies, installs, reports status, and can roll back without manual
+file copying.
+
 Fallback/manual path: copy this MSI to the Windows gaming PC through a secure
 internal channel and follow the explicit configuration commands below.
 

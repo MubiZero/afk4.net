@@ -676,6 +676,11 @@ Pilot device-seat assignment branch verification on 2026-05-18:
   install/enroll/heartbeat plus session start/end and visible Player Shell
   state evidence. Repeat on a second clean VM or physical Windows PC before
   treating the gate as broadly validated.
+- The staging setup executable is a clean-machine bootstrap path, not the
+  update path for already enrolled PCs. Existing PCs still need an end-to-end
+  internal MSI update rollout smoke where the Agent downloads, verifies,
+  installs, reports status, and can roll back without manually copying a new
+  setup executable.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
@@ -713,9 +718,12 @@ Pilot device-seat assignment branch verification on 2026-05-18:
 5. Choose production Authenticode certificate authority/storage, object-store
    or CDN provider, presigned URL automation, and update registration credential
    policy.
-6. Harden Agent production behavior: rotated credential consumption,
+6. Exercise an internal update rollout against an already enrolled staging VM
+   so Agent/Shell changes are delivered through the update pipeline rather than
+   by manually replacing or rerunning the setup executable.
+7. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
-7. Implement the minimum admin/configuration workflows needed for a pilot club:
+8. Implement the minimum admin/configuration workflows needed for a pilot club:
    staff management, role assignment, layout management, device management UI,
    tariffs, and POS setup. Device-seat assignment now has an API path, but the
    operator-facing setup surface is still missing.

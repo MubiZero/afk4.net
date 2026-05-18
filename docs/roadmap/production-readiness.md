@@ -116,7 +116,10 @@ Minimum bar:
 
    Decide temporary pilot signing/hosting approach, build MSI artifacts, sign
    them, publish update metadata, register packages, create an internal rollout,
-   and verify update status from the real Agent.
+   and verify update status from the real Agent. The staging Gaming PC setup
+   executable is only a bootstrap path for clean machines; already enrolled PCs
+   must receive Agent Service and Player Shell changes through the update
+   rollout path, not by manually copying or rerunning setup executables.
 
 6. **Pilot Setup Runbook**
 
@@ -190,6 +193,10 @@ Minimum bar:
   ended session returned the seat/device to locked and a second session started
   on the same seat without SQL cleanup.
 - Reboot recovery must be exercised on physical PCs.
+- Already enrolled PCs must be updateable through signed/internal MSI update
+  rollouts. Manual copying of a rebuilt setup executable is acceptable only for
+  bootstrap smoke on a clean machine, not as the pilot or production update
+  process.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.
 
