@@ -51,16 +51,22 @@ jobs:
       - name: Restore tools
         run: dotnet tool restore
 
+      - name: Compute package version
+        shell: pwsh
+        run: |
+          $version = "0.1.$env:GITHUB_RUN_NUMBER"
+          "AFK4_PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Build client packages
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
+        run: powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version $env:AFK4_PACKAGE_VERSION -Channel internal
 
       - name: Verify MSI artifacts
         shell: pwsh
         run: |
           $expectedArtifacts = @(
-            "artifacts/client-packages/afk4-operator-app-0.1.0-ci-internal.msi",
-            "artifacts/client-packages/afk4-gaming-pc-0.1.0-ci-internal.msi"
+            "artifacts/client-packages/afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi",
+            "artifacts/client-packages/afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi"
           )
 
           foreach ($artifact in $expectedArtifacts) {
@@ -69,10 +75,114 @@ jobs:
             }
           }
 
+      - name: Publish staging update metadata to MinIO
+        shell: pwsh
+        env:
+          AFK4_UPDATE_SIGNING_KEY_PEM: ${{ secrets.AFK4_UPDATE_SIGNING_KEY_PEM }}
+          AFK4_STAGING_MINIO_ACCESS_KEY: ${{ secrets.AFK4_STAGING_MINIO_ACCESS_KEY }}
+          AFK4_STAGING_MINIO_SECRET_KEY: ${{ secrets.AFK4_STAGING_MINIO_SECRET_KEY }}
+          AFK4_STAGING_ORGANIZATION_ID: ${{ vars.AFK4_STAGING_ORGANIZATION_ID }}
+          AFK4_STAGING_MINIO_ENDPOINT: ${{ vars.AFK4_STAGING_MINIO_ENDPOINT }}
+          AFK4_STAGING_MINIO_BUCKET: ${{ vars.AFK4_STAGING_MINIO_BUCKET }}
+          AFK4_STAGING_UPDATE_PUBLIC_BASE_URI: ${{ vars.AFK4_STAGING_UPDATE_PUBLIC_BASE_URI }}
+        run: |
+          $required = @(
+            'AFK4_UPDATE_SIGNING_KEY_PEM',
+            'AFK4_STAGING_MINIO_ACCESS_KEY',
+            'AFK4_STAGING_MINIO_SECRET_KEY',
+            'AFK4_STAGING_ORGANIZATION_ID',
+            'AFK4_STAGING_MINIO_ENDPOINT',
+            'AFK4_STAGING_MINIO_BUCKET',
+            'AFK4_STAGING_UPDATE_PUBLIC_BASE_URI'
+          )
+
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "$name is required for staging update publishing."
+            }
+          }
+
+          powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 `
+            -Version $env:AFK4_PACKAGE_VERSION `
+            -Channel internal `
+            -OrganizationId $env:AFK4_STAGING_ORGANIZATION_ID `
+            -PackageDirectory artifacts/client-packages `
+            -OutputDirectory artifacts/update-packages `
+            -ArtifactStore s3 `
+            -S3Endpoint $env:AFK4_STAGING_MINIO_ENDPOINT `
+            -S3Bucket $env:AFK4_STAGING_MINIO_BUCKET `
+            -S3AccessKeyEnvVar AFK4_STAGING_MINIO_ACCESS_KEY `
+            -S3SecretKeyEnvVar AFK4_STAGING_MINIO_SECRET_KEY `
+            -PublicBaseUri $env:AFK4_STAGING_UPDATE_PUBLIC_BASE_URI `
+            -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
+            -ReleaseNotes "Package smoke build $env:AFK4_PACKAGE_VERSION."
+
+      - name: Register staging update packages and create rollout
+        shell: pwsh
+        env:
+          AFK4_STAGING_UPDATE_STAFF_USERNAME: ${{ secrets.AFK4_STAGING_UPDATE_STAFF_USERNAME }}
+          AFK4_STAGING_UPDATE_STAFF_PASSWORD: ${{ secrets.AFK4_STAGING_UPDATE_STAFF_PASSWORD }}
+          AFK4_STAGING_ORGANIZATION_ID: ${{ vars.AFK4_STAGING_ORGANIZATION_ID }}
+          AFK4_STAGING_PLATFORM_BASE_URL: ${{ vars.AFK4_STAGING_PLATFORM_BASE_URL }}
+          AFK4_STAGING_BRANCH_ID: ${{ vars.AFK4_STAGING_BRANCH_ID }}
+          AFK4_STAGING_UPDATE_TARGET_DEVICE_ID: ${{ vars.AFK4_STAGING_UPDATE_TARGET_DEVICE_ID }}
+        run: |
+          $required = @(
+            'AFK4_STAGING_UPDATE_STAFF_USERNAME',
+            'AFK4_STAGING_UPDATE_STAFF_PASSWORD',
+            'AFK4_STAGING_ORGANIZATION_ID',
+            'AFK4_STAGING_PLATFORM_BASE_URL',
+            'AFK4_STAGING_BRANCH_ID',
+            'AFK4_STAGING_UPDATE_TARGET_DEVICE_ID'
+          )
+
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "$name is required for staging update registration."
+            }
+          }
+
+          $signInBody = @{
+            organizationId = $env:AFK4_STAGING_ORGANIZATION_ID
+            userName = $env:AFK4_STAGING_UPDATE_STAFF_USERNAME
+            password = $env:AFK4_STAGING_UPDATE_STAFF_PASSWORD
+          } | ConvertTo-Json
+
+          $signInResponse = Invoke-RestMethod `
+            -Method Post `
+            -Uri "$($env:AFK4_STAGING_PLATFORM_BASE_URL.TrimEnd('/'))/api/auth/staff/sign-in" `
+            -ContentType 'application/json' `
+            -Body $signInBody
+
+          if ([string]::IsNullOrWhiteSpace($signInResponse.accessToken)) {
+            throw "Staging staff sign-in response did not include an access token."
+          }
+
+          $env:AFK4_UPDATE_REGISTRATION_TOKEN = [string]$signInResponse.accessToken
+
+          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
+            -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
+            -BranchId $env:AFK4_STAGING_BRANCH_ID `
+            -RequestDirectory artifacts/update-packages `
+            -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
+            -CreateRollouts `
+            -RolloutComponent agent-service `
+            -RolloutTargetKind device `
+            -RolloutTargetDeviceId $env:AFK4_STAGING_UPDATE_TARGET_DEVICE_ID `
+            -RolloutReason "Automated package smoke rollout $env:AFK4_PACKAGE_VERSION."
+
       - name: Upload MSI artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: afk4-package-smoke-msi-0.1.0-ci-internal
+          name: afk4-package-smoke-msi-0.1.${{ github.run_number }}-internal
           path: artifacts/client-packages/*.msi
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload update package requests
+        uses: actions/upload-artifact@v4
+        with:
+          name: afk4-package-smoke-update-requests-0.1.${{ github.run_number }}-internal
+          path: artifacts/update-packages/*-request.json
           if-no-files-found: error
           retention-days: 3

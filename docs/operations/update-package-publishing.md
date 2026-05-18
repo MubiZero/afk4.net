@@ -1,7 +1,7 @@
 # Update Package Publishing Runbook
 
 Status: Phase 10 production-hosting boundary runbook
-Last updated: 2026-05-14
+Last updated: 2026-05-18
 
 ## Purpose
 
@@ -10,11 +10,12 @@ It prepares the metadata required by the existing Platform API package
 registration endpoint without storing signing keys or binary artifacts in the
 repository.
 
-The publisher supports two artifact stores:
+The publisher supports three artifact stores:
 
 - `file-system` for local/dev hosting directories;
 - `http-put` for production-style presigned object-storage upload URLs with a
-  separate public CDN artifact URL.
+  separate public CDN artifact URL;
+- `s3` for S3-compatible object storage such as MinIO.
 
 The publisher supports two signing key sources:
 
@@ -91,6 +92,38 @@ In `http-put` mode, the tool:
 - signs metadata containing the public CDN URL, hash, size, component, version,
   channel, and release notes.
 
+For staging MinIO publishing, use `s3`. The staging bucket is expected to be
+publicly readable by Agents through:
+
+```text
+https://updates.afk4.staging.mubi.dev/afk4-updates-staging/
+```
+
+The publisher signs S3 `PUT` requests with AWS Signature Version 4 and writes
+the same public URL shape that Agents later download:
+
+```powershell
+$env:AFK4_UPDATE_SIGNING_KEY_PEM = '-----BEGIN EC PRIVATE KEY-----...release runner secret...-----END EC PRIVATE KEY-----'
+$env:AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY = '<minio-access-key>'
+$env:AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY = '<minio-secret-key>'
+
+& 'C:\Program Files\dotnet\dotnet.exe' run --project src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj -- `
+  --organization-id 0c04d6c0-bfa8-4e26-9263-fc0d307d0f08 `
+  --component agent-service `
+  --version 1.2.3 `
+  --channel internal `
+  --artifact C:\builds\afk4-gaming-pc-1.2.3-internal.msi `
+  --artifact-store s3 `
+  --s3-endpoint https://updates.afk4.staging.mubi.dev `
+  --s3-bucket afk4-updates-staging `
+  --s3-public-base-uri https://updates.afk4.staging.mubi.dev/afk4-updates-staging/ `
+  --s3-access-key-env-var AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY `
+  --s3-secret-key-env-var AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY `
+  --signing-key-env-var AFK4_UPDATE_SIGNING_KEY_PEM `
+  --release-notes "Internal Agent Service validation build." `
+  --output artifacts/update-packages/agent-service-1.2.3-internal-request.json
+```
+
 ## Build And Publish A Client Project
 
 Use the wrapper when the artifact should be created from a project publish
@@ -126,6 +159,26 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
   -ArtifactPublicUri "https://cdn.afk4.example/packages/agent-service/stable/1.2.3/agent-service.zip" `
   -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
   -ReleaseNotes "Stable Agent Service release."
+```
+
+For MinIO/S3 through the wrapper, use `-ArtifactStore s3` and pass the endpoint,
+bucket, public base URI, and secret environment-variable names:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/publish-client-update.ps1 `
+  -Component agent-service `
+  -ProjectPath src/AFK4.Agent.Service/AFK4.Agent.Service.csproj `
+  -Version 1.2.3 `
+  -Channel internal `
+  -OrganizationId 0c04d6c0-bfa8-4e26-9263-fc0d307d0f08 `
+  -ArtifactStore s3 `
+  -S3Endpoint https://updates.afk4.staging.mubi.dev `
+  -S3Bucket afk4-updates-staging `
+  -S3PublicBaseUri https://updates.afk4.staging.mubi.dev/afk4-updates-staging/ `
+  -S3AccessKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY `
+  -S3SecretKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY `
+  -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
+  -ReleaseNotes "Internal Agent Service validation build."
 ```
 
 ## Publish Ready MSI Packages
@@ -172,6 +225,25 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
   -ReleaseNotes "Stable Windows client release."
 ```
 
+For staging MinIO, publish both MSI artifacts with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 `
+  -Version 1.2.3 `
+  -Channel internal `
+  -OrganizationId 0c04d6c0-bfa8-4e26-9263-fc0d307d0f08 `
+  -PackageDirectory artifacts/client-packages `
+  -OutputDirectory artifacts/update-packages `
+  -ArtifactStore s3 `
+  -S3Endpoint https://updates.afk4.staging.mubi.dev `
+  -S3Bucket afk4-updates-staging `
+  -S3PublicBaseUri https://updates.afk4.staging.mubi.dev/afk4-updates-staging/ `
+  -S3AccessKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY `
+  -S3SecretKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY `
+  -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
+  -ReleaseNotes "Internal MSI validation build."
+```
+
 ## Register The Package
 
 POST the generated JSON to:
@@ -193,15 +265,47 @@ powershell -ExecutionPolicy Bypass -File scripts/register-update-package-request
   -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
 ```
 
-Registration leaves package state as `registered`. A human or Operator App
-workflow still validates packages and creates rollouts using
+By default, registration leaves package state as `registered`. A human or
+Operator App workflow can validate packages and create rollouts using
 `docs/operations/client-update-rollout.md`.
+
+For staging/internal smoke, the script can create a rollout immediately after
+registration:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
+  -PlatformBaseUrl https://afk4.staging.mubi.dev `
+  -BranchId acfc0212-967f-4d84-94be-9003387b09c2 `
+  -RequestDirectory artifacts/update-packages `
+  -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
+  -CreateRollouts `
+  -RolloutComponent agent-service `
+  -RolloutTargetKind device `
+  -RolloutTargetDeviceId '<device-id>' `
+  -RolloutReason "Internal Agent Service smoke rollout."
+```
 
 When GitHub Actions registers packages, the repository or environment variable
 `AFK4_ALLOWED_PLATFORM_BASE_URLS` must contain the allowed Platform API base
 URLs. The workflow compares the dispatch `platform_base_url` input with that
 allowlist before using `AFK4_UPDATE_REGISTRATION_TOKEN`, so the token cannot be
 sent to arbitrary dispatch input hosts.
+
+The `Package Smoke` workflow can publish staging artifacts to MinIO and create
+an internal device rollout when these repository variables/secrets are present:
+
+- variables: `AFK4_STAGING_PLATFORM_BASE_URL`, `AFK4_STAGING_ORGANIZATION_ID`,
+  `AFK4_STAGING_BRANCH_ID`, `AFK4_STAGING_MINIO_ENDPOINT`,
+  `AFK4_STAGING_MINIO_BUCKET`, `AFK4_STAGING_UPDATE_PUBLIC_BASE_URI`,
+  `AFK4_STAGING_UPDATE_TARGET_DEVICE_ID`, `AFK4_ALLOWED_PLATFORM_BASE_URLS`;
+- secrets: `AFK4_UPDATE_SIGNING_KEY_PEM`,
+  `AFK4_STAGING_MINIO_ACCESS_KEY`, `AFK4_STAGING_MINIO_SECRET_KEY`,
+  `AFK4_STAGING_UPDATE_STAFF_USERNAME`,
+  `AFK4_STAGING_UPDATE_STAFF_PASSWORD`.
+
+Use exact MSI-compatible versions for automatic MSI smoke, for example
+`0.1.3`. The backend and Agent tolerate prerelease metadata suffixes where
+possible, but Windows Installer exposes `ProductVersion` as numeric fields.
 
 ## Configure Agent Verification
 
@@ -217,6 +321,13 @@ verifies the artifact SHA-256 and the ECDSA P-256 signature before invoking
 the configured installer adapter. If the public key is missing, the Agent
 reports the update as failed and does not install the package.
 
+The staging Gaming PC setup executable embeds
+`deploy/coolify/staging-update-signing-public.pem` when
+`scripts/build-client-packages.ps1` is called with
+`-StagingUpdateSigningPublicKeyPath`. Keep the matching private key outside the
+repository and use it only from a release workstation or secret-injected
+runner.
+
 ## Verification
 
 Before widening a rollout:
@@ -225,5 +336,7 @@ Before widening a rollout:
 - compare the generated SHA-256 with the hosted artifact;
 - keep the generated request JSON as release evidence outside source control;
 - confirm the presigned upload URL has expired after publishing;
+- rotate any staging object-store or staff credentials that were copied through
+  chat, terminals, or ad hoc setup shells during smoke;
 - clear the signing-key environment variable from the release runner after use;
 - register first in `internal`, then widen to `beta` and `stable`.

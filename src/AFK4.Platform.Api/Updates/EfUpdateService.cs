@@ -388,7 +388,7 @@ public sealed class EfUpdateService(
             }
 
             if (installedVersions.TryGetValue(package.Component, out var installedVersion) &&
-                string.Equals(installedVersion, package.Version, StringComparison.Ordinal))
+                IsInstalledVersionCurrent(installedVersion, package.Version))
             {
                 continue;
             }
@@ -793,5 +793,51 @@ public sealed class EfUpdateService(
             UpdateRolloutStateNames.Completed or
             UpdateRolloutStateNames.RolledBack or
             UpdateRolloutStateNames.Cancelled;
+    }
+
+    private static bool IsInstalledVersionCurrent(string installedVersion, string packageVersion)
+    {
+        if (string.Equals(installedVersion, packageVersion, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return string.Equals(
+            installedVersion,
+            GetWindowsInstallerProductVersion(packageVersion),
+            StringComparison.Ordinal);
+    }
+
+    private static string GetWindowsInstallerProductVersion(string version)
+    {
+        var trimmed = version.Trim();
+        var length = 0;
+        var dotCount = 0;
+
+        while (length < trimmed.Length)
+        {
+            var character = trimmed[length];
+            if (char.IsDigit(character))
+            {
+                length++;
+                continue;
+            }
+
+            if (character == '.' && dotCount < 3)
+            {
+                dotCount++;
+                length++;
+                continue;
+            }
+
+            break;
+        }
+
+        while (length > 0 && trimmed[length - 1] == '.')
+        {
+            length--;
+        }
+
+        return length == 0 ? trimmed : trimmed[..length];
     }
 }

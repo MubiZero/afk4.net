@@ -649,6 +649,44 @@ Pilot device-seat assignment branch verification on 2026-05-18:
   `564a3c9c-aebe-43a5-943a-9ad129101b7e` was accepted, and the final snapshot
   was `Locked`, no active session, new device online, and new device locked.
 
+Centralized staging update rollout smoke on 2026-05-18:
+
+- branch `codex/staging-agent-update-rollout-smoke` adds a Coolify-hosted
+  MinIO artifact store for staging update packages. The staging update API is
+  reachable at `https://updates.afk4.staging.mubi.dev`, the console is
+  reachable at `https://updates-console.afk4.staging.mubi.dev`, and the
+  `afk4-updates-staging` bucket is publicly readable for Agent downloads.
+- `src/AFK4.Update.Publisher` and the publishing scripts now support
+  S3-compatible uploads in addition to local filesystem and presigned
+  `http-put` publishing. The GitHub `Package Smoke` workflow can build MSI
+  packages, publish them to staging MinIO, sign update metadata, register the
+  package with the staging Platform API, and create an internal device rollout.
+- the staging Gaming PC setup executable now embeds the committed staging
+  update package verification public key and writes
+  `Agent__UpdatePackageSigningPublicKeyPem`. The setup defaults now write full
+  PowerShell executable paths for install, rollback, and restart helpers so the
+  Agent's configured executable existence checks pass on Windows.
+- WiX now writes `Agent__AgentVersion` and `Agent__ShellVersion` from the MSI
+  package version during install. The Agent recovery service recognizes that an
+  interrupted self-update has already succeeded after service restart and
+  reports `installed` instead of rolling back. The backend and Agent also
+  normalize MSI `ProductVersion` values against prerelease metadata suffixes so
+  a package such as `0.1.2-ci-smoke` is not re-offered forever after Windows
+  Installer exposes `0.1.2`.
+- the first staging rollout (`0.1.2-ci-minio-rollout`) proved download,
+  signature verification, installer execution, and service restart, but exposed
+  two staging configuration issues: an older enrolled VM lacked the update
+  public key, and the installer executable was configured as `powershell.exe`
+  rather than the absolute path. It also exposed the MSI/prerelease version
+  mismatch above.
+- after those fixes, package `449cdcf3-20fd-44cf-a94b-cfe73efcdda1` and
+  rollout `8a103701-dfa1-4aec-8c63-71f479201f92` installed exact version
+  `0.1.3` on staging VM device `0588fb59-3edb-4704-bbdb-094e12417cf1` through
+  the Agent update pipeline. Backend rollout status reached `installed` with
+  message `Interrupted update completed before Agent restart.`, device detail
+  reported Agent/Shell `0.1.3`, and the VM had non-zero MSI artifacts and
+  update logs under `C:\ProgramData\AFK4\Agent`.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -677,10 +715,10 @@ Pilot device-seat assignment branch verification on 2026-05-18:
   state evidence. Repeat on a second clean VM or physical Windows PC before
   treating the gate as broadly validated.
 - The staging setup executable is a clean-machine bootstrap path, not the
-  update path for already enrolled PCs. Existing PCs still need an end-to-end
-  internal MSI update rollout smoke where the Agent downloads, verifies,
-  installs, reports status, and can roll back without manually copying a new
-  setup executable.
+  update path for already enrolled PCs. Staging MinIO/internal MSI update
+  rollout has passed on one Windows 11 VM for Agent/Shell `0.1.3`; repeat it
+  on physical Windows hardware and add rollback coverage before closing the
+  production update gate.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
@@ -696,7 +734,9 @@ Pilot device-seat assignment branch verification on 2026-05-18:
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
 - Production Authenticode certificate authority/storage is undecided.
-- Object-store/CDN provider and presigned URL automation are undecided.
+- Staging update artifacts are hosted from Coolify MinIO. Production
+  object-store/CDN provider, public-read policy, retention, and presigned URL
+  automation are still undecided.
 - Dedicated service credential policy for update package registration is
   undecided.
 - PostgreSQL restore rehearsal has a runbook but still needs a real
@@ -715,12 +755,12 @@ Pilot device-seat assignment branch verification on 2026-05-18:
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
 4. Rehearse PostgreSQL backup, restore, and migration against staging data.
-5. Choose production Authenticode certificate authority/storage, object-store
-   or CDN provider, presigned URL automation, and update registration credential
-   policy.
-6. Exercise an internal update rollout against an already enrolled staging VM
-   so Agent/Shell changes are delivered through the update pipeline rather than
-   by manually replacing or rerunning the setup executable.
+5. Choose production Authenticode certificate authority/storage, production
+   object-store or CDN provider, presigned URL automation, and update
+   registration credential policy. Rotate any staging credentials that were
+   exposed during manual smoke setup.
+6. Repeat the internal update rollout on physical Windows hardware and add a
+   rollback smoke before treating client updates as pilot-ready.
 7. Harden Agent production behavior: rotated credential consumption,
    reboot/lock recovery, rollback tests, and lease timing telemetry.
 8. Implement the minimum admin/configuration workflows needed for a pilot club:

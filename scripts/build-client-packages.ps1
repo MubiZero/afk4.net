@@ -11,7 +11,9 @@ param(
 
     [string] $DotnetPath = 'C:\Program Files\dotnet\dotnet.exe',
 
-    [string] $StagingLeasePublicKeyPath = ''
+    [string] $StagingLeasePublicKeyPath = '',
+
+    [string] $StagingUpdateSigningPublicKeyPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,9 +43,22 @@ if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -and -not (Tes
     throw "Staging lease public key file was not found at '$StagingLeasePublicKeyPath'."
 }
 
+if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -and [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath)) {
+    throw "StagingUpdateSigningPublicKeyPath is required when building the staging Gaming PC setup executable."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath) -and -not (Test-Path -LiteralPath $StagingUpdateSigningPublicKeyPath)) {
+    throw "Staging update signing public key file was not found at '$StagingUpdateSigningPublicKeyPath'."
+}
+
 $resolvedStagingLeasePublicKeyPath = ''
 if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
     $resolvedStagingLeasePublicKeyPath = (Resolve-Path -LiteralPath $StagingLeasePublicKeyPath).Path
+}
+
+$resolvedStagingUpdateSigningPublicKeyPath = ''
+if (-not [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath)) {
+    $resolvedStagingUpdateSigningPublicKeyPath = (Resolve-Path -LiteralPath $StagingUpdateSigningPublicKeyPath).Path
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -162,6 +177,7 @@ if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
         -o $setupPublishDir `
         -p:GamingPcMsiPath="$gamingPcMsiPath" `
         -p:StagingLeasePublicKeyPath="$resolvedStagingLeasePublicKeyPath" `
+        -p:StagingUpdateSigningPublicKeyPath="$resolvedStagingUpdateSigningPublicKeyPath" `
         -p:PublishSingleFile=true `
         -p:SelfContained=true `
         -p:IncludeNativeLibrariesForSelfExtract=true `

@@ -80,7 +80,8 @@ public sealed class SetupShellViewModel : INotifyPropertyChanged
                 UserName.Trim(),
                 Password,
                 Environment.MachineName,
-                resources.ReadLeasePublicKeyPem());
+                resources.ReadLeasePublicKeyPem(),
+                resources.ReadUpdatePublicKeyPem());
 
             var progress = new Progress<SetupStepResult>(Steps.Add);
             var result = await orchestrator.InstallAsync(request, progress);

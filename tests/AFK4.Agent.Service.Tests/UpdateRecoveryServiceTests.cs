@@ -17,6 +17,7 @@ public sealed class UpdateRecoveryServiceTests
             store,
             rollback,
             updateClient,
+            new FixedComponentVersionProvider([new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]),
             new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T18:00:00Z")));
 
         await recovery.RecoverAsync(CancellationToken.None);
@@ -41,6 +42,7 @@ public sealed class UpdateRecoveryServiceTests
             store,
             rollback,
             updateClient,
+            new FixedComponentVersionProvider([new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]),
             new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T18:00:00Z")));
 
         await recovery.RecoverAsync(CancellationToken.None);
@@ -49,6 +51,56 @@ public sealed class UpdateRecoveryServiceTests
             [UpdateStatusNames.RollbackStarted, UpdateStatusNames.Failed],
             updateClient.ReportedStatuses.Select(report => report.Status));
         Assert.Equal(UpdateStatusNames.Failed, store.SavedStates[^1].Status);
+    }
+
+    [Fact]
+    public async Task RecoverAsync_WhenTargetVersionIsInstalledReportsInstalledWithoutRollback()
+    {
+        var state = CreateState(UpdateStatusNames.Installing);
+        var store = new RecordingUpdateInstallStateStore([state]);
+        var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Success("rollback complete"));
+        var updateClient = new RecordingAgentUpdateClient();
+        var recovery = new UpdateRecoveryService(
+            store,
+            rollback,
+            updateClient,
+            new FixedComponentVersionProvider([new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.3")]),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T18:00:00Z")));
+
+        await recovery.RecoverAsync(CancellationToken.None);
+
+        Assert.Empty(rollback.RolledBackStates);
+        var report = Assert.Single(updateClient.ReportedStatuses);
+        Assert.Equal(UpdateStatusNames.Installed, report.Status);
+        Assert.Equal("Interrupted update completed before Agent restart.", report.Message);
+        Assert.Equal(UpdateStatusNames.Installed, store.SavedStates.Single().Status);
+        Assert.Equal("1.2.3", store.SavedStates.Single().InstalledVersion);
+    }
+
+    [Fact]
+    public async Task RecoverAsync_WhenInstalledMsiVersionMatchesPrereleaseTargetReportsInstalledWithoutRollback()
+    {
+        var state = CreateState(UpdateStatusNames.Installing) with
+        {
+            TargetVersion = "1.2.3-ci-minio-rollout"
+        };
+        var store = new RecordingUpdateInstallStateStore([state]);
+        var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Success("rollback complete"));
+        var updateClient = new RecordingAgentUpdateClient();
+        var recovery = new UpdateRecoveryService(
+            store,
+            rollback,
+            updateClient,
+            new FixedComponentVersionProvider([new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.3")]),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T18:00:00Z")));
+
+        await recovery.RecoverAsync(CancellationToken.None);
+
+        Assert.Empty(rollback.RolledBackStates);
+        var report = Assert.Single(updateClient.ReportedStatuses);
+        Assert.Equal(UpdateStatusNames.Installed, report.Status);
+        Assert.Equal(UpdateStatusNames.Installed, store.SavedStates.Single().Status);
+        Assert.Equal("1.2.3", store.SavedStates.Single().InstalledVersion);
     }
 
     private static UpdateInstallState CreateState(string status)
@@ -141,6 +193,14 @@ public sealed class UpdateRecoveryServiceTests
     }
 
     private sealed record ReportedStatus(string Status, string Message);
+
+    private sealed class FixedComponentVersionProvider(IReadOnlyList<DeviceComponentVersionDto> components) : IAgentComponentVersionProvider
+    {
+        public IReadOnlyList<DeviceComponentVersionDto> GetInstalledComponents()
+        {
+            return components;
+        }
+    }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {

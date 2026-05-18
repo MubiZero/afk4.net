@@ -16,7 +16,7 @@ param(
     [Parameter(Mandatory = $true)]
     [guid] $OrganizationId,
 
-    [ValidateSet('file-system', 'http-put')]
+    [ValidateSet('file-system', 'http-put', 's3')]
     [string] $ArtifactStore = 'file-system',
 
     [string] $HostingRoot,
@@ -26,6 +26,18 @@ param(
     [uri] $ArtifactUploadUri,
 
     [uri] $ArtifactPublicUri,
+
+    [uri] $S3Endpoint,
+
+    [string] $S3Bucket,
+
+    [string] $S3KeyPrefix,
+
+    [string] $S3AccessKeyEnvVar,
+
+    [string] $S3SecretKeyEnvVar,
+
+    [string] $S3Region = 'us-east-1',
 
     [string] $SigningKeyPath,
 
@@ -104,6 +116,25 @@ elseif ($ArtifactStore -eq 'http-put') {
 
     $publisherArgs += @('--artifact-upload-uri', $ArtifactUploadUri.AbsoluteUri)
     $publisherArgs += @('--artifact-public-uri', $ArtifactPublicUri.AbsoluteUri)
+}
+else {
+    if ($null -eq $S3Endpoint -or $null -eq $PublicBaseUri) {
+        throw "S3Endpoint and PublicBaseUri are required when ArtifactStore is 's3'."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($S3Bucket) -or [string]::IsNullOrWhiteSpace($S3AccessKeyEnvVar) -or [string]::IsNullOrWhiteSpace($S3SecretKeyEnvVar)) {
+        throw "S3Bucket, S3AccessKeyEnvVar, and S3SecretKeyEnvVar are required when ArtifactStore is 's3'."
+    }
+
+    $publisherArgs += @('--s3-endpoint', $S3Endpoint.AbsoluteUri)
+    $publisherArgs += @('--s3-bucket', $S3Bucket)
+    $publisherArgs += @('--s3-access-key-env-var', $S3AccessKeyEnvVar)
+    $publisherArgs += @('--s3-secret-key-env-var', $S3SecretKeyEnvVar)
+    $publisherArgs += @('--s3-region', $S3Region)
+    $publisherArgs += @('--public-base-uri', $PublicBaseUri.AbsoluteUri)
+    if (-not [string]::IsNullOrWhiteSpace($S3KeyPrefix)) {
+        $publisherArgs += @('--s3-key-prefix', $S3KeyPrefix)
+    }
 }
 
 $hasSigningKeyPath = -not [string]::IsNullOrWhiteSpace($SigningKeyPath)

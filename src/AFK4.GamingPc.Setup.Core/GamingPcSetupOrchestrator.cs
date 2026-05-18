@@ -23,6 +23,7 @@ public sealed class GamingPcSetupOrchestrator(
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Password);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.MachineName);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.LeaseSigningPublicKeyPem);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.UpdatePackageSigningPublicKeyPem);
 
         var steps = new List<SetupStepResult>();
 

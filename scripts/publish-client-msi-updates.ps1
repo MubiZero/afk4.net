@@ -13,7 +13,7 @@ param(
 
     [string] $OutputDirectory,
 
-    [ValidateSet('file-system', 'http-put')]
+    [ValidateSet('file-system', 'http-put', 's3')]
     [string] $ArtifactStore = 'file-system',
 
     [string] $HostingRoot,
@@ -27,6 +27,18 @@ param(
     [uri] $GamingPcArtifactUploadUri,
 
     [uri] $GamingPcArtifactPublicUri,
+
+    [uri] $S3Endpoint,
+
+    [string] $S3Bucket,
+
+    [string] $S3KeyPrefix,
+
+    [string] $S3AccessKeyEnvVar,
+
+    [string] $S3SecretKeyEnvVar,
+
+    [string] $S3Region = 'us-east-1',
 
     [string] $SigningKeyPath,
 
@@ -162,9 +174,25 @@ function Add-ArtifactStoreArguments {
             '--public-base-uri', $PublicBaseUri.AbsoluteUri)
     }
 
-    return $Arguments + @(
-        '--artifact-upload-uri', $ArtifactUploadUri.AbsoluteUri,
-        '--artifact-public-uri', $ArtifactPublicUri.AbsoluteUri)
+    if ($ArtifactStore -eq 'http-put') {
+        return $Arguments + @(
+            '--artifact-upload-uri', $ArtifactUploadUri.AbsoluteUri,
+            '--artifact-public-uri', $ArtifactPublicUri.AbsoluteUri)
+    }
+
+    $s3Arguments = $Arguments + @(
+        '--s3-endpoint', $S3Endpoint.AbsoluteUri,
+        '--s3-bucket', $S3Bucket,
+        '--s3-access-key-env-var', $S3AccessKeyEnvVar,
+        '--s3-secret-key-env-var', $S3SecretKeyEnvVar,
+        '--s3-region', $S3Region,
+        '--public-base-uri', $PublicBaseUri.AbsoluteUri)
+
+    if (-not [string]::IsNullOrWhiteSpace($S3KeyPrefix)) {
+        $s3Arguments += @('--s3-key-prefix', $S3KeyPrefix)
+    }
+
+    return $s3Arguments
 }
 
 function Invoke-UpdatePublisher {
@@ -236,11 +264,31 @@ if ($ArtifactStore -eq 'file-system') {
 
     Require-AbsoluteUri $PublicBaseUri 'PublicBaseUri' 'PublicBaseUri is required when ArtifactStore is file-system.'
 }
-else {
+elseif ($ArtifactStore -eq 'http-put') {
     Require-AbsoluteUri $OperatorArtifactUploadUri 'OperatorArtifactUploadUri' 'OperatorArtifactUploadUri is required when ArtifactStore is http-put.'
     Require-AbsoluteUri $OperatorArtifactPublicUri 'OperatorArtifactPublicUri' 'OperatorArtifactPublicUri is required when ArtifactStore is http-put.'
     Require-AbsoluteUri $GamingPcArtifactUploadUri 'GamingPcArtifactUploadUri' 'GamingPcArtifactUploadUri is required when ArtifactStore is http-put.'
     Require-AbsoluteUri $GamingPcArtifactPublicUri 'GamingPcArtifactPublicUri' 'GamingPcArtifactPublicUri is required when ArtifactStore is http-put.'
+}
+else {
+    Require-AbsoluteUri $S3Endpoint 'S3Endpoint' 'S3Endpoint is required when ArtifactStore is s3.'
+    Require-AbsoluteUri $PublicBaseUri 'PublicBaseUri' 'PublicBaseUri is required when ArtifactStore is s3.'
+
+    if ([string]::IsNullOrWhiteSpace($S3Bucket)) {
+        throw 'S3Bucket is required when ArtifactStore is s3.'
+    }
+
+    if ([string]::IsNullOrWhiteSpace($S3AccessKeyEnvVar)) {
+        throw 'S3AccessKeyEnvVar is required when ArtifactStore is s3.'
+    }
+
+    if ([string]::IsNullOrWhiteSpace($S3SecretKeyEnvVar)) {
+        throw 'S3SecretKeyEnvVar is required when ArtifactStore is s3.'
+    }
+
+    if ([string]::IsNullOrWhiteSpace($S3Region)) {
+        throw 'S3Region is required when ArtifactStore is s3.'
+    }
 }
 
 $publisherProject = Join-Path $repoRoot 'src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj'

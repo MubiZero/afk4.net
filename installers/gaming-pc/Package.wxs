@@ -45,6 +45,20 @@
           Stop="both"
           Remove="uninstall"
           Wait="yes" />
+      <Environment
+          Id="AgentVersionEnvironment"
+          Name="Agent__AgentVersion"
+          Value="$(var.PackageVersion)"
+          Action="set"
+          Part="all"
+          System="yes" />
+      <Environment
+          Id="ShellVersionEnvironment"
+          Name="Agent__ShellVersion"
+          Value="$(var.PackageVersion)"
+          Action="set"
+          Part="all"
+          System="yes" />
     </Component>
 
     <ComponentGroup Id="PlayerShellFiles" Directory="PlayerShellFolder">

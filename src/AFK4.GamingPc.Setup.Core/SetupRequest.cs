@@ -4,4 +4,5 @@ public sealed record SetupRequest(
     string UserName,
     string Password,
     string MachineName,
-    string LeaseSigningPublicKeyPem);
+    string LeaseSigningPublicKeyPem,
+    string UpdatePackageSigningPublicKeyPem);

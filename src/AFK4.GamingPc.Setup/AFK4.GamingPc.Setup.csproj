@@ -13,6 +13,10 @@
         Include="$(StagingLeasePublicKeyPath)"
         LogicalName="AFK4.GamingPc.Setup.Resources.staging-session-signing-public.pem"
         Condition="'$(StagingLeasePublicKeyPath)' != '' and Exists('$(StagingLeasePublicKeyPath)')" />
+    <EmbeddedResource
+        Include="$(StagingUpdateSigningPublicKeyPath)"
+        LogicalName="AFK4.GamingPc.Setup.Resources.staging-update-signing-public.pem"
+        Condition="'$(StagingUpdateSigningPublicKeyPath)' != '' and Exists('$(StagingUpdateSigningPublicKeyPath)')" />
   </ItemGroup>
 
   <PropertyGroup>

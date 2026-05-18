@@ -58,6 +58,10 @@ Not included:
   into the active interactive Windows session. A Shell process in service
   session `0` is still a regression. If no interactive user session exists, the
   Agent must skip Shell launch and continue heartbeat/state publishing.
+- Already enrolled PCs should receive new Agent/Shell builds through signed
+  internal MSI update rollouts. Recopying a rebuilt setup executable onto an
+  installed PC is only a bootstrap diagnostic and does not prove the update
+  path.
 - Do not commit secrets, filled environment files, database URLs, staff
   passwords, device credential secrets, PEM files, MSI artifacts, or smoke
   transcripts containing secrets.
@@ -338,7 +342,8 @@ release.
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
   -Version 0.1.0-ci `
   -Channel internal `
-  -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem
+  -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem `
+  -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem
 ```
 
 Preferred path for clean Windows 11 VMs: copy this single file to the VM and
@@ -349,17 +354,23 @@ artifacts/client-packages/afk4-gaming-pc-setup-0.1.0-ci-internal.exe
 ```
 
 The setup executable is staging-only for now. It has the staging Platform API,
-organization, branch, and smoke seat fixed at build time. It asks for staff
-username and password, creates the enrollment code, enrolls the VM, assigns the
-device to the smoke seat through the Platform API, installs the bundled MSI,
-writes Agent machine configuration, starts `AFK4.Agent.Service`, and waits for
-backend heartbeat evidence.
+organization, branch, smoke seat, session lease verification public key, and
+internal update package verification public key fixed at build time. It asks
+for staff username and password, creates the enrollment code, enrolls the VM,
+assigns the device to the smoke seat through the Platform API, installs the
+bundled MSI, writes Agent machine configuration, starts `AFK4.Agent.Service`,
+and waits for backend heartbeat evidence.
 
 Use this setup executable only for clean-machine bootstrap. Do not use rebuilt
 setup executables as the update path for already enrolled PCs; those machines
 must be updated through the signed/internal MSI update rollout flow so the Agent
 downloads, verifies, installs, reports status, and can roll back without manual
 file copying.
+
+If a machine was enrolled with an older staging setup executable that did not
+write `Agent__UpdatePackageSigningPublicKeyPem`, the first rollout cannot be
+verified by that Agent. Treat that as a one-time trust-anchor repair for that
+device, then use the update rollout path for subsequent changes.
 
 Fallback/manual path: copy this MSI to the Windows gaming PC through a secure
 internal channel and follow the explicit configuration commands below.
@@ -439,12 +450,13 @@ these actions itself.
 
 Run these commands from an elevated PowerShell prompt on the Windows gaming PC
 only when using the fallback MSI path.
-Replace placeholders with values from the enrollment response and the staging
-lease public key file supplied outside the repository.
+Replace placeholders with values from the enrollment response, the staging
+lease public key, and the update verification public key.
 
 ```powershell
 $packagePath = 'C:\AFK4-Smoke\afk4-gaming-pc-0.1.0-ci-internal.msi'
-$publicKeyPath = 'C:\AFK4-Smoke\staging-session-signing-public.pem'
+$leasePublicKeyPath = 'C:\AFK4-Smoke\staging-session-signing-public.pem'
+$updatePublicKeyPath = 'C:\AFK4-Smoke\staging-update-signing-public.pem'
 $deviceCredentialSecret = '<credentialSecret-from-enrollment-response>'
 $organizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08'
 $branchId = 'acfc0212-967f-4d84-94be-9003387b09c2'
@@ -455,7 +467,8 @@ msiexec.exe /i $packagePath /qn /norestart /l*v C:\ProgramData\AFK4\Agent\Instal
 
 Stop-Service -Name AFK4.Agent.Service -ErrorAction SilentlyContinue
 
-$leasePublicKeyPem = Get-Content -Raw -LiteralPath $publicKeyPath
+$leasePublicKeyPem = Get-Content -Raw -LiteralPath $leasePublicKeyPath
+$updatePublicKeyPem = Get-Content -Raw -LiteralPath $updatePublicKeyPath
 
 [Environment]::SetEnvironmentVariable('Agent__PlatformBaseUrl', 'https://afk4.staging.mubi.dev', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__OrganizationId', $organizationId, 'Machine')
@@ -469,12 +482,13 @@ $leasePublicKeyPem = Get-Content -Raw -LiteralPath $publicKeyPath
 [Environment]::SetEnvironmentVariable('Agent__PlayerShellExecutablePath', 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__PlayerShellAutoStartEnabled', 'True', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateChannel', 'internal', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateInstallerExecutablePath', 'powershell.exe', 'Machine')
+[Environment]::SetEnvironmentVariable('Agent__UpdateInstallerExecutablePath', 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateInstallerArgumentsTemplate', '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\install-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateRollbackExecutablePath', 'powershell.exe', 'Machine')
+[Environment]::SetEnvironmentVariable('Agent__UpdateRollbackExecutablePath', 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateRollbackArgumentsTemplate', '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\rollback-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateRestartExecutablePath', 'powershell.exe', 'Machine')
+[Environment]::SetEnvironmentVariable('Agent__UpdateRestartExecutablePath', 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe', 'Machine')
 [Environment]::SetEnvironmentVariable('Agent__UpdateRestartArgumentsTemplate', '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\restart-afk4-agent-service.ps1"', 'Machine')
+[Environment]::SetEnvironmentVariable('Agent__UpdatePackageSigningPublicKeyPem', $updatePublicKeyPem, 'Machine')
 
 Start-Service -Name AFK4.Agent.Service
 sc.exe query AFK4.Agent.Service
@@ -784,6 +798,17 @@ is intentionally prepared for this exact device. If it is prepared, collect:
 - backend rollout status from `GET /api/branches/{branchId}/updates/rollouts`;
 - device status rows from diagnostics.
 
+Expected for a passing Agent-side update smoke:
+
+- the Agent downloads a non-zero MSI under
+  `C:\ProgramData\AFK4\Agent\Updates`;
+- the update log is written under
+  `C:\ProgramData\AFK4\Agent\UpdateLogs`;
+- Windows Installer logs a successful AFK4 Gaming PC Client install;
+- the Agent service restarts and continues heartbeats;
+- backend rollout status for this device reaches `installed`;
+- device detail reports the target Agent/Shell versions.
+
 Do not create a fake successful `POST /api/devices/{deviceId}/updates/status`
 for a package that was not actually offered to the Agent.
 
@@ -861,6 +886,8 @@ Overall pass requires:
 - Player Shell visible state is observed or a concrete Shell/session-launch
   blocker is recorded;
 - diagnostics show the device, command, and update summaries;
+- when an update rollout is part of the run, the Agent installs it from the
+  hosted MSI and reports `installed` through the backend;
 - no secrets are written to the repository.
 
 Fail the smoke, or mark it partial, when:
@@ -876,7 +903,9 @@ Fail the smoke, or mark it partial, when:
 - Player Shell state is claimed without a visible screenshot or runtime log.
 - a service-session `AFK4.Player.Shell.exe` competes with the visible Shell for
   named-pipe state;
-- session reuse requires manual SQL after an accepted lock result.
+- session reuse requires manual SQL after an accepted lock result;
+- update smoke requires manually copying a rebuilt setup executable onto an
+  already enrolled PC instead of using the signed MSI rollout path.
 
 ## Cleanup
 
