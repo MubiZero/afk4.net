@@ -685,6 +685,18 @@ Staging VM Shell state delivery finding on 2026-05-18:
   gaming PC and added Windows Service host lifetime wiring for the Agent
   Service, but the real hardware smoke still needs execution and recorded
   evidence.
+- PR #18, `Harden Player Shell session supervision`, merged into `main` on
+  2026-05-18 with squash merge commit
+  `2d7aaf093a889c7831547ef657ea0a2b962b62af`. The PR head was
+  `b7f99ff02a4ecf9cc58812680a46b60f3abb86a6`, and remote
+  `PR Verification Result` passed for that head in workflow run
+  `26023619024`. The remote branch
+  `codex/staging-gaming-pc-bootstrapper` was deleted after merge. This added
+  the staging Gaming PC setup path, interactive-session Player Shell
+  supervision, long-lived Agent-to-Shell state delivery, session
+  end/finalization reuse hardening, and Windows 11 VM post-redeploy smoke
+  evidence. The remaining runtime gate is physical Windows hardware smoke plus
+  reboot/update recovery.
 
 ## Historical Reference
 
