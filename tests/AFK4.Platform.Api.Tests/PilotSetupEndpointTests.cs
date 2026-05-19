@@ -44,6 +44,50 @@ public sealed class PilotSetupEndpointTests
     }
 
     [Fact]
+    public async Task CreateStaffUser_WithBranchManagerRole_CreatesBranchStaff()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var request = new CreateStaffUserRequest(
+            TestIds.OrganizationId,
+            "technician.one@afk4.test",
+            "Technician One",
+            "Passw0rd!Pilot",
+            [StaffRoleNames.Technician]);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff",
+            request);
+        var staffUser = await response.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(staffUser);
+        Assert.Equal("technician.one@afk4.test", staffUser.UserName);
+        Assert.Contains(StaffRoleNames.Technician, staffUser.RoleNames);
+    }
+
+    [Fact]
+    public async Task CreateStaffUser_WithOwnerTargetRole_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var request = new CreateStaffUserRequest(
+            TestIds.OrganizationId,
+            "owner.two@afk4.test",
+            "Owner Two",
+            "Passw0rd!Pilot",
+            [StaffRoleNames.Owner]);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff",
+            request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateStaffUser_WithCashierRole_ReturnsForbidden()
     {
         await using var factory = new PlatformApiFactory();

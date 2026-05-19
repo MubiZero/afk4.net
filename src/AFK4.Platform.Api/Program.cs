@@ -156,7 +156,7 @@ app.MapGet("/api/branches/{branchId:guid}/staff", async (
 {
     var authorization = await authorizationService.RequireBranchPermissionAsync(
         branchId,
-        StaffPermissionNames.ManageRoles,
+        StaffPermissionNames.ManageBranchStaff,
         cancellationToken);
 
     if (!authorization.IsAuthenticated)
@@ -234,7 +234,7 @@ app.MapPost("/api/branches/{branchId:guid}/staff", async (
 {
     var authorization = await authorizationService.RequireBranchPermissionAsync(
         branchId,
-        StaffPermissionNames.ManageRoles,
+        StaffPermissionNames.ManageBranchStaff,
         cancellationToken);
 
     if (!authorization.IsAuthenticated)
@@ -5061,15 +5061,14 @@ static string? ValidateCreateStaffUserRequest(CreateStaffUserRequest request)
         return "At least one role is required.";
     }
 
-    return request.RoleNames.All(IsSupportedStaffRole)
+    return request.RoleNames.All(IsAssignableBranchStaffRole)
         ? null
-        : "Unsupported role name.";
+        : "Unsupported branch staff role name.";
 }
 
-static bool IsSupportedStaffRole(string roleName)
+static bool IsAssignableBranchStaffRole(string roleName)
 {
     return roleName.Trim() is
-        StaffRoleNames.Owner or
         StaffRoleNames.BranchManager or
         StaffRoleNames.ShiftSupervisor or
         StaffRoleNames.CashierOperator or

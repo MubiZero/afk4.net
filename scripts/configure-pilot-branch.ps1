@@ -53,11 +53,16 @@ param(
     [string]$ProductSku = "WATER-05",
 
     [ValidateRange(1, [int]::MaxValue)]
-    [long]$ProductPriceMinorUnits = 500
+    [long]$ProductPriceMinorUnits = 500,
+
+    [ValidateRange(1, 600)]
+    [int]$RequestTimeoutSeconds = 60
 )
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = "Stop"
+
+$curlPath = (Get-Command curl.exe -ErrorAction Stop).Source
 
 function Invoke-Afk4Json {
     param(
@@ -73,18 +78,69 @@ function Invoke-Afk4Json {
     )
 
     $uri = "$($BaseUrl.TrimEnd('/'))$Path"
-    $parameters = @{
-        Method = $Method
-        Uri = $uri
-        Headers = $Headers
-    }
+    $requestPath = $null
+    $responsePath = Join-Path $env:TEMP ("afk4-response-{0}.json" -f [Guid]::NewGuid().ToString("N"))
 
-    if ($null -ne $Body) {
-        $parameters.ContentType = "application/json"
-        $parameters.Body = $Body | ConvertTo-Json -Depth 20 -Compress
-    }
+    try {
+        $curlArguments = @(
+            "-sS",
+            "--max-time", $RequestTimeoutSeconds.ToString(),
+            "-X", $Method.ToUpperInvariant(),
+            "-H", "Accept: application/json",
+            "-o", $responsePath,
+            "-w", "%{http_code}"
+        )
 
-    Invoke-RestMethod @parameters
+        foreach ($header in $Headers.GetEnumerator()) {
+            $curlArguments += @("-H", "$($header.Key): $($header.Value)")
+        }
+
+        if ($null -ne $Body) {
+            $requestPath = Join-Path $env:TEMP ("afk4-request-{0}.json" -f [Guid]::NewGuid().ToString("N"))
+            $requestJson = $Body | ConvertTo-Json -Depth 20 -Compress
+            [System.IO.File]::WriteAllText(
+                $requestPath,
+                $requestJson,
+                [System.Text.UTF8Encoding]::new($false))
+
+            $curlArguments += @(
+                "-H", "Content-Type: application/json",
+                "--data-binary", "@$requestPath"
+            )
+        }
+
+        $curlArguments += $uri
+        $statusText = & $curlPath @curlArguments
+        $exitCode = $LASTEXITCODE
+        $responseText = if (Test-Path -LiteralPath $responsePath) {
+            [System.IO.File]::ReadAllText($responsePath)
+        }
+        else {
+            ""
+        }
+
+        if ($exitCode -ne 0) {
+            throw "AFK4 API request failed: curl exited with code $exitCode for $Method $Path."
+        }
+
+        $statusCode = [int]$statusText
+        if ($statusCode -lt 200 -or $statusCode -gt 299) {
+            throw "AFK4 API request failed: $Method $Path returned HTTP $statusCode. Body: $responseText"
+        }
+
+        if ([string]::IsNullOrWhiteSpace($responseText)) {
+            return $null
+        }
+
+        return $responseText | ConvertFrom-Json
+    }
+    finally {
+        if ($null -ne $requestPath) {
+            Remove-Item -LiteralPath $requestPath -Force -ErrorAction SilentlyContinue
+        }
+
+        Remove-Item -LiteralPath $responsePath -Force -ErrorAction SilentlyContinue
+    }
 }
 
 $signIn = Invoke-Afk4Json `

@@ -52,6 +52,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageUpdateRollouts,
                 StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ViewDiagnostics,
+                StaffPermissionNames.ManageBranchStaff,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit
             },
@@ -100,6 +101,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageUpdateRollouts,
                 StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ViewDiagnostics,
+                StaffPermissionNames.ManageBranchStaff,
                 StaffPermissionNames.ViewAudit
             },
             [StaffRoleNames.ShiftSupervisor] = new HashSet<string>
