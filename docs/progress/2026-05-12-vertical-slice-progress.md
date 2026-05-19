@@ -826,6 +826,24 @@ Centralized staging update rollout smoke on 2026-05-18:
   merge. This added the staff-authorized device-seat assignment API, staging
   setup assignment through the API, and runbook updates so future staging smoke
   device assignment does not require direct PostgreSQL edits.
+- PR #20, `Add staging MinIO update rollout smoke`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `ed93e0dae009fcade9b081044641e6970abb80a6`. The PR head was
+  `1bc1a6346cb4ff00e05e288cfc0d58fc24adcb42`, and remote
+  `PR Verification Result` passed for that head in workflow run
+  `26077229854`. The first PR run exposed a Windows hosted-runner timeout in a
+  PowerShell release automation test; the branch increased that test timeout
+  and the rerun passed.
+- after PR #20 was merged, Coolify staging was redeployed from `main` commit
+  `ed93e0dae009fcade9b081044641e6970abb80a6` through deployment
+  `yvl8trys8d0o6tgffd8wgawj`, which finished successfully. Public health
+  returned HTTP 200 with `status = ok` at `2026-05-19T05:11:34Z`.
+- the post-merge `Package Smoke` workflow on `main` passed in workflow run
+  `26077441822`. It built internal MSI version `0.1.6`, published the Gaming
+  PC MSI to staging MinIO for both `agent-service` and `player-shell`,
+  registered update package requests with staging, and created Agent Service
+  device rollout `830b5a2e-2eed-47c2-b3c8-411f05b09edf` for staging device
+  `0588fb59-3edb-4704-bbdb-094e12417cf1`.
 
 ## Historical Reference
 
