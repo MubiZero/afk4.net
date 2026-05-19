@@ -95,6 +95,17 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void PublishStagingBootstrapper_BuildsS3ObjectUrisFromSlashDelimitedSegments()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/publish-staging-bootstrapper.ps1")));
+
+        Assert.Contains("$pathSegments = @($Bucket) + ($ObjectKey -split '/')", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("$Bucket, ($ObjectKey -split '/')", script, StringComparison.Ordinal);
+        Assert.Contains("Join-S3Key -Segments @($S3KeyPrefix, $Channel, $Version, $bootstrapFileName)", script, StringComparison.Ordinal);
+        Assert.Contains("Join-S3Key -Segments @($S3KeyPrefix, $Channel, 'latest.json')", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RegisterUpdatePackageRequestsScript_ParsesRequiredParameters()
     {
         var ast = ParseScript("scripts/register-update-package-requests.ps1", out var errors);

@@ -106,19 +106,21 @@ function Get-Sha256HexForText {
 
 function Join-S3Key {
     param(
-        [Parameter(ValueFromRemainingArguments = $true)]
+        [Parameter(Mandatory = $true)]
         [string[]] $Segments
     )
 
     $clean = New-Object System.Collections.Generic.List[string]
-    foreach ($segment in $Segments) {
-        if ([string]::IsNullOrWhiteSpace($segment)) {
+    foreach ($rawSegment in $Segments) {
+        if ([string]::IsNullOrWhiteSpace($rawSegment)) {
             continue
         }
 
-        foreach ($part in $segment -split '[\\/]+') {
-            if (-not [string]::IsNullOrWhiteSpace($part)) {
-                $clean.Add($part.Trim())
+        foreach ($segment in ([string]$rawSegment -split '\s+')) {
+            foreach ($part in $segment -split '[\\/]+') {
+                if (-not [string]::IsNullOrWhiteSpace($part)) {
+                    $clean.Add($part.Trim())
+                }
             }
         }
     }
@@ -139,7 +141,8 @@ function New-S3ObjectUri {
     )
 
     $baseUri = $Endpoint.AbsoluteUri.TrimEnd('/') + '/'
-    $escapedPath = (($Bucket, ($ObjectKey -split '/')) | ForEach-Object {
+    $pathSegments = @($Bucket) + ($ObjectKey -split '/')
+    $escapedPath = ($pathSegments | ForEach-Object {
         [System.Uri]::EscapeDataString($_)
     }) -join '/'
 
@@ -261,7 +264,7 @@ if (-not (Test-Path -LiteralPath $UpdateSigningPublicKeyPath)) {
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
-$msiObjectKey = Join-S3Key 'agent-service' $Channel $Version $msiFileName
+$msiObjectKey = Join-S3Key -Segments @('agent-service', $Channel, $Version, $msiFileName)
 $msiArtifactUri = New-PublicUri -PublicBaseUri $S3PublicBaseUri -ObjectKey $msiObjectKey
 $msiSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $msiPath).Hash.ToLowerInvariant()
 $msiSizeBytes = (Get-Item -LiteralPath $msiPath).Length
@@ -269,7 +272,7 @@ $leaseSigningPublicKeyPem = Get-Content -LiteralPath $LeaseSigningPublicKeyPath 
 $updateSigningPublicKeyPem = Get-Content -LiteralPath $UpdateSigningPublicKeyPath -Raw
 
 $bootstrapFileName = "install-afk4-gaming-pc-$Version-$Channel.ps1"
-$bootstrapObjectKey = Join-S3Key $S3KeyPrefix $Channel $Version $bootstrapFileName
+$bootstrapObjectKey = Join-S3Key -Segments @($S3KeyPrefix, $Channel, $Version, $bootstrapFileName)
 $bootstrapUri = New-PublicUri -PublicBaseUri $S3PublicBaseUri -ObjectKey $bootstrapObjectKey
 
 $bootstrapTemplate = @'
@@ -532,10 +535,10 @@ $manifestJson = $manifest | ConvertTo-Json -Depth 10
 [System.IO.File]::WriteAllText($latestManifestPath, $manifestJson, $utf8NoBom)
 
 Invoke-S3PutObject -Path $bootstrapPath -ObjectKey $bootstrapObjectKey -ContentType 'text/plain'
-Invoke-S3PutObject -Path $versionManifestPath -ObjectKey (Join-S3Key $S3KeyPrefix $Channel $Version 'manifest.json') -ContentType 'application/json'
-Invoke-S3PutObject -Path $latestManifestPath -ObjectKey (Join-S3Key $S3KeyPrefix $Channel 'latest.json') -ContentType 'application/json'
+Invoke-S3PutObject -Path $versionManifestPath -ObjectKey (Join-S3Key -Segments @($S3KeyPrefix, $Channel, $Version, 'manifest.json')) -ContentType 'application/json'
+Invoke-S3PutObject -Path $latestManifestPath -ObjectKey (Join-S3Key -Segments @($S3KeyPrefix, $Channel, 'latest.json')) -ContentType 'application/json'
 
 Write-Host "Published staging Gaming PC bootstrapper:"
 Write-Host $bootstrapUri
 Write-Host "Latest manifest:"
-Write-Host (New-PublicUri -PublicBaseUri $S3PublicBaseUri -ObjectKey (Join-S3Key $S3KeyPrefix $Channel 'latest.json'))
+Write-Host (New-PublicUri -PublicBaseUri $S3PublicBaseUri -ObjectKey (Join-S3Key -Segments @($S3KeyPrefix, $Channel, 'latest.json')))
