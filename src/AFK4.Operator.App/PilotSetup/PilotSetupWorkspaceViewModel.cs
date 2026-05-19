@@ -484,6 +484,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                             category.CategoryId.ToString("D"),
                             ProductName,
                             ProductSku,
+                            CurrencyCode,
                             ProductPriceMinorUnits.ToString(),
                             ProductTrackStock.ToString(),
                             ProductAllowNegativeStock.ToString())),

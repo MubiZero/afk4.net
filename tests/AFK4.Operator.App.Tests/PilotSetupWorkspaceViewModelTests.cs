@@ -287,6 +287,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
         Assert.Contains(apiClient.LastCategoryId!.Value.ToString("D"), apiClient.LastProductIdempotencyKey);
         Assert.Contains("energy bar", apiClient.LastProductIdempotencyKey);
         Assert.Contains("bar-01", apiClient.LastProductIdempotencyKey);
+        Assert.Contains("usd", apiClient.LastProductIdempotencyKey);
         Assert.Contains("1250", apiClient.LastProductIdempotencyKey);
         Assert.Contains("false", apiClient.LastProductIdempotencyKey);
         Assert.Contains("true", apiClient.LastProductIdempotencyKey);
