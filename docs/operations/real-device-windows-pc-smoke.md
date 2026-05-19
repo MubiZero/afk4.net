@@ -46,10 +46,10 @@ Not included:
   `http://localhost:5074` base URL. Use it in this staging smoke only if a
   staging-configured build is prepared; otherwise use the API commands below
   and treat Operator App as optional observation only.
-- The preferred Windows 11 VM install path is now the staging Gaming PC setup
-  executable. It is built on the release workstation and copied to the VM; the
-  VM does not need the repository, .NET SDK, PowerShell runbook execution, or
-  manual Agent environment-variable commands.
+- The preferred Windows 11 VM install path is now the staging Gaming PC remote
+  bootstrap script published by `Package Smoke` to MinIO. The VM does not need
+  the repository, .NET SDK, local file sharing, or manual Agent
+  environment-variable commands.
 - `WorkstationLockController` currently records lock/unlock requests through
   the enforcement adapter. If the physical Windows desktop does not actually
   lock or unlock, record that as a real enforcement gap rather than inventing a
@@ -59,8 +59,8 @@ Not included:
   session `0` is still a regression. If no interactive user session exists, the
   Agent must skip Shell launch and continue heartbeat/state publishing.
 - Already enrolled PCs should receive new Agent/Shell builds through signed
-  internal MSI update rollouts. Recopying a rebuilt setup executable onto an
-  installed PC is only a bootstrap diagnostic and does not prove the update
+  internal MSI update rollouts. Re-running the clean-machine bootstrap path on
+  an installed PC is only a bootstrap diagnostic and does not prove the update
   path.
 - Do not commit secrets, filled environment files, database URLs, staff
   passwords, device credential secrets, PEM files, MSI artifacts, or smoke
@@ -338,7 +338,8 @@ release.
 
 Preferred path for clean Windows 11 VMs and clean gaming PCs: download the
 latest staging bootstrapper manifest from MinIO, verify the published SHA-256,
-and run the setup executable as administrator:
+and run the remote bootstrap script from an elevated Administrator PowerShell
+session:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -346,34 +347,35 @@ $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force C:\AFK4-Smoke | Out-Null
 
 $manifestUri = 'https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json'
-$manifestPath = 'C:\AFK4-Smoke\afk4-gaming-pc-setup-latest.json'
-$setupPath = 'C:\AFK4-Smoke\afk4-gaming-pc-setup.exe'
+$manifestPath = 'C:\AFK4-Smoke\afk4-gaming-pc-bootstrap-latest.json'
+$bootstrapPath = 'C:\AFK4-Smoke\install-afk4-gaming-pc.ps1'
 
 curl.exe -L --fail --retry 5 --retry-delay 5 -o $manifestPath $manifestUri
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 
-curl.exe -L --fail --retry 5 --retry-delay 5 -o $setupPath $manifest.artifactUri
-$actualSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $setupPath).Hash.ToLowerInvariant()
+curl.exe -L --fail --retry 5 --retry-delay 5 -o $bootstrapPath $manifest.artifactUri
+$actualSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrapPath).Hash.ToLowerInvariant()
 if ($actualSha -ne $manifest.sha256) {
-    throw "SHA mismatch for setup executable. Expected $($manifest.sha256), got $actualSha."
+    throw "SHA mismatch for bootstrap script. Expected $($manifest.sha256), got $actualSha."
 }
 
-Start-Process -FilePath $setupPath -Verb RunAs
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrapPath
 ```
 
-The setup executable is staging-only for now. It has the staging Platform API,
+The bootstrap script is staging-only for now. It has the staging Platform API,
 organization, branch, smoke seat, session lease verification public key, and
-internal update package verification public key fixed at build time. It asks
-for staff username and password, creates the enrollment code, enrolls the VM,
-assigns the device to the smoke seat through the Platform API, installs the
-bundled MSI, writes Agent machine configuration, starts `AFK4.Agent.Service`,
-and waits for backend heartbeat evidence.
+internal update package verification public key fixed at publish time. It asks
+for staff username and password, downloads the current internal Gaming PC MSI
+from MinIO, verifies the MSI SHA-256 from the bootstrap manifest, creates the
+enrollment code, enrolls the VM, assigns the device to the smoke seat through
+the Platform API, installs the MSI, writes Agent machine configuration, starts
+`AFK4.Agent.Service`, and waits for backend heartbeat evidence.
 
 The latest manifest is produced by the `Package Smoke` workflow on `main` and
-is versioned under the same MinIO bootstrap prefix. The executable itself is
-only for clean-machine bootstrap. Do not use rebuilt setup executables as the
-update path for already enrolled PCs; those machines must be updated through
-the signed/internal MSI update rollout flow so the Agent downloads, verifies,
+is versioned under the same MinIO bootstrap prefix. The remote bootstrap script
+is only for clean-machine bootstrap. Do not use bootstrap scripts as the update
+path for already enrolled PCs; those machines must be updated through the
+signed/internal MSI update rollout flow so the Agent downloads, verifies,
 installs, reports status, and can roll back without manual file copying.
 
 Fallback release-workstation build path:
@@ -931,8 +933,8 @@ Fail the smoke, or mark it partial, when:
 - a service-session `AFK4.Player.Shell.exe` competes with the visible Shell for
   named-pipe state;
 - session reuse requires manual SQL after an accepted lock result;
-- update smoke requires manually copying a rebuilt setup executable onto an
-  already enrolled PC instead of using the signed MSI rollout path.
+- update smoke requires manually copying a rebuilt package onto an already
+  enrolled PC instead of using the signed MSI rollout path.
 
 ## Cleanup
 
