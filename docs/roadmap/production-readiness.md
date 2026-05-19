@@ -129,7 +129,12 @@ Minimum bar:
    still needs final Authenticode/signing custody, production storage/CDN
    policy, service credentials for package registration, and physical
    PC update/rollback evidence as part of the general real-device release
-   validation.
+   validation. On 2026-05-19, `Package Smoke` also began publishing a remote
+   clean-machine Gaming PC bootstrap script and `latest.json` manifest to
+   staging MinIO. The public latest manifest URL was verified after workflow
+   run `26089632552` and points to version `0.1.13`; this removes local file
+   copying for clean staging VM bootstrap while keeping already enrolled PCs on
+   the signed/internal MSI update rollout path.
 
 6. **Pilot Setup Runbook**
 
@@ -185,13 +190,16 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring, but real service startup must still be validated through the
   real-device smoke runbook.
-- A staging-only Gaming PC setup bootstrapper exists in code, with a committed
-  staging public lease verification key for release workstation builds. A first
-  Windows 11 VM passed rebuilt x64 install/enroll/heartbeat, session
+- A staging-only Gaming PC bootstrap path exists. The older release-workstation
+  setup executable path remains in code, but the preferred clean VM path is now
+  the MinIO-hosted remote bootstrap script from `Package Smoke`:
+  `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json`.
+  A first Windows 11 VM passed rebuilt x64 install/enroll/heartbeat, session
   start/end, signed lease, local runtime state, and visible Player Shell
   active/locked evidence. A second Windows 11 VM smoke confirmed
   interactive-session Shell auto-start and active-state delivery without manual
-  Shell restart after the long-lived state pipe fix.
+  Shell restart after the long-lived state pipe fix. The remote bootstrap path
+  still needs a clean VM or physical PC smoke pass.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell service-session competition is mitigated in code by
   session-aware process detection and Agent-driven launch into the active
@@ -216,11 +224,11 @@ Minimum bar:
   sleep, reboot, and network loss. The `0.1.7` VM run exposed a backend bug
   where older active rollouts could still be offered after a newer version was
   installed; PR #22 fixed the offer filter and staging was redeployed. Manual
-  copying of a rebuilt setup executable remains acceptable only for bootstrap
-  smoke on a clean machine, not as the pilot or production update process.
-  No separate update development branch is planned now; repeat update and
-  rollback evidence on physical hardware under the broader real-device release
-  validation gate.
+  copying of rebuilt client packages is no longer the preferred clean-machine
+  path; use the remote bootstrap manifest/script for clean staging PCs and the
+  signed/internal MSI rollout path for already enrolled PCs. No separate update
+  development branch is planned now; repeat update and rollback evidence on
+  physical hardware under the broader real-device release validation gate.
 - Production lease duration and heartbeat refresh threshold need telemetry.
 
 ### Operator Workflows
