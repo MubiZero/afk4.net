@@ -103,6 +103,57 @@ public sealed class UpdateRecoveryServiceTests
         Assert.Equal("1.2.3", store.SavedStates.Single().InstalledVersion);
     }
 
+    [Fact]
+    public async Task RecoverAsync_WhenInstalledVersionIsNewerThanRecoverableTargetReportsSupersededWithoutRollback()
+    {
+        var state = CreateState(UpdateStatusNames.Installing) with
+        {
+            TargetVersion = "1.2.3"
+        };
+        var store = new RecordingUpdateInstallStateStore([state]);
+        var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Success("rollback complete"));
+        var updateClient = new RecordingAgentUpdateClient();
+        var recovery = new UpdateRecoveryService(
+            store,
+            rollback,
+            updateClient,
+            new FixedComponentVersionProvider([new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.4")]),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T18:00:00Z")));
+
+        await recovery.RecoverAsync(CancellationToken.None);
+
+        Assert.Empty(rollback.RolledBackStates);
+        var report = Assert.Single(updateClient.ReportedStatuses);
+        Assert.Equal(UpdateStatusNames.Superseded, report.Status);
+        Assert.Equal("Recoverable update was superseded by a newer installed version.", report.Message);
+        Assert.Equal(UpdateStatusNames.Superseded, store.SavedStates.Single().Status);
+        Assert.Equal("1.2.4", store.SavedStates.Single().InstalledVersion);
+    }
+
+    [Fact]
+    public async Task RecoverAsync_WhenInstalledVersionIsNewerThanPrereleaseTargetReportsSupersededWithoutRollback()
+    {
+        var state = CreateState(UpdateStatusNames.Installing) with
+        {
+            TargetVersion = "1.2.3-ci-minio-rollout"
+        };
+        var store = new RecordingUpdateInstallStateStore([state]);
+        var rollback = new RecordingRollbackExecutor(UpdateRollbackResult.Success("rollback complete"));
+        var updateClient = new RecordingAgentUpdateClient();
+        var recovery = new UpdateRecoveryService(
+            store,
+            rollback,
+            updateClient,
+            new FixedComponentVersionProvider([new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.4")]),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T18:00:00Z")));
+
+        await recovery.RecoverAsync(CancellationToken.None);
+
+        Assert.Empty(rollback.RolledBackStates);
+        Assert.Equal(UpdateStatusNames.Superseded, store.SavedStates.Single().Status);
+        Assert.Equal(UpdateStatusNames.Superseded, updateClient.ReportedStatuses.Single().Status);
+    }
+
     private static UpdateInstallState CreateState(string status)
     {
         return new UpdateInstallState(

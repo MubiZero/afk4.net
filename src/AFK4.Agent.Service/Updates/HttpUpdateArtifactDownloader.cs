@@ -20,30 +20,58 @@ public sealed class HttpUpdateArtifactDownloader(
         var filePath = Path.Combine(
             options.Value.UpdateStagingDirectory,
             CreateArtifactFileName(instruction, artifactUri));
-
-        var client = httpClientFactory.CreateClient("updates");
-        using var response = await client.GetAsync(
-            artifactUri,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
-        await using (var target = new FileStream(
-            filePath,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.None,
-            bufferSize: 81920,
-            useAsync: true))
+        if (File.Exists(filePath))
         {
-            await source.CopyToAsync(target, cancellationToken);
+            var existingLength = new FileInfo(filePath).Length;
+            if (instruction.SizeBytes > 0 && existingLength == instruction.SizeBytes)
+            {
+                return new DownloadedUpdateArtifact(instruction, filePath, existingLength);
+            }
+
+            File.Delete(filePath);
         }
 
-        return new DownloadedUpdateArtifact(
-            instruction,
-            filePath,
-            new FileInfo(filePath).Length);
+        var tempPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
+
+        try
+        {
+            var client = httpClientFactory.CreateClient("updates");
+            using var response = await client.GetAsync(
+                artifactUri,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var target = new FileStream(
+                tempPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 81920,
+                useAsync: true))
+            {
+                await source.CopyToAsync(target, cancellationToken);
+                await target.FlushAsync(cancellationToken);
+            }
+
+            var downloadedLength = new FileInfo(tempPath).Length;
+            if (instruction.SizeBytes > 0 && downloadedLength != instruction.SizeBytes)
+            {
+                throw new IOException("Downloaded update artifact size does not match package metadata.");
+            }
+
+            File.Move(tempPath, filePath, overwrite: true);
+
+            return new DownloadedUpdateArtifact(
+                instruction,
+                filePath,
+                downloadedLength);
+        }
+        finally
+        {
+            TryDelete(tempPath);
+        }
     }
 
     private static string CreateArtifactFileName(ComponentUpdateInstructionDto instruction, Uri artifactUri)
@@ -66,5 +94,22 @@ public sealed class HttpUpdateArtifactDownloader(
             .ToArray();
 
         return new string(chars);
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 }

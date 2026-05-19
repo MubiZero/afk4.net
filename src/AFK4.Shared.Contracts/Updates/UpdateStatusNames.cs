@@ -14,6 +14,8 @@ public static class UpdateStatusNames
 
     public const string Installed = "installed";
 
+    public const string Superseded = "superseded";
+
     public const string Failed = "failed";
 
     public const string RollbackStarted = "rollback-started";
