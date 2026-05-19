@@ -166,6 +166,42 @@ public sealed class EfUpdateServiceTests
     }
 
     [Fact]
+    public async Task CheckForUpdatesAsync_DoesNotOfferOlderActiveRolloutWhenNewerVersionIsInstalled()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        await SeedDeviceAsync(db, TestIds.DeviceId);
+        var package = await RegisterPackageAsync(service);
+        await service.CreateRolloutAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateUpdateRolloutRequest(
+                TestIds.OrganizationId,
+                package.UpdatePackageId,
+                UpdateChannelNames.Beta,
+                UpdateTargetKindNames.Device,
+                [TestIds.DeviceId],
+                BatchPercent: 100,
+                StartsAtUtc: Now,
+                Reason: "Old targeted device rollout."),
+            CancellationToken.None);
+
+        var check = await service.CheckForUpdatesAsync(
+            new DeviceUpdateCheckRequest(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                TestIds.DeviceId,
+                UpdateChannelNames.Beta,
+                Now.AddMinutes(1),
+                [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.4")]),
+            CancellationToken.None);
+
+        Assert.True(check.Succeeded);
+        Assert.NotNull(check.Response);
+        Assert.Empty(check.Response.Updates);
+    }
+
+    [Fact]
     public async Task ReportStatusAsync_UpsertsDevicePackageStatus()
     {
         await using var db = CreateDbContext();

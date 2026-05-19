@@ -875,8 +875,18 @@ Centralized staging update rollout smoke on 2026-05-18:
   `84c8be00-2cfd-4e8a-8483-e78618481cbc` for staging device
   `0588fb59-3edb-4704-bbdb-094e12417cf1`. A direct HEAD request to the
   published Agent Service MSI returned HTTP 200 with a non-zero
-  `Content-Length` of `58278532`; Windows VM install evidence for `0.1.7`
-  is still pending.
+  `Content-Length` of `58278532`.
+- the Windows 11 VM then installed Agent/Shell `0.1.7` without a forced update
+  check. The staged MSI
+  `agent-service-0.1.7-c0e8e0ec3f214edb935fdac0c682a1f6.msi` had length
+  `58278532`, the `0.1.7` install log ended with Windows Installer exit code
+  `0`, and the `0.1.7` state file reported `installed`.
+- the same VM run exposed one remaining update-offer bug: after `0.1.7` was
+  installed, the backend still offered an older active `0.1.3` rollout because
+  `/updates/check` only skipped exact/current versions, not versions older than
+  the installed component. Branch `codex/filter-superseded-update-offers`
+  updates the Platform API check logic so active older rollouts are not offered
+  when the device already reports a newer MSI-compatible version.
 
 ## Historical Reference
 

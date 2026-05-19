@@ -388,7 +388,7 @@ public sealed class EfUpdateService(
             }
 
             if (installedVersions.TryGetValue(package.Component, out var installedVersion) &&
-                IsInstalledVersionCurrent(installedVersion, package.Version))
+                IsInstalledVersionAtLeastPackage(installedVersion, package.Version))
             {
                 continue;
             }
@@ -796,17 +796,16 @@ public sealed class EfUpdateService(
             UpdateRolloutStateNames.Cancelled;
     }
 
-    private static bool IsInstalledVersionCurrent(string installedVersion, string packageVersion)
+    private static bool IsInstalledVersionAtLeastPackage(string installedVersion, string packageVersion)
     {
         if (string.Equals(installedVersion, packageVersion, StringComparison.Ordinal))
         {
             return true;
         }
 
-        return string.Equals(
-            installedVersion,
-            GetWindowsInstallerProductVersion(packageVersion),
-            StringComparison.Ordinal);
+        return TryParseWindowsInstallerVersion(installedVersion, out var installed) &&
+            TryParseWindowsInstallerVersion(packageVersion, out var package) &&
+            CompareVersionParts(installed, package) >= 0;
     }
 
     private static string GetWindowsInstallerProductVersion(string version)
@@ -840,5 +839,44 @@ public sealed class EfUpdateService(
         }
 
         return length == 0 ? trimmed : trimmed[..length];
+    }
+
+    private static bool TryParseWindowsInstallerVersion(string version, out int[] parts)
+    {
+        var normalized = GetWindowsInstallerProductVersion(version);
+        var split = normalized.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (split.Length == 0 || split.Length > 4)
+        {
+            parts = [];
+            return false;
+        }
+
+        parts = new int[4];
+        for (var index = 0; index < split.Length; index++)
+        {
+            if (!int.TryParse(split[index], out var part) || part < 0)
+            {
+                parts = [];
+                return false;
+            }
+
+            parts[index] = part;
+        }
+
+        return true;
+    }
+
+    private static int CompareVersionParts(IReadOnlyList<int> left, IReadOnlyList<int> right)
+    {
+        for (var index = 0; index < 4; index++)
+        {
+            var comparison = left[index].CompareTo(right[index]);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+        }
+
+        return 0;
     }
 }
