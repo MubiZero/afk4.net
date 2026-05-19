@@ -7,10 +7,18 @@ public sealed class SetupEmbeddedResources(Assembly assembly)
 {
     private const string MsiResourceName = "AFK4.GamingPc.Setup.Resources.gaming-pc.msi";
     private const string LeasePublicKeyResourceName = "AFK4.GamingPc.Setup.Resources.staging-session-signing-public.pem";
+    private const string UpdatePublicKeyResourceName = "AFK4.GamingPc.Setup.Resources.staging-update-signing-public.pem";
 
     public string ReadLeasePublicKeyPem()
     {
         using var stream = OpenRequired(LeasePublicKeyResourceName);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    public string ReadUpdatePublicKeyPem()
+    {
+        using var stream = OpenRequired(UpdatePublicKeyResourceName);
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }

@@ -31,6 +31,11 @@ on:
         required: true
         default: false
         type: boolean
+      create_update_rollouts:
+        description: Create update rollouts after backend package registration
+        required: true
+        default: false
+        type: boolean
       organization_id:
         description: Organization id for update package metadata
         required: false
@@ -51,12 +56,25 @@ on:
         options:
           - file-system
           - http-put
+          - s3
       hosting_root:
         description: File-system hosting root used when artifact_store is file-system
         required: false
         type: string
       public_base_uri:
-        description: Public base URI used when artifact_store is file-system
+        description: Public base URI used when artifact_store is file-system or s3
+        required: false
+        type: string
+      s3_endpoint:
+        description: S3/MinIO endpoint used when artifact_store is s3
+        required: false
+        type: string
+      s3_bucket:
+        description: S3/MinIO bucket used when artifact_store is s3
+        required: false
+        type: string
+      s3_key_prefix:
+        description: Optional S3/MinIO key prefix used when artifact_store is s3
         required: false
         type: string
       operator_artifact_upload_uri:
@@ -77,6 +95,31 @@ on:
         type: string
       release_notes:
         description: Release notes embedded in signed update package metadata
+        required: false
+        type: string
+      rollout_component:
+        description: Component to roll out after registration
+        required: false
+        default: agent-service
+        type: choice
+        options:
+          - agent-service
+          - player-shell
+          - operator-app
+      rollout_target_kind:
+        description: Rollout target kind
+        required: false
+        default: device
+        type: choice
+        options:
+          - device
+          - branch
+      rollout_target_device_id:
+        description: Device id used when rollout_target_kind is device
+        required: false
+        type: string
+      rollout_reason:
+        description: Reason recorded on created rollouts
         required: false
         type: string
 
@@ -101,17 +144,22 @@ jobs:
           INPUT_SIGN_PACKAGES: ${{ inputs.sign_packages }}
           INPUT_PUBLISH_UPDATE_METADATA: ${{ inputs.publish_update_metadata }}
           INPUT_REGISTER_UPDATE_PACKAGES: ${{ inputs.register_update_packages }}
+          INPUT_CREATE_UPDATE_ROLLOUTS: ${{ inputs.create_update_rollouts }}
           INPUT_ORGANIZATION_ID: ${{ inputs.organization_id }}
           INPUT_BRANCH_ID: ${{ inputs.branch_id }}
           INPUT_PLATFORM_BASE_URL: ${{ inputs.platform_base_url }}
           INPUT_ARTIFACT_STORE: ${{ inputs.artifact_store }}
           INPUT_HOSTING_ROOT: ${{ inputs.hosting_root }}
           INPUT_PUBLIC_BASE_URI: ${{ inputs.public_base_uri }}
+          INPUT_S3_ENDPOINT: ${{ inputs.s3_endpoint }}
+          INPUT_S3_BUCKET: ${{ inputs.s3_bucket }}
           INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}
           INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}
           INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}
           INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}
           INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+          INPUT_ROLLOUT_TARGET_KIND: ${{ inputs.rollout_target_kind }}
+          INPUT_ROLLOUT_TARGET_DEVICE_ID: ${{ inputs.rollout_target_device_id }}
           ALLOWED_PLATFORM_BASE_URLS: ${{ vars.AFK4_ALLOWED_PLATFORM_BASE_URLS }}
         run: |
           if ($env:INPUT_CHANNEL -eq 'stable' -and ($env:INPUT_SIGN_PACKAGES -ne 'true' -or $env:INPUT_PUBLISH_UPDATE_METADATA -ne 'true')) {
@@ -138,8 +186,20 @@ jobs:
             throw "operator and gaming-PC upload/public URIs are required when artifact_store=http-put."
           }
 
+          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 's3' -and ([string]::IsNullOrWhiteSpace($env:INPUT_S3_ENDPOINT) -or [string]::IsNullOrWhiteSpace($env:INPUT_S3_BUCKET) -or [string]::IsNullOrWhiteSpace($env:INPUT_PUBLIC_BASE_URI))) {
+            throw "s3_endpoint, s3_bucket, and public_base_uri are required when artifact_store=s3."
+          }
+
           if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true' -and ([string]::IsNullOrWhiteSpace($env:INPUT_PLATFORM_BASE_URL) -or [string]::IsNullOrWhiteSpace($env:INPUT_BRANCH_ID))) {
             throw "platform_base_url and branch_id are required when register_update_packages=true."
+          }
+
+          if ($env:INPUT_CREATE_UPDATE_ROLLOUTS -eq 'true' -and $env:INPUT_REGISTER_UPDATE_PACKAGES -ne 'true') {
+            throw "create_update_rollouts requires register_update_packages=true."
+          }
+
+          if ($env:INPUT_CREATE_UPDATE_ROLLOUTS -eq 'true' -and $env:INPUT_ROLLOUT_TARGET_KIND -eq 'device' -and [string]::IsNullOrWhiteSpace($env:INPUT_ROLLOUT_TARGET_DEVICE_ID)) {
+            throw "rollout_target_device_id is required when create_update_rollouts=true and rollout_target_kind=device."
           }
 
           if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true' -and [string]::IsNullOrWhiteSpace($env:ALLOWED_PLATFORM_BASE_URLS)) {
@@ -229,11 +289,16 @@ jobs:
           INPUT_ARTIFACT_STORE: ${{ inputs.artifact_store }}
           INPUT_HOSTING_ROOT: ${{ inputs.hosting_root }}
           INPUT_PUBLIC_BASE_URI: ${{ inputs.public_base_uri }}
+          INPUT_S3_ENDPOINT: ${{ inputs.s3_endpoint }}
+          INPUT_S3_BUCKET: ${{ inputs.s3_bucket }}
+          INPUT_S3_KEY_PREFIX: ${{ inputs.s3_key_prefix }}
           INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}
           INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}
           INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}
           INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}
           INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+          AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY: ${{ secrets.AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY }}
+          AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY: ${{ secrets.AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_SIGNING_KEY_PEM)) {
             throw "AFK4_UPDATE_SIGNING_KEY_PEM secret is required when publish_update_metadata=true."
@@ -253,11 +318,25 @@ jobs:
             $arguments += @('-HostingRoot', $env:INPUT_HOSTING_ROOT)
             $arguments += @('-PublicBaseUri', $env:INPUT_PUBLIC_BASE_URI)
           }
-          else {
+          elseif ($env:INPUT_ARTIFACT_STORE -eq 'http-put') {
             $arguments += @('-OperatorArtifactUploadUri', $env:INPUT_OPERATOR_ARTIFACT_UPLOAD_URI)
             $arguments += @('-OperatorArtifactPublicUri', $env:INPUT_OPERATOR_ARTIFACT_PUBLIC_URI)
             $arguments += @('-GamingPcArtifactUploadUri', $env:INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI)
             $arguments += @('-GamingPcArtifactPublicUri', $env:INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI)
+          }
+          else {
+            if ([string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY) -or [string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY)) {
+              throw "AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY and AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY secrets are required when artifact_store=s3."
+            }
+
+            $arguments += @('-S3Endpoint', $env:INPUT_S3_ENDPOINT)
+            $arguments += @('-S3Bucket', $env:INPUT_S3_BUCKET)
+            $arguments += @('-S3AccessKeyEnvVar', 'AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY')
+            $arguments += @('-S3SecretKeyEnvVar', 'AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY')
+            $arguments += @('-PublicBaseUri', $env:INPUT_PUBLIC_BASE_URI)
+            if (-not [string]::IsNullOrWhiteSpace($env:INPUT_S3_KEY_PREFIX)) {
+              $arguments += @('-S3KeyPrefix', $env:INPUT_S3_KEY_PREFIX)
+            }
           }
 
           powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 @arguments
@@ -278,16 +357,35 @@ jobs:
           AFK4_UPDATE_REGISTRATION_TOKEN: ${{ secrets.AFK4_UPDATE_REGISTRATION_TOKEN }}
           INPUT_PLATFORM_BASE_URL: ${{ inputs.platform_base_url }}
           INPUT_BRANCH_ID: ${{ inputs.branch_id }}
+          INPUT_CREATE_UPDATE_ROLLOUTS: ${{ inputs.create_update_rollouts }}
+          INPUT_ROLLOUT_COMPONENT: ${{ inputs.rollout_component }}
+          INPUT_ROLLOUT_TARGET_KIND: ${{ inputs.rollout_target_kind }}
+          INPUT_ROLLOUT_TARGET_DEVICE_ID: ${{ inputs.rollout_target_device_id }}
+          INPUT_ROLLOUT_REASON: ${{ inputs.rollout_reason }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_REGISTRATION_TOKEN)) {
             throw "AFK4_UPDATE_REGISTRATION_TOKEN secret is required when register_update_packages=true."
           }
 
-          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
-            -PlatformBaseUrl $env:INPUT_PLATFORM_BASE_URL `
-            -BranchId $env:INPUT_BRANCH_ID `
-            -RequestDirectory artifacts/update-packages `
-            -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
+          $arguments = @(
+            '-PlatformBaseUrl', $env:INPUT_PLATFORM_BASE_URL,
+            '-BranchId', $env:INPUT_BRANCH_ID,
+            '-RequestDirectory', 'artifacts/update-packages',
+            '-AccessTokenEnvVar', 'AFK4_UPDATE_REGISTRATION_TOKEN')
+
+          if ($env:INPUT_CREATE_UPDATE_ROLLOUTS -eq 'true') {
+            $arguments += @('-CreateRollouts')
+            $arguments += @('-RolloutComponent', $env:INPUT_ROLLOUT_COMPONENT)
+            $arguments += @('-RolloutTargetKind', $env:INPUT_ROLLOUT_TARGET_KIND)
+            if (-not [string]::IsNullOrWhiteSpace($env:INPUT_ROLLOUT_TARGET_DEVICE_ID)) {
+              $arguments += @('-RolloutTargetDeviceId', $env:INPUT_ROLLOUT_TARGET_DEVICE_ID)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($env:INPUT_ROLLOUT_REASON)) {
+              $arguments += @('-RolloutReason', $env:INPUT_ROLLOUT_REASON)
+            }
+          }
+
+          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 @arguments
 
       - name: Upload client packages
         uses: actions/upload-artifact@v4

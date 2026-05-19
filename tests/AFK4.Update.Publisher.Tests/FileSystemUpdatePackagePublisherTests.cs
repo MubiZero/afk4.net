@@ -126,6 +126,56 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
     }
 
     [Fact]
+    public async Task PublishAsync_WithS3ArtifactStore_UploadsArtifactAndUsesPublicBucketUri()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var artifactPath = Path.Combine(tempRoot, "agent.msi");
+        var artifactBytes = new byte[] { 0x31, 0x32, 0x33 };
+        await File.WriteAllBytesAsync(artifactPath, artifactBytes);
+        var privateKeyPath = CreatePrivateKeyPem(out _);
+        var handler = new RecordingHttpMessageHandler();
+        var publisher = new FileSystemUpdatePackagePublisher(httpClient: new HttpClient(handler));
+        Environment.SetEnvironmentVariable("AFK4_TEST_S3_ACCESS_KEY", "test-access");
+        Environment.SetEnvironmentVariable("AFK4_TEST_S3_SECRET_KEY", "test-secret");
+
+        try
+        {
+            var result = await publisher.PublishAsync(
+                new UpdatePackagePublishOptions(
+                    OrganizationId,
+                    UpdateComponentNames.AgentService,
+                    "1.2.5",
+                    UpdateChannelNames.Internal,
+                    artifactPath,
+                    HostingRoot: string.Empty,
+                    PublicBaseUri: new Uri("https://updates.example.test/afk4-updates/"),
+                    privateKeyPath,
+                    "Internal Agent update.",
+                    ArtifactStoreKind: UpdateArtifactStoreKindNames.S3,
+                    S3Endpoint: new Uri("https://minio.example.test"),
+                    S3Bucket: "afk4-updates",
+                    S3KeyPrefix: "staging",
+                    S3AccessKeyEnvironmentVariable: "AFK4_TEST_S3_ACCESS_KEY",
+                    S3SecretKeyEnvironmentVariable: "AFK4_TEST_S3_SECRET_KEY"),
+                CancellationToken.None);
+
+            Assert.Equal("https://updates.example.test/afk4-updates/staging/agent-service/internal/1.2.5/agent.msi", result.Request.ArtifactUri);
+            Assert.Equal("https://minio.example.test/afk4-updates/staging/agent-service/internal/1.2.5/agent.msi", handler.LastRequestUri?.ToString());
+            Assert.Equal(HttpMethod.Put, handler.LastMethod);
+            Assert.Equal(artifactBytes, handler.LastBody);
+            Assert.Equal("AWS4-HMAC-SHA256", handler.LastAuthorizationScheme);
+            Assert.Contains("Credential=test-access/", handler.LastAuthorizationParameter, StringComparison.Ordinal);
+            Assert.Equal("a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3", handler.LastContentSha256);
+            Assert.StartsWith("s3:afk4-updates/staging/agent-service/internal/1.2.5/agent.msi", result.PublishedArtifactPath, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("AFK4_TEST_S3_ACCESS_KEY", null);
+            Environment.SetEnvironmentVariable("AFK4_TEST_S3_SECRET_KEY", null);
+        }
+    }
+
+    [Fact]
     public async Task PublishAsync_WithEnvironmentSigningKey_DoesNotRequireKeyFile()
     {
         Directory.CreateDirectory(tempRoot);
@@ -210,6 +260,38 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
         Assert.Null(options.SigningPrivateKeyPemPath);
     }
 
+    [Fact]
+    public void Parse_ReadsS3Arguments()
+    {
+        var options = UpdatePackagePublishCommand.Parse(
+        [
+            "--organization-id", OrganizationId.ToString("D"),
+            "--component", UpdateComponentNames.AgentService,
+            "--version", "3.0.1",
+            "--channel", UpdateChannelNames.Internal,
+            "--artifact", "agent.msi",
+            "--artifact-store", UpdateArtifactStoreKindNames.S3,
+            "--s3-endpoint", "https://updates.afk4.test",
+            "--s3-bucket", "afk4-updates",
+            "--s3-key-prefix", "staging",
+            "--s3-access-key-env-var", "AFK4_S3_ACCESS_KEY",
+            "--s3-secret-key-env-var", "AFK4_S3_SECRET_KEY",
+            "--s3-region", "us-east-1",
+            "--public-base-uri", "https://updates.afk4.test/afk4-updates/",
+            "--signing-key-env-var", "AFK4_UPDATE_SIGNING_KEY_PEM",
+            "--release-notes", "Internal Agent update."
+        ]);
+
+        Assert.Equal(UpdateArtifactStoreKindNames.S3, options.ArtifactStoreKind);
+        Assert.Equal("https://updates.afk4.test/", options.S3Endpoint?.ToString());
+        Assert.Equal("afk4-updates", options.S3Bucket);
+        Assert.Equal("staging", options.S3KeyPrefix);
+        Assert.Equal("AFK4_S3_ACCESS_KEY", options.S3AccessKeyEnvironmentVariable);
+        Assert.Equal("AFK4_S3_SECRET_KEY", options.S3SecretKeyEnvironmentVariable);
+        Assert.Equal("us-east-1", options.S3Region);
+        Assert.Equal("https://updates.afk4.test/afk4-updates/", options.PublicBaseUri?.ToString());
+    }
+
     private string CreatePrivateKeyPem(out string publicKeyPem)
     {
         using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -247,12 +329,23 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
 
         public byte[]? LastBody { get; private set; }
 
+        public string? LastAuthorizationScheme { get; private set; }
+
+        public string? LastAuthorizationParameter { get; private set; }
+
+        public string? LastContentSha256 { get; private set; }
+
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             LastMethod = request.Method;
             LastRequestUri = request.RequestUri;
+            LastAuthorizationScheme = request.Headers.Authorization?.Scheme;
+            LastAuthorizationParameter = request.Headers.Authorization?.Parameter;
+            LastContentSha256 = request.Headers.TryGetValues("x-amz-content-sha256", out var contentSha256Values)
+                ? contentSha256Values.SingleOrDefault()
+                : null;
             LastBody = request.Content is null
                 ? []
                 : await request.Content.ReadAsByteArrayAsync(cancellationToken);

@@ -13,6 +13,9 @@ public sealed class StagingSetupDefaultsTests
         Assert.Equal(Guid.Parse("9f3adbd3-957e-4dc8-8d34-a6bfa56b9275"), StagingSetupDefaults.SmokeSeatId);
         Assert.Equal("AFK4.Agent.Service", StagingSetupDefaults.AgentServiceName);
         Assert.Equal("internal", StagingSetupDefaults.UpdateChannel);
+        Assert.Equal(@"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", StagingSetupDefaults.UpdateInstallerExecutablePath);
+        Assert.Equal(@"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", StagingSetupDefaults.UpdateRollbackExecutablePath);
+        Assert.Equal(@"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", StagingSetupDefaults.UpdateRestartExecutablePath);
         Assert.EndsWith(@"AFK4\Player Shell\AFK4.Player.Shell.exe", StagingSetupDefaults.PlayerShellExecutablePath);
     }
 }

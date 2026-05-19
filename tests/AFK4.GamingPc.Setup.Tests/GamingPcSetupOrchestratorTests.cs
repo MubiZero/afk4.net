@@ -117,7 +117,12 @@ public sealed class GamingPcSetupOrchestratorTests
             TimeSpan.FromMilliseconds(1));
 
     private static SetupRequest CreateRequest() =>
-        new("operator@afk4.test", "password", "VM-AFK4-001", "-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----");
+        new(
+            "operator@afk4.test",
+            "password",
+            "VM-AFK4-001",
+            "-----BEGIN PUBLIC KEY-----\nlease\n-----END PUBLIC KEY-----",
+            "-----BEGIN PUBLIC KEY-----\nupdate\n-----END PUBLIC KEY-----");
 
     private static DeviceDetailDto CreateDeviceDetail(bool isOnline, DateTimeOffset? lastHeartbeatAtUtc) =>
         new(

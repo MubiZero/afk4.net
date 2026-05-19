@@ -11,7 +11,24 @@ param(
 
     [string] $AccessToken,
 
-    [string] $AccessTokenEnvVar
+    [string] $AccessTokenEnvVar,
+
+    [switch] $CreateRollouts,
+
+    [ValidateSet('agent-service', 'player-shell', 'operator-app')]
+    [string[]] $RolloutComponent = @('agent-service'),
+
+    [ValidateSet('device', 'branch')]
+    [string] $RolloutTargetKind = 'device',
+
+    [guid[]] $RolloutTargetDeviceId,
+
+    [ValidateRange(1, 100)]
+    [int] $RolloutBatchPercent = 100,
+
+    [datetimeoffset] $RolloutStartsAtUtc = [datetimeoffset]::UtcNow,
+
+    [string] $RolloutReason = 'Automated client package rollout.'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -64,6 +81,23 @@ function Resolve-RequestFiles {
     return @($files | ForEach-Object { $_.FullName })
 }
 
+function Get-JsonPropertyValue {
+    param(
+        [object] $Object,
+        [string] $PropertyName
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties |
+        Where-Object { [string]::Equals($_.Name, $PropertyName, [System.StringComparison]::OrdinalIgnoreCase) } |
+        Select-Object -First 1
+
+    return $property.Value
+}
+
 if ($null -eq $PlatformBaseUrl -or -not $PlatformBaseUrl.IsAbsoluteUri) {
     throw "PlatformBaseUrl must be an absolute URI."
 }
@@ -85,13 +119,51 @@ if ($hasTokenEnvVar) {
     }
 }
 
+if ($CreateRollouts) {
+    if ([string]::IsNullOrWhiteSpace($RolloutReason)) {
+        throw "RolloutReason is required when CreateRollouts is set."
+    }
+
+    if ($RolloutTargetKind -eq 'device' -and ($null -eq $RolloutTargetDeviceId -or $RolloutTargetDeviceId.Count -eq 0)) {
+        throw "RolloutTargetDeviceId is required when CreateRollouts is set with RolloutTargetKind=device."
+    }
+}
+
 $requestFiles = Resolve-RequestFiles $RequestPath $RequestDirectory
 $baseUri = $PlatformBaseUrl.AbsoluteUri.TrimEnd('/')
 $registrationUri = "$baseUri/api/branches/$($BranchId.ToString('D'))/updates/packages"
+$rolloutsUri = "$baseUri/api/branches/$($BranchId.ToString('D'))/updates/rollouts"
 $headers = @{ Authorization = "Bearer $AccessToken" }
+$rolloutComponents = @($RolloutComponent | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
 foreach ($requestFile in $requestFiles) {
     $body = Get-Content -LiteralPath $requestFile -Raw
-    Invoke-RestMethod -Method Post -Uri $registrationUri -Headers $headers -ContentType 'application/json' -Body $body | Out-Null
+    $request = $body | ConvertFrom-Json
+    $component = [string](Get-JsonPropertyValue $request 'component')
+    $organizationId = [string](Get-JsonPropertyValue $request 'organizationId')
+    $channel = [string](Get-JsonPropertyValue $request 'channel')
+    $registration = Invoke-RestMethod -Method Post -Uri $registrationUri -Headers $headers -ContentType 'application/json' -Body $body
     Write-Host "Registered update package request: $requestFile"
+
+    if ($CreateRollouts -and $rolloutComponents -contains $component) {
+        $updatePackageId = [string](Get-JsonPropertyValue $registration 'updatePackageId')
+        if ([string]::IsNullOrWhiteSpace($updatePackageId)) {
+            throw "Platform registration response did not include updatePackageId for '$requestFile'."
+        }
+
+        $rolloutBody = @{
+            organizationId = $organizationId
+            updatePackageId = $updatePackageId
+            channel = $channel
+            targetKind = $RolloutTargetKind
+            targetDeviceIds = @($RolloutTargetDeviceId | ForEach-Object { $_.ToString('D') })
+            batchPercent = $RolloutBatchPercent
+            startsAtUtc = $RolloutStartsAtUtc.ToUniversalTime().ToString('O')
+            reason = $RolloutReason
+        } | ConvertTo-Json -Depth 5
+
+        $rollout = Invoke-RestMethod -Method Post -Uri $rolloutsUri -Headers $headers -ContentType 'application/json' -Body $rolloutBody
+        $rolloutId = [string](Get-JsonPropertyValue $rollout 'updateRolloutId')
+        Write-Host "Created update rollout for component '$component': $rolloutId"
+    }
 }

@@ -114,12 +114,17 @@ Minimum bar:
 
 5. **Signed Client Release Rehearsal**
 
-   Decide temporary pilot signing/hosting approach, build MSI artifacts, sign
-   them, publish update metadata, register packages, create an internal rollout,
-   and verify update status from the real Agent. The staging Gaming PC setup
-   executable is only a bootstrap path for clean machines; already enrolled PCs
-   must receive Agent Service and Player Shell changes through the update
-   rollout path, not by manually copying or rerunning setup executables.
+   Staging now has a temporary pilot update-hosting path using Coolify-hosted
+   MinIO at `updates.afk4.staging.mubi.dev`. The package smoke workflow can
+   build MSI artifacts, publish signed update metadata to staging MinIO,
+   register packages with the staging Platform API, and create an internal
+   device rollout. On 2026-05-18, an already enrolled Windows 11 VM installed
+   Agent/Shell `0.1.3` through the Agent update pipeline and reported
+   `installed` to the backend. The staging Gaming PC setup executable remains
+   only a bootstrap path for clean machines; production still needs final
+   Authenticode/signing custody, production storage/CDN policy, service
+   credentials for package registration, physical PC update smoke, and rollback
+   validation.
 
 6. **Pilot Setup Runbook**
 
@@ -159,7 +164,9 @@ Minimum bar:
 - ECDSA update metadata signing key storage policy is undecided.
 - The Coolify API token and staging database/session secrets used during the
   rehearsal were rotated; future secret exchange must stay out of chat.
-- Object-store/CDN provider and presigned upload automation are undecided.
+- Staging update artifacts now use Coolify-hosted MinIO. Production
+  object-store/CDN provider, public-read policy, retention, and presigned
+  upload automation are undecided.
 - Update package registration currently supports short-lived staff tokens;
   service credential policy is still open.
 
@@ -193,10 +200,13 @@ Minimum bar:
   ended session returned the seat/device to locked and a second session started
   on the same seat without SQL cleanup.
 - Reboot recovery must be exercised on physical PCs.
-- Already enrolled PCs must be updateable through signed/internal MSI update
-  rollouts. Manual copying of a rebuilt setup executable is acceptable only for
-  bootstrap smoke on a clean machine, not as the pilot or production update
-  process.
+- Already enrolled PCs are updateable through signed/internal MSI update
+  rollouts in staging: the Windows 11 VM device
+  `0588fb59-3edb-4704-bbdb-094e12417cf1` installed Agent/Shell `0.1.3` from
+  MinIO and reported backend status `installed`. Manual copying of a rebuilt
+  setup executable remains acceptable only for bootstrap smoke on a clean
+  machine, not as the pilot or production update process. Repeat on physical
+  hardware before closing the gate.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.
 
@@ -224,8 +234,9 @@ Minimum bar:
    Repeat `docs/operations/real-device-windows-pc-smoke.md` on physical
    Windows 10/11 hardware, or on a second clean Windows 11 VM if physical
    hardware is unavailable, to broaden confidence beyond the current VM smoke.
-   Record pass/fail results and any duplicate Shell process behavior in the
-   progress snapshot.
+   Include the internal MSI update rollout path and record pass/fail results,
+   update status, and any duplicate Shell process behavior in the progress
+   snapshot.
 
 2. `codex/postgres-restore-rehearsal`
 
@@ -238,6 +249,11 @@ Minimum bar:
    staff, roles, layout, devices, tariffs, and POS catalog. Device-seat
    assignment has a backend/API path; continue from the remaining setup
    surfaces and Operator App workflows.
+
+4. `codex/update-rollback-smoke`
+
+   Add a controlled rollback rehearsal for MSI update failures on a staging
+   Windows device and document the operator-visible recovery path.
 
 ## Decision Rules
 

@@ -9,7 +9,7 @@ namespace AFK4.Agent.Service.Tests;
 
 public sealed class ClientReleaseAutomationTests : IDisposable
 {
-    private const int PowerShellTimeoutMilliseconds = 30_000;
+    private const int PowerShellTimeoutMilliseconds = 120_000;
 
     private readonly string tempRoot = Path.Combine(Path.GetTempPath(), $"afk4-release-automation-{Guid.NewGuid():N}");
 
@@ -56,6 +56,12 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "OperatorArtifactPublicUri");
         AssertParameter(ast, "GamingPcArtifactUploadUri");
         AssertParameter(ast, "GamingPcArtifactPublicUri");
+        AssertParameter(ast, "S3Endpoint");
+        AssertParameter(ast, "S3Bucket");
+        AssertParameter(ast, "S3KeyPrefix");
+        AssertParameter(ast, "S3AccessKeyEnvVar");
+        AssertParameter(ast, "S3SecretKeyEnvVar");
+        AssertParameter(ast, "S3Region");
         AssertParameter(ast, "SigningKeyPath");
         AssertParameter(ast, "SigningKeyEnvVar");
         AssertParameter(ast, "ReleaseNotes");
@@ -74,6 +80,13 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "RequestDirectory");
         AssertParameter(ast, "AccessToken");
         AssertParameter(ast, "AccessTokenEnvVar");
+        AssertParameter(ast, "CreateRollouts");
+        AssertParameter(ast, "RolloutComponent");
+        AssertParameter(ast, "RolloutTargetKind");
+        AssertParameter(ast, "RolloutTargetDeviceId");
+        AssertParameter(ast, "RolloutBatchPercent");
+        AssertParameter(ast, "RolloutStartsAtUtc");
+        AssertParameter(ast, "RolloutReason");
     }
 
     [Fact]
@@ -134,6 +147,73 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequest.Path);
         Assert.Equal("Bearer test-token", capturedRequest.Authorization);
         Assert.Equal(requestBody, capturedRequest.Body);
+    }
+
+    [Fact]
+    public async Task RegisterUpdatePackageRequests_WithCreateRollouts_PostsDeviceRolloutForSelectedComponent()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var requestPath = Path.Combine(tempRoot, "agent-service-1.2.3-internal-request.json");
+        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"agent-service","channel":"internal"}""";
+        await File.WriteAllTextAsync(requestPath, requestBody);
+        var port = GetFreeTcpPort();
+        var baseUrl = $"http://127.0.0.1:{port}/";
+        using var listener = new HttpListener();
+        listener.Prefixes.Add(baseUrl);
+        listener.Start();
+
+        var capturedRequestsTask = Task.Run(async () =>
+        {
+            var requests = new List<CapturedHttpRequest>();
+            for (var index = 0; index < 2; index++)
+            {
+                var context = await listener.GetContextAsync();
+                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                var body = await reader.ReadToEndAsync();
+                context.Response.StatusCode = 201;
+                context.Response.ContentType = "application/json";
+                var responseBody = index == 0
+                    ? Encoding.UTF8.GetBytes("""{"updatePackageId":"4a8f4f55-cc8e-49ce-9f69-98e9db9c8be7"}""")
+                    : Encoding.UTF8.GetBytes("""{"updateRolloutId":"7c62965e-fc6b-4e7d-a40a-11dac4a3c544"}""");
+                await context.Response.OutputStream.WriteAsync(responseBody);
+                context.Response.Close();
+                requests.Add(new CapturedHttpRequest(
+                    context.Request.HttpMethod,
+                    context.Request.Url?.AbsolutePath ?? string.Empty,
+                    context.Request.Headers["Authorization"] ?? string.Empty,
+                    body));
+            }
+
+            return requests;
+        });
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestPath", requestPath,
+            "-AccessToken", "test-token",
+            "-CreateRollouts",
+            "-RolloutComponent", "agent-service",
+            "-RolloutTargetKind", "device",
+            "-RolloutTargetDeviceId", "0588fb59-3edb-4704-bbdb-094e12417cf1",
+            "-RolloutReason", "Automated smoke rollout.");
+
+        if (result.ExitCode != 0)
+        {
+            listener.Stop();
+        }
+
+        Assert.Equal(0, result.ExitCode);
+        var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequests[0].Path);
+        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts", capturedRequests[1].Path);
+        Assert.Contains("\"updatePackageId\":", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.Contains("4a8f4f55-cc8e-49ce-9f69-98e9db9c8be7", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.Contains("\"targetKind\":", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.Contains("\"device\"", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.Contains("0588fb59-3edb-4704-bbdb-094e12417cf1", capturedRequests[1].Body, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -345,6 +425,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("AFK4_AUTHENTICODE_PFX_BASE64", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_UPDATE_SIGNING_KEY_PEM", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_UPDATE_REGISTRATION_TOKEN", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_ALLOWED_PLATFORM_BASE_URLS", workflow, StringComparison.Ordinal);
         Assert.Contains("platform_base_url is not in AFK4_ALLOWED_PLATFORM_BASE_URLS.", workflow, StringComparison.Ordinal);
         Assert.Contains("artifacts/update-packages/*-request.json", workflow, StringComparison.Ordinal);
@@ -364,6 +446,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("INPUT_ARTIFACT_STORE: ${{ inputs.artifact_store }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_HOSTING_ROOT: ${{ inputs.hosting_root }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_PUBLIC_BASE_URI: ${{ inputs.public_base_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_S3_ENDPOINT: ${{ inputs.s3_endpoint }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_S3_BUCKET: ${{ inputs.s3_bucket }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
@@ -372,13 +456,16 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("$env:INPUT_CHANNEL", publishStep, StringComparison.Ordinal);
         Assert.Contains("$env:INPUT_ORGANIZATION_ID", publishStep, StringComparison.Ordinal);
         Assert.Contains("-SigningKeyEnvVar', 'AFK4_UPDATE_SIGNING_KEY_PEM'", publishStep, StringComparison.Ordinal);
+        Assert.Contains("-S3AccessKeyEnvVar', 'AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY'", publishStep, StringComparison.Ordinal);
+        Assert.Contains("-S3SecretKeyEnvVar', 'AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY'", publishStep, StringComparison.Ordinal);
         Assert.DoesNotContain("${{ inputs.", publishRunBlock, StringComparison.Ordinal);
 
         Assert.Contains("INPUT_PLATFORM_BASE_URL: ${{ inputs.platform_base_url }}", registrationStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_BRANCH_ID: ${{ inputs.branch_id }}", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-PlatformBaseUrl $env:INPUT_PLATFORM_BASE_URL", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-BranchId $env:INPUT_BRANCH_ID", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("'-PlatformBaseUrl', $env:INPUT_PLATFORM_BASE_URL", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("'-BranchId', $env:INPUT_BRANCH_ID", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("'-AccessTokenEnvVar', 'AFK4_UPDATE_REGISTRATION_TOKEN'", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-CreateRollouts", registrationStep, StringComparison.Ordinal);
         Assert.DoesNotContain("${{ inputs.", registrationRunBlock, StringComparison.Ordinal);
 
         var workflowWithoutAccessTokenEnvVar = workflow.Replace("-AccessTokenEnvVar", string.Empty, StringComparison.Ordinal);
@@ -444,9 +531,18 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \"src/AFK4.BuildingBlocks/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
-        Assert.Contains("powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal", workflow, StringComparison.Ordinal);
-        Assert.Contains("afk4-operator-app-0.1.0-ci-internal.msi", workflow, StringComparison.Ordinal);
-        Assert.Contains("afk4-gaming-pc-0.1.0-ci-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_PACKAGE_VERSION=$version", workflow, StringComparison.Ordinal);
+        Assert.Contains("powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version $env:AFK4_PACKAGE_VERSION -Channel internal", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("$env:GITHUB_RUN_NUMBER-ci", workflow, StringComparison.Ordinal);
+        Assert.Contains("scripts/publish-client-msi-updates.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("ArtifactStore s3", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_STAGING_UPDATE_STAFF_USERNAME", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_STAGING_UPDATE_STAFF_PASSWORD", workflow, StringComparison.Ordinal);
+        Assert.Contains("/api/auth/staff/sign-in", workflow, StringComparison.Ordinal);
+        Assert.Contains("scripts/register-update-package-requests.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("-CreateRollouts", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/upload-artifact@v4", workflow, StringComparison.Ordinal);
         Assert.Contains("if-no-files-found: error", workflow, StringComparison.Ordinal);
         Assert.Contains("retention-days: 3", workflow, StringComparison.Ordinal);
@@ -458,11 +554,15 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
 
         Assert.Contains("StagingLeasePublicKeyPath", script, StringComparison.Ordinal);
+        Assert.Contains("StagingUpdateSigningPublicKeyPath", script, StringComparison.Ordinal);
         Assert.Contains("AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj", script, StringComparison.Ordinal);
         Assert.Contains("GamingPcMsiPath=", script, StringComparison.Ordinal);
         Assert.Contains("$resolvedStagingLeasePublicKeyPath", script, StringComparison.Ordinal);
+        Assert.Contains("$resolvedStagingUpdateSigningPublicKeyPath", script, StringComparison.Ordinal);
         Assert.Contains("Resolve-Path -LiteralPath $StagingLeasePublicKeyPath", script, StringComparison.Ordinal);
+        Assert.Contains("Resolve-Path -LiteralPath $StagingUpdateSigningPublicKeyPath", script, StringComparison.Ordinal);
         Assert.Contains("StagingLeasePublicKeyPath=", script, StringComparison.Ordinal);
+        Assert.Contains("StagingUpdateSigningPublicKeyPath=", script, StringComparison.Ordinal);
         Assert.Contains("PublishSingleFile=true", script, StringComparison.Ordinal);
         Assert.Contains("SelfContained=true", script, StringComparison.Ordinal);
         Assert.Contains("afk4-gaming-pc-setup-$Version-$Channel.exe", script, StringComparison.Ordinal);
@@ -592,6 +692,50 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/gaming-pc", invocation, StringComparison.Ordinal);
             Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/gaming-pc.msi", invocation, StringComparison.Ordinal);
         }
+    }
+
+    [Fact]
+    public void PublishClientMsiUpdates_WithS3_UsesMinioArgumentsForAllComponents()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var packageDirectory = Path.Combine(tempRoot, "client-packages");
+        var outputDirectory = Path.Combine(tempRoot, "update-packages");
+        Directory.CreateDirectory(packageDirectory);
+        Directory.CreateDirectory(outputDirectory);
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.4-internal.msi"), "operator");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.4-internal.msi"), "gaming-pc");
+        var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-s3-args.log");
+        var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/publish-client-msi-updates.ps1"),
+            "-Version", "1.2.4",
+            "-Channel", "internal",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
+            "-PackageDirectory", packageDirectory,
+            "-OutputDirectory", outputDirectory,
+            "-ArtifactStore", "s3",
+            "-S3Endpoint", "https://updates.afk4.test",
+            "-S3Bucket", "afk4-updates-staging",
+            "-S3KeyPrefix", "client",
+            "-S3AccessKeyEnvVar", "AFK4_STAGING_MINIO_ACCESS_KEY",
+            "-S3SecretKeyEnvVar", "AFK4_STAGING_MINIO_SECRET_KEY",
+            "-PublicBaseUri", "https://updates.afk4.test/afk4-updates-staging/",
+            "-SigningKeyEnvVar", "AFK4_UPDATE_SIGNING_PRIVATE_KEY",
+            "-ReleaseNotes", "Internal MSI release.",
+            "-DotnetPath", fakeDotnetPath);
+
+        Assert.Equal(0, result.ExitCode);
+        var dotnetInvocations = File.ReadAllLines(dotnetArgumentsPath);
+        Assert.Equal(3, dotnetInvocations.Length);
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--artifact-store|s3", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--s3-endpoint|https://updates.afk4.test/", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--s3-bucket|afk4-updates-staging", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--s3-key-prefix|client", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--s3-access-key-env-var|AFK4_STAGING_MINIO_ACCESS_KEY", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--s3-secret-key-env-var|AFK4_STAGING_MINIO_SECRET_KEY", invocation, StringComparison.Ordinal));
+        Assert.All(dotnetInvocations, invocation => Assert.Contains("--public-base-uri|https://updates.afk4.test/afk4-updates-staging/", invocation, StringComparison.Ordinal));
     }
 
     [Fact]

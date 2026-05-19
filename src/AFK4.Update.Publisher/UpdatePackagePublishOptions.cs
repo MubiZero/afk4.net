@@ -15,4 +15,10 @@ public sealed record UpdatePackagePublishOptions(
     string ArtifactStoreKind = UpdateArtifactStoreKindNames.FileSystem,
     Uri? ArtifactUploadUri = null,
     Uri? PublicArtifactUri = null,
-    string? SigningPrivateKeyPemEnvironmentVariable = null);
+    string? SigningPrivateKeyPemEnvironmentVariable = null,
+    Uri? S3Endpoint = null,
+    string? S3Bucket = null,
+    string? S3KeyPrefix = null,
+    string? S3AccessKeyEnvironmentVariable = null,
+    string? S3SecretKeyEnvironmentVariable = null,
+    string S3Region = "us-east-1");

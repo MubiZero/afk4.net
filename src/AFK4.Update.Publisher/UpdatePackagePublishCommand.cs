@@ -51,6 +51,11 @@ public static class UpdatePackagePublishCommand
         values.TryGetValue("--output", out var outputPath);
         values.TryGetValue("--signing-key", out var signingKeyPath);
         values.TryGetValue("--signing-key-env-var", out var signingKeyEnvironmentVariable);
+        values.TryGetValue("--s3-bucket", out var s3Bucket);
+        values.TryGetValue("--s3-key-prefix", out var s3KeyPrefix);
+        values.TryGetValue("--s3-access-key-env-var", out var s3AccessKeyEnvironmentVariable);
+        values.TryGetValue("--s3-secret-key-env-var", out var s3SecretKeyEnvironmentVariable);
+        values.TryGetValue("--s3-region", out var s3Region);
 
         return new UpdatePackagePublishOptions(
             organizationId,
@@ -67,7 +72,13 @@ public static class UpdatePackagePublishCommand
             artifactStoreKind,
             OptionalUri(values, "--artifact-upload-uri"),
             OptionalUri(values, "--artifact-public-uri"),
-            string.IsNullOrWhiteSpace(signingKeyEnvironmentVariable) ? null : signingKeyEnvironmentVariable);
+            string.IsNullOrWhiteSpace(signingKeyEnvironmentVariable) ? null : signingKeyEnvironmentVariable,
+            OptionalUri(values, "--s3-endpoint"),
+            string.IsNullOrWhiteSpace(s3Bucket) ? null : s3Bucket,
+            string.IsNullOrWhiteSpace(s3KeyPrefix) ? null : s3KeyPrefix,
+            string.IsNullOrWhiteSpace(s3AccessKeyEnvironmentVariable) ? null : s3AccessKeyEnvironmentVariable,
+            string.IsNullOrWhiteSpace(s3SecretKeyEnvironmentVariable) ? null : s3SecretKeyEnvironmentVariable,
+            string.IsNullOrWhiteSpace(s3Region) ? "us-east-1" : s3Region);
     }
 
     private static Dictionary<string, string> ParsePairs(string[] args)
@@ -147,12 +158,22 @@ public static class UpdatePackagePublishCommand
           --artifact-upload-uri <presigned-upload-uri>
           --artifact-public-uri <cdn-public-artifact-uri>
 
+        S3/MinIO artifact publishing:
+          --artifact-store s3
+          --s3-endpoint <uri>
+          --s3-bucket <bucket>
+          --s3-access-key-env-var <environment-variable-containing-access-key>
+          --s3-secret-key-env-var <environment-variable-containing-secret-key>
+          --public-base-uri <public-bucket-base-uri>
+
         Signing key source, choose exactly one:
           --signing-key <ecdsa-private-key-pem-path>
           --signing-key-env-var <environment-variable-containing-ecdsa-private-key-pem>
 
         Optional:
-          --artifact-store <file-system|http-put>
+          --artifact-store <file-system|http-put|s3>
+          --s3-key-prefix <prefix>
+          --s3-region <region>
           --published-file-name <file-name>
           --output <create-update-package-request-json-path>
         """;

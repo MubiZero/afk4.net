@@ -24,6 +24,7 @@ public sealed class AgentMachineConfigurationWriter : IAgentMachineConfiguration
         Write("Agent__UpdateRollbackArgumentsTemplate", StagingSetupDefaults.UpdateRollbackArgumentsTemplate);
         Write("Agent__UpdateRestartExecutablePath", StagingSetupDefaults.UpdateRestartExecutablePath);
         Write("Agent__UpdateRestartArgumentsTemplate", StagingSetupDefaults.UpdateRestartArgumentsTemplate);
+        Write("Agent__UpdatePackageSigningPublicKeyPem", request.UpdatePackageSigningPublicKeyPem);
     }
 
     private static void Write(string name, string value)

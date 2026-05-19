@@ -120,6 +120,52 @@ public sealed class EfUpdateServiceTests
     }
 
     [Fact]
+    public async Task CheckForUpdatesAsync_TreatsInstalledMsiVersionAsCurrentForPrereleasePackageVersion()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        await SeedDeviceAsync(db, TestIds.DeviceId);
+        var packageResult = await service.RegisterPackageAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            PackageRequest() with
+            {
+                Version = "1.2.3-ci-smoke",
+                ArtifactUri = "https://updates.afk4.test/agent/1.2.3-ci-smoke/agent.msi"
+            },
+            CancellationToken.None);
+        Assert.True(packageResult.Succeeded);
+        Assert.NotNull(packageResult.Response);
+        await service.CreateRolloutAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateUpdateRolloutRequest(
+                TestIds.OrganizationId,
+                packageResult.Response.UpdatePackageId,
+                UpdateChannelNames.Beta,
+                UpdateTargetKindNames.Device,
+                [TestIds.DeviceId],
+                BatchPercent: 100,
+                StartsAtUtc: Now,
+                Reason: "Targeted device."),
+            CancellationToken.None);
+
+        var check = await service.CheckForUpdatesAsync(
+            new DeviceUpdateCheckRequest(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                TestIds.DeviceId,
+                UpdateChannelNames.Beta,
+                Now.AddMinutes(1),
+                [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.3")]),
+            CancellationToken.None);
+
+        Assert.True(check.Succeeded);
+        Assert.NotNull(check.Response);
+        Assert.Empty(check.Response.Updates);
+    }
+
+    [Fact]
     public async Task ReportStatusAsync_UpsertsDevicePackageStatus()
     {
         await using var db = CreateDbContext();

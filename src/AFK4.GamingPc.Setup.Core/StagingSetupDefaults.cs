@@ -22,17 +22,17 @@ public static class StagingSetupDefaults
 
     public const string PlayerShellExecutablePath = @"C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe";
 
-    public const string UpdateInstallerExecutablePath = "powershell.exe";
+    public const string UpdateInstallerExecutablePath = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
 
     public const string UpdateInstallerArgumentsTemplate =
         "-NoProfile -ExecutionPolicy Bypass -File \"C:\\Program Files\\AFK4\\Update Helpers\\install-afk4-update-msi.ps1\" -PackagePath \"{PackagePath}\" -Component \"{Component}\" -Version \"{Version}\"";
 
-    public const string UpdateRollbackExecutablePath = "powershell.exe";
+    public const string UpdateRollbackExecutablePath = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
 
     public const string UpdateRollbackArgumentsTemplate =
         "-NoProfile -ExecutionPolicy Bypass -File \"C:\\Program Files\\AFK4\\Update Helpers\\rollback-afk4-update-msi.ps1\" -PackagePath \"{PackagePath}\" -Component \"{Component}\" -Version \"{Version}\"";
 
-    public const string UpdateRestartExecutablePath = "powershell.exe";
+    public const string UpdateRestartExecutablePath = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
 
     public const string UpdateRestartArgumentsTemplate =
         "-NoProfile -ExecutionPolicy Bypass -File \"C:\\Program Files\\AFK4\\Update Helpers\\restart-afk4-agent-service.ps1\"";
