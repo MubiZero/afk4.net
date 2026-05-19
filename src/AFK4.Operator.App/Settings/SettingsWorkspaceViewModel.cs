@@ -108,6 +108,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
         this.diagnostics = diagnostics;
         this.pilotSetup = pilotSetup;
         Panels = [];
+        pilotSetup?.ApplyPermissions(permissions);
         selectPanelCommand = new RelayCommand(
             parameter =>
             {

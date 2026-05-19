@@ -110,6 +110,7 @@ public sealed class OperatorShellViewModelTests
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
         Assert.Contains(shell.Settings.Panels, panel => panel.Key == "pilot-setup");
+        Assert.True(shell.Settings.PilotSetup?.CanSetupStaff);
     }
 
     [Fact]

@@ -8,6 +8,7 @@ using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Hotkeys;
 using AFK4.Operator.App.Mvvm;
+using AFK4.Operator.App.PilotSetup;
 using AFK4.Operator.App.Players;
 using AFK4.Operator.App.Pos;
 using AFK4.Operator.App.Realtime;
@@ -49,12 +50,14 @@ public partial class MainWindow : Window
         var updateApiClient = new HttpOperatorUpdateApiClient(apiHttpClient, tokenStore);
         var auditApiClient = new HttpOperatorAuditApiClient(apiHttpClient, tokenStore);
         var diagnosticsApiClient = new HttpOperatorDiagnosticsApiClient(apiHttpClient, tokenStore);
+        var pilotSetupApiClient = new HttpOperatorPilotSetupApiClient(apiHttpClient, tokenStore);
         var settingsViewModel = new SettingsWorkspaceViewModel(
             new HashSet<string>(),
             new TechnicianDeviceWorkflowViewModel(deviceApiClient),
             new UpdateStatusWorkspaceViewModel(updateApiClient),
             new AuditSearchWorkspaceViewModel(auditApiClient),
-            new DiagnosticsWorkspaceViewModel(diagnosticsApiClient))
+            new DiagnosticsWorkspaceViewModel(diagnosticsApiClient),
+            new PilotSetupWorkspaceViewModel(pilotSetupApiClient))
         {
             ApiBaseUrlText = options.PlatformBaseUrl.ToString()
         };

@@ -127,6 +127,37 @@ public sealed class SettingsWorkspaceViewModelTests
         Assert.Contains(viewModel.Panels, panel => panel.Key == "pilot-setup");
     }
 
+    [Theory]
+    [InlineData(StaffPermissionNames.ManageBranchStaff, true, false, false, false, false)]
+    [InlineData(StaffPermissionNames.ManageLayout, false, true, false, false, false)]
+    [InlineData(StaffPermissionNames.ManageTariffs, false, false, true, false, false)]
+    [InlineData(StaffPermissionNames.ManagePosCatalog, false, false, false, true, false)]
+    [InlineData(StaffPermissionNames.AssignDeviceSeat, false, false, false, false, true)]
+    public void SettingsWorkspace_Constructor_ForwardsPilotSetupPermissions(
+        string permission,
+        bool canSetupStaff,
+        bool canSetupLayout,
+        bool canSetupTariff,
+        bool canSetupPos,
+        bool canAssignDeviceSeat)
+    {
+        var pilotSetup = new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient());
+
+        _ = new SettingsWorkspaceViewModel(
+            new HashSet<string> { permission },
+            technicianTools: null,
+            updateStatus: null,
+            auditSearch: null,
+            diagnostics: null,
+            pilotSetup: pilotSetup);
+
+        Assert.Equal(canSetupStaff, pilotSetup.CanSetupStaff);
+        Assert.Equal(canSetupLayout, pilotSetup.CanSetupLayout);
+        Assert.Equal(canSetupTariff, pilotSetup.CanSetupTariff);
+        Assert.Equal(canSetupPos, pilotSetup.CanSetupPos);
+        Assert.Equal(canAssignDeviceSeat, pilotSetup.CanAssignDeviceSeat);
+    }
+
     [Fact]
     public void SettingsWorkspace_WithDeviceCredentialPermission_ExposesTechnicianTools()
     {
