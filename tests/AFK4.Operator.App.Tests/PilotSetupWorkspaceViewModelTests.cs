@@ -87,6 +87,50 @@ public sealed class PilotSetupWorkspaceViewModelTests
         Assert.True(viewModel.HasAnySetupPermission);
     }
 
+    [Theory]
+    [InlineData(StaffPermissionNames.ManageBranchStaff, true, false, false, false, false, true)]
+    [InlineData(StaffPermissionNames.ManageTariffs, false, false, true, false, false, true)]
+    [InlineData(StaffPermissionNames.ManagePosCatalog, false, false, false, true, false, true)]
+    public void ApplyPermissions_MapsSinglePermissionToOnlyMatchingSection(
+        string permission,
+        bool canSetupStaff,
+        bool canSetupLayout,
+        bool canSetupTariff,
+        bool canSetupPos,
+        bool canAssignDeviceSeat,
+        bool hasAnySetupPermission)
+    {
+        var viewModel = CreateViewModel();
+
+        viewModel.ApplyPermissions(new HashSet<string> { permission });
+
+        AssertPermissions(
+            viewModel,
+            canSetupStaff,
+            canSetupLayout,
+            canSetupTariff,
+            canSetupPos,
+            canAssignDeviceSeat,
+            hasAnySetupPermission);
+    }
+
+    [Fact]
+    public void ApplyPermissions_WithNoPermissions_DisablesAllSections()
+    {
+        var viewModel = CreateViewModel();
+
+        viewModel.ApplyPermissions(new HashSet<string>());
+
+        AssertPermissions(
+            viewModel,
+            canSetupStaff: false,
+            canSetupLayout: false,
+            canSetupTariff: false,
+            canSetupPos: false,
+            canAssignDeviceSeat: false,
+            hasAnySetupPermission: false);
+    }
+
     private static PilotSetupWorkspaceViewModel CreateViewModel()
     {
         return new PilotSetupWorkspaceViewModel(new RecordingPilotSetupApiClient());
@@ -103,6 +147,23 @@ public sealed class PilotSetupWorkspaceViewModelTests
         Assert.Equal(displayName, staffUser.DisplayName);
         Assert.Equal(password, staffUser.Password);
         Assert.Equal(roleName, staffUser.RoleName);
+    }
+
+    private static void AssertPermissions(
+        PilotSetupWorkspaceViewModel viewModel,
+        bool canSetupStaff,
+        bool canSetupLayout,
+        bool canSetupTariff,
+        bool canSetupPos,
+        bool canAssignDeviceSeat,
+        bool hasAnySetupPermission)
+    {
+        Assert.Equal(canSetupStaff, viewModel.CanSetupStaff);
+        Assert.Equal(canSetupLayout, viewModel.CanSetupLayout);
+        Assert.Equal(canSetupTariff, viewModel.CanSetupTariff);
+        Assert.Equal(canSetupPos, viewModel.CanSetupPos);
+        Assert.Equal(canAssignDeviceSeat, viewModel.CanAssignDeviceSeat);
+        Assert.Equal(hasAnySetupPermission, viewModel.HasAnySetupPermission);
     }
 
     private sealed class RecordingPilotSetupApiClient : IOperatorPilotSetupApiClient
