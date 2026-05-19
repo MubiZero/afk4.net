@@ -89,8 +89,10 @@ public sealed class PilotSetupWorkspaceViewModelTests
 
     [Theory]
     [InlineData(StaffPermissionNames.ManageBranchStaff, true, false, false, false, false, true)]
+    [InlineData(StaffPermissionNames.ManageLayout, false, true, false, false, false, true)]
     [InlineData(StaffPermissionNames.ManageTariffs, false, false, true, false, false, true)]
     [InlineData(StaffPermissionNames.ManagePosCatalog, false, false, false, true, false, true)]
+    [InlineData(StaffPermissionNames.AssignDeviceSeat, false, false, false, false, true, true)]
     public void ApplyPermissions_MapsSinglePermissionToOnlyMatchingSection(
         string permission,
         bool canSetupStaff,
