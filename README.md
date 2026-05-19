@@ -123,6 +123,7 @@ exact current verification notes.
 - [Client Update Rollout](docs/operations/client-update-rollout.md)
 - [Agent Installer Enrollment](docs/operations/agent-installer-enrollment.md)
 - [PostgreSQL Backup And Restore](docs/operations/postgres-backup-restore.md)
+- [Pilot Branch Setup](docs/operations/pilot-branch-setup.md)
 
 ## Packaging Snapshot
 

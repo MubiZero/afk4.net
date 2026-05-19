@@ -89,4 +89,14 @@ public static class AuditActionNames
     public const string ViewDiagnostics = "diagnostics.view";
 
     public const string ViewAudit = "audit.view";
+
+    public const string CreateStaffUser = "identity.staff.create";
+
+    public const string ViewStaffUsers = "identity.staff.view";
+
+    public const string CreateZone = "layout.zones.create";
+
+    public const string CreateSeat = "layout.seats.create";
+
+    public const string ViewLayout = "layout.view";
 }

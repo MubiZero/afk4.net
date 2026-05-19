@@ -22,6 +22,7 @@ using AFK4.Shared.Contracts.Diagnostics;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Layout;
 using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
@@ -32,6 +33,7 @@ using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
 using AFK4.Shared.Contracts.Updates;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -143,6 +145,466 @@ app.MapPost("/api/auth/staff/refresh", async (
     return response is null
         ? Results.Unauthorized()
         : Results.Ok(response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/staff", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageRoles,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewStaffUsers,
+            "StaffUser",
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var organizationId = authorization.StaffContext!.OrganizationId;
+    var roleAssignments = await dbContext.StaffRoleAssignments
+        .AsNoTracking()
+        .Where(roleAssignment =>
+            roleAssignment.OrganizationId == organizationId &&
+            roleAssignment.BranchId == branchId)
+        .OrderBy(roleAssignment => roleAssignment.RoleName)
+        .ToListAsync(cancellationToken);
+    var staffUserIds = roleAssignments.Select(roleAssignment => roleAssignment.StaffUserId).ToHashSet();
+    var staffUsers = await dbContext.StaffUsers
+        .AsNoTracking()
+        .Where(staffUser =>
+            staffUser.OrganizationId == organizationId &&
+            staffUserIds.Contains(staffUser.StaffUserId))
+        .OrderBy(staffUser => staffUser.DisplayName)
+        .ToListAsync(cancellationToken);
+    var rolesByStaffUserId = roleAssignments
+        .GroupBy(roleAssignment => roleAssignment.StaffUserId)
+        .ToDictionary(
+            group => group.Key,
+            group => group.Select(roleAssignment => roleAssignment.RoleName).ToList() as IReadOnlyList<string>);
+    var response = staffUsers
+        .Select(staffUser => ToStaffUserDto(
+            staffUser,
+            rolesByStaffUserId.GetValueOrDefault(staffUser.StaffUserId) ?? []))
+        .ToList();
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        organizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewStaffUsers,
+        "StaffUser",
+        null,
+        AuditOutcome.Succeeded,
+        new { Count = response.Count },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/staff", async (
+    Guid branchId,
+    CreateStaffUserRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageRoles,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateStaffUser,
+            "StaffUser",
+            null,
+            AuditOutcome.Denied,
+            new { request.UserName, request.RoleNames, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateCreateStaffUserRequest(request);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var normalizedUserName = request.UserName.Trim().ToUpperInvariant();
+    var roleNames = request.RoleNames
+        .Select(roleName => roleName.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(roleName => roleName, StringComparer.Ordinal)
+        .ToList();
+    var createdAtUtc = timeProvider.GetUtcNow();
+    var staffUser = await dbContext.StaffUsers
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.NormalizedUserName == normalizedUserName,
+            cancellationToken);
+
+    if (staffUser is null)
+    {
+        staffUser = new StaffUserEntity
+        {
+            StaffUserId = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
+            UserName = request.UserName.Trim(),
+            NormalizedUserName = normalizedUserName,
+            DisplayName = request.DisplayName.Trim(),
+            IsActive = true,
+            CreatedAtUtc = createdAtUtc
+        };
+        var hasher = new PasswordHasher<StaffUserEntity>();
+        staffUser.PasswordHash = hasher.HashPassword(staffUser, request.Password);
+        dbContext.StaffUsers.Add(staffUser);
+    }
+
+    var existingRoleNames = await dbContext.StaffRoleAssignments
+        .Where(roleAssignment =>
+            roleAssignment.OrganizationId == request.OrganizationId &&
+            roleAssignment.BranchId == branchId &&
+            roleAssignment.StaffUserId == staffUser.StaffUserId)
+        .Select(roleAssignment => roleAssignment.RoleName)
+        .ToListAsync(cancellationToken);
+    var existingRoleSet = existingRoleNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+    foreach (var roleName in roleNames.Where(roleName => !existingRoleSet.Contains(roleName)))
+    {
+        dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(),
+            StaffUserId = staffUser.StaffUserId,
+            OrganizationId = request.OrganizationId,
+            BranchId = branchId,
+            RoleName = roleName
+        });
+        existingRoleNames.Add(roleName);
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    var response = ToStaffUserDto(
+        staffUser,
+        existingRoleNames
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(roleName => roleName, StringComparer.Ordinal)
+            .ToList());
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateStaffUser,
+        "StaffUser",
+        staffUser.StaffUserId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { staffUser.UserName, response.RoleNames },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/layout/zones", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewLayout,
+            "Layout",
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var organizationId = authorization.StaffContext!.OrganizationId;
+    var zones = await dbContext.Zones
+        .AsNoTracking()
+        .Where(zone => zone.OrganizationId == organizationId && zone.BranchId == branchId)
+        .OrderBy(zone => zone.SortOrder)
+        .ThenBy(zone => zone.Name)
+        .ToListAsync(cancellationToken);
+    var zoneIds = zones.Select(zone => zone.ZoneId).ToHashSet();
+    var seats = await dbContext.Seats
+        .AsNoTracking()
+        .Where(seat =>
+            seat.OrganizationId == organizationId &&
+            seat.BranchId == branchId &&
+            zoneIds.Contains(seat.ZoneId))
+        .OrderBy(seat => seat.SortOrder)
+        .ThenBy(seat => seat.Name)
+        .ToListAsync(cancellationToken);
+    var seatsByZoneId = seats
+        .GroupBy(seat => seat.ZoneId)
+        .ToDictionary(group => group.Key, group => group.ToList() as IReadOnlyList<SeatEntity>);
+    var response = zones
+        .Select(zone => ToZoneDto(zone, seatsByZoneId.GetValueOrDefault(zone.ZoneId) ?? []))
+        .ToList();
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        organizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewLayout,
+        "Layout",
+        null,
+        AuditOutcome.Succeeded,
+        new { ZoneCount = response.Count, SeatCount = seats.Count },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/layout/zones", async (
+    Guid branchId,
+    CreateZoneRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateZone,
+            "Zone",
+            null,
+            AuditOutcome.Denied,
+            new { request.Name, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+        return Results.BadRequest(new { Error = "Zone name is required." });
+    }
+
+    var normalizedName = request.Name.Trim().ToUpperInvariant();
+    var zone = await dbContext.Zones.SingleOrDefaultAsync(
+        candidate =>
+            candidate.OrganizationId == request.OrganizationId &&
+            candidate.BranchId == branchId &&
+            candidate.Name.ToUpper() == normalizedName,
+        cancellationToken);
+
+    if (zone is null)
+    {
+        zone = new ZoneEntity
+        {
+            ZoneId = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
+            BranchId = branchId,
+            Name = request.Name.Trim(),
+            SortOrder = request.SortOrder,
+            CreatedAtUtc = timeProvider.GetUtcNow()
+        };
+        dbContext.Zones.Add(zone);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    var response = ToZoneDto(zone, []);
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateZone,
+        "Zone",
+        zone.ZoneId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { zone.Name, zone.SortOrder },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/layout/seats", async (
+    Guid branchId,
+    CreateSeatRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateSeat,
+            "Seat",
+            null,
+            AuditOutcome.Denied,
+            new { request.ZoneId, request.Name, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (request.ZoneId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "ZoneId is required." });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+        return Results.BadRequest(new { Error = "Seat name is required." });
+    }
+
+    var zoneExists = await dbContext.Zones.AnyAsync(
+        zone =>
+            zone.OrganizationId == request.OrganizationId &&
+            zone.BranchId == branchId &&
+            zone.ZoneId == request.ZoneId,
+        cancellationToken);
+    if (!zoneExists)
+    {
+        return Results.NotFound(new { Error = "Zone was not found." });
+    }
+
+    var normalizedName = request.Name.Trim().ToUpperInvariant();
+    var seat = await dbContext.Seats.SingleOrDefaultAsync(
+        candidate =>
+            candidate.OrganizationId == request.OrganizationId &&
+            candidate.BranchId == branchId &&
+            candidate.ZoneId == request.ZoneId &&
+            candidate.Name.ToUpper() == normalizedName,
+        cancellationToken);
+
+    if (seat is null)
+    {
+        seat = new SeatEntity
+        {
+            SeatId = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
+            BranchId = branchId,
+            ZoneId = request.ZoneId,
+            Name = request.Name.Trim(),
+            SortOrder = request.SortOrder,
+            CreatedAtUtc = timeProvider.GetUtcNow()
+        };
+        dbContext.Seats.Add(seat);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    var response = ToSeatDto(seat);
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateSeat,
+        "Seat",
+        seat.SeatId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { seat.ZoneId, seat.Name, seat.SortOrder },
+        cancellationToken);
+
+    return Results.Ok(response);
 });
 
 app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
@@ -4534,6 +4996,85 @@ static DeviceSeatAssignmentDto ToDeviceSeatAssignmentDto(DeviceSeatAssignmentEnt
         assignment.DeviceId,
         assignment.AttachedAtUtc,
         assignment.DetachedAtUtc);
+}
+
+static StaffUserDto ToStaffUserDto(StaffUserEntity staffUser, IReadOnlyList<string> roleNames)
+{
+    return new StaffUserDto(
+        staffUser.StaffUserId,
+        staffUser.OrganizationId,
+        staffUser.UserName,
+        staffUser.DisplayName,
+        staffUser.IsActive,
+        roleNames,
+        staffUser.CreatedAtUtc);
+}
+
+static ZoneDto ToZoneDto(ZoneEntity zone, IReadOnlyList<SeatEntity> seats)
+{
+    return new ZoneDto(
+        zone.ZoneId,
+        zone.OrganizationId,
+        zone.BranchId,
+        zone.Name,
+        zone.SortOrder,
+        zone.CreatedAtUtc,
+        seats.Select(ToSeatDto).ToList());
+}
+
+static SeatDto ToSeatDto(SeatEntity seat)
+{
+    return new SeatDto(
+        seat.SeatId,
+        seat.OrganizationId,
+        seat.BranchId,
+        seat.ZoneId,
+        seat.Name,
+        seat.SortOrder,
+        seat.CreatedAtUtc);
+}
+
+static string? ValidateCreateStaffUserRequest(CreateStaffUserRequest request)
+{
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return "OrganizationId is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.UserName))
+    {
+        return "UserName is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.DisplayName))
+    {
+        return "DisplayName is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+    {
+        return "Password must contain at least 8 characters.";
+    }
+
+    if (request.RoleNames.Count == 0)
+    {
+        return "At least one role is required.";
+    }
+
+    return request.RoleNames.All(IsSupportedStaffRole)
+        ? null
+        : "Unsupported role name.";
+}
+
+static bool IsSupportedStaffRole(string roleName)
+{
+    return roleName.Trim() is
+        StaffRoleNames.Owner or
+        StaffRoleNames.BranchManager or
+        StaffRoleNames.ShiftSupervisor or
+        StaffRoleNames.CashierOperator or
+        StaffRoleNames.Technician or
+        StaffRoleNames.AccountantAuditor;
 }
 
 static async Task<IResult> CompleteReconciliationAsync(
