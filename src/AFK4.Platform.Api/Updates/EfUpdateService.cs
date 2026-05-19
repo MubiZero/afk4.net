@@ -782,6 +782,7 @@ public sealed class EfUpdateService(
             UpdateStatusNames.Downloaded or
             UpdateStatusNames.Installing or
             UpdateStatusNames.Installed or
+            UpdateStatusNames.Superseded or
             UpdateStatusNames.Failed or
             UpdateStatusNames.RollbackStarted or
             UpdateStatusNames.RolledBack;

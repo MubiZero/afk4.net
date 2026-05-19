@@ -844,6 +844,19 @@ Centralized staging update rollout smoke on 2026-05-18:
   registered update package requests with staging, and created Agent Service
   device rollout `830b5a2e-2eed-47c2-b3c8-411f05b09edf` for staging device
   `0588fb59-3edb-4704-bbdb-094e12417cf1`.
+- the Windows 11 VM later installed Agent/Shell `0.1.6` from that rollout.
+  The VM also exposed a stale recovery-state bug: after the successful `0.1.6`
+  install, Agent recovery attempted the older `0.1.3` MSI from an old
+  recoverable state file and Windows Installer rejected the downgrade with
+  exit code `1603`. Branch `codex/update-recovery-superseded-state` fixes this
+  by marking recoverable update states as `superseded` when the installed
+  component version is already newer than the stale target, avoiding rollback
+  or installer execution for older MSI artifacts.
+- the same branch hardens update artifact download for sleep, reboot, network
+  loss, and partial file cases. The Agent now downloads to a temporary file,
+  deletes temporary partials on failure, removes stale wrong-sized final
+  artifacts before retry, moves the completed artifact into place atomically,
+  and can reuse an already complete staged artifact after restart.
 
 ## Historical Reference
 

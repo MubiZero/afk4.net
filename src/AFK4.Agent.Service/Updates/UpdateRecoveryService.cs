@@ -29,6 +29,20 @@ public sealed class UpdateRecoveryService(
                 continue;
             }
 
+            if (IsTargetSuperseded(installedVersion, state.TargetVersion))
+            {
+                var superseded = state
+                    .WithInstalledVersion(installedVersion)
+                    .WithStatus(
+                        UpdateStatusNames.Superseded,
+                        "Recoverable update was superseded by a newer installed version.",
+                        timeProvider.GetUtcNow());
+
+                await stateStore.SaveAsync(superseded, cancellationToken);
+                await ReportAsync(superseded, cancellationToken);
+                continue;
+            }
+
             var rollbackStarted = state.WithStatus(
                 UpdateStatusNames.RollbackStarted,
                 "Recovering interrupted update installation.",
@@ -68,6 +82,13 @@ public sealed class UpdateRecoveryService(
             StringComparison.Ordinal);
     }
 
+    private static bool IsTargetSuperseded(string installedVersion, string targetVersion)
+    {
+        return TryParseWindowsInstallerVersion(installedVersion, out var installed) &&
+            TryParseWindowsInstallerVersion(targetVersion, out var target) &&
+            CompareVersionParts(installed, target) > 0;
+    }
+
     private static string GetWindowsInstallerProductVersion(string version)
     {
         var trimmed = version.Trim();
@@ -99,6 +120,45 @@ public sealed class UpdateRecoveryService(
         }
 
         return length == 0 ? trimmed : trimmed[..length];
+    }
+
+    private static bool TryParseWindowsInstallerVersion(string version, out int[] parts)
+    {
+        var normalized = GetWindowsInstallerProductVersion(version);
+        var split = normalized.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (split.Length == 0 || split.Length > 4)
+        {
+            parts = [];
+            return false;
+        }
+
+        parts = new int[4];
+        for (var index = 0; index < split.Length; index++)
+        {
+            if (!int.TryParse(split[index], out var part) || part < 0)
+            {
+                parts = [];
+                return false;
+            }
+
+            parts[index] = part;
+        }
+
+        return true;
+    }
+
+    private static int CompareVersionParts(IReadOnlyList<int> left, IReadOnlyList<int> right)
+    {
+        for (var index = 0; index < 4; index++)
+        {
+            var comparison = left[index].CompareTo(right[index]);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+        }
+
+        return 0;
     }
 
     private Task ReportAsync(UpdateInstallState state, CancellationToken cancellationToken)
