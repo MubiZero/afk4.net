@@ -738,6 +738,13 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   `ClientReleaseAutomationTests` passed 37/37. Remote `PR Verification Result`
   passed in workflow run `26091209806`, and post-merge `Package Smoke` run
   `26091453388` published remote bootstrap version `0.1.14`.
+- The corrected `0.1.14` remote bootstrap passed clean Windows 11 VM smoke on
+  2026-05-19. The VM downloaded the remote manifest, bootstrap script, and MSI;
+  enrolled device `6cae5721-1aa3-467b-8984-82f5574104b1`; assigned smoke seat
+  `9f3adbd3-957e-4dc8-8d34-a6bfa56b9275`; completed MSI install; reported
+  backend heartbeat at `2026-05-19T10:39:48Z`; showed Player Shell locked in
+  the interactive user session; and reported `AFK4.Agent.Service` running with
+  Agent/Shell versions `0.1.14`.
 
 ## Known Gaps
 
@@ -766,9 +773,10 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   One Windows 11 VM passed the earlier rebuilt x64 setup
   install/enroll/heartbeat plus session start/end and visible Player Shell
   state evidence. The first remote bootstrap VM run exposed the MSI service
-  start/config sequencing bug described above; repeat the remote bootstrap after
-  the corrected script is published, then repeat on a second clean VM or
-  physical Windows PC before treating the gate as broadly validated.
+  start/config sequencing bug described above; corrected remote bootstrap
+  `0.1.14` then passed clean Windows 11 VM install/enroll/seat-assignment/
+  heartbeat/locked-Shell smoke. Repeat on a second clean VM or physical Windows
+  PC before treating the gate as broadly validated.
 - The staging bootstrap path is for clean machines, not the update path for
   already enrolled PCs. Staging MinIO/internal MSI update rollouts have passed
   on one Windows 11 VM through Agent/Shell `0.1.7`,

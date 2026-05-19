@@ -140,7 +140,8 @@ Minimum bar:
    the script had written the enrolled device credential and machine config.
    PR #33 moved that config write before `msiexec.exe`; post-merge `Package
    Smoke` run `26091453388` published corrected bootstrap version `0.1.14`.
-   Repeat the remote bootstrap against `0.1.14`.
+   A clean Windows 11 VM then passed remote bootstrap install/enroll/
+   seat-assignment/heartbeat/locked-Shell smoke against `0.1.14`.
 
 6. **Pilot Setup Runbook**
 
@@ -207,8 +208,9 @@ Minimum bar:
   Shell restart after the long-lived state pipe fix. The first remote bootstrap
   run reached enroll/seat assignment but failed MSI install with 1920/1603
   because service startup happened before machine config was written. Corrected
-  bootstrap version `0.1.14` is now published; repeat that remote bootstrap
-  path on a clean VM or physical PC.
+  bootstrap version `0.1.14` passed clean Windows 11 VM install/enroll/
+  seat-assignment/heartbeat/locked-Shell smoke. Repeat that remote bootstrap
+  path on physical Windows hardware before closing the gate.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell service-session competition is mitigated in code by
   session-aware process detection and Agent-driven launch into the active
