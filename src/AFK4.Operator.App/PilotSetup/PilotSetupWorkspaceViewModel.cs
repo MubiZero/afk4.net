@@ -16,14 +16,14 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
     private string targetAssignmentSeatName = "PC-001";
     private string tariffName = "Standard";
     private string currencyCode = "TJS";
-    private int pricePerMinuteMinorUnits = 100;
+    private long pricePerMinuteMinorUnits = 100;
     private int minimumBillableMinutes = 1;
     private int roundingIncrementMinutes = 1;
     private DateTimeOffset effectiveFromUtc = new(DateTimeOffset.UtcNow.UtcDateTime.Date, TimeSpan.Zero);
     private string productCategoryName = "Drinks";
     private string productName = "Water 0.5";
     private string productSku = "WATER-05";
-    private int productPriceMinorUnits = 500;
+    private long productPriceMinorUnits = 500;
     private bool productTrackStock = true;
     private bool productAllowNegativeStock;
     private string deviceIdText = string.Empty;
@@ -118,7 +118,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         set => SetField(ref currencyCode, value);
     }
 
-    public int PricePerMinuteMinorUnits
+    public long PricePerMinuteMinorUnits
     {
         get => pricePerMinuteMinorUnits;
         set => SetField(ref pricePerMinuteMinorUnits, value);
@@ -160,7 +160,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         set => SetField(ref productSku, value);
     }
 
-    public int ProductPriceMinorUnits
+    public long ProductPriceMinorUnits
     {
         get => productPriceMinorUnits;
         set => SetField(ref productPriceMinorUnits, value);

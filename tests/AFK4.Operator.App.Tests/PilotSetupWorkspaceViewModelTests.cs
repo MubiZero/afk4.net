@@ -17,16 +17,42 @@ public sealed class PilotSetupWorkspaceViewModelTests
         Assert.Equal("Main Hall", viewModel.ZoneName);
         Assert.Equal("PC-", viewModel.SeatPrefix);
         Assert.Equal(10, viewModel.SeatCount);
+        Assert.Equal(1, viewModel.SeatSortOrderStart);
+        Assert.Equal("PC-001", viewModel.TargetAssignmentSeatName);
         Assert.Equal("Standard", viewModel.TariffName);
         Assert.Equal("TJS", viewModel.CurrencyCode);
-        Assert.Equal(100, viewModel.PricePerMinuteMinorUnits);
+        Assert.IsType<long>(viewModel.PricePerMinuteMinorUnits);
+        Assert.Equal(100L, viewModel.PricePerMinuteMinorUnits);
+        Assert.Equal(1, viewModel.MinimumBillableMinutes);
+        Assert.Equal(1, viewModel.RoundingIncrementMinutes);
         Assert.Equal("Drinks", viewModel.ProductCategoryName);
         Assert.Equal("Water 0.5", viewModel.ProductName);
         Assert.Equal("WATER-05", viewModel.ProductSku);
+        Assert.IsType<long>(viewModel.ProductPriceMinorUnits);
+        Assert.Equal(500L, viewModel.ProductPriceMinorUnits);
+        Assert.True(viewModel.ProductTrackStock);
+        Assert.False(viewModel.ProductAllowNegativeStock);
+        Assert.Equal(string.Empty, viewModel.DeviceIdText);
+        Assert.Empty(viewModel.Results);
         Assert.Equal(3, viewModel.StaffUsers.Count);
-        Assert.Contains(viewModel.StaffUsers, staffUser => staffUser.RoleName == "cashier_operator");
-        Assert.Contains(viewModel.StaffUsers, staffUser => staffUser.RoleName == "technician");
-        Assert.Contains(viewModel.StaffUsers, staffUser => staffUser.RoleName == "shift_supervisor");
+        AssertStaffUser(
+            viewModel.StaffUsers[0],
+            "cashier.pilot@afk4.test",
+            "Pilot Cashier",
+            "ChangeMe!2026",
+            "cashier_operator");
+        AssertStaffUser(
+            viewModel.StaffUsers[1],
+            "technician.pilot@afk4.test",
+            "Pilot Technician",
+            "ChangeMe!2026",
+            "technician");
+        AssertStaffUser(
+            viewModel.StaffUsers[2],
+            "supervisor.pilot@afk4.test",
+            "Pilot Supervisor",
+            "ChangeMe!2026",
+            "shift_supervisor");
     }
 
     [Fact]
@@ -64,6 +90,19 @@ public sealed class PilotSetupWorkspaceViewModelTests
     private static PilotSetupWorkspaceViewModel CreateViewModel()
     {
         return new PilotSetupWorkspaceViewModel(new RecordingPilotSetupApiClient());
+    }
+
+    private static void AssertStaffUser(
+        PilotSetupStaffUserViewModel staffUser,
+        string userName,
+        string displayName,
+        string password,
+        string roleName)
+    {
+        Assert.Equal(userName, staffUser.UserName);
+        Assert.Equal(displayName, staffUser.DisplayName);
+        Assert.Equal(password, staffUser.Password);
+        Assert.Equal(roleName, staffUser.RoleName);
     }
 
     private sealed class RecordingPilotSetupApiClient : IOperatorPilotSetupApiClient
