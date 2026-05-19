@@ -745,6 +745,23 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   backend heartbeat at `2026-05-19T10:39:48Z`; showed Player Shell locked in
   the interactive user session; and reported `AFK4.Agent.Service` running with
   Agent/Shell versions `0.1.14`.
+- The same VM then passed the session lifecycle smoke without SQL cleanup:
+  backend session `d883bb50-e462-45ea-b620-d6dacd11f005` started on the smoke
+  seat, the Agent accepted unlock command
+  `f33b104e-f38d-4b1f-a96e-80c591c9a27b`, `runtime-state.json` and
+  `session-lease.json` appeared with active state, and the visible Player Shell
+  changed to `Session is active.`. Ending that session produced accepted lock
+  command `ce1a19e1-8f9b-4b34-a6f3-fb113bac0193`; the VM returned to locked
+  state and removed `session-lease.json`.
+- Seat/device reuse also passed: backend session
+  `2f0fbce3-4a7e-4056-b757-858ffa7adc6a` started on the same seat/device,
+  unlock command `da65b11b-bbfd-4f39-b86c-2782a3cc5181` was accepted, the VM
+  returned to visible active state, and final end returned the VM to locked
+  state with `session-lease.json` removed. The final end exposed a follow-up
+  backend issue: two lock commands,
+  `d9a26aef-0a31-48c8-ac25-ce17e2269e27` and
+  `41eb4810-b088-4bb8-82c4-7120961b82da`, were created and accepted for the
+  same session end. This is tracked as GitHub issue #36.
 
 ## Known Gaps
 
@@ -775,8 +792,9 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   state evidence. The first remote bootstrap VM run exposed the MSI service
   start/config sequencing bug described above; corrected remote bootstrap
   `0.1.14` then passed clean Windows 11 VM install/enroll/seat-assignment/
-  heartbeat/locked-Shell smoke. Repeat on a second clean VM or physical Windows
-  PC before treating the gate as broadly validated.
+  heartbeat/locked-Shell smoke plus two session start/end cycles with seat
+  reuse. Repeat on a second clean VM or physical Windows PC before treating the
+  gate as broadly validated.
 - The staging bootstrap path is for clean machines, not the update path for
   already enrolled PCs. Staging MinIO/internal MSI update rollouts have passed
   on one Windows 11 VM through Agent/Shell `0.1.7`,
@@ -795,7 +813,10 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   command results and as a heartbeat recovery fallback when an accepted lock is
   already persisted for an `ending` session. Targeted tests cover session reuse,
   duplicate results, and heartbeat convergence; post-redeploy Windows 11 VM
-  smoke confirmed no-SQL reuse on the same seat/device.
+  smoke confirmed no-SQL reuse on the same seat/device. A later remote
+  bootstrap `0.1.14` VM smoke also confirmed reuse, but exposed duplicate lock
+  command creation on the final session end; track and fix this as a backend
+  command planning idempotency issue.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -833,6 +854,10 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
    staff management, role assignment, layout management, device management UI,
    tariffs, and POS setup. Device-seat assignment now has an API path, but the
    operator-facing setup surface is still missing.
+8. Fix duplicate backend lock command planning observed during the
+   `0.1.14` remote bootstrap VM session-end smoke. Ending session
+   `2f0fbce3-4a7e-4056-b757-858ffa7adc6a` created two accepted lock commands
+   for one end operation; see GitHub issue #36.
 
 ## Recent Integration Notes
 

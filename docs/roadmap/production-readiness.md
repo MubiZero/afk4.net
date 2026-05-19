@@ -141,7 +141,11 @@ Minimum bar:
    PR #33 moved that config write before `msiexec.exe`; post-merge `Package
    Smoke` run `26091453388` published corrected bootstrap version `0.1.14`.
    A clean Windows 11 VM then passed remote bootstrap install/enroll/
-   seat-assignment/heartbeat/locked-Shell smoke against `0.1.14`.
+   seat-assignment/heartbeat/locked-Shell smoke against `0.1.14`, followed by
+   two session start/end cycles with visible Player Shell active/locked state
+   and seat/device reuse without SQL cleanup. The second session end exposed a
+   follow-up backend issue: duplicate lock commands can be planned for one
+   session end; this is tracked as GitHub issue #36.
 
 6. **Pilot Setup Runbook**
 
@@ -209,7 +213,8 @@ Minimum bar:
   run reached enroll/seat assignment but failed MSI install with 1920/1603
   because service startup happened before machine config was written. Corrected
   bootstrap version `0.1.14` passed clean Windows 11 VM install/enroll/
-  seat-assignment/heartbeat/locked-Shell smoke. Repeat that remote bootstrap
+  seat-assignment/heartbeat/locked-Shell smoke, then passed two session
+  start/end cycles with no-SQL seat/device reuse. Repeat that remote bootstrap
   path on physical Windows hardware before closing the gate.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell service-session competition is mitigated in code by
@@ -225,7 +230,10 @@ Minimum bar:
   idempotency and seat/device reuse tests. After staging was redeployed from
   `codex/staging-gaming-pc-bootstrapper`, Windows 11 VM smoke confirmed an
   ended session returned the seat/device to locked and a second session started
-  on the same seat without SQL cleanup.
+  on the same seat without SQL cleanup. A later remote bootstrap `0.1.14` VM
+  smoke also confirmed reuse, but exposed duplicate backend lock command
+  creation on the final session end; this needs command-planning idempotency
+  hardening before commercial release and is tracked as GitHub issue #36.
 - Reboot recovery must be exercised on physical PCs.
 - Already enrolled PCs are updateable through signed/internal MSI update
   rollouts in staging: the Windows 11 VM device
