@@ -123,7 +123,10 @@ implementation evidence are needed.
   diagnostics, and update check/status boundaries.
 - Client packaging runbook.
 - Update package publishing runbook.
-- PostgreSQL backup/restore rehearsal runbook.
+- PostgreSQL backup/restore rehearsal runbook with
+  `scripts/rehearse-postgres-restore.ps1` for repeatable backup, restore,
+  migration update, and table-count sampling from secret-provided PostgreSQL
+  URLs.
 - Production readiness roadmap.
 
 ## Latest Verification
@@ -841,8 +844,13 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   automation are still undecided.
 - Dedicated service credential policy for update package registration is
   undecided.
-- PostgreSQL restore rehearsal has a runbook but still needs a real
-  staging/prod-like run before launch.
+- PostgreSQL restore rehearsal has a runbook and scripted helper, and a real
+  Coolify staging restore rehearsal completed on 2026-05-19. Production backup
+  encryption, retention, off-host storage, and restore ownership are still
+  launch decisions.
+- The Coolify API token used during the 2026-05-19 restore rehearsal was
+  exposed in chat and must be rotated before relying on it for further
+  operations.
 - Production lease duration and heartbeat refresh threshold need tuning after
   real Agent telemetry.
 
@@ -858,18 +866,17 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
 3. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.
-4. Rehearse PostgreSQL backup, restore, and migration against staging data.
-5. Choose production Authenticode certificate authority/storage, production
+4. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
    staging credentials that were exposed during manual smoke setup.
-6. Harden Agent production behavior outside the update epic: rotated credential
+5. Harden Agent production behavior outside the update epic: rotated credential
    consumption, reboot/lock recovery, and lease timing telemetry.
-7. Implement the minimum admin/configuration workflows needed for a pilot club:
+6. Implement the minimum admin/configuration workflows needed for a pilot club:
    staff management, role assignment, layout management, device management UI,
    tariffs, and POS setup. Device-seat assignment now has an API path, but the
    operator-facing setup surface is still missing.
-8. Continue physical Windows PC validation for lock/unlock, reboot recovery,
+7. Continue physical Windows PC validation for lock/unlock, reboot recovery,
    and remote bootstrap/update behavior now that the VM duplicate-lock
    regression is closed.
 
@@ -1112,6 +1119,68 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   `1df4e315-9585-47af-9c74-02c2ebe423de`, accepted unlock command
   `fa317814-6786-4815-962b-7db9f9dfd023`, ended it, and observed one fresh lock
   command `96f9f759-9f22-466e-9c38-dcaef921bf22` before issue #36 was closed.
+
+PostgreSQL restore rehearsal helper branch verification on 2026-05-19:
+
+- branch `codex/postgres-restore-rehearsal` adds
+  `scripts/rehearse-postgres-restore.ps1` plus runbook/progress/roadmap
+  updates for a repeatable PostgreSQL backup, restore, migration update, and
+  table-count rehearsal path. The script supports host-installed PostgreSQL
+  client tools and `-PostgresClientMode docker` for release machines that have
+  Docker but no `pg_dump`/`pg_restore`/`psql` in `PATH`;
+- the branch also fixes `PlatformDbContextDesignTimeFactory` so `dotnet ef`
+  respects `ConnectionStrings__PlatformDatabase` instead of always using
+  `localhost:5432`, which is required for restore rehearsals on non-default
+  PostgreSQL targets;
+- TDD red/green evidence: the new
+  `PostgresRestoreRehearsalScriptTests` first failed because the script,
+  Docker mode, EF target parameter, and runbook references did not exist, then
+  passed after implementation. `PlatformDbContextDesignTimeFactoryTests` first
+  failed because the design-time factory ignored the environment connection
+  string, then passed after the fix;
+- local focused verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter PostgresRestoreRehearsalScriptTests --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter PlatformDbContextDesignTimeFactoryTests --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 5 passed, 0 failed, 0 skipped across the two focused commands.
+- dry-run verification with dummy PostgreSQL URLs passed and redacted URL
+  credentials from output. A negative dry-run with `BackupRoot` under
+  `D:\afk4.net\artifacts` failed as expected with the repository dump guard.
+- after Docker Desktop was started, a local Docker-based restore rehearsal
+  passed against a temporary `postgres:17-alpine` container on
+  `127.0.0.1:55432`: source `afk4_dev` was migrated through all 9 EF
+  migrations, `scripts/rehearse-postgres-restore.ps1 -PostgresClientMode
+  docker` created a custom-format backup under `D:\afk4-backups-local`, verified
+  the archive catalog, generated the idempotent EF migration script under
+  ignored `artifacts/`, restored into `afk4_restore_rehearsal`, ran EF database
+  update with no pending migrations, and sampled row counts for
+  `ledger_entries`, `audit_records`, `devices`, `sessions`, and
+  `update_packages`;
+- restored database verification showed 9 migrations through
+  `20260514081906_AddUpdateRollouts`. Platform API post-restore smoke against
+  the restored database returned `health=ok` from `/api/health` and HTTP 401
+  for a fake staff sign-in, proving the API reached PostgreSQL;
+- a real Coolify staging restore rehearsal then completed against
+  `afk4-staging-postgres`. Coolify API reported version `4.0.0`, project
+  `AFK4`, application `afk4-platform-api-staging`, and database
+  `afk4-staging-postgres` as `running:healthy`. The database public TCP proxy
+  was temporarily enabled on port `55432` through the Coolify API, then restored
+  to `is_public=False` after the rehearsal;
+- the staging rehearsal created a custom-format backup under
+  `D:\afk4-backups-staging`, verified the archive catalog, created and restored
+  into temporary database `afk4_restore_rehearsal`, ran EF database update with
+  no pending migrations, sampled table counts, verified 9 migrations through
+  `20260514081906_AddUpdateRollouts`, smoke-tested Platform API against the
+  restored database with `/api/health` returning `ok` and fake staff sign-in
+  returning HTTP 401, then dropped the temporary restore database. Sampled
+  restored staging counts were: 13 ledger entries, 142 audit records, 9 devices,
+  13 sessions, and 23 update packages;
+- the Coolify API token used for this rehearsal was exposed in chat and must be
+  rotated before further operational use. The token value is intentionally not
+  recorded in repository files.
 
 ## Historical Reference
 
