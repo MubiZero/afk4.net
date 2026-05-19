@@ -558,6 +558,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_PACKAGE_VERSION=$version", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"scripts/publish-client-msi-updates.ps1\"", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/publish-staging-bootstrapper.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("LeaseSigningPublicKeyPath deploy/coolify/staging-session-signing-public.pem", workflow, StringComparison.Ordinal);
         Assert.Contains("UpdateSigningPublicKeyPath deploy/coolify/staging-update-signing-public.pem", workflow, StringComparison.Ordinal);
