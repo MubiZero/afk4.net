@@ -207,10 +207,10 @@ Minimum bar:
   state handling and atomic artifact download behavior for partial downloads,
   sleep, reboot, and network loss. The `0.1.7` VM run exposed a backend bug
   where older active rollouts could still be offered after a newer version was
-  installed; fix this before treating update rollout behavior as pilot-ready.
-  Manual copying of a rebuilt setup executable remains acceptable only for
-  bootstrap smoke on a clean machine, not as the pilot or production update
-  process. Repeat on physical hardware before closing the gate.
+  installed; PR #22 fixed the offer filter and staging was redeployed. Manual
+  copying of a rebuilt setup executable remains acceptable only for bootstrap
+  smoke on a clean machine, not as the pilot or production update process.
+  Repeat on physical hardware before closing the gate.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.
 

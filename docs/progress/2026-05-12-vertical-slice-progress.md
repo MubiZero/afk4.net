@@ -884,9 +884,17 @@ Centralized staging update rollout smoke on 2026-05-18:
 - the same VM run exposed one remaining update-offer bug: after `0.1.7` was
   installed, the backend still offered an older active `0.1.3` rollout because
   `/updates/check` only skipped exact/current versions, not versions older than
-  the installed component. Branch `codex/filter-superseded-update-offers`
-  updates the Platform API check logic so active older rollouts are not offered
-  when the device already reports a newer MSI-compatible version.
+  the installed component. PR #22, `Filter superseded update offers`, merged
+  into `main` on 2026-05-19 with squash merge commit
+  `9e7153426b3cf1619e0c4967d3e0745734114561`. The PR head was
+  `5f5ae02`, and remote `PR Verification Result` passed for that head in
+  workflow run `26079933935`. The branch updated Platform API check logic so
+  active older rollouts are not offered when the device already reports a
+  newer MSI-compatible version.
+- after PR #22 was merged, Coolify staging was redeployed from `main` commit
+  `9e7153426b3cf1619e0c4967d3e0745734114561` through deployment
+  `a12dby9ibmavauz88o01b6lv`, which finished successfully. Public health
+  returned HTTP 200 with `status = ok` at `2026-05-19T06:27:41Z`.
 
 ## Historical Reference
 
