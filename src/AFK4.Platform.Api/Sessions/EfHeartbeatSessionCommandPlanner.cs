@@ -31,6 +31,12 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         DeviceCommandTypeNames.Unlock,
         DeviceCommandTypeNames.RefreshSessionLease
     ];
+    private static readonly string[] InFlightOrAcceptedLockStatuses =
+    [
+        "Pending",
+        "Accepted",
+        "Completed"
+    ];
 
     public async Task<IReadOnlyList<HeartbeatSessionCommandPlan>> PlanAsync(
         Guid deviceId,
@@ -131,7 +137,7 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         string reason,
         CancellationToken cancellationToken)
     {
-        if (await HasPendingSessionCommandAsync(deviceId, sessionId, cancellationToken))
+        if (await HasInFlightOrAcceptedLockCommandAsync(deviceId, sessionId, cancellationToken))
         {
             return [];
         }
@@ -161,6 +167,23 @@ public sealed class EfHeartbeatSessionCommandPlanner(
                 command.DeviceId == deviceId &&
                 command.Status == "Pending" &&
                 SessionCommandTypes.Contains(command.Type))
+            .Select(command => command.PayloadJson)
+            .ToListAsync(cancellationToken);
+
+        return commands.Any(payloadJson => TryReadSessionId(payloadJson) == sessionId);
+    }
+
+    private async Task<bool> HasInFlightOrAcceptedLockCommandAsync(
+        Guid deviceId,
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var commands = await dbContext.DeviceCommands
+            .AsNoTracking()
+            .Where(command =>
+                command.DeviceId == deviceId &&
+                command.Type == DeviceCommandTypeNames.Lock &&
+                InFlightOrAcceptedLockStatuses.Contains(command.Status))
             .Select(command => command.PayloadJson)
             .ToListAsync(cancellationToken);
 

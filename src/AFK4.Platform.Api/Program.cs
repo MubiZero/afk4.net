@@ -5090,7 +5090,16 @@ static async Task<IResult> CompleteReconciliationAsync(
 {
     var sessionId = session?.SessionId ?? request.ActiveSessionId ?? request.ActiveLease?.SessionId;
 
-    if (dispatchCommand)
+    var shouldDispatchCommand = dispatchCommand &&
+        (action != "lock" ||
+            sessionId is null ||
+            !await HasInFlightOrAcceptedLockCommandAsync(
+                dbContext,
+                request.DeviceId,
+                sessionId.Value,
+                cancellationToken));
+
+    if (shouldDispatchCommand)
     {
         var payload = CreateReconciliationCommandPayload(action, reason, sessionId, lease);
         await commandDispatchService.DispatchAsync(
@@ -5128,6 +5137,43 @@ static async Task<IResult> CompleteReconciliationAsync(
         Reason: reason,
         SessionId: sessionId,
         Lease: lease));
+}
+
+static async Task<bool> HasInFlightOrAcceptedLockCommandAsync(
+    PlatformDbContext dbContext,
+    Guid deviceId,
+    Guid sessionId,
+    CancellationToken cancellationToken)
+{
+    var commands = await dbContext.DeviceCommands
+        .AsNoTracking()
+        .Where(command =>
+            command.DeviceId == deviceId &&
+            command.Type == DeviceCommandTypeNames.Lock &&
+            (command.Status == "Pending" ||
+                command.Status == "Accepted" ||
+                command.Status == "Completed"))
+        .Select(command => command.PayloadJson)
+        .ToListAsync(cancellationToken);
+
+    return commands.Any(payloadJson => TryReadCommandSessionId(payloadJson) == sessionId);
+}
+
+static Guid? TryReadCommandSessionId(string payloadJson)
+{
+    try
+    {
+        using var document = JsonDocument.Parse(payloadJson);
+        return document.RootElement.TryGetProperty("sessionId", out var sessionIdElement) &&
+            sessionIdElement.ValueKind == JsonValueKind.String &&
+            Guid.TryParse(sessionIdElement.GetString(), out var sessionId)
+                ? sessionId
+                : null;
+    }
+    catch (JsonException)
+    {
+        return null;
+    }
 }
 
 static Dictionary<string, string> CreateReconciliationCommandPayload(
