@@ -10,13 +10,18 @@ on:
       - "installers/**"
       - "scripts/build-client-packages.ps1"
       - "scripts/install-afk4-update-msi.ps1"
+      - "scripts/publish-staging-bootstrapper.ps1"
       - "scripts/rollback-afk4-update-msi.ps1"
       - "scripts/restart-afk4-agent-service.ps1"
+      - "deploy/coolify/staging-session-signing-public.pem"
+      - "deploy/coolify/staging-update-signing-public.pem"
       - "src/AFK4.Shared.Contracts/**"
       - "src/AFK4.BuildingBlocks/**"
       - "src/AFK4.Operator.App/**"
       - "src/AFK4.Agent.Service/**"
       - "src/AFK4.Player.Shell/**"
+      - "src/AFK4.GamingPc.Setup/**"
+      - "src/AFK4.GamingPc.Setup.Core/**"
       - "Directory.Build.props"
       - "Directory.Packages.props"
       - "NuGet.config"
@@ -59,14 +64,20 @@ jobs:
 
       - name: Build client packages
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version $env:AFK4_PACKAGE_VERSION -Channel internal
+        run: |
+          powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
+            -Version $env:AFK4_PACKAGE_VERSION `
+            -Channel internal `
+            -StagingLeasePublicKeyPath deploy/coolify/staging-session-signing-public.pem `
+            -StagingUpdateSigningPublicKeyPath deploy/coolify/staging-update-signing-public.pem
 
       - name: Verify MSI artifacts
         shell: pwsh
         run: |
           $expectedArtifacts = @(
             "artifacts/client-packages/afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi",
-            "artifacts/client-packages/afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi"
+            "artifacts/client-packages/afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi",
+            "artifacts/client-packages/afk4-gaming-pc-setup-$env:AFK4_PACKAGE_VERSION-internal.exe"
           )
 
           foreach ($artifact in $expectedArtifacts) {
@@ -116,6 +127,40 @@ jobs:
             -PublicBaseUri $env:AFK4_STAGING_UPDATE_PUBLIC_BASE_URI `
             -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
             -ReleaseNotes "Package smoke build $env:AFK4_PACKAGE_VERSION."
+
+      - name: Publish staging bootstrapper to MinIO
+        shell: pwsh
+        env:
+          AFK4_STAGING_MINIO_ACCESS_KEY: ${{ secrets.AFK4_STAGING_MINIO_ACCESS_KEY }}
+          AFK4_STAGING_MINIO_SECRET_KEY: ${{ secrets.AFK4_STAGING_MINIO_SECRET_KEY }}
+          AFK4_STAGING_MINIO_ENDPOINT: ${{ vars.AFK4_STAGING_MINIO_ENDPOINT }}
+          AFK4_STAGING_MINIO_BUCKET: ${{ vars.AFK4_STAGING_MINIO_BUCKET }}
+          AFK4_STAGING_UPDATE_PUBLIC_BASE_URI: ${{ vars.AFK4_STAGING_UPDATE_PUBLIC_BASE_URI }}
+        run: |
+          $required = @(
+            'AFK4_STAGING_MINIO_ACCESS_KEY',
+            'AFK4_STAGING_MINIO_SECRET_KEY',
+            'AFK4_STAGING_MINIO_ENDPOINT',
+            'AFK4_STAGING_MINIO_BUCKET',
+            'AFK4_STAGING_UPDATE_PUBLIC_BASE_URI'
+          )
+
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "$name is required for staging bootstrapper publishing."
+            }
+          }
+
+          powershell -ExecutionPolicy Bypass -File scripts/publish-staging-bootstrapper.ps1 `
+            -Version $env:AFK4_PACKAGE_VERSION `
+            -Channel internal `
+            -PackageDirectory artifacts/client-packages `
+            -OutputDirectory artifacts/bootstrapper `
+            -S3Endpoint $env:AFK4_STAGING_MINIO_ENDPOINT `
+            -S3Bucket $env:AFK4_STAGING_MINIO_BUCKET `
+            -S3PublicBaseUri $env:AFK4_STAGING_UPDATE_PUBLIC_BASE_URI `
+            -S3AccessKeyEnvVar AFK4_STAGING_MINIO_ACCESS_KEY `
+            -S3SecretKeyEnvVar AFK4_STAGING_MINIO_SECRET_KEY
 
       - name: Register staging update packages and create rollout
         shell: pwsh
@@ -176,6 +221,16 @@ jobs:
         with:
           name: afk4-package-smoke-msi-0.1.${{ github.run_number }}-internal
           path: artifacts/client-packages/*.msi
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload staging bootstrapper artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: afk4-package-smoke-bootstrapper-0.1.${{ github.run_number }}-internal
+          path: |
+            artifacts/client-packages/*setup*.exe
+            artifacts/bootstrapper/*.json
           if-no-files-found: error
           retention-days: 3
 
