@@ -915,6 +915,39 @@ Centralized staging update rollout smoke on 2026-05-18:
   `docs/operations/pilot-branch-setup.md`. Existing APIs already cover tariff
   creation/versioning, POS category/product setup, and device-seat assignment,
   so the script composes those paths without SQL.
+- PR #23, `Add pilot branch setup API`, merged into `main` on 2026-05-19 with
+  squash merge commit `c5281cef06b65d0e23c2443d8208f94244f94a94`. The remote
+  `PR Verification Result` passed in workflow run `26082377316`. Coolify
+  staging was redeployed through deployment `whzxa26tnkyhwocyrwgseezu`, which
+  finished successfully, and public health returned `status = ok` at
+  `2026-05-19T07:27:24Z`.
+- staging smoke after PR #23 showed the new setup endpoints were deployed, but
+  also exposed that the existing staging smoke user is a branch manager and
+  could not create cashier/technician staff because the first endpoint version
+  required owner-only role management.
+- PR #24, `Harden pilot setup script and branch staff setup`, merged into
+  `main` on 2026-05-19 with squash merge commit
+  `ca2730411585671d8632da6cdcb26fdf92552bfb`. The remote
+  `PR Verification Result` passed in workflow run `26083191829`. It adds a
+  branch-scoped staff setup permission for owner and branch manager roles,
+  keeps the owner role out of the pilot branch staff shortcut, and changes
+  `scripts/configure-pilot-branch.ps1` to use `curl.exe` with explicit
+  timeout/status handling instead of PowerShell web cmdlets.
+- after PR #24 was merged, Coolify staging was redeployed from `main` commit
+  `ca2730411585671d8632da6cdcb26fdf92552bfb` through deployment
+  `m9ut1d5y5d269qmri1zy25br`, which finished successfully. Public health
+  returned `status = ok` at `2026-05-19T07:45:15Z`.
+- the pilot setup script then completed against staging without SQL using the
+  existing branch manager smoke account. It created or reused cashier staff
+  `b36f91a8-d316-4903-85a7-fa9743e28337`, technician staff
+  `8b87a516-46fe-43a1-a51b-816371921c93`, zone
+  `ded68227-f15c-45a0-8387-0ea309984d34`, 10 seats, tariff
+  `ddd5ee34-08ff-4b9b-8da5-bf2773ca0540`, tariff version
+  `b1ecd790-8d69-4bd9-abbc-96f4e8db7102`, POS category
+  `ae04cc06-751b-4ae8-b67f-098d744a780e`, and POS product
+  `de357405-7041-4e88-a55c-8bf4d9fc3ca9`. A follow-up sign-in smoke for
+  `cashier.pilot@afk4.test` confirmed one branch assignment and
+  `sessions.start` permission.
 
 ## Historical Reference
 
