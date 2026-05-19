@@ -193,6 +193,35 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
     }
 
     [Fact]
+    public async Task PlanAsync_WithEndingCloudSessionAndPendingLock_ReturnsNoDuplicateLockCommand()
+    {
+        await using var db = CreateDbContext();
+        await SeedSessionAsync(db, SessionStateNames.Ending);
+        SeedDeviceCommand(
+            db,
+            DeviceCommandTypeNames.Lock,
+            "Pending",
+            Now.AddMinutes(1),
+            new Dictionary<string, string>
+            {
+                ["sessionId"] = SessionId.ToString("D"),
+                ["reason"] = "session-end"
+            });
+        await db.SaveChangesAsync();
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: SessionId),
+            CancellationToken.None);
+
+        Assert.Empty(plans);
+        Assert.Equal(1, await db.DeviceCommands.CountAsync(command => command.Type == DeviceCommandTypeNames.Lock));
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Ending, session.State);
+    }
+
+    [Fact]
     public async Task PlanAsync_WithEndingCloudSessionAndAcceptedLock_FinalizesSessionWithoutDuplicateLock()
     {
         await using var db = CreateDbContext();

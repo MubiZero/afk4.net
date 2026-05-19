@@ -762,6 +762,13 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   `d9a26aef-0a31-48c8-ac25-ce17e2269e27` and
   `41eb4810-b088-4bb8-82c4-7120961b82da`, were created and accepted for the
   same session end. This is tracked as GitHub issue #36.
+- Issue #36 is fixed in code by making heartbeat lock planning and
+  session-reconciliation lock dispatch idempotent when a pending, accepted, or
+  completed lock command already exists for the same device/session. Local
+  verification on 2026-05-19: targeted planner/reconciliation/session command
+  tests passed 29/29, and full `AFK4.Platform.Api.Tests` passed 328/328. The
+  fix still needs staging redeploy and a short VM recheck before closing the
+  real-device evidence loop.
 
 ## Known Gaps
 
@@ -815,8 +822,8 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   duplicate results, and heartbeat convergence; post-redeploy Windows 11 VM
   smoke confirmed no-SQL reuse on the same seat/device. A later remote
   bootstrap `0.1.14` VM smoke also confirmed reuse, but exposed duplicate lock
-  command creation on the final session end; track and fix this as a backend
-  command planning idempotency issue.
+  command creation on the final session end. Issue #36 is fixed in code and
+  awaits staging redeploy plus a short VM recheck.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -854,10 +861,9 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
    staff management, role assignment, layout management, device management UI,
    tariffs, and POS setup. Device-seat assignment now has an API path, but the
    operator-facing setup surface is still missing.
-8. Fix duplicate backend lock command planning observed during the
-   `0.1.14` remote bootstrap VM session-end smoke. Ending session
-   `2f0fbce3-4a7e-4056-b757-858ffa7adc6a` created two accepted lock commands
-   for one end operation; see GitHub issue #36.
+8. Redeploy staging and recheck issue #36 on the VM: ending a session should
+   leave at most one pending/accepted/completed lock command for that
+   device/session.
 
 ## Recent Integration Notes
 

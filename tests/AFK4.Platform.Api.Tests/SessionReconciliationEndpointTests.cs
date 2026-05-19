@@ -91,6 +91,38 @@ public sealed class SessionReconciliationEndpointTests
     }
 
     [Fact]
+    public async Task SessionReconciliation_WithEndingCloudSessionAndExistingLock_DoesNotDispatchDuplicateLock()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var enrollment = await EnrollDeviceAsync(client);
+        await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
+        var started = await StartSessionAsync(client);
+        var ending = await EndSessionAsync(client, started.Session.SessionId);
+        Assert.Single(ending.DeviceCommands);
+
+        var body = await PostReconciliationAsync(
+            client,
+            enrollment,
+            CreateSnapshot(enrollment.DeviceId, started.Session.CurrentLease));
+
+        Assert.Equal("lock", body.Action);
+        Assert.Equal(started.Session.SessionId, body.SessionId);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var lockCommands = await dbContext.DeviceCommands
+            .Where(command => command.DeviceId == enrollment.DeviceId && command.Type == "lock")
+            .ToListAsync();
+        var lockCommand = Assert.Single(lockCommands);
+        Assert.Contains(started.Session.SessionId.ToString("D"), lockCommand.PayloadJson);
+        Assert.Contains(
+            await dbContext.SessionEvents.Where(sessionEvent => sessionEvent.SessionId == started.Session.SessionId).ToListAsync(),
+            sessionEvent => sessionEvent.EventType == "device-reconciled");
+    }
+
+    [Fact]
     public async Task SessionReconciliation_WithCloudActiveSessionAndNoLocalLease_ReturnsUnlockAndSignedLease()
     {
         await using var factory = new PlatformApiFactory();
@@ -232,6 +264,20 @@ public sealed class SessionReconciliationEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
         Assert.NotNull(body.Session.CurrentLease);
+
+        return body;
+    }
+
+    private static async Task<SessionCommandResponse> EndSessionAsync(HttpClient client, Guid sessionId)
+    {
+        var response = await client.PostAsJsonAsync(
+            $"/api/sessions/{sessionId:D}/end",
+            new EndSessionRequest("operator-end", $"end-seat-1-{Guid.NewGuid():N}"));
+        var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(SessionStateNames.Ending, body.Session.State);
 
         return body;
     }
