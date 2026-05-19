@@ -138,9 +138,9 @@ Minimum bar:
    version `0.1.13` enrolled and assigned the seat, but exposed a bootstrap/MSI
    sequencing bug: MSI starts `AFK4.Agent.Service` during installation before
    the script had written the enrolled device credential and machine config.
-   Branch `codex/bootstrap-config-before-msi` moves that config write before
-   `msiexec.exe`; repeat the remote bootstrap after the corrected script is
-   published.
+   PR #33 moved that config write before `msiexec.exe`; post-merge `Package
+   Smoke` run `26091453388` published corrected bootstrap version `0.1.14`.
+   Repeat the remote bootstrap against `0.1.14`.
 
 6. **Pilot Setup Runbook**
 
@@ -206,9 +206,9 @@ Minimum bar:
   interactive-session Shell auto-start and active-state delivery without manual
   Shell restart after the long-lived state pipe fix. The first remote bootstrap
   run reached enroll/seat assignment but failed MSI install with 1920/1603
-  because service startup happened before machine config was written; repeat
-  the corrected remote bootstrap path on a clean VM or physical PC after
-  publishing the config-before-MSI fix.
+  because service startup happened before machine config was written. Corrected
+  bootstrap version `0.1.14` is now published; repeat that remote bootstrap
+  path on a clean VM or physical PC.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell service-session competition is mitigated in code by
   session-aware process detection and Agent-driven launch into the active
