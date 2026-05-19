@@ -66,6 +66,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "SigningKeyEnvVar");
         AssertParameter(ast, "ReleaseNotes");
         AssertParameter(ast, "DotnetPath");
+        AssertParameter(ast, "PublishMaxAttempts");
     }
 
     [Fact]
