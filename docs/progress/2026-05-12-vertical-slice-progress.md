@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 ## Purpose
 
@@ -716,9 +716,12 @@ Centralized staging update rollout smoke on 2026-05-18:
   treating the gate as broadly validated.
 - The staging setup executable is a clean-machine bootstrap path, not the
   update path for already enrolled PCs. Staging MinIO/internal MSI update
-  rollout has passed on one Windows 11 VM for Agent/Shell `0.1.3`; repeat it
-  on physical Windows hardware and add rollback coverage before closing the
-  production update gate.
+  rollouts have passed on one Windows 11 VM through Agent/Shell `0.1.7`,
+  including recovery from stale update state and suppression of superseded
+  older rollout offers. The update epic is closed for the current pilot/dev
+  cycle; physical hardware update and rollback evidence remain bundled into
+  the broader real-device/release validation gate rather than a separate next
+  development branch.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
@@ -757,13 +760,11 @@ Centralized staging update rollout smoke on 2026-05-18:
 4. Rehearse PostgreSQL backup, restore, and migration against staging data.
 5. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
-   registration credential policy. Rotate any staging credentials that were
-   exposed during manual smoke setup.
-6. Repeat the internal update rollout on physical Windows hardware and add a
-   rollback smoke before treating client updates as pilot-ready.
-7. Harden Agent production behavior: rotated credential consumption,
-   reboot/lock recovery, rollback tests, and lease timing telemetry.
-8. Implement the minimum admin/configuration workflows needed for a pilot club:
+   registration credential policy before commercial release. Rotate any
+   staging credentials that were exposed during manual smoke setup.
+6. Harden Agent production behavior outside the update epic: rotated credential
+   consumption, reboot/lock recovery, and lease timing telemetry.
+7. Implement the minimum admin/configuration workflows needed for a pilot club:
    staff management, role assignment, layout management, device management UI,
    tariffs, and POS setup. Device-seat assignment now has an API path, but the
    operator-facing setup surface is still missing.

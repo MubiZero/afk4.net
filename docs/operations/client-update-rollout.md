@@ -1,15 +1,21 @@
 # Client Update Rollout Runbook
 
-Status: Phase 9 first-slice operational runbook  
-Last updated: 2026-05-14
+Status: Staging-verified internal MSI rollout runbook
+Last updated: 2026-05-19
 
 ## Purpose
 
 This runbook describes the MVP-safe rollout path for Operator App, Agent
-Service, and Player Shell updates. Phase 9 stores package metadata, rollout
-targets, and device status. Binary storage, production signing infrastructure,
-and CI installer automation remain future implementation details behind these
-contracts.
+Service, and Player Shell updates. The staging internal path now has working
+MinIO-backed artifact hosting, signed package metadata, package registration,
+device-targeted rollouts, Agent download/install/recovery, and backend status
+tracking. Production signing custody, production storage/CDN policy, and
+physical-device release validation remain release gates rather than active
+update-epic development work.
+
+For the current pilot/dev cycle, do not start new update branches unless a
+fresh smoke exposes a regression. Fold remaining physical update and rollback
+evidence into the real-device release validation loop.
 
 ## Package Registration
 
@@ -76,10 +82,15 @@ When an Agent update fails, the PC must remain managed:
    signed lease/runtime state.
 5. Use a rollback package or previous known-good installer metadata.
 
-## Out Of Scope For The First Slice
+Rollback has automated coverage at the Agent installer/recovery boundary and
+must still be exercised on physical Windows hardware before commercial release.
+It is not a separate near-term development branch unless real-device validation
+finds a product defect.
 
-- package binary hosting provider;
+## Remaining Release Gates
+
 - production signing key storage;
-- CI-generated MSI/MSIX artifacts;
-- Operator App rollout management UI;
-- in-place Agent executable replacement implementation.
+- production object storage/CDN policy;
+- service credential policy for package registration;
+- physical Windows update and rollback evidence;
+- Operator App rollout management UI polish for non-developer operation.
