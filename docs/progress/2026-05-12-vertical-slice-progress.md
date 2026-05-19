@@ -895,6 +895,12 @@ Centralized staging update rollout smoke on 2026-05-18:
   `9e7153426b3cf1619e0c4967d3e0745734114561` through deployment
   `a12dby9ibmavauz88o01b6lv`, which finished successfully. Public health
   returned HTTP 200 with `status = ok` at `2026-05-19T06:27:41Z`.
+- after that redeploy, the same Windows 11 VM restarted the Agent Service and
+  waited one full 360 second polling window. Agent/Shell remained `0.1.7`, and
+  the old `agent-service-0.1.3-install.log` kept its previous
+  `2026-05-19 11:10:01` local timestamp and `41052` byte length. This confirms
+  the Platform API offer filter stopped re-offering older active rollouts to a
+  device that already reports a newer installed version.
 
 ## Historical Reference
 
