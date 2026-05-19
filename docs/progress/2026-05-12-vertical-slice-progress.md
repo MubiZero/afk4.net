@@ -1181,6 +1181,10 @@ PostgreSQL restore rehearsal helper branch verification on 2026-05-19:
 - the Coolify API token used for this rehearsal was exposed in chat and must be
   rotated before further operational use. The token value is intentionally not
   recorded in repository files.
+- PR #40 merged this work into `main` on 2026-05-19 with merge commit
+  `962281bb03d28e8e34eb959072a2f6c0b528aa26`. Remote `PR Verification Result`
+  passed for head commit `784a0df56c7cbf05d07810c11a0925998bb9da2e` in
+  workflow run `26114016147`.
 
 ## Historical Reference
 
