@@ -18,9 +18,9 @@ outside the current MVP implementation surface.
 
 - Platform API deployed and healthy.
 - Organization and branch already exist.
-- An existing owner-level staff account for the branch. The account must have
-  `identity.roles.manage`, `layout.manage`, `tariffs.manage`, and
-  `pos.catalog.manage`.
+- An existing owner or branch manager staff account for the branch. The account
+  must have `identity.branch_staff.manage`, `layout.manage`, `tariffs.manage`,
+  and `pos.catalog.manage`.
 - PowerShell on a trusted operator or release workstation.
 
 ## Configure Branch

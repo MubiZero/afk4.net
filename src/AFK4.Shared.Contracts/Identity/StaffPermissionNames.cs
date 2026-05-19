@@ -88,6 +88,8 @@ public static class StaffPermissionNames
 
     public const string ViewDiagnostics = "diagnostics.view";
 
+    public const string ManageBranchStaff = "identity.branch_staff.manage";
+
     public const string ManageRoles = "identity.roles.manage";
 
     public const string ViewAudit = "audit.view";
