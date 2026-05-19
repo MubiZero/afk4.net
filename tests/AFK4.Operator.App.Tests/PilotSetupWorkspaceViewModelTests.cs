@@ -12,7 +12,9 @@ public sealed class PilotSetupWorkspaceViewModelTests
     [Fact]
     public void Constructor_UsesPilotRunbookDefaults()
     {
+        var testStartDateUtc = DateTimeOffset.UtcNow.Date;
         var viewModel = CreateViewModel();
+        var testEndDateUtc = DateTimeOffset.UtcNow.Date;
 
         Assert.Equal("Main Hall", viewModel.ZoneName);
         Assert.Equal("PC-", viewModel.SeatPrefix);
@@ -25,6 +27,9 @@ public sealed class PilotSetupWorkspaceViewModelTests
         Assert.Equal(100L, viewModel.PricePerMinuteMinorUnits);
         Assert.Equal(1, viewModel.MinimumBillableMinutes);
         Assert.Equal(1, viewModel.RoundingIncrementMinutes);
+        Assert.Equal(TimeSpan.Zero, viewModel.EffectiveFromUtc.Offset);
+        Assert.Equal(TimeSpan.Zero, viewModel.EffectiveFromUtc.TimeOfDay);
+        Assert.InRange(viewModel.EffectiveFromUtc.Date, testStartDateUtc, testEndDateUtc);
         Assert.Equal("Drinks", viewModel.ProductCategoryName);
         Assert.Equal("Water 0.5", viewModel.ProductName);
         Assert.Equal("WATER-05", viewModel.ProductSku);
