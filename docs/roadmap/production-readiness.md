@@ -110,7 +110,16 @@ Minimum bar:
 
    Run `docs/operations/postgres-backup-restore.md` against staging data:
    backup, restore into a clean database, apply migrations, start the API, and
-   smoke health/auth/floor-map/diagnostics/audit/reports/update status.
+   smoke health/auth/floor-map/diagnostics/audit/reports/update status. A
+   repeatable helper now exists at `scripts/rehearse-postgres-restore.ps1` for
+   the backup, archive-readability, restore, migration update, and table-count
+   parts of the rehearsal. A local Docker-based rehearsal passed on
+   2026-05-19 against a temporary PostgreSQL 17 container, including API
+   health/auth smoke on the restored database. The real Coolify staging
+   rehearsal also completed on 2026-05-19: the staging database was temporarily
+   exposed through Coolify's TCP proxy, backed up, restored into a temporary
+   rehearsal database, migration-checked, smoke-tested through the Platform API,
+   cleaned up, and returned to non-public database access.
 
 5. **Signed Client Release Rehearsal**
 
@@ -180,7 +189,8 @@ Minimum bar:
 
 ### Data Protection
 
-- Backup/restore runbook exists, but a real rehearsal must be completed.
+- Backup/restore runbook and scripted helper exist, and both local Docker and
+  real Coolify staging restore rehearsals have passed.
 - Backup encryption, retention, off-host storage, and restore owner must be
   named before launch.
 - Point-in-time recovery and provider-managed backup policy are not selected.
@@ -190,8 +200,10 @@ Minimum bar:
 - Production Authenticode certificate authority is undecided.
 - Certificate storage policy is undecided.
 - ECDSA update metadata signing key storage policy is undecided.
-- The Coolify API token and staging database/session secrets used during the
-  rehearsal were rotated; future secret exchange must stay out of chat.
+- Earlier Coolify API token and staging database/session secrets used during
+  the first rehearsal were rotated. The Coolify API token used during the
+  2026-05-19 restore rehearsal was exposed in chat and must also be rotated;
+  future secret exchange must stay out of chat.
 - Staging update artifacts now use Coolify-hosted MinIO. Production
   object-store/CDN provider, public-read policy, retention, and presigned
   upload automation are undecided.
@@ -286,10 +298,11 @@ Minimum bar:
    update status, and any duplicate Shell process behavior in the progress
    snapshot.
 
-2. `codex/postgres-restore-rehearsal`
+2. Rotate exposed staging Coolify API token
 
-   Execute the backup/restore runbook against staging-like data and record
-   evidence in progress docs.
+   The restore rehearsal token was exposed in chat. Rotate it before further
+   operational use, then keep future tokens in a secret manager or local
+   runtime-only environment, not in chat or repository files.
 
 3. Operator-facing pilot setup UI
 

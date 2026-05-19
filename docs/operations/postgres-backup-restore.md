@@ -65,6 +65,71 @@ Create the backup directory outside the repository:
 New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
 ```
 
+## Scripted Rehearsal
+
+Prefer the repository script for repeatable release rehearsals. It follows the
+manual sequence below, redacts PostgreSQL URLs in console output, refuses to
+place database dumps inside the repository, generates the EF migration script
+under ignored `artifacts/`, restores into the rehearsal database, applies
+pending migrations, and samples important table counts.
+
+Run a dry run first to verify command planning without touching PostgreSQL:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/rehearse-postgres-restore.ps1 `
+  -DryRun
+```
+
+Then run the rehearsal with secret values supplied through environment
+variables or a secret manager:
+
+```powershell
+$env:AFK4_BACKUP_SOURCE_URL = '<source PostgreSQL URL from secret manager>'
+$env:AFK4_RESTORE_TARGET_URL = '<empty rehearsal PostgreSQL URL from secret manager>'
+
+powershell -ExecutionPolicy Bypass -File scripts/rehearse-postgres-restore.ps1 `
+  -BackupRoot 'D:\afk4-backups'
+```
+
+If the PostgreSQL client source/target values use libpq URLs but the EF
+migration step needs an Npgsql connection string, pass the EF target
+explicitly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/rehearse-postgres-restore.ps1 `
+  -RestoreTargetUrl $env:AFK4_RESTORE_TARGET_URL `
+  -EfRestoreTargetConnectionString 'Host=<host>;Port=<port>;Database=<restore-db>;Username=<user>;Password=<password>;SSL Mode=Disable;GSS Encryption Mode=Disable'
+```
+
+If PostgreSQL client tools are not in `PATH`, pass explicit paths:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/rehearse-postgres-restore.ps1 `
+  -PgDumpPath 'C:\Program Files\PostgreSQL\17\bin\pg_dump.exe' `
+  -PgRestorePath 'C:\Program Files\PostgreSQL\17\bin\pg_restore.exe' `
+  -PsqlPath 'C:\Program Files\PostgreSQL\17\bin\psql.exe'
+```
+
+If Docker is available but PostgreSQL client tools are not installed on the
+release machine, run the PostgreSQL client commands through the official
+PostgreSQL image:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/rehearse-postgres-restore.ps1 `
+  -PostgresClientMode docker `
+  -PostgresDockerImage postgres:17-alpine
+```
+
+When the source or restore target is published on the Windows host as
+`localhost` or `127.0.0.1`, the script automatically uses
+`host.docker.internal` only for the containerized PostgreSQL client commands.
+The .NET migration step still uses the original restore target URL from the
+host process.
+
+The script does not create the rehearsal database. Create an empty target
+database through the provider console, `createdb`, Coolify, or a local
+PostgreSQL admin workflow before running the real restore.
+
 ## Create A Backup
 
 Run `pg_dump` in custom format:
