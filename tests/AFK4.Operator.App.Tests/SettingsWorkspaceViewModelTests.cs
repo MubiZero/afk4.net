@@ -2,6 +2,7 @@ using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.Settings;
 using AFK4.Operator.App.Audit;
 using AFK4.Operator.App.Diagnostics;
+using AFK4.Operator.App.PilotSetup;
 using AFK4.Operator.App.Updates;
 using AFK4.Shared.Contracts.Identity;
 
@@ -110,6 +111,23 @@ public sealed class SettingsWorkspaceViewModelTests
     }
 
     [Fact]
+    public void SettingsWorkspace_WithPilotSetupPermission_ExposesPilotSetupPanel()
+    {
+        var pilotSetup = new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient());
+        var viewModel = new SettingsWorkspaceViewModel(
+            new HashSet<string> { StaffPermissionNames.ManageBranchStaff },
+            technicianTools: null,
+            updateStatus: null,
+            auditSearch: null,
+            diagnostics: null,
+            pilotSetup: pilotSetup);
+
+        Assert.True(viewModel.HasPilotSetup);
+        Assert.Same(pilotSetup, viewModel.PilotSetup);
+        Assert.Contains(viewModel.Panels, panel => panel.Key == "pilot-setup");
+    }
+
+    [Fact]
     public void SettingsWorkspace_WithDeviceCredentialPermission_ExposesTechnicianTools()
     {
         var technicianTools = new TechnicianDeviceWorkflowViewModel(new UnconfiguredOperatorDeviceApiClient());
@@ -148,5 +166,27 @@ public sealed class SettingsWorkspaceViewModelTests
         Assert.Equal(BranchId.ToString("D"), auditSearch.BranchIdText);
         Assert.Equal(OrganizationId.ToString("D"), diagnostics.OrganizationIdText);
         Assert.Equal(BranchId.ToString("D"), diagnostics.BranchIdText);
+    }
+
+    [Fact]
+    public void ApplyContext_UpdatesPilotSetupContextAndPermissions()
+    {
+        var pilotSetup = new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient());
+        var viewModel = new SettingsWorkspaceViewModel(
+            new HashSet<string> { StaffPermissionNames.ManageLayout },
+            technicianTools: null,
+            updateStatus: null,
+            auditSearch: null,
+            diagnostics: null,
+            pilotSetup: pilotSetup);
+
+        viewModel.ApplyContext(
+            OrganizationId,
+            BranchId,
+            new HashSet<string> { StaffPermissionNames.ManageLayout });
+
+        Assert.Equal(OrganizationId.ToString("D"), pilotSetup.OrganizationIdText);
+        Assert.Equal(BranchId.ToString("D"), pilotSetup.BranchIdText);
+        Assert.True(pilotSetup.CanSetupLayout);
     }
 }
