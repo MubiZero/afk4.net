@@ -134,7 +134,13 @@ Minimum bar:
    staging MinIO. The public latest manifest URL was verified after workflow
    run `26089632552` and points to version `0.1.13`; this removes local file
    copying for clean staging VM bootstrap while keeping already enrolled PCs on
-   the signed/internal MSI update rollout path.
+   the signed/internal MSI update rollout path. The first clean VM run against
+   version `0.1.13` enrolled and assigned the seat, but exposed a bootstrap/MSI
+   sequencing bug: MSI starts `AFK4.Agent.Service` during installation before
+   the script had written the enrolled device credential and machine config.
+   Branch `codex/bootstrap-config-before-msi` moves that config write before
+   `msiexec.exe`; repeat the remote bootstrap after the corrected script is
+   published.
 
 6. **Pilot Setup Runbook**
 
@@ -198,8 +204,11 @@ Minimum bar:
   start/end, signed lease, local runtime state, and visible Player Shell
   active/locked evidence. A second Windows 11 VM smoke confirmed
   interactive-session Shell auto-start and active-state delivery without manual
-  Shell restart after the long-lived state pipe fix. The remote bootstrap path
-  still needs a clean VM or physical PC smoke pass.
+  Shell restart after the long-lived state pipe fix. The first remote bootstrap
+  run reached enroll/seat assignment but failed MSI install with 1920/1603
+  because service startup happened before machine config was written; repeat
+  the corrected remote bootstrap path on a clean VM or physical PC after
+  publishing the config-before-MSI fix.
 - Lock/unlock enforcement needs real Windows validation beyond test adapters.
 - Player Shell service-session competition is mitigated in code by
   session-aware process detection and Agent-driven launch into the active

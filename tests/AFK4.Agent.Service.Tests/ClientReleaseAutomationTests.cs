@@ -106,6 +106,24 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void PublishStagingBootstrapper_WritesAgentConfigurationBeforeMsiInstall()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/publish-staging-bootstrapper.ps1")));
+
+        var configFunctionIndex = script.IndexOf("function Write-AgentMachineConfiguration", StringComparison.Ordinal);
+        var credentialConfigIndex = script.IndexOf("Set-MachineEnvironmentVariable -Name 'Agent__DeviceCredentialSecret'", StringComparison.Ordinal);
+        var firstConfigCallIndex = script.IndexOf("Write-AgentMachineConfiguration\nStop-Service AFK4.Agent.Service", StringComparison.Ordinal);
+        var msiInstallIndex = script.IndexOf("$msiProcess = Start-Process", StringComparison.Ordinal);
+        var postInstallConfigCallIndex = script.LastIndexOf("Write-AgentMachineConfiguration\nStart-Service AFK4.Agent.Service", StringComparison.Ordinal);
+
+        Assert.True(configFunctionIndex >= 0, "The staging bootstrapper should define a reusable Agent machine configuration writer.");
+        Assert.True(credentialConfigIndex > configFunctionIndex, "The configuration writer should persist the enrolled device credential secret.");
+        Assert.True(firstConfigCallIndex > credentialConfigIndex, "The bootstrapper should call the configuration writer before installing the MSI.");
+        Assert.True(msiInstallIndex > firstConfigCallIndex, "Machine configuration must be present before Windows Installer starts AFK4.Agent.Service.");
+        Assert.True(postInstallConfigCallIndex > msiInstallIndex, "The bootstrapper should rewrite configuration after MSI install before the final service start.");
+    }
+
+    [Fact]
     public void RegisterUpdatePackageRequestsScript_ParsesRequiredParameters()
     {
         var ast = ParseScript("scripts/register-update-package-requests.ps1", out var errors);
