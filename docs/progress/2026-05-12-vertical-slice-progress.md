@@ -767,8 +767,15 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   completed lock command already exists for the same device/session. Local
   verification on 2026-05-19: targeted planner/reconciliation/session command
   tests passed 29/29, and full `AFK4.Platform.Api.Tests` passed 328/328. The
-  fix still needs staging redeploy and a short VM recheck before closing the
-  real-device evidence loop.
+  fix shipped through PR #38 and was redeployed to Coolify staging deployment
+  `vlhc8wmm07nrc8kit64my1y8` from `main` commit
+  `ccf938354d7cb86edf2349cf5696a7dd51332136`. The VM recheck then started
+  session `1df4e315-9585-47af-9c74-02c2ebe423de`, observed accepted unlock
+  command `fa317814-6786-4815-962b-7db9f9dfd023`, ended the session, and
+  observed exactly one fresh lock command
+  `96f9f759-9f22-466e-9c38-dcaef921bf22`; the seat returned to `Locked` with
+  no active session and the device reported locked. GitHub issue #36 was
+  closed after this staging evidence.
 
 ## Known Gaps
 
@@ -822,8 +829,9 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   duplicate results, and heartbeat convergence; post-redeploy Windows 11 VM
   smoke confirmed no-SQL reuse on the same seat/device. A later remote
   bootstrap `0.1.14` VM smoke also confirmed reuse, but exposed duplicate lock
-  command creation on the final session end. Issue #36 is fixed in code and
-  awaits staging redeploy plus a short VM recheck.
+  command creation on the final session end. Issue #36 is fixed, redeployed to
+  staging, and closed after a VM recheck confirmed a single lock command for one
+  session end.
 - Operator App staging observation needs either a staging-configured build or a
   future runtime configuration path because the current app default API URL is
   `http://localhost:5074`.
@@ -861,9 +869,9 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
    staff management, role assignment, layout management, device management UI,
    tariffs, and POS setup. Device-seat assignment now has an API path, but the
    operator-facing setup surface is still missing.
-8. Redeploy staging and recheck issue #36 on the VM: ending a session should
-   leave at most one pending/accepted/completed lock command for that
-   device/session.
+8. Continue physical Windows PC validation for lock/unlock, reboot recovery,
+   and remote bootstrap/update behavior now that the VM duplicate-lock
+   regression is closed.
 
 ## Recent Integration Notes
 
@@ -1087,6 +1095,23 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   `latest.json` component `gaming-pc-bootstrap`, script `Content-Length: 9892`,
   MSI `Content-Length: 58282628`, and package SHA-256
   `7446338abed783712d801dd2c01615aab26e5b3c0787dc42e379b567477f5383`.
+- PR #35, `Record bootstrap 0.1.14 VM smoke pass`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `73cd164004f3dabb8ee2588f8783fbfce59e1d00`; it recorded the clean VM remote
+  bootstrap pass for `0.1.14`.
+- PR #37, `Record remote bootstrap session smoke`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `962da209e56248933be4a3d20ac87acbd367d450`; it recorded the two-session VM
+  smoke and opened follow-up issue #36 for duplicate lock command planning.
+- PR #38, `Fix duplicate lock command planning`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `ccf938354d7cb86edf2349cf5696a7dd51332136`. Remote
+  `PR Verification Result` passed in workflow run `26093286571`; Coolify
+  staging deployment `vlhc8wmm07nrc8kit64my1y8` finished on the same commit.
+  The follow-up Windows 11 VM smoke started session
+  `1df4e315-9585-47af-9c74-02c2ebe423de`, accepted unlock command
+  `fa317814-6786-4815-962b-7db9f9dfd023`, ended it, and observed one fresh lock
+  command `96f9f759-9f22-466e-9c38-dcaef921bf22` before issue #36 was closed.
 
 ## Historical Reference
 

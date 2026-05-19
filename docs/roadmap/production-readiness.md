@@ -145,8 +145,11 @@ Minimum bar:
    two session start/end cycles with visible Player Shell active/locked state
    and seat/device reuse without SQL cleanup. The second session end exposed a
    follow-up backend issue: duplicate lock commands can be planned for one
-   session end. Issue #36 is fixed in code and needs staging redeploy plus a
-   short VM recheck.
+   session end. PR #38 fixed issue #36 by suppressing duplicate heartbeat and
+   reconciliation lock planning when a lock already exists for the same
+   device/session. Coolify staging was redeployed to commit
+   `ccf938354d7cb86edf2349cf5696a7dd51332136`, and the VM recheck confirmed
+   one fresh lock command for one session end before issue #36 was closed.
 
 6. **Pilot Setup Runbook**
 
@@ -233,10 +236,10 @@ Minimum bar:
   ended session returned the seat/device to locked and a second session started
   on the same seat without SQL cleanup. A later remote bootstrap `0.1.14` VM
   smoke also confirmed reuse, but exposed duplicate backend lock command
-  creation on the final session end. Issue #36 is fixed in code by suppressing
-  heartbeat/reconciliation duplicate lock planning when a lock already exists
-  for the same device/session, and needs staging redeploy plus a short VM
-  recheck before the evidence loop is closed.
+  creation on the final session end. Issue #36 is now fixed, redeployed, and
+  closed: the staging VM recheck on 2026-05-19 confirmed session
+  `1df4e315-9585-47af-9c74-02c2ebe423de` produced exactly one fresh lock
+  command, then returned the seat/device to locked with no active session.
 - Reboot recovery must be exercised on physical PCs.
 - Already enrolled PCs are updateable through signed/internal MSI update
   rollouts in staging: the Windows 11 VM device
