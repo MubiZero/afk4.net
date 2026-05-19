@@ -857,6 +857,26 @@ Centralized staging update rollout smoke on 2026-05-18:
   deletes temporary partials on failure, removes stale wrong-sized final
   artifacts before retry, moves the completed artifact into place atomically,
   and can reuse an already complete staged artifact after restart.
+- PR #21, `Handle superseded update recovery states`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `55fa0911eea8c06c7b5f4315e2452edcdda5f3f1`. The PR head was
+  `8a8ebfa844be4e0805cbd66c151dff4d28be8a60`, and remote
+  `PR Verification Result` passed for that head in workflow run
+  `26079092131`. The remote branch
+  `codex/update-recovery-superseded-state` was deleted after merge.
+- after PR #21 was merged, Coolify staging was redeployed from `main` commit
+  `55fa0911eea8c06c7b5f4315e2452edcdda5f3f1` through deployment
+  `cb1ncgnenndmkyaytowf3n3f`, which finished successfully. Public health
+  returned HTTP 200 with `status = ok` at `2026-05-19T06:03:13Z`.
+- the post-merge `Package Smoke` workflow on `main` passed in workflow run
+  `26079268014`. It built internal MSI version `0.1.7`, published the Gaming
+  PC MSI to staging MinIO for both `agent-service` and `player-shell`, and
+  created Agent Service device rollout
+  `84c8be00-2cfd-4e8a-8483-e78618481cbc` for staging device
+  `0588fb59-3edb-4704-bbdb-094e12417cf1`. A direct HEAD request to the
+  published Agent Service MSI returned HTTP 200 with a non-zero
+  `Content-Length` of `58278532`; Windows VM install evidence for `0.1.7`
+  is still pending.
 
 ## Historical Reference
 

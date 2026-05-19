@@ -202,11 +202,14 @@ Minimum bar:
 - Reboot recovery must be exercised on physical PCs.
 - Already enrolled PCs are updateable through signed/internal MSI update
   rollouts in staging: the Windows 11 VM device
-  `0588fb59-3edb-4704-bbdb-094e12417cf1` installed Agent/Shell `0.1.3` from
-  MinIO and reported backend status `installed`. Manual copying of a rebuilt
-  setup executable remains acceptable only for bootstrap smoke on a clean
-  machine, not as the pilot or production update process. Repeat on physical
-  hardware before closing the gate.
+  `0588fb59-3edb-4704-bbdb-094e12417cf1` installed Agent/Shell `0.1.3` and
+  then `0.1.6` from MinIO. The follow-up `0.1.7` rollout adds stale recovery
+  state handling and atomic artifact download behavior for partial downloads,
+  sleep, reboot, and network loss, but VM install evidence for `0.1.7` is
+  still pending. Manual copying of a rebuilt setup executable remains
+  acceptable only for bootstrap smoke on a clean machine, not as the pilot or
+  production update process. Repeat on physical hardware before closing the
+  gate.
 - Update rollback must be tested against MSI installs on real devices.
 - Production lease duration and heartbeat refresh threshold need telemetry.
 
