@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 ## Purpose
 
@@ -120,10 +120,15 @@ Minimum bar:
    register packages with the staging Platform API, and create an internal
    device rollout. On 2026-05-18, an already enrolled Windows 11 VM installed
    Agent/Shell `0.1.3` through the Agent update pipeline and reported
-   `installed` to the backend. The staging Gaming PC setup executable remains
-   only a bootstrap path for clean machines; production still needs final
-   Authenticode/signing custody, production storage/CDN policy, service
-   credentials for package registration, physical PC update smoke, and rollback
+   `installed` to the backend. Follow-up staging rollouts brought that VM to
+   `0.1.7`, verified atomic artifact download/recovery behavior, and fixed the
+   backend so older active rollouts are not re-offered to devices that already
+   report a newer installed MSI-compatible version. The update epic is closed
+   for the current pilot/dev cycle. The staging Gaming PC setup executable
+   remains only a bootstrap path for clean machines; commercial production
+   still needs final Authenticode/signing custody, production storage/CDN
+   policy, service credentials for package registration, and physical
+   PC update/rollback evidence as part of the general real-device release
    validation.
 
 6. **Pilot Setup Runbook**
@@ -213,8 +218,9 @@ Minimum bar:
   installed; PR #22 fixed the offer filter and staging was redeployed. Manual
   copying of a rebuilt setup executable remains acceptable only for bootstrap
   smoke on a clean machine, not as the pilot or production update process.
-  Repeat on physical hardware before closing the gate.
-- Update rollback must be tested against MSI installs on real devices.
+  No separate update development branch is planned now; repeat update and
+  rollback evidence on physical hardware under the broader real-device release
+  validation gate.
 - Production lease duration and heartbeat refresh threshold need telemetry.
 
 ### Operator Workflows
@@ -252,17 +258,11 @@ Minimum bar:
    Execute the backup/restore runbook against staging-like data and record
    evidence in progress docs.
 
-3. `codex/pilot-admin-setup`
+3. Operator-facing pilot setup UI
 
-   Add or document the minimum pilot setup path for organization, branch,
-   staff, roles, layout, devices, tariffs, and POS catalog. Device-seat
-   assignment has a backend/API path; continue from the remaining setup
-   surfaces and Operator App workflows.
-
-4. `codex/update-rollback-smoke`
-
-   Add a controlled rollback rehearsal for MSI update failures on a staging
-   Windows device and document the operator-visible recovery path.
+   The API/script path for pilot setup exists and was verified on staging.
+   Add the minimum Operator App screens for staff, branch layout, devices,
+   tariffs, and POS setup when pilot usability becomes the focus.
 
 ## Decision Rules
 
@@ -273,5 +273,5 @@ Minimum bar:
   SDKs.
 - Prefer one real-device smoke loop over more theoretical docs once staging is
   available.
-- Treat backup restore and Agent update rollback as launch gates, not cleanup
-  tasks.
+- Treat backup restore and physical-device release validation as launch gates,
+  not cleanup tasks.
