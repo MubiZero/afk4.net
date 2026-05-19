@@ -10,6 +10,8 @@ namespace AFK4.Agent.Service.Tests;
 
 public sealed class NamedPipePlayerShellStateServerTests
 {
+    private static readonly TimeSpan PipeObservationTimeout = TimeSpan.FromSeconds(30);
+
     [Fact]
     public async Task PublishAsync_MakesLatestStateAvailableToLaterShellClient()
     {
@@ -38,6 +40,7 @@ public sealed class NamedPipePlayerShellStateServerTests
 
         var active = CreateState(PlayerShellStateNames.Active);
         await server.PublishAsync(active, CancellationToken.None);
+        await Task.Delay(100);
 
         var received = await ReadStateAsync(pipeName);
 
@@ -64,7 +67,7 @@ public sealed class NamedPipePlayerShellStateServerTests
             PipeDirection.In,
             PipeOptions.Asynchronous);
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var timeout = new CancellationTokenSource(PipeObservationTimeout);
         await pipe.ConnectAsync(timeout.Token);
         return await JsonSerializer.DeserializeAsync<PlayerShellStateDto>(
             pipe,

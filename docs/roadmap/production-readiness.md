@@ -131,8 +131,10 @@ Minimum bar:
    Document exactly how to create the first organization, branch, staff users,
    roles, zones, seats, devices, tariffs, POS products, and update channels for
    a pilot club. Device-seat assignment now has a staff-authorized Platform API
-   path and staging setup integration, but the rest of the pilot setup path
-   still needs either runbook or UI coverage.
+   path and staging setup integration. Branch
+   `codex/pilot-admin-setup-api` adds staff user/role and layout setup APIs
+   plus a PowerShell pilot setup script that composes existing tariff, POS, and
+   device assignment endpoints.
 
 ## Commercial Production Blockers
 
@@ -216,9 +218,11 @@ Minimum bar:
 
 ### Operator Workflows
 
-- Staff management workflow is not implemented.
+- Staff management workflow is implemented as a minimum API path on
+  `codex/pilot-admin-setup-api`; Operator App UI is still missing.
 - Custom roles and role editing UI are not implemented.
-- Branch layout management UI is not implemented.
+- Branch layout management is implemented as a minimum API path on
+  `codex/pilot-admin-setup-api`; Operator App UI is still missing.
 - Device-seat assignment has a staff-authorized API path and staging smoke
   setup integration, but no Operator App management UI yet.
 - Pilot can work with seeded/manual setup, but commercial production needs

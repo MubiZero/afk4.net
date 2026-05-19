@@ -901,6 +901,20 @@ Centralized staging update rollout smoke on 2026-05-18:
   `2026-05-19 11:10:01` local timestamp and `41052` byte length. This confirms
   the Platform API offer filter stopped re-offering older active rollouts to a
   device that already reports a newer installed version.
+- staging update rollout cleanup was then performed through the Platform API,
+  not direct PostgreSQL edits. Rollouts `8a103701-dfa1-4aec-8c63-71f479201f92`
+  (`0.1.3`), `830b5a2e-2eed-47c2-b3c8-411f05b09edf` (`0.1.6`), and
+  `84c8be00-2cfd-4e8a-8483-e78618481cbc` (`0.1.7`) were moved from `active`
+  to `completed`; all internal staging Agent Service update rollouts are now
+  terminal.
+- branch `codex/pilot-admin-setup-api` adds the first API-driven pilot setup
+  surface for configuration that previously required seeding or direct data
+  manipulation: owner-authorized staff user creation with predefined role
+  assignments, branch-manager layout zone/seat creation and listing, a
+  PowerShell `scripts/configure-pilot-branch.ps1` setup script, and
+  `docs/operations/pilot-branch-setup.md`. Existing APIs already cover tariff
+  creation/versioning, POS category/product setup, and device-seat assignment,
+  so the script composes those paths without SQL.
 
 ## Historical Reference
 

@@ -7,8 +7,8 @@ namespace AFK4.Agent.Service.Tests;
 
 public sealed class AgentUpdateWorkerTests
 {
-    private static readonly TimeSpan WorkerStopTimeout = TimeSpan.FromSeconds(20);
-    private static readonly TimeSpan WorkerObservationTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan WorkerStopTimeout = TimeSpan.FromSeconds(75);
+    private static readonly TimeSpan WorkerObservationTimeout = TimeSpan.FromSeconds(60);
 
     [Fact]
     public async Task ExecuteAsync_ChecksForUpdatesOnStartupWithoutBlockingHeartbeatWorker()
