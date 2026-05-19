@@ -91,6 +91,13 @@ implementation evidence are needed.
   - `scripts/sign-client-packages.ps1`
 - MSI update metadata publishing script:
   - `scripts/publish-client-msi-updates.ps1`
+- Staging clean-machine Gaming PC remote bootstrap publishing:
+  - `scripts/publish-staging-bootstrapper.ps1`
+  - `Package Smoke` publishes a small `install-afk4-gaming-pc.ps1` script and
+    `latest.json` manifest to staging MinIO. The script downloads the internal
+    Gaming PC MSI from MinIO, verifies SHA-256, enrolls the device through the
+    staging API, assigns the smoke seat, installs the MSI, writes Agent machine
+    configuration, starts the service, and waits for heartbeat evidence.
 - Backend registration script for generated update package request JSON:
   - `scripts/register-update-package-requests.ps1`
 - Manual GitHub Actions workflow for build/test/package, optional signing,
@@ -687,6 +694,34 @@ Centralized staging update rollout smoke on 2026-05-18:
   reported Agent/Shell `0.1.3`, and the VM had non-zero MSI artifacts and
   update logs under `C:\ProgramData\AFK4\Agent`.
 
+Staging remote Gaming PC bootstrap verification on 2026-05-19:
+
+- PRs #27, #28, #29, #30, and #31 replaced manual VM file copying for clean
+  staging PCs with a MinIO-hosted remote bootstrap path. The first attempt to
+  publish the self-contained setup exe exposed a practical limit: the WPF
+  setup exe is about 198 MB and failed through the current public updates
+  proxy, while the signed/internal MSI artifact path is already proven.
+- The final flow publishes only a small PowerShell bootstrap script and
+  manifest under:
+  `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json`.
+  The manifest points to the already-published internal Gaming PC MSI under
+  the `agent-service/internal/<version>/` prefix and includes SHA-256 and size
+  for both the bootstrap script and MSI.
+- `scripts/publish-client-msi-updates.ps1` now retries transient publish
+  failures per component, and `Package Smoke` now triggers when that script
+  changes.
+- The final post-merge `Package Smoke` on `main` passed in workflow run
+  `26089632552` after PR #31. It built internal version `0.1.13`, published
+  MSI update metadata, published the slash-delimited bootstrap objects,
+  registered update packages, and created the staging rollout.
+- Public verification after the run:
+  - `latest.json` returned component `gaming-pc-bootstrap`, version `0.1.13`,
+    and channel `internal`;
+  - the bootstrap script URL returned HTTP 200 with `Content-Length: 9705`;
+  - the MSI package URL returned HTTP 200 with `Content-Length: 58282628`;
+  - the manifest package SHA-256 was
+    `c0908cc3a102e07f7a5f0c420653df9a8f0ff62461951c1eb9f865116a22c5cd`.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -708,15 +743,16 @@ Centralized staging update rollout smoke on 2026-05-18:
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook, but the runbook still
   needs to be executed on physical Windows 10/11 hardware.
-- The staging one-click Gaming PC setup executable path exists in code, and the
-  staging public lease verification key is committed for reproducible release
-  workstation packaging. One Windows 11 VM passed rebuilt x64
+- The staging clean-machine bootstrap path is now remote: VM operators can
+  download `latest.json`, verify the small bootstrap script, and run it from an
+  elevated PowerShell session without local file sharing or repository access.
+  One Windows 11 VM passed the earlier rebuilt x64 setup
   install/enroll/heartbeat plus session start/end and visible Player Shell
-  state evidence. Repeat on a second clean VM or physical Windows PC before
-  treating the gate as broadly validated.
-- The staging setup executable is a clean-machine bootstrap path, not the
-  update path for already enrolled PCs. Staging MinIO/internal MSI update
-  rollouts have passed on one Windows 11 VM through Agent/Shell `0.1.7`,
+  state evidence. Repeat the remote bootstrap on a second clean VM or physical
+  Windows PC before treating the gate as broadly validated.
+- The staging bootstrap path is for clean machines, not the update path for
+  already enrolled PCs. Staging MinIO/internal MSI update rollouts have passed
+  on one Windows 11 VM through Agent/Shell `0.1.7`,
   including recovery from stale update state and suppression of superseded
   older rollout offers. The update epic is closed for the current pilot/dev
   cycle; physical hardware update and rollback evidence remain bundled into
@@ -949,6 +985,38 @@ Centralized staging update rollout smoke on 2026-05-18:
   `de357405-7041-4e88-a55c-8bf4d9fc3ca9`. A follow-up sign-in smoke for
   `cashier.pilot@afk4.test` confirmed one branch assignment and
   `sessions.start` permission.
+- PR #27, `Publish staging bootstrapper to MinIO`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `bc099e5064b0a2b0d1cfa63e336ab98e92dbd913`. Remote
+  `PR Verification Result` passed in workflow run `26086303266`, but the
+  post-merge `Package Smoke` run `26086548607` failed while uploading the
+  198 MB self-contained setup exe through the public updates endpoint.
+- PR #28, `Publish remote staging gaming PC bootstrap`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `bbfb78550edf628f6f1cd6250431d0d90b813360`. Remote
+  `PR Verification Result` passed in workflow run `26087269283`. The branch
+  changed the clean-machine path to a small remote PowerShell bootstrap script
+  that composes the already-published internal Gaming PC MSI.
+- PR #29, `Retry staging package publishing`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `6a5450fd4a805b4f7b97503f016078ee48584d5e`. Remote
+  `PR Verification Result` passed in workflow run `26087858682`; it added
+  retry/backoff around each update package publisher invocation.
+- PR #30, `Trigger package smoke on publish script changes`, merged into
+  `main` on 2026-05-19 with squash merge commit
+  `9d21bc3fba90f54541d97e8b00b81d87e9d340b2`. Remote
+  `PR Verification Result` passed in workflow run `26088166185`; it added
+  `scripts/publish-client-msi-updates.ps1` to the `Package Smoke` path filter.
+  The post-merge `Package Smoke` run `26088513440` passed but revealed that
+  bootstrap objects were uploaded with spaces in their keys, so the public
+  slash-delimited manifest URL returned 404.
+- PR #31, `Fix staging bootstrap S3 object keys`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `6362aa4c3478559dd9867c96cc37ee34f5e630d8`. Remote
+  `PR Verification Result` passed in workflow run `26089331575`. The final
+  post-merge `Package Smoke` run `26089632552` passed and published
+  `gaming-pc-bootstrap` version `0.1.13` at the public latest manifest URL:
+  `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json`.
 
 ## Historical Reference
 
