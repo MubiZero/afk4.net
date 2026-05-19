@@ -1,12 +1,20 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
+using AFK4.Operator.App.Mvvm;
+using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Layout;
+using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Tariffs;
 
 namespace AFK4.Operator.App.PilotSetup;
 
 public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
 {
+    private readonly IOperatorPilotSetupApiClient apiClient;
     private string organizationIdText = string.Empty;
     private string branchIdText = string.Empty;
     private string zoneName = "Main Hall";
@@ -33,10 +41,14 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
     private bool canSetupPos;
     private bool canAssignDeviceSeat;
     private bool hasAnySetupPermission;
+    private bool isBusy;
+    private string statusMessage = "Pilot setup ready.";
+    private string? errorMessage;
 
     public PilotSetupWorkspaceViewModel(IOperatorPilotSetupApiClient apiClient)
     {
-        ArgumentNullException.ThrowIfNull(apiClient);
+        this.apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
+        ApplyCommand = new AsyncRelayCommand(ApplyAsync, CanRunCommand);
 
         StaffUsers =
         [
@@ -63,6 +75,8 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
     public ObservableCollection<PilotSetupStaffUserViewModel> StaffUsers { get; }
 
     public ObservableCollection<PilotSetupStepResultViewModel> Results { get; } = [];
+
+    public AsyncRelayCommand ApplyCommand { get; }
 
     public string OrganizationIdText
     {
@@ -220,6 +234,30 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         private set => SetField(ref hasAnySetupPermission, value);
     }
 
+    public bool IsBusy
+    {
+        get => isBusy;
+        private set
+        {
+            if (SetField(ref isBusy, value))
+            {
+                ApplyCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public string StatusMessage
+    {
+        get => statusMessage;
+        private set => SetField(ref statusMessage, value);
+    }
+
+    public string? ErrorMessage
+    {
+        get => errorMessage;
+        private set => SetField(ref errorMessage, value);
+    }
+
     public void ApplyContext(Guid organizationId, Guid branchId)
     {
         OrganizationIdText = organizationId.ToString("D");
@@ -238,6 +276,373 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             || CanSetupTariff
             || CanSetupPos
             || CanAssignDeviceSeat;
+        ApplyCommand.NotifyCanExecuteChanged();
+    }
+
+    public async Task ApplyAsync(CancellationToken cancellationToken)
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        Results.Clear();
+        ErrorMessage = null;
+        StatusMessage = "Applying pilot setup...";
+
+        if (!TryValidate(out var organizationId, out var branchId))
+        {
+            StatusMessage = "Pilot setup validation failed.";
+            return;
+        }
+
+        IsBusy = true;
+
+        var seatsByName = new Dictionary<string, SeatDto>(StringComparer.OrdinalIgnoreCase);
+        string currentKey = "pilot-setup";
+        string currentLabel = "Pilot setup";
+
+        try
+        {
+            if (CanSetupStaff)
+            {
+                currentKey = "staff";
+                currentLabel = "Staff users";
+                var existingStaffUsers = await apiClient.GetStaffUsersAsync(branchId, cancellationToken);
+                var existingStaffUserNames = existingStaffUsers
+                    .Select(staffUser => staffUser.UserName.Trim())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var staffUser in StaffUsers)
+                {
+                    var userName = staffUser.UserName.Trim();
+                    currentKey = $"staff:{userName}";
+                    currentLabel = $"Staff {userName}";
+
+                    if (existingStaffUserNames.Contains(userName))
+                    {
+                        AddResult(currentKey, currentLabel, "reused", $"Reused staff user {userName}.", null);
+                        continue;
+                    }
+
+                    var created = await apiClient.CreateStaffUserAsync(
+                        branchId,
+                        new CreateStaffUserRequest(
+                            organizationId,
+                            userName,
+                            staffUser.DisplayName.Trim(),
+                            staffUser.Password,
+                            [staffUser.RoleName.Trim()]),
+                        cancellationToken);
+
+                    AddResult(
+                        currentKey,
+                        currentLabel,
+                        "created",
+                        $"Created staff user {created.UserName}.",
+                        created.StaffUserId.ToString("D"));
+                }
+            }
+
+            if (CanSetupLayout)
+            {
+                var zoneNameValue = ZoneName.Trim();
+                currentKey = $"zone:{zoneNameValue}";
+                currentLabel = $"Zone {zoneNameValue}";
+                var existingZones = await apiClient.GetLayoutZonesAsync(branchId, cancellationToken);
+                var zone = existingZones.FirstOrDefault(zoneDto =>
+                    string.Equals(zoneDto.Name.Trim(), zoneNameValue, StringComparison.OrdinalIgnoreCase));
+
+                if (zone is null)
+                {
+                    zone = await apiClient.CreateZoneAsync(
+                        branchId,
+                        new CreateZoneRequest(organizationId, zoneNameValue, SeatSortOrderStart),
+                        cancellationToken);
+                    AddResult(currentKey, currentLabel, "created", $"Created zone {zone.Name}.", zone.ZoneId.ToString("D"));
+                }
+                else
+                {
+                    AddResult(currentKey, currentLabel, "reused", $"Reused zone {zone.Name}.", zone.ZoneId.ToString("D"));
+                    foreach (var seat in zone.Seats)
+                    {
+                        seatsByName[seat.Name.Trim()] = seat;
+                    }
+                }
+
+                foreach (var seatName in BuildSeatNames())
+                {
+                    currentKey = $"seat:{seatName}";
+                    currentLabel = $"Seat {seatName}";
+
+                    if (seatsByName.TryGetValue(seatName, out var existingSeat))
+                    {
+                        AddResult(currentKey, currentLabel, "reused", $"Reused seat {seatName}.", existingSeat.SeatId.ToString("D"));
+                        continue;
+                    }
+
+                    var seat = await apiClient.CreateSeatAsync(
+                        branchId,
+                        new CreateSeatRequest(
+                            organizationId,
+                            zone.ZoneId,
+                            seatName,
+                            SeatSortOrderStart + seatsByName.Count),
+                        cancellationToken);
+                    seatsByName[seatName] = seat;
+                    AddResult(currentKey, currentLabel, "created", $"Created seat {seat.Name}.", seat.SeatId.ToString("D"));
+                }
+            }
+
+            TariffDto? tariff = null;
+
+            if (CanSetupTariff)
+            {
+                var tariffNameValue = TariffName.Trim();
+                currentKey = "tariff";
+                currentLabel = "Tariff";
+                tariff = await apiClient.CreateTariffAsync(
+                    branchId,
+                    new CreateTariffRequest(
+                        organizationId,
+                        tariffNameValue,
+                        CreateIdempotencyKey(branchId, "tariff", tariffNameValue)),
+                    cancellationToken);
+                AddResult(currentKey, currentLabel, "created", $"Created tariff {tariff.Name}.", tariff.TariffId.ToString("D"));
+
+                currentKey = "tariff-version";
+                currentLabel = "Tariff version";
+                var tariffVersion = await apiClient.CreateTariffVersionAsync(
+                    branchId,
+                    tariff.TariffId,
+                    new CreateTariffVersionRequest(
+                        organizationId,
+                        tariff.TariffId,
+                        CurrencyCode.Trim(),
+                        PricePerMinuteMinorUnits,
+                        MinimumBillableMinutes,
+                        RoundingIncrementMinutes,
+                        EffectiveFromUtc,
+                        CreateIdempotencyKey(branchId, "tariff-version", tariffNameValue, CurrencyCode)),
+                    cancellationToken);
+                AddResult(
+                    currentKey,
+                    currentLabel,
+                    "created",
+                    $"Created tariff version {tariffVersion.CurrencyCode}.",
+                    tariffVersion.TariffVersionId.ToString("D"));
+            }
+
+            PosProductCategoryDto? category = null;
+
+            if (CanSetupPos)
+            {
+                currentKey = "pos-category";
+                currentLabel = "POS category";
+                category = await apiClient.CreateProductCategoryAsync(
+                    branchId,
+                    new CreateProductCategoryRequest(
+                        organizationId,
+                        ProductCategoryName.Trim(),
+                        CreateIdempotencyKey(branchId, "pos-category", ProductCategoryName)),
+                    cancellationToken);
+                AddResult(
+                    currentKey,
+                    currentLabel,
+                    "created",
+                    $"Created POS category {category.Name}.",
+                    category.CategoryId.ToString("D"));
+
+                currentKey = "pos-product";
+                currentLabel = "POS product";
+                var product = await apiClient.CreateProductAsync(
+                    branchId,
+                    new CreateProductRequest(
+                        organizationId,
+                        category.CategoryId,
+                        ProductName.Trim(),
+                        ProductSku.Trim(),
+                        new MoneyDto(CurrencyCode.Trim(), ProductPriceMinorUnits),
+                        ProductTrackStock,
+                        ProductAllowNegativeStock,
+                        CreateIdempotencyKey(branchId, "pos-product", ProductSku)),
+                    cancellationToken);
+                AddResult(
+                    currentKey,
+                    currentLabel,
+                    "created",
+                    $"Created POS product {product.Sku}.",
+                    product.ProductId.ToString("D"));
+            }
+
+            if (CanAssignDeviceSeat && !string.IsNullOrWhiteSpace(DeviceIdText))
+            {
+                currentKey = "device-assignment";
+                currentLabel = "Device assignment";
+                var targetSeatName = string.IsNullOrWhiteSpace(TargetAssignmentSeatName)
+                    ? BuildSeatNames().FirstOrDefault()
+                    : TargetAssignmentSeatName.Trim();
+
+                if (targetSeatName is null || !seatsByName.TryGetValue(targetSeatName, out var targetSeat))
+                {
+                    throw new InvalidOperationException("Target seat could not be resolved.");
+                }
+
+                var assignment = await apiClient.AssignDeviceSeatAsync(
+                    branchId,
+                    Guid.Parse(DeviceIdText.Trim()),
+                    new AssignDeviceSeatRequest(organizationId, targetSeat.SeatId),
+                    cancellationToken);
+                AddResult(
+                    currentKey,
+                    currentLabel,
+                    "created",
+                    $"Assigned device to seat {targetSeatName}.",
+                    assignment.DeviceSeatAssignmentId.ToString("D"));
+            }
+
+            StatusMessage = "Pilot setup applied.";
+            ErrorMessage = null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            ErrorMessage = RedactSensitive(exception.Message);
+            AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
+            StatusMessage = "Pilot setup failed.";
+        }
+        catch (HttpRequestException exception)
+        {
+            ErrorMessage = RedactSensitive(exception.Message);
+            AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
+            StatusMessage = "Pilot setup failed.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private bool TryValidate(out Guid organizationId, out Guid branchId)
+    {
+        organizationId = default;
+        branchId = default;
+
+        if (!Guid.TryParse(OrganizationIdText, out organizationId))
+        {
+            ErrorMessage = "OrganizationId must be a valid GUID.";
+            return false;
+        }
+
+        if (!Guid.TryParse(BranchIdText, out branchId))
+        {
+            ErrorMessage = "BranchId must be a valid GUID.";
+            return false;
+        }
+
+        if (CanSetupStaff)
+        {
+            foreach (var staffUser in StaffUsers)
+            {
+                if (string.IsNullOrWhiteSpace(staffUser.UserName)
+                    || string.IsNullOrWhiteSpace(staffUser.DisplayName)
+                    || string.IsNullOrWhiteSpace(staffUser.Password)
+                    || string.IsNullOrWhiteSpace(staffUser.RoleName))
+                {
+                    ErrorMessage = "Staff setup rows require username, display name, password, and role.";
+                    return false;
+                }
+            }
+        }
+
+        if (CanSetupLayout)
+        {
+            if (string.IsNullOrWhiteSpace(ZoneName)
+                || string.IsNullOrWhiteSpace(SeatPrefix)
+                || SeatCount is < 1 or > 200
+                || SeatSortOrderStart < 1)
+            {
+                ErrorMessage = "Layout setup requires zone, seat prefix, 1-200 seats, and positive sort order.";
+                return false;
+            }
+        }
+
+        if (CanSetupTariff)
+        {
+            if (string.IsNullOrWhiteSpace(TariffName)
+                || string.IsNullOrWhiteSpace(CurrencyCode)
+                || PricePerMinuteMinorUnits <= 0
+                || MinimumBillableMinutes <= 0
+                || RoundingIncrementMinutes <= 0)
+            {
+                ErrorMessage = "Tariff setup requires name, currency, and positive pricing values.";
+                return false;
+            }
+        }
+
+        if (CanSetupPos)
+        {
+            if (string.IsNullOrWhiteSpace(ProductCategoryName)
+                || string.IsNullOrWhiteSpace(ProductName)
+                || string.IsNullOrWhiteSpace(ProductSku)
+                || ProductPriceMinorUnits <= 0)
+            {
+                ErrorMessage = "POS setup requires category, product, SKU, and positive price.";
+                return false;
+            }
+        }
+
+        if (CanAssignDeviceSeat
+            && !string.IsNullOrWhiteSpace(DeviceIdText)
+            && !Guid.TryParse(DeviceIdText, out _))
+        {
+            ErrorMessage = "DeviceId must be a valid GUID.";
+            AddResult("device-assignment", "Device assignment", "failed", ErrorMessage, null);
+            return false;
+        }
+
+        return true;
+    }
+
+    private IReadOnlyList<string> BuildSeatNames()
+    {
+        return Enumerable.Range(1, SeatCount)
+            .Select(index => $"{SeatPrefix.Trim()}{index:000}")
+            .ToList();
+    }
+
+    private string CreateIdempotencyKey(Guid branchId, params string[] values)
+    {
+        return string.Join(
+            ":",
+            new[] { "pilot-setup", branchId.ToString("D") }
+                .Concat(values.Select(value => value.Trim().ToLowerInvariant())));
+    }
+
+    private void AddResult(string key, string label, string state, string detail, string? entityId)
+    {
+        Results.Add(new PilotSetupStepResultViewModel(
+            key,
+            label,
+            state,
+            RedactSensitive(detail),
+            entityId));
+    }
+
+    private string RedactSensitive(string value)
+    {
+        var redacted = value;
+
+        foreach (var password in StaffUsers.Select(staffUser => staffUser.Password).Where(password => !string.IsNullOrEmpty(password)))
+        {
+            redacted = redacted.Replace(password, "[redacted]", StringComparison.Ordinal);
+        }
+
+        return redacted;
+    }
+
+    private bool CanRunCommand()
+    {
+        return !IsBusy && HasAnySetupPermission;
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
