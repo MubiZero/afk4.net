@@ -721,6 +721,21 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   - the MSI package URL returned HTTP 200 with `Content-Length: 58282628`;
   - the manifest package SHA-256 was
     `c0908cc3a102e07f7a5f0c420653df9a8f0ff62461951c1eb9f865116a22c5cd`.
+- A clean Windows 11 VM run against bootstrap version `0.1.13` successfully
+  downloaded the remote manifest/script/MSI, enrolled device
+  `78bb8909-2183-47b2-abdb-0d92a19f3807`, and assigned smoke seat
+  `9f3adbd3-957e-4dc8-8d34-a6bfa56b9275`, but Windows Installer then failed
+  with MSI error 1920/1603. The log showed MSI starting
+  `AFK4.Agent.Service` before the bootstrap script had written the enrolled
+  device credential and Agent machine configuration, causing rollback and
+  service removal.
+- Branch `codex/bootstrap-config-before-msi` fixes that sequencing by writing
+  Agent machine configuration immediately after enrollment and seat assignment,
+  before `msiexec.exe` can start the service during MSI installation. The branch
+  also rewrites the same config after MSI install before the final service
+  start. Local verification on 2026-05-19: the PowerShell parser passed for
+  `scripts/publish-staging-bootstrapper.ps1`, and targeted
+  `ClientReleaseAutomationTests` passed 37/37.
 
 ## Known Gaps
 
@@ -748,8 +763,10 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   elevated PowerShell session without local file sharing or repository access.
   One Windows 11 VM passed the earlier rebuilt x64 setup
   install/enroll/heartbeat plus session start/end and visible Player Shell
-  state evidence. Repeat the remote bootstrap on a second clean VM or physical
-  Windows PC before treating the gate as broadly validated.
+  state evidence. The first remote bootstrap VM run exposed the MSI service
+  start/config sequencing bug described above; repeat the remote bootstrap after
+  the corrected script is published, then repeat on a second clean VM or
+  physical Windows PC before treating the gate as broadly validated.
 - The staging bootstrap path is for clean machines, not the update path for
   already enrolled PCs. Staging MinIO/internal MSI update rollouts have passed
   on one Windows 11 VM through Agent/Shell `0.1.7`,
@@ -789,7 +806,9 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
    commit must have a green remote `PR Verification Result`.
 2. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
    physical Windows PC, or a second clean Windows 11 VM if physical hardware is
-   unavailable, to broaden confidence beyond the current VM.
+   unavailable, to broaden confidence beyond the current VM. First rerun the
+   remote bootstrap after the config-before-MSI fix is published to staging
+   MinIO.
 3. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.

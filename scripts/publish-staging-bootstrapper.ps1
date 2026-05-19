@@ -361,6 +361,28 @@ function Set-MachineEnvironmentVariable {
     [Environment]::SetEnvironmentVariable($Name, $Value, [EnvironmentVariableTarget]::Machine)
 }
 
+function Write-AgentMachineConfiguration {
+    Set-MachineEnvironmentVariable -Name 'Agent__PlatformBaseUrl' -Value $platformBaseUrl.TrimEnd('/')
+    Set-MachineEnvironmentVariable -Name 'Agent__OrganizationId' -Value $organizationId
+    Set-MachineEnvironmentVariable -Name 'Agent__BranchId' -Value $branchId
+    Set-MachineEnvironmentVariable -Name 'Agent__DeviceId' -Value ([string]$enrollment.deviceId)
+    Set-MachineEnvironmentVariable -Name 'Agent__MachineName' -Value $MachineName
+    Set-MachineEnvironmentVariable -Name 'Agent__AgentVersion' -Value $version
+    Set-MachineEnvironmentVariable -Name 'Agent__ShellVersion' -Value $version
+    Set-MachineEnvironmentVariable -Name 'Agent__DeviceCredentialSecret' -Value ([string]$enrollment.credentialSecret)
+    Set-MachineEnvironmentVariable -Name 'Agent__LeaseSigningPublicKeyPem' -Value $leaseSigningPublicKeyPem
+    Set-MachineEnvironmentVariable -Name 'Agent__PlayerShellExecutablePath' -Value 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe'
+    Set-MachineEnvironmentVariable -Name 'Agent__PlayerShellAutoStartEnabled' -Value ([bool]::TrueString)
+    Set-MachineEnvironmentVariable -Name 'Agent__UpdateChannel' -Value $channel
+    Set-MachineEnvironmentVariable -Name 'Agent__UpdateInstallerExecutablePath' -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+    Set-MachineEnvironmentVariable -Name 'Agent__UpdateInstallerArgumentsTemplate' -Value '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\install-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"'
+    Set-MachineEnvironmentVariable -Name 'Agent__UpdateRollbackExecutablePath' -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+    Set-MachineEnvironmentVariable -Name 'Agent__UpdateRollbackArgumentsTemplate' -Value '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\rollback-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"'
+    Set-MachineEnvironmentVariable -Name 'Agent__UpdateRestartExecutablePath' -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
+    Set-MachineEnvironmentVariable -Name 'Agent__UpdateRestartArgumentsTemplate' -Value '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\restart-afk4-agent-service.ps1"'
+    Set-MachineEnvironmentVariable -Name 'Agent__UpdatePackageSigningPublicKeyPem' -Value $updateSigningPublicKeyPem
+}
+
 Assert-Administrator
 
 if ($null -eq $Password) {
@@ -441,6 +463,7 @@ $assignment = Invoke-Afk4Api `
 Write-Host "Device enrolled: $($enrollment.deviceId)"
 Write-Host "Seat assigned: $($assignment.seatId)"
 
+Write-AgentMachineConfiguration
 Stop-Service AFK4.Agent.Service -Force -ErrorAction SilentlyContinue
 $installLog = Join-Path $logRoot 'gaming-pc-bootstrapper-install.log'
 $msiexecPath = Join-Path $env:WINDIR 'System32\msiexec.exe'
@@ -451,27 +474,7 @@ if ($msiProcess.ExitCode -ne 0) {
 }
 
 Stop-Service AFK4.Agent.Service -Force -ErrorAction SilentlyContinue
-
-Set-MachineEnvironmentVariable -Name 'Agent__PlatformBaseUrl' -Value $platformBaseUrl.TrimEnd('/')
-Set-MachineEnvironmentVariable -Name 'Agent__OrganizationId' -Value $organizationId
-Set-MachineEnvironmentVariable -Name 'Agent__BranchId' -Value $branchId
-Set-MachineEnvironmentVariable -Name 'Agent__DeviceId' -Value ([string]$enrollment.deviceId)
-Set-MachineEnvironmentVariable -Name 'Agent__MachineName' -Value $MachineName
-Set-MachineEnvironmentVariable -Name 'Agent__AgentVersion' -Value $version
-Set-MachineEnvironmentVariable -Name 'Agent__ShellVersion' -Value $version
-Set-MachineEnvironmentVariable -Name 'Agent__DeviceCredentialSecret' -Value ([string]$enrollment.credentialSecret)
-Set-MachineEnvironmentVariable -Name 'Agent__LeaseSigningPublicKeyPem' -Value $leaseSigningPublicKeyPem
-Set-MachineEnvironmentVariable -Name 'Agent__PlayerShellExecutablePath' -Value 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe'
-Set-MachineEnvironmentVariable -Name 'Agent__PlayerShellAutoStartEnabled' -Value ([bool]::TrueString)
-Set-MachineEnvironmentVariable -Name 'Agent__UpdateChannel' -Value $channel
-Set-MachineEnvironmentVariable -Name 'Agent__UpdateInstallerExecutablePath' -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
-Set-MachineEnvironmentVariable -Name 'Agent__UpdateInstallerArgumentsTemplate' -Value '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\install-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"'
-Set-MachineEnvironmentVariable -Name 'Agent__UpdateRollbackExecutablePath' -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
-Set-MachineEnvironmentVariable -Name 'Agent__UpdateRollbackArgumentsTemplate' -Value '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\rollback-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"'
-Set-MachineEnvironmentVariable -Name 'Agent__UpdateRestartExecutablePath' -Value 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'
-Set-MachineEnvironmentVariable -Name 'Agent__UpdateRestartArgumentsTemplate' -Value '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\restart-afk4-agent-service.ps1"'
-Set-MachineEnvironmentVariable -Name 'Agent__UpdatePackageSigningPublicKeyPem' -Value $updateSigningPublicKeyPem
-
+Write-AgentMachineConfiguration
 Start-Service AFK4.Agent.Service
 
 $deadline = (Get-Date).ToUniversalTime().AddSeconds(75)
