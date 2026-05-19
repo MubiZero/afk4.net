@@ -331,10 +331,52 @@ $tariffVersion = Invoke-RestMethod `
     -Body $tariffVersionBody
 ```
 
-## Build Or Select The Gaming PC Package
+## Download Or Build The Gaming PC Package
 
 Use an internal package only. Do not use this runbook to create a stable
 release.
+
+Preferred path for clean Windows 11 VMs and clean gaming PCs: download the
+latest staging bootstrapper manifest from MinIO, verify the published SHA-256,
+and run the setup executable as administrator:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+
+New-Item -ItemType Directory -Force C:\AFK4-Smoke | Out-Null
+
+$manifestUri = 'https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json'
+$manifestPath = 'C:\AFK4-Smoke\afk4-gaming-pc-setup-latest.json'
+$setupPath = 'C:\AFK4-Smoke\afk4-gaming-pc-setup.exe'
+
+curl.exe -L --fail --retry 5 --retry-delay 5 -o $manifestPath $manifestUri
+$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+
+curl.exe -L --fail --retry 5 --retry-delay 5 -o $setupPath $manifest.artifactUri
+$actualSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $setupPath).Hash.ToLowerInvariant()
+if ($actualSha -ne $manifest.sha256) {
+    throw "SHA mismatch for setup executable. Expected $($manifest.sha256), got $actualSha."
+}
+
+Start-Process -FilePath $setupPath -Verb RunAs
+```
+
+The setup executable is staging-only for now. It has the staging Platform API,
+organization, branch, smoke seat, session lease verification public key, and
+internal update package verification public key fixed at build time. It asks
+for staff username and password, creates the enrollment code, enrolls the VM,
+assigns the device to the smoke seat through the Platform API, installs the
+bundled MSI, writes Agent machine configuration, starts `AFK4.Agent.Service`,
+and waits for backend heartbeat evidence.
+
+The latest manifest is produced by the `Package Smoke` workflow on `main` and
+is versioned under the same MinIO bootstrap prefix. The executable itself is
+only for clean-machine bootstrap. Do not use rebuilt setup executables as the
+update path for already enrolled PCs; those machines must be updated through
+the signed/internal MSI update rollout flow so the Agent downloads, verifies,
+installs, reports status, and can roll back without manual file copying.
+
+Fallback release-workstation build path:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' tool restore
@@ -346,26 +388,11 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
   -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem
 ```
 
-Preferred path for clean Windows 11 VMs: copy this single file to the VM and
-run it as administrator:
+This produces:
 
 ```text
 artifacts/client-packages/afk4-gaming-pc-setup-0.1.0-ci-internal.exe
 ```
-
-The setup executable is staging-only for now. It has the staging Platform API,
-organization, branch, smoke seat, session lease verification public key, and
-internal update package verification public key fixed at build time. It asks
-for staff username and password, creates the enrollment code, enrolls the VM,
-assigns the device to the smoke seat through the Platform API, installs the
-bundled MSI, writes Agent machine configuration, starts `AFK4.Agent.Service`,
-and waits for backend heartbeat evidence.
-
-Use this setup executable only for clean-machine bootstrap. Do not use rebuilt
-setup executables as the update path for already enrolled PCs; those machines
-must be updated through the signed/internal MSI update rollout flow so the Agent
-downloads, verifies, installs, reports status, and can roll back without manual
-file copying.
 
 If a machine was enrolled with an older staging setup executable that did not
 write `Agent__UpdatePackageSigningPublicKeyPem`, the first rollout cannot be

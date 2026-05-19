@@ -69,6 +69,25 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void PublishStagingBootstrapperScript_ParsesRequiredParameters()
+    {
+        var ast = ParseScript("scripts/publish-staging-bootstrapper.ps1", out var errors);
+
+        Assert.Empty(errors);
+        AssertParameter(ast, "Version");
+        AssertParameter(ast, "Channel");
+        AssertParameter(ast, "PackageDirectory");
+        AssertParameter(ast, "OutputDirectory");
+        AssertParameter(ast, "S3Endpoint");
+        AssertParameter(ast, "S3Bucket");
+        AssertParameter(ast, "S3KeyPrefix");
+        AssertParameter(ast, "S3PublicBaseUri");
+        AssertParameter(ast, "S3AccessKeyEnvVar");
+        AssertParameter(ast, "S3SecretKeyEnvVar");
+        AssertParameter(ast, "S3Region");
+    }
+
+    [Fact]
     public void RegisterUpdatePackageRequestsScript_ParsesRequiredParameters()
     {
         var ast = ParseScript("scripts/register-update-package-requests.ps1", out var errors);
@@ -532,12 +551,18 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_PACKAGE_VERSION=$version", workflow, StringComparison.Ordinal);
-        Assert.Contains("powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version $env:AFK4_PACKAGE_VERSION -Channel internal", workflow, StringComparison.Ordinal);
+        Assert.Contains("scripts/publish-staging-bootstrapper.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("StagingLeasePublicKeyPath deploy/coolify/staging-session-signing-public.pem", workflow, StringComparison.Ordinal);
+        Assert.Contains("StagingUpdateSigningPublicKeyPath deploy/coolify/staging-update-signing-public.pem", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-gaming-pc-setup-$env:AFK4_PACKAGE_VERSION-internal.exe", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("$env:GITHUB_RUN_NUMBER-ci", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/publish-client-msi-updates.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("ArtifactStore s3", workflow, StringComparison.Ordinal);
+        Assert.Contains("Publish staging bootstrapper to MinIO", workflow, StringComparison.Ordinal);
+        Assert.Contains("artifacts/bootstrapper", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-package-smoke-bootstrapper-0.1.${{ github.run_number }}-internal", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_STAGING_UPDATE_STAFF_USERNAME", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_STAGING_UPDATE_STAFF_PASSWORD", workflow, StringComparison.Ordinal);
         Assert.Contains("/api/auth/staff/sign-in", workflow, StringComparison.Ordinal);
