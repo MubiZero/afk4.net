@@ -382,6 +382,20 @@ public sealed class PilotSetupWorkspaceViewModelTests
         Assert.Contains(viewModel.Results, result => result.Key == "tariff" && result.State == "failed");
     }
 
+    [Fact]
+    public async Task ApplyAsync_WithPosOnlyAndBlankCurrency_DoesNotCallApiAndAddsFailedPosResult()
+    {
+        var apiClient = new RecordingPilotSetupApiClient();
+        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManagePosCatalog);
+        viewModel.CurrencyCode = "   ";
+
+        await viewModel.ApplyAsync(CancellationToken.None);
+
+        Assert.Empty(apiClient.Calls);
+        Assert.Equal("POS setup requires category, product, SKU, currency, and positive price.", viewModel.ErrorMessage);
+        Assert.Contains(viewModel.Results, result => result.Key == "pos" && result.State == "failed");
+    }
+
     private static PilotSetupWorkspaceViewModel CreateViewModel()
     {
         return new PilotSetupWorkspaceViewModel(new RecordingPilotSetupApiClient());

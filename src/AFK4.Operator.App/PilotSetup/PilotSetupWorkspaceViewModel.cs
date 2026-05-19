@@ -632,9 +632,10 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             if (string.IsNullOrWhiteSpace(ProductCategoryName)
                 || string.IsNullOrWhiteSpace(ProductName)
                 || string.IsNullOrWhiteSpace(ProductSku)
+                || string.IsNullOrWhiteSpace(CurrencyCode)
                 || ProductPriceMinorUnits <= 0)
             {
-                ErrorMessage = "POS setup requires category, product, SKU, and positive price.";
+                ErrorMessage = "POS setup requires category, product, SKU, currency, and positive price.";
                 AddResult("pos", "POS catalog", "failed", ErrorMessage, null);
                 return false;
             }
