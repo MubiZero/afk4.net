@@ -729,13 +729,15 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   `AFK4.Agent.Service` before the bootstrap script had written the enrolled
   device credential and Agent machine configuration, causing rollback and
   service removal.
-- Branch `codex/bootstrap-config-before-msi` fixes that sequencing by writing
-  Agent machine configuration immediately after enrollment and seat assignment,
-  before `msiexec.exe` can start the service during MSI installation. The branch
-  also rewrites the same config after MSI install before the final service
-  start. Local verification on 2026-05-19: the PowerShell parser passed for
+- PR #33 fixed that sequencing by writing Agent machine configuration
+  immediately after enrollment and seat assignment, before `msiexec.exe` can
+  start the service during MSI installation. The script also rewrites the same
+  config after MSI install before the final service start. Local verification
+  on 2026-05-19: the PowerShell parser passed for
   `scripts/publish-staging-bootstrapper.ps1`, and targeted
-  `ClientReleaseAutomationTests` passed 37/37.
+  `ClientReleaseAutomationTests` passed 37/37. Remote `PR Verification Result`
+  passed in workflow run `26091209806`, and post-merge `Package Smoke` run
+  `26091453388` published remote bootstrap version `0.1.14`.
 
 ## Known Gaps
 
@@ -1036,6 +1038,16 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   post-merge `Package Smoke` run `26089632552` passed and published
   `gaming-pc-bootstrap` version `0.1.13` at the public latest manifest URL:
   `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json`.
+- PR #33, `Fix staging bootstrap service config order`, merged into `main` on
+  2026-05-19 with squash merge commit
+  `ce647b1f415470cd9e783f745f513d17d67f9100`. The PR head was
+  `bb1df17bc8ba6d0c7825d5a07245b85597b38eac`, and remote
+  `PR Verification Result` passed for that head in workflow run
+  `26091209806`. Post-merge `Package Smoke` run `26091453388` passed and
+  published remote bootstrap `0.1.14`; public verification returned
+  `latest.json` component `gaming-pc-bootstrap`, script `Content-Length: 9892`,
+  MSI `Content-Length: 58282628`, and package SHA-256
+  `7446338abed783712d801dd2c01615aab26e5b3c0787dc42e379b567477f5383`.
 
 ## Historical Reference
 
