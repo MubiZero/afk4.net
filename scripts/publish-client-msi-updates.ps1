@@ -47,7 +47,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $ReleaseNotes,
 
-    [string] $DotnetPath = 'C:\Program Files\dotnet\dotnet.exe'
+    [string] $DotnetPath = 'C:\Program Files\dotnet\dotnet.exe',
+
+    [ValidateRange(1, 10)]
+    [int] $PublishMaxAttempts = 3
 )
 
 $ErrorActionPreference = 'Stop'
@@ -217,10 +220,20 @@ function Invoke-UpdatePublisher {
     $publisherArgs = Add-SigningKeyArguments $publisherArgs
     $publisherArgs = Add-ArtifactStoreArguments $publisherArgs $ArtifactUploadUri $ArtifactPublicUri
 
-    & $resolvedDotnetPath run --project $publisherProject -- @publisherArgs
-    $exitCode = $LASTEXITCODE
-    if ($exitCode -ne 0) {
-        throw "AFK4.Update.Publisher failed for component '$Component' with exit code $exitCode."
+    for ($attempt = 1; $attempt -le $PublishMaxAttempts; $attempt++) {
+        & $resolvedDotnetPath run --project $publisherProject -- @publisherArgs
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            return
+        }
+
+        if ($attempt -ge $PublishMaxAttempts) {
+            throw "AFK4.Update.Publisher failed for component '$Component' with exit code $exitCode after $PublishMaxAttempts attempt(s)."
+        }
+
+        $delaySeconds = [Math]::Min(60, 10 * $attempt)
+        Write-Warning "AFK4.Update.Publisher failed for component '$Component' with exit code $exitCode on attempt $attempt/$PublishMaxAttempts. Retrying in $delaySeconds seconds."
+        Start-Sleep -Seconds $delaySeconds
     }
 }
 
