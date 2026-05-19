@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using AFK4.Operator.App.PilotSetup;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
@@ -228,6 +229,70 @@ public sealed class PilotSetupWorkspaceViewModelTests
     }
 
     [Fact]
+    public async Task ApplyAsync_WithOnlyDeviceAssignmentPermission_UsesExistingLayoutSeat()
+    {
+        var apiClient = new RecordingPilotSetupApiClient
+        {
+            ExistingZoneName = "Main Hall",
+            ExistingSeatNames = new HashSet<string> { "PC-001" }
+        };
+        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.AssignDeviceSeat);
+        viewModel.DeviceIdText = RecordingPilotSetupApiClient.DeviceId.ToString("D");
+        viewModel.TargetAssignmentSeatName = "PC-001";
+
+        await viewModel.ApplyAsync(CancellationToken.None);
+
+        Assert.Equal(["get-zones", "assign-device-seat"], apiClient.Calls);
+        Assert.DoesNotContain("create-zone:Main Hall", apiClient.Calls);
+        Assert.DoesNotContain("create-seat:PC-001", apiClient.Calls);
+        Assert.Null(viewModel.ErrorMessage);
+        Assert.Contains(viewModel.Results, result => result.Key == "device-assignment" && result.State == "created");
+    }
+
+    [Fact]
+    public async Task ApplyAsync_UsesMutableSetupValuesInIdempotencyKeys()
+    {
+        var apiClient = new RecordingPilotSetupApiClient();
+        var viewModel = CreateReadyViewModel(
+            apiClient,
+            StaffPermissionNames.ManageTariffs,
+            StaffPermissionNames.ManagePosCatalog);
+        viewModel.TariffName = "Night Standard";
+        viewModel.CurrencyCode = "usd";
+        viewModel.PricePerMinuteMinorUnits = 250;
+        viewModel.MinimumBillableMinutes = 15;
+        viewModel.RoundingIncrementMinutes = 5;
+        viewModel.EffectiveFromUtc = DateTimeOffset.Parse("2026-05-20T00:00:00Z");
+        viewModel.ProductCategoryName = "Snacks";
+        viewModel.ProductName = "Energy Bar";
+        viewModel.ProductSku = "BAR-01";
+        viewModel.ProductPriceMinorUnits = 1250;
+        viewModel.ProductTrackStock = false;
+        viewModel.ProductAllowNegativeStock = true;
+
+        await viewModel.ApplyAsync(CancellationToken.None);
+
+        Assert.NotNull(apiClient.LastTariffVersionIdempotencyKey);
+        Assert.Contains(BranchId.ToString("D"), apiClient.LastTariffVersionIdempotencyKey);
+        Assert.Contains("night standard", apiClient.LastTariffVersionIdempotencyKey);
+        Assert.Contains("usd", apiClient.LastTariffVersionIdempotencyKey);
+        Assert.Contains("250", apiClient.LastTariffVersionIdempotencyKey);
+        Assert.Contains("15", apiClient.LastTariffVersionIdempotencyKey);
+        Assert.Contains("5", apiClient.LastTariffVersionIdempotencyKey);
+        Assert.Contains("2026-05-20T00:00:00.0000000+00:00", apiClient.LastTariffVersionIdempotencyKey);
+
+        Assert.NotNull(apiClient.LastProductIdempotencyKey);
+        Assert.Contains(BranchId.ToString("D"), apiClient.LastProductIdempotencyKey);
+        Assert.Contains("snacks", apiClient.LastProductIdempotencyKey);
+        Assert.Contains(apiClient.LastCategoryId!.Value.ToString("D"), apiClient.LastProductIdempotencyKey);
+        Assert.Contains("energy bar", apiClient.LastProductIdempotencyKey);
+        Assert.Contains("bar-01", apiClient.LastProductIdempotencyKey);
+        Assert.Contains("1250", apiClient.LastProductIdempotencyKey);
+        Assert.Contains("false", apiClient.LastProductIdempotencyKey);
+        Assert.Contains("true", apiClient.LastProductIdempotencyKey);
+    }
+
+    [Fact]
     public async Task ApplyAsync_WhenApiFails_StopsAtFailedStepAndKeepsPasswordOutOfMessages()
     {
         var apiClient = new RecordingPilotSetupApiClient
@@ -242,6 +307,78 @@ public sealed class PilotSetupWorkspaceViewModelTests
         Assert.DoesNotContain("ChangeMe!2026", viewModel.ErrorMessage);
         Assert.All(viewModel.Results, result => Assert.DoesNotContain("ChangeMe!2026", result.Detail));
         Assert.DoesNotContain("create-staff:supervisor.pilot@afk4.test", apiClient.Calls);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WhenApiTaskIsCanceled_SetsErrorMessage()
+    {
+        var apiClient = new RecordingPilotSetupApiClient
+        {
+            FailOnCall = "create-staff:cashier.pilot@afk4.test",
+            FailureException = new TaskCanceledException("setup timed out")
+        };
+        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageBranchStaff);
+
+        await viewModel.ApplyAsync(CancellationToken.None);
+
+        Assert.Equal("setup timed out", viewModel.ErrorMessage);
+        Assert.False(viewModel.IsBusy);
+        Assert.Contains(viewModel.Results, result => result.Key == "staff:cashier.pilot@afk4.test" && result.State == "failed");
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WhenApiReturnsInvalidJson_SetsErrorMessage()
+    {
+        var apiClient = new RecordingPilotSetupApiClient
+        {
+            FailOnCall = "create-staff:cashier.pilot@afk4.test",
+            FailureException = new JsonException("json parse failed")
+        };
+        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageBranchStaff);
+
+        await viewModel.ApplyAsync(CancellationToken.None);
+
+        Assert.Equal("json parse failed", viewModel.ErrorMessage);
+        Assert.False(viewModel.IsBusy);
+        Assert.Contains(viewModel.Results, result => result.Key == "staff:cashier.pilot@afk4.test" && result.State == "failed");
+    }
+
+    [Fact]
+    public async Task ApplyAsync_RedactsJsonEscapedPasswordFromFailureMessages()
+    {
+        const string password = "Change\"Me\\2026";
+        var escapedPassword = JsonSerializer.Serialize(password).Trim('"');
+        var apiClient = new RecordingPilotSetupApiClient
+        {
+            FailOnCall = "create-staff:cashier.pilot@afk4.test",
+            FailureException = new HttpRequestException($"Platform API rejected password {escapedPassword}")
+        };
+        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageBranchStaff);
+        viewModel.StaffUsers[0].Password = password;
+
+        await viewModel.ApplyAsync(CancellationToken.None);
+
+        Assert.DoesNotContain(password, viewModel.ErrorMessage);
+        Assert.DoesNotContain(escapedPassword, viewModel.ErrorMessage);
+        Assert.All(viewModel.Results, result =>
+        {
+            Assert.DoesNotContain(password, result.Detail);
+            Assert.DoesNotContain(escapedPassword, result.Detail);
+        });
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WithEmptyTariffName_DoesNotCallApiAndAddsFailedTariffResult()
+    {
+        var apiClient = new RecordingPilotSetupApiClient();
+        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageTariffs);
+        viewModel.TariffName = string.Empty;
+
+        await viewModel.ApplyAsync(CancellationToken.None);
+
+        Assert.Empty(apiClient.Calls);
+        Assert.Equal("Tariff setup requires name, currency, and positive pricing values.", viewModel.ErrorMessage);
+        Assert.Contains(viewModel.Results, result => result.Key == "tariff" && result.State == "failed");
     }
 
     private static PilotSetupWorkspaceViewModel CreateViewModel()
@@ -302,6 +439,14 @@ public sealed class PilotSetupWorkspaceViewModelTests
         public IReadOnlySet<string> ExistingSeatNames { get; init; } = new HashSet<string>();
 
         public string? FailOnCall { get; init; }
+
+        public Exception? FailureException { get; init; }
+
+        public string? LastTariffVersionIdempotencyKey { get; private set; }
+
+        public string? LastProductIdempotencyKey { get; private set; }
+
+        public Guid? LastCategoryId { get; private set; }
 
         public Task<IReadOnlyList<StaffUserDto>> GetStaffUsersAsync(Guid branchId, CancellationToken cancellationToken)
         {
@@ -373,6 +518,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
             CancellationToken cancellationToken)
         {
             Record($"create-tariff-version:{request.CurrencyCode}");
+            LastTariffVersionIdempotencyKey = request.IdempotencyKey;
             return Task.FromResult(new TariffVersionDto(
                 DeterministicGuid($"tariff-version:{request.CurrencyCode}"),
                 tariffId,
@@ -392,8 +538,9 @@ public sealed class PilotSetupWorkspaceViewModelTests
             CancellationToken cancellationToken)
         {
             Record($"create-pos-category:{request.Name}");
+            LastCategoryId = DeterministicGuid($"category:{request.Name}");
             return Task.FromResult(new PosProductCategoryDto(
-                DeterministicGuid($"category:{request.Name}"),
+                LastCategoryId.Value,
                 OrganizationId,
                 branchId,
                 request.Name,
@@ -407,6 +554,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
             CancellationToken cancellationToken)
         {
             Record($"create-pos-product:{request.Sku}");
+            LastProductIdempotencyKey = request.IdempotencyKey;
             return Task.FromResult(new PosProductDto(
                 DeterministicGuid($"product:{request.Sku}"),
                 OrganizationId,
@@ -444,7 +592,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
             Calls.Add(call);
             if (call == FailOnCall)
             {
-                throw new HttpRequestException("Platform API returned 500 Internal Server Error: staff create failed");
+                throw FailureException ?? new HttpRequestException("Platform API returned 500 Internal Server Error: staff create failed");
             }
         }
 

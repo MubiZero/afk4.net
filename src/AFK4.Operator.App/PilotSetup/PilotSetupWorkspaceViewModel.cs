@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
@@ -44,6 +46,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
     private bool isBusy;
     private string statusMessage = "Pilot setup ready.";
     private string? errorMessage;
+    private IReadOnlyList<string> passwordRedactionValues = [];
 
     public PilotSetupWorkspaceViewModel(IOperatorPilotSetupApiClient apiClient)
     {
@@ -287,6 +290,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         }
 
         Results.Clear();
+        passwordRedactionValues = CreatePasswordRedactionValues();
         ErrorMessage = null;
         StatusMessage = "Applying pilot setup...";
 
@@ -423,7 +427,15 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                         MinimumBillableMinutes,
                         RoundingIncrementMinutes,
                         EffectiveFromUtc,
-                        CreateIdempotencyKey(branchId, "tariff-version", tariffNameValue, CurrencyCode)),
+                        CreateIdempotencyKey(
+                            branchId,
+                            "tariff-version",
+                            tariffNameValue,
+                            CurrencyCode,
+                            PricePerMinuteMinorUnits.ToString(),
+                            MinimumBillableMinutes.ToString(),
+                            RoundingIncrementMinutes.ToString(),
+                            EffectiveFromUtc.ToString("O"))),
                     cancellationToken);
                 AddResult(
                     currentKey,
@@ -465,7 +477,16 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                         new MoneyDto(CurrencyCode.Trim(), ProductPriceMinorUnits),
                         ProductTrackStock,
                         ProductAllowNegativeStock,
-                        CreateIdempotencyKey(branchId, "pos-product", ProductSku)),
+                        CreateIdempotencyKey(
+                            branchId,
+                            "pos-product",
+                            ProductCategoryName,
+                            category.CategoryId.ToString("D"),
+                            ProductName,
+                            ProductSku,
+                            ProductPriceMinorUnits.ToString(),
+                            ProductTrackStock.ToString(),
+                            ProductAllowNegativeStock.ToString())),
                     cancellationToken);
                 AddResult(
                     currentKey,
@@ -482,6 +503,15 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                 var targetSeatName = string.IsNullOrWhiteSpace(TargetAssignmentSeatName)
                     ? BuildSeatNames().FirstOrDefault()
                     : TargetAssignmentSeatName.Trim();
+
+                if (seatsByName.Count == 0)
+                {
+                    var zones = await apiClient.GetLayoutZonesAsync(branchId, cancellationToken);
+                    foreach (var seat in zones.SelectMany(zone => zone.Seats))
+                    {
+                        seatsByName[seat.Name.Trim()] = seat;
+                    }
+                }
 
                 if (targetSeatName is null || !seatsByName.TryGetValue(targetSeatName, out var targetSeat))
                 {
@@ -516,6 +546,18 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
             StatusMessage = "Pilot setup failed.";
         }
+        catch (TaskCanceledException exception)
+        {
+            ErrorMessage = RedactSensitive(exception.Message);
+            AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
+            StatusMessage = "Pilot setup failed.";
+        }
+        catch (JsonException exception)
+        {
+            ErrorMessage = RedactSensitive(exception.Message);
+            AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
+            StatusMessage = "Pilot setup failed.";
+        }
         finally
         {
             IsBusy = false;
@@ -530,12 +572,14 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         if (!Guid.TryParse(OrganizationIdText, out organizationId))
         {
             ErrorMessage = "OrganizationId must be a valid GUID.";
+            AddResult("context", "Tenant context", "failed", ErrorMessage, null);
             return false;
         }
 
         if (!Guid.TryParse(BranchIdText, out branchId))
         {
             ErrorMessage = "BranchId must be a valid GUID.";
+            AddResult("context", "Tenant context", "failed", ErrorMessage, null);
             return false;
         }
 
@@ -549,6 +593,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                     || string.IsNullOrWhiteSpace(staffUser.RoleName))
                 {
                     ErrorMessage = "Staff setup rows require username, display name, password, and role.";
+                    AddResult("staff", "Staff users", "failed", ErrorMessage, null);
                     return false;
                 }
             }
@@ -562,6 +607,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                 || SeatSortOrderStart < 1)
             {
                 ErrorMessage = "Layout setup requires zone, seat prefix, 1-200 seats, and positive sort order.";
+                AddResult("layout", "Layout", "failed", ErrorMessage, null);
                 return false;
             }
         }
@@ -575,6 +621,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                 || RoundingIncrementMinutes <= 0)
             {
                 ErrorMessage = "Tariff setup requires name, currency, and positive pricing values.";
+                AddResult("tariff", "Tariff", "failed", ErrorMessage, null);
                 return false;
             }
         }
@@ -587,6 +634,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                 || ProductPriceMinorUnits <= 0)
             {
                 ErrorMessage = "POS setup requires category, product, SKU, and positive price.";
+                AddResult("pos", "POS catalog", "failed", ErrorMessage, null);
                 return false;
             }
         }
@@ -615,7 +663,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         return string.Join(
             ":",
             new[] { "pilot-setup", branchId.ToString("D") }
-                .Concat(values.Select(value => value.Trim().ToLowerInvariant())));
+                .Concat(values.Select(NormalizeIdempotencyValue)));
     }
 
     private void AddResult(string key, string label, string state, string detail, string? entityId)
@@ -632,12 +680,47 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
     {
         var redacted = value;
 
-        foreach (var password in StaffUsers.Select(staffUser => staffUser.Password).Where(password => !string.IsNullOrEmpty(password)))
+        foreach (var password in passwordRedactionValues)
         {
             redacted = redacted.Replace(password, "[redacted]", StringComparison.Ordinal);
         }
 
         return redacted;
+    }
+
+    private IReadOnlyList<string> CreatePasswordRedactionValues()
+    {
+        return StaffUsers
+            .SelectMany(staffUser =>
+            {
+                if (string.IsNullOrEmpty(staffUser.Password))
+                {
+                    return [];
+                }
+
+                return new[]
+                {
+                    staffUser.Password,
+                    JsonEncodedText.Encode(staffUser.Password).ToString(),
+                    JsonSerializer.Serialize(staffUser.Password).Trim('"')
+                };
+            })
+            .Where(value => !string.IsNullOrEmpty(value))
+            .Distinct(StringComparer.Ordinal)
+            .OrderByDescending(value => value.Length)
+            .ToList();
+    }
+
+    private static string NormalizeIdempotencyValue(string value)
+    {
+        var trimmed = value.Trim();
+        return DateTimeOffset.TryParse(
+            trimmed,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind,
+            out _)
+            ? trimmed
+            : trimmed.ToLowerInvariant();
     }
 
     private bool CanRunCommand()
