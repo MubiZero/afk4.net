@@ -22,7 +22,7 @@ namespace AFK4.Operator.App;
 
 public partial class MainWindow : Window
 {
-    private readonly OperatorAppOptions options = new();
+    private readonly OperatorAppOptions options;
     private readonly HttpClient apiHttpClient;
     private readonly FloorMapWorkspaceViewModel floorMapViewModel;
     private readonly PosWorkspaceViewModel posViewModel;
@@ -32,7 +32,14 @@ public partial class MainWindow : Window
     private IOperatorRealtimeClient? realtimeClient;
 
     public MainWindow()
+        : this(OperatorAppOptions.LoadFromEnvironment())
     {
+    }
+
+    internal MainWindow(OperatorAppOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        this.options = options;
         InitializeComponent();
 
         apiHttpClient = new HttpClient

@@ -1990,29 +1990,117 @@
                                         </Style.Triggers>
                                     </Style>
                                 </StackPanel.Style>
-                                <TextBlock Text="{Binding SelectedSeat.Name, TargetNullValue='No seat selected.'}"
-                                           Margin="0,10,0,0"
-                                           FontWeight="SemiBold"
-                                           Foreground="#111827" />
-                                <TextBlock Text="{Binding SelectedSeat.State}"
-                                           Margin="0,4,0,0"
-                                           Foreground="#4B5563" />
-                                <TextBlock Text="{Binding SelectedSeat.RemainingSeconds, StringFormat=Remaining {0}s}"
-                                           Margin="0,4,0,0"
-                                           Foreground="#4B5563" />
+                                <Border Margin="0,10,0,0"
+                                        Padding="10"
+                                        Background="#F9FAFB"
+                                        BorderBrush="#D8DEE9"
+                                        BorderThickness="1"
+                                        CornerRadius="4">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding SelectedSeatSummary}"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#111827"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding SelectedSeat.Zone}"
+                                                   Margin="0,4,0,0"
+                                                   Foreground="#4B5563" />
+                                        <TextBlock Text="{Binding SelectedSeat.RemainingSeconds, StringFormat=Remaining {0}s}"
+                                                   Margin="0,4,0,0"
+                                                   Foreground="#4B5563" />
+                                    </StackPanel>
+                                </Border>
                                 <Separator Margin="0,14,0,14" />
 
-                                <TextBlock Text="Start guest"
+                                <TextBlock Text="Start Guest Session"
                                            FontWeight="SemiBold"
                                            Foreground="#111827" />
+                                <TextBlock Text="Duration, minutes"
+                                           Margin="0,8,0,0"
+                                           Foreground="#4B5563" />
                                 <TextBox Text="{Binding DurationMinutes, UpdateSourceTrigger=PropertyChanged}"
-                                         Margin="0,8,0,0" />
-                                <TextBox Text="{Binding BillingMode, UpdateSourceTrigger=PropertyChanged}"
-                                         Margin="0,8,0,0" />
-                                <Button Content="Start"
+                                         Margin="0,4,0,0" />
+                                <TextBlock Text="Billing"
+                                           Margin="0,8,0,0"
+                                           Foreground="#4B5563" />
+                                <ComboBox ItemsSource="{Binding BillingModeOptions}"
+                                          DisplayMemberPath="Label"
+                                          SelectedValuePath="Value"
+                                          SelectedValue="{Binding BillingMode, UpdateSourceTrigger=PropertyChanged}"
+                                          Margin="0,4,0,0" />
+                                <TextBlock Text="Fast smoke start; no player account or ledger entry."
+                                           Margin="0,4,0,0"
+                                           Foreground="#6B7280"
+                                           TextWrapping="Wrap">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPlayerBillingRequired}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="Player account ID"
+                                           Margin="0,8,0,0"
+                                           Foreground="#4B5563">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPlayerBillingRequired}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBox Text="{Binding PlayerAccountIdText, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,0">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPlayerBillingRequired}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                                <TextBlock Text="Tariff version ID"
+                                           Margin="0,8,0,0"
+                                           Foreground="#4B5563">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPlayerBillingRequired}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBox Text="{Binding TariffVersionIdText, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,4,0,0">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPlayerBillingRequired}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                                <Button Content="Start Guest Session"
                                         Command="{Binding StartGuestSessionCommand}"
                                         Margin="0,8,0,0"
-                                        Height="32" />
+                                        Height="34" />
 
                                 <Separator Margin="0,14,0,14" />
 

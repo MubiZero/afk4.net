@@ -113,6 +113,17 @@ The latest recorded full verification passed 624 tests with 0 failures. See
 [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) for the
 exact current verification notes.
 
+## Operator App Staging Smoke
+
+The Operator App defaults to `http://localhost:5074`. To point the same local
+build at staging for pilot smoke, set `AFK4_OPERATOR_PLATFORM_BASE_URL` before
+launching the app:
+
+```powershell
+$env:AFK4_OPERATOR_PLATFORM_BASE_URL = 'https://afk4.staging.mubi.dev'
+& .\src\AFK4.Operator.App\bin\Debug\net10.0-windows\AFK4.Operator.App.exe
+```
+
 ## Local Runbooks
 
 - [Coolify Staging Deploy](docs/operations/coolify-staging-deploy.md)

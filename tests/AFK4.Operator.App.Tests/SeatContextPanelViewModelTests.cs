@@ -14,6 +14,26 @@ public sealed class SeatContextPanelViewModelTests
     private static readonly Guid BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
     private static readonly Guid ActiveSessionId = Guid.Parse("44444444-4444-4444-8444-444444444444");
     private static readonly Guid TargetSeatId = Guid.Parse("55555555-5555-4555-8555-555555555555");
+    private static readonly Guid PlayerAccountId = Guid.Parse("99999999-9999-4999-8999-999999999999");
+
+    [Fact]
+    public async Task StartGuestSessionAsync_DefaultsToNoBillingForFastGuestSmoke()
+    {
+        var apiClient = new RecordingSessionApiClient();
+        var keyFactory = new FixedIdempotencyKeyFactory("session-start-guest-001");
+        var selectedSeat = FloorMapSeatViewModel.FromDto(Seat("PC-001", state: "Locked"));
+        var panel = new SeatContextPanelViewModel(apiClient, keyFactory);
+        panel.ApplyContext(OrganizationId, BranchId);
+        panel.SelectSeat(selectedSeat);
+
+        await panel.StartGuestSessionAsync(CancellationToken.None);
+
+        Assert.Equal("", apiClient.LastStartRequest?.BillingMode);
+        Assert.Null(apiClient.LastStartRequest?.PlayerAccountId);
+        Assert.Equal("manual-v1", apiClient.LastStartRequest?.TariffRuleVersionId);
+        Assert.Equal("Session command accepted.", panel.StatusMessage);
+        Assert.Null(panel.ErrorMessage);
+    }
 
     [Fact]
     public async Task StartGuestSessionAsync_SendsBackendCommandAndMarksPending()
@@ -26,12 +46,16 @@ public sealed class SeatContextPanelViewModelTests
         panel.SelectSeat(selectedSeat);
         panel.DurationMinutes = 60;
         panel.BillingMode = BillingModeNames.PostpaidDebt;
+        panel.PlayerAccountIdText = PlayerAccountId.ToString("D");
+        panel.TariffVersionIdText = TargetSeatId.ToString("D");
 
         await panel.StartGuestSessionAsync(CancellationToken.None);
 
         Assert.Equal(selectedSeat.SeatId, apiClient.LastStartRequest?.SeatId);
         Assert.Equal("session-start-001", apiClient.LastStartRequest?.IdempotencyKey);
         Assert.Equal(BillingModeNames.PostpaidDebt, apiClient.LastStartRequest?.BillingMode);
+        Assert.Equal(PlayerAccountId, apiClient.LastStartRequest?.PlayerAccountId);
+        Assert.Equal(TargetSeatId, apiClient.LastStartRequest?.TariffVersionId);
         Assert.Equal(OrganizationId, apiClient.LastStartRequest?.OrganizationId);
         Assert.Equal(BranchId, apiClient.LastBranchId);
         Assert.Equal("Waiting for backend confirmation", panel.PendingOperation);
@@ -121,6 +145,30 @@ public sealed class SeatContextPanelViewModelTests
 
         apiClient.HoldRequest.SetResult(CreateResponse(panel.SelectedSeat?.SeatId ?? Guid.Empty));
         await task;
+    }
+
+    [Fact]
+    public void StartGuestSessionCommand_IsDisabledForActiveSeat()
+    {
+        var panel = new SeatContextPanelViewModel(new RecordingSessionApiClient(), new FixedIdempotencyKeyFactory("start-001"));
+
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(Seat("PC-007", state: "Active")));
+
+        Assert.False(panel.CanStartGuestSession);
+        Assert.False(panel.StartGuestSessionCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_WithBilledModeRequiresPlayerAccount()
+    {
+        var panel = new SeatContextPanelViewModel(new RecordingSessionApiClient(), new FixedIdempotencyKeyFactory("start-001"));
+        panel.ApplyContext(OrganizationId, BranchId);
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(Seat("PC-008", state: "Locked")));
+        panel.BillingMode = BillingModeNames.PostpaidDebt;
+
+        await panel.StartGuestSessionAsync(CancellationToken.None);
+
+        Assert.Equal("Choose Guest / no ledger for a fast guest start, or enter a player account id for billed modes.", panel.ErrorMessage);
     }
 
     private static SeatStatusDto Seat(string name, string state)

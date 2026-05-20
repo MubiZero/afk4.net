@@ -21,6 +21,34 @@ public sealed class EfSessionBillingIntegrationTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-13T10:00:00Z");
 
     [Fact]
+    public async Task StartGuestSessionAsync_WithNoBilling_StartsGuestSessionWithoutPlayerOrLedger()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMinutes: 60,
+                TariffRuleVersionId: "manual-v1",
+                IdempotencyKey: "start-guest-no-billing-001"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal("manual-v1", result.Response.Session.TariffRuleVersionId);
+        Assert.Empty(db.LedgerEntries);
+        var enqueued = Assert.Single(dispatcher.Enqueued);
+        Assert.Equal("unlock", enqueued.Command.Type);
+        Assert.Single(dispatcher.Calls);
+    }
+
+    [Fact]
     public async Task StartGuestSessionAsync_WithPrepaidWallet_DebitsWalletBeforeUnlockCommand()
     {
         await using var db = CreateDbContext();
