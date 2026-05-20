@@ -53,6 +53,9 @@ implementation evidence are needed.
 - Player search, wallet/package summaries, POS, shifts, reports, CSV exports,
   settings, technician device tools, update package/rollout management, audit
   search, diagnostics, and production hotkeys.
+- Settings includes a minimum Pilot Setup panel for branch staff users, one
+  layout zone with seats, one tariff/version, one POS category/product, and
+  optional already-enrolled device-to-seat assignment.
 
 ### Agent Service
 
@@ -780,6 +783,30 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   no active session and the device reported locked. GitHub issue #36 was
   closed after this staging evidence.
 
+Operator Pilot Setup UI branch-local verification on 2026-05-19:
+
+- focused Operator App tests:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorPilotSetupApiClientTests|PilotSetupWorkspaceViewModelTests|SettingsWorkspaceViewModelTests|OperatorShellViewModelTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 54 passed, 0 failed, 0 skipped.
+- full solution build:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: build succeeded with 0 warnings and 0 errors.
+- whitespace check:
+
+  ```powershell
+  git diff --check
+  ```
+
+  Result: clean output with no whitespace errors.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -792,12 +819,14 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
   becomes available, PR merges must manually require a green
   `PR Verification Result` on the current head commit, as recorded in
   `AGENTS.md`.
-- Staff management workflows, custom roles, and role editing UI are not
-  implemented.
-- Operator App layout management UI is not implemented.
+- General staff management workflows, custom roles, and role editing UI are not
+  implemented beyond the minimum Pilot Setup panel.
+- General Operator App layout management UI is not implemented beyond the
+  minimum one-zone/seats Pilot Setup panel.
 - Device-seat assignment now has an authorized Platform API path and staging
-  setup integration, but Operator App UI for device/seat management is not
-  implemented.
+  setup integration; general Operator App device/seat management UI is not
+  implemented beyond optional already-enrolled device assignment in the Pilot
+  Setup panel.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook, but the runbook still
   needs to be executed on physical Windows 10/11 hardware.
@@ -872,16 +901,22 @@ Staging remote Gaming PC bootstrap verification on 2026-05-19:
    staging credentials that were exposed during manual smoke setup.
 5. Harden Agent production behavior outside the update epic: rotated credential
    consumption, reboot/lock recovery, and lease timing telemetry.
-6. Implement the minimum admin/configuration workflows needed for a pilot club:
-   staff management, role assignment, layout management, device management UI,
-   tariffs, and POS setup. Device-seat assignment now has an API path, but the
-   operator-facing setup surface is still missing.
+6. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
+   role editing, layout management, device-seat management, tariff/POS
+   management, and runtime/staging configuration as needed.
 7. Continue physical Windows PC validation for lock/unlock, reboot recovery,
    and remote bootstrap/update behavior now that the VM duplicate-lock
    regression is closed.
 
 ## Recent Integration Notes
 
+- Branch `codex/operator-pilot-setup-ui` adds the Operator App
+  `Settings` -> `Pilot Setup` surface for minimum pilot branch setup. It
+  composes existing setup APIs for staff, one layout zone/seats,
+  tariff/version, POS category/product, and optional already-enrolled
+  device-to-seat assignment. It does not add a general admin panel or full
+  general-purpose management screens; the PowerShell script remains the
+  fallback path.
 - PR #9, `Add Authenticode CI update registration flow`, merged into `main` on
   2026-05-16 with merge commit
   `6f11e140d9c45b1592f71dc6c3e056fdb272c710`.

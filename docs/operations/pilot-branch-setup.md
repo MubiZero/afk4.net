@@ -20,8 +20,21 @@ outside the current MVP implementation surface.
 - Organization and branch already exist.
 - An existing owner or branch manager staff account for the branch. The account
   must have `identity.branch_staff.manage`, `layout.manage`, `tariffs.manage`,
-  and `pos.catalog.manage`.
+  and `pos.catalog.manage`. Optional already-enrolled device assignment also
+  requires `devices.seat_assignment.assign`.
 - PowerShell on a trusted operator or release workstation.
+
+## Preferred Path: Operator App
+
+Use Operator App `Settings` -> `Pilot Setup` when a signed-in owner or branch
+manager has the required setup permissions.
+
+The panel creates or reuses branch staff users, one layout zone, seats, one
+tariff with an active version, one POS category and product, and can optionally
+assign an already enrolled device to a configured seat.
+
+The PowerShell script remains the release-workstation fallback for headless
+setup or recovery.
 
 ## Configure Branch
 
