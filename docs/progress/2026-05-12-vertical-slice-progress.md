@@ -989,6 +989,13 @@ Operator App session-start usability fix on 2026-05-20:
   `PR Verification Result` passed in workflow run `26142746802`. This shipped
   the fast guest/no-ledger session start path, Operator App billing selector,
   staging URL runtime override, and updated pilot/dev roadmap status.
+- The post-merge `Package Smoke` workflow on `main` passed in workflow run
+  `26142963116`. It built and uploaded internal package/bootstrap version
+  `0.1.16`; the public staging bootstrap latest manifest now reports
+  `gaming-pc-bootstrap` version `0.1.16`, script SHA-256
+  `0cc1163ab847bf242bea5bcd125786990b48f8acc28121e621ffbaac135f0bae`, MSI
+  SHA-256 `7c7320cc5755fdbe9ff5c85b980cedfbf867c43321069cca513a3d8a6b9c3e70`,
+  and publish time `2026-05-20T05:23:14.0936296Z`.
 - PR #41, `Add operator pilot setup ui`, merged into `main` on 2026-05-20 with
   squash merge commit `129fa76fa8354a3f3f693def866e0ed02feedf20`. The PR head
   was `02f7dfcf166150f506b2ba918c3cfbaea86c4625`, and remote
