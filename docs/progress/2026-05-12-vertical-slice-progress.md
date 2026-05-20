@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 ## Purpose
 
@@ -56,6 +56,11 @@ implementation evidence are needed.
 - Settings includes a minimum Pilot Setup panel for branch staff users, one
   layout zone with seats, one tariff/version, one POS category/product, and
   optional already-enrolled device-to-seat assignment.
+- Local Operator App builds can target staging by setting
+  `AFK4_OPERATOR_PLATFORM_BASE_URL` before launch.
+- Floor-map seat context no longer defaults to a raw `postpaid_debt` request.
+  It has a fast guest/no-ledger billing option for staging smoke, explicit
+  billed modes, and validation that billed modes require a player account.
 
 ### Agent Service
 
@@ -358,7 +363,8 @@ Real-device smoke preparation branch verification on 2026-05-17:
 
 The runbook preparation does not claim the real Windows PC smoke has been
 executed. It explicitly requires operator-performed PC steps, screenshots/log
-evidence, and pass/fail recording before the real-device gate can be closed.
+evidence, and pass/fail recording before physical-hardware hardening can be
+closed.
 
 Staging Gaming PC setup bootstrapper branch verification on 2026-05-17:
 
@@ -807,6 +813,61 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
 
   Result: clean output with no whitespace errors.
 
+Operator App pilot/dev continuation verification on 2026-05-20:
+
+- after clarifying that physical Windows PC smoke and exposed staging token
+  rotation are hardening/ops hygiene rather than current pilot/dev blockers,
+  focused Operator App tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorAppOptionsTests|OperatorPilotSetupApiClientTests|PilotSetupWorkspaceViewModelTests|SettingsWorkspaceViewModelTests|OperatorShellViewModelTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 58 passed, 0 failed, 0 skipped.
+
+- Operator App project build passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' build src\AFK4.Operator.App\AFK4.Operator.App.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: build succeeded with 0 warnings and 0 errors.
+
+- full Operator App test project passed after adding the staging URL runtime
+  override:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 165 passed, 0 failed, 0 skipped.
+
+Operator App session-start usability fix on 2026-05-20:
+
+- the previous floor-map context panel defaulted to `postpaid_debt` without a
+  player account, which made the visible `Start` action fail with HTTP 400
+  (`Player account id is required for session billing`) during staging smoke.
+- local code now supports a fast no-ledger guest session start when
+  `BillingMode` is blank and no `PlayerAccountId` is supplied; billed modes
+  still require player/tariff/package data as appropriate.
+- the Operator App context panel now uses a billing mode selector instead of a
+  raw billing-mode textbox and hides player/tariff GUID fields for the fast
+  guest/no-ledger smoke path.
+- focused backend and Operator App verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "EfSessionBillingIntegrationTests|EfSessionCommandServiceTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: targeted Platform API session tests passed 17/17, Operator App tests
+  passed 168/168, full solution build succeeded with 0 warnings and 0 errors,
+  and full solution tests passed 740/740. Staging smoke still requires this
+  branch to be deployed before the fast guest/no-ledger start path can work
+  against `afk4.staging.mubi.dev`.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -828,8 +889,11 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
   implemented beyond optional already-enrolled device assignment in the Pilot
   Setup panel.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
-- Real Windows PC smoke has a repeatable staging runbook, but the runbook still
-  needs to be executed on physical Windows 10/11 hardware.
+- Real Windows PC smoke has a repeatable staging runbook. Physical Windows
+  10/11 hardware execution remains recommended hardening before wider rollout,
+  but it is no longer treated as a blocker for the current pilot/dev cycle
+  because corrected remote bootstrap `0.1.14` and two-session Windows 11 VM
+  smoke have passed.
 - The staging clean-machine bootstrap path is now remote: VM operators can
   download `latest.json`, verify the small bootstrap script, and run it from an
   elevated PowerShell session without local file sharing or repository access.
@@ -839,16 +903,15 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
   start/config sequencing bug described above; corrected remote bootstrap
   `0.1.14` then passed clean Windows 11 VM install/enroll/seat-assignment/
   heartbeat/locked-Shell smoke plus two session start/end cycles with seat
-  reuse. Repeat on a second clean VM or physical Windows PC before treating the
-  gate as broadly validated.
+  reuse. Repeat on a second clean VM or physical Windows PC to broaden
+  confidence, not as a prerequisite for continuing Operator App staging tests.
 - The staging bootstrap path is for clean machines, not the update path for
   already enrolled PCs. Staging MinIO/internal MSI update rollouts have passed
   on one Windows 11 VM through Agent/Shell `0.1.7`,
   including recovery from stale update state and suppression of superseded
   older rollout offers. The update epic is closed for the current pilot/dev
-  cycle; physical hardware update and rollback evidence remain bundled into
-  the broader real-device/release validation gate rather than a separate next
-  development branch.
+  cycle; physical hardware update and rollback evidence remain broader release
+  hardening rather than a separate next development branch.
 - Windows lock/unlock enforcement needs real Windows 10/11 device validation
   beyond adapter-level automated tests; if physical desktop lock/unlock does
   not occur, record that as an enforcement hardening gap rather than as a pass.
@@ -864,9 +927,9 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
   command creation on the final session end. Issue #36 is fixed, redeployed to
   staging, and closed after a VM recheck confirmed a single lock command for one
   session end.
-- Operator App staging observation needs either a staging-configured build or a
-  future runtime configuration path because the current app default API URL is
-  `http://localhost:5074`.
+- Operator App staging observation can now use
+  `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`; the app
+  still defaults to `http://localhost:5074` when the variable is not set.
 - Production Authenticode certificate authority/storage is undecided.
 - Staging update artifacts are hosted from Coolify MinIO. Production
   object-store/CDN provider, public-read policy, retention, and presigned URL
@@ -878,8 +941,9 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
   encryption, retention, off-host storage, and restore ownership are still
   launch decisions.
 - The Coolify API token used during the 2026-05-19 restore rehearsal was
-  exposed in chat and must be rotated before relying on it for further
-  operations.
+  exposed in chat. Rotate it before sensitive staging operations; it is tracked
+  as staging secret hygiene, not as a blocker for Operator App testing or
+  continued development.
 - Production lease duration and heartbeat refresh threshold need tuning after
   real Agent telemetry.
 
@@ -887,28 +951,37 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
-   physical Windows PC, or a second clean Windows 11 VM if physical hardware is
-   unavailable, to broaden confidence beyond the current VM now that corrected
-   remote bootstrap `0.1.14` has passed clean Windows 11 VM smoke.
-3. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
-   enrolled Windows gaming PC and record actual pass/fail evidence, including
-   any physical lock/unlock or Player Shell visibility gaps.
-4. Choose production Authenticode certificate authority/storage, production
+2. Test the Operator App against deployed staging: sign-in, floor map, the
+   `Settings` -> `Pilot Setup` panel, shift/POS basics, session actions against
+   current staging device/seat state, and actionable error handling. Deploy the
+   2026-05-20 session-start usability fix first if testing the fast
+   guest/no-ledger start path.
+3. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
-   staging credentials that were exposed during manual smoke setup.
-5. Harden Agent production behavior outside the update epic: rotated credential
+   staging credentials that were exposed during manual smoke setup as
+   operational hygiene before sensitive staging operations.
+4. Harden Agent production behavior outside the update epic: rotated credential
    consumption, reboot/lock recovery, and lease timing telemetry.
-6. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
+5. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
    role editing, layout management, device-seat management, tariff/POS
    management, and runtime/staging configuration as needed.
-7. Continue physical Windows PC validation for lock/unlock, reboot recovery,
+6. Continue physical Windows PC validation for lock/unlock, reboot recovery,
    and remote bootstrap/update behavior now that the VM duplicate-lock
-   regression is closed.
+   regression is closed. Treat findings as hardening unless they block the
+   current Operator App staging test.
 
 ## Recent Integration Notes
 
+- On 2026-05-20, roadmap/progress status was clarified after the Operator
+  Pilot Setup UI merge: physical Windows PC smoke and exposed staging Coolify
+  token rotation are tracked as hardening/ops hygiene, not blockers for the
+  current pilot/dev cycle. The next active validation focus is Operator App
+  testing against deployed staging.
+- On 2026-05-20, the Operator App gained the
+  `AFK4_OPERATOR_PLATFORM_BASE_URL` runtime override so a local build can be
+  launched directly against `https://afk4.staging.mubi.dev` for staging smoke
+  without a staging-specific rebuild.
 - PR #41, `Add operator pilot setup ui`, merged into `main` on 2026-05-20 with
   squash merge commit `129fa76fa8354a3f3f693def866e0ed02feedf20`. The PR head
   was `02f7dfcf166150f506b2ba918c3cfbaea86c4625`, and remote
@@ -965,8 +1038,8 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
   the staging Gaming PC setup path, interactive-session Player Shell
   supervision, long-lived Agent-to-Shell state delivery, session
   end/finalization reuse hardening, and Windows 11 VM post-redeploy smoke
-  evidence. The remaining runtime gate is physical Windows hardware smoke plus
-  reboot/update recovery.
+  evidence. The remaining runtime hardening is physical Windows hardware smoke
+  plus reboot/update recovery.
 - PR #19, `Add pilot device-seat assignment API`, merged into `main` on
   2026-05-18 with squash merge commit
   `c5a7f64788997d22a4c2c01b456bfc50cd97f61e`. The PR head was

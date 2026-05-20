@@ -108,19 +108,26 @@ public sealed class SessionBillingService(
         int durationMinutes,
         CancellationToken cancellationToken)
     {
+        if (durationMinutes <= 0)
+        {
+            return Invalid("Billable duration must be positive.");
+        }
+
         if (string.IsNullOrWhiteSpace(billingMode))
         {
-            return Invalid("Billing mode is required.");
+            return new SessionBillingValidationResult(
+                Succeeded: true,
+                Error: null,
+                TariffRuleVersionId: string.Empty,
+                TariffVersionId: null,
+                BillableSeconds: checked(durationMinutes * 60),
+                AmountMinorUnits: 0,
+                DefaultCurrencyCode);
         }
 
         if (playerAccountId is null)
         {
             return Invalid("Player account id is required for session billing.");
-        }
-
-        if (durationMinutes <= 0)
-        {
-            return Invalid("Billable duration must be positive.");
         }
 
         var playerExists = await dbContext.PlayerAccounts

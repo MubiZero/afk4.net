@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 ## Purpose
 
@@ -29,10 +29,12 @@ Minimum bar:
 - Platform API deployed to a production-like environment.
 - PostgreSQL hosted outside a developer machine.
 - TLS, domain, and environment-based secrets configured.
-- One real Windows gaming PC enrolled with Agent Service and Player Shell.
+- One Windows test endpoint enrolled with Agent Service and Player Shell. A
+  clean Windows 11 VM is acceptable for the pilot gate; physical PC validation
+  remains recommended hardening before wider rollout.
 - Operator App can perform the core day flow against the deployed backend.
 - Backup and restore rehearsal completed once.
-- Client MSI installation and update rollout tested on a real PC.
+- Client MSI installation and update rollout tested on a Windows endpoint.
 - Manual/mock payments are acceptable.
 - Manual operational setup is acceptable if documented.
 
@@ -49,8 +51,9 @@ Minimum bar:
 - Backup retention, encryption, restore ownership, and incident procedure are
   defined and tested.
 - Production certificate/signing/CDN/secrets policy is settled.
-- Agent lock/reboot/update/rollback behavior is validated on real Windows
-  devices.
+- Agent lock/reboot/update/rollback behavior is validated on Windows
+  endpoints, with physical-device repeats treated as hardening for wider
+  rollout.
 - Staff, role assignment, layout, device, update, audit, and reporting
   workflows are usable by operators/managers.
 - Operational monitoring and support diagnostics are actionable.
@@ -82,12 +85,12 @@ Minimum bar:
    merges must manually follow `AGENTS.md`: the current PR head commit needs a
    green remote `PR Verification Result` before merge.
 
-3. **Real Device Smoke**
+3. **Windows Endpoint Smoke**
 
-   Enroll a real Windows 10/11 gaming PC. Validate device credential auth,
+   Enroll a Windows 10/11 test endpoint. Validate device credential auth,
    heartbeat, SignalR commands, session start/end, lease refresh, lock/unlock,
    Player Shell state, installed app report, and diagnostics. A repeatable
-   manual staging runbook now exists at
+   manual staging runbook for physical hardware still exists at
    `docs/operations/real-device-windows-pc-smoke.md`, and the Agent host is
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
    A staging-only one-click Gaming PC setup executable path now exists for clean
@@ -102,9 +105,13 @@ Minimum bar:
    session-aware process detection, and accepted/completed lock command results
    or the next heartbeat finalization fallback move sessions to `ended` so the
    seat/device can be reused. After staging was redeployed from that branch,
-   the Windows 11 VM reuse smoke passed without SQL cleanup. The gate remains
-   open for physical Windows 10/11 hardware evidence and reboot/update
-   recovery.
+   the Windows 11 VM reuse smoke passed without SQL cleanup. Corrected remote
+   bootstrap `0.1.14` then passed clean Windows 11 VM install/enroll/
+   seat-assignment/heartbeat/locked-Shell smoke plus two session start/end
+   cycles with seat/device reuse. This is enough to proceed with pilot Operator
+   App testing and continued development. Physical Windows 10/11 hardware,
+   reboot recovery, and update/rollback repeats remain hardening work before
+   wider operational rollout, not blockers for the current pilot/dev cycle.
 
 4. **Backup And Restore Rehearsal**
 
@@ -136,9 +143,9 @@ Minimum bar:
    for the current pilot/dev cycle. The staging Gaming PC setup executable
    remains only a bootstrap path for clean machines; commercial production
    still needs final Authenticode/signing custody, production storage/CDN
-   policy, service credentials for package registration, and physical
-   PC update/rollback evidence as part of the general real-device release
-   validation. On 2026-05-19, `Package Smoke` also began publishing a remote
+   policy, and service credentials for package registration. Physical PC
+   update/rollback evidence remains broader release hardening. On 2026-05-19,
+   `Package Smoke` also began publishing a remote
    clean-machine Gaming PC bootstrap script and `latest.json` manifest to
    staging MinIO. The public latest manifest URL was verified after workflow
    run `26089632552` and points to version `0.1.13`; this removes local file
@@ -169,7 +176,9 @@ Minimum bar:
    and layout setup APIs plus a PowerShell pilot setup script that composes
    existing tariff, POS, and device assignment endpoints. The script completed
    against staging on 2026-05-19 using a branch manager account and no direct
-   PostgreSQL edits.
+   PostgreSQL edits. PR #41 added the minimum Operator App `Settings` ->
+   `Pilot Setup` panel for staff, one zone/seats, one tariff/version, one POS
+   category/product, and optional already-enrolled device assignment.
 
 ## Commercial Production Blockers
 
@@ -202,8 +211,9 @@ Minimum bar:
 - ECDSA update metadata signing key storage policy is undecided.
 - Earlier Coolify API token and staging database/session secrets used during
   the first rehearsal were rotated. The Coolify API token used during the
-  2026-05-19 restore rehearsal was exposed in chat and must also be rotated;
-  future secret exchange must stay out of chat.
+  2026-05-19 restore rehearsal was exposed in chat; rotating it remains
+  operational hygiene before sensitive staging operations, but it is not a
+  pilot or development blocker. Future secret exchange must stay out of chat.
 - Staging update artifacts now use Coolify-hosted MinIO. Production
   object-store/CDN provider, public-read policy, retention, and presigned
   upload automation are undecided.
@@ -215,8 +225,8 @@ Minimum bar:
 - Automatic Agent-side consumption of rotated device credentials is not
   implemented.
 - Agent service registration now has matching Windows Service host lifetime
-  wiring, but real service startup must still be validated through the
-  real-device smoke runbook.
+  wiring and Windows 11 VM smoke evidence. Physical service startup validation
+  remains hardening through the real-device smoke runbook.
 - A staging-only Gaming PC bootstrap path exists. The older release-workstation
   setup executable path remains in code, but the preferred clean VM path is now
   the MinIO-hosted remote bootstrap script from `Package Smoke`:
@@ -231,15 +241,16 @@ Minimum bar:
   bootstrap version `0.1.14` passed clean Windows 11 VM install/enroll/
   seat-assignment/heartbeat/locked-Shell smoke, then passed two session
   start/end cycles with no-SQL seat/device reuse. Repeat that remote bootstrap
-  path on physical Windows hardware before closing the gate.
-- Lock/unlock enforcement needs real Windows validation beyond test adapters.
+  path on physical Windows hardware as hardening before wider rollout.
+- Lock/unlock enforcement has adapter coverage and Windows 11 VM smoke
+  evidence. Physical Windows validation remains hardening before wider rollout.
 - Player Shell service-session competition is mitigated in code by
   session-aware process detection and Agent-driven launch into the active
   interactive Windows session. The Agent-to-Shell state pipe now serves the
   latest state to late or restarted Shell clients instead of relying on a short
   publish timing window. A rebuilt Windows 11 staging VM confirmed active-state
-  delivery without manual Shell restart; physical PC smoke is still needed
-  before the operational gate is closed.
+  delivery without manual Shell restart; physical PC smoke remains recommended
+  hardening.
 - Session end/finalization is implemented in code for accepted/completed lock
   command results and heartbeat recovery when accepted lock results were
   already persisted for an `ending` session, including duplicate-result
@@ -252,7 +263,8 @@ Minimum bar:
   closed: the staging VM recheck on 2026-05-19 confirmed session
   `1df4e315-9585-47af-9c74-02c2ebe423de` produced exactly one fresh lock
   command, then returned the seat/device to locked with no active session.
-- Reboot recovery must be exercised on physical PCs.
+- Reboot recovery should be exercised on physical PCs as hardening before wider
+  rollout.
 - Already enrolled PCs are updateable through signed/internal MSI update
   rollouts in staging: the Windows 11 VM device
   `0588fb59-3edb-4704-bbdb-094e12417cf1` installed Agent/Shell `0.1.3` and
@@ -265,20 +277,24 @@ Minimum bar:
   path; use the remote bootstrap manifest/script for clean staging PCs and the
   signed/internal MSI rollout path for already enrolled PCs. No separate update
   development branch is planned now; repeat update and rollback evidence on
-  physical hardware under the broader real-device release validation gate.
+  physical hardware as broader release hardening.
 - Production lease duration and heartbeat refresh threshold need telemetry.
 
 ### Operator Workflows
 
 - Staff management workflow is implemented as a minimum API path on `main`;
-  Operator App UI is still missing.
+  the Operator App has a minimum one-shot Pilot Setup panel, but not a general
+  staff management UI.
 - Custom roles and role editing UI are not implemented.
 - Branch layout management is implemented as a minimum API path on `main`;
-  Operator App UI is still missing.
+  the Operator App has a minimum one-zone/seats Pilot Setup panel, but not a
+  general layout editor.
 - Device-seat assignment has a staff-authorized API path and staging smoke
-  setup integration, but no Operator App management UI yet.
-- Pilot branch setup can now run through the Platform API script, but
-  commercial production still needs operator-safe configuration screens.
+  setup integration plus optional assignment in the Pilot Setup panel, but no
+  general device/seat management UI yet.
+- Pilot branch setup can now run through either the Operator App Pilot Setup
+  panel or the Platform API script fallback. Commercial production still needs
+  broader operator-safe configuration screens.
 
 ### Observability And Support
 
@@ -289,26 +305,33 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. Real-device smoke execution
+1. Operator App deployed-backend smoke
+
+   Use the Operator App against the deployed staging backend to verify the
+   practical pilot day flow: sign-in, floor map, Pilot Setup panel, shift/POS
+   basics, session actions against the current staging device/seat state, and
+   actionable errors. Local builds can target staging with
+   `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Deploy the
+   2026-05-20 session-start usability fix before retesting the fast
+   guest/no-ledger session start path on staging.
+
+2. Operator-facing management expansion
+
+   The one-shot Pilot Setup panel is enough for pilot setup. Next development
+   should expand toward general staff/role, layout, device-seat, tariff, POS,
+   and runtime/staging configuration screens as pilot usability requires.
+
+3. Physical Windows hardening
 
    Repeat `docs/operations/real-device-windows-pc-smoke.md` on physical
-   Windows 10/11 hardware, or on a second clean Windows 11 VM if physical
-   hardware is unavailable, to broaden confidence beyond the current VM smoke.
-   Include the internal MSI update rollout path and record pass/fail results,
-   update status, and any duplicate Shell process behavior in the progress
-   snapshot.
+   Windows 10/11 hardware when hardware is available. Treat findings as
+   hardening work unless they block the current Operator App staging test.
 
-2. Rotate exposed staging Coolify API token
+4. Staging secret hygiene
 
-   The restore rehearsal token was exposed in chat. Rotate it before further
-   operational use, then keep future tokens in a secret manager or local
+   Rotate the exposed restore-rehearsal Coolify token before sensitive staging
+   operations, then keep future tokens in a secret manager or local
    runtime-only environment, not in chat or repository files.
-
-3. Operator-facing pilot setup UI
-
-   The API/script path for pilot setup exists and was verified on staging.
-   Add the minimum Operator App screens for staff, branch layout, devices,
-   tariffs, and POS setup when pilot usability becomes the focus.
 
 ## Decision Rules
 
@@ -318,6 +341,8 @@ Minimum bar:
 - Prefer runbooks and explicit release gates before adding provider-specific
   SDKs.
 - Prefer one real-device smoke loop over more theoretical docs once staging is
-  available.
-- Treat backup restore and physical-device release validation as launch gates,
-  not cleanup tasks.
+  available, but do not treat physical hardware availability as a blocker for
+  current Operator App staging tests.
+- Treat backup restore as a launch gate. Treat physical-device release
+  validation as hardening and release-confidence work unless a concrete
+  Operator App staging test is blocked by it.

@@ -12,6 +12,13 @@ namespace AFK4.Operator.App.FloorMap;
 public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
 {
     private const string WaitingForBackendConfirmation = "Waiting for backend confirmation";
+    private static readonly IReadOnlyList<BillingModeOptionViewModel> BillingModes =
+    [
+        new("Guest / no ledger", "", "Fast smoke start; no player account or ledger entry."),
+        new("Postpaid debt", BillingModeNames.PostpaidDebt, "Requires player account and tariff version."),
+        new("Prepaid wallet", BillingModeNames.PrepaidWallet, "Requires player account, tariff version, and wallet balance."),
+        new("Package", BillingModeNames.Package, "Requires player account and player package.")
+    ];
 
     private readonly IOperatorSessionApiClient apiClient;
     private readonly IIdempotencyKeyFactory idempotencyKeyFactory;
@@ -26,8 +33,8 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     private string playerAccountIdText = "";
     private int durationMinutes = 60;
     private int additionalMinutes = 15;
-    private string billingMode = BillingModeNames.PostpaidDebt;
-    private string tariffRuleVersionId = "default";
+    private string billingMode = "";
+    private string tariffRuleVersionId = "manual-v1";
     private string tariffVersionIdText = "";
     private string playerPackageIdText = "";
     private string targetSeatIdText = "";
@@ -46,7 +53,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         this.idempotencyKeyFactory = idempotencyKeyFactory;
         this.refreshAfterSuccess = refreshAfterSuccess;
 
-        startGuestSessionCommand = new AsyncRelayCommand(StartGuestSessionAsync, () => !IsBusy && SelectedSeat is not null);
+        startGuestSessionCommand = new AsyncRelayCommand(StartGuestSessionAsync, () => !IsBusy && CanStartGuestSession);
         extendSessionCommand = new AsyncRelayCommand(ExtendSessionAsync, () => !IsBusy && HasActiveSession);
         transferSessionCommand = new AsyncRelayCommand(TransferSessionAsync, () => !IsBusy && HasActiveSession);
         endSessionCommand = new AsyncRelayCommand(EndSessionAsync, () => !IsBusy && HasActiveSession);
@@ -62,12 +69,24 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             if (SetField(ref selectedSeat, value))
             {
                 OnPropertyChanged(nameof(HasActiveSession));
+                OnPropertyChanged(nameof(CanStartGuestSession));
+                OnPropertyChanged(nameof(SelectedSeatSummary));
                 NotifyCommandStates();
             }
         }
     }
 
     public bool HasActiveSession => SelectedSeat?.ActiveSessionId is not null;
+
+    public bool CanStartGuestSession => SelectedSeat is not null && !HasActiveSession;
+
+    public string SelectedSeatSummary => SelectedSeat is null
+        ? "Select a seat from the floor."
+        : $"{SelectedSeat.Name} - {SelectedSeat.State}";
+
+    public IReadOnlyList<BillingModeOptionViewModel> BillingModeOptions => BillingModes;
+
+    public bool IsPlayerBillingRequired => !string.IsNullOrWhiteSpace(BillingMode);
 
     public string PlayerAccountIdText
     {
@@ -90,7 +109,13 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     public string BillingMode
     {
         get => billingMode;
-        set => SetField(ref billingMode, value);
+        set
+        {
+            if (SetField(ref billingMode, value))
+            {
+                OnPropertyChanged(nameof(IsPlayerBillingRequired));
+            }
+        }
     }
 
     public string TariffRuleVersionId
@@ -194,6 +219,12 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             return;
         }
 
+        if (IsPlayerBillingRequired && playerAccountId is null)
+        {
+            SetValidationError("Choose Guest / no ledger for a fast guest start, or enter a player account id for billed modes.");
+            return;
+        }
+
         var request = new StartGuestSessionRequest(
             organizationIdValue,
             seat.SeatId,
@@ -201,7 +232,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             TariffRuleVersionId.Trim(),
             idempotencyKeyFactory.Create("session-start"),
             playerAccountId,
-            BillingMode,
+                BillingMode.Trim(),
             tariffVersionId,
             playerPackageId);
 
@@ -420,3 +451,8 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
+
+public sealed record BillingModeOptionViewModel(
+    string Label,
+    string Value,
+    string Description);
