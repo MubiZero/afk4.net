@@ -1,0 +1,171 @@
+name: Coolify Staging Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/coolify-staging-deploy.yml"
+      - "deploy/coolify/**"
+      - "src/AFK4.Platform.Api/**"
+      - "src/AFK4.Shared.Contracts/**"
+      - "src/AFK4.BuildingBlocks/**"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - "NuGet.config"
+      - "global.json"
+      - "AFK4.sln"
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Force Coolify rebuild without cache."
+        required: false
+        type: boolean
+        default: false
+      confirm_migrations_applied:
+        description: "Allow deploy when this commit contains EF migrations after backup and migration have been handled."
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: coolify-staging-deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-staging:
+    name: Deploy Platform API To Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COOLIFY_FORCE_REBUILD: ${{ inputs.force_rebuild || false }}
+      CONFIRM_MIGRATIONS_APPLIED: ${{ inputs.confirm_migrations_applied || false }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard EF migrations
+        shell: pwsh
+        run: |
+          $before = "${{ github.event.before }}"
+          $head = "${{ github.sha }}"
+
+          if ("${{ github.event_name }}" -eq "push" -and -not [string]::IsNullOrWhiteSpace($before) -and $before -notmatch '^0+$') {
+            $changed = git diff --name-only "$before...$head"
+          } else {
+            $changed = git show --name-only --format= $head
+          }
+
+          Write-Host "Changed paths considered for staging deploy:"
+          $changed | ForEach-Object { Write-Host " - $_" }
+
+          $migrationPrefix = "src/AFK4.Platform.Api/Data/Migrations/"
+          $hasMigrationChanges = $false
+          foreach ($path in $changed) {
+            if ($path.StartsWith($migrationPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+              $hasMigrationChanges = $true
+              break
+            }
+          }
+
+          if ($hasMigrationChanges -and $env:CONFIRM_MIGRATIONS_APPLIED -ne "true") {
+            throw "EF migration changes require explicit backup/migration run before Coolify deploy. Re-run this workflow_dispatch with confirm_migrations_applied=true only after the staging database migration is handled."
+          }
+
+      - name: Trigger Coolify deployment
+        id: deploy
+        shell: pwsh
+        env:
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+          COOLIFY_STAGING_APP_UUID: ${{ vars.COOLIFY_STAGING_APP_UUID }}
+        run: |
+          $required = @(
+            "COOLIFY_API_TOKEN",
+            "COOLIFY_BASE_URL",
+            "COOLIFY_STAGING_APP_UUID"
+          )
+
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Required GitHub secret or variable is missing: $name"
+            }
+          }
+
+          $coolifyBaseUrl = $env:COOLIFY_BASE_URL.Trim().TrimEnd("/")
+          $appUuid = $env:COOLIFY_STAGING_APP_UUID.Trim()
+          $encodedAppUuid = [System.Uri]::EscapeDataString($appUuid)
+          $forceRebuild = $env:COOLIFY_FORCE_REBUILD.ToLowerInvariant()
+          $deployUri = "$coolifyBaseUrl/api/v1/deploy?uuid=$encodedAppUuid&force=$forceRebuild"
+          $headers = @{ Authorization = "Bearer $env:COOLIFY_API_TOKEN" }
+
+          Write-Host "Triggering Coolify deployment for staging app UUID $appUuid"
+          $response = Invoke-RestMethod -Method Get -Uri $deployUri -Headers $headers -TimeoutSec 60
+          $deployment = @($response.deployments)[0]
+          if ($null -eq $deployment -or [string]::IsNullOrWhiteSpace([string]$deployment.deployment_uuid)) {
+            $responseJson = $response | ConvertTo-Json -Depth 10
+            throw "Coolify did not return a deployment_uuid. Response: $responseJson"
+          }
+
+          $deploymentUuid = [string]$deployment.deployment_uuid
+          Write-Host "Coolify deployment queued: $deploymentUuid"
+          "deployment_uuid=$deploymentUuid" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Wait for Coolify deployment
+        shell: pwsh
+        env:
+          COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+          COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}
+          DEPLOYMENT_UUID: ${{ steps.deploy.outputs.deployment_uuid }}
+        run: |
+          $coolifyBaseUrl = $env:COOLIFY_BASE_URL.Trim().TrimEnd("/")
+          $deploymentUuid = $env:DEPLOYMENT_UUID.Trim()
+          $headers = @{ Authorization = "Bearer $env:COOLIFY_API_TOKEN" }
+          $deploymentUri = "$coolifyBaseUrl/api/v1/deployments/$([System.Uri]::EscapeDataString($deploymentUuid))"
+          $successStatuses = @("finished", "success", "succeeded")
+          $failureStatuses = @("failed", "error", "cancelled", "canceled")
+
+          for ($attempt = 1; $attempt -le 80; $attempt++) {
+            $deployment = Invoke-RestMethod -Method Get -Uri $deploymentUri -Headers $headers -TimeoutSec 60
+            $status = ([string]$deployment.status).ToLowerInvariant()
+            Write-Host "Coolify deployment $deploymentUuid status attempt ${attempt}: $status"
+
+            if ($successStatuses -contains $status) {
+              Write-Host "Coolify deployment finished successfully."
+              exit 0
+            }
+
+            if ($failureStatuses -contains $status) {
+              throw "Coolify deployment $deploymentUuid failed with status '$status'."
+            }
+
+            Start-Sleep -Seconds 15
+          }
+
+          throw "Timed out waiting for Coolify deployment $deploymentUuid."
+
+      - name: Verify staging health
+        shell: pwsh
+        env:
+          AFK4_STAGING_PLATFORM_BASE_URL: ${{ vars.AFK4_STAGING_PLATFORM_BASE_URL }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:AFK4_STAGING_PLATFORM_BASE_URL)) {
+            throw "Required GitHub variable is missing: AFK4_STAGING_PLATFORM_BASE_URL"
+          }
+
+          $platformBaseUrl = $env:AFK4_STAGING_PLATFORM_BASE_URL.Trim().TrimEnd("/")
+          $health = Invoke-RestMethod -Method Get -Uri "$platformBaseUrl/api/health" -TimeoutSec 60
+          if ($health.status -ne "ok") {
+            $healthJson = $health | ConvertTo-Json -Depth 10
+            throw "Staging health check did not return status=ok. Response: $healthJson"
+          }
+
+          Write-Host "Staging health check passed at $platformBaseUrl/api/health"

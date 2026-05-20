@@ -114,6 +114,9 @@ implementation evidence are needed.
   - PR verification with branch-protection-safe result job and conditional
     Windows build/test execution.
   - Package smoke for unsigned MSI validation on `main` and manual dispatch.
+  - Coolify staging deploy for Platform API changes on `main`, with Coolify API
+    queue/polling, `/api/health` verification, and EF migration fail-closed
+    guard.
   - Manual release package workflow with short artifact retention.
   - JavaScript actions are opted into Node 24 execution with
     `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`.
@@ -122,8 +125,9 @@ implementation evidence are needed.
 
 - Local PostgreSQL smoke runbook.
 - Coolify staging deploy runbook for building the Platform API container from
-  the repo, connecting Coolify-managed PostgreSQL, applying EF migrations, and
-  running health/smoke checks.
+  the repo, connecting Coolify-managed PostgreSQL, applying EF migrations,
+  configuring GitHub repository variables/secrets for automated Coolify deploy,
+  and running health/smoke checks.
 - Agent installer enrollment runbook.
 - Client update rollout runbook.
 - Real Windows gaming PC smoke runbook for staging Platform API, Agent Service,
@@ -1310,6 +1314,26 @@ PostgreSQL restore rehearsal helper branch verification on 2026-05-19:
   `962281bb03d28e8e34eb959072a2f6c0b528aa26`. Remote `PR Verification Result`
   passed for head commit `784a0df56c7cbf05d07810c11a0925998bb9da2e` in
   workflow run `26114016147`.
+
+Coolify staging deploy automation branch verification on 2026-05-20:
+
+- branch `codex/coolify-staging-deploy-workflow` adds
+  `.github/workflows/coolify-staging-deploy.yml` so Platform API/Coolify-related
+  `main` pushes queue a Coolify deployment through the official Coolify API,
+  poll the returned deployment UUID, and verify
+  `AFK4_STAGING_PLATFORM_BASE_URL/api/health`;
+- the workflow requires GitHub repository variables `COOLIFY_BASE_URL`,
+  `COOLIFY_STAGING_APP_UUID`, and `AFK4_STAGING_PLATFORM_BASE_URL`, plus the
+  repository secret `COOLIFY_API_TOKEN`;
+- `gh variable list` / `gh secret list` on 2026-05-20 showed
+  `AFK4_STAGING_PLATFORM_BASE_URL` is already configured, while
+  `COOLIFY_BASE_URL`, `COOLIFY_STAGING_APP_UUID`, and `COOLIFY_API_TOKEN` still
+  need to be added before the first automated Coolify deploy can pass;
+- EF migration file changes fail closed on automatic deploy. After a backup and
+  explicit staging database migration, the workflow can be manually dispatched
+  with `confirm_migrations_applied=true`;
+- `docs/operations/coolify-staging-deploy.md` now documents the automated
+  deploy path, required GitHub configuration, and migration guard.
 
 ## Historical Reference
 
