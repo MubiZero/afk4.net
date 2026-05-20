@@ -25,6 +25,7 @@ public sealed class ShiftWorkspaceViewModelTests
         await viewModel.OpenShiftAsync(CancellationToken.None);
 
         Assert.Equal("shift-open-001", apiClient.LastOpenRequest?.IdempotencyKey);
+        Assert.Equal("TJS", apiClient.LastOpenRequest?.StartingCash.CurrencyCode);
         Assert.Equal(50000, apiClient.LastOpenRequest?.StartingCash.MinorUnits);
         Assert.Equal("Morning shift", apiClient.LastOpenRequest?.OpeningNote);
         Assert.Equal(BranchId, apiClient.LastOpenBranchId);
@@ -48,7 +49,7 @@ public sealed class ShiftWorkspaceViewModelTests
         Assert.Equal(ShiftId, viewModel.CurrentShiftId);
         Assert.Equal(51000, viewModel.ExpectedCashMinorUnits);
         Assert.True(viewModel.CanRunMoneyWorkflows);
-        Assert.Equal("Open shift loaded.", viewModel.StatusMessage);
+        Assert.Equal("Открытая смена загружена.", viewModel.StatusMessage);
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public sealed class ShiftWorkspaceViewModelTests
 
         Assert.Null(viewModel.CurrentShift);
         Assert.False(viewModel.CanRunMoneyWorkflows);
-        Assert.Equal("No open shift.", viewModel.StatusMessage);
+        Assert.Equal("Открытой смены нет.", viewModel.StatusMessage);
     }
 
     [Fact]
@@ -87,7 +88,7 @@ public sealed class ShiftWorkspaceViewModelTests
         Assert.Equal(2500, apiClient.LastCashMovementRequest?.Amount.MinorUnits);
         Assert.Equal("drawer correction", apiClient.LastCashMovementRequest?.Reason);
         Assert.Equal(1, apiClient.GetCurrentShiftCallCount);
-        Assert.Equal("Cash movement recorded.", viewModel.StatusMessage);
+        Assert.Equal("Движение кассы записано.", viewModel.StatusMessage);
     }
 
     [Fact]
@@ -124,7 +125,7 @@ public sealed class ShiftWorkspaceViewModelTests
         await viewModel.RecordCashMovementAsync(CancellationToken.None);
 
         Assert.Equal(0, apiClient.CashMovementCallCount);
-        Assert.Equal("Open shift is required before money operations.", viewModel.ErrorMessage);
+        Assert.Equal("Откройте смену перед денежными операциями.", viewModel.ErrorMessage);
 
         viewModel.SetCurrentShift(CreateShift(ShiftStateNames.Closed));
 
@@ -132,7 +133,7 @@ public sealed class ShiftWorkspaceViewModelTests
 
         Assert.Equal(0, apiClient.CloseShiftCallCount);
         Assert.False(viewModel.CanRunMoneyWorkflows);
-        Assert.Equal("Open shift is required before money operations.", viewModel.ErrorMessage);
+        Assert.Equal("Откройте смену перед денежными операциями.", viewModel.ErrorMessage);
     }
 
     [Fact]
@@ -262,12 +263,12 @@ public sealed class ShiftWorkspaceViewModelTests
         Assert.Single(viewModel.GameplayTimeReportRows);
         Assert.Single(viewModel.CashOperationReportRows);
         Assert.Single(viewModel.OperatorActionReportRows);
-        Assert.Equal("1 shifts loaded.", viewModel.ShiftReportSummary);
-        Assert.Equal("Gross USD 2400, refunds USD 0, net USD 2400.", viewModel.SalesReportSummary);
-        Assert.Equal("Gameplay 7200 seconds, package 0, bonus 0, revenue USD 12000.", viewModel.GameplayTimeReportSummary);
-        Assert.Equal("Cash in USD 5000, cash out USD 0, net USD 5000.", viewModel.CashOperationReportSummary);
-        Assert.Equal("3 operator actions across 1 groups.", viewModel.OperatorActionReportSummary);
-        Assert.Equal("Reports loaded.", viewModel.StatusMessage);
+        Assert.Equal("Загружено смен: 1.", viewModel.ShiftReportSummary);
+        Assert.Equal("Валовые продажи USD 2400, возвраты USD 0, нетто USD 2400.", viewModel.SalesReportSummary);
+        Assert.Equal("Игровое время 7200 сек., пакет 0, бонус 0, выручка USD 12000.", viewModel.GameplayTimeReportSummary);
+        Assert.Equal("Приход USD 5000, расход USD 0, нетто USD 5000.", viewModel.CashOperationReportSummary);
+        Assert.Equal("Действий операторов: 3, групп: 1.", viewModel.OperatorActionReportSummary);
+        Assert.Equal("Отчеты загружены.", viewModel.StatusMessage);
     }
 
     [Fact]
@@ -281,7 +282,7 @@ public sealed class ShiftWorkspaceViewModelTests
         await viewModel.LoadReportsAsync(CancellationToken.None);
 
         Assert.Equal(0, apiClient.ShiftReportCallCount);
-        Assert.Equal("Report limit must be a positive whole number.", viewModel.ErrorMessage);
+        Assert.Equal("Лимит отчета должен быть положительным целым числом.", viewModel.ErrorMessage);
     }
 
     [Fact]
@@ -310,7 +311,7 @@ public sealed class ShiftWorkspaceViewModelTests
         Assert.Equal(25, apiClient.LastReportLimit);
         Assert.Equal("afk4-shifts-report.csv", fileWriter.LastSuggestedFileName);
         Assert.Equal("shift_id,state\r\n1,open\r\n", fileWriter.LastCsv);
-        Assert.Equal("CSV exported to C:\\exports\\afk4-shifts-report.csv.", viewModel.StatusMessage);
+        Assert.Equal("CSV экспортирован: C:\\exports\\afk4-shifts-report.csv.", viewModel.StatusMessage);
         Assert.Null(viewModel.ErrorMessage);
     }
 

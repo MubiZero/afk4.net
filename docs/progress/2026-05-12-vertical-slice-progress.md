@@ -53,6 +53,11 @@ implementation evidence are needed.
 - Player search, wallet/package summaries, POS, shifts, reports, CSV exports,
   settings, technician device tools, update package/rollout management, audit
   search, diagnostics, and production hotkeys.
+- A first operator-console redesign pass is in progress on
+  `codex/operator-app-redesign`: the shell, floor map, POS, players, shifts,
+  and settings surfaces now prioritize selected-seat context, readable state,
+  cart/checkout clarity, and operator-safe summaries instead of raw GUIDs and
+  backend-shaped forms.
 - Settings includes a minimum Pilot Setup panel for branch staff users, one
   layout zone with seats, one tariff/version, one POS category/product, and
   optional already-enrolled device-to-seat assignment.
@@ -61,6 +66,10 @@ implementation evidence are needed.
 - Floor-map seat context no longer defaults to a raw `postpaid_debt` request.
   It has a fast guest/no-ledger billing option for staging smoke, explicit
   billed modes, and validation that billed modes require a player account.
+- The Operator App redesign branch now makes the primary operator day flow
+  Russian-first for sign-in, floor map/seat actions, POS, players, and shifts.
+  Operator money commands use configurable UI currency from
+  `AFK4_OPERATOR_CURRENCY_CODE`, defaulting to `TJS`.
 
 ### Agent Service
 
@@ -872,6 +881,42 @@ Operator App session-start usability fix on 2026-05-20:
   branch to be deployed before the fast guest/no-ledger start path can work
   against `afk4.staging.mubi.dev`.
 
+Operator App redesign branch-local verification on 2026-05-20:
+
+- branch `codex/operator-app-redesign` replaces the previous dense/raw WPF
+  shell with an operator-console layout. The floor map now surfaces counts,
+  selected-seat state, device summary, and remaining time. POS separates
+  catalog and checkout, hides category/product GUIDs from the primary path, and
+  formats cart/stock/price text for operators. Player, shift, and settings
+  workspaces expose higher-level summaries instead of empty panels and
+  backend-shaped inputs.
+- a second visual pass after launching the WPF app against staging added POS and
+  player empty states, explicit labels for player/money fields, a cash movement
+  type selector instead of raw `cash_in` text, shorter branch display in
+  Operations, and ellipsis/tooltips for long floor-card names.
+- the seat context command flow no longer leaves a successful start/end action
+  stuck at `Waiting for backend confirmation`; after the backend accepts the
+  command, the pending state is cleared and the existing realtime/floor refresh
+  path remains responsible for final seat state.
+- local verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' build src\AFK4.Operator.App\AFK4.Operator.App.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: Operator App build succeeded, Operator App tests passed 169/169,
+  full solution tests passed 743/743, and `git diff --check` returned clean
+  aside from expected CRLF normalization warnings.
+
+- runtime visual smoke against the staging Windows VM is still required before
+  treating the redesign as accepted. The redesign intentionally moves raw
+  update package registration and other advanced settings controls out of the
+  default first-screen path; those operations may need a follow-up advanced
+  tools screen if they must remain operator-accessible.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -934,6 +979,9 @@ Operator App session-start usability fix on 2026-05-20:
 - Operator App staging observation can now use
   `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`; the app
   still defaults to `http://localhost:5074` when the variable is not set.
+- The previous Operator App layout was found unusable during staging smoke even
+  though start/end session worked. The active follow-up is a full operator
+  console redesign branch; do not continue polishing the old raw-form layout.
 - Production Authenticode certificate authority/storage is undecided.
 - Staging update artifacts are hosted from Coolify MinIO. Production
   object-store/CDN provider, public-read policy, retention, and presigned URL
@@ -955,11 +1003,12 @@ Operator App session-start usability fix on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Test the Operator App against deployed staging: sign-in, floor map, the
-   `Settings` -> `Pilot Setup` panel, shift/POS basics, session actions against
-   current staging device/seat state, and actionable error handling. Deploy the
-   2026-05-20 session-start usability fix first if testing the fast
-   guest/no-ledger start path.
+2. Finish and review `codex/operator-app-redesign`, then test the Operator App
+   against deployed staging: sign-in, floor map, the `Settings` -> `Pilot Setup`
+   panel, shift/POS basics, session actions against current staging device/seat
+   state, and actionable error handling. Treat any remaining raw GUID/form
+   surfaces as usability bugs unless they are explicitly advanced technician
+   tools.
 3. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
@@ -1000,6 +1049,11 @@ Operator App session-start usability fix on 2026-05-20:
   `0cc1163ab847bf242bea5bcd125786990b48f8acc28121e621ffbaac135f0bae`, MSI
   SHA-256 `7c7320cc5755fdbe9ff5c85b980cedfbf867c43321069cca513a3d8a6b9c3e70`,
   and publish time `2026-05-20T05:23:14.0936296Z`.
+- On 2026-05-20, staging Operator App smoke confirmed session start/end works
+  but the surrounding UI is not viable for pilot operators. The follow-up branch
+  `codex/operator-app-redesign` starts a full shell/workspace redesign and
+  should be reviewed visually before more feature work depends on the old
+  layout.
 - PR #41, `Add operator pilot setup ui`, merged into `main` on 2026-05-20 with
   squash merge commit `129fa76fa8354a3f3f693def866e0ed02feedf20`. The PR head
   was `02f7dfcf166150f506b2ba918c3cfbaea86c4625`, and remote
@@ -1343,6 +1397,29 @@ Coolify staging deploy automation branch verification on 2026-05-20:
   workflow run `26144123936`. It queued Coolify deployment
   `ixeoc17m6hsyimfb3zop0ca2`, observed status `finished`, and verified
   `https://afk4.staging.mubi.dev/api/health` with `status = ok`.
+
+Operator App redesign branch verification on 2026-05-20:
+
+- branch `codex/operator-app-redesign` continues PR #44 and adds a
+  Russian-first primary operator UI for sign-in, floor map seat actions, POS,
+  players, and shifts;
+- Operator App currency is configurable through
+  `AFK4_OPERATOR_CURRENCY_CODE`, defaults to `TJS`, and is passed into POS,
+  player wallet/debt, and shift money commands;
+- local Operator App tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 173 passed, 0 failed, 0 skipped.
+- full local solution tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 747 passed, 0 failed, 0 skipped.
 
 ## Historical Reference
 

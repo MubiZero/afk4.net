@@ -31,7 +31,7 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal("", apiClient.LastStartRequest?.BillingMode);
         Assert.Null(apiClient.LastStartRequest?.PlayerAccountId);
         Assert.Equal("manual-v1", apiClient.LastStartRequest?.TariffRuleVersionId);
-        Assert.Equal("Session command accepted.", panel.StatusMessage);
+        Assert.Equal("Команда сессии принята.", panel.StatusMessage);
         Assert.Null(panel.ErrorMessage);
     }
 
@@ -58,8 +58,8 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal(TargetSeatId, apiClient.LastStartRequest?.TariffVersionId);
         Assert.Equal(OrganizationId, apiClient.LastStartRequest?.OrganizationId);
         Assert.Equal(BranchId, apiClient.LastBranchId);
-        Assert.Equal("Waiting for backend confirmation", panel.PendingOperation);
-        Assert.Equal("Session command accepted.", panel.StatusMessage);
+        Assert.Null(panel.PendingOperation);
+        Assert.Equal("Команда сессии принята.", panel.StatusMessage);
         Assert.Null(panel.ErrorMessage);
     }
 
@@ -77,7 +77,7 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal(ActiveSessionId, apiClient.LastExtendSessionId);
         Assert.Equal(30, apiClient.LastExtendRequest?.AdditionalMinutes);
         Assert.Equal("session-extend-001", apiClient.LastExtendRequest?.IdempotencyKey);
-        Assert.Equal("Session command accepted.", panel.StatusMessage);
+        Assert.Equal("Команда сессии принята.", panel.StatusMessage);
         Assert.Null(panel.ErrorMessage);
     }
 
@@ -94,7 +94,7 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal(ActiveSessionId, apiClient.LastTransferSessionId);
         Assert.Equal(TargetSeatId, apiClient.LastTransferRequest?.TargetSeatId);
         Assert.Equal("session-transfer-001", apiClient.LastTransferRequest?.IdempotencyKey);
-        Assert.Equal("Session command accepted.", panel.StatusMessage);
+        Assert.Equal("Команда сессии принята.", panel.StatusMessage);
         Assert.Null(panel.ErrorMessage);
     }
 
@@ -106,7 +106,7 @@ public sealed class SeatContextPanelViewModelTests
 
         await panel.EndSessionAsync(CancellationToken.None);
 
-        Assert.Equal("Selected seat has no active session.", panel.ErrorMessage);
+        Assert.Equal("На выбранном месте нет активной сессии.", panel.ErrorMessage);
         Assert.Null(panel.PendingOperation);
     }
 
@@ -123,7 +123,7 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal(ActiveSessionId, apiClient.LastEndSessionId);
         Assert.Equal("operator close", apiClient.LastEndRequest?.Reason);
         Assert.Equal("session-end-001", apiClient.LastEndRequest?.IdempotencyKey);
-        Assert.Equal("Session command accepted.", panel.StatusMessage);
+        Assert.Equal("Команда сессии принята.", panel.StatusMessage);
         Assert.Null(panel.ErrorMessage);
     }
 
@@ -156,6 +156,9 @@ public sealed class SeatContextPanelViewModelTests
 
         Assert.False(panel.CanStartGuestSession);
         Assert.False(panel.StartGuestSessionCommand.CanExecute(null));
+        Assert.True(panel.HasActiveSession);
+        Assert.Equal("Управление активной сессией", panel.SeatActionTitle);
+        Assert.Equal("осталось 30 мин", panel.ActiveSessionSummary);
     }
 
     [Fact]
@@ -168,7 +171,7 @@ public sealed class SeatContextPanelViewModelTests
 
         await panel.StartGuestSessionAsync(CancellationToken.None);
 
-        Assert.Equal("Choose Guest / no ledger for a fast guest start, or enter a player account id for billed modes.", panel.ErrorMessage);
+        Assert.Equal("Для быстрого старта выберите гостя без учета или укажите аккаунт игрока для платного режима.", panel.ErrorMessage);
     }
 
     private static SeatStatusDto Seat(string name, string state)

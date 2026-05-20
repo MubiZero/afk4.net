@@ -15,11 +15,12 @@ namespace AFK4.Operator.App.Players;
 public sealed class PlayerSearchViewModel : INotifyPropertyChanged
 {
     private const int DefaultSearchLimit = 20;
-    private const string DefaultCurrencyCode = "USD";
-    private const string WaitingForBackendConfirmation = "Waiting for backend confirmation";
+    private const string DefaultCurrencyCode = "TJS";
+    private const string WaitingForBackendConfirmation = "Ожидаем подтверждение сервера";
 
     private readonly IOperatorPlayerApiClient apiClient;
     private readonly IIdempotencyKeyFactory idempotencyKeyFactory;
+    private readonly string currencyCode;
     private readonly AsyncRelayCommand searchCommand;
     private readonly AsyncRelayCommand createPlayerCommand;
     private readonly AsyncRelayCommand refreshSelectedPlayerCommand;
@@ -33,7 +34,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
     private string? newPlayerPhoneNumber;
     private long topUpAmountMinorUnits;
     private long debtPaymentAmountMinorUnits;
-    private string moneyReason = "operator request";
+    private string moneyReason = "запрос оператора";
     private WalletSummaryDto? walletSummary;
     private long walletBalanceMinorUnits;
     private long debtBalanceMinorUnits;
@@ -49,10 +50,12 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
 
     public PlayerSearchViewModel(
         IOperatorPlayerApiClient apiClient,
-        IIdempotencyKeyFactory idempotencyKeyFactory)
+        IIdempotencyKeyFactory idempotencyKeyFactory,
+        string currencyCode = DefaultCurrencyCode)
     {
         this.apiClient = apiClient;
         this.idempotencyKeyFactory = idempotencyKeyFactory;
+        this.currencyCode = NormalizeCurrencyCode(currencyCode);
 
         Results = [];
         PlayerPackages = [];
@@ -83,10 +86,23 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
             if (SetField(ref selectedPlayer, value))
             {
                 ApplySelectedPlayerSnapshot(value);
+                OnPropertyChanged(nameof(HasSelectedPlayer));
+                OnPropertyChanged(nameof(SelectedPlayerTitle));
+                OnPropertyChanged(nameof(SelectedPlayerDetails));
                 NotifyCommandStates();
             }
         }
     }
+
+    public bool HasSelectedPlayer => SelectedPlayer is not null;
+
+    public string SelectedPlayerTitle => SelectedPlayer?.DisplayName ?? "Игрок не выбран";
+
+    public string SelectedPlayerDetails => SelectedPlayer is null
+        ? "Найдите игрока по имени или телефону либо создайте новый аккаунт."
+        : string.IsNullOrWhiteSpace(SelectedPlayer.PhoneNumber)
+            ? SelectedPlayer.PackageSummary
+            : $"{SelectedPlayer.PhoneNumber} · {SelectedPlayer.PackageSummary}";
 
     public string NewPlayerDisplayName
     {
@@ -148,7 +164,17 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
         }
     }
 
-    public string WalletSummaryText => $"Wallet {FormatMoney(WalletBalanceMinorUnits)} USD / debt {FormatMoney(DebtBalanceMinorUnits)} USD";
+    public string CurrencyCode => currencyCode;
+
+    public string MinorUnitLabel => $"Сумма, {CurrencyCode} (в минорных единицах)";
+
+    public string WalletSummaryText => $"Кошелек {FormatMoney(WalletBalanceMinorUnits)} {CurrencyCode} / долг {FormatMoney(DebtBalanceMinorUnits)} {CurrencyCode}";
+
+    public string SearchSummary => Results.Count == 0
+        ? "Игроки не загружены."
+        : $"{Results.Count} игрок(ов)";
+
+    public bool HasSearchResults => Results.Count > 0;
 
     public bool IsBusy
     {
@@ -213,7 +239,9 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
         if (query.Length < 2)
         {
             Results.Clear();
-            ErrorMessage = "Enter at least two characters to search.";
+            OnPropertyChanged(nameof(SearchSummary));
+            OnPropertyChanged(nameof(HasSearchResults));
+            ErrorMessage = "Введите минимум два символа для поиска.";
             return;
         }
 
@@ -229,10 +257,12 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
             Results.Clear();
             foreach (var player in players)
             {
-                Results.Add(new PlayerSearchResultViewModel(player));
+                Results.Add(new PlayerSearchResultViewModel(player, CurrencyCode));
             }
 
-            StatusMessage = $"{Results.Count} player(s) found.";
+            OnPropertyChanged(nameof(SearchSummary));
+            OnPropertyChanged(nameof(HasSearchResults));
+            StatusMessage = $"Найдено игроков: {Results.Count}.";
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
@@ -269,12 +299,15 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
                     WalletBalanceMinorUnits: 0,
                     DebtBalanceMinorUnits: 0,
                     ActivePackageCount: 0,
-                    player.IsActive));
+                    player.IsActive),
+                    CurrencyCode);
 
                 Results.Insert(0, searchResult);
+                OnPropertyChanged(nameof(SearchSummary));
+                OnPropertyChanged(nameof(HasSearchResults));
                 SelectedPlayer = searchResult;
                 await RefreshSelectedPlayerStateAsync(player.PlayerAccountId, token);
-                StatusMessage = "Player account created.";
+                StatusMessage = "Аккаунт игрока создан.";
             },
             cancellationToken);
     }
@@ -290,7 +323,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
             async token =>
             {
                 await RefreshSelectedPlayerStateAsync(player.PlayerAccountId, token);
-                StatusMessage = "Player summary refreshed.";
+                StatusMessage = "Карточка игрока обновлена.";
             },
             cancellationToken);
     }
@@ -299,14 +332,14 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
     {
         if (!TryGetSelectedPlayer(out var player) ||
             !TryGetOrganizationContext(out var organizationIdValue) ||
-            !TryValidatePositiveMoney(TopUpAmountMinorUnits, "Top-up amount must be greater than zero."))
+            !TryValidatePositiveMoney(TopUpAmountMinorUnits, "Сумма пополнения должна быть больше нуля."))
         {
             return;
         }
 
         var request = new TopUpWalletRequest(
             organizationIdValue,
-            new MoneyDto(DefaultCurrencyCode, TopUpAmountMinorUnits),
+            new MoneyDto(CurrencyCode, TopUpAmountMinorUnits),
             NormalizeReason(),
             idempotencyKeyFactory.Create("wallet-top-up"));
 
@@ -316,7 +349,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
             {
                 var summary = await apiClient.TopUpWalletAsync(player.PlayerAccountId, request, token);
                 ApplyWalletSummary(summary);
-                StatusMessage = "Player wallet top-up confirmed.";
+                StatusMessage = "Пополнение кошелька подтверждено.";
             },
             cancellationToken);
     }
@@ -325,14 +358,14 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
     {
         if (!TryGetSelectedPlayer(out var player) ||
             !TryGetOrganizationContext(out var organizationIdValue) ||
-            !TryValidatePositiveMoney(DebtPaymentAmountMinorUnits, "Debt payment amount must be greater than zero."))
+            !TryValidatePositiveMoney(DebtPaymentAmountMinorUnits, "Сумма погашения долга должна быть больше нуля."))
         {
             return;
         }
 
         var request = new PayDebtRequest(
             organizationIdValue,
-            new MoneyDto(DefaultCurrencyCode, DebtPaymentAmountMinorUnits),
+            new MoneyDto(CurrencyCode, DebtPaymentAmountMinorUnits),
             NormalizeReason(),
             idempotencyKeyFactory.Create("debt-payment"));
 
@@ -342,7 +375,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
             {
                 var summary = await apiClient.PayDebtAsync(player.PlayerAccountId, request, token);
                 ApplyWalletSummary(summary);
-                StatusMessage = "Player debt payment confirmed.";
+                StatusMessage = "Погашение долга подтверждено.";
             },
             cancellationToken);
     }
@@ -439,7 +472,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
     {
         if (SelectedPlayer is null)
         {
-            SetValidationError("Select a player first.");
+            SetValidationError("Сначала выберите игрока.");
             player = null!;
             return false;
         }
@@ -452,7 +485,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
     {
         if (!TryGetOrganizationContext(out organizationIdValue) || branchId == Guid.Empty)
         {
-            SetValidationError("Operator context is not loaded.");
+            SetValidationError("Контекст оператора не загружен.");
             branchIdValue = Guid.Empty;
             return false;
         }
@@ -465,7 +498,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
     {
         if (organizationId == Guid.Empty)
         {
-            SetValidationError("Operator context is not loaded.");
+            SetValidationError("Контекст оператора не загружен.");
             organizationIdValue = Guid.Empty;
             return false;
         }
@@ -479,7 +512,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
         displayName = NewPlayerDisplayName.Trim();
         if (displayName.Length == 0)
         {
-            SetValidationError("Player display name is required.");
+            SetValidationError("Имя игрока обязательно.");
             return false;
         }
 
@@ -500,7 +533,7 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
     private string NormalizeReason()
     {
         return string.IsNullOrWhiteSpace(MoneyReason)
-            ? "operator request"
+            ? "запрос оператора"
             : MoneyReason.Trim();
     }
 
@@ -516,8 +549,8 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
         if (exception is HttpRequestException httpException)
         {
             return httpException.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized
-                ? $"Permission denied: {httpException.Message}"
-                : $"Network or API error: {httpException.Message}";
+                ? $"Нет прав: {httpException.Message}"
+                : $"Ошибка сети или API: {httpException.Message}";
         }
 
         return exception.Message;
@@ -558,12 +591,25 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
     {
         return (minorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture);
     }
+
+    private static string NormalizeCurrencyCode(string value)
+    {
+        var normalized = string.IsNullOrWhiteSpace(value)
+            ? DefaultCurrencyCode
+            : value.Trim().ToUpperInvariant();
+        return normalized.Length == 3 && normalized.All(character => character is >= 'A' and <= 'Z')
+            ? normalized
+            : DefaultCurrencyCode;
+    }
 }
 
 public sealed class PlayerSearchResultViewModel
 {
-    public PlayerSearchResultViewModel(PlayerSearchResultDto dto)
+    private readonly string currencyCode;
+
+    public PlayerSearchResultViewModel(PlayerSearchResultDto dto, string currencyCode = "TJS")
     {
+        this.currencyCode = string.IsNullOrWhiteSpace(currencyCode) ? "TJS" : currencyCode.Trim().ToUpperInvariant();
         PlayerAccountId = dto.PlayerAccountId;
         DisplayName = dto.DisplayName;
         PhoneNumber = dto.PhoneNumber;
@@ -588,11 +634,11 @@ public sealed class PlayerSearchResultViewModel
     public bool IsActive { get; }
 
     public string BalanceSummary =>
-        $"Wallet {FormatMoney(WalletBalanceMinorUnits)} USD / debt {FormatMoney(DebtBalanceMinorUnits)} USD";
+        $"Кошелек {FormatMoney(WalletBalanceMinorUnits)} {currencyCode} / долг {FormatMoney(DebtBalanceMinorUnits)} {currencyCode}";
 
     public string PackageSummary => ActivePackageCount == 1
-        ? "1 active package"
-        : $"{ActivePackageCount} active packages";
+        ? "1 активный пакет"
+        : $"{ActivePackageCount} активных пакетов";
 
     private static string FormatMoney(long minorUnits)
     {
@@ -621,5 +667,5 @@ public sealed class PlayerPackageSummaryViewModel
 
     public DateTimeOffset? ExpiresAtUtc { get; }
 
-    public string RemainingSummary => $"{RemainingIncludedSeconds + RemainingBonusSeconds} seconds remaining";
+    public string RemainingSummary => $"Осталось секунд: {RemainingIncludedSeconds + RemainingBonusSeconds}";
 }

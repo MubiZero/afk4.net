@@ -24,8 +24,12 @@ public sealed class FloorMapWorkspaceViewModelTests
         Assert.Single(viewModel.Seats);
         Assert.Equal("PC-010", viewModel.Seats[0].Name);
         Assert.Equal("Active", viewModel.Seats[0].State);
+        Assert.Equal("В сессии", viewModel.Seats[0].DisplayState);
+        Assert.Equal("осталось 30 мин", viewModel.Seats[0].RemainingTimeText);
         Assert.Equal(1800, viewModel.Seats[0].RemainingSeconds);
         Assert.Equal(DeviceId, viewModel.Seats[0].DeviceId);
+        Assert.Equal(1, viewModel.ActiveSeatCount);
+        Assert.Contains("активно 1", viewModel.FloorSummary);
         Assert.Null(viewModel.ErrorMessage);
     }
 
@@ -65,6 +69,8 @@ public sealed class FloorMapWorkspaceViewModelTests
 
         Assert.True(updated);
         Assert.Equal("Free", viewModel.Seats[0].State);
+        Assert.Equal("Свободен", viewModel.Seats[0].DisplayState);
+        Assert.Equal("готово 1 / активно 0 / офлайн 0", viewModel.FloorSummary);
         Assert.Equal(DateTimeOffset.Parse("2026-05-14T10:00:00Z"), viewModel.Seats[0].LastHeartbeatAtUtc);
     }
 

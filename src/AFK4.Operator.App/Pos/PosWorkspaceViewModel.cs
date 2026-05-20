@@ -15,11 +15,12 @@ namespace AFK4.Operator.App.Pos;
 
 public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
 {
-    private const string WaitingForBackendConfirmation = "Waiting for backend confirmation";
-    private const string DefaultCurrencyCode = "USD";
+    private const string WaitingForBackendConfirmation = "Ожидаем подтверждение сервера";
+    private const string DefaultCurrencyCode = "TJS";
 
     private readonly IOperatorPosApiClient apiClient;
     private readonly IIdempotencyKeyFactory idempotencyKeyFactory;
+    private readonly string currencyCode;
     private readonly AsyncRelayCommand refreshCatalogCommand;
     private readonly AsyncRelayCommand payCashCommand;
     private readonly AsyncRelayCommand payCardManualCommand;
@@ -31,9 +32,9 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     private Guid? currentShiftId;
     private PosSaleDto? lastSale;
     private ReceiptDto? lastReceipt;
-    private string paymentNote = "manual POS payment";
-    private string refundReason = "customer return";
-    private string voidReason = "mistaken draft";
+    private string paymentNote = "ручная оплата POS";
+    private string refundReason = "возврат клиента";
+    private string voidReason = "ошибочный черновик";
     private bool isBusy;
     private string? pendingOperation;
     private string? statusMessage;
@@ -46,10 +47,12 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
 
     public PosWorkspaceViewModel(
         IOperatorPosApiClient apiClient,
-        IIdempotencyKeyFactory idempotencyKeyFactory)
+        IIdempotencyKeyFactory idempotencyKeyFactory,
+        string currencyCode = DefaultCurrencyCode)
     {
         this.apiClient = apiClient;
         this.idempotencyKeyFactory = idempotencyKeyFactory;
+        this.currencyCode = NormalizeCurrencyCode(currencyCode);
 
         Catalog = [];
         CatalogGroups = [];
@@ -85,6 +88,8 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
         {
             if (SetField(ref currentShiftId, value))
             {
+                OnPropertyChanged(nameof(HasOpenShift));
+                OnPropertyChanged(nameof(CheckoutHint));
                 NotifyCommandStates();
             }
         }
@@ -99,6 +104,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(LastSaleId));
                 OnPropertyChanged(nameof(LastSaleState));
+                OnPropertyChanged(nameof(LastSaleSummary));
                 NotifyCommandStates();
             }
         }
@@ -144,7 +150,29 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
 
     public int CartItemCount => CartLines.Sum(line => line.Quantity);
 
-    public string CartSummary => $"{CartItemCount} item(s) / {FormatMoney(CartTotalMinorUnits)} {CartCurrencyCode}";
+    public string CartSummary => CartItemCount == 0
+        ? "Корзина пуста"
+        : $"{CartItemCount} товар(ов) / {FormatMoney(CartTotalMinorUnits)} {CartCurrencyCode}";
+
+    public string CatalogSummary => Catalog.Count == 0
+        ? "Загрузите каталог, чтобы начать продажу."
+        : $"Товаров готово: {Catalog.Count}";
+
+    public bool HasCatalog => Catalog.Count > 0;
+
+    public string CurrencyCode => currencyCode;
+
+    public bool HasCart => CartLines.Count > 0;
+
+    public bool HasOpenShift => CurrentShiftId is not null;
+
+    public string CheckoutHint => HasOpenShift
+        ? HasCart ? "Примите оплату, когда корзина проверена." : "Добавьте товары в корзину."
+        : "Откройте смену перед оплатой POS.";
+
+    public string LastSaleSummary => LastSale is null
+        ? "В этом окне еще нет завершенной продажи."
+        : $"Последняя продажа: {LastSaleState}";
 
     public bool IsBusy
     {
@@ -215,7 +243,9 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
             }
 
             RebuildCatalogGroups();
-            StatusMessage = $"{Catalog.Count} POS product(s) loaded.";
+            OnPropertyChanged(nameof(CatalogSummary));
+            OnPropertyChanged(nameof(HasCatalog));
+            StatusMessage = $"Загружено POS-товаров: {Catalog.Count}.";
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
@@ -259,7 +289,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     {
         if (!TryGetOrganizationContext(out var organizationIdValue) ||
             !TryGetLastSaleId(out var saleId) ||
-            !TryValidateReason(RefundReason, "Refund reason is required."))
+            !TryValidateReason(RefundReason, "Укажите причину возврата."))
         {
             return;
         }
@@ -273,7 +303,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
             async token =>
             {
                 LastSale = await apiClient.RefundSaleAsync(saleId, request, token);
-                StatusMessage = "POS sale refunded.";
+                StatusMessage = "Продажа POS возвращена.";
             },
             cancellationToken);
     }
@@ -284,7 +314,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
             !TryGetBranchContext(out var branchIdValue) ||
             !TryGetOpenShift(out var shiftId) ||
             !TryValidateCart() ||
-            !TryValidateReason(VoidReason, "Void reason is required."))
+            !TryValidateReason(VoidReason, "Укажите причину отмены."))
         {
             return;
         }
@@ -302,7 +332,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
                     VoidReason.Trim(),
                     idempotencyKeyFactory.Create("pos-void"));
                 LastSale = await apiClient.VoidSaleAsync(draft.PosSaleId, voidRequest, token);
-                StatusMessage = "POS sale voided.";
+                StatusMessage = "Черновик продажи отменен.";
             },
             cancellationToken);
     }
@@ -316,7 +346,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
         try
         {
             LastReceipt = await apiClient.GetReceiptAsync(receiptId, cancellationToken);
-            StatusMessage = $"Receipt {LastReceipt.ReceiptNumber} loaded.";
+            StatusMessage = $"Чек {LastReceipt.ReceiptNumber} загружен.";
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
@@ -350,15 +380,15 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
                     organizationIdValue,
                     paymentMethod,
                     draft.Total,
-                    string.IsNullOrWhiteSpace(PaymentNote) ? "manual POS payment" : PaymentNote.Trim(),
+                    string.IsNullOrWhiteSpace(PaymentNote) ? "ручная оплата POS" : PaymentNote.Trim(),
                     idempotencyKeyFactory.Create("pos-payment"));
 
                 LastSale = await apiClient.PaySaleManualAsync(draft.PosSaleId, payment, token);
                 CartLines.Clear();
                 NotifyCartChanged();
                 StatusMessage = paymentMethod == PaymentMethodNames.Cash
-                    ? "Cash POS payment confirmed."
-                    : "Manual card POS payment confirmed.";
+                    ? "Оплата POS наличными подтверждена."
+                    : "Ручная оплата POS картой подтверждена.";
             },
             cancellationToken);
     }
@@ -404,7 +434,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     {
         if (organizationId == Guid.Empty)
         {
-            SetValidationError("Operator context is not loaded.");
+            SetValidationError("Контекст оператора не загружен.");
             organizationIdValue = Guid.Empty;
             return false;
         }
@@ -417,7 +447,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     {
         if (branchId == Guid.Empty)
         {
-            SetValidationError("Operator context is not loaded.");
+            SetValidationError("Контекст оператора не загружен.");
             branchIdValue = Guid.Empty;
             return false;
         }
@@ -430,7 +460,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     {
         if (CurrentShiftId is null)
         {
-            SetValidationError("Open shift is required before POS payment.");
+            SetValidationError("Откройте смену перед оплатой POS.");
             shiftId = Guid.Empty;
             return false;
         }
@@ -443,7 +473,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     {
         if (LastSale?.PosSaleId is null)
         {
-            SetValidationError("No POS sale is selected.");
+            SetValidationError("Продажа POS не выбрана.");
             saleId = Guid.Empty;
             return false;
         }
@@ -456,7 +486,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     {
         if (CartLines.Count == 0)
         {
-            SetValidationError("Cart is empty.");
+            SetValidationError("Корзина пуста.");
             return false;
         }
 
@@ -486,20 +516,22 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
         CatalogGroups.Clear();
         foreach (var group in Catalog.GroupBy(product => product.CategoryId).OrderBy(group => group.Key))
         {
-            CatalogGroups.Add(new PosCatalogGroupViewModel(group.Key, group.ToList()));
+            CatalogGroups.Add(new PosCatalogGroupViewModel(
+                group.Key,
+                group.Select(product => new PosCatalogProductViewModel(product)).ToList()));
         }
     }
 
     private string CartCurrencyCode =>
-        CartLines.FirstOrDefault()?.UnitPrice.CurrencyCode ?? Catalog.FirstOrDefault()?.Price.CurrencyCode ?? DefaultCurrencyCode;
+        CartLines.FirstOrDefault()?.UnitPrice.CurrencyCode ?? Catalog.FirstOrDefault()?.Price.CurrencyCode ?? CurrencyCode;
 
     private static string CreateUserFacingError(Exception exception)
     {
         if (exception is HttpRequestException httpException)
         {
             return httpException.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized
-                ? $"Permission denied: {httpException.Message}"
-                : $"Network or API error: {httpException.Message}";
+                ? $"Нет прав: {httpException.Message}"
+                : $"Ошибка сети или API: {httpException.Message}";
         }
 
         return exception.Message;
@@ -509,11 +541,11 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     {
         return state switch
         {
-            PosSaleStateNames.Draft => "Draft",
-            PosSaleStateNames.PendingPayment => "Pending Payment",
-            PosSaleStateNames.Paid => "Paid",
-            PosSaleStateNames.Refunded => "Refunded",
-            PosSaleStateNames.Voided => "Voided",
+            PosSaleStateNames.Draft => "Черновик",
+            PosSaleStateNames.PendingPayment => "Ожидает оплату",
+            PosSaleStateNames.Paid => "Оплачена",
+            PosSaleStateNames.Refunded => "Возврат",
+            PosSaleStateNames.Voided => "Отменена",
             _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(state.Replace('_', ' '))
         };
     }
@@ -521,6 +553,16 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
     private static string FormatMoney(long minorUnits)
     {
         return (minorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture);
+    }
+
+    private static string NormalizeCurrencyCode(string value)
+    {
+        var normalized = string.IsNullOrWhiteSpace(value)
+            ? DefaultCurrencyCode
+            : value.Trim().ToUpperInvariant();
+        return normalized.Length == 3 && normalized.All(character => character is >= 'A' and <= 'Z')
+            ? normalized
+            : DefaultCurrencyCode;
     }
 
     private bool CanRunCartCommand()
@@ -538,6 +580,8 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CartTotalMinorUnits));
         OnPropertyChanged(nameof(CartItemCount));
         OnPropertyChanged(nameof(CartSummary));
+        OnPropertyChanged(nameof(HasCart));
+        OnPropertyChanged(nameof(CheckoutHint));
         NotifyCommandStates();
     }
 
@@ -571,7 +615,7 @@ public sealed class PosWorkspaceViewModel : INotifyPropertyChanged
 
 public sealed class PosCatalogGroupViewModel
 {
-    public PosCatalogGroupViewModel(Guid categoryId, IReadOnlyList<PosProductDto> products)
+    public PosCatalogGroupViewModel(Guid categoryId, IReadOnlyList<PosCatalogProductViewModel> products)
     {
         CategoryId = categoryId;
         Products = products;
@@ -579,7 +623,32 @@ public sealed class PosCatalogGroupViewModel
 
     public Guid CategoryId { get; }
 
-    public string Label => $"Category {CategoryId.ToString("D")[..8]}";
+    public string Label => "Товары";
 
-    public IReadOnlyList<PosProductDto> Products { get; }
+    public IReadOnlyList<PosCatalogProductViewModel> Products { get; }
+}
+
+public sealed class PosCatalogProductViewModel
+{
+    public PosCatalogProductViewModel(PosProductDto product)
+    {
+        Product = product;
+    }
+
+    public PosProductDto Product { get; }
+
+    public string Name => Product.Name;
+
+    public string Sku => Product.Sku;
+
+    public string PriceText => $"{FormatMoney(Product.Price.MinorUnits)} {Product.Price.CurrencyCode}";
+
+    public string StockText => Product.TrackStock
+        ? $"Остаток {Product.StockOnHand}"
+        : "Без учета остатков";
+
+    private static string FormatMoney(long minorUnits)
+    {
+        return (minorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture);
+    }
 }

@@ -21,11 +21,11 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
 {
     private static readonly WorkspaceDefinition[] WorkspaceDefinitions =
     [
-        new(OperatorWorkspaceKind.FloorMap, "Floor", StaffPermissionNames.ViewFloorMap),
+        new(OperatorWorkspaceKind.FloorMap, "Зал", StaffPermissionNames.ViewFloorMap),
         new(OperatorWorkspaceKind.Pos, "POS", StaffPermissionNames.CreatePosSale),
-        new(OperatorWorkspaceKind.Players, "Players", StaffPermissionNames.ViewPlayers),
-        new(OperatorWorkspaceKind.Shifts, "Shifts", StaffPermissionNames.ViewShift),
-        new(OperatorWorkspaceKind.Settings, "Settings", StaffPermissionNames.ViewDeviceDetail)
+        new(OperatorWorkspaceKind.Players, "Игроки", StaffPermissionNames.ViewPlayers),
+        new(OperatorWorkspaceKind.Shifts, "Смена", StaffPermissionNames.ViewShift),
+        new(OperatorWorkspaceKind.Settings, "Операции", StaffPermissionNames.ViewDeviceDetail)
     ];
 
     private readonly RelayCommand navigateCommand;
@@ -33,8 +33,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     private readonly RelayCommand clearTransientStateCommand;
     private OperatorUserContext? currentUser;
     private OperatorWorkspaceKind? selectedWorkspace;
-    private string statusMessage = "Sign in to start operator work.";
-    private string realtimeConnectionState = "Disconnected";
+    private string statusMessage = "Войдите, чтобы начать работу оператора.";
+    private string realtimeConnectionState = "Отключено";
 
     public OperatorShellViewModel()
         : this(
@@ -153,7 +153,9 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
 
     public bool IsSignedIn => CurrentUser is not null;
 
-    public string BranchSummary => CurrentUser?.BranchId.ToString("D") ?? "";
+    public string BranchSummary => CurrentUser is null
+        ? ""
+        : $"Филиал {CurrentUser.BranchId.ToString("N")[..8]}";
 
     public OperatorWorkspaceKind? SelectedWorkspace
     {
@@ -163,6 +165,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
             if (SetField(ref selectedWorkspace, value))
             {
                 navigateCommand.NotifyCanExecuteChanged();
+                OnPropertyChanged(nameof(SelectedWorkspaceTitle));
+                OnPropertyChanged(nameof(SelectedWorkspaceSubtitle));
             }
         }
     }
@@ -173,7 +177,31 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         private set => SetField(ref statusMessage, value);
     }
 
-    public string CurrentShiftState => Shifts.CurrentShiftState ?? "No open shift";
+    public string CurrentShiftState => Shifts.CurrentShiftState ?? "Смена не открыта";
+
+    public string CurrentShiftBadge => Shifts.CurrentShiftId is null
+        ? "Нет смены"
+        : Shifts.CurrentShiftState ?? "Открыта";
+
+    public string SelectedWorkspaceTitle => SelectedWorkspace switch
+    {
+        OperatorWorkspaceKind.FloorMap => "Зал",
+        OperatorWorkspaceKind.Pos => "POS",
+        OperatorWorkspaceKind.Players => "Игроки",
+        OperatorWorkspaceKind.Shifts => "Смена",
+        OperatorWorkspaceKind.Settings => "Операции",
+        _ => "Оператор"
+    };
+
+    public string SelectedWorkspaceSubtitle => SelectedWorkspace switch
+    {
+        OperatorWorkspaceKind.FloorMap => "Запуск, завершение и контроль игровых мест.",
+        OperatorWorkspaceKind.Pos => "Продажи в течение открытой смены.",
+        OperatorWorkspaceKind.Players => "Поиск игроков, создание аккаунтов, кошелек и долг.",
+        OperatorWorkspaceKind.Shifts => "Открытие, контроль и закрытие кассовой смены.",
+        OperatorWorkspaceKind.Settings => "Настройка филиала, диагностика, аудит, устройства и обновления.",
+        _ => "Войдите, чтобы начать работу оператора."
+    };
 
     public string RealtimeConnectionState
     {
@@ -198,7 +226,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         }
 
         SelectedWorkspace = NavigationItems.FirstOrDefault()?.Kind;
-        StatusMessage = $"Signed in as {context.DisplayName}.";
+        StatusMessage = $"Вход выполнен: {context.DisplayName}.";
         navigateCommand.NotifyCanExecuteChanged();
         FloorMap.ApplyContext(context.OrganizationId, context.BranchId);
         Players.ApplyContext(context.OrganizationId, context.BranchId);
@@ -230,14 +258,21 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
 
     public void SetRealtimeConnectionState(string state)
     {
-        RealtimeConnectionState = string.IsNullOrWhiteSpace(state) ? "Disconnected" : state.Trim();
+        RealtimeConnectionState = state switch
+        {
+            "Connecting" => "Подключение",
+            "Connected" => "Подключено",
+            "Unavailable" => "Недоступно",
+            "Disconnected" => "Отключено",
+            _ => string.IsNullOrWhiteSpace(state) ? "Отключено" : state.Trim()
+        };
     }
 
     public void ClearTransientState()
     {
         FloorMap.SelectedSeat = null;
         Players.SelectPlayer(null);
-        StatusMessage = "Transient selection cleared.";
+        StatusMessage = "Временный выбор очищен.";
     }
 
     public void SignOut()
@@ -247,7 +282,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         NavigationItems.Clear();
         Pos.SetCurrentShift(null);
         Settings.ApplyPermissions(new HashSet<string>());
-        StatusMessage = "Signed out.";
+        StatusMessage = "Вы вышли из системы.";
         navigateCommand.NotifyCanExecuteChanged();
     }
 
@@ -257,6 +292,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         {
             SyncCurrentShiftToPos();
             OnPropertyChanged(nameof(CurrentShiftState));
+            OnPropertyChanged(nameof(CurrentShiftBadge));
         }
     }
 

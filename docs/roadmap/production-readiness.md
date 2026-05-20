@@ -289,6 +289,12 @@ Minimum bar:
 
 ### Operator Workflows
 
+- Staging smoke proved the old Operator App layout was not viable even though
+  session start/end worked. `codex/operator-app-redesign` is the active
+  replacement branch and should be treated as the baseline for future Operator
+  App usability work after visual review. The branch now localizes the primary
+  operator path to Russian and makes Operator App money-command currency
+  configurable through `AFK4_OPERATOR_CURRENCY_CODE` with `TJS` as the default.
 - Staff management workflow is implemented as a minimum API path on `main`;
   the Operator App has a minimum one-shot Pilot Setup panel, but not a general
   staff management UI.
@@ -312,15 +318,16 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. Operator App deployed-backend smoke
+1. Operator App redesign and deployed-backend smoke
 
-   Use the Operator App against the deployed staging backend to verify the
-   practical pilot day flow: sign-in, floor map, Pilot Setup panel, shift/POS
-   basics, session actions against the current staging device/seat state, and
+   Finish and visually review `codex/operator-app-redesign`, then use the
+   Operator App against the deployed staging backend to verify the practical
+   pilot day flow: sign-in, floor map, Pilot Setup panel, shift/POS basics,
+   session actions against the current staging device/seat state, and
    actionable errors. Local builds can target staging with
-   `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Deploy the
-   2026-05-20 session-start usability fix before retesting the fast
-   guest/no-ledger session start path on staging.
+   `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
+   GUID/form surfaces in the main operator path as usability defects unless
+   they are explicitly advanced technician tools.
 
 2. Operator-facing management expansion
 

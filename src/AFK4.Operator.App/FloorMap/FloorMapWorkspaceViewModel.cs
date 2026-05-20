@@ -15,7 +15,7 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
     private readonly DeviceStatusStore deviceStatusStore;
     private readonly RelayCommand selectSeatCommand;
     private Guid? lastBranchId;
-    private string branchName = "Floor map";
+    private string branchName = "Карта зала";
     private FloorMapSeatViewModel? selectedSeat;
     private bool isLoading;
     private string? errorMessage;
@@ -58,6 +58,15 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
     }
 
     public ObservableCollection<FloorMapSeatViewModel> Seats { get; }
+
+    public int AvailableSeatCount => Seats.Count(seat => seat.State is "Free" or "Locked");
+
+    public int ActiveSeatCount => Seats.Count(seat => seat.HasActiveSession || seat.State == "Active");
+
+    public int OfflineSeatCount => Seats.Count(seat => seat.State == "Offline" || !seat.IsOnline);
+
+    public string FloorSummary =>
+        $"готово {AvailableSeatCount} / активно {ActiveSeatCount} / офлайн {OfflineSeatCount}";
 
     public SeatContextPanelViewModel SeatContext { get; }
 
@@ -130,6 +139,7 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
             }
 
             SelectedSeat = null;
+            OnFloorSummaryChanged();
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
@@ -144,7 +154,21 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
 
     public bool ApplyDeviceStatus(DeviceStatusChangedDto status)
     {
-        return deviceStatusStore.Apply(status);
+        var applied = deviceStatusStore.Apply(status);
+        if (applied)
+        {
+            OnFloorSummaryChanged();
+        }
+
+        return applied;
+    }
+
+    private void OnFloorSummaryChanged()
+    {
+        OnPropertyChanged(nameof(AvailableSeatCount));
+        OnPropertyChanged(nameof(ActiveSeatCount));
+        OnPropertyChanged(nameof(OfflineSeatCount));
+        OnPropertyChanged(nameof(FloorSummary));
     }
 
     private Task RefreshAsync(CancellationToken cancellationToken)
@@ -162,7 +186,12 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
         }
 
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        OnPropertyChanged(propertyName);
         return true;
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

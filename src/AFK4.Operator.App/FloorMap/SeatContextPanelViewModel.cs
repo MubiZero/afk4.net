@@ -11,13 +11,13 @@ namespace AFK4.Operator.App.FloorMap;
 
 public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
 {
-    private const string WaitingForBackendConfirmation = "Waiting for backend confirmation";
+    private const string WaitingForBackendConfirmation = "Ожидаем подтверждение сервера";
     private static readonly IReadOnlyList<BillingModeOptionViewModel> BillingModes =
     [
-        new("Guest / no ledger", "", "Fast smoke start; no player account or ledger entry."),
-        new("Postpaid debt", BillingModeNames.PostpaidDebt, "Requires player account and tariff version."),
-        new("Prepaid wallet", BillingModeNames.PrepaidWallet, "Requires player account, tariff version, and wallet balance."),
-        new("Package", BillingModeNames.Package, "Requires player account and player package.")
+        new("Гость без учета", "", "Быстрый старт без аккаунта игрока и записи в ledger."),
+        new("Постоплата в долг", BillingModeNames.PostpaidDebt, "Нужны аккаунт игрока и версия тарифа."),
+        new("Предоплата кошельком", BillingModeNames.PrepaidWallet, "Нужны аккаунт игрока, версия тарифа и баланс."),
+        new("Пакет", BillingModeNames.Package, "Нужны аккаунт игрока и пакет игрока.")
     ];
 
     private readonly IOperatorSessionApiClient apiClient;
@@ -38,7 +38,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     private string tariffVersionIdText = "";
     private string playerPackageIdText = "";
     private string targetSeatIdText = "";
-    private string reason = "operator request";
+    private string reason = "запрос оператора";
     private string? errorMessage;
     private string? pendingOperation;
     private string? statusMessage;
@@ -69,24 +69,52 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             if (SetField(ref selectedSeat, value))
             {
                 OnPropertyChanged(nameof(HasActiveSession));
+                OnPropertyChanged(nameof(HasSelectedSeat));
                 OnPropertyChanged(nameof(CanStartGuestSession));
                 OnPropertyChanged(nameof(SelectedSeatSummary));
+                OnPropertyChanged(nameof(SelectedSeatDetails));
+                OnPropertyChanged(nameof(SeatActionTitle));
+                OnPropertyChanged(nameof(SeatActionHint));
+                OnPropertyChanged(nameof(ActiveSessionSummary));
                 NotifyCommandStates();
             }
         }
     }
+
+    public bool HasSelectedSeat => SelectedSeat is not null;
 
     public bool HasActiveSession => SelectedSeat?.ActiveSessionId is not null;
 
     public bool CanStartGuestSession => SelectedSeat is not null && !HasActiveSession;
 
     public string SelectedSeatSummary => SelectedSeat is null
-        ? "Select a seat from the floor."
-        : $"{SelectedSeat.Name} - {SelectedSeat.State}";
+        ? "ПК не выбран"
+        : $"{SelectedSeat.Name} - {SelectedSeat.DisplayState}";
+
+    public string SelectedSeatDetails => SelectedSeat is null
+        ? "Выберите ПК на карте зала, чтобы запустить или управлять сессией."
+        : $"{SelectedSeat.Zone} · {SelectedSeat.DeviceSummary}";
+
+    public string SeatActionTitle => SelectedSeat is null
+        ? "Выберите ПК"
+        : HasActiveSession ? "Управление активной сессией" : "Запуск сессии";
+
+    public string SeatActionHint => SelectedSeat is null
+        ? "Карта зала - основной экран оператора. Выберите место, чтобы увидеть действия."
+        : HasActiveSession
+            ? "Сессия активна. Завершите ее при уходе игрока или продлите время."
+            : "Быстрый гостевой старт не пишет ledger. Платные режимы используйте только с аккаунтом игрока.";
+
+    public string ActiveSessionSummary => HasActiveSession
+        ? (SelectedSeat?.RemainingTimeText is { Length: > 0 } remaining ? remaining : "Сессия активна")
+        : "Активной сессии нет";
 
     public IReadOnlyList<BillingModeOptionViewModel> BillingModeOptions => BillingModes;
 
     public bool IsPlayerBillingRequired => !string.IsNullOrWhiteSpace(BillingMode);
+
+    public string BillingModeDescription =>
+        BillingModes.FirstOrDefault(mode => mode.Value == BillingMode)?.Description ?? BillingModes[0].Description;
 
     public string PlayerAccountIdText
     {
@@ -114,6 +142,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             if (SetField(ref billingMode, value))
             {
                 OnPropertyChanged(nameof(IsPlayerBillingRequired));
+                OnPropertyChanged(nameof(BillingModeDescription));
             }
         }
     }
@@ -204,24 +233,24 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (!TryGetSelectedSeat(out var seat) ||
             !TryGetOperatorContext(out var organizationIdValue, out var branchIdValue) ||
-            !TryValidatePositive(DurationMinutes, "Duration must be greater than zero.") ||
+            !TryValidatePositive(DurationMinutes, "Длительность должна быть больше нуля.") ||
             !TryValidateTariffRuleVersion() ||
-            !TryParseOptionalGuid(PlayerAccountIdText, "Player account id", out var playerAccountId) ||
-            !TryParseOptionalGuid(TariffVersionIdText, "Tariff version id", out var tariffVersionId) ||
-            !TryParseOptionalGuid(PlayerPackageIdText, "Player package id", out var playerPackageId))
+            !TryParseOptionalGuid(PlayerAccountIdText, "ID аккаунта игрока", out var playerAccountId) ||
+            !TryParseOptionalGuid(TariffVersionIdText, "ID версии тарифа", out var tariffVersionId) ||
+            !TryParseOptionalGuid(PlayerPackageIdText, "ID пакета игрока", out var playerPackageId))
         {
             return;
         }
 
         if (seat.ActiveSessionId is not null)
         {
-            SetValidationError("Selected seat already has an active session.");
+            SetValidationError("На выбранном месте уже есть активная сессия.");
             return;
         }
 
         if (IsPlayerBillingRequired && playerAccountId is null)
         {
-            SetValidationError("Choose Guest / no ledger for a fast guest start, or enter a player account id for billed modes.");
+            SetValidationError("Для быстрого старта выберите гостя без учета или укажите аккаунт игрока для платного режима.");
             return;
         }
 
@@ -244,11 +273,11 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     public async Task ExtendSessionAsync(CancellationToken cancellationToken)
     {
         if (!TryGetActiveSession(out var sessionId) ||
-            !TryValidatePositive(AdditionalMinutes, "Additional minutes must be greater than zero.") ||
+            !TryValidatePositive(AdditionalMinutes, "Дополнительные минуты должны быть больше нуля.") ||
             !TryValidateTariffRuleVersion() ||
-            !TryParseOptionalGuid(PlayerAccountIdText, "Player account id", out var playerAccountId) ||
-            !TryParseOptionalGuid(TariffVersionIdText, "Tariff version id", out var tariffVersionId) ||
-            !TryParseOptionalGuid(PlayerPackageIdText, "Player package id", out var playerPackageId))
+            !TryParseOptionalGuid(PlayerAccountIdText, "ID аккаунта игрока", out var playerAccountId) ||
+            !TryParseOptionalGuid(TariffVersionIdText, "ID версии тарифа", out var tariffVersionId) ||
+            !TryParseOptionalGuid(PlayerPackageIdText, "ID пакета игрока", out var playerPackageId))
         {
             return;
         }
@@ -276,7 +305,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
 
         if (!Guid.TryParse(TargetSeatIdText, out var targetSeatId))
         {
-            SetValidationError("Target seat id is required.");
+            SetValidationError("Укажите ID места для переноса.");
             return;
         }
 
@@ -297,7 +326,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         }
 
         var request = new EndSessionRequest(
-            string.IsNullOrWhiteSpace(Reason) ? "operator request" : Reason.Trim(),
+            string.IsNullOrWhiteSpace(Reason) ? "запрос оператора" : Reason.Trim(),
             idempotencyKeyFactory.Create("session-end"));
 
         await ExecuteBackendCommandAsync(
@@ -323,8 +352,8 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
                 await refreshAfterSuccess(cancellationToken);
             }
 
-            PendingOperation = WaitingForBackendConfirmation;
-            StatusMessage = "Session command accepted.";
+            PendingOperation = null;
+            StatusMessage = "Команда сессии принята.";
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
@@ -341,7 +370,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (SelectedSeat is null)
         {
-            SetValidationError("Select a seat first.");
+            SetValidationError("Сначала выберите место.");
             seat = null!;
             return false;
         }
@@ -354,7 +383,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (SelectedSeat?.ActiveSessionId is null)
         {
-            SetValidationError("Selected seat has no active session.");
+            SetValidationError("На выбранном месте нет активной сессии.");
             sessionId = Guid.Empty;
             return false;
         }
@@ -367,7 +396,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (organizationId is null || branchId is null)
         {
-            SetValidationError("Operator context is not loaded.");
+            SetValidationError("Контекст оператора не загружен.");
             organizationIdValue = Guid.Empty;
             branchIdValue = Guid.Empty;
             return false;
@@ -393,7 +422,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (string.IsNullOrWhiteSpace(TariffRuleVersionId))
         {
-            SetValidationError("Tariff rule version is required.");
+            SetValidationError("Версия тарифного правила обязательна.");
             return false;
         }
 
@@ -414,7 +443,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             return true;
         }
 
-        SetValidationError($"{fieldName} must be a valid GUID.");
+        SetValidationError($"{fieldName} должен быть корректным GUID.");
         value = null;
         return false;
     }

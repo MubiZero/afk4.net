@@ -167,8 +167,22 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
     public SettingsPanelViewModel? SelectedPanel
     {
         get => selectedPanel;
-        set => SetField(ref selectedPanel, value);
+        set
+        {
+            if (SetField(ref selectedPanel, value))
+            {
+                OnPropertyChanged(nameof(SelectedPanelTitle));
+                OnPropertyChanged(nameof(SelectedPanelDescription));
+                OnPropertyChanged(nameof(IsAdvancedPanelSelected));
+            }
+        }
     }
+
+    public string SelectedPanelTitle => SelectedPanel?.Label ?? "Операции";
+
+    public string SelectedPanelDescription => SelectedPanel?.Description ?? "Инструменты филиала и операционная настройка.";
+
+    public bool IsAdvancedPanelSelected => SelectedPanel?.Key is "updates" or "devices" or "audit" or "diagnostics";
 
     public ICommand SelectPanelCommand => selectPanelCommand;
 
@@ -201,7 +215,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
         var selectedKey = SelectedPanel?.Key;
         Panels.Clear();
 
-        AddPanel("connection", "Connection", "Operator App");
+        AddPanel("connection", "Подключение", "Приложение оператора");
 
         if (HasAny(
             permissions,
@@ -212,7 +226,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             StaffPermissionNames.RotateDeviceCredential,
             StaffPermissionNames.RevokeDeviceCredential))
         {
-            AddPanel("devices", "Devices", "Technician tools");
+            AddPanel("devices", "Устройства", "Инструменты техника");
         }
 
         if (HasAny(
@@ -221,7 +235,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             StaffPermissionNames.ManageInventoryStock,
             StaffPermissionNames.ViewInventory))
         {
-            AddPanel("pos-catalog", "POS Catalog", "Products and stock");
+            AddPanel("pos-catalog", "Каталог POS", "Товары и остатки");
         }
 
         if (HasAny(
@@ -229,7 +243,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             StaffPermissionNames.ManageTariffs,
             StaffPermissionNames.ViewTariffs))
         {
-            AddPanel("tariffs", "Tariffs", "Pricing rules");
+            AddPanel("tariffs", "Тарифы", "Правила цен");
         }
 
         if (HasAny(
@@ -237,12 +251,12 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             StaffPermissionNames.ManagePackages,
             StaffPermissionNames.ViewPackages))
         {
-            AddPanel("packages", "Packages", "Time bundles");
+            AddPanel("packages", "Пакеты", "Пакеты времени");
         }
 
         if (permissions.Contains(StaffPermissionNames.ManageRoles))
         {
-            AddPanel("roles", "Roles", "Staff access");
+            AddPanel("roles", "Роли", "Доступ персонала");
         }
 
         if (HasAny(
@@ -251,17 +265,17 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             StaffPermissionNames.ManageUpdatePackages,
             StaffPermissionNames.ManageUpdateRollouts))
         {
-            AddPanel("updates", "Updates", "Packages and rollouts");
+            AddPanel("updates", "Обновления", "Пакеты и раскатки");
         }
 
         if (permissions.Contains(StaffPermissionNames.ViewAudit))
         {
-            AddPanel("audit", "Audit", "Operator actions");
+            AddPanel("audit", "Аудит", "Действия операторов");
         }
 
         if (permissions.Contains(StaffPermissionNames.ViewDiagnostics))
         {
-            AddPanel("diagnostics", "Diagnostics", "Branch health");
+            AddPanel("diagnostics", "Диагностика", "Состояние филиала");
         }
 
         if (HasAny(
@@ -272,7 +286,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             StaffPermissionNames.ManagePosCatalog,
             StaffPermissionNames.AssignDeviceSeat))
         {
-            AddPanel("pilot-setup", "Pilot Setup", "Initial branch setup");
+            AddPanel("pilot-setup", "Пилотная настройка", "Первичная настройка филиала");
         }
 
         SelectedPanel = Panels.FirstOrDefault(panel => panel.Key == selectedKey) ?? Panels.FirstOrDefault();

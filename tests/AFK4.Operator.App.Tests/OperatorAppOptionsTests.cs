@@ -10,6 +10,7 @@ public sealed class OperatorAppOptionsTests
         var options = OperatorAppOptions.LoadFromEnvironment(_ => null);
 
         Assert.Equal(new Uri("http://localhost:5074"), options.PlatformBaseUrl);
+        Assert.Equal("TJS", options.CurrencyCode);
     }
 
     [Fact]
@@ -35,5 +36,31 @@ public sealed class OperatorAppOptionsTests
                     : null));
 
         Assert.Contains(OperatorAppOptions.PlatformBaseUrlEnvironmentVariable, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoadFromEnvironment_UsesCurrencyCodeEnvironmentVariable()
+    {
+        var options = OperatorAppOptions.LoadFromEnvironment(name =>
+            name == OperatorAppOptions.CurrencyCodeEnvironmentVariable
+                ? "usd"
+                : null);
+
+        Assert.Equal("USD", options.CurrencyCode);
+    }
+
+    [Theory]
+    [InlineData("TJ")]
+    [InlineData("USDD")]
+    [InlineData("12$")]
+    public void LoadFromEnvironment_RejectsInvalidCurrencyCode(string value)
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            OperatorAppOptions.LoadFromEnvironment(name =>
+                name == OperatorAppOptions.CurrencyCodeEnvironmentVariable
+                    ? value
+                    : null));
+
+        Assert.Contains(OperatorAppOptions.CurrencyCodeEnvironmentVariable, exception.Message, StringComparison.Ordinal);
     }
 }

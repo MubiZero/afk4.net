@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using AFK4.Shared.Contracts.FloorMap;
 
@@ -89,6 +90,40 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
 
     public Guid? ActiveSessionId { get; }
 
+    public bool HasActiveSession => ActiveSessionId is not null;
+
+    public bool HasDevice => DeviceId is not null;
+
+    public bool CanStartSession => !HasActiveSession && State is "Free" or "Locked";
+
+    public string DisplayState => State switch
+    {
+            "Active" => "В сессии",
+            "Free" => "Свободен",
+            "Locked" => "Заблокирован",
+            "Offline" => "Офлайн",
+            "Maintenance" => "Обслуживание",
+        _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(State.Replace('_', ' '))
+    };
+
+    public string StateTone => State switch
+    {
+        "Active" => "Active",
+        "Free" => "Ready",
+        "Locked" => "Locked",
+        "Offline" => "Offline",
+        "Maintenance" => "Maintenance",
+        _ => "Neutral"
+    };
+
+    public string DeviceSummary => DeviceName is null
+        ? "Устройство не назначено"
+        : IsOnline ? "Устройство онлайн" : "Устройство офлайн";
+
+    public string RemainingTimeText => RemainingSeconds is null
+        ? ""
+        : FormatDuration(RemainingSeconds.Value);
+
     public string State
     {
         get => state;
@@ -153,6 +188,23 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
         State = isOnline
             ? isLocked ? "Locked" : "Free"
             : "Offline";
+        OnDisplayStateChanged();
+    }
+
+    private static string FormatDuration(int seconds)
+    {
+        if (seconds < 60)
+        {
+            return $"осталось {seconds} с";
+        }
+
+        var totalMinutes = (int)Math.Ceiling(seconds / 60m);
+        var hours = totalMinutes / 60;
+        var minutes = totalMinutes % 60;
+
+        return hours == 0
+            ? $"осталось {minutes} мин"
+            : $"осталось {hours} ч {minutes:00} мин";
     }
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
@@ -164,5 +216,14 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
 
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private void OnDisplayStateChanged()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayState)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StateTone)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DeviceSummary)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RemainingTimeText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanStartSession)));
     }
 }
