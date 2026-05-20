@@ -70,13 +70,18 @@ Minimum bar:
    smoke. The real staging domain `afk4.staging.mubi.dev` resolves to the
    Coolify VPS and passes `/api/health` over trusted TLS. The rehearsal API
    token and staging database/session secrets were rotated after the
-   hardening pass.
+   hardening pass. A GitHub Actions `Coolify Staging Deploy` workflow now
+   removes the manual Coolify click path for ordinary Platform API staging
+   deploys while keeping EF migration changes behind an explicit backup and
+   migration confirmation.
 
 2. **CI Gate**
 
    Use cost-aware GitHub Actions workflows to build and test relevant pull
    requests, run package smoke for client MSI artifacts, and keep release
-   packaging manual and guarded. GitHub Actions billing is enabled, but
+   packaging manual and guarded. Staging backend deploy is automated through
+   Coolify API queue/polling and public health verification after relevant
+   `main` pushes. GitHub Actions billing is enabled, but
    workflows must avoid unnecessary manual remote runs, use Windows hosted
    runners only where they add required coverage, cancel stale PR runs, set
    timeouts, and keep artifact retention short. PR #11 merged the cost-aware CI
@@ -189,7 +194,9 @@ Minimum bar:
 - Production environments are not codified.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
-  after the rehearsal.
+  after the rehearsal. A GitHub Actions workflow now automates ordinary staging
+  backend deploys through the Coolify API, with a fail-closed EF migration
+  guard.
 - Automated mandatory PR checks are not enforced by GitHub rulesets on the
   current private repository plan; manual green-check merge discipline is
   recorded in `AGENTS.md`.
@@ -331,7 +338,10 @@ Minimum bar:
 
    Rotate the exposed restore-rehearsal Coolify token before sensitive staging
    operations, then keep future tokens in a secret manager or local
-   runtime-only environment, not in chat or repository files.
+   runtime-only environment, not in chat or repository files. Before merging or
+   relying on automated Coolify deploy, add GitHub repository variables
+   `COOLIFY_BASE_URL` and `COOLIFY_STAGING_APP_UUID`, plus secret
+   `COOLIFY_API_TOKEN`.
 
 ## Decision Rules
 

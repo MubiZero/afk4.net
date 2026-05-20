@@ -612,6 +612,50 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void CoolifyStagingDeployWorkflow_TriggersDeployAndFailsClosedForMigrations()
+    {
+        var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/coolify-staging-deploy.yml")));
+
+        Assert.Contains("name: Coolify Staging Deploy", workflow, StringComparison.Ordinal);
+        Assert.Contains("push:", workflow, StringComparison.Ordinal);
+        Assert.Contains("- main", workflow, StringComparison.Ordinal);
+        Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
+        Assert.Contains("force_rebuild:", workflow, StringComparison.Ordinal);
+        Assert.Contains("confirm_migrations_applied:", workflow, StringComparison.Ordinal);
+        Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
+        Assert.Contains("concurrency:", workflow, StringComparison.Ordinal);
+        Assert.Contains("group: coolify-staging-deploy-${{ github.workflow }}-${{ github.ref }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("cancel-in-progress: true", workflow, StringComparison.Ordinal);
+        Assert.Contains("runs-on: ubuntu-latest", workflow, StringComparison.Ordinal);
+        Assert.Contains("timeout-minutes: 30", workflow, StringComparison.Ordinal);
+
+        Assert.Contains("- \".github/workflows/coolify-staging-deploy.yml\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"deploy/coolify/**\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"src/AFK4.Platform.Api/**\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"src/AFK4.Shared.Contracts/**\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"src/AFK4.BuildingBlocks/**\"", workflow, StringComparison.Ordinal);
+
+        Assert.Contains("Guard EF migrations", workflow, StringComparison.Ordinal);
+        Assert.Contains("git diff --name-only \"$before...$head\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("src/AFK4.Platform.Api/Data/Migrations/", workflow, StringComparison.Ordinal);
+        Assert.Contains("EF migration changes require explicit backup/migration run before Coolify deploy.", workflow, StringComparison.Ordinal);
+        Assert.Contains("$env:CONFIRM_MIGRATIONS_APPLIED -ne \"true\"", workflow, StringComparison.Ordinal);
+
+        Assert.Contains("COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("COOLIFY_STAGING_APP_UUID: ${{ vars.COOLIFY_STAGING_APP_UUID }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_STAGING_PLATFORM_BASE_URL: ${{ vars.AFK4_STAGING_PLATFORM_BASE_URL }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("/api/v1/deploy?uuid=", workflow, StringComparison.Ordinal);
+        Assert.Contains("/api/v1/deployments/", workflow, StringComparison.Ordinal);
+        Assert.Contains("/api/health", workflow, StringComparison.Ordinal);
+        Assert.Contains("deployment_uuid=$deploymentUuid", workflow, StringComparison.Ordinal);
+        Assert.Contains("@(\"finished\", \"success\", \"succeeded\")", workflow, StringComparison.Ordinal);
+        Assert.Contains("@(\"failed\", \"error\", \"cancelled\", \"canceled\")", workflow, StringComparison.Ordinal);
+        Assert.Contains("status=ok", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("Write-Host $env:COOLIFY_API_TOKEN", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BuildClientPackagesScript_PublishesStagingGamingPcSetupExeWithEmbeddedMsi()
     {
         var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
@@ -646,6 +690,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
     [Theory]
     [InlineData(".github/workflows/client-packages.yml")]
+    [InlineData(".github/workflows/coolify-staging-deploy.yml")]
     [InlineData(".github/workflows/package-smoke.yml")]
     [InlineData(".github/workflows/pr-verification.yml")]
     public void GitHubActionsWorkflows_OptIntoNode24JavascriptActions(string workflowPath)

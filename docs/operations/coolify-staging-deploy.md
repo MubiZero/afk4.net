@@ -171,13 +171,51 @@ temporary access immediately after migrations and smoke checks.
 
 ## Deploy
 
+Normal staging deploys are automated by the GitHub Actions workflow
+`.github/workflows/coolify-staging-deploy.yml`.
+
+Configure these GitHub repository variables once:
+
+```text
+COOLIFY_BASE_URL=https://<coolify-instance-domain>
+COOLIFY_STAGING_APP_UUID=<Coolify Platform API app UUID>
+AFK4_STAGING_PLATFORM_BASE_URL=https://<coolify-staging-domain>
+```
+
+Configure this GitHub repository secret once:
+
+```text
+COOLIFY_API_TOKEN=<Coolify API token>
+```
+
+The token must be a Coolify bearer token created under `Keys & Tokens` / `API
+tokens`. Do not put the token in repository variables, workflow inputs, logs,
+or committed files.
+
+The workflow runs on `main` pushes that touch the Platform API, shared backend
+contracts/build inputs, Coolify deployment files, or the workflow itself. It
+can also be started with `workflow_dispatch`; use `force_rebuild=true` only
+when a cache-free Coolify rebuild is needed.
+
+For normal app-only changes:
+
 1. Push the reviewed branch to GitHub and open a PR.
 2. Let the PR run `PR Verification Result` on the current head commit.
-3. In Coolify, point the app at the intended branch or commit for staging.
-4. Trigger a Coolify deployment.
-5. Watch build logs for `dotnet restore`, `dotnet publish`, and container
-   startup.
-6. Confirm Coolify marks `/api/health` healthy.
+3. Merge only after the required PR gate is green.
+4. The `Coolify Staging Deploy` workflow queues a Coolify deployment through
+   `GET /api/v1/deploy?uuid=...&force=...`.
+5. The workflow polls `GET /api/v1/deployments/{uuid}` until Coolify reports a
+   terminal status.
+6. The workflow confirms `AFK4_STAGING_PLATFORM_BASE_URL/api/health` returns
+   `status = ok`.
+
+If a pushed commit includes files under
+`src/AFK4.Platform.Api/Data/Migrations/`, the automatic deploy fails closed.
+First run the EF migration order above, including backup/snapshot and staging
+database update. Then start `Coolify Staging Deploy` manually with
+`confirm_migrations_applied=true` after the migration has been handled. This
+keeps schema changes explicit while removing the manual Coolify click path for
+ordinary backend deploys.
 
 ## Smoke Verification
 
