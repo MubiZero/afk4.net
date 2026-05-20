@@ -164,6 +164,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
         {
             if (SetField(ref selectedWorkspace, value))
             {
+                RefreshNavigationSelection();
                 navigateCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(SelectedWorkspaceTitle));
                 OnPropertyChanged(nameof(SelectedWorkspaceSubtitle));
@@ -299,6 +300,14 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
     private void SyncCurrentShiftToPos()
     {
         Pos.SetCurrentShift(Shifts.CurrentShiftId);
+    }
+
+    private void RefreshNavigationSelection()
+    {
+        foreach (var item in NavigationItems)
+        {
+            item.IsSelected = item.Kind == SelectedWorkspace;
+        }
     }
 
     private bool IsWorkspaceAllowed(OperatorWorkspaceKind workspace)

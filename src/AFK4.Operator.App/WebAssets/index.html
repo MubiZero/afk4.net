@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AFK4 Operator</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #0e1117;
+        color: #f5f7fa;
+      }
+
+      body {
+        margin: 0;
+        min-width: 1200px;
+        min-height: 720px;
+        background: #0e1117;
+      }
+
+      .shell {
+        display: grid;
+        height: 100vh;
+        grid-template-rows: 56px 1fr 38px;
+        grid-template-columns: 68px 1fr 336px;
+      }
+
+      .top {
+        grid-column: 1 / 4;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 0 18px;
+        border-bottom: 1px solid #232b38;
+        background: #111822;
+      }
+
+      .brand {
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .search {
+        flex: 1;
+        max-width: 560px;
+        border: 1px solid #2b3545;
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: #aab4c2;
+        background: #0e141d;
+      }
+
+      .pill {
+        border-radius: 999px;
+        border: 1px solid #2b3545;
+        padding: 6px 10px;
+        color: #c9d2de;
+        font-size: 12px;
+      }
+
+      .rail {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+        padding: 14px 10px;
+        border-right: 1px solid #232b38;
+        background: #111822;
+      }
+
+      .rail div {
+        display: grid;
+        place-items: center;
+        height: 44px;
+        border-radius: 8px;
+        color: #aab4c2;
+      }
+
+      .rail .active {
+        color: #ffffff;
+        background: #2563eb;
+      }
+
+      main {
+        padding: 18px;
+        overflow: hidden;
+        background: #f2f5f8;
+        color: #172033;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(120px, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .metric,
+      .seat,
+      aside {
+        border: 1px solid #d7dde6;
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .metric {
+        padding: 10px 12px;
+      }
+
+      .metric span {
+        display: block;
+        color: #697586;
+        font-size: 12px;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 24px;
+      }
+
+      .map {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(132px, 1fr));
+        gap: 10px;
+      }
+
+      .seat {
+        min-height: 112px;
+        padding: 12px;
+        border-left-width: 5px;
+      }
+
+      .seat header {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .seat strong {
+        font-size: 16px;
+      }
+
+      .seat p {
+        margin: 10px 0 0;
+        color: #4b5565;
+        font-size: 12px;
+      }
+
+      .ready {
+        border-left-color: #2563eb;
+      }
+
+      .active {
+        border-left-color: #039855;
+      }
+
+      .pending {
+        border-left-color: #7c3aed;
+      }
+
+      .warning {
+        border-left-color: #f59e0b;
+      }
+
+      .offline {
+        border-left-color: #98a2b3;
+      }
+
+      aside {
+        margin: 18px 18px 18px 0;
+        padding: 18px;
+        background: #ffffff;
+        color: #172033;
+      }
+
+      aside h2 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      aside button {
+        width: 100%;
+        margin-top: 10px;
+        border: 0;
+        border-radius: 8px;
+        padding: 11px 12px;
+        color: #ffffff;
+        background: #2563eb;
+      }
+
+      .bottom {
+        grid-column: 1 / 4;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 0 18px;
+        border-top: 1px solid #232b38;
+        background: #111822;
+        color: #aab4c2;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="top">
+        <div class="brand">AFK4 Operator</div>
+        <div class="search">Поиск: игрок, ПК, команда</div>
+        <div class="pill">Realtime: ожидание</div>
+        <div class="pill">Смена открыта</div>
+      </div>
+      <nav class="rail">
+        <div class="active">Карта</div>
+        <div>POS</div>
+        <div>Игроки</div>
+        <div>Смена</div>
+        <div>Ops</div>
+      </nav>
+      <main>
+        <section class="metrics">
+          <div class="metric"><span>Свободно</span><strong>18</strong></div>
+          <div class="metric"><span>В сессии</span><strong>24</strong></div>
+          <div class="metric"><span>Команды</span><strong>3</strong></div>
+          <div class="metric"><span>Проблемы</span><strong>2</strong></div>
+          <div class="metric"><span>Касса</span><strong>4 820 TJS</strong></div>
+        </section>
+        <section class="map">
+          <article class="seat active"><header><strong>PC-01</strong><span>43 мин</span></header><p>Rust · wallet · Agent 0.4</p></article>
+          <article class="seat ready"><header><strong>PC-02</strong><span>Готов</span></header><p>Locked · heartbeat 14:22</p></article>
+          <article class="seat pending"><header><strong>PC-03</strong><span>Команда</span></header><p>Unlock pending · backend confirm</p></article>
+          <article class="seat warning"><header><strong>PC-04</strong><span>Долг</span></header><p>Postpaid · проверить оплату</p></article>
+          <article class="seat offline"><header><strong>PC-05</strong><span>Офлайн</span></header><p>Нет heartbeat · Shell ?</p></article>
+          <article class="seat active"><header><strong>PC-06</strong><span>1ч 12м</span></header><p>Dota 2 · пакет 3ч</p></article>
+          <article class="seat ready"><header><strong>PC-07</strong><span>Свободно</span></header><p>Unlocked · гость</p></article>
+          <article class="seat active"><header><strong>PC-08</strong><span>18 мин</span></header><p>CS2 · wallet</p></article>
+          <article class="seat ready"><header><strong>PC-09</strong><span>Готов</span></header><p>Locked · Agent 0.4</p></article>
+          <article class="seat active"><header><strong>PC-10</strong><span>54 мин</span></header><p>Valorant · package</p></article>
+        </section>
+      </main>
+      <aside>
+        <h2>PC-01</h2>
+        <p>Зал A · игрок Amir K. · активная сессия</p>
+        <p>Осталось 43 мин · lease свежий · устройство online</p>
+        <button>+15 минут</button>
+        <button>+30 минут</button>
+        <button>Завершить после подтверждения</button>
+      </aside>
+      <div class="bottom">
+        <span>Последняя операция: команда unlock отправлена</span>
+        <span>POS: 2 неоплаченных чека</span>
+        <span>Устройства: 1 offline, 1 command pending</span>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,7 +1,11 @@
+using System.ComponentModel;
+
 namespace AFK4.Operator.App.Shell;
 
-public sealed class OperatorNavigationItemViewModel
+public sealed class OperatorNavigationItemViewModel : INotifyPropertyChanged
 {
+    private bool isSelected;
+
     public OperatorNavigationItemViewModel(OperatorWorkspaceKind kind, string label, string requiredPermission)
     {
         Kind = kind;
@@ -9,11 +13,38 @@ public sealed class OperatorNavigationItemViewModel
         RequiredPermission = requiredPermission;
     }
 
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     public OperatorWorkspaceKind Kind { get; }
 
     public string Label { get; }
 
     public string RequiredPermission { get; }
+
+    public bool IsSelected
+    {
+        get => isSelected;
+        set
+        {
+            if (isSelected == value)
+            {
+                return;
+            }
+
+            isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+
+    public string Icon => Kind switch
+    {
+        OperatorWorkspaceKind.FloorMap => "⌂",
+        OperatorWorkspaceKind.Pos => "T",
+        OperatorWorkspaceKind.Players => "ID",
+        OperatorWorkspaceKind.Shifts => "₸",
+        OperatorWorkspaceKind.Settings => "⚙",
+        _ => ""
+    };
 
     public string ShortcutHint => Kind switch
     {

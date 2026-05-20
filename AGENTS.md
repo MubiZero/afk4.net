@@ -43,7 +43,8 @@ there.
 - The MVP has no web admin panel.
 - Operator experience is a native Windows desktop app.
 - Gaming PCs are Windows 10/11 only in the MVP.
-- Operator App is WPF + MVVM.
+- Operator App is a native .NET Windows desktop shell with WebView2 and a
+  React/TypeScript operator UI.
 - Backend is ASP.NET Core on .NET 10.
 - Backend starts as a modular monolith, not microservices.
 - Database target is PostgreSQL.

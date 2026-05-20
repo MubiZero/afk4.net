@@ -36,13 +36,81 @@
             <Setter Property="Padding" Value="14" />
         </Style>
 
-        <Style x:Key="PrimaryButton" TargetType="Button">
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Width" Value="70" />
+            <Setter Property="Height" Value="62" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Padding" Value="6" />
             <Setter Property="Background" Value="#111827" />
+            <Setter Property="BorderBrush" Value="#243043" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#E5E7EB" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="#2563EB" />
+                    <Setter Property="BorderBrush" Value="#60A5FA" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#2563EB" />
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="#111827" />
+            <Setter Property="BorderBrush" Value="#2563EB" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="14,9" />
             <Setter Property="MinHeight" Value="38" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="SecondaryButton" TargetType="Button">
@@ -52,6 +120,50 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="12,8" />
             <Setter Property="MinHeight" Value="36" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.92" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ChipButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="Padding" Value="14,5" />
+            <Setter Property="Foreground" Value="#344054" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="#EFF6FF" />
+                    <Setter Property="BorderBrush" Value="#93C5FD" />
+                    <Setter Property="Foreground" Value="#175CD3" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Background" Value="#FEF3F2" />
+            <Setter Property="Foreground" Value="#B42318" />
+            <Setter Property="BorderBrush" Value="#FDA29B" />
         </Style>
 
         <Style TargetType="TextBox">
@@ -138,41 +250,78 @@
                 </Style>
             </DockPanel.Style>
 
-            <Border DockPanel.Dock="Top" Background="#0B1220" Padding="18,12">
+            <Border DockPanel.Dock="Top" Background="#0B1220" Height="70" Padding="24,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="AFK4"
-                               Foreground="White"
-                               FontSize="22"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"
-                               Margin="0,0,24,0" />
-
-                    <WrapPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding SelectedWorkspaceTitle}"
-                                   Foreground="#F9FAFB"
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,28,0">
+                        <TextBlock Text="AFK4"
+                                   Foreground="White"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="Оператор"
+                                   Foreground="#E0E7FF"
                                    FontWeight="SemiBold"
-                                   Margin="0,0,14,0" />
-                        <TextBlock Text="{Binding CurrentUser.DisplayName}"
-                                   Foreground="#CBD5E1"
-                                   Margin="0,0,14,0" />
-                        <TextBlock Text="{Binding CurrentShiftBadge}"
-                                   Foreground="#A7F3D0"
-                                   Margin="0,0,14,0" />
-                        <TextBlock Text="{Binding RealtimeConnectionState}"
-                                   Foreground="#BFDBFE" />
+                                   Margin="14,3,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <Border Grid.Column="1"
+                            MinWidth="260"
+                            MaxWidth="392"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="#1D2939"
+                            BorderBrush="#344054"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="20,10">
+                        <Grid>
+                            <TextBlock Text="Поиск игрока, ПК или команды"
+                                       Foreground="#98A2B3"
+                                       FontSize="12" />
+                            <TextBlock Text="Ctrl K"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Right"
+                                       FontSize="12" />
+                        </Grid>
+                    </Border>
+
+                    <WrapPanel Grid.Column="2" VerticalAlignment="Center" Margin="18,0,18,0">
+                        <Border Background="#ECFDF3" CornerRadius="6" Padding="14,8" Margin="0,0,10,0">
+                            <TextBlock Text="{Binding RealtimeConnectionState}" Foreground="#027A48" FontWeight="SemiBold" />
+                        </Border>
+                        <Border Background="#EFF6FF" CornerRadius="6" Padding="14,8">
+                            <TextBlock Text="{Binding CurrentShiftBadge}" Foreground="#175CD3" FontWeight="SemiBold" />
+                        </Border>
                     </WrapPanel>
 
-                    <Button Grid.Column="2"
+                    <StackPanel Grid.Column="3" Margin="0,0,20,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding FloorMap.BranchName}" Foreground="White" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding CurrentUser.DisplayName}" Foreground="#E0E7FF" FontSize="12" />
+                    </StackPanel>
+
+                    <Button Grid.Column="4"
                             Content="Выйти"
                             Command="{Binding SignOutCommand}"
                             Style="{StaticResource SecondaryButton}"
-                            MinWidth="96" />
+                            MinWidth="88"
+                            Margin="0,0,16,0" />
+
+                    <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="9" Height="9" Fill="#64748B" Margin="0,0,7,0" />
+                        <Ellipse Width="9" Height="9" Fill="#64748B" Margin="0,0,7,0" />
+                        <Ellipse Width="9" Height="9" Fill="#EF4444" />
+                    </StackPanel>
                 </Grid>
             </Border>
 
@@ -201,33 +350,34 @@
 
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="96" />
+                    <ColumnDefinition Width="90" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="360" />
+                    <ColumnDefinition Width="372" />
                 </Grid.ColumnDefinitions>
 
-                <Border Background="#111827" Padding="10">
+                <Border Background="#111827" Padding="10,22,10,18">
                     <DockPanel LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Bottom"
+                                   Text="F1 помощь"
+                                   Foreground="#CBD5E1"
+                                   FontSize="11"
+                                   HorizontalAlignment="Center" />
                         <ItemsControl ItemsSource="{Binding NavigationItems}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Button Command="{Binding DataContext.NavigateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding Kind}"
-                                            Margin="0,0,0,8"
-                                            Padding="8"
-                                            HorizontalContentAlignment="Stretch"
-                                            Background="#1F2937"
-                                            BorderBrush="#334155"
-                                            Foreground="White">
+                                            Style="{StaticResource NavButton}">
                                         <StackPanel>
+                                            <TextBlock Text="{Binding Icon}"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,0,0,5" />
                                             <TextBlock Text="{Binding Label}"
                                                        FontWeight="SemiBold"
+                                                       FontSize="12"
                                                        HorizontalAlignment="Center" />
-                                            <TextBlock Text="{Binding ShortcutHint}"
-                                                       Foreground="#94A3B8"
-                                                       FontSize="11"
-                                                       HorizontalAlignment="Center"
-                                                       Margin="0,2,0,0" />
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -236,13 +386,23 @@
                     </DockPanel>
                 </Border>
 
-                <Grid Grid.Column="1" Margin="20">
+                <Grid Grid.Column="1" Margin="30,26,28,20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
                     <StackPanel Margin="0,0,0,18">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SelectedWorkspace}" Value="{x:Static shell:OperatorWorkspaceKind.FloorMap}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
                         <TextBlock Text="{Binding SelectedWorkspaceTitle}" Style="{StaticResource PageTitle}" />
                         <TextBlock Text="{Binding SelectedWorkspaceSubtitle}"
                                    Margin="0,4,0,0"
@@ -263,96 +423,328 @@
                         </Grid.Style>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <Grid Margin="0,0,0,14">
+                        <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="{Binding BranchName}" Style="{StaticResource SectionTitle}" />
-                                <TextBlock Text="{Binding FloorSummary}" Style="{StaticResource MutedText}" Margin="0,3,0,0" />
+                                <TextBlock Text="Зал" Style="{StaticResource PageTitle}" FontSize="30" />
+                                <TextBlock Text="{Binding HeaderSummary}" Foreground="#475467" Margin="0,3,0,0" />
                             </StackPanel>
                             <Button Grid.Column="1"
                                     Content="Обновить"
                                     Style="{StaticResource SecondaryButton}"
-                                    Command="{Binding RefreshCommand}" />
+                                    Command="{Binding RefreshCommand}"
+                                    MinWidth="104" />
                         </Grid>
 
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding Seats}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button Command="{Binding DataContext.FloorMap.SelectSeatCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}"
-                                                Margin="0,0,12,12"
-                                                Padding="0"
-                                                Background="Transparent"
-                                                BorderThickness="0">
-                                            <Border Width="172" Height="116">
+                        <UniformGrid Grid.Row="1" Columns="5" Margin="0,0,0,14">
+                            <Border Style="{StaticResource Card}" Height="70" Padding="14,10" BorderBrush="#60A5FA" BorderThickness="4,1,1,1" Margin="0,0,10,0">
+                                <StackPanel>
+                                    <TextBlock Text="Свободно" Foreground="#667085" />
+                                    <TextBlock Text="{Binding AvailableSeatCount}" FontSize="24" FontWeight="Bold" Foreground="#101828" />
+                                    <TextBlock Text="можно запускать" Foreground="#667085" FontSize="12" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Height="70" Padding="14,10" BorderBrush="#039855" BorderThickness="4,1,1,1" Margin="0,0,10,0">
+                                <StackPanel>
+                                    <TextBlock Text="Активно" Foreground="#667085" />
+                                    <TextBlock Text="{Binding ActiveSeatCount}" FontSize="24" FontWeight="Bold" Foreground="#101828" />
+                                    <TextBlock Text="играют сейчас" Foreground="#667085" FontSize="12" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Height="70" Padding="14,10" BorderBrush="#7C3AED" BorderThickness="4,1,1,1" Margin="0,0,10,0">
+                                <StackPanel>
+                                    <TextBlock Text="Ожидание" Foreground="#667085" />
+                                    <TextBlock Text="{Binding PendingSeatCount}" FontSize="24" FontWeight="Bold" Foreground="#101828" />
+                                    <TextBlock Text="команды в пути" Foreground="#667085" FontSize="12" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Height="70" Padding="14,10" BorderBrush="#D92D20" BorderThickness="4,1,1,1" Margin="0,0,10,0">
+                                <StackPanel>
+                                    <TextBlock Text="Офлайн" Foreground="#667085" />
+                                    <TextBlock Text="{Binding OfflineSeatCount}" FontSize="24" FontWeight="Bold" Foreground="#101828" />
+                                    <TextBlock Text="требует внимания" Foreground="#667085" FontSize="12" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Height="70" Padding="14,10" BorderBrush="#DC6803" BorderThickness="4,1,1,1">
+                                <StackPanel>
+                                    <TextBlock Text="Проблемы" Foreground="#667085" />
+                                    <TextBlock Text="{Binding ProblemSeatCount}" FontSize="24" FontWeight="Bold" Foreground="#101828" />
+                                    <TextBlock Text="проверить" Foreground="#667085" FontSize="12" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,8" Margin="0,0,0,16">
+                            <Grid>
+                                <ItemsControl ItemsSource="{Binding FilterOptions}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding Label}"
+                                                    Style="{StaticResource ChipButton}"
+                                                    Command="{Binding DataContext.SelectFilterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Margin="0,0,8,0" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="Быстрые действия через выбранное место справа"
+                                           Foreground="#667085"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="3" Style="{StaticResource Card}" Padding="20" Margin="0,0,0,16">
+                            <DockPanel>
+                                <Grid DockPanel.Dock="Top" Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Main Hall" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
+                                    <ItemsControl Grid.Column="1" ItemsSource="{Binding ZoneOptions}" Margin="24,0,0,0" VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderThickness="1" CornerRadius="6" Padding="14,7" Margin="0,0,8,0">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#F8FAFC" />
+                                                            <Setter Property="BorderBrush" Value="#D0D5DD" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                    <Setter Property="Background" Value="#EFF6FF" />
+                                                                    <Setter Property="BorderBrush" Value="#93C5FD" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding Label}" Foreground="#175CD3" FontWeight="SemiBold" FontSize="12" />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{Binding ZoneSummary}"
+                                               Grid.Column="2"
+                                               Foreground="#667085"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding FilteredSeats}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Command="{Binding DataContext.FloorMap.SelectSeatCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        Margin="0,0,14,14"
+                                                        Padding="0"
+                                                        Background="Transparent"
+                                                        BorderThickness="0">
+                                                    <Border Width="160" Height="104" Padding="12">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#F8FAFC" />
+                                                                <Setter Property="BorderBrush" Value="#D0D5DD" />
+                                                                <Setter Property="BorderThickness" Value="4,1,1,1" />
+                                                                <Setter Property="CornerRadius" Value="6" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding StateTone}" Value="Active">
+                                                                        <Setter Property="Background" Value="#ECFDF3" />
+                                                                        <Setter Property="BorderBrush" Value="#039855" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StateTone}" Value="Ready">
+                                                                        <Setter Property="Background" Value="#F8FAFC" />
+                                                                        <Setter Property="BorderBrush" Value="#2563EB" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StateTone}" Value="Pending">
+                                                                        <Setter Property="Background" Value="#EEF4FF" />
+                                                                        <Setter Property="BorderBrush" Value="#7C3AED" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StateTone}" Value="Warning">
+                                                                        <Setter Property="Background" Value="#FFFAEB" />
+                                                                        <Setter Property="BorderBrush" Value="#DC6803" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StateTone}" Value="Blocking">
+                                                                        <Setter Property="Background" Value="#FEF3F2" />
+                                                                        <Setter Property="BorderBrush" Value="#D92D20" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StateTone}" Value="Offline">
+                                                                        <Setter Property="Background" Value="#F2F4F7" />
+                                                                        <Setter Property="BorderBrush" Value="#98A2B3" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StateTone}" Value="Service">
+                                                                        <Setter Property="Background" Value="#FFFAEB" />
+                                                                        <Setter Property="BorderBrush" Value="#F59E0B" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                        <Setter Property="BorderBrush" Value="#2563EB" />
+                                                                        <Setter Property="BorderThickness" Value="4,2,2,2" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto" />
+                                                                <RowDefinition Height="*" />
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
+                                                            <Grid>
+                                                                <TextBlock Text="{Binding Name}"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="#101828"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <Border HorizontalAlignment="Right"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="6"
+                                                                        Padding="10,3">
+                                                                    <Border.Style>
+                                                                        <Style TargetType="Border">
+                                                                            <Setter Property="Background" Value="#F8FAFC" />
+                                                                            <Setter Property="BorderBrush" Value="#D0D5DD" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding StateTone}" Value="Active">
+                                                                                    <Setter Property="Background" Value="#DCFCE7" />
+                                                                                    <Setter Property="BorderBrush" Value="#86EFAC" />
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding StateTone}" Value="Ready">
+                                                                                    <Setter Property="Background" Value="#EFF6FF" />
+                                                                                    <Setter Property="BorderBrush" Value="#93C5FD" />
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding StateTone}" Value="Pending">
+                                                                                    <Setter Property="Background" Value="#EEF4FF" />
+                                                                                    <Setter Property="BorderBrush" Value="#93C5FD" />
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding StateTone}" Value="Warning">
+                                                                                    <Setter Property="Background" Value="#FFFBEB" />
+                                                                                    <Setter Property="BorderBrush" Value="#FDE68A" />
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding StateTone}" Value="Blocking">
+                                                                                    <Setter Property="Background" Value="#FEF3F2" />
+                                                                                    <Setter Property="BorderBrush" Value="#FDA29B" />
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding StateTone}" Value="Offline">
+                                                                                    <Setter Property="Background" Value="#F8FAFC" />
+                                                                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding StateTone}" Value="Service">
+                                                                                    <Setter Property="Background" Value="#FFFAEB" />
+                                                                                    <Setter Property="BorderBrush" Value="#FEC84B" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Border.Style>
+                                                                    <TextBlock Text="{Binding DisplayState}"
+                                                                               Foreground="{Binding StateForeground}"
+                                                                               FontSize="12"
+                                                                               FontWeight="SemiBold" />
+                                                                </Border>
+                                                            </Grid>
+                                                            <StackPanel Grid.Row="1" Margin="0,8,0,0">
+                                                                <TextBlock Text="{Binding DeviceSummary}" Foreground="#344054" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding DeviceVersionSummary}" Foreground="#667085" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Row="2"
+                                                                       Text="{Binding OperatorActionText}"
+                                                                       Foreground="#344054"
+                                                                       FontWeight="Bold"
+                                                                       FontSize="12"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </Grid>
+                                                    </Border>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Grid.Row="4" Style="{StaticResource Card}" Padding="16">
+                            <DockPanel>
+                                <TextBlock Text="Операционные сигналы" FontWeight="Bold" Foreground="#101828" DockPanel.Dock="Top" Margin="0,0,0,12" />
+                                <ItemsControl ItemsSource="{Binding OperationalSignals}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="4" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="12"
+                                                    Margin="0,0,10,0">
                                                 <Border.Style>
-                                                    <Style TargetType="Border" BasedOn="{StaticResource Card}">
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#F8FAFC" />
                                                         <Setter Property="BorderBrush" Value="#D0D5DD" />
-                                                        <Setter Property="BorderThickness" Value="1" />
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                <Setter Property="BorderBrush" Value="#2563EB" />
-                                                                <Setter Property="BorderThickness" Value="2" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding StateTone}" Value="Active">
+                                                            <DataTrigger Binding="{Binding Tone}" Value="Active">
                                                                 <Setter Property="Background" Value="#ECFDF3" />
+                                                                <Setter Property="BorderBrush" Value="#86EFAC" />
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding StateTone}" Value="Locked">
+                                                            <DataTrigger Binding="{Binding Tone}" Value="Ready">
                                                                 <Setter Property="Background" Value="#EFF6FF" />
+                                                                <Setter Property="BorderBrush" Value="#93C5FD" />
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding StateTone}" Value="Maintenance">
-                                                                <Setter Property="Background" Value="#FFFBEB" />
+                                                            <DataTrigger Binding="{Binding Tone}" Value="Pending">
+                                                                <Setter Property="Background" Value="#EEF4FF" />
+                                                                <Setter Property="BorderBrush" Value="#A78BFA" />
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding StateTone}" Value="Offline">
-                                                                <Setter Property="Background" Value="#F2F4F7" />
+                                                            <DataTrigger Binding="{Binding Tone}" Value="Warning">
+                                                                <Setter Property="Background" Value="#FFFAEB" />
+                                                                <Setter Property="BorderBrush" Value="#FEC84B" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Tone}" Value="Blocking">
+                                                                <Setter Property="Background" Value="#FEF3F2" />
+                                                                <Setter Property="BorderBrush" Value="#FDA29B" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Tone}" Value="Offline">
+                                                                <Setter Property="Background" Value="#F8FAFC" />
+                                                                <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Tone}" Value="Service">
+                                                                <Setter Property="Background" Value="#FFFAEB" />
+                                                                <Setter Property="BorderBrush" Value="#FEC84B" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto" />
-                                                        <RowDefinition Height="*" />
-                                                        <RowDefinition Height="Auto" />
-                                                    </Grid.RowDefinitions>
-                                                    <TextBlock Text="{Binding Name}"
-                                                               FontSize="17"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="#101828"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               ToolTip="{Binding Name}" />
-                                                    <StackPanel Grid.Row="1" Margin="0,6,0,0">
-                                                        <TextBlock Text="{Binding DisplayState}"
-                                                                   FontWeight="SemiBold"
-                                                                   Foreground="#027A48" />
-                                                        <TextBlock Text="{Binding DeviceSummary}"
-                                                                   Style="{StaticResource MutedText}"
-                                                                   FontSize="12"
-                                                                   Margin="0,2,0,0" />
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Row="2"
-                                                               Text="{Binding RemainingTimeText}"
-                                                               Foreground="#344054"
-                                                               FontWeight="SemiBold" />
-                                                </Grid>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Title}" Foreground="#175CD3" FontWeight="Bold" />
+                                                    <TextBlock Text="{Binding Detail}" Foreground="#667085" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </StackPanel>
                                             </Border>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </DockPanel>
+                        </Border>
                     </Grid>
 
                     <Grid Grid.Row="1" DataContext="{Binding Pos}">
@@ -716,7 +1108,7 @@
                     </Grid>
                 </Grid>
 
-                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#D0D5DD" BorderThickness="1,0,0,0" Padding="18">
+                <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#D0D5DD" BorderThickness="1,0,0,0" Padding="24,20">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <StackPanel DataContext="{Binding FloorMap.SeatContext}">
@@ -731,10 +1123,124 @@
                                         </Style.Triggers>
                                     </Style>
                                 </StackPanel.Style>
-                                <TextBlock Text="{Binding SeatActionTitle}" Style="{StaticResource SectionTitle}" />
-                                <TextBlock Text="{Binding SelectedSeatSummary}" FontWeight="SemiBold" Foreground="#101828" Margin="0,12,0,0" />
-                                <TextBlock Text="{Binding SelectedSeatDetails}" Style="{StaticResource MutedText}" Margin="0,3,0,14" />
-                                <TextBlock Text="{Binding SeatActionHint}" Style="{StaticResource MutedText}" Margin="0,0,0,18" />
+                                <Grid>
+                                    <TextBlock Text="Выбранное место" FontSize="16" FontWeight="Bold" Foreground="#101828" />
+                                    <Border HorizontalAlignment="Right"
+                                            Background="#ECFDF3"
+                                            BorderBrush="#86EFAC"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="14,5">
+                                        <TextBlock Text="{Binding SelectedSeatStatusText}"
+                                                   Foreground="{Binding SelectedSeatStatusForeground}"
+                                                   FontWeight="SemiBold" />
+                                    </Border>
+                                </Grid>
+
+                                <TextBlock Text="{Binding SelectedSeatName}"
+                                           FontSize="32"
+                                           FontWeight="Bold"
+                                           Foreground="#101828"
+                                           Margin="0,18,0,0" />
+                                <TextBlock Text="{Binding SelectedSeatMetaLine}" Foreground="#667085" Margin="0,2,0,14" />
+
+                                <Border Background="#F8FAFC" BorderBrush="#D0D5DD" BorderThickness="1" CornerRadius="6" Padding="4" Margin="0,0,0,18">
+                                    <UniformGrid Columns="3">
+                                        <Button Content="Место"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Background="#EFF6FF"
+                                                BorderBrush="#93C5FD"
+                                                Foreground="#175CD3" />
+                                        <Button Content="Игрок" Style="{StaticResource SecondaryButton}" Margin="4,0,0,0" />
+                                        <Button Content="POS" Style="{StaticResource SecondaryButton}" Margin="4,0,0,0" />
+                                    </UniformGrid>
+                                </Border>
+
+                                <Border Background="#111827"
+                                        CornerRadius="6"
+                                        Padding="18"
+                                        Margin="0,0,0,18">
+                                    <StackPanel>
+                                        <Grid>
+                                            <TextBlock Text="Осталось времени" Foreground="#CBD5E1" />
+                                            <TextBlock Text="{Binding TariffRuleVersionId}" Foreground="#E0E7FF" HorizontalAlignment="Right" />
+                                        </Grid>
+                                        <Grid Margin="0,10,0,0">
+                                            <TextBlock Text="{Binding ActiveSessionTimerText}"
+                                                       Foreground="White"
+                                                       FontSize="40"
+                                                       FontWeight="Bold" />
+                                            <TextBlock Text="{Binding ActiveSessionLeaseText}"
+                                                       Foreground="#86EFAC"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                        <ProgressBar Value="{Binding ActiveSessionProgressValue, Mode=OneWay}"
+                                                     Maximum="100"
+                                                     Height="6"
+                                                     Margin="0,6,0,0"
+                                                     Foreground="#22C55E"
+                                                     Background="#344054" />
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="Действия сессии" FontWeight="Bold" Foreground="#101828" Margin="0,0,0,10" />
+                                <UniformGrid Columns="3" Margin="0,0,0,10">
+                                    <Button Content="Продлить +15" Command="{Binding ExtendBy15Command}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
+                                    <Button Content="+30 мин" Command="{Binding ExtendBy30Command}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" />
+                                    <Button Content="Перенести" Command="{Binding TransferSessionCommand}" Style="{StaticResource SecondaryButton}" />
+                                </UniformGrid>
+                                <Button Content="Завершить сессию" Command="{Binding EndSessionCommand}" Style="{StaticResource DangerButton}" Margin="0,0,0,22" />
+
+                                <TextBlock Text="Оплата" FontWeight="Bold" Foreground="#101828" Margin="0,0,0,10" />
+                                <ItemsControl ItemsSource="{Binding BillingModeOptions}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding Label}"
+                                                    Command="{Binding DataContext.SelectBillingModeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    MinHeight="32"
+                                                    Padding="10,5"
+                                                    Margin="0,0,8,8" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Border Background="#F8FAFC" BorderBrush="#EAECF0" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,18">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Text="Списано сейчас" Foreground="#667085" FontSize="12" />
+                                            <TextBlock Text="{Binding MoneyImpactText}" Foreground="#101828" FontSize="20" FontWeight="Bold" />
+                                        </StackPanel>
+                                        <StackPanel HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding LedgerImpactText}" Foreground="#667085" FontSize="12" HorizontalAlignment="Right" />
+                                            <TextBlock Text="быстрый гостевой старт" Foreground="#667085" FontSize="12" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <TextBlock Text="Статус команды" FontWeight="Bold" Foreground="#101828" Margin="0,0,0,10" />
+                                <Border Background="#FFFAEB" BorderBrush="#FEC84B" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,18">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Width="10" Height="10" Fill="#D97706" Margin="0,4,8,0" />
+                                            <TextBlock Text="{Binding ServerConfirmationStatus}" Foreground="#B54708" FontWeight="Bold" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding DeviceCommandStatus}" Foreground="#667085" FontSize="12" Margin="0,5,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="Устройство" FontWeight="Bold" Foreground="#101828" Margin="0,0,0,8" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <Ellipse Width="9" Height="9" Fill="#22C55E" Margin="0,5,8,0" />
+                                    <TextBlock Text="{Binding DeviceConnectivityLine}" Foreground="#344054" TextWrapping="Wrap" />
+                                </StackPanel>
 
                                 <StackPanel>
                                     <StackPanel.Style>
@@ -749,33 +1255,7 @@
                                     </StackPanel.Style>
                                     <TextBlock Text="Длительность, минут" Style="{StaticResource MutedText}" />
                                     <TextBox Text="{Binding DurationMinutes, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,10" />
-                                    <TextBlock Text="Оплата" Style="{StaticResource MutedText}" />
-                                    <ComboBox ItemsSource="{Binding BillingModeOptions}"
-                                              DisplayMemberPath="Label"
-                                              SelectedValuePath="Value"
-                                              SelectedValue="{Binding BillingMode, UpdateSourceTrigger=PropertyChanged}"
-                                              Margin="0,4,0,8" />
-                                    <TextBlock Text="{Binding BillingModeDescription}" Style="{StaticResource MutedText}" Margin="0,0,0,10" />
                                     <Button Content="Запустить гостевую сессию" Command="{Binding StartGuestSessionCommand}" Style="{StaticResource PrimaryButton}" />
-                                </StackPanel>
-
-                                <StackPanel Margin="0,18,0,0">
-                                    <StackPanel.Style>
-                                        <Style TargetType="StackPanel">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasActiveSession}" Value="True">
-                                                    <Setter Property="Visibility" Value="Visible" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </StackPanel.Style>
-                                    <TextBlock Text="{Binding ActiveSessionSummary}" FontWeight="SemiBold" Foreground="#027A48" />
-                                    <TextBlock Text="Добавить минут" Style="{StaticResource MutedText}" Margin="0,12,0,0" />
-                                    <TextBox Text="{Binding AdditionalMinutes, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8" />
-                                    <Button Content="Продлить сессию" Command="{Binding ExtendSessionCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,0,10" />
-                                    <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
-                                    <Button Content="Завершить сессию" Command="{Binding EndSessionCommand}" Style="{StaticResource PrimaryButton}" />
                                 </StackPanel>
 
                                 <TextBlock Text="{Binding PendingOperation}" Foreground="#B54708" TextWrapping="Wrap" Margin="0,18,0,0" />

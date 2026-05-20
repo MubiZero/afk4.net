@@ -290,11 +290,23 @@ Minimum bar:
 ### Operator Workflows
 
 - Staging smoke proved the old Operator App layout was not viable even though
-  session start/end worked. `codex/operator-app-redesign` is the active
-  replacement branch and should be treated as the baseline for future Operator
-  App usability work after visual review. The branch now localizes the primary
-  operator path to Russian and makes Operator App money-command currency
-  configurable through `AFK4_OPERATOR_CURRENCY_CODE` with `TJS` as the default.
+  session start/end worked. After reviewing the WPF redesign branch, the
+  go-forward Operator App runtime changed to a native .NET Windows desktop
+  shell with WebView2 and React/TypeScript UI. This keeps the native Windows
+  app boundary and explicitly does not introduce a browser-delivered web admin
+  panel. `docs/product/operator-app-ui-target.md` remains the accepted UI/UX
+  target: dense floor-map-centered operator console, selected-seat action
+  panel, operational signals, explicit pending/failed backend and device
+  states, and no raw GUID/form surfaces in normal cashier/operator paths.
+  `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`
+  is the focused migration plan. The first implementation increment now starts
+  a WebView2 host shell and a local React/TypeScript console with host config
+  injection, local asset resolution, the floor map, and SmartShell-inspired
+  fixture workspaces for dashboard, booking, POS/shop, clients, payments,
+  logs, and ops/settings. These extra screens are visual/workflow fixtures
+  only until the backend auth/API/SignalR wiring is completed. The current WPF
+  implementation remains a parity reference and temporary legacy source until
+  the WebView2/React Operator App covers the pilot day flow.
 - Staff management workflow is implemented as a minimum API path on `main`;
   the Operator App has a minimum one-shot Pilot Setup panel, but not a general
   staff management UI.
@@ -318,13 +330,19 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. Operator App redesign and deployed-backend smoke
+1. Operator App WebView2/React migration
 
-   Finish and visually review `codex/operator-app-redesign`, then use the
-   Operator App against the deployed staging backend to verify the practical
-   pilot day flow: sign-in, floor map, Pilot Setup panel, shift/POS basics,
-   session actions against the current staging device/seat state, and
-   actionable errors. Local builds can target staging with
+   Continue
+   `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
+   The native WebView2 host, React/TypeScript app foundation, typed config
+   bootstrap, local floor-map concept UI, and SmartShell-inspired fixture
+   screens for dashboard, booking, POS/shop, clients, payments, logs, and
+   ops/settings now exist. Next deliver the auth/token boundary, typed API
+   clients, SignalR state, staging-targeted sign-in, and real floor-map
+   actions. After backend wiring, follow the design/frontend roadmap in the
+   migration plan: bring map/table, dashboard, booking, shop/POS, payments,
+   clients, logs, and ops/settings to real data and production parity. Local
+   builds must still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
    GUID/form surfaces in the main operator path as usability defects unless
    they are explicitly advanced technician tools.

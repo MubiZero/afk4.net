@@ -46,7 +46,9 @@ implementation evidence are needed.
 
 ### Operator App
 
-- WPF + MVVM production-oriented shell.
+- The Operator App target runtime is now a native .NET Windows desktop shell
+  with WebView2 hosting a React/TypeScript operator UI. The existing WPF/MVVM
+  implementation is legacy migration source, not the go-forward UI runtime.
 - Protected token storage abstraction.
 - Permission-filtered navigation.
 - Realtime floor map loading and selected-seat session actions.
@@ -70,6 +72,16 @@ implementation evidence are needed.
   Russian-first for sign-in, floor map/seat actions, POS, players, and shifts.
   Operator money commands use configurable UI currency from
   `AFK4_OPERATOR_CURRENCY_CODE`, defaulting to `TJS`.
+- The target state for continued Operator App UI/UX work is now documented in
+  `docs/product/operator-app-ui-target.md`. Future redesign work should
+  converge to that dense operator-console target: dark top/left chrome, floor
+  map as the main workspace, selected-seat action panel, operational signals,
+  explicit pending/failed backend and device states, Russian-first primary copy,
+  and no raw GUID/form surfaces in normal cashier/operator paths.
+- The approved migration plan is
+  `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
+  It keeps the native Windows desktop app boundary and MSI/update component,
+  but moves operator UI implementation from WPF to WebView2 + React/TypeScript.
 
 ### Agent Service
 
@@ -1003,12 +1015,14 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Finish and review `codex/operator-app-redesign`, then test the Operator App
-   against deployed staging: sign-in, floor map, the `Settings` -> `Pilot Setup`
-   panel, shift/POS basics, session actions against current staging device/seat
-   state, and actionable error handling. Treat any remaining raw GUID/form
-   surfaces as usability bugs unless they are explicitly advanced technician
-   tools.
+2. Continue `codex/operator-app-redesign` by wiring the WebView2/React Operator
+   App auth/token bridge, typed frontend API clients, SignalR state, and
+   parity screens for floor map actions, POS, players, shifts, Pilot Setup,
+   diagnostics, updates, audit, and reports. Then test the WebView2 Operator
+   App against deployed staging: sign-in, floor map, the setup panel,
+   shift/POS basics, session actions against current staging device/seat state,
+   and actionable error handling. Treat any remaining raw GUID/form surfaces as
+   usability bugs unless they are explicitly advanced technician tools.
 3. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
@@ -1026,6 +1040,12 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 ## Recent Integration Notes
 
+- On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
+  Operator App implementation: WebView2 startup shell, local asset resolution,
+  typed host config injection, Vite/React frontend foundation, first visual
+  floor-map console, host/frontend tests, local browser smoke, and desktop app
+  launch. WPF remains only as legacy/parity code until WebView2 reaches pilot
+  day-flow parity.
 - On 2026-05-20, roadmap/progress status was clarified after the Operator
   Pilot Setup UI merge: physical Windows PC smoke and exposed staging Coolify
   token rotation are tracked as hardening/ops hygiene, not blockers for the
@@ -1403,23 +1423,136 @@ Operator App redesign branch verification on 2026-05-20:
 - branch `codex/operator-app-redesign` continues PR #44 and adds a
   Russian-first primary operator UI for sign-in, floor map seat actions, POS,
   players, and shifts;
+- the accepted Operator App visual/workflow target was recorded in
+  `docs/product/operator-app-ui-target.md` so future UI work has a durable
+  reference beyond chat or local design artifacts;
 - Operator App currency is configurable through
   `AFK4_OPERATOR_CURRENCY_CODE`, defaults to `TJS`, and is passed into POS,
   player wallet/debt, and shift money commands;
+- the WPF floor-map shell now has a visual alignment pass toward the accepted
+  `afk4-operator-ui-concept.png` direction: fixed dark top command bar,
+  selected-state left rail, rounded button/chip chrome, metrics and filter
+  chips above the dense seat map, real zone chips, tone-colored seat badges,
+  tone-colored operational signals, and a right selected-seat action panel;
+- the floor map now maps seat states to the documented operator status tones:
+  ready, active, pending, warning, blocking, offline, and service. The floor
+  summary includes pending and problem counts, active sessions stay active when
+  realtime device status changes arrive, and offline active PCs are surfaced as
+  warning/problem seats instead of being collapsed into free/offline. The
+  selected-seat quick start action is available only for ready seats, not
+  offline/service/problem seats;
+- the selected-seat panel now separates authoritative backend confirmation
+  from Agent/device command status so operators can distinguish "backend
+  accepted" from "device command sent / not required / not sent". The active
+  session progress bar now binds to session remaining time instead of a static
+  placeholder value;
 - local Operator App tests passed:
 
   ```powershell
   & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
   ```
 
-  Result: 173 passed, 0 failed, 0 skipped.
+  Result: 177 passed, 0 failed, 0 skipped.
 - full local solution tests passed:
 
   ```powershell
   & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
   ```
 
-  Result: 747 passed, 0 failed, 0 skipped.
+  Result: 751 passed, 0 failed, 0 skipped.
+
+Operator App runtime decision update on 2026-05-20:
+
+- after launching and reviewing the WPF redesign branch, the Operator App UI
+  runtime decision changed from WPF + MVVM to a native .NET Windows desktop
+  shell with WebView2 and React/TypeScript UI;
+- PRD, platform architecture, client packaging design, UI target, roadmap, and
+  this progress snapshot were updated to record the new source of truth;
+- the migration plan is
+  `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`;
+- at the runtime decision point, no implementation cutover had been completed
+  yet. The current WPF code should be treated as parity reference and
+  temporary legacy code until the WebView2 React app can cover the pilot
+  operator day flow;
+- full local solution tests were re-run after the decision documentation and
+  WPF progress-binding crash fix:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 751 passed, 0 failed, 0 skipped.
+
+Operator App WebView2/React first implementation on 2026-05-20:
+
+- `src/AFK4.Operator.App` now starts `Web/WebViewOperatorWindow.xaml` instead
+  of the legacy WPF `MainWindow.xaml`. The new startup window initializes
+  WebView2, maps local frontend assets through a virtual host, injects typed
+  operator config into `window.__AFK4_OPERATOR_CONFIG__`, and preserves the app
+  title/minimum desktop size/runtime environment behavior.
+- `src/AFK4.Operator.App.Web` was added with Vite, React, TypeScript,
+  `lucide-react`, Vitest, Testing Library, and production `dist` build output.
+  The WebView2 host prefers the built Vite `dist` during local repo runs and
+  falls back to copied `WebAssets/index.html` when packaged assets are the only
+  available frontend surface.
+- The React first screen implements the accepted operator-console direction
+  with dark top command bar, dark left rail, dense floor map, status metrics,
+  filters, operational signals, and right selected-seat panel. It maps ready,
+  active, pending, warning, blocking, offline, and service tones in the UI, but
+  still uses local fixture state. Auth, protected token bridge, backend API
+  clients, SignalR, POS, players, shifts, Pilot Setup, diagnostics, updates,
+  audit, and reports still need to be ported before WPF legacy code can be
+  removed.
+- The first visual refinement removed the native Windows title bar, added
+  React-rendered window controls backed by a narrow WebView2 host message
+  bridge, and made the floor-map screen smaller/denser. A later same-day
+  pass aligned the fixture screen more closely to public SmartShell map
+  references: dark map canvas, 74 px left rail, larger readable host tiles,
+  color accents, critical-state pills instead of bright metric cards, dark
+  selected-PC detail panel, and 24 local fixture hosts for density review.
+- The React fixture app now also includes SmartShell-inspired secondary
+  workspaces for Dashboard, Booking, POS/Shop, Clients, Payments, Logs, and
+  Ops/Settings. These screens are visual/workflow fixtures only; backend auth,
+  protected token bridge, typed API clients, SignalR, permissions, and
+  backend-confirmed critical actions still need to be wired before this can
+  replace WPF parity for pilot operations.
+- local frontend tests passed:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  ```
+
+  Result: 7 passed, 0 failed, 0 skipped.
+- local frontend production build passed:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: Vite built `dist/index.html`, CSS, and JS assets.
+- focused Operator App tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 186 passed, 0 failed, 0 skipped.
+- full local solution tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 760 passed, 0 failed, 0 skipped.
+- local UI smoke passed through headless Edge against the Vite preview on
+  `http://127.0.0.1:4174/`: title `AFK4 Operator`, heading
+  `AFK4 Dushanbe · Floor A`, 24 seat tiles rendered, Russian copy rendered
+  correctly, expanded navigation rendered for `Карта`, `Дашборд`, `Брони`,
+  `POS`, `Клиенты`, `Платежи`, `Логи`, and `Ops`, cash `4 820 TJS` rendered,
+  and the custom `Свернуть` window control was present. The current floor-map
+  CSS targets larger 88 px host rows. The desktop `AFK4.Operator.App.exe` was
+  launched locally and opened a live `AFK4 Operator` window backed by the React
+  build.
 
 ## Historical Reference
 

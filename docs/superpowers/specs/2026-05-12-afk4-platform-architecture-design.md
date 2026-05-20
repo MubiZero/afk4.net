@@ -15,7 +15,8 @@ The platform is designed to compete architecturally with systems such as Senet, 
 - The first supported gaming PCs are Windows 10/11 only.
 - The backend is a .NET ASP.NET Core modular monolith.
 - The database is PostgreSQL.
-- The Operator App is WPF + MVVM.
+- The Operator App is a native .NET Windows desktop shell with WebView2 and a
+  React/TypeScript operator UI.
 - The gaming PC stack is split into Windows Agent Service and Player Shell UI.
 - Realtime device communication uses SignalR over WebSockets with fallback behavior.
 - Offline behavior is grace mode for already active sessions only.
@@ -37,11 +38,17 @@ The backend owns all business decisions: sessions, billing, tariffs, POS, roles,
 
 ### Operator App
 
-The Operator App is a native Windows application built with WPF + MVVM. It is used by cashiers, operators, administrators, branch managers, technicians, accountants, and owners depending on permissions.
+The Operator App is a native Windows desktop application built as a .NET host
+with WebView2 and a React/TypeScript UI. It is used by cashiers, operators,
+administrators, branch managers, technicians, accountants, and owners depending
+on permissions.
 
 The main screen is the club floor map. Operators can see PC states, start and stop sessions, extend time, transfer players, lock or unlock machines, process payments, sell goods, and close shifts.
 
-The Operator App connects directly to the Cloud Backend through typed APIs and realtime subscriptions. It does not require or depend on a local server.
+The Operator App connects directly to the Cloud Backend through typed APIs and
+realtime subscriptions. It does not require or depend on a local server. The
+WebView2 surface is packaged and launched by the native desktop host; AFK4 does
+not introduce a browser-delivered web admin panel in the MVP.
 
 ### Windows Agent Service
 
@@ -182,13 +189,20 @@ Primary screens:
 
 Technical rules:
 
-- Use WPF + MVVM.
-- Use typed API clients.
-- Use a realtime state store for the floor map.
+- Use a .NET Windows desktop host with WebView2.
+- Use React + TypeScript for the operator UI.
+- Keep generated/shared API DTOs aligned with `AFK4.Shared.Contracts`; the UI
+  client may generate or hand-maintain TypeScript contracts, but backend
+  contracts remain the source of truth.
+- Use a typed frontend API layer and realtime state store for the floor map and
+  operator notifications.
 - Use local read cache only for UI responsiveness, never as financial or session authority.
 - Require backend confirmation for critical operations.
 - Support hotkeys and fast modal workflows.
 - Display pending and failed states explicitly during network issues.
+- Keep host-to-web bridges narrow: protected token storage, app configuration,
+  native window lifecycle, and optional diagnostics. Business commands still go
+  through backend APIs.
 
 ## Agent And Shell Design
 
@@ -348,12 +362,14 @@ Update requirements:
 
 The MVP client packaging baseline is WiX-authored MSI packages.
 
-Operator App has its own WiX/MSI installer. Agent Service and Player Shell
-share one coordinated gaming-PC WiX/MSI installer because the gaming-PC surface
-needs per-machine installation, Windows Service registration, controlled Shell
-deployment, recovery metadata, and silent install support. MSIX is deferred as
-a future optional Operator App distribution channel and is not used for Agent
-Service or Player Shell in the MVP.
+Operator App has its own WiX/MSI installer that packages the .NET desktop host,
+WebView2 bootstrap/runtime prerequisite handling, and built React/TypeScript
+web assets. Agent Service and Player Shell share one coordinated gaming-PC
+WiX/MSI installer because the gaming-PC surface needs per-machine installation,
+Windows Service registration, controlled Shell deployment, recovery metadata,
+and silent install support. MSIX is deferred as a future optional Operator App
+distribution channel and is not used for Agent Service or Player Shell in the
+MVP.
 
 Update artifacts continue to use the central update package model: externally
 hosted binary artifact, SHA-256 hash, signed package metadata, staged rollout,
@@ -431,7 +447,9 @@ Quality gates:
 - backend endpoints get integration tests;
 - contract serialization gets tests before clients depend on DTOs;
 - Agent behavior gets unit tests around payloads, command handling, leases, and reconciliation;
-- Operator App view models get unit tests independent of WPF rendering;
+- Operator App host logic gets .NET unit tests independent of WebView2
+  rendering;
+- Operator App React/TypeScript UI gets component, state, and API-client tests;
 - full solution build and test suite are required before claiming a slice is complete.
 
 ## Observability And Operations
@@ -481,7 +499,7 @@ The first full MVP includes:
 
 - multi-tenant organizations and branches
 - staff users, predefined roles, and permission-based access
-- WPF Operator App with floor map
+- native WebView2 + React/TypeScript Operator App with floor map
 - zones, seats, and Windows devices
 - Agent Service and Player Shell
 - SignalR realtime status and commands
@@ -577,7 +595,8 @@ This order creates a working vertical path from cloud to Operator App to Agent b
 
 The following decisions are intentionally deferred to focused implementation specs:
 
-- WPF UI component library and visual design system.
+- Operator App React component library, state management, and visual design
+  system.
 - Exact PostgreSQL schema layout by module.
 - Exact API route and contract naming.
 - Agent Windows policy implementation details.

@@ -7,11 +7,11 @@ Windows Agent Service, Player Shell, sessions, billing, POS, audit, reports,
 and centralized client updates.
 
 The current codebase is no longer just a scaffold. It contains an implemented
-MVP-oriented vertical slice with tested backend modules, WPF client surfaces,
-Agent/Shell foundations, update packaging, and operational runbooks. The main
-remaining gap is production readiness: staging/prod infrastructure, secrets,
-real Windows device smoke tests, backup rehearsal, signing/CDN decisions, and
-Agent hardening.
+MVP-oriented vertical slice with tested backend modules, Windows client
+surfaces, Agent/Shell foundations, update packaging, and operational runbooks.
+The main remaining gap is production readiness: staging/prod infrastructure,
+secrets, real Windows device smoke tests, backup rehearsal, signing/CDN
+decisions, Operator App UI migration, and Agent hardening.
 
 ## Source Of Truth
 
@@ -33,7 +33,8 @@ required reading for every new session.
 
 - Cloud-first SaaS; no local club server in the MVP.
 - No web admin panel in the MVP.
-- Native Windows Operator App built with WPF + MVVM.
+- Native Windows Operator App built as a .NET desktop shell with WebView2 and
+  a React/TypeScript operator UI.
 - Gaming PCs are Windows 10/11 only in the MVP.
 - Backend is ASP.NET Core on .NET 10, starting as a modular monolith.
 - PostgreSQL is the production source-of-truth database.
@@ -59,9 +60,16 @@ reconciliation. PostgreSQL persistence is implemented with EF Core migrations.
 
 `src/AFK4.Operator.App` is the native Windows app for operators, cashiers,
 managers, technicians, accountants, and owners depending on permissions. The
-main working screen is the floor map. Current workflows include auth, floor
-map/session actions, players, POS, shifts, reports, settings, device tools,
-updates, audit search, diagnostics, and CSV exports.
+approved target is a .NET desktop host with WebView2 and a React/TypeScript
+operator UI, not a browser-delivered web admin panel. The main working screen
+is the floor map. The first WebView2/React increment now launches a local
+floor-map console; auth, floor map/session actions, players, POS, shifts,
+reports, settings, device tools, updates, audit search, diagnostics, and CSV
+exports still exist in the legacy WPF parity code and are being ported to the
+new UI.
+
+The accepted UI/UX direction for this native operator console is recorded in
+[Operator App UI/UX Target](docs/product/operator-app-ui-target.md).
 
 ### Agent Service
 
@@ -109,7 +117,7 @@ From the repository root:
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 ```
 
-The latest recorded full verification passed 624 tests with 0 failures. See
+The latest recorded full verification passed 760 tests with 0 failures. See
 [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) for the
 exact current verification notes.
 

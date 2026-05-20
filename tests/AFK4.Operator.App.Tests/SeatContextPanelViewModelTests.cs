@@ -32,6 +32,9 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Null(apiClient.LastStartRequest?.PlayerAccountId);
         Assert.Equal("manual-v1", apiClient.LastStartRequest?.TariffRuleVersionId);
         Assert.Equal("Команда сессии принята.", panel.StatusMessage);
+        Assert.Equal("Подтверждено сервером", panel.ServerConfirmationStatus);
+        Assert.Equal("unlock отправлена Agent", panel.DeviceCommandStatus);
+        Assert.Equal("0.00 TJS", panel.MoneyImpactText);
         Assert.Null(panel.ErrorMessage);
     }
 
@@ -60,6 +63,9 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal(BranchId, apiClient.LastBranchId);
         Assert.Null(panel.PendingOperation);
         Assert.Equal("Команда сессии принята.", panel.StatusMessage);
+        Assert.Equal("Подтверждено сервером", panel.ServerConfirmationStatus);
+        Assert.Equal("unlock отправлена Agent", panel.DeviceCommandStatus);
+        Assert.Equal("ledger будет записан", panel.LedgerImpactText);
         Assert.Null(panel.ErrorMessage);
     }
 
@@ -79,6 +85,20 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal("session-extend-001", apiClient.LastExtendRequest?.IdempotencyKey);
         Assert.Equal("Команда сессии принята.", panel.StatusMessage);
         Assert.Null(panel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ExtendBy15Command_SetsMinutesAndSendsExtend()
+    {
+        var apiClient = new RecordingSessionApiClient();
+        var panel = new SeatContextPanelViewModel(apiClient, new FixedIdempotencyKeyFactory("session-extend-015"));
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(Seat("PC-002", state: "Active")));
+
+        panel.ExtendBy15Command.Execute(null);
+        await Task.Yield();
+
+        Assert.Equal(15, panel.AdditionalMinutes);
+        Assert.Equal(15, apiClient.LastExtendRequest?.AdditionalMinutes);
     }
 
     [Fact]
@@ -107,6 +127,8 @@ public sealed class SeatContextPanelViewModelTests
         await panel.EndSessionAsync(CancellationToken.None);
 
         Assert.Equal("На выбранном месте нет активной сессии.", panel.ErrorMessage);
+        Assert.Equal("Команда не отправлена", panel.ServerConfirmationStatus);
+        Assert.Equal("Команда не отправлена", panel.DeviceCommandStatus);
         Assert.Null(panel.PendingOperation);
     }
 
@@ -142,6 +164,8 @@ public sealed class SeatContextPanelViewModelTests
 
         Assert.True(panel.IsBusy);
         Assert.False(panel.StartGuestSessionCommand.CanExecute(null));
+        Assert.Equal("Ожидаем подтверждение сервера", panel.ServerConfirmationStatus);
+        Assert.Equal("Команда еще не отправлена", panel.DeviceCommandStatus);
 
         apiClient.HoldRequest.SetResult(CreateResponse(panel.SelectedSeat?.SeatId ?? Guid.Empty));
         await task;
@@ -159,6 +183,23 @@ public sealed class SeatContextPanelViewModelTests
         Assert.True(panel.HasActiveSession);
         Assert.Equal("Управление активной сессией", panel.SeatActionTitle);
         Assert.Equal("осталось 30 мин", panel.ActiveSessionSummary);
+        Assert.Equal("00:30", panel.ActiveSessionTimerText);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_IsBlockedForOfflineSeat()
+    {
+        var apiClient = new RecordingSessionApiClient();
+        var panel = new SeatContextPanelViewModel(apiClient, new FixedIdempotencyKeyFactory("start-offline-001"));
+        panel.ApplyContext(OrganizationId, BranchId);
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(Seat("PC-009", state: "Offline", isOnline: false)));
+
+        await panel.StartGuestSessionAsync(CancellationToken.None);
+
+        Assert.False(panel.CanStartGuestSession);
+        Assert.False(panel.StartGuestSessionCommand.CanExecute(null));
+        Assert.Null(apiClient.LastStartRequest);
+        Assert.Equal("Место не готово к запуску сессии.", panel.ErrorMessage);
     }
 
     [Fact]
@@ -174,7 +215,7 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal("Для быстрого старта выберите гостя без учета или укажите аккаунт игрока для платного режима.", panel.ErrorMessage);
     }
 
-    private static SeatStatusDto Seat(string name, string state)
+    private static SeatStatusDto Seat(string name, string state, bool isOnline = true, bool? isLocked = null)
     {
         return new SeatStatusDto(
             SeatId: Guid.Parse("11111111-1111-4111-8111-111111111111"),
@@ -185,8 +226,8 @@ public sealed class SeatContextPanelViewModelTests
             State: state,
             DeviceId: Guid.Parse("33333333-3333-4333-8333-333333333333"),
             DeviceName: name,
-            IsDeviceOnline: true,
-            IsDeviceLocked: state == "Locked",
+            IsDeviceOnline: isOnline,
+            IsDeviceLocked: isLocked ?? state == "Locked",
             LastHeartbeatAtUtc: DateTimeOffset.Parse("2026-05-14T09:00:00Z"),
             AgentVersion: "0.1.1",
             ShellVersion: "0.1.2",

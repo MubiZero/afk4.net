@@ -72,7 +72,8 @@ public partial class MainWindow : Window
         floorMapViewModel = new FloorMapWorkspaceViewModel(
             floorMapApiClient,
             sessionApiClient,
-            new GuidIdempotencyKeyFactory());
+            new GuidIdempotencyKeyFactory(),
+            options.CurrencyCode);
         posViewModel = new PosWorkspaceViewModel(posApiClient, new GuidIdempotencyKeyFactory(), options.CurrencyCode);
         shiftViewModel = new ShiftWorkspaceViewModel(
             shiftApiClient,

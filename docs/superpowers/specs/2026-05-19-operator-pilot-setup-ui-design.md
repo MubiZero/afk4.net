@@ -4,7 +4,7 @@ Date: 2026-05-19
 
 ## Purpose
 
-Add a minimum operator-facing pilot setup panel to the native WPF Operator App.
+Add a minimum operator-facing pilot setup panel to the native Operator App.
 The panel turns the existing `scripts/configure-pilot-branch.ps1` workflow into
 an in-app Settings workflow so a branch manager or owner can prepare a pilot
 branch without direct PostgreSQL edits and without a web admin panel.
@@ -27,7 +27,9 @@ The backend already exposes the required API surface:
 The current Operator App Settings workspace already gates panels by permissions
 and hosts technician device tools, update status, audit, and diagnostics. The
 pilot setup UI should follow that pattern instead of becoming a new top-level
-workspace.
+workspace. The original slice was implemented in WPF; the go-forward Operator
+App runtime is WebView2 + React/TypeScript, so this workflow must be ported as
+part of Operator App UI migration.
 
 ## Scope
 

@@ -1,7 +1,7 @@
 # AFK4 MVP Product Requirements Document
 
 Status: Draft for product review  
-Last updated: 2026-05-12
+Last updated: 2026-05-20
 
 ## 1. Product Summary
 
@@ -145,7 +145,8 @@ operations through AFK4:
 - manage organizations, branches, staff users, predefined roles, and
   permissions;
 - manage zones, seats, and Windows devices;
-- show a usable WPF Operator App floor map;
+- show a usable native Windows Operator App floor map implemented through a
+  WebView2 desktop shell and React/TypeScript UI;
 - run Agent Service and Player Shell on gaming PCs;
 - report device status and receive cloud-approved commands through realtime
   infrastructure;
@@ -408,7 +409,13 @@ Success criteria:
 
 ### Operator App
 
-- Operator App must be native Windows WPF with MVVM.
+- Operator App must remain a native Windows desktop application, not a browser
+  web admin panel.
+- Operator App must use a .NET desktop shell with WebView2 hosting a
+  React/TypeScript UI for the operator experience.
+- The WebView2 shell owns Windows integration such as process lifetime,
+  protected token storage, environment configuration, native packaging, and
+  safe host-to-web bridges. Business state remains backend-authoritative.
 - Floor map must be the default working screen.
 - Operator App must show pending and failed states explicitly.
 - Critical actions must wait for backend confirmation.
@@ -591,6 +598,14 @@ The Operator App must stay fast and dense without becoming confusing. Complex
 flows such as refunds, transfer, postpaid debt, package consumption, and shift
 close need focused UX design.
 
+### Operator App UI Runtime Migration
+
+The MVP Operator App runtime is changing from WPF-rendered screens to a .NET
+desktop WebView2 shell with React/TypeScript UI. The migration must preserve the
+native Windows app boundary, protected token storage, packaging/update model,
+backend-authoritative critical actions, and staging smoke capability while
+removing WPF as the primary operator UI technology.
+
 ### Realtime Agent Protocol
 
 The vertical slice includes HTTP heartbeat plus backend SignalR broadcast. The
@@ -601,5 +616,6 @@ state flow. This needs a dedicated follow-up plan.
 
 - [Project README](../../README.md)
 - [Architecture spec](../superpowers/specs/2026-05-12-afk4-platform-architecture-design.md)
+- [Operator App WebView2 React migration plan](../superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md)
 - [Vertical slice implementation plan](../superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md)
 - [Agent instructions](../../AGENTS.md)
