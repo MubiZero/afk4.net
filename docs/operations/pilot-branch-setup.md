@@ -20,8 +20,26 @@ outside the current MVP implementation surface.
 - Organization and branch already exist.
 - An existing owner or branch manager staff account for the branch. The account
   must have `identity.branch_staff.manage`, `layout.manage`, `tariffs.manage`,
-  and `pos.catalog.manage`.
+  and `pos.catalog.manage`. Optional already-enrolled device assignment also
+  requires `devices.seat_assignment.assign`.
 - PowerShell on a trusted operator or release workstation.
+
+## Preferred Path: Operator App
+
+Use Operator App `Settings` -> `Pilot Setup` when a signed-in owner or branch
+manager has the required setup permissions.
+
+Use this path only when the Operator App is configured for the target Platform
+API. If no staging-configured Operator App is available, use the PowerShell
+script fallback below.
+
+The panel creates or reuses branch staff users, one layout zone, and seats. It
+creates tariff/POS setup idempotently for reruns through the same Operator App
+inputs, and can optionally assign an already enrolled device to a configured
+seat.
+
+The PowerShell script remains the release-workstation fallback for headless
+setup or recovery.
 
 ## Configure Branch
 
@@ -52,9 +70,11 @@ The script is intentionally idempotent for normal pilot reruns:
 
 ## Enroll And Assign Devices
 
-For a clean gaming PC, use the staging Gaming PC setup executable. It creates
-an enrollment code, enrolls the device, and assigns it to the configured smoke
-seat through the Platform API.
+For a clean gaming PC, use the staging MinIO-hosted remote bootstrap
+`latest.json` and script. The script downloads and verifies the internal Gaming
+PC MSI, creates an enrollment code, enrolls the device, assigns the configured
+smoke seat, installs and configures the client, starts `AFK4.Agent.Service`,
+and waits for heartbeat evidence.
 
 For an already enrolled device, assign it through:
 

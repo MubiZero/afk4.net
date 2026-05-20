@@ -7,6 +7,7 @@ using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Diagnostics;
 using AFK4.Operator.App.FloorMap;
 using AFK4.Operator.App.Mvvm;
+using AFK4.Operator.App.PilotSetup;
 using AFK4.Operator.App.Players;
 using AFK4.Operator.App.Pos;
 using AFK4.Operator.App.Settings;
@@ -308,6 +309,9 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
                 StaffPermissionNames.ManageInventoryStock,
                 StaffPermissionNames.ManagePosCatalog,
                 StaffPermissionNames.ManageTariffs,
+                StaffPermissionNames.ManageBranchStaff,
+                StaffPermissionNames.ManageLayout,
+                StaffPermissionNames.AssignDeviceSeat,
                 StaffPermissionNames.ManagePackages,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewUpdateStatus,
@@ -331,7 +335,8 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
             technicianTools: null,
             new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()),
             new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
-            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()));
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()),
+            new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient()));
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

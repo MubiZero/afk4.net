@@ -102,6 +102,18 @@ public sealed class OperatorShellViewModelTests
     }
 
     [Fact]
+    public void ApplySignedInContext_WithPilotSetupPermission_ShowsSettings()
+    {
+        var shell = new OperatorShellViewModel();
+
+        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ManageBranchStaff));
+
+        Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
+        Assert.Contains(shell.Settings.Panels, panel => panel.Key == "pilot-setup");
+        Assert.True(shell.Settings.PilotSetup?.CanSetupStaff);
+    }
+
+    [Fact]
     public void ApplySignedInContext_WithPlayerViewPermission_ShowsPlayers()
     {
         var shell = new OperatorShellViewModel();
