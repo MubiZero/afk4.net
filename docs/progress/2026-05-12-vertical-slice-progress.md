@@ -982,6 +982,13 @@ Operator App session-start usability fix on 2026-05-20:
   `AFK4_OPERATOR_PLATFORM_BASE_URL` runtime override so a local build can be
   launched directly against `https://afk4.staging.mubi.dev` for staging smoke
   without a staging-specific rebuild.
+- PR #42, `Make operator guest session start usable`, merged into `main` on
+  2026-05-20 with merge commit
+  `20deffd1aa74412921696405dfcc2c098fc2b410`. The PR head was
+  `f47780c761e470578d98a2f80ddb84e60ad14fd3`, and remote
+  `PR Verification Result` passed in workflow run `26142746802`. This shipped
+  the fast guest/no-ledger session start path, Operator App billing selector,
+  staging URL runtime override, and updated pilot/dev roadmap status.
 - PR #41, `Add operator pilot setup ui`, merged into `main` on 2026-05-20 with
   squash merge commit `129fa76fa8354a3f3f693def866e0ed02feedf20`. The PR head
   was `02f7dfcf166150f506b2ba918c3cfbaea86c4625`, and remote
