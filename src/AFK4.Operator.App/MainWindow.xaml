@@ -1124,6 +1124,10 @@
                                             <TextBlock Text="Round mins" Foreground="#4B5563" />
                                             <TextBox Text="{Binding RoundingIncrementMinutes, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
                                         </StackPanel>
+                                        <StackPanel Width="180" Margin="0,0,8,8">
+                                            <TextBlock Text="Effective UTC" Foreground="#4B5563" />
+                                            <TextBox Text="{Binding EffectiveFromUtc, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                        </StackPanel>
                                     </WrapPanel>
 
                                     <TextBlock Text="POS"
