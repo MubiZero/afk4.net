@@ -889,9 +889,8 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
    commit must have a green remote `PR Verification Result`.
 2. Repeat the rebuilt x64 Gaming PC setup and full session start/end smoke on a
    physical Windows PC, or a second clean Windows 11 VM if physical hardware is
-   unavailable, to broaden confidence beyond the current VM. First rerun the
-   remote bootstrap after the config-before-MSI fix is published to staging
-   MinIO.
+   unavailable, to broaden confidence beyond the current VM now that corrected
+   remote bootstrap `0.1.14` has passed clean Windows 11 VM smoke.
 3. Execute `docs/operations/real-device-windows-pc-smoke.md` with a real
    enrolled Windows gaming PC and record actual pass/fail evidence, including
    any physical lock/unlock or Player Shell visibility gaps.

@@ -29,6 +29,10 @@ outside the current MVP implementation surface.
 Use Operator App `Settings` -> `Pilot Setup` when a signed-in owner or branch
 manager has the required setup permissions.
 
+Use this path only when the Operator App is configured for the target Platform
+API. If no staging-configured Operator App is available, use the PowerShell
+script fallback below.
+
 The panel creates or reuses branch staff users, one layout zone, seats, one
 tariff with an active version, one POS category and product, and can optionally
 assign an already enrolled device to a configured seat.
@@ -65,9 +69,11 @@ The script is intentionally idempotent for normal pilot reruns:
 
 ## Enroll And Assign Devices
 
-For a clean gaming PC, use the staging Gaming PC setup executable. It creates
-an enrollment code, enrolls the device, and assigns it to the configured smoke
-seat through the Platform API.
+For a clean gaming PC, use the staging MinIO-hosted remote bootstrap
+`latest.json` and script. The script downloads and verifies the internal Gaming
+PC MSI, creates an enrollment code, enrolls the device, assigns the configured
+smoke seat, installs and configures the client, starts `AFK4.Agent.Service`,
+and waits for heartbeat evidence.
 
 For an already enrolled device, assign it through:
 
