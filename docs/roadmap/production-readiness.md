@@ -338,10 +338,9 @@ Minimum bar:
 
    Rotate the exposed restore-rehearsal Coolify token before sensitive staging
    operations, then keep future tokens in a secret manager or local
-   runtime-only environment, not in chat or repository files. Before merging or
-   relying on automated Coolify deploy, add GitHub repository variables
-   `COOLIFY_BASE_URL` and `COOLIFY_STAGING_APP_UUID`, plus secret
-   `COOLIFY_API_TOKEN`.
+   runtime-only environment, not in chat or repository files. GitHub repository
+   variables `COOLIFY_BASE_URL` and `COOLIFY_STAGING_APP_UUID`, plus secret
+   `COOLIFY_API_TOKEN`, are configured for automated staging deploy.
 
 ## Decision Rules
 

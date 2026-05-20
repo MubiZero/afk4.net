@@ -1325,15 +1325,24 @@ Coolify staging deploy automation branch verification on 2026-05-20:
 - the workflow requires GitHub repository variables `COOLIFY_BASE_URL`,
   `COOLIFY_STAGING_APP_UUID`, and `AFK4_STAGING_PLATFORM_BASE_URL`, plus the
   repository secret `COOLIFY_API_TOKEN`;
-- `gh variable list` / `gh secret list` on 2026-05-20 showed
-  `AFK4_STAGING_PLATFORM_BASE_URL` is already configured, while
-  `COOLIFY_BASE_URL`, `COOLIFY_STAGING_APP_UUID`, and `COOLIFY_API_TOKEN` still
-  need to be added before the first automated Coolify deploy can pass;
+- GitHub repository variables `COOLIFY_BASE_URL=https://cool.mubi.dev`,
+  `COOLIFY_STAGING_APP_UUID=d3fm17hl6kb7sossg1kj8buq`, and
+  `AFK4_STAGING_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev` are
+  configured. Repository secret `COOLIFY_API_TOKEN` is configured; the token
+  value is intentionally not recorded in repository files;
 - EF migration file changes fail closed on automatic deploy. After a backup and
   explicit staging database migration, the workflow can be manually dispatched
   with `confirm_migrations_applied=true`;
 - `docs/operations/coolify-staging-deploy.md` now documents the automated
   deploy path, required GitHub configuration, and migration guard.
+- PR #43, `Add Coolify staging deploy workflow`, merged into `main` on
+  2026-05-20 with merge commit `8f9af8ee04a83213542e201cf38f7db2c09ff432`.
+  The PR head was `013241aca65c4bf74a4359e2ada48188924d830c`, and remote
+  `PR Verification Result` passed in workflow run `26143505334`.
+- the first post-merge `Coolify Staging Deploy` workflow on `main` passed in
+  workflow run `26144123936`. It queued Coolify deployment
+  `ixeoc17m6hsyimfb3zop0ca2`, observed status `finished`, and verified
+  `https://afk4.staging.mubi.dev/api/health` with `status = ok`.
 
 ## Historical Reference
 
