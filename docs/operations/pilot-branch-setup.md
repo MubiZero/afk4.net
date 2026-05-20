@@ -33,9 +33,10 @@ Use this path only when the Operator App is configured for the target Platform
 API. If no staging-configured Operator App is available, use the PowerShell
 script fallback below.
 
-The panel creates or reuses branch staff users, one layout zone, seats, one
-tariff with an active version, one POS category and product, and can optionally
-assign an already enrolled device to a configured seat.
+The panel creates or reuses branch staff users, one layout zone, and seats. It
+creates tariff/POS setup idempotently for reruns through the same Operator App
+inputs, and can optionally assign an already enrolled device to a configured
+seat.
 
 The PowerShell script remains the release-workstation fallback for headless
 setup or recovery.

@@ -911,11 +911,11 @@ Operator Pilot Setup UI branch-local verification on 2026-05-19:
 
 - Branch `codex/operator-pilot-setup-ui` adds the Operator App
   `Settings` -> `Pilot Setup` surface for minimum pilot branch setup. It
-  composes existing setup APIs for staff, one layout zone/seats,
-  tariff/version, POS category/product, and optional already-enrolled
-  device-to-seat assignment. It does not add a general admin panel or full
-  general-purpose management screens; the PowerShell script remains the
-  fallback path.
+  creates or reuses staff and one layout zone/seats, creates tariff/POS setup
+  idempotently for reruns through the same Operator App inputs, and can
+  optionally assign an already-enrolled device to a configured seat. It does
+  not add a general admin panel or full general-purpose management screens; the
+  PowerShell script remains the fallback path.
 - PR #9, `Add Authenticode CI update registration flow`, merged into `main` on
   2026-05-16 with merge commit
   `6f11e140d9c45b1592f71dc6c3e056fdb272c710`.

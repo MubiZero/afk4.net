@@ -1057,124 +1057,182 @@
                                                 Height="32" />
                                     </Grid>
 
-                                    <Separator Margin="0,14,0,14" />
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CanSetupStaff}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <Separator Margin="0,14,0,14" />
+                                        <TextBlock Text="Staff"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#111827" />
+                                        <DataGrid ItemsSource="{Binding StaffUsers}"
+                                                  AutoGenerateColumns="False"
+                                                  CanUserAddRows="False"
+                                                  MinHeight="112"
+                                                  Margin="0,8,0,0">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="180" />
+                                                <DataGridTextColumn Header="Display" Binding="{Binding DisplayName}" Width="160" />
+                                                <DataGridTextColumn Header="Password" Binding="{Binding Password}" Width="130" />
+                                                <DataGridTextColumn Header="Role" Binding="{Binding RoleName}" Width="140" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </StackPanel>
 
-                                    <TextBlock Text="Staff"
-                                               FontWeight="SemiBold"
-                                               Foreground="#111827" />
-                                    <DataGrid ItemsSource="{Binding StaffUsers}"
-                                              AutoGenerateColumns="False"
-                                              CanUserAddRows="False"
-                                              MinHeight="112"
-                                              Margin="0,8,0,0">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="180" />
-                                            <DataGridTextColumn Header="Display" Binding="{Binding DisplayName}" Width="160" />
-                                            <DataGridTextColumn Header="Password" Binding="{Binding Password}" Width="130" />
-                                            <DataGridTextColumn Header="Role" Binding="{Binding RoleName}" Width="140" />
-                                        </DataGrid.Columns>
-                                    </DataGrid>
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CanSetupLayout}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <Separator Margin="0,14,0,14" />
+                                        <TextBlock Text="Layout"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#111827" />
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <StackPanel Width="160" Margin="0,0,8,8">
+                                                <TextBlock Text="Zone" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding ZoneName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="90" Margin="0,0,8,8">
+                                                <TextBlock Text="Seat prefix" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding SeatPrefix, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="80" Margin="0,0,8,8">
+                                                <TextBlock Text="Seats" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding SeatCount, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="100" Margin="0,0,8,8">
+                                                <TextBlock Text="Start order" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding SeatSortOrderStart, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </WrapPanel>
+                                    </StackPanel>
 
-                                    <Separator Margin="0,14,0,14" />
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CanSetupTariff}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <TextBlock Text="Tariff"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#111827"
+                                                   Margin="0,14,0,0" />
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <StackPanel Width="150" Margin="0,0,8,8">
+                                                <TextBlock Text="Name" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding TariffName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="70" Margin="0,0,8,8">
+                                                <TextBlock Text="Currency" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding CurrencyCode, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="90" Margin="0,0,8,8">
+                                                <TextBlock Text="Minor/min" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding PricePerMinuteMinorUnits, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="90" Margin="0,0,8,8">
+                                                <TextBlock Text="Min mins" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding MinimumBillableMinutes, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="90" Margin="0,0,8,8">
+                                                <TextBlock Text="Round mins" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding RoundingIncrementMinutes, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="180" Margin="0,0,8,8">
+                                                <TextBlock Text="Effective UTC" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding EffectiveFromUtc, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </WrapPanel>
+                                    </StackPanel>
 
-                                    <TextBlock Text="Layout"
-                                               FontWeight="SemiBold"
-                                               Foreground="#111827" />
-                                    <WrapPanel Margin="0,8,0,0">
-                                        <StackPanel Width="160" Margin="0,0,8,8">
-                                            <TextBlock Text="Zone" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding ZoneName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="90" Margin="0,0,8,8">
-                                            <TextBlock Text="Seat prefix" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding SeatPrefix, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="80" Margin="0,0,8,8">
-                                            <TextBlock Text="Seats" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding SeatCount, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="100" Margin="0,0,8,8">
-                                            <TextBlock Text="Start order" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding SeatSortOrderStart, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                    </WrapPanel>
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CanSetupPos}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <TextBlock Text="POS"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#111827"
+                                                   Margin="0,14,0,0" />
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <StackPanel Width="140" Margin="0,0,8,8">
+                                                <TextBlock Text="Category" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding ProductCategoryName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="150" Margin="0,0,8,8">
+                                                <TextBlock Text="Product" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding ProductName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="100" Margin="0,0,8,8">
+                                                <TextBlock Text="SKU" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding ProductSku, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="90" Margin="0,0,8,8">
+                                                <TextBlock Text="Price" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding ProductPriceMinorUnits, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <CheckBox Content="Track stock"
+                                                      IsChecked="{Binding ProductTrackStock}"
+                                                      VerticalAlignment="Bottom"
+                                                      Margin="0,0,10,10" />
+                                            <CheckBox Content="Negative stock"
+                                                      IsChecked="{Binding ProductAllowNegativeStock}"
+                                                      VerticalAlignment="Bottom"
+                                                      Margin="0,0,10,10" />
+                                        </WrapPanel>
+                                    </StackPanel>
 
-                                    <TextBlock Text="Tariff"
-                                               FontWeight="SemiBold"
-                                               Foreground="#111827"
-                                               Margin="0,8,0,0" />
-                                    <WrapPanel Margin="0,8,0,0">
-                                        <StackPanel Width="150" Margin="0,0,8,8">
-                                            <TextBlock Text="Name" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding TariffName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="70" Margin="0,0,8,8">
-                                            <TextBlock Text="Currency" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding CurrencyCode, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="90" Margin="0,0,8,8">
-                                            <TextBlock Text="Minor/min" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding PricePerMinuteMinorUnits, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="90" Margin="0,0,8,8">
-                                            <TextBlock Text="Min mins" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding MinimumBillableMinutes, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="90" Margin="0,0,8,8">
-                                            <TextBlock Text="Round mins" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding RoundingIncrementMinutes, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="180" Margin="0,0,8,8">
-                                            <TextBlock Text="Effective UTC" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding EffectiveFromUtc, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                    </WrapPanel>
-
-                                    <TextBlock Text="POS"
-                                               FontWeight="SemiBold"
-                                               Foreground="#111827"
-                                               Margin="0,8,0,0" />
-                                    <WrapPanel Margin="0,8,0,0">
-                                        <StackPanel Width="140" Margin="0,0,8,8">
-                                            <TextBlock Text="Category" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding ProductCategoryName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="150" Margin="0,0,8,8">
-                                            <TextBlock Text="Product" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding ProductName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="100" Margin="0,0,8,8">
-                                            <TextBlock Text="SKU" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding ProductSku, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="90" Margin="0,0,8,8">
-                                            <TextBlock Text="Price" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding ProductPriceMinorUnits, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <CheckBox Content="Track stock"
-                                                  IsChecked="{Binding ProductTrackStock}"
-                                                  VerticalAlignment="Bottom"
-                                                  Margin="0,0,10,10" />
-                                        <CheckBox Content="Negative stock"
-                                                  IsChecked="{Binding ProductAllowNegativeStock}"
-                                                  VerticalAlignment="Bottom"
-                                                  Margin="0,0,10,10" />
-                                    </WrapPanel>
-
-                                    <TextBlock Text="Device Assignment"
-                                               FontWeight="SemiBold"
-                                               Foreground="#111827"
-                                               Margin="0,8,0,0" />
-                                    <WrapPanel Margin="0,8,0,0">
-                                        <StackPanel Width="280" Margin="0,0,8,8">
-                                            <TextBlock Text="Device ID" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding DeviceIdText, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Width="120" Margin="0,0,8,8">
-                                            <TextBlock Text="Seat" Foreground="#4B5563" />
-                                            <TextBox Text="{Binding TargetAssignmentSeatName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
-                                        </StackPanel>
-                                    </WrapPanel>
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CanAssignDeviceSeat}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <TextBlock Text="Device Assignment"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#111827"
+                                                   Margin="0,14,0,0" />
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <StackPanel Width="280" Margin="0,0,8,8">
+                                                <TextBlock Text="Device ID" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding DeviceIdText, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Width="120" Margin="0,0,8,8">
+                                                <TextBlock Text="Seat" Foreground="#4B5563" />
+                                                <TextBox Text="{Binding TargetAssignmentSeatName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </WrapPanel>
+                                    </StackPanel>
 
                                     <TextBlock Text="Results"
                                                FontWeight="SemiBold"
