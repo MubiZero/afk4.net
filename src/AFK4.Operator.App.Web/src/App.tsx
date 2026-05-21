@@ -2957,6 +2957,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
   const [lastSale, setLastSale] = useState<PosSaleDto | null>(null);
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<PosSaleDto | null>(null);
+  const [selectedRefundSaleId, setSelectedRefundSaleId] = useState('');
   const [cartItems, setCartItems] = useState<PosCartItem[]>([
     { ...fixturePosProducts[0], quantity: 1 },
     { ...fixturePosProducts[3], quantity: 1 }
@@ -2984,6 +2985,10 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       setCatalog(products.length > 0 ? products : fixturePosProducts);
       setCurrentShift(nextShift);
       setSalesReport(nextSalesReport);
+      const nextSalesRows = readArray(nextSalesReport, 'rows');
+      setSelectedRefundSaleId((current) => nextSalesRows.some((row) => readString(row, 'posSaleId') === current)
+        ? current
+        : readString(nextSalesRows.find((row) => readString(row, 'state').toLowerCase() === 'paid'), 'posSaleId'));
       setCartItems((items) => {
         if (products.length === 0 || items.some((item) => item.source === 'backend')) {
           return items;
@@ -3023,10 +3028,14 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const lowStockCount = catalog.filter((product) => product.source === 'backend' && product.stockOnHand <= 2).length;
   const shiftId = readString(currentShift, 'shiftId');
   const shiftState = readString(currentShift, 'state', currentShift === null ? 'нет смены' : 'unknown');
-  const latestRefundableSale = salesRows.find((row) => readString(row, 'state').toLowerCase() === 'paid') ?? salesRows[0] ?? lastSale;
-  const latestRefundableSaleId = readString(latestRefundableSale, 'posSaleId');
-  const canRefundLatestSale = backend !== null
-    && latestRefundableSaleId.length > 0
+  const reportRefundableSales = salesRows.filter((row) => readString(row, 'state').toLowerCase() === 'paid');
+  const selectedRefundableSale = reportRefundableSales.find((row) => readString(row, 'posSaleId') === selectedRefundSaleId)
+    ?? reportRefundableSales[0]
+    ?? salesRows[0]
+    ?? lastSale;
+  const selectedRefundableSaleId = readString(selectedRefundableSale, 'posSaleId');
+  const canRefundSelectedSale = backend !== null
+    && selectedRefundableSaleId.length > 0
     && hasPermission(backend.session, permissionNames.refundPosSale);
   const canViewSaleDetails = backend !== null && hasPermission(backend.session, permissionNames.viewReceipt);
   const canVoidDraftCart = backend !== null
@@ -3115,11 +3124,11 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         throw new Error('Нет прав на возврат POS продажи.');
       }
 
-      if (!latestRefundableSaleId) {
+      if (!selectedRefundableSaleId) {
         throw new Error('Нет backend POS продажи для возврата.');
       }
 
-      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.refundSale(latestRefundableSaleId, {
+      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.refundSale(selectedRefundableSaleId, {
         organizationId: nextBackend.session.organizationId,
         reason: 'operator POS refund',
         idempotencyKey: createIdempotencyKey('pos-refund')
@@ -3342,9 +3351,13 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               <button
                 key={readString(row, 'posSaleId')}
                 type="button"
-                className="pos-receipt-row"
+                className={`pos-receipt-row ${readString(row, 'posSaleId') === selectedRefundableSaleId ? 'selected' : ''}`}
                 disabled={!canViewSaleDetails || feedback.state === 'pending'}
-                onClick={() => void loadSaleDetail(readString(row, 'posSaleId'))}
+                onClick={() => {
+                  const saleId = readString(row, 'posSaleId');
+                  setSelectedRefundSaleId(saleId);
+                  void loadSaleDetail(saleId);
+                }}
               >
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
                 <strong>{readString(row, 'state', 'sale')}</strong>
@@ -3394,7 +3407,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 key={label as string}
                 type="button"
                 className="pos-quick-card"
-                disabled={((label as string) === 'Возврат по чеку' && (!canRefundLatestSale || feedback.state === 'pending'))
+                disabled={((label as string) === 'Возврат по чеку' && (!canRefundSelectedSale || feedback.state === 'pending'))
                   || ((label as string) === 'Аннулировать черновик' && (!canVoidDraftCart || feedback.state === 'pending'))}
                 onClick={() => {
                   if ((label as string) === 'Возврат по чеку') {

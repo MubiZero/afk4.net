@@ -374,6 +374,26 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^pos-refund-/);
   });
 
+  it('refunds the selected backend POS sale from quick operations', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /25 TJS/ }));
+    expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
+
+    expect(await screen.findByText('Возврат по чеку: подтверждено')).toBeInTheDocument();
+    const refundCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/pos/sales/88888888-8888-8888-8888-888888888888/refunds') &&
+      init?.method === 'POST');
+    expect(refundCall).toBeDefined();
+  });
+
   it('loads backend POS sale details from the recent receipt list', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -383,7 +403,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
     expect(await screen.findByText('Backend live')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /paid/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /paid/ })[0]);
 
     expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
     expect(screen.getAllByText(/Cola 0.5/).length).toBeGreaterThan(0);
@@ -1792,6 +1812,23 @@ function createSalesReport() {
         itemQuantity: 1,
         createdAtUtc: '2026-05-21T09:00:00Z',
         paidAtUtc: '2026-05-21T09:01:00Z',
+        refundedAtUtc: null,
+        voidedAtUtc: null
+      },
+      {
+        posSaleId: '88888888-8888-8888-8888-888888888888',
+        organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+        branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+        shiftId: '66666666-6666-6666-6666-666666666666',
+        createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+        state: 'paid',
+        total: { currencyCode: 'TJS', minorUnits: 2500 },
+        paidAmount: { currencyCode: 'TJS', minorUnits: 2500 },
+        refundAmount: { currencyCode: 'TJS', minorUnits: 0 },
+        lineCount: 2,
+        itemQuantity: 2,
+        createdAtUtc: '2026-05-21T09:10:00Z',
+        paidAtUtc: '2026-05-21T09:11:00Z',
         refundedAtUtc: null,
         voidedAtUtc: null
       }

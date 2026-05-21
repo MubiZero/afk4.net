@@ -2671,9 +2671,14 @@ button {
 }
 
 .pos-receipt-row:not(:disabled):hover,
-.pos-receipt-row:not(:disabled):focus-visible {
+.pos-receipt-row:not(:disabled):focus-visible,
+.pos-receipt-row.selected {
   border-bottom-color: #355579;
   color: #ffffff;
+}
+
+.pos-receipt-row.selected {
+  background: rgba(47, 129, 247, 0.08);
 }
 
 .pos-sale-detail {

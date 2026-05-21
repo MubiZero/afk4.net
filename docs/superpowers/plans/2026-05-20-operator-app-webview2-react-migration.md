@@ -78,7 +78,7 @@ Current state:
   ПК` now creates enrollment codes, assigns device ids to seats, and reads
   device detail through existing device endpoints, including credential
   rotation/revocation controls. POS
-  quick refund now calls the existing refund endpoint for the latest backend
+  quick refund now calls the existing refund endpoint for the selected backend
   sale, and POS draft void creates a backend draft from the current cart before
   calling the existing void endpoint. POS recent receipt rows now open backend
   sale detail through the existing sale lookup endpoint. Clients package
@@ -135,7 +135,7 @@ backend-backed enrollment-code creation, device-to-seat assignment, and device
 detail lookup with the existing device permissions, plus credential rotation
 and revocation through the existing credential lifecycle endpoints.
 POS
-quick refund calls the backend refund endpoint for the latest backend sale, and
+quick refund calls the backend refund endpoint for the selected backend sale, and
 POS draft void calls the backend void endpoint after creating a draft from the
 current cart. POS recent receipt rows call the backend sale lookup endpoint for
 line detail. Clients package purchase calls the backend package purchase
@@ -228,12 +228,12 @@ missing-backend copy.
   reservations validate free-seat availability plus start time before API calls.
 - [ ] POS: wire every quick operation that still uses local feedback or
   handoff copy. Checkout already creates a backend sale/manual payment, and
-  `Возврат по чеку` now calls the backend refund endpoint for the latest
+  `Возврат по чеку` now calls the backend refund endpoint for the selected
   backend sale with `pos.sales.refund` gating. `Аннулировать черновик` now
   creates a backend draft sale from the current cart and voids it through the
   existing void endpoint with `pos.sales.void` gating. Remaining POS gaps
-  include selected customer for cart, selected-sale refund UX, receipt
-  print/export, wallet top-up handoff, new customer handoff, stock
+  include selected customer for cart, receipt print/export, wallet top-up
+  handoff, new customer handoff, stock
   write-off/adjustment, and discount/promo/combo handling if kept in MVP UI.
   Use existing POS/player/shift endpoints where they exist; create missing
   void/receipt/inventory/provider endpoints before removing the UI warnings.

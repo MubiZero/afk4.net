@@ -348,7 +348,7 @@ Minimum bar:
   current shift through the existing close-shift API with counted cash and a
   closing note, and records cash movements through the existing shift cash
   movement API. POS quick refund now calls the existing
-  refund endpoint for the latest backend sale, and POS draft void creates a
+  refund endpoint for the selected backend sale, and POS draft void creates a
   backend draft from the current cart before calling the existing void endpoint.
   POS recent receipt rows now open backend sale details through the existing
   sale lookup endpoint. Clients package purchase now calls the existing package
@@ -407,8 +407,8 @@ Minimum bar:
   category/product creation, Settings stock movement creation, Settings package
   definition creation, Settings update package/rollout controls, Settings
   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift and
-  cash-movement wiring, Logs backend audit/date filters, POS
-   refund/draft-void quick actions, POS sale-detail lookup, Clients wallet
+   cash-movement wiring, Logs backend audit/date filters, POS
+   selected-sale refund/draft-void quick actions, POS sale-detail lookup, Clients wallet
    top-up/debt-payment forms, Clients new-player form, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must

@@ -159,7 +159,7 @@ implementation evidence are needed.
   existing credential lifecycle endpoints.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
-  reports, creates paid manual-provider sales, can refund the latest backend
+  reports, creates paid manual-provider sales, can refund the selected backend
   sale from the quick-operation panel, and can void a backend draft sale created
   from the current cart, and opens backend sale details from the recent receipt
   list; Clients searches backend players
@@ -280,7 +280,7 @@ Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings stock movement creation,
 Settings tariff/version create, Settings package definition create, Clients
 wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
-form, Payments
+form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
@@ -296,7 +296,7 @@ draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 Result:
 
-- frontend tests: 61 passed, 0 failed;
+- frontend tests: 62 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -383,7 +383,8 @@ Result:
 - POS frontend tests now cover the `Возврат по чеку` quick operation calling
   `/api/pos/sales/{saleId}/refunds` for the latest backend sale with
   organization id, reason, and idempotency key serialization before UI
-  confirmation.
+  confirmation. They also cover choosing a receipt row first and refunding that
+  selected backend sale instead of the default report row.
 - POS frontend tests now cover the `Аннулировать черновик` quick operation
   creating a backend draft sale from the current cart and then calling
   `/api/pos/sales/{saleId}/void` with organization id, reason, and idempotency
