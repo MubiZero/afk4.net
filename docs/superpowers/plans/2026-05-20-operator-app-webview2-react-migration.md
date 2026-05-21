@@ -48,9 +48,18 @@ Current state:
   Settings screens as the accepted design baseline while replacing fixture
   state with real backend state. Reopen design only for concrete defects found
   during real-data or staging smoke.
-- The current UI is still fixture-backed. Backend auth, protected token bridge,
-  typed API clients, SignalR, permissions, and backend-confirmed critical
-  actions are the next real implementation work.
+- The current UI is no longer purely fixture-backed for the primary map:
+  native protected-token bridge, staff sign-in, common API/error projection,
+  typed frontend API client boundaries, SignalR device-status state, and
+  backend-backed floor-map loading now exist. Backend-confirmed selected-seat
+  fast guest start, extend, transfer, and end actions now exist for backend
+  floor-map seats. POS, Clients, Payments, Logs, and Settings now have first
+  backend-backed React parity wiring against existing endpoints. Booking is
+  backend-aware only through floor-map availability until real reservation
+  contracts exist. Permission-aware screen state, device command result state,
+  dashboard backend metrics, and staging smoke across the newly wired screens
+  are the next real implementation work. Fixture-only or missing-contract
+  commands must not display backend success while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
   until the WebView2/React day flow covers pilot operations.
 
@@ -62,13 +71,16 @@ workspace, plus Dashboard, Booking, POS, Clients, Payments, Logs, and Settings
 with the reviewed dense operator layout, Russian-first copy, local
 interactions, action feedback, animated values, and reduced-motion support.
 
-Start the next session by turning this fixture UI into a real operator app
-without changing the approved visual direction. The next work is engineering:
-native protected-token bridge and staff sign-in, typed frontend API clients,
-common error projection, SignalR realtime state, and backend-confirmed
-floor-map actions. After that, replace fixture state with backend-backed
-behavior for POS, clients, payments, logs, settings, shifts, diagnostics,
-updates, audit, and reports.
+Continue turning this fixture UI into a real operator app without changing the
+approved visual direction. The native protected-token bridge, staff sign-in,
+auth client, common error projection, authenticated HTTP helper, typed API
+client boundaries, SignalR realtime state, and backend-backed floor-map data
+loading are now in place. Backend-confirmed floor-map start, extend, transfer,
+and stop actions are now wired for backend-loaded seats. POS checkout,
+clients/wallet, payments/reports, logs/audit/diagnostics, and settings read
+surfaces now call existing backend endpoints. Continue with the remaining map
+parity gaps, dashboard backend metrics, permission-aware UI state, real
+booking contracts, and staging smoke of the backend-backed workspaces.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -100,13 +112,12 @@ Start-Process -FilePath 'D:\projects\afk4.net\src\AFK4.Operator.App\bin\Debug\ne
 
 Next implementation order:
 
-1. Native protected token bridge and staff sign-in.
-2. Typed frontend API clients and common error projection.
-3. SignalR realtime state for floor map/device/session updates.
-4. Real floor-map actions with backend-confirmed start, extend, transfer, and
-   stop flows.
-5. Backend-backed parity for Dashboard, Booking, POS/Shop, Clients, Payments,
-   Logs, and Settings following the roadmap below.
+1. Finish map parity gaps: permission-aware state/navigation, billing-mode UI
+   beyond fast guest, device command result state, filters, and table parity.
+2. Add dashboard backend metrics and real booking contracts; keep Booking from
+   showing fixture success until those contracts exist.
+3. Staging-smoke POS, Clients, Payments, Logs, and Settings against
+   `https://afk4.staging.mubi.dev`, then close parity gaps found with real data.
 
 Preserve the accepted fixture design baseline during this work; do not start
 another broad fixture-only polish pass without a concrete staging or real-data
@@ -154,24 +165,29 @@ defect.
 - [x] Add `src/AFK4.Operator.App.Web` with Vite, React, TypeScript, test
   scripts, and production build output.
 - [x] Add a typed configuration bootstrap from the host to the frontend.
-- [ ] Add frontend API client boundaries for auth, floor map, sessions, POS,
-  players, shifts, settings, updates, audit, and diagnostics.
+- [x] Add frontend API client boundary for auth.
+- [x] Add frontend API client boundaries for floor map, sessions, POS, players,
+  shifts/reports, settings/pilot setup, devices, diagnostics, updates, and
+  audit.
 - [x] Add frontend tests for config bootstrap and first workspace rendering.
-- [ ] Add frontend tests for API error projection.
+- [x] Add frontend tests for API error projection.
 
 ## Task 3: Auth And Token Boundary
 
-- [ ] Keep staff sign-in request flow compatible with existing backend auth.
-- [ ] Store refresh/access token material through native protected storage.
-- [ ] Expose only narrow host bridge methods needed for token retrieval,
-  refresh, sign-out, and app diagnostics.
-- [ ] Add tests proving tokens are not persisted in browser storage.
+- [x] Keep staff sign-in request flow compatible with existing backend auth.
+- [x] Store refresh/access token material through native protected storage.
+- [x] Expose only narrow host bridge methods needed for token retrieval,
+  refresh, and sign-out.
+- [ ] Add host bridge app diagnostics if a concrete operator/support need
+  appears.
+- [x] Add tests proving tokens are not persisted in browser storage.
 
 ## Frontend/Design Roadmap After Backend Wiring
 
-After the auth/token boundary, typed API clients, and SignalR state are wired,
-bring the React operator screens to production parity in this order. The
-reference workflow set is the public SmartShell admin/operator structure:
+After SignalR state, backend-backed floor-map loading, and backend-confirmed
+selected-seat actions are wired, bring the React operator screens to
+production parity in this order. The reference workflow set is the public
+SmartShell admin/operator structure:
 Dashboard, Gaming stations/Map, Booking, Shop, Payments, Clients, Logs, and
 Settings.
 
@@ -221,9 +237,16 @@ Screen roadmap:
   filters, operational signals, and right selected-seat panel.
 - [x] Map documented status tones: ready, active, pending, warning, blocking,
   offline, and service.
-- [ ] Preserve selected-seat actions: start, extend +15/+30, transfer, end,
-  billing mode, backend confirmation, and device command status.
-- [ ] Cover state mapping and problem filters with frontend tests.
+- [x] Load the primary floor map from the backend after native staff auth, with
+  fixture fallback for browser-dev/no-backend runs.
+- [x] Cover floor-map DTO state mapping and device-status overlay behavior with
+  frontend tests.
+- [x] Preserve selected-seat actions: fast guest start, extend +15/+30,
+  transfer, end, and backend confirmation for backend-loaded seats.
+- [ ] Add billing-mode selection beyond fast guest, permission-aware action
+  state, and Agent/device command result status.
+- [ ] Cover problem filters after backend-backed filter state replaces the
+  fixture-only implementation.
 
 ## Task 5: POS, Players, Shift, And Settings Parity
 
@@ -241,10 +264,11 @@ Screen roadmap:
 
 ## Task 6: Realtime State
 
-- [ ] Add SignalR JavaScript client for floor map/device/session updates.
-- [ ] Keep realtime updates as context only; critical action success is still
+- [x] Add SignalR JavaScript client for floor map/device updates.
+- [x] Keep realtime updates as context only; critical action success is still
   based on backend API responses.
-- [ ] Cover disconnected/reconnecting/connected UI states.
+- [x] Cover disconnected/reconnecting/connected client states.
+- [ ] Add session-specific realtime events if backend contracts expose them.
 
 ## Task 7: Packaging And CI
 

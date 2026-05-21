@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 ## Purpose
 
@@ -303,10 +303,29 @@ Minimum bar:
   a WebView2 host shell and a local React/TypeScript console with host config
   injection, local asset resolution, the floor map, and SmartShell-inspired
   fixture workspaces for dashboard, booking, POS/shop, clients, payments,
-  logs, and ops/settings. These extra screens are visual/workflow fixtures
-  only until the backend auth/API/SignalR wiring is completed. The current WPF
-  implementation remains a parity reference and temporary legacy source until
-  the WebView2/React Operator App covers the pilot day flow.
+  logs, and ops/settings. The first native auth/token boundary now exists:
+  staff sign-in, token load/refresh/sign-out bridge messages, protected token
+  storage, and React auth gating are test-covered. Typed frontend API client
+  boundaries now also exist for floor map, sessions, POS, players,
+  shifts/reports, settings/pilot setup, devices, diagnostics, updates, and
+  audit. The primary floor map now also loads backend `FloorMapDto` data after
+  native staff auth and applies SignalR `deviceStatusChanged` updates from
+  `/hubs/devices` as contextual live state. Selected-seat fast guest start,
+  extend +15/+30, transfer, and end actions now call backend session APIs,
+  wait for confirmation, use idempotency keys, and reload the authoritative
+  floor map. POS, Clients, Payments, Logs, and Settings now consume existing
+  backend endpoints for their first React parity pass; POS checkout creates a
+  backend sale and manual payment before confirming UI success. Booking remains
+  floor-map-backed for availability only because backend booking contracts do
+  not exist yet. Billing-mode selection beyond fast guest, permission-aware
+  action state, device command result state, dashboard backend metrics,
+  real booking contracts, general profile/staff invitation settings, and
+  staging smoke of these extra workspaces still remain before the WebView2/
+  React app covers the full pilot day flow. Fixture-only/missing-contract
+  commands should report missing backend wiring rather than showing backend
+  success. The current WPF implementation remains a parity reference and
+  temporary legacy source until the WebView2/React Operator App covers the
+  pilot day flow.
 - Staff management workflow is implemented as a minimum API path on `main`;
   the Operator App has a minimum one-shot Pilot Setup panel, but not a general
   staff management UI.
@@ -335,14 +354,17 @@ Minimum bar:
    Continue
    `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
    The native WebView2 host, React/TypeScript app foundation, typed config
-   bootstrap, local floor-map concept UI, and SmartShell-inspired fixture
-   screens for dashboard, booking, POS/shop, clients, payments, logs, and
-   ops/settings now exist. Next deliver the auth/token boundary, typed API
-   clients, SignalR state, staging-targeted sign-in, and real floor-map
-   actions. After backend wiring, follow the design/frontend roadmap in the
-   migration plan: bring map/table, dashboard, booking, shop/POS, payments,
-   clients, logs, and ops/settings to real data and production parity. Local
-   builds must still target staging with
+   bootstrap, native auth/token bridge, protected staff sign-in, typed
+   frontend API client boundary, local floor-map concept UI, backend-backed
+   primary floor-map loading, SignalR device-status state, and
+   backend-confirmed selected-seat start/extend/transfer/end actions now exist.
+   POS, clients, payments, logs, and settings now have first-pass backend data
+   and action wiring where current backend contracts exist, while Booking is
+   only floor-map-backed until reservation contracts are added. Next deliver
+   permission-aware React state, map action parity gaps such as billing-mode
+   selection and device command result status, dashboard backend metrics,
+   real booking contracts, and staging smoke across these backend-backed
+   workspaces. Local builds must still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
    GUID/form surfaces in the main operator path as usability defects unless
    they are explicitly advanced technician tools.

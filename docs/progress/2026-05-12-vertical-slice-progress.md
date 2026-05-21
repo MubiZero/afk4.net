@@ -82,6 +82,38 @@ implementation evidence are needed.
   `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
   It keeps the native Windows desktop app boundary and MSI/update component,
   but moves operator UI implementation from WPF to WebView2 + React/TypeScript.
+- The WebView2/React Operator App now has the first real auth/token boundary:
+  the native host handles `auth:loadToken`, `auth:signIn`, `auth:refresh`, and
+  `auth:signOut` bridge messages; tokens are saved through Windows protected
+  storage; the React UI gates the operator console behind staff sign-in; and
+  auth/error-projection tests cover that browser `localStorage` and
+  `sessionStorage` are not used for token persistence.
+- The React frontend now also has typed API client boundaries beyond auth:
+  shared authenticated HTTP/error handling plus route-tested clients for floor
+  map, sessions, POS, players, shifts/reports/CSV, settings/pilot setup,
+  devices, diagnostics, updates, and audit. The primary map now uses those
+  clients to load backend floor-map data after native staff auth, while keeping
+  fixture fallback for browser-dev/no-backend runs.
+- The React primary floor map now has a SignalR JavaScript client for the
+  existing `/hubs/devices` hub. It tracks disconnected/connecting/connected/
+  reconnecting state, applies `deviceStatusChanged` updates by device id or
+  machine name, preserves active sessions as warning/problem seats when the PC
+  goes offline, and treats realtime as context only.
+- The React primary floor map now sends selected-seat fast guest start,
+  extend +15/+30, transfer, and end requests through typed authenticated
+  session API clients. Those actions are enabled only for backend-loaded seats
+  with the required session/seat ids, use idempotency keys, wait for backend
+  confirmation, reload the authoritative floor map, and show failed backend
+  responses as action feedback instead of confirming fixture-only clicks.
+- The remaining React operator workspaces are now wired to existing backend
+  reads/actions where contracts exist: POS loads catalog/current shift/sales
+  reports and creates paid manual-provider sales; Clients searches backend
+  players and performs wallet top-up/debt payment/player creation; Payments
+  reads shift, sales, cash, and CSV report endpoints; Logs reads audit and
+  diagnostics; Settings reads staff, layout, catalog, diagnostics, update
+  rollout, and tariff option data and can trigger limited backend setup
+  actions. Missing booking/profile/staff-invite contracts now fail explicitly
+  instead of showing fixture success.
 
 ### Agent Service
 
@@ -164,7 +196,57 @@ implementation evidence are needed.
 
 ## Latest Verification
 
-Final verification after merging PR #9 on 2026-05-16 from `D:\afk4.net`:
+Current local verification on 2026-05-21 from `D:\projects\afk4.net` after
+the WebView2/React auth/token, typed API client, SignalR realtime,
+backend-backed floor-map loading, backend-confirmed selected-seat actions, and
+first backend-backed parity wiring for the remaining operator workspaces:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' test
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\Git\cmd\git.exe' diff --check
+```
+
+Result:
+
+- frontend tests: 34 passed, 0 failed;
+- frontend production build: passed;
+- full solution tests: 763 passed, 0 failed;
+- `git diff --check`: clean apart from expected CRLF conversion warnings;
+- Browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
+  rendered with title `AFK4 Operator`, heading `Вход оператора`, password
+  field, sign-in button, custom window controls, platform URL, no console
+  errors, and no horizontal or vertical page overflow. Because the smoke runs
+  outside WebView2, the page correctly reported the native host bridge as
+  unavailable.
+- SignalR/floor-map frontend tests cover the `/hubs/devices` URL, realtime
+  connection-state transitions, backend `FloorMapDto` sorting/state mapping,
+  and `deviceStatusChanged` overlays for free and active-session seats.
+- Selected-seat action frontend tests cover backend-confirmed session end and
+  fast guest start calls, including route selection, request body serialization,
+  idempotency keys, and UI confirmation only after the API resolves.
+- POS frontend tests now cover backend-confirmed catalog/current-shift loading,
+  POS sale creation, manual payment, and UI confirmation only after both API
+  calls resolve.
+- Booking is backend-aware through the authoritative floor-map availability
+  state, but full create/edit/cancel reservation workflows still explicitly
+  report that backend booking contracts are not implemented.
+- Typed frontend API client boundary verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: frontend tests passed 25/25 and Vite production build passed. New
+  route tests cover authenticated headers, JSON body serialization, optional
+  404/204 handling, CSV text reads, API error projection, and operator clients
+  for floor map, sessions, POS, players, shifts/reports, settings/pilot setup,
+  devices, diagnostics, updates, and audit.
+
+Earlier final verification after merging PR #9 on 2026-05-16 from
+`D:\afk4.net`:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
@@ -1015,15 +1097,16 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Continue `codex/operator-app-redesign` by wiring the WebView2/React Operator
-   App auth/token bridge, typed frontend API clients, SignalR state, and
-   parity screens for floor map actions, POS, players, shifts, Pilot Setup,
+2. Continue `codex/operator-app-redesign` from the completed native
+   auth/token bridge and typed API client boundary by wiring SignalR state,
+   backend-backed floor-map data loading, backend-confirmed selected-seat
+   actions, and then parity screens for POS, players, shifts, Pilot Setup,
    diagnostics, updates, audit, and reports. Then test the WebView2 Operator
    App against deployed staging: sign-in, floor map, the setup panel,
    shift/POS basics, session actions against current staging device/seat state,
    and actionable error handling. Preserve the accepted fixture design
-   baseline while replacing local state with backend-backed behavior. Treat any
-   remaining raw GUID/form surfaces as usability bugs unless they are
+   baseline while replacing local state with backend-backed behavior. Treat
+   any remaining raw GUID/form surfaces as usability bugs unless they are
    explicitly advanced technician tools.
 3. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
@@ -1627,16 +1710,40 @@ Operator App WebView2/React first implementation on 2026-05-20:
 - The WebView2/React Operator App design phase is closed for the current
   branch as of 2026-05-21. Map, Dashboard, Booking, POS, Clients, Payments,
   Logs, and Settings should now be treated as the accepted fixture design
-  baseline. Continue with backend auth/API/SignalR and parity wiring; reopen
+  baseline. Continue with backend API/SignalR and parity wiring; reopen
   visual design only for concrete defects found during real-data or staging
   smoke, not for another broad fixture-only polish pass.
+- The next-session engineering kickoff started on 2026-05-21 with the
+  auth/token boundary. The WebView2 host now routes `auth:*` messages to a
+  test-covered native bridge backed by the existing staff auth API client and
+  protected token store. React has an auth client, common error projection,
+  staff sign-in gate, sign-out action, and no browser token persistence. The
+  accepted fixture screens remain behind a restored or newly signed-in session;
+  typed API clients beyond auth, SignalR realtime state, and backend-confirmed
+  floor-map actions remained the next implementation work at that checkpoint.
+- The next engineering step in the same 2026-05-21 session added typed
+  frontend API client boundaries beyond auth: `PlatformApiClient` handles
+  bearer-token requests, JSON bodies, optional 404/204 responses, CSV text
+  reads, and Platform API error projection; `operatorApiClients` maps current
+  backend routes for floor map, sessions, POS, players, shifts/reports,
+  settings/pilot setup, devices, diagnostics, updates, and audit. These clients
+  are route-tested but not yet wired into screen state.
+- The following 2026-05-21 engineering step wired the primary React floor map
+  to backend data and SignalR context: `floorMapState` maps backend
+  `FloorMapDto` seats into the accepted `SeatSummary` tones, `PlatformApiClient`
+  loads `/api/branches/{branchId}/floor-map` after native staff session
+  restore/sign-in, `operatorRealtime` connects to `/hubs/devices` with the
+  native access token, and `deviceStatusChanged` updates are applied by
+  `deviceId` or machine name. The screen keeps the existing fixture state as a
+  browser-dev/no-backend fallback and does not treat realtime as command
+  success.
 - local frontend tests passed:
 
   ```powershell
   & 'C:\Program Files\nodejs\npm.cmd' test
   ```
 
-  Result: 7 passed, 0 failed, 0 skipped.
+  Result: 31 passed, 0 failed, 0 skipped.
 - local frontend production build passed:
 
   ```powershell
@@ -1644,29 +1751,19 @@ Operator App WebView2/React first implementation on 2026-05-20:
   ```
 
   Result: Vite built `dist/index.html`, CSS, and JS assets.
-- focused Operator App tests passed:
-
-  ```powershell
-  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-  ```
-
-  Result: 186 passed, 0 failed, 0 skipped.
 - full local solution tests passed:
 
   ```powershell
   & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
   ```
 
-  Result: 760 passed, 0 failed, 0 skipped.
-- local UI smoke passed through headless Edge against the Vite preview on
-  `http://127.0.0.1:4174/`: title `AFK4 Operator`, heading
-  `AFK4 Dushanbe · Floor A`, 24 seat tiles rendered, Russian copy rendered
-  correctly, expanded navigation rendered for `Карта`, `Дашборд`, `Брони`,
-  `POS`, `Клиенты`, `Платежи`, `Логи`, and `Настройки`, cash `4 820 TJS` rendered,
-  and the custom `Свернуть` window control was present. The current floor-map
-  CSS targets larger 88 px host rows. The desktop `AFK4.Operator.App.exe` was
-  launched locally and opened a live `AFK4 Operator` window backed by the React
-  build.
+  Result: 763 passed, 0 failed, 0 skipped.
+- local UI smoke passed through the in-app browser against the Vite preview on
+  `http://127.0.0.1:4174/`: title `AFK4 Operator`, the WebView auth entry
+  screen rendered with heading `Вход оператора`, password field, sign-in
+  button, platform URL, custom window controls, no browser console errors, and
+  no horizontal or vertical page overflow. Because this smoke runs outside
+  WebView2, the page correctly reported the native host bridge as unavailable.
 - Dashboard design-pass verification on 2026-05-21:
 
   ```powershell
@@ -1757,6 +1854,55 @@ Operator App WebView2/React first implementation on 2026-05-20:
   feedback. A follow-up layout check across Map, Dashboard, Booking, POS,
   Clients, Payments, Logs, and Settings reported zero horizontal overflow for
   document, body, shell, and main workspaces.
+- Auth/token boundary verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: frontend tests passed 15/15, Vite production build passed, focused
+  Operator App tests passed 189/189, full solution tests passed 763/763, and
+  whitespace check was clean apart from expected CRLF conversion warnings.
+  Browser smoke against `http://127.0.0.1:4174/` confirmed the WebView auth
+  entry screen rendered with title `AFK4 Operator`, heading `Вход оператора`,
+  password field, sign-in button, custom window controls, and no horizontal or
+  vertical page overflow. The browser smoke runs outside WebView2, so it
+  correctly reported the native host bridge as unavailable rather than
+  persisting tokens in browser storage.
+- Selected-seat action verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: frontend tests passed 34/34, Vite production build passed, and full
+  solution tests passed 763/763. Browser smoke against
+  `http://127.0.0.1:4175/` confirmed the WebView auth entry screen rendered
+  with no console errors outside WebView2. The desktop `AFK4.Operator.App.exe`
+  was relaunched locally with `AFK4_OPERATOR_PLATFORM_BASE_URL` pointing at
+  `https://afk4.staging.mubi.dev` and `AFK4_OPERATOR_CURRENCY_CODE=TJS`.
+  Whitespace check was clean apart from expected CRLF conversion warnings.
+- Remaining workspace backend-wiring verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: frontend tests passed 34/34, Vite production build passed, full
+  solution tests passed 763/763, and whitespace check was clean apart from
+  expected CRLF conversion warnings. The route-level frontend tests now include
+  tariff/package option reads, and the App tests verify POS sale/manual payment
+  confirmation through backend calls.
 
 ## Historical Reference
 
