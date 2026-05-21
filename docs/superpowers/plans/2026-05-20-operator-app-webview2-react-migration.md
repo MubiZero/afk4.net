@@ -66,8 +66,10 @@ Current state:
   in the Personnel section, branch profile save backed by a new Platform API
   profile endpoint, and POS category/product creation backed by the existing
   POS catalog endpoints. Payments can now close the current shift through the
-  existing close-shift endpoint with counted cash and a closing note. Staging
-  smoke across the newly wired screens is the next real implementation work.
+  existing close-shift endpoint with counted cash and a closing note, and can
+  record cash movements through the existing shift cash movement endpoint.
+  Staging smoke across the newly wired screens is the next real implementation
+  work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
@@ -99,7 +101,8 @@ map has real filter/table parity. Booking mutation controls now also respect
 create branch staff through the existing backend staff API, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product. Payments close-shift now calls
-the backend close-shift endpoint with counted cash and note fields. Continue
+the backend close-shift endpoint with counted cash and note fields, and
+Payments cash movement creation calls the backend shift cash endpoint. Continue
 with staging smoke of the backend-backed workspaces and close gaps found with
 real data.
 
@@ -198,11 +201,12 @@ missing-backend copy.
   not already exist.
 - [ ] Payments/Shifts: `Подготовить закрытие` now calls the real close-shift
   workflow with counted cash, notes, `shifts.close` permission gating, and
-  backend confirmation. Remaining gaps include richer discrepancy handling,
-  cash movement creation, pending post-payment resolution, cancellation/refund
-  actions where allowed, and selected operation detail. Use existing shift/
-  report/POS contracts first; create missing payment-operation detail or
-  approval endpoints if needed.
+  backend confirmation. Cash movement creation now calls the real
+  `/api/shifts/{shiftId}/cash-movements` endpoint with `shifts.cash.manage`
+  permission gating. Remaining gaps include richer discrepancy handling,
+  pending post-payment resolution, cancellation/refund actions where allowed,
+  and selected operation detail. Use existing shift/report/POS contracts first;
+  create missing payment-operation detail or approval endpoints if needed.
 - [ ] Logs: replace projected-only event rows with backend-backed event detail,
   period/category/operator/target filters, correlation IDs, support handoff
   data, and export generation. Use audit, diagnostics, and report endpoints

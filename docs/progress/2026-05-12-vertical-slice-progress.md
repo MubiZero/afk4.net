@@ -155,8 +155,10 @@ implementation evidence are needed.
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
   availability and action fallback; Payments can now close the current shift
   through `/api/shifts/{shiftId}/close` with counted cash, closing note, and
-  `shifts.close` permission gating. Remaining fixture-only or missing-contract
-  actions still fail explicitly instead of showing fixture success.
+  `shifts.close` permission gating, and records cash in/out movements through
+  `/api/shifts/{shiftId}/cash-movements` with `shifts.cash.manage` gating.
+  Remaining fixture-only or missing-contract actions still fail explicitly
+  instead of showing fixture success.
 
 ### Agent Service
 
@@ -247,7 +249,8 @@ the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
-read/update, Settings POS catalog create, and Payments close-shift wiring:
+read/update, Settings POS catalog create, Payments close-shift wiring, and
+Payments cash movement creation:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -258,7 +261,7 @@ read/update, Settings POS catalog create, and Payments close-shift wiring:
 
 Result:
 
-- frontend tests: 45 passed, 0 failed;
+- frontend tests: 46 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -296,6 +299,9 @@ Result:
   reconciliation panel through `/api/shifts/{shiftId}/close`, including
   counted cash, closing note, organization id, and idempotency key
   serialization.
+- Payments frontend tests now also cover recording cash movements through
+  `/api/shifts/{shiftId}/cash-movements`, including movement type, amount,
+  reason, organization id, and idempotency key serialization.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
   copy, and reported no browser console errors.
@@ -1223,6 +1229,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   reconciliation action to the existing close-shift API. Operators with
   `shifts.close` can enter counted cash and a closing note, and the UI waits
   for backend confirmation before showing close-shift success.
+- On 2026-05-21, `codex/operator-app-redesign` added Payments cash movement
+  creation against the existing shift cash movement API. Operators with
+  `shifts.cash.manage` can enter cash in/out amount and reason, and the UI
+  confirms only after the backend accepts the movement.
 - On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
   Operator App implementation: WebView2 startup shell, local asset resolution,
   typed host config injection, Vite/React frontend foundation, first visual

@@ -347,6 +347,34 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^shift-close-/);
   });
 
+  it('records a cash movement from Payments through the backend', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Платежи'));
+    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Сумма'), { target: { value: '25.50' } });
+    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Размен перед турниром' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить движение' }));
+
+    expect(await screen.findByText('Добавить движение: подтверждено')).toBeInTheDocument();
+    const movementCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/cash-movements') &&
+      init?.method === 'POST');
+    expect(movementCall).toBeDefined();
+    const body = JSON.parse(String(movementCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      movementType: 'cash_in',
+      amount: { currencyCode: 'TJS', minorUnits: 2550 },
+      reason: 'Размен перед турниром'
+    });
+    expect(body.idempotencyKey).toMatch(/^shift-cash-movement-/);
+  });
+
   it('confirms booking create and cancel only after reservation backend calls resolve', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -594,6 +622,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createCurrentShift());
   }
 
+  if (pathname.includes('/shifts/') && pathname.endsWith('/cash-movements') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createCashMovement(body));
+  }
+
   if (pathname.includes('/shifts/') && pathname.endsWith('/close') && init?.method === 'POST') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createClosedShift(body));
@@ -729,6 +762,7 @@ const allOperatorPermissions = [
   'billing.view',
   'shifts.view',
   'shifts.close',
+  'shifts.cash.manage',
   'reports.view',
   'reservations.view',
   'reservations.manage',
@@ -1005,6 +1039,21 @@ function createClosedShift(overrides: Record<string, unknown> = {}) {
     difference: { currencyCode: 'TJS', minorUnits: 0 },
     closingNote: 'Смена закрыта оператором',
     closedAtUtc: '2026-05-21T18:00:00Z',
+    ...overrides
+  };
+}
+
+function createCashMovement(overrides: Record<string, unknown> = {}) {
+  return {
+    cashMovementId: 'bbbbbbbb-0000-0000-0000-000000000001',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    shiftId: '66666666-6666-6666-6666-666666666666',
+    createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+    movementType: 'cash_in',
+    amount: { currencyCode: 'TJS', minorUnits: 1000 },
+    reason: 'Размен кассы',
+    createdAtUtc: '2026-05-21T11:00:00Z',
     ...overrides
   };
 }

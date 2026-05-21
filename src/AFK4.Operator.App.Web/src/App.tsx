@@ -119,6 +119,7 @@ const permissionNames = {
   viewBilling: 'billing.view',
   viewShift: 'shifts.view',
   closeShift: 'shifts.close',
+  manageShiftCash: 'shifts.cash.manage',
   viewReports: 'reports.view',
   viewReservations: 'reservations.view',
   manageReservations: 'reservations.manage',
@@ -3950,6 +3951,9 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [shiftReport, setShiftReport] = useState<ReportResultDto | null>(null);
   const [closeCountedCash, setCloseCountedCash] = useState('');
   const [closingNote, setClosingNote] = useState('Сверка оператором');
+  const [cashMovementType, setCashMovementType] = useState('cash_in');
+  const [cashMovementAmount, setCashMovementAmount] = useState('10.00');
+  const [cashMovementReason, setCashMovementReason] = useState('Размен кассы');
 
   const loadPayments = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -4032,6 +4036,10 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
     && currentShiftId.length > 0
     && currentShiftState === 'open'
     && hasPermission(backend.session, permissionNames.closeShift);
+  const canRecordCashMovement = backend !== null
+    && currentShiftId.length > 0
+    && currentShiftState === 'open'
+    && hasPermission(backend.session, permissionNames.manageShiftCash);
   const methods = [
     ['Наличные', cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, 'cash report', `${cashRows.length} операций`],
     ['Карта', netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, 'sales report', `${salesRows.length} чеков`],
@@ -4050,6 +4058,31 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
       } else if (label === 'Экспорт CSV') {
         await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
+      } else if (label === 'Добавить движение') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageShiftCash)) {
+          throw new Error('Нет прав на движение наличных.');
+        }
+
+        if (!currentShiftId) {
+          throw new Error('Нет открытой смены для движения наличных.');
+        }
+
+        const cashMovementMinorUnits = parseMoneyInputMinorUnits(cashMovementAmount);
+        const reason = cashMovementReason.trim();
+        if (cashMovementMinorUnits === null || !reason) {
+          throw new Error('Введите сумму больше нуля и причину движения.');
+        }
+
+        await apiClients.shifts.recordCashMovement(currentShiftId, {
+          organizationId: nextBackend.session.organizationId,
+          movementType: cashMovementType,
+          amount: { currencyCode, minorUnits: cashMovementMinorUnits },
+          reason,
+          idempotencyKey: createIdempotencyKey('shift-cash-movement')
+        });
+        setCashMovementAmount('10.00');
+        setCashMovementReason('Размен кассы');
+        await loadPayments(nextBackend);
       } else if (label === 'Подготовить закрытие') {
         if (!hasPermission(nextBackend.session, permissionNames.closeShift)) {
           throw new Error('Нет прав на закрытие смены.');
@@ -4205,6 +4238,17 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <b>{formatMoney(readMoney(row, 'cashImpact'), currencyCode)}</b>
               </article>
             ))}
+          </div>
+          <div className="payments-cash-form">
+            <label>Тип
+              <select value={cashMovementType} disabled={!canRecordCashMovement} onChange={(event) => setCashMovementType(event.currentTarget.value)}>
+                <option value="cash_in">Внесение</option>
+                <option value="cash_out">Изъятие</option>
+              </select>
+            </label>
+            <label>Сумма<input inputMode="decimal" value={cashMovementAmount} disabled={!canRecordCashMovement} onChange={(event) => setCashMovementAmount(event.currentTarget.value)} /></label>
+            <label className="payments-cash-reason">Причина<input value={cashMovementReason} disabled={!canRecordCashMovement} onChange={(event) => setCashMovementReason(event.currentTarget.value)} /></label>
+            <button type="button" disabled={!canRecordCashMovement} onClick={() => runReportAction('Добавить движение')}>Добавить движение</button>
           </div>
         </section>
 

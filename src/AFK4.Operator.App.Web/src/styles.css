@@ -3341,6 +3341,71 @@ button {
   color: #6f7d91;
 }
 
+.payments-cash-form {
+  display: grid;
+  grid-template-columns: 0.8fr 0.8fr 1fr;
+  gap: 6px;
+  padding: 8px 12px 12px;
+  border-top: 1px solid #263241;
+}
+
+.payments-cash-form label {
+  display: grid;
+  gap: 4px;
+  color: #8fa0b6;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.payments-cash-form input,
+.payments-cash-form select {
+  height: 28px;
+  min-width: 0;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 9px;
+  outline: 0;
+  background: #0c141f;
+  color: #f7fafc;
+  font-size: 12px;
+}
+
+.payments-cash-form input:disabled,
+.payments-cash-form select:disabled {
+  color: #6f7d91;
+}
+
+.payments-cash-reason {
+  grid-column: 1 / 4;
+}
+
+.payments-cash-form button {
+  grid-column: 1 / 4;
+  height: 30px;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  background: #121b27;
+  color: #dbe3ef;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.payments-cash-form button:hover,
+.payments-cash-form button:focus-visible {
+  border-color: #3d5f87;
+  background: #172334;
+  outline: none;
+}
+
+.payments-cash-form button:disabled,
+.payments-cash-form button:disabled:hover,
+.payments-cash-form button:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
+}
+
 .payments-primary-action {
   display: inline-flex;
   align-items: center;

@@ -332,7 +332,8 @@ Minimum bar:
   staff API, branch profile name/city save through a new branch profile API,
   and POS category/product creation through the existing POS catalog endpoints.
   Payments now closes the current shift through the existing close-shift API
-  with counted cash and a closing note. Staging smoke of these extra workspaces
+  with counted cash and a closing note, and records cash movements through the
+  existing shift cash movement API. Staging smoke of these extra workspaces
   still remains before the WebView2/React app covers the full pilot day flow.
   Fixture-only/missing-contract commands should report backend failures rather
   than showing backend success.
@@ -379,9 +380,9 @@ Minimum bar:
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
    hardening, Settings staff creation, branch profile save, and Settings POS
-   category/product creation, plus Payments close-shift wiring. Next deliver
-   staging smoke across these backend-backed workspaces and close gaps found
-   with real staging data.
+   category/product creation, plus Payments close-shift and cash-movement
+   wiring. Next deliver staging smoke across these backend-backed workspaces
+   and close gaps found with real staging data.
    Local builds must
    still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
