@@ -4,4 +4,5 @@ public sealed record CreatePosSaleRequest(
     Guid OrganizationId,
     Guid ShiftId,
     IReadOnlyList<PosSaleLineDto> Lines,
-    string IdempotencyKey);
+    string IdempotencyKey,
+    Guid? PlayerAccountId = null);

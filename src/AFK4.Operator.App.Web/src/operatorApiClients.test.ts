@@ -76,7 +76,8 @@ describe('operator API clients', () => {
       organizationId,
       shiftId,
       idempotencyKey: 'idem-sale',
-      lines: []
+      lines: [],
+      playerAccountId: '12121212-1212-1212-1212-121212121212'
     };
     const paymentRequest: ManualPaymentRequest = {
       organizationId,

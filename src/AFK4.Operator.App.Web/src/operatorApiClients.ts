@@ -80,6 +80,7 @@ export interface CreatePosSaleRequest {
   shiftId: Guid;
   lines: PosSaleLineDto[];
   idempotencyKey: string;
+  playerAccountId?: Guid | null;
 }
 
 export interface ManualPaymentRequest {

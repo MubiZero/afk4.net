@@ -472,6 +472,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 sale.ShiftId,
                 sale.CreatedAtUtc
             });
+            entity.HasIndex(sale => sale.PlayerAccountId);
             entity.HasIndex(sale => sale.State);
         });
 

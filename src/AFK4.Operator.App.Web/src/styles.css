@@ -2497,6 +2497,7 @@ button {
 }
 
 .pos-cart-client span,
+.pos-cart-client em,
 .pos-cart-row span,
 .pos-total-card span,
 .pos-total-card em,
@@ -2524,6 +2525,10 @@ button {
   white-space: nowrap;
 }
 
+.pos-cart-client em {
+  font-style: normal;
+}
+
 .pos-cart-client button {
   height: 28px;
   border: 1px solid #2b3748;
@@ -2533,6 +2538,56 @@ button {
   color: #dbe3ef;
   font-size: 11px;
   font-weight: 800;
+}
+
+.pos-client-search {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.pos-client-candidates {
+  display: grid;
+  gap: 6px;
+  max-height: 96px;
+  margin: 0 12px;
+  overflow: auto;
+}
+
+.pos-client-candidates button {
+  display: grid;
+  gap: 2px;
+  min-height: 34px;
+  border: 1px solid #273344;
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: #111a25;
+  color: inherit;
+  text-align: left;
+}
+
+.pos-client-candidates button.active {
+  border-color: #1f6feb;
+  background: #132845;
+}
+
+.pos-client-candidates strong,
+.pos-client-candidates span,
+.pos-client-candidates p {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pos-client-candidates strong {
+  color: #f8fbff;
+  font-size: 12px;
+}
+
+.pos-client-candidates span,
+.pos-client-candidates p {
+  color: #8fa0b6;
+  font-size: 10px;
 }
 
 .pos-cart-list {

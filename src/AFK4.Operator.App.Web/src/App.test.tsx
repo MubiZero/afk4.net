@@ -409,12 +409,65 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
 
     expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
+    const saleCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
-      init?.method === 'POST')).toBe(true);
-    expect(fetchMock.mock.calls.some(([input, init]) =>
+      init?.method === 'POST');
+    expect(saleCall).toBeDefined();
+    const saleBody = JSON.parse(String(saleCall?.[1]?.body));
+    expect(saleBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      shiftId: '66666666-6666-6666-6666-666666666666',
+      playerAccountId: null
+    });
+    const paymentCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/payments/manual') &&
-      init?.method === 'POST')).toBe(true);
+      init?.method === 'POST');
+    expect(paymentCall).toBeDefined();
+    const paymentBody = JSON.parse(String(paymentCall?.[1]?.body));
+    expect(paymentBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      paymentMethod: 'cash'
+    });
+  });
+
+  it('attaches the selected backend client to POS sale checkout', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Клиент POS'), { target: { value: 'Madina' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
+    const cardPaymentButton = screen.getAllByRole('button', { name: 'Карта' })
+      .find((button) => button.closest('.pos-payment-methods'));
+    expect(cardPaymentButton).toBeDefined();
+    fireEvent.click(cardPaymentButton!);
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+
+    expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
+    const saleCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
+      init?.method === 'POST');
+    expect(saleCall).toBeDefined();
+    const saleBody = JSON.parse(String(saleCall?.[1]?.body));
+    expect(saleBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      shiftId: '66666666-6666-6666-6666-666666666666',
+      playerAccountId: '12121212-1212-1212-1212-121212121212'
+    });
+
+    const paymentCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/payments/manual') &&
+      init?.method === 'POST');
+    expect(paymentCall).toBeDefined();
+    const paymentBody = JSON.parse(String(paymentCall?.[1]?.body));
+    expect(paymentBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      paymentMethod: 'card_manual'
+    });
   });
 
   it('refunds the latest backend POS sale from quick operations', async () => {

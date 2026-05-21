@@ -12,6 +12,8 @@ public sealed class PosSaleEntity
 
     public Guid CreatedByStaffUserId { get; set; }
 
+    public Guid? PlayerAccountId { get; set; }
+
     public string State { get; set; } = string.Empty;
 
     public string CurrencyCode { get; set; } = string.Empty;

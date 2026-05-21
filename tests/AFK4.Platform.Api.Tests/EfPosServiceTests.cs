@@ -67,6 +67,52 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
+    public async Task CreateSaleAsync_PersistsOptionalPlayerAccount()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        var player = await SeedPlayerAsync(db);
+        var service = CreateService(db);
+
+        var result = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            CreateSaleRequest(shift.ShiftId, product.ProductId, "sale-player-001", playerAccountId: player.PlayerAccountId),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(player.PlayerAccountId, result.Response.PlayerAccountId);
+
+        var sale = await db.PosSales.SingleAsync();
+        Assert.Equal(player.PlayerAccountId, sale.PlayerAccountId);
+    }
+
+    [Fact]
+    public async Task CreateSaleAsync_RejectsUnknownPlayerAccount()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        var service = CreateService(db);
+
+        var result = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            CreateSaleRequest(
+                shift.ShiftId,
+                product.ProductId,
+                "sale-player-missing-001",
+                playerAccountId: Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.NotFound);
+        Assert.Empty(await db.PosSales.ToListAsync());
+    }
+
+    [Fact]
     public async Task CreateSaleAsync_RejectsMissingProductAndQuantityLessThanOne()
     {
         await using var db = CreateDbContext();
@@ -362,6 +408,25 @@ public sealed class EfPosServiceTests
         await db.SaveChangesAsync();
     }
 
+    private static async Task<PlayerAccountEntity> SeedPlayerAsync(PlatformDbContext db)
+    {
+        var player = new PlayerAccountEntity
+        {
+            PlayerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+            OrganizationId = TestIds.OrganizationId,
+            HomeBranchId = TestIds.BranchId,
+            DisplayName = "Player One",
+            PhoneNumber = "+992000000001",
+            IsActive = true,
+            CreatedAtUtc = Now
+        };
+
+        db.PlayerAccounts.Add(player);
+        await db.SaveChangesAsync();
+
+        return player;
+    }
+
     private static async Task<PosSaleDto> CreateSaleAsync(EfPosService service, Guid shiftId, Guid productId)
     {
         var result = await service.CreateSaleAsync(
@@ -380,13 +445,15 @@ public sealed class EfPosServiceTests
         Guid shiftId,
         Guid productId,
         string idempotencyKey,
-        int quantity = 1)
+        int quantity = 1,
+        Guid? playerAccountId = null)
     {
         return new CreatePosSaleRequest(
             TestIds.OrganizationId,
             shiftId,
             [new PosSaleLineDto(productId, "", quantity, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))],
-            idempotencyKey);
+            idempotencyKey,
+            playerAccountId);
     }
 
     private static ManualPaymentRequest ManualPaymentRequest(string idempotencyKey, long amountMinorUnits)

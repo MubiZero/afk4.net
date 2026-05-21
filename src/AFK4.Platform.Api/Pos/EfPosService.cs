@@ -73,6 +73,24 @@ public sealed class EfPosService(
             return BillingCommandServiceResult<PosSaleDto>.Invalid("An open shift is required to create a POS sale.");
         }
 
+        if (request.PlayerAccountId is Guid playerAccountId)
+        {
+            var playerExists = await dbContext.PlayerAccounts
+                .AsNoTracking()
+                .AnyAsync(
+                    player =>
+                        player.OrganizationId == request.OrganizationId &&
+                        player.HomeBranchId == branchId &&
+                        player.PlayerAccountId == playerAccountId &&
+                        player.IsActive,
+                    cancellationToken);
+
+            if (!playerExists)
+            {
+                return BillingCommandServiceResult<PosSaleDto>.Missing("Player account was not found.");
+            }
+        }
+
         var requestedProductIds = request.Lines
             .Select(line => line.ProductId)
             .Distinct()
@@ -107,6 +125,7 @@ public sealed class EfPosService(
                 BranchId = branchId,
                 ShiftId = shift.ShiftId,
                 CreatedByStaffUserId = actorStaffUserId,
+                PlayerAccountId = request.PlayerAccountId,
                 State = PosSaleStateNames.Draft,
                 CurrencyCode = currencyCode.ToUpperInvariant(),
                 TotalMinorUnits = 0,
@@ -578,6 +597,11 @@ public sealed class EfPosService(
             return "POS sale requires at least one line.";
         }
 
+        if (request.PlayerAccountId == Guid.Empty)
+        {
+            return "Player account id must be omitted or non-empty.";
+        }
+
         if (request.Lines.Any(line => line.ProductId == Guid.Empty))
         {
             return "Product id is required.";
@@ -778,7 +802,8 @@ public sealed class EfPosService(
             sale.PaidAtUtc,
             sale.RefundedAtUtc,
             sale.VoidedAtUtc,
-            latestReceipt is null ? null : ToDto(latestReceipt));
+            latestReceipt is null ? null : ToDto(latestReceipt),
+            sale.PlayerAccountId);
     }
 
     private static ReceiptDto ToDto(ReceiptEntity receipt)

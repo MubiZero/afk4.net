@@ -40,8 +40,9 @@ implementation evidence are needed.
   heartbeat-driven lock/unlock/lease-refresh command planning.
 - Immutable ledger-backed wallet, debt, packages, refunds, manual corrections,
   tariffs, package definitions, and package consumption.
-- POS catalog, stock movements, sales, manual payments, refunds, voids,
-  receipts, shifts, cash movements, and shift close reconciliation.
+- POS catalog, stock movements, player-attributed sales, manual payments,
+  refunds, voids, receipts, shifts, cash movements, and shift close
+  reconciliation.
 - Update package registration, package/rollout state changes, rollout status
   reads, device update check/status endpoints, and Agent update status tracking.
 - Audit search endpoint.
@@ -191,10 +192,12 @@ implementation evidence are needed.
   `devices.commands.dispatch`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
-  reports, creates paid manual-provider sales, can refund the selected backend
-  sale from the quick-operation panel, and can void a backend draft sale created
-  from the current cart, and opens backend sale details from the recent receipt
-  list plus the linked backend receipt projection; Clients searches backend players
+  reports, searches backend players for the cart customer, creates paid
+  manual-provider sales with an optional backend `playerAccountId`, can refund
+  the selected backend sale from the quick-operation panel, and can void a
+  backend draft sale created from the current cart, and opens backend sale
+  details from the recent receipt list plus the linked backend receipt
+  projection; Clients searches backend players
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
   name/phone, and reservation creation from a selected backend player; Payments
@@ -318,7 +321,8 @@ close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
 refund quick action, Settings layout zone/seat creation, POS
-draft void quick action, POS sale detail/receipt lookup, and Clients package purchase:
+draft void quick action, POS sale detail/receipt lookup, POS selected-customer
+checkout, and Clients package purchase:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -329,9 +333,9 @@ draft void quick action, POS sale detail/receipt lookup, and Clients package pur
 
 Result:
 
-- frontend tests: 63 passed, 0 failed;
+- frontend tests: 70 passed, 0 failed;
 - frontend production build: passed;
-- full solution tests: 775 passed, 0 failed;
+- full solution tests: 782 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -421,6 +425,10 @@ Result:
 - POS frontend tests now cover backend-confirmed catalog/current-shift loading,
   POS sale creation, manual payment, and UI confirmation only after both API
   calls resolve.
+- POS frontend/API/backend tests now cover selected backend customer lookup for
+  the cart, `playerAccountId` serialization on create-sale requests, nullable
+  POS sale persistence/projection through EF and the Platform API, and manual
+  card payment mapping to the backend `card_manual` payment method.
 - POS frontend tests now cover the `Возврат по чеку` quick operation calling
   `/api/pos/sales/{saleId}/refunds` for the latest backend sale with
   organization id, reason, and idempotency key serialization before UI
@@ -2327,6 +2335,27 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no production fixture labels, no horizontal
   or vertical overflow, and no new browser console errors.
+- Operator App POS selected-customer checkout verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test 'tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj' --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "FullyQualifiedName~EfPosServiceTests|FullyQualifiedName~PosEndpointTests" -v minimal
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx operatorApiClients.test.ts
+  & 'C:\Program Files\dotnet\dotnet.exe' test 'tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj' --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused POS API tests passed 16/16, focused frontend App/API-client
+  tests passed 46/46, full Platform API tests passed 341/341, full frontend
+  tests passed 70/70, Vite production build passed, full solution tests passed
+  782/782, and whitespace check was clean apart from expected CRLF conversion
+  warnings. Browser smoke against `http://127.0.0.1:5173/` confirmed title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no production
+  fixture labels, no old backend-empty placeholder copy, and no horizontal or
+  vertical overflow; older Vite HMR errors from before the current reload
+  remained in the browser log buffer.
 
 ## Historical Reference
 

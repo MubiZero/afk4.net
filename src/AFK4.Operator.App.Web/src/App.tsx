@@ -3021,6 +3021,10 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<PosSaleDto | null>(null);
   const [selectedReceiptDetail, setSelectedReceiptDetail] = useState<ReceiptDto | null>(null);
   const [selectedRefundSaleId, setSelectedRefundSaleId] = useState('');
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [posPlayers, setPosPlayers] = useState<PlayerClientItem[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState('');
+  const [playerLoadStatus, setPlayerLoadStatus] = useState<LoadStatus>('fixture');
   const [cartItems, setCartItems] = useState<PosCartItem[]>([
     { ...fixturePosProducts[0], quantity: 1 },
     { ...fixturePosProducts[3], quantity: 1 }
@@ -3074,12 +3078,58 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     void loadBackendPos();
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
 
+  useEffect(() => {
+    let disposed = false;
+    const query = playerSearch.trim();
+
+    if (backend === null || query.length < 2 || !hasPermission(backend.session, permissionNames.viewPlayers)) {
+      setPosPlayers([]);
+      setSelectedPlayerId('');
+      setPlayerLoadStatus(backend === null ? 'fixture' : 'backend');
+      return undefined;
+    }
+
+    setPlayerLoadStatus('loading');
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.players.searchPlayers(backend.branchId, query, 8)
+      .then((players: PlayerSearchResultDto[]) => {
+        if (disposed) {
+          return;
+        }
+
+        const projected = Array.isArray(players) ? players.map(projectPlayerClient) : [];
+        setPosPlayers(projected);
+        setSelectedPlayerId((current) => current && projected.some((player) => player.playerAccountId === current)
+          ? current
+          : projected[0]?.playerAccountId ?? '');
+        setPlayerLoadStatus('backend');
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setPosPlayers([]);
+        setSelectedPlayerId('');
+        setPlayerLoadStatus('failed');
+        setFeedback({ label: 'Клиент POS', state: 'failed', detail: projectOperatorError(error).detail });
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, playerSearch]);
+
   const categories = ['Все', ...Array.from(new Set(catalog.map((product) => product.category))).slice(0, 5)];
   const visibleProducts = catalog.filter((product) => {
     const categoryMatches = activeCategory === 'Все' || product.category === activeCategory;
     const searchMatches = `${product.name} ${product.category} ${product.note}`.toLowerCase().includes(productSearch.trim().toLowerCase());
     return categoryMatches && searchMatches;
   });
+  const selectedPosPlayer = posPlayers.find((player) => player.playerAccountId === selectedPlayerId) ?? null;
+  const selectedPosPlayerId = selectedPosPlayer?.playerAccountId ?? null;
+  const playerSearchQuery = playerSearch.trim();
+  const paymentMethodName = paymentMethod === 'Карта' ? 'card_manual' : 'cash';
   const cartTotalMinorUnits = cartItems.reduce((sum, item) => sum + item.priceMinorUnits * item.quantity, 0);
   const acceptedCashMinorUnits = paymentMethod === 'Наличные'
     ? Math.ceil(cartTotalMinorUnits / 1000) * 1000
@@ -3148,7 +3198,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             minorUnits: item.priceMinorUnits
           }
         })),
-        idempotencyKey: createIdempotencyKey('pos-sale')
+        idempotencyKey: createIdempotencyKey('pos-sale'),
+        playerAccountId: selectedPosPlayerId
       });
       const saleId = readString(sale, 'posSaleId');
       if (!saleId) {
@@ -3157,7 +3208,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
 
       const paidSale = await clients.pos.paySaleManual(saleId, {
         organizationId: nextBackend.session.organizationId,
-        paymentMethod: paymentMethod === 'Карта' ? 'card' : paymentMethod === 'Депозит' ? 'wallet' : 'cash',
+        paymentMethod: paymentMethodName,
         amount: {
           currencyCode,
           minorUnits: cartTotalMinorUnits
@@ -3265,7 +3316,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             minorUnits: item.priceMinorUnits
           }
         })),
-        idempotencyKey: createIdempotencyKey('pos-sale-draft')
+        idempotencyKey: createIdempotencyKey('pos-sale-draft'),
+        playerAccountId: selectedPosPlayerId
       });
       const saleId = readString(draft, 'posSaleId');
       if (!saleId) {
@@ -3358,10 +3410,50 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <UserRoundPlus size={17} />
             <div>
               <span>Клиент</span>
-              <strong>Гость · без карты</strong>
+              <strong>{selectedPosPlayer ? selectedPosPlayer.name : 'Гость · без карты'}</strong>
+              <em>{selectedPosPlayer
+                ? `${selectedPosPlayer.phoneNumber || 'без телефона'} · ${formatMinorUnits(selectedPosPlayer.balanceMinorUnits, currencyCode)}`
+                : 'продажа без карты клиента'}</em>
             </div>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Выбрать клиента')}>Выбрать</button>
+            <button
+              type="button"
+              onClick={() => {
+                setPlayerSearch('');
+                setSelectedPlayerId('');
+                setPosPlayers([]);
+              }}
+            >
+              Гость
+            </button>
           </div>
+          <label className="pos-search pos-client-search">
+            <Search size={14} />
+            <input
+              aria-label="Клиент POS"
+              value={playerSearch}
+              disabled={backend !== null && !hasPermission(backend.session, permissionNames.viewPlayers)}
+              placeholder="имя или телефон клиента"
+              onChange={(event) => setPlayerSearch(event.currentTarget.value)}
+            />
+          </label>
+          {playerSearchQuery.length > 1 && (
+            <div className="pos-client-candidates" aria-label="Клиенты POS">
+              {posPlayers.map((player) => (
+                <button
+                  key={player.playerAccountId ?? player.name}
+                  type="button"
+                  className={player.playerAccountId === selectedPlayerId ? 'active' : undefined}
+                  disabled={!player.playerAccountId || feedback.state === 'pending'}
+                  onClick={() => setSelectedPlayerId(player.playerAccountId ?? '')}
+                >
+                  <strong>{player.name}</strong>
+                  <span>{formatMinorUnits(player.balanceMinorUnits, currencyCode)} · долг {formatMinorUnits(player.debtMinorUnits, currencyCode)}</span>
+                </button>
+              ))}
+              {playerLoadStatus === 'loading' && <p>Поиск клиента</p>}
+              {playerLoadStatus !== 'loading' && posPlayers.length === 0 && <p>Клиент не найден</p>}
+            </div>
+          )}
           <div className="pos-cart-list">
             {cartItems.map((item) => (
               <article key={`${item.productId ?? item.name}-${item.name}`} className="pos-cart-row interactive-row">
@@ -3392,6 +3484,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 key={method}
                 type="button"
                 className={paymentMethod === method ? 'active' : undefined}
+                disabled={method === 'Депозит' || feedback.state === 'pending'}
+                title={method === 'Депозит' ? 'Оплата с депозита требует backend ledger-контракт.' : undefined}
                 onClick={() => setPaymentMethod(method)}
               >
                 {method === 'Наличные' && <Banknote size={15} />}

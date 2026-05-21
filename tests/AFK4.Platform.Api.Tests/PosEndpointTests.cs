@@ -127,6 +127,15 @@ public sealed class PosEndpointTests
                 "stock-001"));
         Assert.Equal(24, stock.QuantityDelta);
 
+        var player = await PostOkAsync<PlayerAccountDto>(
+            client,
+            $"/api/branches/{TestIds.BranchId:D}/players",
+            new CreatePlayerAccountRequest(
+                TestIds.OrganizationId,
+                "Player One",
+                "+992000000001",
+                "player-create-001"));
+
         var catalog = await client.GetFromJsonAsync<IReadOnlyList<PosProductDto>>(
             $"/api/branches/{TestIds.BranchId:D}/pos/catalog");
         Assert.NotNull(catalog);
@@ -140,8 +149,10 @@ public sealed class PosEndpointTests
                 TestIds.OrganizationId,
                 shift.ShiftId,
                 [new PosSaleLineDto(product.ProductId, string.Empty, 2, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))],
-                "sale-001"));
+                "sale-001",
+                player.PlayerAccountId));
         Assert.Equal(PosSaleStateNames.Draft, sale.State);
+        Assert.Equal(player.PlayerAccountId, sale.PlayerAccountId);
 
         var paid = await PostOkAsync<PosSaleDto>(
             client,
@@ -159,6 +170,7 @@ public sealed class PosEndpointTests
         var readSale = await client.GetFromJsonAsync<PosSaleDto>($"/api/pos/sales/{sale.PosSaleId:D}");
         Assert.NotNull(readSale);
         Assert.Equal(PosSaleStateNames.Paid, readSale.State);
+        Assert.Equal(player.PlayerAccountId, readSale.PlayerAccountId);
         Assert.NotNull(readSale.LatestReceipt);
         Assert.Equal(paid.LatestReceipt.ReceiptNumber, readSale.LatestReceipt.ReceiptNumber);
 
@@ -213,6 +225,7 @@ public sealed class PosEndpointTests
         Assert.Contains(AuditActionNames.CreateProductCategory, auditActions);
         Assert.Contains(AuditActionNames.CreateProduct, auditActions);
         Assert.Contains(AuditActionNames.CreateStockMovement, auditActions);
+        Assert.Contains(AuditActionNames.CreatePlayerAccount, auditActions);
         Assert.Contains(AuditActionNames.CreatePosSale, auditActions);
         Assert.Contains(AuditActionNames.PayPosSale, auditActions);
         Assert.Contains(AuditActionNames.RefundPosSale, auditActions);
