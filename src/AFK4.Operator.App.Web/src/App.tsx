@@ -5333,6 +5333,41 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
   ];
 }
 
+function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
+  if (sourceFilter === 'Все') {
+    return true;
+  }
+
+  const [, title, detail, source, tone, kind, record] = event;
+  const normalizedTitle = title.toLowerCase();
+  const normalizedDetail = detail.toLowerCase();
+  const normalizedSource = source.toLowerCase();
+  const action = readString(record, 'action').toLowerCase();
+  const targetType = readString(record, 'targetType').toLowerCase();
+  const isAgent = source === 'Agent' || tone === 'device' || kind === 'commandFailure' || kind === 'staleDevice';
+  const isPos = normalizedTitle.includes('pos') || normalizedDetail.includes('pos') || action.includes('pos') || targetType.includes('pos');
+  const isOperator = normalizedSource.includes('operator') || normalizedTitle.includes('identity') || normalizedDetail.includes('staff') || action.includes('identity') || targetType.includes('staff');
+  const isPlatform = source === 'Updates' || kind === 'updateFailure' || (!isAgent && !isPos && !isOperator);
+
+  if (sourceFilter === 'Agent') {
+    return isAgent;
+  }
+
+  if (sourceFilter === 'POS') {
+    return isPos;
+  }
+
+  if (sourceFilter === 'Operator') {
+    return isOperator;
+  }
+
+  if (sourceFilter === 'Platform') {
+    return isPlatform;
+  }
+
+  return true;
+}
+
 type AuditSearchOverrides = {
   action?: string | null;
   outcome?: string | null;
@@ -5346,7 +5381,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const [eventSearch, setEventSearch] = useState('');
   const [activeLogFilter, setActiveLogFilter] = useState('Все события');
   const [selectedEventKey, setSelectedEventKey] = useState('');
-  const [selectedSource, setSelectedSource] = useState('Audit');
+  const [selectedSource, setSelectedSource] = useState('Все');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [auditResult, setAuditResult] = useState<AuditSearchResultDto | null>(null);
@@ -5452,28 +5487,31 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     ])
   ];
   const events = [...diagnosticEvents, ...auditEvents];
-  const filteredEvents = events.filter(([time, title, detail, source, tone]) => {
+  const filteredEvents = events.filter((event) => {
+    const [time, title, detail, source, tone] = event;
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
       || (activeLogFilter === 'ПК и Agent' && (source === 'Agent' || tone === 'device' || detail.toLowerCase().includes('device')))
       || (activeLogFilter === 'Касса и POS' && (title.toLowerCase().includes('pos') || detail.toLowerCase().includes('cash')))
       || (activeLogFilter === 'Оператор' && (source.toLowerCase().includes('operator') || title.toLowerCase().includes('identity') || detail.toLowerCase().includes('staff')))
       || (activeLogFilter === 'Системные' && (source !== 'Agent' || title.toLowerCase().includes('updates') || title.toLowerCase().includes('diagnostics')));
+    const sourceMatches = matchesLogSource(event, selectedSource);
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
-    return filterMatches && searchMatches;
+    return filterMatches && sourceMatches && searchMatches;
   });
   const visibleEvents = events.length === 0
     ? [logEventPlaceholder(loadStatus, loadError, false)]
     : filteredEvents.length > 0
       ? filteredEvents
-      : [logEventPlaceholder(loadStatus, loadError, eventSearch.trim().length > 0 || activeLogFilter !== 'Все события')];
+      : [logEventPlaceholder(loadStatus, loadError, eventSearch.trim().length > 0 || activeLogFilter !== 'Все события' || selectedSource !== 'Все')];
   const selectedEvent = visibleEvents.find((event) => logEventKey(event) === selectedEventKey) ?? visibleEvents[0];
   const selectedEventDetails = buildLogEventDetailRows(selectedEvent, backend);
   const sourceCards: Array<[string, string, LucideIcon]> = [
-    ['Agent', `${readNumber(deviceSummary, 'onlineDevices', 0)} онлайн · ${readNumber(deviceSummary, 'staleDevices', 0)} stale`, MonitorCheck],
-    ['POS', `${auditRecords.filter((record) => readString(record, 'action').toLowerCase().includes('pos')).length} audit`, ReceiptText],
-    ['Operator', `${auditRecords.length} действий`, UserRoundPlus],
-    ['Platform', `${readNumber(commandSummary, 'failedCommands', 0) + readNumber(updateSummary, 'failedDevices', 0)} ошибок`, ShieldAlert]
+    ['Все', `${events.length} событий`, Search],
+    ['Agent', `${events.filter((event) => matchesLogSource(event, 'Agent')).length} событий · ${readNumber(deviceSummary, 'staleDevices', 0)} stale`, MonitorCheck],
+    ['POS', `${events.filter((event) => matchesLogSource(event, 'POS')).length} audit`, ReceiptText],
+    ['Operator', `${events.filter((event) => matchesLogSource(event, 'Operator')).length} действий`, UserRoundPlus],
+    ['Platform', `${events.filter((event) => matchesLogSource(event, 'Platform')).length} событий`, ShieldAlert]
   ];
 
   const applyAuditSearch = async (label: string, overrides: AuditSearchOverrides = {}) => {

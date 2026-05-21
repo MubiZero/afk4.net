@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { HostBridgeMessageEvent } from './hostBridge';
@@ -434,6 +434,15 @@ describe('App', () => {
     expect(detailPanel).toHaveTextContent('unlock · 44444444');
     expect(detailPanel).toHaveTextContent('Failed');
     expect(detailPanel).toHaveTextContent('timeout waiting for Agent');
+
+    const sourcePanel = document.querySelector('.logs-sources-panel') as HTMLElement;
+    fireEvent.click(within(sourcePanel).getByRole('button', { name: /POS/ }));
+    expect(screen.queryByText('PC-03 unlock')).not.toBeInTheDocument();
+    expect(screen.getAllByText('pos.sale.create').length).toBeGreaterThan(0);
+
+    fireEvent.click(within(sourcePanel).getByRole('button', { name: /Agent/ }));
+    expect(screen.getAllByText('PC-03 unlock').length).toBeGreaterThan(0);
+    expect(detailPanel).not.toHaveTextContent('pos.sale.create');
   });
 
   it('shows successful empty Logs results without backend-empty copy', async () => {
