@@ -4790,7 +4790,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   );
 }
 
-type PaymentOperationItem = [string, string, string, string, string, string];
+type PaymentOperationItem = [string, string, string, string, string, string, Record<string, unknown> | null];
 
 function paymentOperationPlaceholder(
   loadStatus: LoadStatus,
@@ -4799,22 +4799,22 @@ function paymentOperationPlaceholder(
   hasSearchMiss: boolean
 ): PaymentOperationItem {
   if (hasSearchMiss) {
-    return ['—', 'Нет совпадений', 'измените поиск или период', 'filter', `0 ${currencyCode}`, 'session'];
+    return ['—', 'Нет совпадений', 'измените поиск или период', 'filter', `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', 'Загружаем операции', 'ждём отчёты платформы', 'backend', `0 ${currencyCode}`, 'session'];
+    return ['—', 'Загружаем операции', 'ждём отчёты платформы', 'backend', `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'backend', `0 ${currencyCode}`, 'refund'];
+    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'backend', `0 ${currencyCode}`, 'refund', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', 'Операций за период нет', 'платформа вернула пустой отчёт', 'backend', `0 ${currencyCode}`, 'session'];
+    return ['—', 'Операций за период нет', 'платформа вернула пустой отчёт', 'backend', `0 ${currencyCode}`, 'session', null];
   }
 
-  return ['—', 'Dev demo: операций нет', 'локальный fallback без платформы', 'dev demo', `0 ${currencyCode}`, 'session'];
+  return ['—', 'Dev demo: операций нет', 'локальный fallback без платформы', 'dev demo', `0 ${currencyCode}`, 'session', null];
 }
 
 function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
@@ -4879,9 +4879,9 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
     void loadPayments();
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
 
-  const salesRows = readArray(salesReport, 'rows');
-  const cashRows = readArray(cashReport, 'rows');
-  const shiftRows = readArray(shiftReport, 'rows');
+  const salesRows = readArray<Record<string, unknown>>(salesReport, 'rows');
+  const cashRows = readArray<Record<string, unknown>>(cashReport, 'rows');
+  const shiftRows = readArray<Record<string, unknown>>(shiftReport, 'rows');
   const operations: PaymentOperationItem[] = [
     ...salesRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
@@ -4889,7 +4889,8 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       readString(row, 'posSaleId').slice(0, 8),
       'POS',
       formatMoney(readMoney(row, 'total'), currencyCode),
-      readString(row, 'state', 'sale').toLowerCase().includes('refund') ? 'refund' : 'sale'
+      readString(row, 'state', 'sale').toLowerCase().includes('refund') ? 'refund' : 'sale',
+      row
     ]),
     ...cashRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
@@ -4897,7 +4898,8 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       readString(row, 'reason', readString(row, 'sourceType', 'cash')),
       readString(row, 'sourceType', 'cash'),
       formatMoney(readMoney(row, 'cashImpact'), currencyCode),
-      readNumber(readMoney(row, 'cashImpact'), 'minorUnits', 0) < 0 ? 'refund' : 'deposit'
+      readNumber(readMoney(row, 'cashImpact'), 'minorUnits', 0) < 0 ? 'refund' : 'deposit',
+      row
     ])
   ];
   const operationSearch = paymentSearch.trim().toLowerCase();
@@ -4910,6 +4912,16 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       ? filteredOperations
       : [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, operationSearch.length > 0)];
   const selectedOperation = visibleOperations.find(([time, type, client]) => `${time}-${type}-${client}` === selectedOperationKey) ?? visibleOperations[0];
+  const selectedOperationSource = selectedOperation[6];
+  const selectedOperationId = selectedOperationSource === null
+    ? '—'
+    : (readString(selectedOperationSource, 'posSaleId') || readString(selectedOperationSource, 'operationId') || '—').slice(0, 8);
+  const selectedOperationShiftId = selectedOperationSource === null
+    ? '—'
+    : readString(selectedOperationSource, 'shiftId', '—').slice(0, 8);
+  const selectedOperationDetail = selectedOperation[3] === 'POS'
+    ? `${readNumber(selectedOperationSource, 'lineCount', 0)} строк · ${readNumber(selectedOperationSource, 'itemQuantity', 0)} шт.`
+    : readString(selectedOperationSource, 'reason', selectedOperation[2]);
   const grossSales = readMoney(salesReport, 'grossSalesTotal');
   const refunds = readMoney(salesReport, 'refundsTotal');
   const netSales = readMoney(salesReport, 'netSalesTotal');
@@ -5091,6 +5103,12 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
             <span>Всего · выбрано {selectedOperation[0]}</span>
             <strong>{netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`}</strong>
             <em>{selectedOperation[1]} · {selectedOperation[2]} · {selectedOperation[4]}</em>
+          </div>
+          <div className="payments-operation-detail" aria-label="Детали выбранной операции">
+            <div><span>ID</span><strong>{selectedOperationId}</strong></div>
+            <div><span>Смена</span><strong>{selectedOperationShiftId}</strong></div>
+            <div><span>Источник</span><strong>{selectedOperation[3]}</strong></div>
+            <div><span>Деталь</span><strong>{selectedOperationDetail}</strong></div>
           </div>
           <div className="payments-metric-grid">
             <div><span>Чеков</span><strong>{salesRows.length}</strong></div>

@@ -138,7 +138,9 @@ Payments open-shift now calls
 the backend open-shift endpoint with starting cash and opening note fields.
 Payments close-shift now calls the backend close-shift endpoint with counted
 cash and note fields, and Payments cash movement creation calls the backend
-shift cash endpoint. Settings `Интеграции` now exposes backend-backed update
+shift cash endpoint. Payments selected operation detail now uses already
+loaded backend sales/cash report rows for id, shift, source, and line/reason
+context. Settings `Интеграции` now exposes backend-backed update
 package registration, rollout creation, and package/rollout state changes with
 the existing `updates.packages.manage` and `updates.rollouts.manage` guards.
 Logs now applies backend audit action/outcome/target type/date range/limit
@@ -294,10 +296,11 @@ missing-backend copy.
   the real close-shift workflow with counted cash, notes, `shifts.close`
   permission gating, and backend confirmation. Cash movement creation now calls
   the real `/api/shifts/{shiftId}/cash-movements` endpoint with
-  `shifts.cash.manage` permission gating. Remaining gaps include richer
-  discrepancy handling,
-  pending post-payment resolution, cancellation/refund actions where allowed,
-  and selected operation detail. Use existing shift/report/POS contracts first;
+  `shifts.cash.manage` permission gating. Selected operation detail now uses
+  the already loaded backend sales/cash report row for id, shift, source, and
+  line/reason context. Remaining gaps include richer discrepancy handling,
+  pending post-payment resolution, and cancellation/refund actions where
+  allowed. Use existing shift/report/POS contracts first;
   create missing payment-operation detail or approval endpoints if needed.
 - [ ] Logs: backend audit action/outcome/target type/date range/limit filters were added
   on 2026-05-21 through the existing audit search endpoint. Remaining Logs

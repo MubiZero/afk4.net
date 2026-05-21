@@ -206,8 +206,8 @@ implementation evidence are needed.
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
   name/phone, and reservation creation from a selected backend player; Payments
-  reads shift,
-  sales, cash, and CSV report endpoints; Logs reads audit and diagnostics;
+  reads shift, sales, cash, and CSV report endpoints and shows selected
+  operation detail from backend report rows; Logs reads audit and diagnostics;
   Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
   option, and package option data, and can trigger limited backend setup actions
   including tariff/version creation, package definition creation, inventory
@@ -2448,6 +2448,23 @@ Operator App WebView2/React first implementation on 2026-05-20:
   Browser smoke against `http://127.0.0.1:5173/` confirmed title
   `AFK4 Operator`, heading `Вход оператора`, sign-in button, no old
   backend-empty placeholder copy, and no horizontal or vertical overflow
+  outside WebView2.
+- Operator App Payments selected-operation detail verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused App tests passed 47/47, full frontend tests passed 76/76,
+  Vite production build passed, and whitespace check was clean apart from
+  expected CRLF conversion warnings. The new App test covers selected Payments
+  operation detail for POS sales and cash movements using already loaded
+  backend report rows. Browser smoke against `http://127.0.0.1:5173/`
+  confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button,
+  no old backend-empty placeholder copy, and no horizontal or vertical overflow
   outside WebView2.
 
 ## Historical Reference

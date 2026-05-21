@@ -810,6 +810,22 @@ describe('App', () => {
     expect(screen.queryByText('Нет backend операций')).not.toBeInTheDocument();
   });
 
+  it('shows backend detail for the selected Payments operation', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Платежи'));
+    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+
+    expect(screen.getAllByText('99999999').length).toBeGreaterThan(1);
+    expect(screen.getByText('1 строк · 1 шт.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /opening/ }));
+    expect((await screen.findAllByText('aaaaaaaa')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('test').length).toBeGreaterThan(1);
+  });
+
   it('closes the current shift from Payments through the backend', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
