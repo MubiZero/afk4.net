@@ -2831,6 +2831,16 @@ button {
   transform: translateY(-1px);
 }
 
+.clients-action-card:disabled,
+.clients-action-card:disabled:hover,
+.clients-action-card:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
+  transform: none;
+}
+
 .client-row.vip {
   border-left-color: #2f81f7;
 }

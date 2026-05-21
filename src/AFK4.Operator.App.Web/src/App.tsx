@@ -39,6 +39,7 @@ import {
   type BranchDiagnosticsDto,
   type CashMovementDto,
   type OperatorDashboardSummaryDto,
+  type PackageOptionDto,
   type PlayerPackageDto,
   type PlayerSearchResultDto,
   type PosProductDto,
@@ -117,6 +118,8 @@ const permissionNames = {
   endSession: 'sessions.end',
   viewPlayers: 'players.view',
   viewBilling: 'billing.view',
+  viewPackages: 'packages.view',
+  purchasePackage: 'packages.purchase',
   viewShift: 'shifts.view',
   closeShift: 'shifts.close',
   manageShiftCash: 'shifts.cash.manage',
@@ -150,7 +153,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.viewShift,
     permissionNames.viewReports
   ],
-  players: [permissionNames.viewPlayers, permissionNames.viewBilling],
+  players: [permissionNames.viewPlayers, permissionNames.viewBilling, permissionNames.viewPackages, permissionNames.purchasePackage],
   payments: [permissionNames.viewShift, permissionNames.viewReports],
   logs: [permissionNames.viewAudit, permissionNames.viewDiagnostics],
   settings: [
@@ -3669,6 +3672,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [clients, setClients] = useState<PlayerClientItem[]>(() => fixturePlayers(currencyCode));
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
+  const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
 
   useEffect(() => {
     if (backend === null) {
@@ -3682,12 +3686,16 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
       try {
         const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
         const players = await apiClients.players.searchPlayers(backend.branchId, clientSearch, 25);
+        const nextPackageOptions = hasPermission(backend.session, permissionNames.viewPackages) || hasPermission(backend.session, permissionNames.purchasePackage)
+          ? await apiClients.settings.getPackageOptions(backend.branchId).catch(() => [])
+          : [];
         if (disposed) {
           return;
         }
 
         const nextClients = Array.isArray(players) ? players.map(projectPlayerClient) : [];
         setClients(nextClients.length > 0 ? nextClients : []);
+        setPackageOptions(Array.isArray(nextPackageOptions) ? nextPackageOptions : []);
         setSelectedClientId((current) => current && nextClients.some((client) => client.playerAccountId === current)
           ? current
           : nextClients[0]?.playerAccountId ?? null);
@@ -3750,6 +3758,11 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient.balanceMinorUnits;
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient.debtMinorUnits;
   const recentEntries = readArray(walletSummary, 'recentEntries');
+  const selectedPackageOption = packageOptions[0] ?? null;
+  const canPurchasePackage = backend !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && hasPermission(backend.session, permissionNames.purchasePackage);
 
   const runClientAction = async (label: string) => {
     setFeedback({ label, state: 'pending' });
@@ -3802,6 +3815,33 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         });
         setClients((items) => [createdClient, ...items]);
         setSelectedClientId(createdClient.playerAccountId ?? null);
+      } else if (label === 'Купить пакет') {
+        if (!hasPermission(nextBackend.session, permissionNames.purchasePackage)) {
+          throw new Error('Нет прав на покупку пакетов.');
+        }
+
+        if (!selectedClient.playerAccountId || selectedClient.source !== 'backend') {
+          throw new Error('Выберите backend игрока перед покупкой пакета.');
+        }
+
+        let packageOption: PackageOptionDto | null = selectedPackageOption;
+        if (packageOption === null) {
+          const options = await apiClients.settings.getPackageOptions(nextBackend.branchId);
+          setPackageOptions(Array.isArray(options) ? options : []);
+          packageOption = Array.isArray(options) ? options[0] ?? null : null;
+        }
+
+        const packageDefinitionId = readString(packageOption, 'packageDefinitionId');
+        if (!packageDefinitionId) {
+          throw new Error('Нет доступного backend пакета для покупки.');
+        }
+
+        await apiClients.players.purchasePackage(selectedClient.playerAccountId, {
+          organizationId: nextBackend.session.organizationId,
+          packageDefinitionId,
+          idempotencyKey: createIdempotencyKey('package-purchase')
+        });
+        setWalletSummary(await apiClients.players.getWalletSummary(selectedClient.playerAccountId));
       } else if (label === 'Создать бронь') {
         if (!selectedClient.playerAccountId || selectedClient.source !== 'backend') {
           throw new Error('Выберите backend игрока перед созданием брони.');
@@ -3912,10 +3952,17 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             {[
               ['Пополнить депозит', '100 к депозиту', CircleDollarSign],
               ['Списать долг', 'после оплаты', ReceiptText],
+              ['Купить пакет', selectedPackageOption ? readString(selectedPackageOption, 'name', 'backend package') : 'нет пакетов', TimerReset],
               ['Создать бронь', 'бронь из карточки', CalendarClock],
               ['Новая карта', 'создать игрока', UserRoundPlus]
             ].map(([label, detail, Icon]) => (
-              <button key={label as string} type="button" className="clients-action-card" onClick={() => runClientAction(label as string)}>
+              <button
+                key={label as string}
+                type="button"
+                className="clients-action-card"
+                disabled={(label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0)}
+                onClick={() => runClientAction(label as string)}
+              >
                 <Icon size={17} />
                 <strong>{label as string}</strong>
                 <span>{detail as string}</span>

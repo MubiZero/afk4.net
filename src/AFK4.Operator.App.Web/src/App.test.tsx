@@ -466,6 +466,31 @@ describe('App', () => {
     });
   });
 
+  it('purchases a backend package from the selected client card', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Купить пакет/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /Купить пакет/ }));
+
+    expect(await screen.findByText('Купить пакет: подтверждено')).toBeInTheDocument();
+    const purchaseCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/packages/purchases') &&
+      init?.method === 'POST');
+    expect(purchaseCall).toBeDefined();
+    const body = JSON.parse(String(purchaseCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      packageDefinitionId: 'abababab-abab-abab-abab-abababababab'
+    });
+    expect(body.idempotencyKey).toMatch(/^package-purchase-/);
+  });
+
   it('creates a staff user from the Settings personnel form', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -705,6 +730,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createBranchProfile());
   }
 
+  if (pathname.includes('/players/') && pathname.endsWith('/packages/purchases')) {
+    const body = JSON.parse(String(init?.body));
+    return jsonResponse(createPlayerPackage(body));
+  }
+
   if (pathname.endsWith('/packages')) {
     return jsonResponse(createPlayerPackages());
   }
@@ -735,7 +765,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   }
 
   if (pathname.endsWith('/packages/options')) {
-    return jsonResponse([]);
+    return jsonResponse(createPackageOptions());
   }
 
   if (pathname.endsWith('/audit')) {
@@ -788,6 +818,8 @@ const allOperatorPermissions = [
   'sessions.end',
   'players.view',
   'billing.view',
+  'packages.view',
+  'packages.purchase',
   'shifts.view',
   'shifts.close',
   'shifts.cash.manage',
@@ -1213,14 +1245,34 @@ function createWalletSummary() {
 
 function createPlayerPackages() {
   return [
+    createPlayerPackage()
+  ];
+}
+
+function createPlayerPackage(overrides: Record<string, unknown> = {}) {
+  return {
+    playerPackageId: '19191919-1919-1919-1919-191919191919',
+    playerAccountId: '12121212-1212-1212-1212-121212121212',
+    packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
+    name: 'Night 5h',
+    remainingIncludedSeconds: 10800,
+    remainingBonusSeconds: 0,
+    state: 'active',
+    expiresAtUtc: '2026-05-22T10:00:00Z',
+    ...overrides
+  };
+}
+
+function createPackageOptions() {
+  return [
     {
-      playerPackageId: '19191919-1919-1919-1919-191919191919',
-      playerAccountId: '12121212-1212-1212-1212-121212121212',
+      packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
       name: 'Night 5h',
-      remainingIncludedSeconds: 10800,
-      remainingBonusSeconds: 0,
-      state: 'active',
-      expiresAtUtc: '2026-05-22T10:00:00Z'
+      currencyCode: 'TJS',
+      priceMinorUnits: 25000,
+      includedSeconds: 18000,
+      bonusSeconds: 0,
+      expiresAfterDays: 30
     }
   ];
 }

@@ -103,6 +103,11 @@ describe('operator API clients', () => {
     await clients.pos.paySaleManual(saleId, paymentRequest);
     await clients.pos.getReceipt('11111111-1111-1111-1111-111111111111');
     await clients.players.searchPlayers(branchId, 'Amir K&VIP', 20);
+    await clients.players.purchasePackage('12121212-1212-1212-1212-121212121212', {
+      organizationId,
+      packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
+      idempotencyKey: 'idem-package'
+    });
     await clients.shifts.openShift(branchId, openShiftRequest);
     await clients.shifts.closeShift(shiftId, closeShiftRequest);
     await clients.shifts.exportSalesReportCsv(branchId, {
@@ -117,12 +122,18 @@ describe('operator API clients', () => {
       `POST /api/pos/sales/${saleId}/payments/manual`,
       'GET /api/receipts/11111111-1111-1111-1111-111111111111',
       `GET /api/branches/${branchId}/players?query=Amir+K%26VIP&limit=20`,
+      'POST /api/players/12121212-1212-1212-1212-121212121212/packages/purchases',
       `POST /api/branches/${branchId}/shifts/open`,
       `POST /api/shifts/${shiftId}/close`,
       `GET /api/branches/${branchId}/reports/sales/export.csv?fromUtc=2026-05-21T01%3A02%3A03.000Z&toUtc=2026-05-21T02%3A03%3A04.000Z&limit=50`
     ]);
     expect(calls[1].body).toEqual(saleRequest);
     expect(calls[2].body).toEqual(paymentRequest);
+    expect(calls[5].body).toEqual({
+      organizationId,
+      packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
+      idempotencyKey: 'idem-package'
+    });
   });
 
   it('returns null for no current shift', async () => {

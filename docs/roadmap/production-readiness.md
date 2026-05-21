@@ -334,10 +334,12 @@ Minimum bar:
   Payments now closes the current shift through the existing close-shift API
   with counted cash and a closing note, and records cash movements through the
   existing shift cash movement API. POS quick refund now calls the existing
-  refund endpoint for the latest backend sale. Staging smoke of these extra
-  workspaces still remains before the WebView2/React app covers the full pilot
-  day flow. Fixture-only/missing-contract commands should report backend
-  failures rather than showing backend success.
+  refund endpoint for the latest backend sale. Clients package purchase now
+  calls the existing package option and purchase endpoints for the selected
+  backend player. Staging smoke of these extra workspaces still remains before
+  the WebView2/React app covers the full pilot day flow. Fixture-only/
+  missing-contract commands should report backend failures rather than showing
+  backend success.
   The current WPF implementation remains a parity reference and temporary legacy
   source until the WebView2/React Operator App covers the pilot day flow.
 - Staff management workflow is implemented as a minimum API path on `main`;
@@ -382,8 +384,9 @@ Minimum bar:
    feedback, real map filters/table view parity, Booking permission/state
    hardening, Settings staff creation, branch profile save, and Settings POS
    category/product creation, plus Payments close-shift and cash-movement
-   wiring, and POS refund quick action. Next deliver staging smoke across
-   these backend-backed workspaces and close gaps found with real staging data.
+   wiring, POS refund quick action, and Clients package purchase. Next deliver
+   staging smoke across these backend-backed workspaces and close gaps found
+   with real staging data.
    Local builds must
    still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw

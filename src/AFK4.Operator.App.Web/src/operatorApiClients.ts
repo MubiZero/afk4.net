@@ -158,6 +158,12 @@ export interface PayDebtRequest extends Record<string, unknown> {
   idempotencyKey: string;
 }
 
+export interface PurchasePackageRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  packageDefinitionId: Guid;
+  idempotencyKey: string;
+}
+
 export interface OpenShiftRequest {
   organizationId: Guid;
   startingCash: MoneyDto;
@@ -365,6 +371,9 @@ export function createPlayerClient(api: PlatformApiClient) {
     },
     getPlayerPackages(playerAccountId: Guid): Promise<PlayerPackageDto[]> {
       return api.get<PlayerPackageDto[]>(`/api/players/${playerAccountId}/packages`);
+    },
+    purchasePackage(playerAccountId: Guid, request: PurchasePackageRequest): Promise<PlayerPackageDto> {
+      return api.post<PlayerPackageDto, PurchasePackageRequest>(`/api/players/${playerAccountId}/packages/purchases`, request);
     },
     topUpWallet(playerAccountId: Guid, request: TopUpWalletRequest): Promise<WalletSummaryDto> {
       return api.post<WalletSummaryDto, TopUpWalletRequest>(`/api/players/${playerAccountId}/wallet/top-ups`, request);
