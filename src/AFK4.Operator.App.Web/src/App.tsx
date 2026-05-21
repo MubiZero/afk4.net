@@ -21,17 +21,63 @@ import {
   X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react';
+import { projectOperatorError } from './apiErrors';
+import { loadOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
+import {
+  applyDeviceStatusToSeats,
+  createFixtureFloorMapState,
+  mapFloorMapDtoToState,
+  type FloorMapLoadStatus,
+  type OperatorFloorMapState
+} from './floorMapState';
 import { postHostWindowCommand } from './hostBridge';
+import {
+  createOperatorApiClients,
+  type AuditSearchResultDto,
+  type BranchDiagnosticsDto,
+  type CashMovementDto,
+  type PosProductDto,
+  type PosSaleDto,
+  type ReportResultDto,
+  type ShiftDto,
+  type StaffUserDto,
+  type TariffOptionDto,
+  type UpdateRolloutStatusDto,
+  type WalletSummaryDto,
+  type ZoneDto
+} from './operatorApiClients';
 import { getOperatorConfig } from './operatorConfig';
-import { navItems, seats, signals, type SeatSummary, type SeatTone } from './operatorData';
+import {
+  createOperatorRealtimeClient,
+  type DeviceStatusChangedDto,
+  type OperatorRealtimeConnectionState
+} from './operatorRealtime';
+import { navItems, seats, type SeatSummary, type SeatTone } from './operatorData';
+import { PlatformApiClient } from './platformApi';
 
 type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'logs' | 'settings';
 type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
+type AuthStatus = 'checking' | 'signed-out' | 'signed-in';
 type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';
-type Feedback = { label: string; state: FeedbackState };
+type Feedback = { label: string; state: FeedbackState; detail?: string };
+type LoadStatus = 'fixture' | 'loading' | 'backend' | 'failed';
+type OperatorConfig = ReturnType<typeof getOperatorConfig>;
+type OperatorBackendContext = {
+  config: OperatorConfig;
+  session: OperatorAuthSession;
+  branchId: string;
+};
+type SeatActionRequest =
+  | { type: 'start'; seat: SeatSummary }
+  | { type: 'extend'; seat: SeatSummary; minutes: number }
+  | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
+  | { type: 'end'; seat: SeatSummary };
 
 const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'logs', 'settings'];
+const fallbackOrganizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
+const defaultSessionDurationMinutes = 60;
+const defaultTariffRuleVersionId = 'manual-v1';
 
 const toneLabels: Record<SeatTone, string> = {
   ready: 'Готов',
@@ -118,8 +164,14 @@ function parseMoney(value: string) {
 function triggerFeedback(
   setFeedback: (feedback: Feedback) => void,
   label: string,
-  finalState: Exclude<FeedbackState, 'idle' | 'pending'> = 'confirmed'
+  finalState: Exclude<FeedbackState, 'idle' | 'pending'> = 'failed',
+  detail = 'Функция пока не подключена к backend.'
 ) {
+  if (finalState === 'failed') {
+    setFeedback({ label, state: 'failed', detail });
+    return;
+  }
+
   setFeedback({ label, state: 'pending' });
   window.setTimeout(() => setFeedback({ label, state: finalState }), 620);
 }
@@ -130,7 +182,7 @@ function feedbackText(feedback: Feedback) {
   }
 
   if (feedback.state === 'failed') {
-    return `${feedback.label}: нужен повтор или проверка`;
+    return feedback.detail ?? `${feedback.label}: нужен повтор или проверка`;
   }
 
   if (feedback.state === 'confirmed') {
@@ -198,12 +250,12 @@ function AnimatedNumber({
   return <>{formatter(useAnimatedNumber(value))}</>;
 }
 
-function countByTone(tone: SeatTone): number {
-  return seats.filter((seat) => seat.tone === tone).length;
+function countByTone(nextSeats: SeatSummary[], tone: SeatTone): number {
+  return nextSeats.filter((seat) => seat.tone === tone).length;
 }
 
-function countProblems(): number {
-  return seats.filter((seat) => problemTones.has(seat.tone)).length;
+function countProblems(nextSeats: SeatSummary[]): number {
+  return nextSeats.filter((seat) => problemTones.has(seat.tone)).length;
 }
 
 function zoneClass(zone: string): string {
@@ -375,25 +427,189 @@ function mapSeatStatus(seat: SeatSummary) {
   };
 }
 
+function floorMapLoadLabel(status: FloorMapLoadStatus, source: OperatorFloorMapState['source'], error: string | null) {
+  if (status === 'loading') {
+    return source === 'backend' ? 'Обновляем карту' : 'Загружаем карту';
+  }
+
+  if (status === 'failed') {
+    return error ? `Fixture · ${error}` : 'Fixture · API недоступен';
+  }
+
+  return source === 'backend' ? 'Backend live' : 'Fixture';
+}
+
+function realtimeLabel(state: OperatorRealtimeConnectionState, error: string | null): string {
+  if (state === 'connected') {
+    return 'Realtime connected';
+  }
+
+  if (state === 'connecting') {
+    return 'Realtime connecting';
+  }
+
+  if (state === 'reconnecting') {
+    return 'Realtime reconnecting';
+  }
+
+  return error ? 'Realtime offline' : 'Realtime disconnected';
+}
+
+function resolveActiveBranchId(session: OperatorAuthSession, configBranchId?: string): string | null {
+  return session.activeBranchId ?? configBranchId ?? session.branchIds[0] ?? null;
+}
+
+function matchesRealtimeScope(status: DeviceStatusChangedDto, session: OperatorAuthSession, branchId: string): boolean {
+  return status.organizationId.toLowerCase() === session.organizationId.toLowerCase()
+    && status.branchId.toLowerCase() === branchId.toLowerCase();
+}
+
+function createAuthenticatedOperatorClients(config: ReturnType<typeof getOperatorConfig>, session: OperatorAuthSession) {
+  return createOperatorApiClients(new PlatformApiClient({
+    baseUrl: config.platformBaseUrl,
+    getAccessToken: () => session.accessToken
+  }));
+}
+
+async function loadBackendFloorMapState(
+  config: ReturnType<typeof getOperatorConfig>,
+  session: OperatorAuthSession,
+  branchId: string
+): Promise<OperatorFloorMapState> {
+  const clients = createAuthenticatedOperatorClients(config, session);
+  return mapFloorMapDtoToState(await clients.floorMap.getFloorMap(branchId));
+}
+
+function createIdempotencyKey(operationName: string): string {
+  const unique = window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${operationName}-${unique}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readString(value: unknown, name: string, fallback = ''): string {
+  if (!isRecord(value)) {
+    return fallback;
+  }
+
+  const nextValue = value[name];
+  return typeof nextValue === 'string' && nextValue.length > 0 ? nextValue : fallback;
+}
+
+function readNumber(value: unknown, name: string, fallback = 0): number {
+  if (!isRecord(value)) {
+    return fallback;
+  }
+
+  const nextValue = value[name];
+  return typeof nextValue === 'number' && Number.isFinite(nextValue) ? nextValue : fallback;
+}
+
+function readArray<T = unknown>(value: unknown, name: string): T[] {
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  const nextValue = value[name];
+  return Array.isArray(nextValue) ? nextValue as T[] : [];
+}
+
+function readMoney(value: unknown, name: string): { currencyCode: string; minorUnits: number } | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const money = value[name];
+  if (!isRecord(money)) {
+    return null;
+  }
+
+  const currencyCode = readString(money, 'currencyCode');
+  const minorUnits = readNumber(money, 'minorUnits', Number.NaN);
+  return currencyCode && Number.isFinite(minorUnits) ? { currencyCode, minorUnits } : null;
+}
+
+function formatMinorUnits(minorUnits: number, currencyCode: string): string {
+  const majorUnits = minorUnits / 100;
+  const formatter = new Intl.NumberFormat('ru-RU', {
+    maximumFractionDigits: Number.isInteger(majorUnits) ? 0 : 2,
+    minimumFractionDigits: 0
+  });
+
+  return `${formatter.format(majorUnits)} ${currencyCode}`;
+}
+
+function formatMoney(value: unknown, fallbackCurrencyCode: string): string {
+  if (isRecord(value)) {
+    const currencyCode = readString(value, 'currencyCode', fallbackCurrencyCode);
+    const minorUnits = readNumber(value, 'minorUnits', 0);
+    return formatMinorUnits(minorUnits, currencyCode);
+  }
+
+  return formatMinorUnits(0, fallbackCurrencyCode);
+}
+
+function moneyDto(currencyCode: string, majorUnits: number) {
+  return {
+    currencyCode,
+    minorUnits: Math.round(majorUnits * 100)
+  };
+}
+
+function formatTime(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    return '—';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+}
+
+function requireBackend(backend: OperatorBackendContext | null): OperatorBackendContext {
+  if (backend === null) {
+    throw new Error('Backend operator session is not available.');
+  }
+
+  return backend;
+}
+
 function MapWorkspace({
   currencyCode,
+  floorMap,
   selectedSeatId,
   onSelectSeat
 }: {
   currencyCode: string;
+  floorMap: OperatorFloorMapState;
   selectedSeatId: string;
   onSelectSeat: (seatId: string) => void;
 }) {
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const activeCount = countByTone(floorMap.seats, 'active');
+  const readyCount = countByTone(floorMap.seats, 'ready');
+  const pendingCount = countByTone(floorMap.seats, 'pending');
+  const offlineCount = countByTone(floorMap.seats, 'offline');
+  const problemCount = countProblems(floorMap.seats);
+  const loadLabel = floorMapLoadLabel(floorMap.loadStatus, floorMap.source, floorMap.error);
 
   return (
     <main className="floor-workspace">
       <section className="map-toolbar">
         <div>
           <span>Карта</span>
-          <h1>AFK4 Dushanbe · зал A</h1>
+          <h1>{floorMap.branchName}</h1>
         </div>
         <div className="screen-actions">
+          <span className={`map-load-state ${floorMap.loadStatus}`}>{loadLabel}</span>
           <button type="button" className="map-tool-action" onClick={() => triggerFeedback(setFeedback, 'Техрежим')}>
             <Wrench size={14} />Техрежим
           </button>
@@ -401,18 +617,18 @@ function MapWorkspace({
       </section>
 
       <section className="state-strip" aria-label="Сводка">
-        <StateFlag label="Сессии" value={String(countByTone('active'))} />
-        <StateFlag label="Свободно" value={String(countByTone('ready'))} />
-        <StateFlag label="Команды" value={String(countByTone('pending'))} critical={countByTone('pending') > 0} />
-        <StateFlag label="Нет связи" value={String(countByTone('offline'))} critical={countByTone('offline') > 0} />
-        <StateFlag label="Проблемы" value={String(countProblems())} critical={countProblems() > 0} />
+        <StateFlag label="Сессии" value={String(activeCount)} />
+        <StateFlag label="Свободно" value={String(readyCount)} />
+        <StateFlag label="Команды" value={String(pendingCount)} critical={pendingCount > 0} />
+        <StateFlag label="Нет связи" value={String(offlineCount)} critical={offlineCount > 0} />
+        <StateFlag label="Проблемы" value={String(problemCount)} critical={problemCount > 0} />
         <StateFlag label="Касса" value={`4 820 ${currencyCode}`} />
       </section>
       <FeedbackNotice feedback={feedback} />
 
       <section className="map-board" aria-label="ПК зала">
         <div className="seat-grid">
-          {seats.map((seat) => (
+          {floorMap.seats.map((seat) => (
             <SeatTile
               key={seat.id}
               seat={seat}
@@ -845,7 +1061,7 @@ function PosWorkspace({ currencyCode }: { currencyCode: string }) {
 
       return [...items, { name: product.name, quantity: 1, price: product.price }];
     });
-    triggerFeedback(setFeedback, `${product.name} добавлен`);
+    triggerFeedback(setFeedback, `${product.name} добавлен`, 'confirmed');
   };
 
   return (
@@ -1559,7 +1775,7 @@ function SettingsWorkspace() {
   const markDirty = () => setSettingsDirty(true);
   const saveSettings = () => {
     if (!clubName.trim() || !city.trim()) {
-      triggerFeedback(setFeedback, 'Проверить обязательные поля', 'failed');
+      triggerFeedback(setFeedback, 'Проверить обязательные поля', 'failed', 'Заполните обязательные поля.');
       return;
     }
 
@@ -1735,11 +1951,57 @@ function SettingsWorkspace() {
   );
 }
 
-function MapSidePanel({ seat, currencyCode }: { seat: SeatSummary; currencyCode: string }) {
+function MapSidePanel({
+  seat,
+  seats: floorSeats,
+  currencyCode,
+  actionsEnabled,
+  onSeatAction
+}: {
+  seat: SeatSummary;
+  seats: SeatSummary[];
+  currencyCode: string;
+  actionsEnabled: boolean;
+  onSeatAction: (request: SeatActionRequest) => Promise<void>;
+}) {
   const status = mapSeatStatus(seat);
   const activeBilling = billingLabel(seat.billing);
   const billingModes = ['Гость', 'Депозит', 'Пакет', 'Постоплата'];
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const transferCandidates = floorSeats.filter((candidate) =>
+    candidate.id !== seat.id &&
+    candidate.tone === 'ready' &&
+    !candidate.activeSessionId);
+  const [targetSeatId, setTargetSeatId] = useState(transferCandidates[0]?.id ?? '');
+  const hasActionableSession = Boolean(seat.activeSessionId);
+  const hasActiveSession = hasActionableSession || seat.hasActiveSession === true || seat.tone === 'active';
+  const isBusy = feedback.state === 'pending';
+  const canStartSession = actionsEnabled && !hasActionableSession && seat.tone === 'ready';
+  const canManageActiveSession = actionsEnabled && hasActionableSession;
+  const canTransferSession = canManageActiveSession && targetSeatId.length > 0;
+
+  useEffect(() => {
+    if (targetSeatId.length > 0 && transferCandidates.some((candidate) => candidate.id === targetSeatId)) {
+      return;
+    }
+
+    setTargetSeatId(transferCandidates[0]?.id ?? '');
+  }, [seat.id, floorSeats]);
+
+  const runSeatAction = async (label: string, request: SeatActionRequest) => {
+    setFeedback({ label, state: 'pending' });
+
+    try {
+      await onSeatAction(request);
+      setFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      setFeedback({
+        label,
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
 
   return (
     <aside className="context-panel">
@@ -1757,11 +2019,31 @@ function MapSidePanel({ seat, currencyCode }: { seat: SeatSummary; currencyCode:
       </section>
 
       <section className="action-grid context-actions" aria-label="Быстрые действия">
-        <button type="button" onClick={() => triggerFeedback(setFeedback, '+15 мин')}><Plus size={15} />15 мин</button>
-        <button type="button" onClick={() => triggerFeedback(setFeedback, '+30 мин')}><TimerReset size={15} />30 мин</button>
-        <button type="button" onClick={() => triggerFeedback(setFeedback, 'Перенос')}><ArrowRightLeft size={15} />Перенос</button>
-        <button type="button" className="danger" onClick={() => triggerFeedback(setFeedback, 'Стоп')}><Square size={15} />Стоп</button>
+        {hasActiveSession ? (
+          <>
+            <button type="button" disabled={!canManageActiveSession || isBusy} onClick={() => runSeatAction('+15 мин', { type: 'extend', seat, minutes: 15 })}><Plus size={15} />15 мин</button>
+            <button type="button" disabled={!canManageActiveSession || isBusy} onClick={() => runSeatAction('+30 мин', { type: 'extend', seat, minutes: 30 })}><TimerReset size={15} />30 мин</button>
+            <button type="button" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction('Перенос', { type: 'transfer', seat, targetSeatId })}><ArrowRightLeft size={15} />Перенос</button>
+            <button type="button" className="danger" disabled={!canManageActiveSession || isBusy} onClick={() => runSeatAction('Стоп', { type: 'end', seat })}><Square size={15} />Стоп</button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction('Старт 60 мин', { type: 'start', seat })}><Plus size={15} />Старт 60 мин</button>
+            <button type="button" disabled><TimerReset size={15} />Нет сессии</button>
+          </>
+        )}
       </section>
+      {hasActiveSession && (
+        <label className="context-transfer-target">
+          <span>Перенести на</span>
+          <select value={targetSeatId} disabled={!actionsEnabled || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
+            {transferCandidates.length === 0 && <option value="">Нет свободных ПК</option>}
+            {transferCandidates.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+            ))}
+          </select>
+        </label>
+      )}
       <FeedbackNotice feedback={feedback} />
 
       <section className="context-section">
@@ -1793,7 +2075,7 @@ function MapSidePanel({ seat, currencyCode }: { seat: SeatSummary; currencyCode:
         </div>
         <div className="detail-row">
           <span>Подтверждение</span>
-          <strong>{feedback.state === 'idle' ? 'Ждём платформу' : feedbackText(feedback)}</strong>
+          <strong>{!actionsEnabled ? 'Backend карта недоступна' : feedback.state === 'idle' ? 'Ждём платформу' : feedbackText(feedback)}</strong>
         </div>
       </section>
 
@@ -1839,11 +2121,2079 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
   );
 }
 
+type PosCatalogItem = {
+  productId?: string;
+  name: string;
+  priceMinorUnits: number;
+  category: string;
+  note: string;
+  stockOnHand: number;
+  source: 'fixture' | 'backend';
+};
+
+type PosCartItem = PosCatalogItem & {
+  quantity: number;
+};
+
+const fixturePosProducts: PosCatalogItem[] = [
+  { name: 'Cola 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'fixture', stockOnHand: 0, source: 'fixture' },
+  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'fixture', stockOnHand: 0, source: 'fixture' },
+  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'fixture', stockOnHand: 0, source: 'fixture' },
+  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'fixture', stockOnHand: 0, source: 'fixture' }
+];
+
+function projectPosProduct(product: PosProductDto, currencyCode: string): PosCatalogItem {
+  const price = readMoney(product, 'price');
+  return {
+    productId: readString(product, 'productId') || undefined,
+    name: readString(product, 'name', 'POS item'),
+    priceMinorUnits: price?.minorUnits ?? 0,
+    category: readString(product, 'categoryName', readString(product, 'categoryId', 'Каталог')),
+    note: `${readString(product, 'sku', 'SKU')} · ${readNumber(product, 'stockOnHand', 0)} шт.`,
+    stockOnHand: readNumber(product, 'stockOnHand', 0),
+    source: price?.currencyCode === currencyCode || price !== null ? 'backend' : 'backend'
+  };
+}
+
+function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const [activeCategory, setActiveCategory] = useState('Все');
+  const [productSearch, setProductSearch] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Наличные');
+  const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
+  const [currentShift, setCurrentShift] = useState<ShiftDto | null>(null);
+  const [catalog, setCatalog] = useState<PosCatalogItem[]>(fixturePosProducts);
+  const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
+  const [lastSale, setLastSale] = useState<PosSaleDto | null>(null);
+  const [cartItems, setCartItems] = useState<PosCartItem[]>([
+    { ...fixturePosProducts[0], quantity: 1 },
+    { ...fixturePosProducts[3], quantity: 1 }
+  ]);
+
+  const loadBackendPos = async (nextBackend = backend) => {
+    if (nextBackend === null) {
+      setLoadStatus('fixture');
+      return;
+    }
+
+    setLoadStatus('loading');
+    try {
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const [nextCatalog, nextShift, nextSalesReport] = await Promise.all([
+        clients.pos.getCatalog(nextBackend.branchId),
+        clients.shifts.getCurrentShift(nextBackend.branchId),
+        clients.shifts.getSalesReport(nextBackend.branchId, { limit: 8 })
+      ]);
+
+      const products = Array.isArray(nextCatalog)
+        ? nextCatalog.map((product) => projectPosProduct(product, currencyCode))
+        : [];
+
+      setCatalog(products.length > 0 ? products : fixturePosProducts);
+      setCurrentShift(nextShift);
+      setSalesReport(nextSalesReport);
+      setCartItems((items) => {
+        if (products.length === 0 || items.some((item) => item.source === 'backend')) {
+          return items;
+        }
+
+        return [{ ...products[0], quantity: 1 }];
+      });
+      setLoadStatus('backend');
+    } catch (error) {
+      setLoadStatus('failed');
+      setFeedback({
+        label: 'POS',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
+  useEffect(() => {
+    void loadBackendPos();
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
+
+  const categories = ['Все', ...Array.from(new Set(catalog.map((product) => product.category))).slice(0, 5)];
+  const visibleProducts = catalog.filter((product) => {
+    const categoryMatches = activeCategory === 'Все' || product.category === activeCategory;
+    const searchMatches = `${product.name} ${product.category} ${product.note}`.toLowerCase().includes(productSearch.trim().toLowerCase());
+    return categoryMatches && searchMatches;
+  });
+  const cartTotalMinorUnits = cartItems.reduce((sum, item) => sum + item.priceMinorUnits * item.quantity, 0);
+  const acceptedCashMinorUnits = paymentMethod === 'Наличные'
+    ? Math.ceil(cartTotalMinorUnits / 1000) * 1000
+    : cartTotalMinorUnits;
+  const changeMinorUnits = acceptedCashMinorUnits - cartTotalMinorUnits;
+  const salesRows = readArray(salesReport, 'rows');
+  const grossSales = readMoney(salesReport, 'grossSalesTotal');
+  const refundsTotal = readMoney(salesReport, 'refundsTotal');
+  const lowStockCount = catalog.filter((product) => product.source === 'backend' && product.stockOnHand <= 2).length;
+  const shiftId = readString(currentShift, 'shiftId');
+  const shiftState = readString(currentShift, 'state', currentShift === null ? 'нет смены' : 'unknown');
+
+  const addProduct = (product: PosCatalogItem) => {
+    setCartItems((items) => {
+      const existing = items.find((item) => item.name === product.name);
+      if (existing) {
+        return items.map((item) => item.name === product.name ? { ...item, quantity: item.quantity + 1 } : item);
+      }
+
+      return [...items, { ...product, quantity: 1 }];
+    });
+    triggerFeedback(setFeedback, `${product.name} добавлен`, 'confirmed');
+  };
+
+  const acceptPayment = async () => {
+    setFeedback({ label: 'Оплата', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      if (!shiftId) {
+        throw new Error('Open shift is required before POS payment.');
+      }
+
+      if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
+        throw new Error('Backend POS catalog is not loaded for the current cart.');
+      }
+
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const sale = await clients.pos.createSale(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        shiftId,
+        lines: cartItems.map((item) => ({
+          productId: item.productId!,
+          quantity: item.quantity,
+          unitPrice: {
+            currencyCode,
+            minorUnits: item.priceMinorUnits
+          }
+        })),
+        idempotencyKey: createIdempotencyKey('pos-sale')
+      });
+      const saleId = readString(sale, 'posSaleId');
+      if (!saleId) {
+        throw new Error('Platform API returned a POS sale without sale id.');
+      }
+
+      const paidSale = await clients.pos.paySaleManual(saleId, {
+        organizationId: nextBackend.session.organizationId,
+        paymentMethod: paymentMethod === 'Карта' ? 'card' : paymentMethod === 'Депозит' ? 'wallet' : 'cash',
+        amount: {
+          currencyCode,
+          minorUnits: cartTotalMinorUnits
+        },
+        note: 'operator POS checkout',
+        idempotencyKey: createIdempotencyKey('pos-payment')
+      });
+
+      setLastSale(paidSale);
+      setCartItems([]);
+      setFeedback({ label: 'Оплата', state: 'confirmed' });
+      await loadBackendPos(nextBackend);
+    } catch (error) {
+      setFeedback({
+        label: 'Оплата',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
+  return (
+    <main className="workspace-screen pos-screen">
+      <section className="screen-head pos-head">
+        <div>
+          <span>POS</span>
+          <h1>POS · продажа и кассовые операции</h1>
+        </div>
+        <div className="screen-actions">
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend live' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+        </div>
+      </section>
+
+      <section className="state-strip pos-state-strip" aria-label="Сводка POS">
+        <StateFlag label="Продажи" value={`${salesRows.length} · ${grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`}`} />
+        <StateFlag label="Возвраты" value={refundsTotal ? formatMinorUnits(refundsTotal.minorUnits, refundsTotal.currencyCode) : `0 ${currencyCode}`} critical={(refundsTotal?.minorUnits ?? 0) > 0} />
+        <StateFlag label="Товары" value={`${catalog.length} поз.`} />
+        <StateFlag label="Склад" value={`${lowStockCount} низко`} critical={lowStockCount > 0} />
+        <StateFlag label="Смена" value={shiftState} critical={!shiftId} />
+      </section>
+
+      <section className="pos-layout">
+        <section className="pos-panel pos-catalog-panel">
+          <header className="pos-panel-title">
+            <span>Каталог</span>
+            <strong>backend catalog, stock and search</strong>
+          </header>
+          <label className="pos-search">
+            <Search size={14} />
+            <input
+              placeholder="Товар, услуга, SKU"
+              value={productSearch}
+              onChange={(event) => setProductSearch(event.currentTarget.value)}
+            />
+          </label>
+          <div className="pos-category-row" aria-label="Категории POS">
+            {categories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                className={activeCategory === category ? 'active' : undefined}
+                onClick={() => setActiveCategory(category)}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+          <div className="pos-catalog-grid">
+            {visibleProducts.map((product) => (
+              <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="pos-product-card" onClick={() => addProduct(product)}>
+                <strong>{product.name}</strong>
+                <span>{product.category}</span>
+                <b>{formatMinorUnits(product.priceMinorUnits, currencyCode)}</b>
+                <em>{product.note}</em>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="pos-panel pos-cart-panel">
+          <header className="pos-panel-title">
+            <span>Корзина</span>
+            <strong>{shiftId ? `смена ${shiftId.slice(0, 8)}` : 'откройте смену'}</strong>
+          </header>
+          <div className="pos-cart-client">
+            <UserRoundPlus size={17} />
+            <div>
+              <span>Клиент</span>
+              <strong>Гость · без карты</strong>
+            </div>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Выбрать клиента')}>Выбрать</button>
+          </div>
+          <div className="pos-cart-list">
+            {cartItems.map((item) => (
+              <article key={`${item.productId ?? item.name}-${item.name}`} className="pos-cart-row interactive-row">
+                <div>
+                  <strong>{item.name}</strong>
+                  <span>{item.quantity} шт.</span>
+                </div>
+                <b>{formatMinorUnits(item.priceMinorUnits * item.quantity, currencyCode)}</b>
+              </article>
+            ))}
+          </div>
+          <div className="pos-total-card">
+            <span>Итого к оплате</span>
+            <strong>{formatMinorUnits(cartTotalMinorUnits, currencyCode)}</strong>
+            <em>{lastSale ? `последний чек ${readString(lastSale, 'posSaleId').slice(0, 8)}` : 'чек создаётся только после ответа backend'}</em>
+          </div>
+          <FeedbackNotice feedback={feedback} />
+        </section>
+
+        <section className="pos-panel pos-payment-panel">
+          <header className="pos-panel-title">
+            <span>Оплата</span>
+            <strong>backend sale + manual provider</strong>
+          </header>
+          <div className="pos-payment-methods">
+            {['Наличные', 'Карта', 'Депозит'].map((method) => (
+              <button
+                key={method}
+                type="button"
+                className={paymentMethod === method ? 'active' : undefined}
+                onClick={() => setPaymentMethod(method)}
+              >
+                {method === 'Наличные' && <Banknote size={15} />}
+                {method === 'Карта' && <CircleDollarSign size={15} />}
+                {method === 'Депозит' && <ReceiptText size={15} />}
+                {method}
+              </button>
+            ))}
+          </div>
+          <div className="pos-payment-summary">
+            <div><span>Принято</span><strong>{formatMinorUnits(acceptedCashMinorUnits, currencyCode)}</strong></div>
+            <div><span>Сдача</span><strong>{formatMinorUnits(changeMinorUnits, currencyCode)}</strong></div>
+            <div><span>Смена</span><strong>{shiftId ? 'Открыта' : 'Нет'}</strong></div>
+          </div>
+          <button type="button" className="pos-primary-action" disabled={feedback.state === 'pending'} onClick={acceptPayment}>Принять оплату</button>
+          <button type="button" className="pos-secondary-action" onClick={() => setCartItems([])}>Очистить корзину</button>
+        </section>
+
+        <section className="pos-panel pos-receipts-panel">
+          <header className="pos-panel-title">
+            <span>Последние чеки</span>
+            <strong>sales report from backend</strong>
+          </header>
+          <div className="pos-receipt-list">
+            {salesRows.slice(0, 4).map((row) => (
+              <article key={readString(row, 'posSaleId')} className="pos-receipt-row">
+                <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
+                <strong>{readString(row, 'state', 'sale')}</strong>
+                <em>{readNumber(row, 'lineCount', 0)} lines</em>
+                <b>{formatMoney(readMoney(row, 'total'), currencyCode)}</b>
+              </article>
+            ))}
+            {salesRows.length === 0 && (
+              <article className="pos-receipt-row">
+                <span>—</span>
+                <strong>Чеков нет</strong>
+                <em>backend</em>
+                <b>0 {currencyCode}</b>
+              </article>
+            )}
+          </div>
+        </section>
+
+        <section className="pos-panel pos-quick-panel">
+          <header className="pos-panel-title">
+            <span>Быстрые операции</span>
+            <strong>actions require backend confirmation</strong>
+          </header>
+          <div className="pos-quick-grid">
+            {[
+              ['Пополнить депозит', 'откройте экран клиентов', CircleDollarSign],
+              ['Возврат по чеку', 'требует выбранный backend sale', ReceiptText],
+              ['Новый клиент', 'экран клиентов', UserRoundPlus],
+              ['Внести наличные', 'экран платежей', Banknote]
+            ].map(([label, detail, Icon]) => (
+              <button key={label as string} type="button" className="pos-quick-card" onClick={() => triggerFeedback(setFeedback, label as string)}>
+                <Icon size={17} />
+                <strong>{label as string}</strong>
+                <span>{detail as string}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+function BackendBookingWorkspace({
+  floorMap,
+  onOpenSeat
+}: {
+  floorMap: OperatorFloorMapState;
+  onOpenSeat: (seatId: string) => void;
+}) {
+  const [selectedBookingIndex, setSelectedBookingIndex] = useState(0);
+  const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const readySeats = floorMap.seats.filter((seat) => seat.tone === 'ready' && !seat.activeSessionId);
+  const activeSeats = floorMap.seats.filter((seat) => seat.tone === 'active' || seat.activeSessionId);
+  const problemSeats = floorMap.seats.filter((seat) => problemTones.has(seat.tone));
+  const bookings = readySeats.slice(0, 4).map((seat, index) => ({
+    time: `${16 + Math.floor(index / 2)}:${index % 2 === 0 ? '00' : '30'}`,
+    client: `Свободный слот · ${seat.name}`,
+    seats: '1 ПК',
+    zone: seat.zone,
+    duration: '60 мин',
+    status: floorMap.source === 'backend' ? 'Доступно по backend' : 'Fixture слот',
+    tone: floorMap.source === 'backend' ? 'confirmed' : 'pending',
+    note: `${seat.deviceName ?? seat.name} · ${deviceStatusLabel(seat.device)}`,
+    seatId: seat.id
+  }));
+  const selectedBooking = bookings[selectedBookingIndex] ?? bookings[0] ?? {
+    time: '—',
+    client: 'Нет свободных слотов',
+    seats: '0 ПК',
+    zone: floorMap.branchName,
+    duration: '—',
+    status: 'Нет доступных мест',
+    tone: 'pending',
+    note: 'Проверьте карту зала',
+    seatId: ''
+  };
+  const bookingContractMissing = 'Backend-контракт бронирований ещё не реализован.';
+  const failBookingAction = (label: string) => triggerFeedback(setFeedback, label, 'failed', bookingContractMissing);
+
+  return (
+    <main className="workspace-screen booking-screen">
+      <section className="screen-head booking-head">
+        <div>
+          <span>Брони</span>
+          <h1>Брони сегодня · доступность мест из backend карты</h1>
+        </div>
+        <div className="screen-actions">
+          <span className={`map-load-state ${floorMap.source === 'backend' ? 'ready' : floorMap.loadStatus}`}>{floorMap.source === 'backend' ? 'Backend floor map' : 'Fixture availability'}</span>
+          <button type="button" className="booking-create-action" onClick={() => failBookingAction('Новая бронь')}><Plus size={14} />Создать</button>
+        </div>
+      </section>
+
+      <section className="state-strip booking-state-strip">
+        <StateFlag label="Свободно" value={String(readySeats.length)} />
+        <StateFlag label="Занято" value={String(activeSeats.length)} />
+        <StateFlag label="Проблемы" value={String(problemSeats.length)} critical={problemSeats.length > 0} />
+        <StateFlag label="Источник" value={floorMap.source} critical={floorMap.source !== 'backend'} />
+        <StateFlag label="Слоты" value={String(bookings.length)} />
+      </section>
+
+      <section className="booking-layout">
+        <section className="booking-panel booking-timeline-panel">
+          <header className="booking-panel-title">
+            <span>Лента броней</span>
+            <strong>показывает доступность, пока booking API отсутствует</strong>
+          </header>
+          <div className="booking-list">
+            {bookings.map((booking, index) => (
+              <button
+                key={`${booking.time}-${booking.seatId}`}
+                type="button"
+                className={`booking-card ${booking.tone}${index === selectedBookingIndex ? ' active' : ''}`}
+                onClick={() => setSelectedBookingIndex(index)}
+              >
+                <span className="booking-time">{booking.time}</span>
+                <span className="booking-client">
+                  <strong>{booking.client}</strong>
+                  <em>{booking.note}</em>
+                </span>
+                <span className="booking-meta">{booking.seats} · {booking.zone} · {booking.duration}</span>
+                <b>{booking.status}</b>
+              </button>
+            ))}
+            {bookings.length === 0 && (
+              <article className="booking-card pending">
+                <span className="booking-time">—</span>
+                <span className="booking-client">
+                  <strong>Нет свободных мест</strong>
+                  <em>backend карта не дала доступных слотов</em>
+                </span>
+                <span className="booking-meta">{floorMap.branchName}</span>
+                <b>Нет слота</b>
+              </article>
+            )}
+          </div>
+        </section>
+
+        <section className="booking-panel booking-selected-panel">
+          <header className="booking-panel-title">
+            <span>Выбранная бронь</span>
+            <strong>{selectedBooking.client} · {selectedBooking.time}</strong>
+          </header>
+          <div className={`booking-status-card ${selectedBooking.tone}`}>
+            <span>Доступность подтверждена картой</span>
+            <strong>{selectedBooking.time}</strong>
+            <em>{selectedBooking.seats} · {selectedBooking.zone} · {selectedBooking.duration}</em>
+          </div>
+          <div className="booking-action-grid" aria-label="Действия с бронью">
+            <button type="button" onClick={() => selectedBooking.seatId ? onOpenSeat(selectedBooking.seatId) : failBookingAction('Открыть карту')}><MonitorCheck size={15} />Открыть карту</button>
+            <button type="button" onClick={() => failBookingAction('Посадить бронь')}><UserRoundPlus size={15} />Посадить</button>
+            <button type="button" onClick={() => failBookingAction('Перенести бронь')}><ArrowRightLeft size={15} />Перенести</button>
+            <button type="button" className="danger" onClick={() => failBookingAction('Отменить бронь')}><Square size={15} />Отменить</button>
+          </div>
+          <FeedbackNotice feedback={feedback} />
+          <div className="booking-detail-list">
+            <div><span>Клиент</span><strong>{selectedBooking.client}</strong></div>
+            <div><span>Комментарий</span><strong>{selectedBooking.note}</strong></div>
+            <div><span>Backend</span><strong>{bookingContractMissing}</strong></div>
+          </div>
+        </section>
+
+        <section className="booking-panel booking-requests-panel">
+          <header className="booking-panel-title">
+            <span>Онлайн-заявки</span>
+            <strong>нет backend источника заявок</strong>
+          </header>
+          <div className="booking-request-list">
+            {['Telegram', 'Сайт'].map((source, index) => (
+              <article key={source} className="booking-request-card">
+                <span>{index === 0 ? '—' : '—'}</span>
+                <strong>{source}</strong>
+                <em>{bookingContractMissing}</em>
+                <div>
+                  <button type="button" onClick={() => failBookingAction(`Принять ${source}`)}>Принять</button>
+                  <button type="button" onClick={() => failBookingAction(`Уточнить ${source}`)}>Уточнить</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="booking-panel booking-create-panel">
+          <header className="booking-panel-title">
+            <span>Новая бронь</span>
+            <strong>черновик ждёт backend booking API</strong>
+          </header>
+          <div className="booking-form-grid">
+            <label>Клиент<input value="имя или телефон" readOnly /></label>
+            <label>Старт<input value={selectedBooking.time} readOnly /></label>
+            <label>Длительность<input value={selectedBooking.duration} readOnly /></label>
+            <label>ПК<input value={selectedBooking.zone} readOnly /></label>
+          </div>
+          <button type="button" className="booking-primary-action" onClick={() => failBookingAction('Создать бронь')}>Создать бронь</button>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+type PlayerClientItem = {
+  playerAccountId?: string;
+  name: string;
+  status: string;
+  balanceMinorUnits: number;
+  debtMinorUnits: number;
+  last: string;
+  tone: string;
+  detail: string;
+  phoneNumber: string;
+  source: 'fixture' | 'backend';
+};
+
+function fixturePlayers(currencyCode: string): PlayerClientItem[] {
+  return [
+    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'fixture', tone: 'vip', detail: 'fixture client', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'fixture', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
+    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'fixture', tone: 'debt', detail: 'postpaid debt', phoneNumber: '', source: 'fixture' }
+  ];
+}
+
+function projectPlayerClient(player: unknown): PlayerClientItem {
+  const debt = readNumber(player, 'debtBalanceMinorUnits', 0);
+  const packages = readNumber(player, 'activePackageCount', 0);
+  const isActive = isRecord(player) && player.isActive !== false;
+  return {
+    playerAccountId: readString(player, 'playerAccountId') || undefined,
+    name: readString(player, 'displayName', 'Player'),
+    status: debt > 0 ? 'Долг' : packages > 0 ? 'Пакет' : isActive ? 'Активен' : 'Неактивен',
+    balanceMinorUnits: readNumber(player, 'walletBalanceMinorUnits', 0),
+    debtMinorUnits: debt,
+    last: packages > 0 ? `${packages} пак.` : 'backend',
+    tone: debt > 0 ? 'debt' : packages > 0 ? 'vip' : isActive ? 'active' : 'regular',
+    detail: `${readString(player, 'phoneNumber', 'без телефона')} · ${packages} пакетов`,
+    phoneNumber: readString(player, 'phoneNumber', ''),
+    source: 'backend'
+  };
+}
+
+function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const [clientSearch, setClientSearch] = useState('');
+  const [activeSegment, setActiveSegment] = useState('Все');
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
+  const [clients, setClients] = useState<PlayerClientItem[]>(() => fixturePlayers(currencyCode));
+  const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
+
+  useEffect(() => {
+    if (backend === null) {
+      setLoadStatus('fixture');
+      return undefined;
+    }
+
+    let disposed = false;
+    const loadPlayers = async () => {
+      setLoadStatus('loading');
+      try {
+        const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
+        const players = await apiClients.players.searchPlayers(backend.branchId, clientSearch, 25);
+        if (disposed) {
+          return;
+        }
+
+        const nextClients = Array.isArray(players) ? players.map(projectPlayerClient) : [];
+        setClients(nextClients.length > 0 ? nextClients : []);
+        setSelectedClientId((current) => current && nextClients.some((client) => client.playerAccountId === current)
+          ? current
+          : nextClients[0]?.playerAccountId ?? null);
+        setLoadStatus('backend');
+      } catch (error) {
+        if (!disposed) {
+          setLoadStatus('failed');
+          setFeedback({ label: 'Клиенты', state: 'failed', detail: projectOperatorError(error).detail });
+        }
+      }
+    };
+
+    const timer = window.setTimeout(() => void loadPlayers(), 180);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode]);
+
+  const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId)
+    ?? clients[0]
+    ?? fixturePlayers(currencyCode)[0];
+
+  useEffect(() => {
+    if (backend === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
+      setWalletSummary(null);
+      return undefined;
+    }
+
+    let disposed = false;
+    const loadWallet = async () => {
+      try {
+        const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
+        const wallet = await apiClients.players.getWalletSummary(selectedClient.playerAccountId!);
+        if (!disposed) {
+          setWalletSummary(wallet);
+        }
+      } catch (error) {
+        if (!disposed) {
+          setFeedback({ label: selectedClient.name, state: 'failed', detail: projectOperatorError(error).detail });
+        }
+      }
+    };
+
+    void loadWallet();
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient.playerAccountId, selectedClient.source]);
+
+  const visibleClients = clients.filter((client) => {
+    const segmentMatches = activeSegment === 'Все'
+      || (activeSegment === 'VIP' && client.tone === 'vip')
+      || (activeSegment === 'Есть долг' && client.debtMinorUnits > 0)
+      || (activeSegment === 'Новые' && client.source === 'backend')
+      || (activeSegment === 'Спящие' && client.status === 'Неактивен');
+    const searchMatches = `${client.name} ${client.status} ${client.detail} ${client.last}`.toLowerCase().includes(clientSearch.trim().toLowerCase());
+    return segmentMatches && searchMatches;
+  });
+  const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient.balanceMinorUnits;
+  const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient.debtMinorUnits;
+  const recentEntries = readArray(walletSummary, 'recentEntries');
+
+  const runClientAction = async (label: string) => {
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+
+      if (label === 'Пополнить депозит') {
+        if (!selectedClient.playerAccountId) {
+          throw new Error('Select a backend player before wallet top-up.');
+        }
+
+        const wallet = await apiClients.players.topUpWallet(selectedClient.playerAccountId, {
+          organizationId: nextBackend.session.organizationId,
+          amount: moneyDto(currencyCode, 100),
+          reason: 'operator quick top-up',
+          idempotencyKey: createIdempotencyKey('wallet-top-up')
+        });
+        setWalletSummary(wallet);
+      } else if (label === 'Списать долг') {
+        if (!selectedClient.playerAccountId) {
+          throw new Error('Select a backend player before debt payment.');
+        }
+
+        const wallet = await apiClients.players.payDebt(selectedClient.playerAccountId, {
+          organizationId: nextBackend.session.organizationId,
+          amount: {
+            currencyCode,
+            minorUnits: Math.max(debt, 1000)
+          },
+          reason: 'operator debt payment',
+          idempotencyKey: createIdempotencyKey('debt-payment')
+        });
+        setWalletSummary(wallet);
+      } else if (label === 'Новая карта') {
+        const created = await apiClients.players.createPlayer(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          displayName: clientSearch.trim() || `Новый клиент ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`,
+          phoneNumber: null,
+          idempotencyKey: createIdempotencyKey('player-create')
+        });
+        const createdClient = projectPlayerClient({
+          playerAccountId: readString(created, 'playerAccountId'),
+          displayName: readString(created, 'displayName', 'Новый клиент'),
+          phoneNumber: readString(created, 'phoneNumber'),
+          walletBalanceMinorUnits: 0,
+          debtBalanceMinorUnits: 0,
+          activePackageCount: 0,
+          isActive: true
+        });
+        setClients((items) => [createdClient, ...items]);
+        setSelectedClientId(createdClient.playerAccountId ?? null);
+      } else {
+        throw new Error('Backend booking contract is not implemented yet.');
+      }
+
+      setFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  return (
+    <main className="workspace-screen clients-screen">
+      <section className="screen-head clients-head">
+        <div>
+          <span>Клиенты</span>
+          <h1>Клиенты · поиск, депозит и долги</h1>
+        </div>
+        <div className="screen-actions">
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend live' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+        </div>
+      </section>
+
+      <section className="state-strip clients-state-strip" aria-label="Сводка клиентов">
+        <StateFlag label="Клиенты" value={String(clients.length)} />
+        <StateFlag label="Backend" value={String(clients.filter((client) => client.source === 'backend').length)} critical={loadStatus !== 'backend'} />
+        <StateFlag label="Депозит" value={formatMinorUnits(balance, currencyCode)} />
+        <StateFlag label="Долг" value={formatMinorUnits(debt, currencyCode)} critical={debt > 0} />
+        <StateFlag label="Записи" value={String(recentEntries.length)} />
+      </section>
+
+      <section className="clients-layout">
+        <section className="clients-panel clients-list-panel">
+          <header className="clients-panel-title">
+            <span>Список клиентов</span>
+            <strong>backend search by name, phone or card</strong>
+          </header>
+          <label className="clients-search">
+            <Search size={14} />
+            <input
+              placeholder="Игрок, телефон, карта"
+              value={clientSearch}
+              onChange={(event) => setClientSearch(event.currentTarget.value)}
+            />
+          </label>
+          <div className="clients-list">
+            {visibleClients.map((client) => (
+              <button
+                key={client.playerAccountId ?? client.name}
+                type="button"
+                className={`client-row ${client.tone}${client.playerAccountId === selectedClient.playerAccountId ? ' selected' : ''}`}
+                onClick={() => setSelectedClientId(client.playerAccountId ?? null)}
+              >
+                <span>{client.status}</span>
+                <div>
+                  <strong>{client.name}</strong>
+                  <em>{client.detail}</em>
+                </div>
+                <b>{formatMinorUnits(client.balanceMinorUnits, currencyCode)}</b>
+                <small>{client.last}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="clients-panel clients-profile-panel">
+          <header className="clients-panel-title">
+            <span>Карточка клиента</span>
+            <strong>выбранный игрок</strong>
+          </header>
+          <div className="client-profile-card">
+            <div className="client-avatar">{selectedClient.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</div>
+            <div>
+              <span>{selectedClient.status}</span>
+              <strong>{selectedClient.name}</strong>
+              <em>{selectedClient.phoneNumber || 'без телефона'} · {selectedClient.source}</em>
+            </div>
+          </div>
+          <div className="client-metrics-grid">
+            <div><span>Депозит</span><strong>{formatMinorUnits(balance, currencyCode)}</strong></div>
+            <div><span>Долг</span><strong>{formatMinorUnits(debt, currencyCode)}</strong></div>
+            <div><span>Пакеты</span><strong>{selectedClient.detail.includes('пакетов') ? selectedClient.detail.split(' · ')[1] : '0'}</strong></div>
+            <div><span>Источник</span><strong>{selectedClient.source}</strong></div>
+          </div>
+        </section>
+
+        <section className="clients-panel clients-actions-panel">
+          <header className="clients-panel-title">
+            <span>Операции</span>
+            <strong>money actions wait for backend</strong>
+          </header>
+          <div className="clients-action-grid">
+            {[
+              ['Пополнить депозит', '100 к депозиту', CircleDollarSign],
+              ['Списать долг', 'после оплаты', ReceiptText],
+              ['Создать бронь', 'нет booking API', CalendarClock],
+              ['Новая карта', 'создать игрока', UserRoundPlus]
+            ].map(([label, detail, Icon]) => (
+              <button key={label as string} type="button" className="clients-action-card" onClick={() => runClientAction(label as string)}>
+                <Icon size={17} />
+                <strong>{label as string}</strong>
+                <span>{detail as string}</span>
+              </button>
+            ))}
+          </div>
+          <FeedbackNotice feedback={feedback} />
+        </section>
+
+        <section className="clients-panel clients-segments-panel">
+          <header className="clients-panel-title">
+            <span>Сегменты</span>
+            <strong>filtered backend results</strong>
+          </header>
+          <div className="clients-segment-grid">
+            {[
+              ['Все', `${clients.length} клиентов`],
+              ['VIP', `${clients.filter((client) => client.tone === 'vip').length} клиентов`],
+              ['Есть долг', `${clients.filter((client) => client.debtMinorUnits > 0).length} клиентов`],
+              ['Спящие', 'неактивные'],
+              ['Новые', 'из backend поиска']
+            ].map(([label, detail]) => (
+              <button
+                key={label}
+                type="button"
+                className={activeSegment === label ? 'active' : undefined}
+                onClick={() => setActiveSegment(label)}
+              >
+                <strong>{label}</strong>
+                <span>{detail}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="clients-panel clients-history-panel">
+          <header className="clients-panel-title">
+            <span>История клиента</span>
+            <strong>recent ledger entries</strong>
+          </header>
+          <div className="clients-history-list">
+            {recentEntries.slice(0, 4).map((entry) => (
+              <article key={readString(entry, 'ledgerEntryId')} className="client-history-row">
+                <span>{formatTime(readString(entry, 'createdAtUtc'))}</span>
+                <strong>{readString(entry, 'entryType', 'ledger')}</strong>
+                <b>{formatMoney(readMoney(entry, 'amount'), currencyCode)}</b>
+              </article>
+            ))}
+            {recentEntries.length === 0 && (
+              <article className="client-history-row">
+                <span>—</span>
+                <strong>Операций нет</strong>
+                <b>0 {currencyCode}</b>
+              </article>
+            )}
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+type PaymentOperationItem = [string, string, string, string, string, string];
+
+function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [selectedOperationKey, setSelectedOperationKey] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState('Наличные');
+  const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
+  const [currentShift, setCurrentShift] = useState<ShiftDto | null>(null);
+  const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
+  const [cashReport, setCashReport] = useState<ReportResultDto | null>(null);
+  const [shiftReport, setShiftReport] = useState<ReportResultDto | null>(null);
+
+  const loadPayments = async (nextBackend = backend) => {
+    if (nextBackend === null) {
+      setLoadStatus('fixture');
+      return;
+    }
+
+    setLoadStatus('loading');
+    try {
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const [shift, sales, cash, shifts] = await Promise.all([
+        apiClients.shifts.getCurrentShift(nextBackend.branchId),
+        apiClients.shifts.getSalesReport(nextBackend.branchId, { limit: 12 }),
+        apiClients.shifts.getCashOperationReport(nextBackend.branchId, { limit: 12 }),
+        apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 6 })
+      ]);
+      setCurrentShift(shift);
+      setSalesReport(sales);
+      setCashReport(cash);
+      setShiftReport(shifts);
+      setLoadStatus('backend');
+    } catch (error) {
+      setLoadStatus('failed');
+      setFeedback({ label: 'Платежи', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  useEffect(() => {
+    void loadPayments();
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
+
+  const salesRows = readArray(salesReport, 'rows');
+  const cashRows = readArray(cashReport, 'rows');
+  const shiftRows = readArray(shiftReport, 'rows');
+  const operations: PaymentOperationItem[] = [
+    ...salesRows.map((row): PaymentOperationItem => [
+      formatTime(readString(row, 'createdAtUtc')),
+      readString(row, 'state', 'POS sale'),
+      readString(row, 'posSaleId').slice(0, 8),
+      'POS',
+      formatMoney(readMoney(row, 'total'), currencyCode),
+      readString(row, 'state', 'sale').toLowerCase().includes('refund') ? 'refund' : 'sale'
+    ]),
+    ...cashRows.map((row): PaymentOperationItem => [
+      formatTime(readString(row, 'createdAtUtc')),
+      readString(row, 'operationType', 'Cash'),
+      readString(row, 'reason', readString(row, 'sourceType', 'cash')),
+      readString(row, 'sourceType', 'cash'),
+      formatMoney(readMoney(row, 'cashImpact'), currencyCode),
+      readNumber(readMoney(row, 'cashImpact'), 'minorUnits', 0) < 0 ? 'refund' : 'deposit'
+    ])
+  ];
+  const fallbackOperations: PaymentOperationItem[] = [
+    ['—', 'Нет backend операций', 'отчёты пустые', 'backend', `0 ${currencyCode}`, 'session']
+  ];
+  const visibleOperations = (operations.length > 0 ? operations : fallbackOperations).filter(([time, type, client, method, total]) => (
+    `${time} ${type} ${client} ${method} ${total}`.toLowerCase().includes(paymentSearch.trim().toLowerCase())
+  ));
+  const selectedOperation = visibleOperations.find(([time, type, client]) => `${time}-${type}-${client}` === selectedOperationKey) ?? visibleOperations[0];
+  const grossSales = readMoney(salesReport, 'grossSalesTotal');
+  const refunds = readMoney(salesReport, 'refundsTotal');
+  const netSales = readMoney(salesReport, 'netSalesTotal');
+  const cashIn = readMoney(cashReport, 'cashInTotal');
+  const cashOut = readMoney(cashReport, 'cashOutTotal');
+  const latestShiftRow = shiftRows[0];
+  const expectedCash = readMoney(currentShift, 'expectedCash') ?? readMoney(latestShiftRow, 'expectedCash');
+  const countedCash = readMoney(currentShift, 'countedCash') ?? readMoney(latestShiftRow, 'countedCash');
+  const difference = readMoney(currentShift, 'difference') ?? readMoney(latestShiftRow, 'difference');
+  const methods = [
+    ['Наличные', cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, 'cash report', `${cashRows.length} операций`],
+    ['Карта', netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, 'sales report', `${salesRows.length} чеков`],
+    ['Возвраты', refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, 'refunds', 'backend'],
+    ['Расхождения', difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, 'shift close', 'backend']
+  ];
+
+  const runReportAction = async (label: string) => {
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      if (label === 'Журнал смены') {
+        await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
+      } else if (label === 'Кассовый отчёт') {
+        await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
+      } else if (label === 'Экспорт CSV') {
+        await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
+      } else {
+        await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
+      }
+
+      setFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  return (
+    <main className="workspace-screen payments-screen">
+      <section className="screen-head payments-head">
+        <div>
+          <span>Платежи</span>
+          <h1>Платежи · касса смены и сверка</h1>
+        </div>
+        <div className="screen-actions">
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend reports' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+        </div>
+      </section>
+
+      <section className="state-strip payments-state-strip" aria-label="Сводка платежей">
+        <StateFlag label="Выручка" value={grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`} />
+        <StateFlag label="Наличные" value={cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`} />
+        <StateFlag label="Возвраты" value={refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`} critical={(refunds?.minorUnits ?? 0) > 0} />
+        <StateFlag label="Смена" value={readString(currentShift, 'state', 'нет')} critical={currentShift === null} />
+        <StateFlag label="К сверке" value={difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`} critical={(difference?.minorUnits ?? 0) !== 0} />
+      </section>
+
+      <section className="payments-layout">
+        <section className="payments-panel payments-ledger-panel">
+          <header className="payments-panel-title">
+            <span>Операции смены</span>
+            <strong>sales and cash report rows</strong>
+          </header>
+          <label className="payments-search">
+            <Search size={14} />
+            <input
+              placeholder="Клиент, чек, ПК, сумма"
+              value={paymentSearch}
+              onChange={(event) => setPaymentSearch(event.currentTarget.value)}
+            />
+          </label>
+          <div className="payments-ledger-list">
+            {visibleOperations.map(([time, type, client, method, total, tone]) => (
+              <button
+                key={`${time}-${type}-${client}`}
+                type="button"
+                className={`payment-operation-row ${tone}${`${time}-${type}-${client}` === selectedOperationKey ? ' active' : ''}`}
+                onClick={() => setSelectedOperationKey(`${time}-${type}-${client}`)}
+              >
+                <span>{time}</span>
+                <div>
+                  <strong>{type}</strong>
+                  <em>{client}</em>
+                </div>
+                <small>{method}</small>
+                <b>{total}</b>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="payments-panel payments-summary-panel">
+          <header className="payments-panel-title">
+            <span>Итоги смены</span>
+            <strong>backend aggregates</strong>
+          </header>
+          <div className="payments-total-card">
+            <span>Всего · выбрано {selectedOperation[0]}</span>
+            <strong>{netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`}</strong>
+            <em>{selectedOperation[1]} · {selectedOperation[2]} · {selectedOperation[4]}</em>
+          </div>
+          <div className="payments-metric-grid">
+            <div><span>Чеков</span><strong>{salesRows.length}</strong></div>
+            <div><span>Cash rows</span><strong>{cashRows.length}</strong></div>
+            <div><span>Возвраты</span><strong>{refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`}</strong></div>
+            <div><span>Смены</span><strong>{shiftRows.length}</strong></div>
+          </div>
+        </section>
+
+        <section className="payments-panel payments-reconcile-panel">
+          <header className="payments-panel-title">
+            <span>Сверка кассы</span>
+            <strong>read model before close</strong>
+          </header>
+          <div className="payments-reconcile-list">
+            <div><span>Ожидается</span><strong>{expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`}</strong></div>
+            <div><span>Посчитано</span><strong>{countedCash ? formatMinorUnits(countedCash.minorUnits, countedCash.currencyCode) : 'не закрыта'}</strong></div>
+            <div className={(difference?.minorUnits ?? 0) !== 0 ? 'attention' : undefined}><span>Расхождение</span><strong>{difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`}</strong></div>
+          </div>
+          <button type="button" className="payments-primary-action" onClick={() => runReportAction('Подготовить закрытие')}>Подготовить закрытие</button>
+          <FeedbackNotice feedback={feedback} />
+        </section>
+
+        <section className="payments-panel payments-methods-panel">
+          <header className="payments-panel-title">
+            <span>Методы оплаты</span>
+            <strong>backend report breakdown</strong>
+          </header>
+          <div className="payments-method-grid">
+            {methods.map(([label, total, share, detail]) => (
+              <button
+                key={label}
+                type="button"
+                className={`payment-method-card${selectedMethod === label ? ' active' : ''}`}
+                onClick={() => setSelectedMethod(label)}
+              >
+                <strong>{label}</strong>
+                <b>{total}</b>
+                <span>{share} · {detail}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="payments-panel payments-cash-panel">
+          <header className="payments-panel-title">
+            <span>Движение наличных</span>
+            <strong>cash operation rows</strong>
+          </header>
+          <div className="payments-cash-list">
+            {cashRows.slice(0, 4).map((row) => (
+              <article key={readString(row, 'operationId')} className="payment-cash-row">
+                <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
+                <strong>{readString(row, 'operationType', 'cash')}</strong>
+                <b>{formatMoney(readMoney(row, 'cashImpact'), currencyCode)}</b>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="payments-panel payments-export-panel">
+          <header className="payments-panel-title">
+            <span>Отчёты</span>
+            <strong>CSV from backend</strong>
+          </header>
+          <div className="payments-export-grid">
+            {[
+              ['Журнал смены', ReceiptText],
+              ['Кассовый отчёт', Banknote],
+              ['Экспорт CSV', ArrowRightLeft],
+              ['Расхождения', ShieldAlert]
+            ].map(([label, Icon]) => (
+              <button key={label as string} type="button" onClick={() => runReportAction(label as string)}><Icon size={16} />{label as string}</button>
+            ))}
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+type LogEventItem = [string, string, string, string, string];
+
+function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const [eventSearch, setEventSearch] = useState('');
+  const [activeLogFilter, setActiveLogFilter] = useState('Все события');
+  const [selectedEventKey, setSelectedEventKey] = useState('');
+  const [selectedSource, setSelectedSource] = useState('Audit');
+  const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
+  const [auditResult, setAuditResult] = useState<AuditSearchResultDto | null>(null);
+  const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
+
+  const loadLogs = async (nextBackend = backend) => {
+    if (nextBackend === null) {
+      setLoadStatus('fixture');
+      return;
+    }
+
+    setLoadStatus('loading');
+    try {
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const [audit, branchDiagnostics] = await Promise.all([
+        apiClients.audit.search({ branchId: nextBackend.branchId, limit: 30 }),
+        apiClients.diagnostics.getDiagnostics(nextBackend.branchId)
+      ]);
+      setAuditResult(audit);
+      setDiagnostics(branchDiagnostics);
+      setLoadStatus('backend');
+    } catch (error) {
+      setLoadStatus('failed');
+      setFeedback({ label: 'Логи', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  useEffect(() => {
+    void loadLogs();
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
+
+  const auditRecords = readArray(auditResult, 'records');
+  const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
+  const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
+  const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
+  const recentCommandFailures = readArray(commandSummary, 'recentFailures');
+  const recentUpdateFailures = readArray(updateSummary, 'recentFailures');
+  const auditEvents: LogEventItem[] = auditRecords.map((record): LogEventItem => [
+    formatTime(readString(record, 'createdAtUtc')),
+    readString(record, 'action', 'audit'),
+    `${readString(record, 'targetType', 'target')} · ${readString(record, 'outcome', 'unknown')}`,
+    readString(record, 'sourceApp', 'Audit'),
+    readString(record, 'outcome').toLowerCase().includes('denied') || readString(record, 'outcome').toLowerCase().includes('failed') ? 'warning' : 'audit'
+  ]);
+  const diagnosticEvents: LogEventItem[] = [
+    ...recentCommandFailures.map((failure): LogEventItem => [
+      formatTime(readString(failure, 'updatedAtUtc')),
+      `${readString(failure, 'machineName', 'Device')} ${readString(failure, 'type', 'command')}`,
+      readString(failure, 'message', readString(failure, 'status', 'failed')),
+      'Agent',
+      'device'
+    ]),
+    ...recentUpdateFailures.map((failure): LogEventItem => [
+      formatTime(readString(failure, 'updatedAtUtc')),
+      `${readString(failure, 'component', 'Update')} ${readString(failure, 'targetVersion', '')}`,
+      readString(failure, 'message', readString(failure, 'status', 'failed')),
+      'Updates',
+      'warning'
+    ])
+  ];
+  const events = [...diagnosticEvents, ...auditEvents];
+  const fallbackEvents: LogEventItem[] = [
+    ['—', 'Нет backend событий', 'audit/diagnostics пустые', 'Platform', 'audit']
+  ];
+  const visibleEvents = (events.length > 0 ? events : fallbackEvents).filter(([time, title, detail, source, tone]) => {
+    const filterMatches = activeLogFilter === 'Все события'
+      || (activeLogFilter === 'Только ошибки' && tone === 'warning')
+      || (activeLogFilter === 'ПК и Agent' && (source === 'Agent' || tone === 'device'))
+      || (activeLogFilter === 'Касса и POS' && (title.toLowerCase().includes('pos') || detail.toLowerCase().includes('cash')))
+      || (activeLogFilter === 'Оператор' && source.toLowerCase().includes('operator'))
+      || (activeLogFilter === 'Системные' && source !== 'Agent');
+    const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
+    return filterMatches && searchMatches;
+  });
+  const selectedEvent = visibleEvents.find(([time, title]) => `${time}-${title}` === selectedEventKey) ?? visibleEvents[0];
+  const sourceCards: Array<[string, string, LucideIcon]> = [
+    ['Agent', `${readNumber(deviceSummary, 'onlineDevices', 0)} онлайн · ${readNumber(deviceSummary, 'staleDevices', 0)} stale`, MonitorCheck],
+    ['POS', `${auditRecords.filter((record) => readString(record, 'action').toLowerCase().includes('pos')).length} audit`, ReceiptText],
+    ['Operator', `${auditRecords.length} действий`, UserRoundPlus],
+    ['Platform', `${readNumber(commandSummary, 'failedCommands', 0) + readNumber(updateSummary, 'failedDevices', 0)} ошибок`, ShieldAlert]
+  ];
+
+  const runLogAction = async (label: string) => {
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      if (label === 'Audit trail') {
+        await apiClients.audit.search({ branchId: nextBackend.branchId, limit: 100 });
+      } else if (label === 'CSV') {
+        await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
+      } else if (label === 'Ошибки') {
+        await apiClients.audit.search({ branchId: nextBackend.branchId, outcome: 'denied', limit: 50 });
+      } else {
+        await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
+      }
+      setFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  return (
+    <main className="workspace-screen logs-screen">
+      <section className="screen-head logs-head">
+        <div>
+          <span>Логи</span>
+          <h1>Логи · аудит и события смены</h1>
+        </div>
+        <div className="screen-actions">
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend audit' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+        </div>
+      </section>
+
+      <section className="state-strip logs-state-strip" aria-label="Сводка логов">
+        <StateFlag label="События" value={String(events.length)} />
+        <StateFlag label="Ошибки" value={String(events.filter((event) => event[4] === 'warning').length)} critical={events.some((event) => event[4] === 'warning')} />
+        <StateFlag label="Команды" value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
+        <StateFlag label="Audit" value={String(auditRecords.length)} />
+        <StateFlag label="Источник" value={loadStatus} critical={loadStatus !== 'backend'} />
+      </section>
+
+      <section className="logs-layout">
+        <section className="logs-panel logs-events-panel">
+          <header className="logs-panel-title">
+            <span>Журнал событий</span>
+            <strong>audit search + diagnostics</strong>
+          </header>
+          <label className="logs-search">
+            <Search size={14} />
+            <input
+              placeholder="ПК, клиент, оператор, событие"
+              value={eventSearch}
+              onChange={(event) => setEventSearch(event.currentTarget.value)}
+            />
+          </label>
+          <div className="logs-event-list">
+            {visibleEvents.map(([time, title, detail, source, tone]) => (
+              <button
+                key={`${time}-${title}`}
+                type="button"
+                className={`log-event-row ${tone}${`${time}-${title}` === selectedEventKey ? ' active' : ''}`}
+                onClick={() => setSelectedEventKey(`${time}-${title}`)}
+              >
+                <span>{time}</span>
+                <div>
+                  <strong>{title}</strong>
+                  <em>{detail}</em>
+                </div>
+                <b>{source}</b>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="logs-panel logs-detail-panel">
+          <header className="logs-panel-title">
+            <span>Детали события</span>
+            <strong>выбранная запись</strong>
+          </header>
+          <div className={`log-detail-card ${selectedEvent[4]}`}>
+            <span>{selectedEvent[0]} · {selectedEvent[3]}</span>
+            <strong>{selectedEvent[1]}</strong>
+            <em>{selectedEvent[2]}</em>
+          </div>
+          <div className="log-detail-list">
+            <div><span>Источник</span><strong>{selectedEvent[3]}</strong></div>
+            <div><span>Объект</span><strong>{selectedEvent[1].split(' ')[0]}</strong></div>
+            <div><span>Оператор</span><strong>{backend?.session.displayName ?? 'system'}</strong></div>
+            <div><span>Branch</span><strong>{backend?.branchId.slice(0, 8) ?? 'fixture'}</strong></div>
+          </div>
+          <FeedbackNotice feedback={feedback} />
+        </section>
+
+        <section className="logs-panel logs-filter-panel">
+          <header className="logs-panel-title">
+            <span>Фильтры</span>
+            <strong>сузить расследование</strong>
+          </header>
+          <div className="logs-filter-grid">
+            {['Все события', 'Только ошибки', 'ПК и Agent', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                className={activeLogFilter === filter ? 'active' : undefined}
+                onClick={() => setActiveLogFilter(filter)}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="logs-panel logs-audit-panel">
+          <header className="logs-panel-title">
+            <span>Аудит смены</span>
+            <strong>последние записи backend</strong>
+          </header>
+          <div className="logs-audit-list">
+            {auditRecords.slice(0, 4).map((record) => (
+              <article key={readString(record, 'auditRecordId')} className="log-audit-row">
+                <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
+                <strong>{readString(record, 'actorStaffUserId', 'system').slice(0, 8)}</strong>
+                <em>{readString(record, 'action', 'audit')}</em>
+                <b>{readString(record, 'outcome', 'ok')}</b>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="logs-panel logs-sources-panel">
+          <header className="logs-panel-title">
+            <span>Источники</span>
+            <strong>откуда пришли события</strong>
+          </header>
+          <div className="logs-source-grid">
+            {sourceCards.map(([label, detail, Icon]) => (
+              <button
+                key={label}
+                type="button"
+                className={`log-source-card${selectedSource === label ? ' active' : ''}`}
+                onClick={() => setSelectedSource(label)}
+              >
+                <Icon size={17} />
+                <strong>{label}</strong>
+                <span>{detail}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="logs-panel logs-export-panel">
+          <header className="logs-panel-title">
+            <span>Экспорт</span>
+            <strong>для проверки и поддержки</strong>
+          </header>
+          <div className="logs-export-grid">
+            {[
+              ['Журнал смены', ReceiptText],
+              ['Ошибки', AlertTriangle],
+              ['CSV', ArrowRightLeft],
+              ['Audit trail', ShieldAlert]
+            ].map(([label, Icon]) => (
+              <button key={label as string} type="button" onClick={() => runLogAction(label as string)}><Icon size={16} />{label as string}</button>
+            ))}
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const [selectedSection, setSelectedSection] = useState('Профиль клуба');
+  const [clubName, setClubName] = useState('AFK4');
+  const [city, setCity] = useState('Dushanbe');
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
+  const [staffUsers, setStaffUsers] = useState<StaffUserDto[]>([]);
+  const [zones, setZones] = useState<ZoneDto[]>([]);
+  const [catalog, setCatalog] = useState<PosProductDto[]>([]);
+  const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
+  const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
+  const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
+
+  const loadSettings = async (nextBackend = backend) => {
+    if (nextBackend === null) {
+      setLoadStatus('fixture');
+      return;
+    }
+
+    setLoadStatus('loading');
+    try {
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const [staff, layoutZones, products, branchDiagnostics, rolloutStatuses, tariffOptions] = await Promise.all([
+        apiClients.settings.getStaffUsers(nextBackend.branchId),
+        apiClients.settings.getLayoutZones(nextBackend.branchId),
+        apiClients.pos.getCatalog(nextBackend.branchId),
+        apiClients.diagnostics.getDiagnostics(nextBackend.branchId),
+        apiClients.updates.getRolloutStatuses(nextBackend.branchId),
+        apiClients.settings.getTariffOptions(nextBackend.branchId)
+      ]);
+      setStaffUsers(Array.isArray(staff) ? staff : []);
+      setZones(Array.isArray(layoutZones) ? layoutZones : []);
+      setCatalog(Array.isArray(products) ? products : []);
+      setDiagnostics(branchDiagnostics);
+      setRollouts(Array.isArray(rolloutStatuses) ? rolloutStatuses : []);
+      setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
+      setClubName(readString(nextBackend.session, 'organizationName', 'AFK4'));
+      setLoadStatus('backend');
+    } catch (error) {
+      setLoadStatus('failed');
+      setFeedback({ label: 'Настройки', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  useEffect(() => {
+    void loadSettings();
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
+
+  const sections = [
+    ['Профиль клуба', 'название, город, валюта'],
+    ['Залы и ПК', 'зоны, рабочие места, статусы'],
+    ['Тарифы', 'пакеты, постоплата, VIP'],
+    ['Персонал', 'операторы, роли, доступы'],
+    ['POS и склад', 'товары, остатки, чеки'],
+    ['Интеграции', 'платежи, обновления, экспорт']
+  ];
+  const selectedSectionDetail = sections.find(([name]) => name === selectedSection)?.[1] ?? '';
+  const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
+  const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
+  const readiness = [
+    ['Профиль клуба', `${clubName} · ${city}`],
+    ['Залы и ПК', `${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0)} рабочих мест`],
+    ['Персонал', `${staffUsers.length} сотрудников`],
+    ['Касса', `${currencyCode} · backend reports`],
+    ['Устройства', `${readNumber(deviceSummary, 'onlineDevices', 0)} из ${readNumber(deviceSummary, 'totalDevices', 0)} онлайн`]
+  ];
+  const actions: Array<[string, string, LucideIcon]> = [
+    ['Добавить ПК', 'новое рабочее место', MonitorCheck],
+    ['Создать тариф', 'backend tariff/version', CircleDollarSign],
+    ['Пригласить сотрудника', 'нужна форма доступа', UserRoundPlus],
+    ['Проверить устройства', 'diagnostics refresh', Wifi]
+  ];
+
+  const runSettingsAction = async (label: string) => {
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      if (label === 'Проверить устройства') {
+        setDiagnostics(await apiClients.diagnostics.getDiagnostics(nextBackend.branchId));
+      } else if (label === 'Добавить зал') {
+        const zone = await apiClients.settings.createZone(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          name: `Zone ${zones.length + 1}`,
+          sortOrder: (zones.length + 1) * 10
+        });
+        setZones((items) => [...items, zone]);
+      } else if (label === 'Добавить ПК') {
+        const zoneId = readString(zones[0], 'zoneId');
+        if (!zoneId) {
+          throw new Error('Create a layout zone before adding a seat.');
+        }
+
+        await apiClients.settings.createSeat(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          zoneId,
+          name: `PC-${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0) + 1}`,
+          sortOrder: 1000
+        });
+        await loadSettings(nextBackend);
+      } else if (label === 'Создать тариф') {
+        const tariff = await apiClients.settings.createTariff(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          name: `Tariff ${tariffs.length + 1}`,
+          idempotencyKey: createIdempotencyKey('tariff-create')
+        });
+        const tariffId = readString(tariff, 'tariffId');
+        if (tariffId) {
+          await apiClients.settings.createTariffVersion(nextBackend.branchId, tariffId, {
+            organizationId: nextBackend.session.organizationId,
+            tariffId,
+            currencyCode,
+            pricePerMinuteMinorUnits: 50,
+            minimumBillableMinutes: 15,
+            roundingIncrementMinutes: 5,
+            effectiveFromUtc: new Date().toISOString(),
+            idempotencyKey: createIdempotencyKey('tariff-version-create')
+          });
+        }
+        await loadSettings(nextBackend);
+      } else {
+        throw new Error('General staff invite form is not implemented in the React operator yet.');
+      }
+
+      setFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  const saveSettings = () => {
+    if (!clubName.trim() || !city.trim()) {
+      triggerFeedback(setFeedback, 'Проверить обязательные поля', 'failed', 'Заполните обязательные поля.');
+      return;
+    }
+
+    triggerFeedback(setFeedback, 'Профиль клуба', 'failed', 'Backend endpoint for branch profile settings is not implemented yet.');
+  };
+
+  const renderSettingsContent = () => {
+    if (selectedSection === 'Залы и ПК') {
+      return (
+        <>
+          <div className="settings-section-title">
+            <span>Залы и рабочие места</span>
+            <button type="button" onClick={() => runSettingsAction('Добавить зал')}>Добавить зал</button>
+          </div>
+          <div className="settings-room-grid">
+            {zones.map((zone) => (
+              <button key={readString(zone, 'zoneId')} type="button" className="settings-room-card" onClick={() => triggerFeedback(setFeedback, readString(zone, 'name', 'Zone'), 'confirmed')}>
+                <strong>{readString(zone, 'name', 'Zone')}</strong>
+                <b>{readArray(zone, 'seats').length} ПК</b>
+                <span>sort {readNumber(zone, 'sortOrder', 0)}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    if (selectedSection === 'Тарифы') {
+      return (
+        <>
+          <div className="settings-section-title">
+            <span>Тарифы</span>
+            <button type="button" onClick={() => runSettingsAction('Создать тариф')}>Создать тариф</button>
+          </div>
+          <div className="settings-tariff-list">
+            {tariffs.map((tariff) => (
+              <button key={readString(tariff, 'tariffVersionId')} type="button" className="settings-tariff-row" onClick={() => triggerFeedback(setFeedback, readString(tariff, 'name', 'Tariff'), 'confirmed')}>
+                <strong>{readString(tariff, 'name', 'Tariff')}</strong>
+                <b>{formatMinorUnits(readNumber(tariff, 'pricePerMinuteMinorUnits', 0) * 60, readString(tariff, 'currencyCode', currencyCode))} / час</b>
+                <span>v{readNumber(tariff, 'versionNumber', 0)} · {readString(tariff, 'tariffRuleVersionId', 'rule')}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    if (selectedSection === 'Персонал') {
+      return (
+        <div className="settings-config-grid">
+          {staffUsers.map((user) => (
+            <button key={readString(user, 'staffUserId')} type="button" onClick={() => triggerFeedback(setFeedback, readString(user, 'displayName', 'Staff'), 'confirmed')}>
+              <strong>{readString(user, 'displayName', 'Staff')}</strong>
+              <span>{readString(user, 'userName', 'user')} · {readArray<string>(user, 'roleNames').join(', ') || 'roles'}</span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (selectedSection === 'POS и склад') {
+      return (
+        <div className="settings-config-grid">
+          {catalog.slice(0, 8).map((product) => (
+            <button key={readString(product, 'productId')} type="button" onClick={() => triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed')}>
+              <strong>{readString(product, 'name', 'Product')}</strong>
+              <span>{formatMoney(readMoney(product, 'price'), currencyCode)} · stock {readNumber(product, 'stockOnHand', 0)}</span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (selectedSection === 'Интеграции') {
+      return (
+        <div className="settings-config-grid">
+          {[
+            ['Платежи', 'manual provider'],
+            ['Обновления', `${rollouts.length} rollout`],
+            ['Ошибки обновлений', `${readNumber(updateSummary, 'failedDevices', 0)} devices`],
+            ['API', backend?.config.platformBaseUrl ?? 'fixture']
+          ].map(([name, detail]) => (
+            <button key={name} type="button" onClick={() => triggerFeedback(setFeedback, name, 'confirmed')}>
+              <strong>{name}</strong>
+              <span>{detail}</span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="settings-form-grid">
+          <label>Название клуба<input value={clubName} onChange={(event) => { setClubName(event.currentTarget.value); setSettingsDirty(true); }} /></label>
+          <label>Город<input value={city} onChange={(event) => { setCity(event.currentTarget.value); setSettingsDirty(true); }} /></label>
+          <label>Валюта<input value={currencyCode} readOnly /></label>
+          <label>Филиал<input value={backend?.branchId ?? 'fixture'} readOnly /></label>
+        </div>
+        <div className="settings-save-row">
+          <span>{settingsDirty ? 'есть несохранённые изменения' : 'изменений нет'}</span>
+          <button type="button" onClick={saveSettings}>Сохранить</button>
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <main className="workspace-screen settings-screen">
+      <section className="screen-head settings-head">
+        <div>
+          <span>Настройки</span>
+          <h1>Настройки · клуб и правила работы</h1>
+        </div>
+        <div className="screen-actions">
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend settings' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+        </div>
+      </section>
+
+      <section className="settings-layout">
+        <aside className="settings-nav-panel">
+          <span>Разделы</span>
+          {sections.map(([name, detail]) => (
+            <button
+              key={name}
+              type="button"
+              className={selectedSection === name ? 'active' : undefined}
+              onClick={() => setSelectedSection(name)}
+            >
+              <strong>{name}</strong>
+              <em>{detail}</em>
+            </button>
+          ))}
+        </aside>
+
+        <section className="settings-main-panel">
+          <header className="settings-panel-title">
+            <span>{selectedSection}</span>
+            <strong>{selectedSectionDetail}</strong>
+          </header>
+          {renderSettingsContent()}
+          <FeedbackNotice feedback={feedback} />
+        </section>
+
+        <aside className="settings-side-panel">
+          <section className="settings-card-panel">
+            <header className="settings-panel-title">
+              <span>Готовность клуба</span>
+              <strong>backend setup snapshot</strong>
+            </header>
+            <div className="settings-readiness-list">
+              {readiness.map(([name, detail]) => (
+                <div key={name}>
+                  <span>{name}</span>
+                  <strong>{detail}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="settings-card-panel">
+            <header className="settings-panel-title">
+              <span>Быстрые настройки</span>
+              <strong>частые действия администратора</strong>
+            </header>
+            <div className="settings-action-grid">
+              {actions.map(([label, detail, Icon]) => (
+                <button key={label} type="button" className="settings-action-card" onClick={() => runSettingsAction(label)}>
+                  <Icon size={17} />
+                  <strong>{label}</strong>
+                  <span>{detail}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+  );
+}
+
+function isGuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
+function WindowControls() {
+  return (
+    <div className="window-controls" aria-label="Окно">
+      <button type="button" title="Свернуть" aria-label="Свернуть" onClick={() => postHostWindowCommand('minimize')}>
+        <Minus size={15} />
+      </button>
+      <button type="button" title="Развернуть" aria-label="Развернуть" onClick={() => postHostWindowCommand('maximize')}>
+        <Maximize2 size={13} />
+      </button>
+      <button type="button" title="Закрыть" aria-label="Закрыть" onClick={() => postHostWindowCommand('close')}>
+        <X size={15} />
+      </button>
+    </div>
+  );
+}
+
+function SignInScreen({
+  config,
+  authStatus,
+  hostError,
+  onSignIn
+}: {
+  config: ReturnType<typeof getOperatorConfig>;
+  authStatus: AuthStatus;
+  hostError: string | null;
+  onSignIn: (request: OperatorSignInRequest) => Promise<void>;
+}) {
+  const [organizationId, setOrganizationId] = useState(config.organizationId ?? fallbackOrganizationId);
+  const [userName, setUserName] = useState('');
+  const [password, setPassword] = useState('');
+  const [isBusy, setIsBusy] = useState(false);
+  const [error, setError] = useState<string | null>(hostError);
+  const isChecking = authStatus === 'checking';
+
+  useEffect(() => {
+    setError(hostError);
+  }, [hostError]);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+
+    if (!isGuid(organizationId)) {
+      setError('OrganizationId должен быть корректным GUID.');
+      return;
+    }
+
+    if (!userName.trim()) {
+      setError('Укажите имя пользователя.');
+      return;
+    }
+
+    if (!password) {
+      setError('Укажите пароль.');
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      await onSignIn({
+        organizationId: organizationId.trim(),
+        userName: userName.trim(),
+        password
+      });
+      setPassword('');
+    } catch (nextError) {
+      setError(projectOperatorError(nextError).detail);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  return (
+    <div className="operator-shell auth-shell">
+      <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart}>
+        <div className="brand-block">
+          <strong>AFK4</strong>
+          <span>Operator</span>
+        </div>
+        <div className="top-status">
+          <span><Wifi size={14} />{isChecking ? 'Проверяем защищённый вход' : 'Защищённый вход'}</span>
+          <span>{config.platformBaseUrl}</span>
+          <span>{config.shellMode}</span>
+        </div>
+        <WindowControls />
+      </header>
+
+      <main className="auth-workspace">
+        <section className="auth-panel">
+          <header>
+            <span>AFK4 Operator</span>
+            <h1>Вход оператора</h1>
+            <p>Токены сохраняются только через нативное защищённое хранилище Windows.</p>
+          </header>
+
+          <form className="auth-form" onSubmit={submit}>
+            <label>
+              Организация
+              <input
+                value={organizationId}
+                onChange={(event) => setOrganizationId(event.currentTarget.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+            <label>
+              Пользователь
+              <input
+                value={userName}
+                onChange={(event) => setUserName(event.currentTarget.value)}
+                autoComplete="username"
+                autoFocus
+              />
+            </label>
+            <label>
+              Пароль
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.currentTarget.value)}
+                autoComplete="current-password"
+              />
+            </label>
+
+            <button type="submit" className="primary-wide" disabled={isBusy || isChecking}>
+              {isBusy ? 'Проверяем' : 'Войти'}
+            </button>
+          </form>
+
+          {error && (
+            <div className="auth-error" role="alert">
+              <AlertTriangle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
+        </section>
+
+        <aside className="auth-context-panel">
+          <section>
+            <span>Платформа</span>
+            <strong>{config.platformBaseUrl}</strong>
+          </section>
+          <section>
+            <span>Валюта</span>
+            <strong>{config.currencyCode}</strong>
+          </section>
+          <section>
+            <span>Хранилище</span>
+            <strong>Windows Protected Data</strong>
+          </section>
+        </aside>
+      </main>
+    </div>
+  );
+}
+
 export function App() {
   const config = getOperatorConfig();
   const [workspace, setWorkspace] = useState<WorkspaceId>('map');
   const [selectedSeatId, setSelectedSeatId] = useState(seats[0].id);
-  const selectedSeat = seats.find((seat) => seat.id === selectedSeatId) ?? seats[0];
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
+  const [authSession, setAuthSession] = useState<OperatorAuthSession | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
+  const [realtimeState, setRealtimeState] = useState<OperatorRealtimeConnectionState>('disconnected');
+  const [realtimeError, setRealtimeError] = useState<string | null>(null);
+  const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? floorMap.seats[0] ?? null;
+  const activeBranchId = authSession === null ? null : resolveActiveBranchId(authSession, config.branchId);
+  const backendContext: OperatorBackendContext | null = authSession !== null && activeBranchId !== null
+    ? { config, session: authSession, branchId: activeBranchId }
+    : null;
+
+  useEffect(() => {
+    let disposed = false;
+
+    loadOperatorSession()
+      .then((session) => {
+        if (disposed) {
+          return;
+        }
+
+        setAuthSession(session);
+        setAuthStatus(session ? 'signed-in' : 'signed-out');
+        setAuthError(null);
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setAuthSession(null);
+        setAuthStatus('signed-out');
+        setAuthError(projectOperatorError(error).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authStatus !== 'signed-in' || authSession === null) {
+      setFloorMap(createFixtureFloorMapState());
+      setSelectedSeatId(seats[0].id);
+      setRealtimeState('disconnected');
+      setRealtimeError(null);
+      return undefined;
+    }
+
+    const branchId = resolveActiveBranchId(authSession, config.branchId);
+    if (!branchId) {
+      setFloorMap((current) => ({
+        ...current,
+        loadStatus: 'failed',
+        error: 'Active branch is not assigned.'
+      }));
+      return undefined;
+    }
+
+    let disposed = false;
+
+    setFloorMap((current) => ({
+      ...current,
+      branchId,
+      loadStatus: 'loading',
+      error: null
+    }));
+
+    loadBackendFloorMapState(config, authSession, branchId)
+      .then((nextState) => {
+        if (disposed) {
+          return;
+        }
+
+        setFloorMap(nextState);
+        setSelectedSeatId(nextState.seats[0]?.id ?? seats[0].id);
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setFloorMap((current) => ({
+          ...current,
+          branchId,
+          loadStatus: 'failed',
+          error: projectOperatorError(error).detail
+        }));
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
+
+  useEffect(() => {
+    if (authStatus !== 'signed-in' || authSession === null) {
+      return undefined;
+    }
+
+    const branchId = resolveActiveBranchId(authSession, config.branchId);
+    if (!branchId) {
+      return undefined;
+    }
+
+    let disposed = false;
+    const realtimeClient = createOperatorRealtimeClient({
+      baseUrl: config.platformBaseUrl,
+      getAccessToken: () => authSession.accessToken,
+      onConnectionStateChanged: (state) => {
+        if (!disposed) {
+          setRealtimeState(state);
+        }
+      },
+      onDeviceStatusChanged: (status) => {
+        if (disposed || !matchesRealtimeScope(status, authSession, branchId)) {
+          return;
+        }
+
+        setFloorMap((current) => ({
+          ...current,
+          seats: applyDeviceStatusToSeats(current.seats, status)
+        }));
+      }
+    });
+
+    setRealtimeError(null);
+    realtimeClient.start()
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setRealtimeState('disconnected');
+        setRealtimeError(projectOperatorError(error).detail);
+      });
+
+    return () => {
+      disposed = true;
+      void realtimeClient.stop();
+    };
+  }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
+
+  const handleSignIn = async (request: OperatorSignInRequest) => {
+    const session = await signInOperator(request);
+    setAuthSession(session);
+    setAuthStatus('signed-in');
+    setAuthError(null);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOutOperator();
+      setAuthError(null);
+    } catch (error) {
+      setAuthError(projectOperatorError(error).detail);
+    } finally {
+      setAuthSession(null);
+      setAuthStatus('signed-out');
+    }
+  };
+
+  const handleSeatAction = async (request: SeatActionRequest) => {
+    const session = authSession;
+    if (session === null) {
+      throw new Error('Operator is not signed in.');
+    }
+
+    const branchId = resolveActiveBranchId(session, config.branchId);
+    if (!branchId) {
+      throw new Error('Active branch is not assigned.');
+    }
+
+    if (floorMap.source !== 'backend') {
+      throw new Error('Backend floor map is not loaded.');
+    }
+
+    const clients = createAuthenticatedOperatorClients(config, session);
+    if (request.type === 'start') {
+      if (request.seat.tone !== 'ready' || request.seat.activeSessionId) {
+        throw new Error('Seat is not ready for session start.');
+      }
+
+      await clients.sessions.startGuestSession(branchId, {
+        organizationId: session.organizationId,
+        seatId: request.seat.id,
+        durationMinutes: defaultSessionDurationMinutes,
+        tariffRuleVersionId: defaultTariffRuleVersionId,
+        idempotencyKey: createIdempotencyKey('session-start'),
+        billingMode: ''
+      });
+    } else if (request.type === 'extend') {
+      if (!request.seat.activeSessionId) {
+        throw new Error('Selected seat has no active session.');
+      }
+
+      await clients.sessions.extendSession(request.seat.activeSessionId, {
+        additionalMinutes: request.minutes,
+        tariffRuleVersionId: defaultTariffRuleVersionId,
+        idempotencyKey: createIdempotencyKey('session-extend')
+      });
+    } else if (request.type === 'transfer') {
+      if (!request.seat.activeSessionId) {
+        throw new Error('Selected seat has no active session.');
+      }
+
+      await clients.sessions.transferSession(request.seat.activeSessionId, {
+        targetSeatId: request.targetSeatId,
+        idempotencyKey: createIdempotencyKey('session-transfer')
+      });
+    } else {
+      if (!request.seat.activeSessionId) {
+        throw new Error('Selected seat has no active session.');
+      }
+
+      await clients.sessions.endSession(request.seat.activeSessionId, {
+        reason: 'operator',
+        idempotencyKey: createIdempotencyKey('session-end')
+      });
+    }
+
+    const nextState = await loadBackendFloorMapState(config, session, branchId);
+    const preferredSeatId = request.type === 'transfer' ? request.targetSeatId : request.seat.id;
+    setFloorMap(nextState);
+    setSelectedSeatId(nextState.seats.some((seat) => seat.id === preferredSeatId)
+      ? preferredSeatId
+      : nextState.seats[0]?.id ?? '');
+  };
+
+  if (authStatus !== 'signed-in' || authSession === null) {
+    return (
+      <SignInScreen
+        config={config}
+        authStatus={authStatus}
+        hostError={authError}
+        onSignIn={handleSignIn}
+      />
+    );
+  }
 
   return (
     <div className="operator-shell">
@@ -1857,21 +4207,12 @@ export function App() {
           <input placeholder="Игрок, ПК, команда" aria-label="Поиск" />
         </label>
         <div className="top-status">
-          <span><Wifi size={14} />Realtime connected</span>
+          <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)}</span>
           <span>Смена #24 · открыта</span>
-          <span>Dushanbe · {config.shellMode}</span>
+          <span>{authSession.displayName} · {config.shellMode}</span>
         </div>
-        <div className="window-controls" aria-label="Окно">
-          <button type="button" title="Свернуть" aria-label="Свернуть" onClick={() => postHostWindowCommand('minimize')}>
-            <Minus size={15} />
-          </button>
-          <button type="button" title="Развернуть" aria-label="Развернуть" onClick={() => postHostWindowCommand('maximize')}>
-            <Maximize2 size={13} />
-          </button>
-          <button type="button" title="Закрыть" aria-label="Закрыть" onClick={() => postHostWindowCommand('close')}>
-            <X size={15} />
-          </button>
-        </div>
+        <button type="button" className="sign-out-button" onClick={handleSignOut}>Выйти</button>
+        <WindowControls />
       </header>
 
       <nav className="workspace-rail" aria-label="Рабочие места">
@@ -1896,32 +4237,43 @@ export function App() {
       {workspace === 'map' && (
         <MapWorkspace
           currencyCode={config.currencyCode}
-          selectedSeatId={selectedSeat.id}
+          floorMap={floorMap}
+          selectedSeatId={selectedSeat?.id ?? ''}
           onSelectSeat={setSelectedSeatId}
         />
       )}
       {workspace === 'dashboard' && <DashboardWorkspace currencyCode={config.currencyCode} />}
-      {workspace === 'booking' && <BookingWorkspace />}
-      {workspace === 'pos' && <PosWorkspace currencyCode={config.currencyCode} />}
-      {workspace === 'players' && <PlayersWorkspace currencyCode={config.currencyCode} />}
-      {workspace === 'payments' && <PaymentsWorkspace currencyCode={config.currencyCode} />}
-      {workspace === 'logs' && <LogsWorkspace currencyCode={config.currencyCode} />}
-      {workspace === 'settings' && <SettingsWorkspace />}
+      {workspace === 'booking' && (
+        <BackendBookingWorkspace
+          floorMap={floorMap}
+          onOpenSeat={(seatId) => {
+            setSelectedSeatId(seatId);
+            setWorkspace('map');
+          }}
+        />
+      )}
+      {workspace === 'pos' && <BackendPosWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'players' && <BackendPlayersWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'payments' && <BackendPaymentsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'logs' && <BackendLogsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'settings' && <BackendSettingsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
 
-      {workspace === 'map' && <MapSidePanel seat={selectedSeat} currencyCode={config.currencyCode} />}
+      {workspace === 'map' && selectedSeat !== null && (
+        <MapSidePanel
+          seat={selectedSeat}
+          seats={floorMap.seats}
+          currencyCode={config.currencyCode}
+          actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
+          onSeatAction={handleSeatAction}
+        />
+      )}
       {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings'
         && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">
-        {signals.map((signal) => {
-          const Icon = signal.icon;
-          return (
-            <span key={signal.label}>
-              <Icon size={14} />
-              {signal.label}
-            </span>
-          );
-        })}
+        <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)} · {floorMap.source}</span>
+        <span><MonitorCheck size={14} />Devices: {countByTone(floorMap.seats, 'offline')} offline, {countProblems(floorMap.seats)} attention</span>
+        <span><CircleDollarSign size={14} />POS: 2 неоплаченных чека</span>
         <span><LockKeyhole size={14} />Критичные действия ждут подтверждения платформы</span>
       </footer>
     </div>
