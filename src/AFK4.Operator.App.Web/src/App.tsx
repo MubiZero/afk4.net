@@ -118,6 +118,8 @@ const permissionNames = {
   endSession: 'sessions.end',
   viewPlayers: 'players.view',
   viewBilling: 'billing.view',
+  topUpWallet: 'billing.wallet.top_up',
+  payDebt: 'billing.debt.pay',
   viewPackages: 'packages.view',
   managePackages: 'packages.manage',
   purchasePackage: 'packages.purchase',
@@ -166,7 +168,14 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.viewShift,
     permissionNames.viewReports
   ],
-  players: [permissionNames.viewPlayers, permissionNames.viewBilling, permissionNames.viewPackages, permissionNames.purchasePackage],
+  players: [
+    permissionNames.viewPlayers,
+    permissionNames.viewBilling,
+    permissionNames.topUpWallet,
+    permissionNames.payDebt,
+    permissionNames.viewPackages,
+    permissionNames.purchasePackage
+  ],
   payments: [permissionNames.viewShift, permissionNames.openShift, permissionNames.viewReports],
   logs: [permissionNames.viewAudit, permissionNames.viewDiagnostics],
   settings: [
@@ -718,13 +727,6 @@ function formatMoney(value: unknown, fallbackCurrencyCode: string): string {
   }
 
   return formatMinorUnits(0, fallbackCurrencyCode);
-}
-
-function moneyDto(currencyCode: string, majorUnits: number) {
-  return {
-    currencyCode,
-    minorUnits: Math.round(majorUnits * 100)
-  };
 }
 
 function parseMoneyInputMinorUnits(value: string): number | null {
@@ -3835,6 +3837,8 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const [clients, setClients] = useState<PlayerClientItem[]>(() => fixturePlayers(currencyCode));
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [walletTopUpAmount, setWalletTopUpAmount] = useState('100.00');
+  const [walletTopUpReason, setWalletTopUpReason] = useState('operator wallet top-up');
 
   useEffect(() => {
     if (backend === null) {
@@ -3925,6 +3929,15 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
     && hasPermission(backend.session, permissionNames.purchasePackage);
+  const canTopUpWallet = backend !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && hasPermission(backend.session, permissionNames.topUpWallet);
+  const canPayDebt = backend !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && debt > 0
+    && hasPermission(backend.session, permissionNames.payDebt);
 
   const runClientAction = async (label: string) => {
     setFeedback({ label, state: 'pending' });
@@ -3933,18 +3946,32 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
 
       if (label === 'Пополнить депозит') {
+        if (!hasPermission(nextBackend.session, permissionNames.topUpWallet)) {
+          throw new Error('Нет прав на пополнение депозита.');
+        }
+
         if (!selectedClient.playerAccountId) {
           throw new Error('Select a backend player before wallet top-up.');
         }
 
+        const topUpMinorUnits = parseMoneyInputMinorUnits(walletTopUpAmount);
+        const reason = walletTopUpReason.trim();
+        if (topUpMinorUnits === null || !reason) {
+          throw new Error('Заполните сумму и причину пополнения депозита.');
+        }
+
         const wallet = await apiClients.players.topUpWallet(selectedClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
-          amount: moneyDto(currencyCode, 100),
-          reason: 'operator quick top-up',
+          amount: { currencyCode, minorUnits: topUpMinorUnits },
+          reason,
           idempotencyKey: createIdempotencyKey('wallet-top-up')
         });
         setWalletSummary(wallet);
       } else if (label === 'Списать долг') {
+        if (!hasPermission(nextBackend.session, permissionNames.payDebt)) {
+          throw new Error('Нет прав на списание долга.');
+        }
+
         if (!selectedClient.playerAccountId) {
           throw new Error('Select a backend player before debt payment.');
         }
@@ -4110,9 +4137,13 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             <span>Операции</span>
             <strong>money actions wait for backend</strong>
           </header>
+          <div className="clients-money-form">
+            <label>Сумма пополнения<input inputMode="decimal" value={walletTopUpAmount} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpAmount(event.currentTarget.value)} /></label>
+            <label>Причина пополнения<input value={walletTopUpReason} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpReason(event.currentTarget.value)} /></label>
+          </div>
           <div className="clients-action-grid">
             {[
-              ['Пополнить депозит', '100 к депозиту', CircleDollarSign],
+              ['Пополнить депозит', `${walletTopUpAmount || '0'} ${currencyCode}`, CircleDollarSign],
               ['Списать долг', 'после оплаты', ReceiptText],
               ['Купить пакет', selectedPackageOption ? readString(selectedPackageOption, 'name', 'backend package') : 'нет пакетов', TimerReset],
               ['Создать бронь', 'бронь из карточки', CalendarClock],
@@ -4122,7 +4153,9 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
                 key={label as string}
                 type="button"
                 className="clients-action-card"
-                disabled={(label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0)}
+                disabled={((label as string) === 'Пополнить депозит' && !canTopUpWallet)
+                  || ((label as string) === 'Списать долг' && !canPayDebt)
+                  || ((label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0))}
                 onClick={() => runClientAction(label as string)}
               >
                 <Icon size={17} />

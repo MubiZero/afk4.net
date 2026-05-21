@@ -615,6 +615,33 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^package-purchase-/);
   });
 
+  it('tops up the selected client wallet from the Clients money form', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
+    fireEvent.change(screen.getByLabelText('Причина пополнения'), { target: { value: 'cash desk deposit' } });
+    fireEvent.click(screen.getByRole('button', { name: /Пополнить депозит/ }));
+
+    expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
+    const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
+      init?.method === 'POST');
+    expect(topUpCall).toBeDefined();
+    const body = JSON.parse(String(topUpCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      amount: { currencyCode: 'TJS', minorUnits: 12345 },
+      reason: 'cash desk deposit'
+    });
+    expect(body.idempotencyKey).toMatch(/^wallet-top-up-/);
+  });
+
   it('creates a staff user from the Settings personnel form', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1145,6 +1172,13 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createWalletSummary());
   }
 
+  if (pathname.includes('/players/') && pathname.endsWith('/wallet/top-ups') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createWalletSummary({
+      walletBalance: body.amount
+    }));
+  }
+
   if (pathname.endsWith('/profile') && init?.method === 'PATCH') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createBranchProfile(body));
@@ -1308,6 +1342,8 @@ const allOperatorPermissions = [
   'sessions.end',
   'players.view',
   'billing.view',
+  'billing.wallet.top_up',
+  'billing.debt.pay',
   'packages.view',
   'packages.manage',
   'packages.purchase',
@@ -1753,7 +1789,7 @@ function createPlayers() {
   ];
 }
 
-function createWalletSummary() {
+function createWalletSummary(overrides: Record<string, unknown> = {}) {
   return {
     playerAccountId: '12121212-1212-1212-1212-121212121212',
     walletBalance: { currencyCode: 'TJS', minorUnits: 46000 },
@@ -1765,7 +1801,8 @@ function createWalletSummary() {
         amount: { currencyCode: 'TJS', minorUnits: 20000 },
         createdAtUtc: '2026-05-21T09:00:00Z'
       }
-    ]
+    ],
+    ...overrides
   };
 }
 

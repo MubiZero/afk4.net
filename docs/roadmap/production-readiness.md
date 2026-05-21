@@ -352,8 +352,9 @@ Minimum bar:
   backend draft from the current cart before calling the existing void endpoint.
   POS recent receipt rows now open backend sale details through the existing
   sale lookup endpoint. Clients package purchase now calls the existing package
-  option and purchase endpoints for the selected backend player. Staging smoke
-  of these extra workspaces still remains before
+  option and purchase endpoints for the selected backend player, and Clients
+  wallet top-up sends operator-entered amount/reason to the existing top-up
+  endpoint. Staging smoke of these extra workspaces still remains before
   the WebView2/React app covers the full pilot day flow. Fixture-only/
   missing-contract commands should report backend failures rather than showing
   backend success.
@@ -404,8 +405,8 @@ Minimum bar:
   definition creation, Settings update package/rollout controls, Settings
   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift and
   cash-movement wiring, Logs backend audit/date filters, POS
-   refund/draft-void quick actions, POS sale-detail lookup, and Clients package
-   purchase. Next deliver staging smoke across these backend-backed workspaces
+   refund/draft-void quick actions, POS sale-detail lookup, Clients wallet
+   top-up form, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must
    still target staging with

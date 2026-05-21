@@ -2787,6 +2787,7 @@ button {
 
 .clients-actions-panel {
   grid-area: actions;
+  overflow: auto;
 }
 
 .clients-segments-panel {
@@ -3028,6 +3029,36 @@ button {
   display: grid;
   gap: 8px;
   padding: 12px;
+}
+
+.clients-money-form {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px 0;
+}
+
+.clients-money-form label {
+  display: grid;
+  gap: 4px;
+  color: #8fa0b6;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.clients-money-form input {
+  height: 28px;
+  min-width: 0;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 9px;
+  outline: 0;
+  background: #0c141f;
+  color: #f8fbff;
+  font-size: 12px;
+}
+
+.clients-money-form input:disabled {
+  color: #6f7d91;
 }
 
 .clients-action-card {

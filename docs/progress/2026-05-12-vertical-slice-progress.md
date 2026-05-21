@@ -163,8 +163,9 @@ implementation evidence are needed.
   sale from the quick-operation panel, and can void a backend draft sale created
   from the current cart, and opens backend sale details from the recent receipt
   list; Clients searches backend players
-  and performs wallet top-up, debt payment, package purchase, player creation,
-  and reservation creation from a selected backend player; Payments reads shift,
+  and performs wallet top-up with operator-entered amount/reason, debt payment,
+  package purchase, player creation, and reservation creation from a selected
+  backend player; Payments reads shift,
   sales, cash, and CSV report endpoints; Logs reads audit and diagnostics;
   Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
   option, and package option data, and can trigger limited backend setup actions
@@ -276,7 +277,8 @@ permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings stock movement creation,
-Settings tariff/version create, Settings package definition create, Payments
+Settings tariff/version create, Settings package definition create, Clients
+wallet top-up amount/reason form, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
@@ -292,7 +294,7 @@ draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 Result:
 
-- frontend tests: 58 passed, 0 failed;
+- frontend tests: 59 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -390,6 +392,10 @@ Result:
 - Clients frontend tests now cover package purchase from the selected backend
   player card through `/api/players/{playerAccountId}/packages/purchases`,
   including package definition id and idempotency key serialization.
+- Clients frontend tests now cover wallet top-up from the selected backend
+  player card using operator-entered amount and reason through
+  `/api/players/{playerAccountId}/wallet/top-ups`, including amount minor
+  units, organization id, reason, and idempotency key serialization.
 - Booking is now backed by real reservation API contracts and is no longer blocked
   by missing booking contract support. The app now exercises reservation
   search/create/update/confirm/seat/cancel endpoints. Remaining work is UX
