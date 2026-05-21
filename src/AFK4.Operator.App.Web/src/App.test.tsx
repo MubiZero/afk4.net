@@ -957,6 +957,22 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^package-purchase-/);
   });
 
+  it('shows active backend packages on the selected client profile', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+
+    expect(await screen.findByText(/180 мин/)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/packages') &&
+      init?.method !== 'POST')).toBe(true);
+  });
+
   it('tops up the selected client wallet from the Clients money form', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

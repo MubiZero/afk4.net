@@ -377,10 +377,12 @@ Minimum bar:
   selected cart client's current cart total to the existing wallet top-up
   endpoint with `billing.wallet.top_up` gating. POS quick stock write-off now
   records an inventory stock movement through the existing stock-movement
-  endpoint with `inventory.stock.manage` gating. Clients package purchase now calls the existing package
-  option and purchase endpoints for the selected backend player, and Clients
-  wallet top-up sends operator-entered amount/reason to the existing top-up
-  endpoint. Clients debt payment sends operator-entered amount/reason to the
+  endpoint with `inventory.stock.manage` gating. Clients profile now reads
+  active player packages through the existing player packages endpoint. Clients
+  package purchase now calls the existing package option and purchase endpoints
+  for the selected backend player, and Clients wallet top-up sends
+  operator-entered amount/reason to the existing top-up endpoint. Clients debt
+  payment sends operator-entered amount/reason to the
   existing debt payment endpoint. Clients player creation sends
   operator-entered name/phone to the existing player creation endpoint. Staging
   smoke of these extra workspaces still remains before
@@ -444,7 +446,7 @@ Minimum bar:
    cash-movement wiring, Logs backend audit/date filters, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
    POS selected-customer/new-customer checkout/wallet top-up/stock write-off, Clients wallet
-   top-up/debt-payment forms, Clients new-player form, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
+   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must
    still target staging with

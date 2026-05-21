@@ -4344,6 +4344,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const [clients, setClients] = useState<PlayerClientItem[]>(() => fixturePlayers(currencyCode));
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('100.00');
   const [walletTopUpReason, setWalletTopUpReason] = useState('operator wallet top-up');
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
@@ -4399,6 +4400,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   useEffect(() => {
     if (backend === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
       setWalletSummary(null);
+      setSelectedClientPackages([]);
       return undefined;
     }
 
@@ -4406,13 +4408,20 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
     const loadWallet = async () => {
       try {
         const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
-        const wallet = await apiClients.players.getWalletSummary(selectedClient.playerAccountId!);
+        const [wallet, packages] = await Promise.all([
+          apiClients.players.getWalletSummary(selectedClient.playerAccountId!),
+          hasPermission(backend.session, permissionNames.viewPackages) || hasPermission(backend.session, permissionNames.purchasePackage)
+            ? apiClients.players.getPlayerPackages(selectedClient.playerAccountId!).catch(() => [])
+            : Promise.resolve([])
+        ]);
         if (!disposed) {
           setWalletSummary(wallet);
+          setSelectedClientPackages(Array.isArray(packages) ? packages : []);
         }
       } catch (error) {
         if (!disposed) {
           setFeedback({ label: selectedClient.name, state: 'failed', detail: projectOperatorError(error).detail });
+          setSelectedClientPackages([]);
         }
       }
     };
@@ -4435,6 +4444,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient.balanceMinorUnits;
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient.debtMinorUnits;
   const recentEntries = readArray(walletSummary, 'recentEntries');
+  const selectedClientPackageCount = selectedClientPackages.length || Number.parseInt(selectedClient.last, 10) || 0;
   const selectedPackageOption = packageOptions[0] ?? null;
   useEffect(() => {
     if (debt <= 0) {
@@ -4612,6 +4622,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         <StateFlag label="Backend" value={String(clients.filter((client) => client.source === 'backend').length)} critical={loadStatus !== 'backend'} />
         <StateFlag label="Депозит" value={formatMinorUnits(balance, currencyCode)} />
         <StateFlag label="Долг" value={formatMinorUnits(debt, currencyCode)} critical={debt > 0} />
+        <StateFlag label="Пакеты" value={String(selectedClientPackageCount)} />
         <StateFlag label="Записи" value={String(recentEntries.length)} />
       </section>
 
@@ -4665,8 +4676,24 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           <div className="client-metrics-grid">
             <div><span>Депозит</span><strong>{formatMinorUnits(balance, currencyCode)}</strong></div>
             <div><span>Долг</span><strong>{formatMinorUnits(debt, currencyCode)}</strong></div>
-            <div><span>Пакеты</span><strong>{selectedClient.detail.includes('пакетов') ? selectedClient.detail.split(' · ')[1] : '0'}</strong></div>
+            <div><span>Пакеты</span><strong>{selectedClientPackageCount}</strong></div>
             <div><span>Источник</span><strong>{dataSourceLabel(selectedClient.source)}</strong></div>
+          </div>
+          <div className="client-package-list" aria-label="Пакеты клиента">
+            {selectedClientPackages.slice(0, 3).map((playerPackage) => (
+              <article key={readString(playerPackage, 'playerPackageId')} className="client-package-row">
+                <strong>{readString(playerPackage, 'name', 'Пакет')}</strong>
+                <span>{playerPackageLabel(playerPackage)}</span>
+                <b>{readString(playerPackage, 'state', 'active')}</b>
+              </article>
+            ))}
+            {selectedClientPackages.length === 0 && (
+              <article className="client-package-row">
+                <strong>Нет активных пакетов</strong>
+                <span>backend</span>
+                <b>0</b>
+              </article>
+            )}
           </div>
         </section>
 

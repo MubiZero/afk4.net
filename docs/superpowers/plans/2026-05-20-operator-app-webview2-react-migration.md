@@ -94,7 +94,8 @@ Current state:
   quick stock write-off now records an inventory stock movement through the
   existing stock-movement endpoint with `inventory.stock.manage` gating. Clients package
   purchase now calls the existing package option and purchase endpoints for the
-  selected backend player, and wallet top-up now uses an operator amount/reason
+  selected backend player, the selected client profile now reads active player
+  packages through the existing player packages endpoint, and wallet top-up now uses an operator amount/reason
   form before calling the existing top-up endpoint. Debt payment now also uses
   an operator amount/reason form before calling the existing debt payment
   endpoint. Player creation now uses an operator name/phone form before calling
@@ -159,7 +160,8 @@ player API and selects the created player for checkout. POS quick deposit
 top-up now posts the selected cart client's current cart total to the
 existing wallet top-up endpoint with `billing.wallet.top_up` gating. POS quick
 stock write-off now records an inventory stock movement through the existing
-stock-movement endpoint with `inventory.stock.manage` gating. Clients package purchase calls the backend package purchase
+stock-movement endpoint with `inventory.stock.manage` gating. Clients profile now reads active player
+packages through the existing player packages endpoint. Clients package purchase calls the backend package purchase
 endpoint for the selected player, and Clients wallet top-up sends
 operator-entered amount/reason to the backend. Clients debt payment now also
 sends operator-entered amount/reason to the backend with a no-overpayment guard.
@@ -280,10 +282,12 @@ missing-backend copy.
 - [ ] Clients: `Создать бронь` from a selected player, wallet top-up and debt
   payment with operator-entered amount/reason, player creation with
   operator-entered name/phone, and package purchase now use backend endpoints.
-  Remaining local-only client surfaces include richer profile details/edit,
-  purchase history, comments, groups, restrictions/discounts, package bonus
-  operations, and privacy/audit-sensitive details. Create backend contracts
-  where these do not already exist.
+  Selected client active package detail now reads the existing player packages
+  endpoint and renders package name/minutes/state in the profile. Remaining
+  local-only client surfaces include richer profile edit, purchase history,
+  comments, groups, restrictions/discounts, package bonus operations, and
+  privacy/audit-sensitive details. Create backend contracts where these do not
+  already exist.
 - [ ] Payments/Shifts: `Открыть смену` now calls the real open-shift workflow
   with starting cash, opening note, `shifts.open` permission gating, and backend
   confirmation when no current shift exists. `Подготовить закрытие` now calls

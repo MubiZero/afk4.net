@@ -202,7 +202,7 @@ implementation evidence are needed.
   backend draft sale created from the current cart, and opens backend sale
   details from the recent receipt list plus the linked backend receipt
   projection, and can print/export the loaded receipt locally; Clients searches
-  backend players
+  backend players, loads active packages for the selected player profile,
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
   name/phone, and reservation creation from a selected backend player; Payments
@@ -2433,6 +2433,22 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no old backend-empty placeholder copy, and
   no horizontal or vertical overflow outside WebView2.
+- Operator App Clients active-package detail verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 46/46, full frontend tests passed 75/75,
+  and Vite production build passed. The new App test covers loading
+  `/api/players/{playerAccountId}/packages` for the selected backend client
+  and rendering the active package name/minutes/state in the client profile.
+  Browser smoke against `http://127.0.0.1:5173/` confirmed title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no old
+  backend-empty placeholder copy, and no horizontal or vertical overflow
+  outside WebView2.
 
 ## Historical Reference
 
