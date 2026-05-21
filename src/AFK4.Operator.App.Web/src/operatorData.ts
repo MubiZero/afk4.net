@@ -25,6 +25,14 @@ export interface SeatSummary {
   device: string;
   command: string;
   app: string;
+  deviceId?: string | null;
+  deviceName?: string | null;
+  isDeviceOnline?: boolean | null;
+  isDeviceLocked?: boolean | null;
+  hasActiveSession?: boolean;
+  activeSessionId?: string | null;
+  rawState?: string;
+  sortOrder?: number;
 }
 
 export interface NavItem {

@@ -10,6 +10,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 4174"
   },
   "dependencies": {
+    "@microsoft/signalr": "^10.0.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
