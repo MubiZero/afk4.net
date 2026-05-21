@@ -169,9 +169,9 @@ implementation evidence are needed.
   update package registration, rollout creation, and update state changes;
   Settings device setup can create enrollment codes, assign device seats, read
   device detail, and rotate/revoke device credentials; Logs now applies backend
-  audit search filters for action/outcome/target type
-  and limit through `/api/branches/{branchId}/audit`; Dashboard reads the
-  backend dashboard summary and uses existing report exports
+  audit search filters for action/outcome/target type, UTC date range, and
+  limit through `/api/branches/{branchId}/audit`; Dashboard reads the backend
+  dashboard summary and uses existing report exports
   for export confirmation; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
   availability and action fallback; Payments can now open a shift through
@@ -275,7 +275,7 @@ read/update, Settings POS catalog create, Settings stock movement creation,
 Settings package definition create, Payments close-shift wiring, Payments cash
 movement creation, Payments open-shift wiring, Settings update package/rollout
 controls, Settings device enrollment/seat assignment/credential lifecycle,
-Logs backend audit
+Logs backend audit/date filters
 filters, POS refund quick action, POS
 draft void quick action, POS sale detail lookup, and Clients package purchase:
 
@@ -333,7 +333,7 @@ Result:
   `Интеграции`, including package/rollout ids, channels, target kind, batch
   percent, start time, reason, and organization id serialization.
 - Logs frontend tests now cover backend audit search filtering from `Логи`,
-  including action, outcome, target type, and limit query-string
+  including action, outcome, target type, UTC from/to, and limit query-string
   serialization to `/api/branches/{branchId}/audit`.
 - Settings device frontend tests now cover creating device enrollment codes,
   assigning a device id to a selected seat, and reading device detail through
@@ -1331,9 +1331,9 @@ Operator App redesign branch-local verification on 2026-05-20:
   or device rollout requests, and change package/rollout states through the
   existing Platform API update endpoints.
 - On 2026-05-21, `codex/operator-app-redesign` added backend audit filtering
-  to `Логи`. Operators can apply exact audit action, outcome, target type, and
-  limit filters, and the UI refreshes event rows from the existing audit search
-  endpoint instead of relying only on local filtering.
+  to `Логи`. Operators can apply exact audit action, outcome, target type, UTC
+  date range, and limit filters, and the UI refreshes event rows from the
+  existing audit search endpoint instead of relying only on local filtering.
 - On 2026-05-21, `codex/operator-app-redesign` added Settings device setup in
   `Залы и ПК`. Operators with device permissions can create enrollment codes,
   assign an enrolled device id to an existing seat, and open device detail from

@@ -338,7 +338,7 @@ Minimum bar:
   endpoint. Settings `Интеграции` now also registers update packages, creates
   update rollouts, and changes package/rollout states through the existing
   update endpoints. Logs now applies backend audit search filters for exact
-  action, outcome, target type, and limit. Settings `Залы и ПК` now also
+  action, outcome, target type, UTC date range, and limit. Settings `Залы и ПК` now also
   creates device enrollment codes, assigns enrolled devices to seats, and
   opens device detail through existing device endpoints, including credential
   rotation/revocation controls.
@@ -401,7 +401,7 @@ Minimum bar:
   category/product creation, Settings stock movement creation, Settings package
   definition creation, Settings update package/rollout controls, Settings
   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift and
-  cash-movement wiring, Logs backend audit filters, POS
+  cash-movement wiring, Logs backend audit/date filters, POS
    refund/draft-void quick actions, POS sale-detail lookup, and Clients package
    purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.

@@ -4558,6 +4558,8 @@ type AuditSearchOverrides = {
   action?: string | null;
   outcome?: string | null;
   targetType?: string | null;
+  fromUtc?: string | null;
+  toUtc?: string | null;
   limit?: number | null;
 };
 
@@ -4573,6 +4575,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const [auditActionFilter, setAuditActionFilter] = useState('');
   const [auditOutcomeFilter, setAuditOutcomeFilter] = useState('');
   const [auditTargetTypeFilter, setAuditTargetTypeFilter] = useState('');
+  const [auditFromUtcFilter, setAuditFromUtcFilter] = useState('');
+  const [auditToUtcFilter, setAuditToUtcFilter] = useState('');
   const [auditLimit, setAuditLimit] = useState('30');
 
   const buildAuditSearchRequest = (nextBackend: OperatorBackendContext, overrides: AuditSearchOverrides = {}) => {
@@ -4584,6 +4588,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
       action: overrides.action !== undefined ? overrides.action : auditActionFilter.trim(),
       outcome: overrides.outcome !== undefined ? overrides.outcome : auditOutcomeFilter.trim(),
       targetType: overrides.targetType !== undefined ? overrides.targetType : auditTargetTypeFilter.trim(),
+      fromUtc: overrides.fromUtc !== undefined ? overrides.fromUtc : auditFromUtcFilter.trim(),
+      toUtc: overrides.toUtc !== undefined ? overrides.toUtc : auditToUtcFilter.trim(),
       limit
     };
   };
@@ -4695,6 +4701,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     setAuditActionFilter(preset.action ?? '');
     setAuditOutcomeFilter(preset.outcome ?? '');
     setAuditTargetTypeFilter(preset.targetType ?? '');
+    setAuditFromUtcFilter(preset.fromUtc ?? '');
+    setAuditToUtcFilter(preset.toUtc ?? '');
     setAuditLimit(String(preset.limit ?? 30));
     void applyAuditSearch(filter, preset);
   };
@@ -4705,12 +4713,12 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       if (label === 'Audit trail') {
-        const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', limit: 100 }));
+        const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', fromUtc: '', toUtc: '', limit: 100 }));
         setAuditResult(audit);
       } else if (label === 'CSV') {
         await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
       } else if (label === 'Ошибки') {
-        const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: 'denied', targetType: '', limit: 50 }));
+        const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: 'denied', targetType: '', fromUtc: '', toUtc: '', limit: 50 }));
         setAuditResult(audit);
       } else {
         await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
@@ -4814,6 +4822,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
             <label>Audit action<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="sessions.start" /></label>
             <label>Outcome<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder="succeeded / denied" /></label>
             <label>Target type<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="Session" /></label>
+            <label>From UTC<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T00:00:00Z" /></label>
+            <label>To UTC<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T23:59:59Z" /></label>
             <label>Limit<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
             <button type="button" onClick={() => applyAuditSearch('Применить audit')}>Применить audit</button>
           </div>

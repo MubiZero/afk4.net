@@ -312,6 +312,8 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Audit action'), { target: { value: 'sessions.start' } });
     fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'succeeded' } });
     fireEvent.change(screen.getByLabelText('Target type'), { target: { value: 'Session' } });
+    fireEvent.change(screen.getByLabelText('From UTC'), { target: { value: '2026-05-21T00:00:00Z' } });
+    fireEvent.change(screen.getByLabelText('To UTC'), { target: { value: '2026-05-21T23:59:59Z' } });
     fireEvent.change(screen.getByLabelText('Limit'), { target: { value: '12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Применить audit' }));
 
@@ -323,6 +325,8 @@ describe('App', () => {
     expect(url.searchParams.get('action')).toBe('sessions.start');
     expect(url.searchParams.get('outcome')).toBe('succeeded');
     expect(url.searchParams.get('targetType')).toBe('Session');
+    expect(url.searchParams.get('fromUtc')).toBe('2026-05-21T00:00:00Z');
+    expect(url.searchParams.get('toUtc')).toBe('2026-05-21T23:59:59Z');
     expect(url.searchParams.get('limit')).toBe('12');
   });
 
