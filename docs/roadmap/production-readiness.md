@@ -139,7 +139,10 @@ Minimum bar:
    MinIO at `updates.afk4.staging.mubi.dev`. The package smoke workflow can
    build MSI artifacts, publish signed update metadata to staging MinIO,
    register packages with the staging Platform API, and create an internal
-   device rollout. On 2026-05-18, an already enrolled Windows 11 VM installed
+   device rollout. Client package workflows now set up Node 24 and the package
+   script builds `src/AFK4.Operator.App.Web`, then copies the fresh Vite `dist`
+   output into the Operator App publish `WebAssets` before WiX builds the
+   Operator App MSI. On 2026-05-18, an already enrolled Windows 11 VM installed
    Agent/Shell `0.1.3` through the Agent update pipeline and reported
    `installed` to the backend. Follow-up staging rollouts brought that VM to
    `0.1.7`, verified atomic artifact download/recovery behavior, and fixed the

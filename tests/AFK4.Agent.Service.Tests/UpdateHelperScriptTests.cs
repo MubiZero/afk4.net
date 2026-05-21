@@ -44,6 +44,22 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("-arch x64", gamingPcBuild, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ClientPackageBuildScript_BuildsAndPublishesOperatorFrontendAssets()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
+        var script = File.ReadAllText(scriptPath);
+
+        Assert.Contains("NpmPath", script, StringComparison.Ordinal);
+        Assert.Contains("SkipOperatorWebRestore", script, StringComparison.Ordinal);
+        Assert.Contains("src/AFK4.Operator.App.Web", script, StringComparison.Ordinal);
+        Assert.Contains("& $NpmPath ci", script, StringComparison.Ordinal);
+        Assert.Contains("& $NpmPath run build", script, StringComparison.Ordinal);
+        Assert.Contains("Operator App frontend build did not produce", script, StringComparison.Ordinal);
+        Assert.Contains("$operatorWebAssetsPublishDir = Join-Path $operatorAppPublishDir 'WebAssets'", script, StringComparison.Ordinal);
+        Assert.Contains("Copy-Item -Destination $operatorWebAssetsPublishDir -Recurse -Force", script, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("installers/operator-app/Package.wxs")]
     [InlineData("installers/gaming-pc/Package.wxs")]

@@ -471,12 +471,17 @@ Screen roadmap:
 
 ## Task 7: Packaging And CI
 
-- [ ] Update `scripts/build-client-packages.ps1` to build frontend assets before
-  Operator App publish and include them in the Operator App MSI.
+- [x] Update `scripts/build-client-packages.ps1` to build frontend assets before
+  Operator App publish and include them in the Operator App MSI. Implemented on
+  2026-05-21 with `npm ci`, `npm run build`, Vite `dist` copy into published
+  `WebAssets`, Node setup in client package workflows, and a local
+  `0.1.999-internal` package build that produced Operator/Gaming PC MSI
+  artifacts.
 - [ ] Add WebView2 Runtime prerequisite/bootstrap handling to the Operator App
   installer.
-- [ ] Update package smoke tests for the frontend build output and MSI content.
-- [ ] Keep update package component name `operator-app`.
+- [ ] Add automated MSI content assertion for built frontend assets after WiX
+  output, beyond the current publish-directory/package-script guard tests.
+- [x] Keep update package component name `operator-app`.
 
 ## Task 8: Cutover And Cleanup
 
@@ -494,6 +499,8 @@ Screen roadmap:
 - [x] Frontend tests pass.
 - [x] Full `dotnet test AFK4.sln` passes.
 - [x] Operator App builds and opens to the React UI locally.
+- [x] Local Operator App package build includes built React frontend assets in
+  published `WebAssets`.
 - [ ] Operator App can target `https://afk4.staging.mubi.dev`.
 - [ ] Operator App MSI includes host binaries, built frontend assets, and WebView2
   prerequisite handling.

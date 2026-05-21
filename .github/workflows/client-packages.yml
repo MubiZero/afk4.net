@@ -224,6 +224,13 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/AFK4.Operator.App.Web/package-lock.json
+
       - name: Restore tools
         run: dotnet tool restore
 

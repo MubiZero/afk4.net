@@ -102,6 +102,10 @@ implementation evidence are needed.
   devices, diagnostics, updates, and audit. The primary map now uses those
   clients to load backend floor-map data after native staff auth, while keeping
   fixture fallback for browser-dev/no-backend runs.
+- Operator App package builds now run the React frontend build before publishing
+  the native shell, replace published `WebAssets` with the Vite `dist` output,
+  and feed those assets into the Operator App MSI. The client package workflows
+  set up Node 24 and npm cache for `src/AFK4.Operator.App.Web/package-lock.json`.
 - The React primary floor map now has a SignalR JavaScript client for the
   existing `/hubs/devices` hub. It tracks disconnected/connecting/connected/
   reconnecting state, applies `deviceStatusChanged` updates by device id or
@@ -2184,6 +2188,25 @@ Operator App WebView2/React first implementation on 2026-05-20:
   confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button,
   no horizontal overflow, and no new browser console errors; four older Vite
   HMR console errors were already present in the browser log before the smoke.
+- Operator App package-asset verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' tool restore
+  powershell -ExecutionPolicy Bypass -File scripts\build-client-packages.ps1 -Version 0.1.999 -Channel internal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  ```
+
+  Result: package build passed after stopping the local Vite dev/preview
+  processes that had locked `node_modules`; it produced
+  `afk4-operator-app-0.1.999-internal.msi` and
+  `afk4-gaming-pc-0.1.999-internal.msi`. The Operator publish directory
+  contained `WebAssets/index.html` referencing fresh Vite
+  `assets/index-*.js/css`, Agent Service release automation tests passed
+  139/139, and frontend tests passed 64/64. A new
+  `-SkipOperatorWebRestore` switch exists only for local package rebuilds when
+  dependencies are already installed and a developer does not want `npm ci` to
+  remove a live `node_modules`; CI keeps the default `npm ci` path.
 
 ## Historical Reference
 
