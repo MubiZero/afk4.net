@@ -840,6 +840,51 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^package-definition-create-/);
   });
 
+  it('creates a tariff and rule version from Settings tariffs', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
+    fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Morning Hour' } });
+    fireEvent.change(screen.getByLabelText('Цена/час'), { target: { value: '96.00' } });
+    fireEvent.change(screen.getByLabelText('Минимум мин'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('Округление мин'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
+
+    expect(await screen.findByText('Создать тариф: подтверждено')).toBeInTheDocument();
+    const tariffCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).endsWith('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs') &&
+      init?.method === 'POST');
+    expect(tariffCall).toBeDefined();
+    const tariffBody = JSON.parse(String(tariffCall?.[1]?.body));
+    expect(tariffBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'Morning Hour'
+    });
+    expect(tariffBody.idempotencyKey).toMatch(/^tariff-create-/);
+
+    const versionCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/25252525-2525-2525-2525-252525252525/versions') &&
+      init?.method === 'POST');
+    expect(versionCall).toBeDefined();
+    const versionBody = JSON.parse(String(versionCall?.[1]?.body));
+    expect(versionBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      tariffId: '25252525-2525-2525-2525-252525252525',
+      currencyCode: 'TJS',
+      pricePerMinuteMinorUnits: 160,
+      minimumBillableMinutes: 20,
+      roundingIncrementMinutes: 10
+    });
+    expect(versionBody.effectiveFromUtc).toEqual(expect.any(String));
+    expect(versionBody.idempotencyKey).toMatch(/^tariff-version-create-/);
+  });
+
   it('registers update packages and creates rollouts from Settings integrations', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1195,6 +1240,20 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createTariffs());
   }
 
+  if (pathname.endsWith('/tariffs') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createTariff(body));
+  }
+
+  if (pathname.includes('/tariffs/') && pathname.endsWith('/versions') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const parts = pathname.split('/');
+    return jsonResponse(createTariffVersion({
+      ...body,
+      tariffId: parts[parts.length - 2]
+    }));
+  }
+
   if (pathname.endsWith('/packages/options')) {
     return jsonResponse(createPackageOptions());
   }
@@ -1275,6 +1334,7 @@ const allOperatorPermissions = [
   'devices.detail.view',
   'devices.credentials.rotate',
   'devices.credentials.revoke',
+  'tariffs.manage',
   'tariffs.view',
   'updates.status.view',
   'updates.packages.manage',
@@ -1993,6 +2053,34 @@ function createTariffs() {
       roundingIncrementMinutes: 5
     }
   ];
+}
+
+function createTariff(overrides: Record<string, unknown> = {}) {
+  return {
+    tariffId: '25252525-2525-2525-2525-252525252525',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    name: 'Morning Hour',
+    createdAtUtc: '2026-05-21T12:20:00Z',
+    ...overrides
+  };
+}
+
+function createTariffVersion(overrides: Record<string, unknown> = {}) {
+  return {
+    tariffVersionId: '26262626-2626-2626-2626-262626262626',
+    tariffId: '25252525-2525-2525-2525-252525252525',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    versionNumber: 2,
+    currencyCode: 'TJS',
+    pricePerMinuteMinorUnits: 160,
+    minimumBillableMinutes: 20,
+    roundingIncrementMinutes: 10,
+    effectiveFromUtc: '2026-05-21T12:20:00Z',
+    createdAtUtc: '2026-05-21T12:20:00Z',
+    ...overrides
+  };
 }
 
 function createAudit() {

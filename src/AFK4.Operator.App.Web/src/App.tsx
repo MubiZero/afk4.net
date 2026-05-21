@@ -144,6 +144,7 @@ const permissionNames = {
   viewDeviceDetail: 'devices.detail.view',
   rotateDeviceCredential: 'devices.credentials.rotate',
   revokeDeviceCredential: 'devices.credentials.revoke',
+  manageTariffs: 'tariffs.manage',
   viewTariffs: 'tariffs.view',
   viewUpdateStatus: 'updates.status.view',
   manageUpdatePackages: 'updates.packages.manage',
@@ -184,6 +185,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.viewUpdateStatus,
     permissionNames.manageUpdatePackages,
     permissionNames.manageUpdateRollouts,
+    permissionNames.manageTariffs,
     permissionNames.viewTariffs
   ]
 };
@@ -4924,6 +4926,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [stockQuantityDelta, setStockQuantityDelta] = useState('10');
   const [stockUnitCost, setStockUnitCost] = useState('0.00');
   const [stockReason, setStockReason] = useState('initial stock');
+  const [tariffName, setTariffName] = useState('Day Pass');
+  const [tariffPricePerHour, setTariffPricePerHour] = useState('90.00');
+  const [tariffMinimumMinutes, setTariffMinimumMinutes] = useState('15');
+  const [tariffRoundingMinutes, setTariffRoundingMinutes] = useState('5');
   const [packageName, setPackageName] = useState('Night 5h');
   const [packagePrice, setPackagePrice] = useState('250.00');
   const [packageMinutes, setPackageMinutes] = useState('300');
@@ -5017,6 +5023,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const canManageBranchStaff = backend !== null && hasPermission(backend.session, permissionNames.manageBranchStaff);
   const canManagePosCatalog = backend !== null && hasPermission(backend.session, permissionNames.managePosCatalog);
   const canManageInventoryStock = backend !== null && hasPermission(backend.session, permissionNames.manageInventoryStock);
+  const canManageTariffs = backend !== null && hasPermission(backend.session, permissionNames.manageTariffs);
   const canManagePackages = backend !== null && hasPermission(backend.session, permissionNames.managePackages);
   const canManageUpdatePackages = backend !== null && hasPermission(backend.session, permissionNames.manageUpdatePackages);
   const canManageUpdateRollouts = backend !== null && hasPermission(backend.session, permissionNames.manageUpdateRollouts);
@@ -5140,9 +5147,23 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         await loadSettings(nextBackend);
       } else if (label === 'Создать тариф') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageTariffs)) {
+          throw new Error('Нет прав на управление тарифами.');
+        }
+
+        const name = tariffName.trim();
+        const pricePerHourMinorUnits = parseMoneyInputMinorUnits(tariffPricePerHour);
+        const minimumBillableMinutes = Number(tariffMinimumMinutes);
+        const roundingIncrementMinutes = Number(tariffRoundingMinutes);
+        if (!name || pricePerHourMinorUnits === null
+          || !Number.isInteger(minimumBillableMinutes) || minimumBillableMinutes <= 0
+          || !Number.isInteger(roundingIncrementMinutes) || roundingIncrementMinutes <= 0) {
+          throw new Error('Заполните название тарифа, цену за час, минимум и округление.');
+        }
+
         const tariff = await apiClients.settings.createTariff(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
-          name: `Tariff ${tariffs.length + 1}`,
+          name,
           idempotencyKey: createIdempotencyKey('tariff-create')
         });
         const tariffId = readString(tariff, 'tariffId');
@@ -5151,13 +5172,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             organizationId: nextBackend.session.organizationId,
             tariffId,
             currencyCode,
-            pricePerMinuteMinorUnits: 50,
-            minimumBillableMinutes: 15,
-            roundingIncrementMinutes: 5,
+            pricePerMinuteMinorUnits: Math.max(1, Math.round(pricePerHourMinorUnits / 60)),
+            minimumBillableMinutes,
+            roundingIncrementMinutes,
             effectiveFromUtc: new Date().toISOString(),
             idempotencyKey: createIdempotencyKey('tariff-version-create')
           });
         }
+        setTariffName(`Tariff ${tariffs.length + 2}`);
         await loadSettings(nextBackend);
       } else if (label === 'Создать пакет') {
         if (!hasPermission(nextBackend.session, permissionNames.managePackages)) {
@@ -5468,7 +5490,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         <>
           <div className="settings-section-title">
             <span>Тарифы</span>
-            <button type="button" onClick={() => runSettingsAction('Создать тариф')}>Создать тариф</button>
+            <button type="button" disabled={!canManageTariffs} onClick={() => runSettingsAction('Создать тариф')}>Создать тариф</button>
+          </div>
+          <div className="settings-form-grid settings-tariff-form">
+            <label>Название тарифа<input value={tariffName} disabled={!canManageTariffs} onChange={(event) => setTariffName(event.currentTarget.value)} /></label>
+            <label>Цена/час<input inputMode="decimal" value={tariffPricePerHour} disabled={!canManageTariffs} onChange={(event) => setTariffPricePerHour(event.currentTarget.value)} /></label>
+            <label>Минимум мин<input inputMode="numeric" value={tariffMinimumMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffMinimumMinutes(event.currentTarget.value)} /></label>
+            <label>Округление мин<input inputMode="numeric" value={tariffRoundingMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffRoundingMinutes(event.currentTarget.value)} /></label>
           </div>
           <div className="settings-tariff-list">
             {tariffs.map((tariff) => (

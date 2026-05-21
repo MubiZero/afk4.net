@@ -144,8 +144,11 @@ implementation evidence are needed.
   and `/api/branches/{branchId}/pos/products`, guarded by
   `pos.catalog.manage`, and can record stock movements through
   `/api/branches/{branchId}/inventory/stock-movements`, guarded by
-  `inventory.stock.manage`. Settings `Тарифы` can now create package definitions
-  through `/api/branches/{branchId}/packages`, guarded by `packages.manage`.
+  `inventory.stock.manage`. Settings `Тарифы` can now create tariffs and their
+  first price-rule versions through `/api/branches/{branchId}/tariffs` and
+  `/api/branches/{branchId}/tariffs/{tariffId}/versions`, guarded by
+  `tariffs.manage`, and can create package definitions through
+  `/api/branches/{branchId}/packages`, guarded by `packages.manage`.
   Settings `Интеграции` can now register update packages, create rollouts, and
   change update package/rollout states through the existing update endpoints,
   guarded by `updates.packages.manage` and `updates.rollouts.manage`. Settings
@@ -165,8 +168,9 @@ implementation evidence are needed.
   sales, cash, and CSV report endpoints; Logs reads audit and diagnostics;
   Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
   option, and package option data, and can trigger limited backend setup actions
-  including package definition creation, inventory stock movement creation,
-  update package registration, rollout creation, and update state changes;
+  including tariff/version creation, package definition creation, inventory
+  stock movement creation, update package registration, rollout creation, and
+  update state changes;
   Settings device setup can create enrollment codes, assign device seats, read
   device detail, and rotate/revoke device credentials; Logs now applies backend
   audit search filters for action/outcome/target type, UTC date range, and
@@ -272,11 +276,11 @@ permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings stock movement creation,
-Settings package definition create, Payments close-shift wiring, Payments cash
-movement creation, Payments open-shift wiring, Settings update package/rollout
-controls, Settings device enrollment/seat assignment/credential lifecycle,
-Logs backend audit/date filters
-filters, POS refund quick action, POS
+Settings tariff/version create, Settings package definition create, Payments
+close-shift wiring, Payments cash movement creation, Payments open-shift
+wiring, Settings update package/rollout controls, Settings device enrollment,
+seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
+refund quick action, POS
 draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 ```powershell
@@ -288,7 +292,7 @@ draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 Result:
 
-- frontend tests: 57 passed, 0 failed;
+- frontend tests: 58 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -328,6 +332,10 @@ Result:
 - Settings package frontend tests now cover package definition POST
   serialization from the `Тарифы` form, including price minor units, included
   seconds, bonus seconds, expiry days, organization id, and idempotency key.
+- Settings tariff frontend tests now cover creating a tariff plus first rule
+  version from the `Тарифы` form, including tariff name, hourly price converted
+  to per-minute minor units, minimum billable minutes, rounding increment,
+  effective UTC timestamp, organization id, and idempotency keys.
 - Settings update frontend tests now cover update package registration,
   rollout creation, package state changes, and rollout state changes from
   `Интеграции`, including package/rollout ids, channels, target kind, batch

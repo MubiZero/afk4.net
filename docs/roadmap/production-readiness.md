@@ -184,8 +184,9 @@ Minimum bar:
    PostgreSQL edits. PR #41 added the minimum Operator App `Settings` ->
    `Pilot Setup` panel for staff, one zone/seats, one tariff/version, one POS
    category/product, and optional already-enrolled device assignment. The
-   WebView2/React Settings work has since added package definition creation
-   through the existing package endpoint on `codex/operator-app-redesign`.
+   WebView2/React Settings work has since added tariff/version creation and
+   package definition creation through the existing tariff/package endpoints on
+   `codex/operator-app-redesign`.
 
 ## Commercial Production Blockers
 
@@ -334,9 +335,10 @@ Minimum bar:
   staff API, branch profile name/city save through a new branch profile API,
   POS category/product creation through the existing POS catalog endpoints, and
   inventory stock movement creation through the existing stock-movement
-  endpoint, and package definition creation through the existing package
-  endpoint. Settings `Интеграции` now also registers update packages, creates
-  update rollouts, and changes package/rollout states through the existing
+  endpoint, plus tariff/version creation and package definition creation
+  through the existing tariff/package endpoints. Settings `Интеграции` now also
+  registers update packages, creates update rollouts, and changes
+  package/rollout states through the existing
   update endpoints. Logs now applies backend audit search filters for exact
   action, outcome, target type, UTC date range, and limit. Settings `Залы и ПК` now also
   creates device enrollment codes, assigns enrolled devices to seats, and

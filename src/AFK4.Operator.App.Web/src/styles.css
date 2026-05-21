@@ -4284,6 +4284,10 @@ button {
   padding-top: 10px;
 }
 
+.settings-tariff-form {
+  padding: 0 12px 4px;
+}
+
 .settings-update-form {
   border-top: 1px solid #263241;
   padding-top: 10px;

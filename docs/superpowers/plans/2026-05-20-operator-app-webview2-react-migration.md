@@ -66,8 +66,9 @@ Current state:
   in the Personnel section, branch profile save backed by a new Platform API
   profile endpoint, POS category/product creation backed by the existing
   POS catalog endpoints, stock movement creation backed by the existing
-  inventory endpoint, and package definition creation backed by the existing
-  package endpoint. Payments can now open a shift through the existing
+  inventory endpoint, tariff/version creation backed by the existing tariff
+  endpoints, and package definition creation backed by the existing package
+  endpoint. Payments can now open a shift through the existing
   open-shift endpoint, close the current shift through the existing close-shift
   endpoint with counted cash and a closing note, and can record cash movements
   through the existing shift cash movement endpoint. Settings `Интеграции` now
@@ -115,8 +116,9 @@ map has real filter/table parity. Booking mutation controls now also respect
 create branch staff through the existing backend staff API, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product, and Settings `Тарифы` can
-create a backend package definition. Settings `POS и склад` can also record
-inventory stock movements for tracked products. Payments open-shift now calls
+create a backend tariff/version plus package definition. Settings `POS и
+склад` can also record inventory stock movements for tracked products.
+Payments open-shift now calls
 the backend open-shift endpoint with starting cash and opening note fields.
 Payments close-shift now calls the backend close-shift endpoint with counted
 cash and note fields, and Payments cash movement creation calls the backend
@@ -256,10 +258,13 @@ missing-backend copy.
   2026-05-21 using backend profile/staff APIs plus existing permissions. POS
   category/product creation from `POS и склад` was implemented on 2026-05-21
   through existing POS catalog endpoints with `pos.catalog.manage` gating,
-  price/stock form fields, and idempotency keys. Package definition creation
-  from `Тарифы` was implemented on 2026-05-21 through the existing package
-  endpoint with `packages.manage` gating, minute/bonus/expiry fields, and
-  idempotency keys. Inventory stock movement creation from `POS и склад` was
+  price/stock form fields, and idempotency keys. Tariff/version creation from
+  `Тарифы` was implemented on 2026-05-21 through the existing tariff endpoints
+  with `tariffs.manage` gating, hourly price, minimum/rounding fields, and
+  idempotency keys. Package definition creation from `Тарифы` was implemented
+  on 2026-05-21 through the existing package endpoint with `packages.manage`
+  gating, minute/bonus/expiry fields, and idempotency keys. Inventory stock
+  movement creation from `POS и склад` was
   implemented on 2026-05-21 through the existing stock-movement endpoint with
   `inventory.stock.manage` gating and idempotency keys. Update package
   registration, rollout creation, and package/rollout state changes from
