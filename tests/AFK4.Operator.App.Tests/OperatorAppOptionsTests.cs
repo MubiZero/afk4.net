@@ -49,6 +49,24 @@ public sealed class OperatorAppOptionsTests
         Assert.Equal("USD", options.CurrencyCode);
     }
 
+    [Fact]
+    public void LoadFromEnvironment_UsesOrganizationAndBranchEnvironmentVariables()
+    {
+        var organizationId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var branchId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+
+        var options = OperatorAppOptions.LoadFromEnvironment(name =>
+            name switch
+            {
+                OperatorAppOptions.OrganizationIdEnvironmentVariable => organizationId.ToString(),
+                OperatorAppOptions.BranchIdEnvironmentVariable => branchId.ToString(),
+                _ => null
+            });
+
+        Assert.Equal(organizationId, options.OrganizationId);
+        Assert.Equal(branchId, options.BranchId);
+    }
+
     [Theory]
     [InlineData("TJ")]
     [InlineData("USDD")]
@@ -62,5 +80,19 @@ public sealed class OperatorAppOptionsTests
                     : null));
 
         Assert.Contains(OperatorAppOptions.CurrencyCodeEnvironmentVariable, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(OperatorAppOptions.OrganizationIdEnvironmentVariable)]
+    [InlineData(OperatorAppOptions.BranchIdEnvironmentVariable)]
+    public void LoadFromEnvironment_RejectsInvalidGuidEnvironmentVariables(string environmentVariableName)
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            OperatorAppOptions.LoadFromEnvironment(name =>
+                name == environmentVariableName
+                    ? "not-a-guid"
+                    : null));
+
+        Assert.Contains(environmentVariableName, exception.Message, StringComparison.Ordinal);
     }
 }

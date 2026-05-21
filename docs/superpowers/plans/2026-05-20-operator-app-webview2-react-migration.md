@@ -320,8 +320,9 @@ defect.
 - Protected token storage remains native-side; frontend tokens must not be
   persisted in browser localStorage.
 - Normal operator paths must avoid raw GUID/form surfaces.
-- `AFK4_OPERATOR_PLATFORM_BASE_URL` and `AFK4_OPERATOR_CURRENCY_CODE` remain
-  supported for local and staging smoke.
+- `AFK4_OPERATOR_PLATFORM_BASE_URL`, `AFK4_OPERATOR_ORGANIZATION_ID`,
+  `AFK4_OPERATOR_BRANCH_ID`, and `AFK4_OPERATOR_CURRENCY_CODE` remain supported
+  for local and staging smoke.
 - Existing backend APIs and shared DTO intent remain the contract baseline.
 
 ## Target Structure
@@ -505,6 +506,8 @@ Screen roadmap:
 - [x] Operator App builds and opens to the React UI locally.
 - [x] Local Operator App package build includes built React frontend assets in
   published `WebAssets`.
-- [ ] Operator App can target `https://afk4.staging.mubi.dev`.
+- [x] Operator App can target `https://afk4.staging.mubi.dev` through native
+  host environment configuration; focused option tests and staging health check
+  passed on 2026-05-21.
 - [x] Operator App MSI includes host binaries, built frontend assets, and WebView2
   prerequisite handling.

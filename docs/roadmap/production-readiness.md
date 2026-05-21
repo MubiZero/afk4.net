@@ -315,7 +315,9 @@ Minimum bar:
   a WebView2 host shell and a local React/TypeScript console with host config
   injection, local asset resolution, the floor map, and SmartShell-inspired
   fixture workspaces for dashboard, booking, POS/shop, clients, payments,
-  logs, and ops/settings. The first native auth/token boundary now exists:
+  logs, and ops/settings. The native host can be pointed at staging with
+  platform URL, organization id, branch id, and currency environment variables.
+  The first native auth/token boundary now exists:
   staff sign-in, token load/refresh/sign-out bridge messages, protected token
   storage, and React auth gating are test-covered. Typed frontend API client
   boundaries now also exist for floor map, sessions, POS, players,

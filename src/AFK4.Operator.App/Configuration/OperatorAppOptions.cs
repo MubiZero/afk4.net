@@ -4,6 +4,8 @@ public sealed class OperatorAppOptions
 {
     public const string PlatformBaseUrlEnvironmentVariable = "AFK4_OPERATOR_PLATFORM_BASE_URL";
     public const string CurrencyCodeEnvironmentVariable = "AFK4_OPERATOR_CURRENCY_CODE";
+    public const string OrganizationIdEnvironmentVariable = "AFK4_OPERATOR_ORGANIZATION_ID";
+    public const string BranchIdEnvironmentVariable = "AFK4_OPERATOR_BRANCH_ID";
 
     public Uri PlatformBaseUrl { get; init; } = new("http://localhost:5074");
 
@@ -58,6 +60,42 @@ public sealed class OperatorAppOptions
                 CurrencyCode = currencyCode,
                 OrganizationId = options.OrganizationId,
                 BranchId = options.BranchId
+            };
+        }
+
+        var organizationIdValue = getEnvironmentVariable(OrganizationIdEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(organizationIdValue))
+        {
+            if (!Guid.TryParse(organizationIdValue.Trim(), out var organizationId))
+            {
+                throw new InvalidOperationException(
+                    $"{OrganizationIdEnvironmentVariable} must be a GUID.");
+            }
+
+            options = new OperatorAppOptions
+            {
+                PlatformBaseUrl = options.PlatformBaseUrl,
+                CurrencyCode = options.CurrencyCode,
+                OrganizationId = organizationId,
+                BranchId = options.BranchId
+            };
+        }
+
+        var branchIdValue = getEnvironmentVariable(BranchIdEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(branchIdValue))
+        {
+            if (!Guid.TryParse(branchIdValue.Trim(), out var branchId))
+            {
+                throw new InvalidOperationException(
+                    $"{BranchIdEnvironmentVariable} must be a GUID.");
+            }
+
+            options = new OperatorAppOptions
+            {
+                PlatformBaseUrl = options.PlatformBaseUrl,
+                CurrencyCode = options.CurrencyCode,
+                OrganizationId = options.OrganizationId,
+                BranchId = branchId
             };
         }
 

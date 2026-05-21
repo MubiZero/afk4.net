@@ -72,7 +72,9 @@ implementation evidence are needed.
   layout zone with seats, one tariff/version, one POS category/product, and
   optional already-enrolled device-to-seat assignment.
 - Local Operator App builds can target staging by setting
-  `AFK4_OPERATOR_PLATFORM_BASE_URL` before launch.
+  `AFK4_OPERATOR_PLATFORM_BASE_URL`, `AFK4_OPERATOR_ORGANIZATION_ID`,
+  `AFK4_OPERATOR_BRANCH_ID`, and optional `AFK4_OPERATOR_CURRENCY_CODE` before
+  launch.
 - Floor-map seat context no longer defaults to a raw `postpaid_debt` request.
   It has a fast guest/no-ledger billing option for staging smoke, explicit
   billed modes, and validation that billed modes require a player account.
@@ -2237,6 +2239,19 @@ Operator App WebView2/React first implementation on 2026-05-20:
   that the Operator App MSI contains built frontend `index.html`, JavaScript,
   and CSS assets. It produced `afk4-operator-app-0.1.1001-internal.msi` and
   `afk4-gaming-pc-0.1.1001-internal.msi`.
+- Operator App staging-target configuration verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  curl.exe -i --max-time 30 https://afk4.staging.mubi.dev/api/health
+  ```
+
+  Result: focused Operator App tests passed 192/192 after adding native host
+  env parsing for `AFK4_OPERATOR_ORGANIZATION_ID` and
+  `AFK4_OPERATOR_BRANCH_ID`. Staging health returned HTTP 200 with
+  `{"status":"ok",...}` at `2026-05-21T17:44:06Z`. Full signed-in staging
+  workflow evidence still requires staff credentials and remains tracked under
+  the cutover/staging smoke item.
 
 ## Historical Reference
 
