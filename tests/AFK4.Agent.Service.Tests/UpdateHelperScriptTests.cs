@@ -58,6 +58,9 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("Operator App frontend build did not produce", script, StringComparison.Ordinal);
         Assert.Contains("$operatorWebAssetsPublishDir = Join-Path $operatorAppPublishDir 'WebAssets'", script, StringComparison.Ordinal);
         Assert.Contains("Copy-Item -Destination $operatorWebAssetsPublishDir -Recurse -Force", script, StringComparison.Ordinal);
+        Assert.Contains("WindowsInstaller.Installer", script, StringComparison.Ordinal);
+        Assert.Contains("Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath", script, StringComparison.Ordinal);
+        Assert.Contains("Operator App MSI does not contain", script, StringComparison.Ordinal);
     }
 
     [Theory]

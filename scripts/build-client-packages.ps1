@@ -39,6 +39,50 @@ function ConvertTo-MsiVersion {
     return $match.Groups['version'].Value
 }
 
+function Get-MsiFileNames {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $MsiPath
+    )
+
+    $installer = New-Object -ComObject WindowsInstaller.Installer
+    $database = $installer.OpenDatabase($MsiPath, 0)
+    $view = $database.OpenView('SELECT `FileName` FROM `File`')
+    $fileNames = @()
+
+    try {
+        $view.Execute()
+        while ($record = $view.Fetch()) {
+            $fileNames += $record.StringData(1)
+        }
+    }
+    finally {
+        $view.Close()
+    }
+
+    return $fileNames
+}
+
+function Assert-OperatorMsiContainsFrontendAssets {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $MsiPath
+    )
+
+    $fileNames = Get-MsiFileNames -MsiPath $MsiPath
+    $requiredAssets = @(
+        @{ Label = 'frontend index.html'; Pattern = '*index.html*' },
+        @{ Label = 'frontend JavaScript bundle'; Pattern = '*.js*' },
+        @{ Label = 'frontend stylesheet'; Pattern = '*.css*' }
+    )
+
+    foreach ($asset in $requiredAssets) {
+        if (-not ($fileNames | Where-Object { $_ -like $asset.Pattern } | Select-Object -First 1)) {
+            throw "Operator App MSI does not contain $($asset.Label). Build the React frontend and copy dist into WebAssets before WiX packaging."
+        }
+    }
+}
+
 if (-not (Test-Path -LiteralPath $DotnetPath)) {
     throw "dotnet executable was not found at '$DotnetPath'."
 }
@@ -203,6 +247,8 @@ $gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi
 if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for Operator App MSI with exit code $LASTEXITCODE."
 }
+
+Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
     -arch x64 `

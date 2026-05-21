@@ -104,8 +104,10 @@ implementation evidence are needed.
   fixture fallback for browser-dev/no-backend runs.
 - Operator App package builds now run the React frontend build before publishing
   the native shell, replace published `WebAssets` with the Vite `dist` output,
-  and feed those assets into the Operator App MSI. The client package workflows
-  set up Node 24 and npm cache for `src/AFK4.Operator.App.Web/package-lock.json`.
+  feed those assets into the Operator App MSI, and assert the finished MSI File
+  table contains `index.html`, JavaScript, and CSS frontend assets. The client
+  package workflows set up Node 24 and npm cache for
+  `src/AFK4.Operator.App.Web/package-lock.json`.
   The Operator App MSI now has a WebView2 Evergreen Runtime launch condition
   based on the documented EdgeUpdate `pv` registry values, so first install
   fails closed with an explicit prerequisite message instead of installing a
@@ -2223,6 +2225,18 @@ Operator App WebView2/React first implementation on 2026-05-20:
   WebView2 Runtime `pv` registry searches plus a first-install launch condition.
   It produced `afk4-operator-app-0.1.1000-internal.msi` and
   `afk4-gaming-pc-0.1.1000-internal.msi`.
+- Operator App MSI frontend-content assertion verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  powershell -ExecutionPolicy Bypass -File scripts\build-client-packages.ps1 -Version 0.1.1001 -Channel internal
+  ```
+
+  Result: Agent Service release automation tests passed 140/140, and the
+  package build passed with a post-WiX Windows Installer File-table assertion
+  that the Operator App MSI contains built frontend `index.html`, JavaScript,
+  and CSS assets. It produced `afk4-operator-app-0.1.1001-internal.msi` and
+  `afk4-gaming-pc-0.1.1001-internal.msi`.
 
 ## Historical Reference
 

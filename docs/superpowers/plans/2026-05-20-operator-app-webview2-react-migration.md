@@ -482,8 +482,9 @@ Screen roadmap:
   WebView2 Evergreen Runtime HKLM/HKCU EdgeUpdate `pv` registry searches and a
   clear first-install prerequisite message; no offline runtime bootstrapper is
   bundled yet.
-- [ ] Add automated MSI content assertion for built frontend assets after WiX
-  output, beyond the current publish-directory/package-script guard tests.
+- [x] Add automated MSI content assertion for built frontend assets after WiX
+  output. Implemented on 2026-05-21 by reading the Operator MSI File table after
+  WiX build and requiring frontend `index.html`, JavaScript, and CSS entries.
 - [x] Keep update package component name `operator-app`.
 
 ## Task 8: Cutover And Cleanup
