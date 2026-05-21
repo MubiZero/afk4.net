@@ -73,7 +73,9 @@ Current state:
   through the existing shift cash movement endpoint. Settings `Интеграции` now
   registers update packages, creates rollouts, and changes package/rollout
   state through the existing update endpoints. Logs now refreshes backend audit
-  records through action/outcome/target type/limit filters. POS
+  records through action/outcome/target type/limit filters. Settings `Залы и
+  ПК` now creates enrollment codes, assigns device ids to seats, and reads
+  device detail through existing device endpoints. POS
   quick refund now calls the existing refund endpoint for the latest backend
   sale, and POS draft void creates a backend draft from the current cart before
   calling the existing void endpoint. POS recent receipt rows now open backend
@@ -121,7 +123,9 @@ shift cash endpoint. Settings `Интеграции` now exposes backend-backed 
 package registration, rollout creation, and package/rollout state changes with
 the existing `updates.packages.manage` and `updates.rollouts.manage` guards.
 Logs now applies backend audit action/outcome/target type/limit filters through
-the existing audit search endpoint.
+the existing audit search endpoint. Settings `Залы и ПК` now exposes
+backend-backed enrollment-code creation, device-to-seat assignment, and device
+detail lookup with the existing device permissions.
 POS
 quick refund calls the backend refund endpoint for the latest backend sale, and
 POS draft void calls the backend void endpoint after creating a draft from the
@@ -259,9 +263,11 @@ missing-backend copy.
   registration, rollout creation, and package/rollout state changes from
   `Интеграции` were implemented on 2026-05-21 through the existing update
   endpoints with `updates.packages.manage` and `updates.rollouts.manage`
-  gating.
+  gating. Device setup from `Залы и ПК` was implemented on 2026-05-21 through
+  the existing enrollment-code, device-seat assignment, and device detail
+  endpoints with existing device permission gating.
   Remaining settings gaps include role assignment/editing, general layout
-  editor, device-seat management, tariff version edit/deactivate, package edit/
+  editor, richer device/seat inventory management, tariff version edit/deactivate, package edit/
   deactivate and purchase UX refinements, POS catalog edit/deactivate, stock
   history and advanced inventory controls, integrations/payment-provider
   settings, richer update rollout detail/status controls, diagnostics,

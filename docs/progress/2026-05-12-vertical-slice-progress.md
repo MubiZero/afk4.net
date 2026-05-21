@@ -148,7 +148,10 @@ implementation evidence are needed.
   through `/api/branches/{branchId}/packages`, guarded by `packages.manage`.
   Settings `Интеграции` can now register update packages, create rollouts, and
   change update package/rollout states through the existing update endpoints,
-  guarded by `updates.packages.manage` and `updates.rollouts.manage`.
+  guarded by `updates.packages.manage` and `updates.rollouts.manage`. Settings
+  `Залы и ПК` can now create device enrollment codes, assign an enrolled
+  device id to a selected seat, and open device detail through existing device
+  endpoints, guarded by the existing device permissions.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports, creates paid manual-provider sales, can refund the latest backend
@@ -162,7 +165,8 @@ implementation evidence are needed.
   option, and package option data, and can trigger limited backend setup actions
   including package definition creation, inventory stock movement creation,
   update package registration, rollout creation, and update state changes;
-  Logs now applies backend audit search filters for action/outcome/target type
+  Settings device setup can create enrollment codes, assign device seats, and
+  read device detail; Logs now applies backend audit search filters for action/outcome/target type
   and limit through `/api/branches/{branchId}/audit`; Dashboard reads the
   backend dashboard summary and uses existing report exports
   for export confirmation; Booking uses backend reservation
@@ -267,7 +271,8 @@ Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings stock movement creation,
 Settings package definition create, Payments close-shift wiring, Payments cash
 movement creation, Payments open-shift wiring, Settings update package/rollout
-controls, Logs backend audit filters, POS refund quick action, POS
+controls, Settings device enrollment/seat assignment, Logs backend audit
+filters, POS refund quick action, POS
 draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 ```powershell
@@ -279,7 +284,7 @@ draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 Result:
 
-- frontend tests: 56 passed, 0 failed;
+- frontend tests: 57 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -326,6 +331,9 @@ Result:
 - Logs frontend tests now cover backend audit search filtering from `Логи`,
   including action, outcome, target type, and limit query-string
   serialization to `/api/branches/{branchId}/audit`.
+- Settings device frontend tests now cover creating device enrollment codes,
+  assigning a device id to a selected seat, and reading device detail through
+  the existing device endpoints from `Залы и ПК`.
 - Payments frontend tests now cover closing the current shift from the
   reconciliation panel through `/api/shifts/{shiftId}/close`, including
   counted cash, closing note, organization id, and idempotency key
@@ -1320,6 +1328,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   to `Логи`. Operators can apply exact audit action, outcome, target type, and
   limit filters, and the UI refreshes event rows from the existing audit search
   endpoint instead of relying only on local filtering.
+- On 2026-05-21, `codex/operator-app-redesign` added Settings device setup in
+  `Залы и ПК`. Operators with device permissions can create enrollment codes,
+  assign an enrolled device id to an existing seat, and open device detail from
+  the current Settings surface.
 - On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
   Operator App implementation: WebView2 startup shell, local asset resolution,
   typed host config injection, Vite/React frontend foundation, first visual

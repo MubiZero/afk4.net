@@ -139,6 +139,9 @@ const permissionNames = {
   viewDiagnostics: 'diagnostics.view',
   manageBranchStaff: 'identity.branch_staff.manage',
   manageLayout: 'layout.manage',
+  createDeviceEnrollmentCode: 'devices.enrollment_codes.create',
+  assignDeviceSeat: 'devices.seat_assignment.assign',
+  viewDeviceDetail: 'devices.detail.view',
   viewTariffs: 'tariffs.view',
   viewUpdateStatus: 'updates.status.view',
   manageUpdatePackages: 'updates.packages.manage',
@@ -166,6 +169,9 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
   settings: [
     permissionNames.manageBranchStaff,
     permissionNames.manageLayout,
+    permissionNames.createDeviceEnrollmentCode,
+    permissionNames.assignDeviceSeat,
+    permissionNames.viewDeviceDetail,
     permissionNames.viewInventory,
     permissionNames.manageInventoryStock,
     permissionNames.managePosCatalog,
@@ -4882,6 +4888,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [deviceAssignmentDeviceId, setDeviceAssignmentDeviceId] = useState('');
+  const [deviceAssignmentSeatId, setDeviceAssignmentSeatId] = useState('');
+  const [enrollmentExpiresSeconds, setEnrollmentExpiresSeconds] = useState('900');
+  const [enrollmentCode, setEnrollmentCode] = useState<Record<string, unknown> | null>(null);
+  const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
   const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
@@ -4946,7 +4957,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       ]);
       const productRows = Array.isArray(products) ? products : [];
       setStaffUsers(Array.isArray(staff) ? staff : []);
-      setZones(Array.isArray(layoutZones) ? layoutZones : []);
+      const zoneRows = Array.isArray(layoutZones) ? layoutZones : [];
+      setZones(zoneRows);
+      const firstSeatId = zoneRows.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats')).map((seat) => readString(seat, 'seatId')).find(Boolean) ?? '';
+      setDeviceAssignmentSeatId((current) => isGuid(current) ? current : firstSeatId);
       setCatalog(productRows);
       setStockProductId((current) => productRows.some((product) => readString(product, 'productId') === current && readBoolean(product, 'trackStock'))
         ? current
@@ -4990,6 +5004,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const canManagePackages = backend !== null && hasPermission(backend.session, permissionNames.managePackages);
   const canManageUpdatePackages = backend !== null && hasPermission(backend.session, permissionNames.manageUpdatePackages);
   const canManageUpdateRollouts = backend !== null && hasPermission(backend.session, permissionNames.manageUpdateRollouts);
+  const canCreateDeviceEnrollmentCode = backend !== null && hasPermission(backend.session, permissionNames.createDeviceEnrollmentCode);
+  const canAssignDeviceSeat = backend !== null && hasPermission(backend.session, permissionNames.assignDeviceSeat);
+  const canViewDeviceDetail = backend !== null && hasPermission(backend.session, permissionNames.viewDeviceDetail);
+  const layoutSeatOptions = zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
+    seatId: readString(seat, 'seatId'),
+    label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
+  }))).filter((seat) => isGuid(seat.seatId));
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
@@ -5012,6 +5033,48 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       if (label === 'Проверить устройства') {
         setDiagnostics(await apiClients.diagnostics.getDiagnostics(nextBackend.branchId));
+      } else if (label === 'Создать код подключения') {
+        if (!hasPermission(nextBackend.session, permissionNames.createDeviceEnrollmentCode)) {
+          throw new Error('Нет прав на создание кода подключения устройства.');
+        }
+
+        const expiresInSeconds = Number(enrollmentExpiresSeconds);
+        if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 60 || expiresInSeconds > 86400) {
+          throw new Error('Срок действия кода должен быть от 60 до 86400 секунд.');
+        }
+
+        const code = await apiClients.devices.createEnrollmentCode(nextBackend.branchId, nextBackend.session.organizationId, expiresInSeconds);
+        setEnrollmentCode(code);
+      } else if (label === 'Назначить устройство') {
+        if (!hasPermission(nextBackend.session, permissionNames.assignDeviceSeat)) {
+          throw new Error('Нет прав на назначение устройства рабочему месту.');
+        }
+
+        const deviceId = deviceAssignmentDeviceId.trim();
+        const seatId = deviceAssignmentSeatId.trim();
+        if (!isGuid(deviceId) || !isGuid(seatId)) {
+          throw new Error('Укажите корректные device id и seat id.');
+        }
+
+        await apiClients.settings.assignDeviceSeat(nextBackend.branchId, deviceId, {
+          organizationId: nextBackend.session.organizationId,
+          seatId
+        });
+        if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
+          setDeviceDetail(await apiClients.devices.getDeviceDetail(deviceId));
+        }
+        await loadSettings(nextBackend);
+      } else if (label === 'Открыть карточку устройства') {
+        if (!hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
+          throw new Error('Нет прав на просмотр карточки устройства.');
+        }
+
+        const deviceId = deviceAssignmentDeviceId.trim();
+        if (!isGuid(deviceId)) {
+          throw new Error('Укажите корректный device id.');
+        }
+
+        setDeviceDetail(await apiClients.devices.getDeviceDetail(deviceId));
       } else if (label === 'Добавить зал') {
         const zone = await apiClients.settings.createZone(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
@@ -5326,6 +5389,26 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <span>sort {readNumber(zone, 'sortOrder', 0)}</span>
               </button>
             ))}
+          </div>
+          <div className="settings-section-title">
+            <span>Подключение устройств</span>
+            <button type="button" disabled={!canCreateDeviceEnrollmentCode} onClick={() => runSettingsAction('Создать код подключения')}>Создать код подключения</button>
+            <button type="button" disabled={!canAssignDeviceSeat || layoutSeatOptions.length === 0} onClick={() => runSettingsAction('Назначить устройство')}>Назначить устройство</button>
+          </div>
+          <div className="settings-form-grid settings-device-form">
+            <label>Срок кода, сек<input inputMode="numeric" value={enrollmentExpiresSeconds} disabled={!canCreateDeviceEnrollmentCode} onChange={(event) => setEnrollmentExpiresSeconds(event.currentTarget.value)} /></label>
+            <label>Код подключения<input value={readString(enrollmentCode, 'code', '—')} readOnly /></label>
+            <label>Device id<input value={deviceAssignmentDeviceId} disabled={!canAssignDeviceSeat && !canViewDeviceDetail} onChange={(event) => setDeviceAssignmentDeviceId(event.currentTarget.value)} /></label>
+            <label>Рабочее место
+              <select value={deviceAssignmentSeatId} disabled={!canAssignDeviceSeat || layoutSeatOptions.length === 0} onChange={(event) => setDeviceAssignmentSeatId(event.currentTarget.value)}>
+                {layoutSeatOptions.length === 0 && <option value="">нет рабочих мест</option>}
+                {layoutSeatOptions.map((seat) => (
+                  <option key={seat.seatId} value={seat.seatId}>{seat.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>Карточка устройства<input value={deviceDetail ? `${readString(deviceDetail, 'machineName', 'Device')} · ${readString(deviceDetail, 'seatName', 'без места')}` : 'не открыта'} readOnly /></label>
+            <button type="button" disabled={!canViewDeviceDetail || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Открыть карточку устройства')}>Открыть карточку устройства</button>
           </div>
         </>
       );

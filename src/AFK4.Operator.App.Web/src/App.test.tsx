@@ -668,6 +668,48 @@ describe('App', () => {
     });
   });
 
+  it('creates device enrollment codes and assigns devices to seats from Settings', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
+    fireEvent.change(screen.getByLabelText('Срок кода, сек'), { target: { value: '600' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать код подключения' }));
+
+    expect(await screen.findByText('Создать код подключения: подтверждено')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('AFK4-DEVICE-1234')).toBeInTheDocument();
+    const enrollmentCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-enrollment-codes') &&
+      init?.method === 'POST');
+    expect(enrollmentCall).toBeDefined();
+    expect(JSON.parse(String(enrollmentCall?.[1]?.body))).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      expiresInSeconds: 600
+    });
+
+    fireEvent.change(screen.getByLabelText('Device id'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Назначить устройство' }));
+
+    expect(await screen.findByText('Назначить устройство: подтверждено')).toBeInTheDocument();
+    const assignmentCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/devices/33333333-3333-3333-3333-333333333333/seat-assignment') &&
+      init?.method === 'POST');
+    expect(assignmentCall).toBeDefined();
+    expect(JSON.parse(String(assignmentCall?.[1]?.body))).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+    });
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333') &&
+      init?.method === 'GET')).toBe(true);
+    expect(screen.getByDisplayValue('PC-02 · PC-01')).toBeInTheDocument();
+  });
+
   it('creates a POS category and product from Settings', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1063,6 +1105,25 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createZones());
   }
 
+  if (pathname.endsWith('/device-enrollment-codes') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createDeviceEnrollmentCode(body));
+  }
+
+  if (pathname.endsWith('/seat-assignment') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const parts = pathname.split('/');
+    return jsonResponse(createDeviceSeatAssignment({
+      deviceId: parts[parts.length - 2],
+      seatId: body.seatId
+    }));
+  }
+
+  if (pathname.includes('/api/devices/') && !pathname.includes('/commands') && init?.method !== 'POST') {
+    const parts = pathname.split('/');
+    return jsonResponse(createDeviceDetail({ deviceId: parts[parts.length - 1] }));
+  }
+
   if (pathname.endsWith('/diagnostics')) {
     return jsonResponse(createDiagnostics());
   }
@@ -1178,6 +1239,9 @@ const allOperatorPermissions = [
   'diagnostics.view',
   'identity.branch_staff.manage',
   'layout.manage',
+  'devices.enrollment_codes.create',
+  'devices.seat_assignment.assign',
+  'devices.detail.view',
   'tariffs.view',
   'updates.status.view',
   'updates.packages.manage',
@@ -1719,6 +1783,52 @@ function createZones() {
       ]
     }
   ];
+}
+
+function createDeviceEnrollmentCode(overrides: Record<string, unknown> = {}) {
+  return {
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    code: 'AFK4-DEVICE-1234',
+    expiresAtUtc: '2026-05-21T10:00:00Z',
+    ...overrides
+  };
+}
+
+function createDeviceSeatAssignment(overrides: Record<string, unknown> = {}) {
+  return {
+    deviceSeatAssignmentId: '21212121-2121-2121-2121-212121212121',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    deviceId: '33333333-3333-3333-3333-333333333333',
+    attachedAtUtc: '2026-05-21T09:30:00Z',
+    detachedAtUtc: null,
+    ...overrides
+  };
+}
+
+function createDeviceDetail(overrides: Record<string, unknown> = {}) {
+  return {
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    deviceId: '33333333-3333-3333-3333-333333333333',
+    machineName: 'PC-02',
+    agentVersion: '0.1.14',
+    shellVersion: '0.1.14',
+    enrolledAtUtc: '2026-05-21T08:30:00Z',
+    lastHeartbeatAtUtc: '2026-05-21T09:30:00Z',
+    isOnline: true,
+    isLocked: true,
+    seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    seatName: 'PC-01',
+    zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    zoneName: 'Зал A',
+    activeCredentialCount: 1,
+    installedAppCount: 2,
+    recentCommands: [],
+    ...overrides
+  };
 }
 
 function createDiagnostics() {

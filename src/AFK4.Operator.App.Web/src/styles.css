@@ -4253,6 +4253,30 @@ button {
   padding-top: 10px;
 }
 
+.settings-device-form {
+  border-top: 1px solid #263241;
+  padding-top: 10px;
+}
+
+.settings-device-form button {
+  align-self: end;
+  height: 28px;
+  border: 1px solid #1f6feb;
+  border-radius: 5px;
+  padding: 0 9px;
+  background: #1f6feb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.settings-device-form button:disabled {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
+}
+
 .settings-package-form {
   border-top: 1px solid #263241;
   padding-top: 10px;
