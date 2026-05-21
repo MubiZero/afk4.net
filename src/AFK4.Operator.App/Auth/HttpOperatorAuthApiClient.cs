@@ -70,7 +70,11 @@ public sealed class HttpOperatorAuthApiClient(HttpClient httpClient, IOperatorTo
                 response.AccessToken,
                 response.AccessTokenExpiresAtUtc,
                 response.RefreshToken,
-                response.RefreshTokenExpiresAtUtc),
+                response.RefreshTokenExpiresAtUtc)
+            {
+                BranchIds = response.BranchIds,
+                Permissions = response.Permissions
+            },
             cancellationToken);
     }
 }

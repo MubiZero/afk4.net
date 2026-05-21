@@ -1,7 +1,9 @@
 using System.Text.Json;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Configuration;
 using Microsoft.Web.WebView2.Core;
 
@@ -15,13 +17,20 @@ public partial class WebViewOperatorWindow : Window
     private readonly OperatorAppOptions appOptions;
     private readonly OperatorWebShellOptions shellOptions;
     private readonly OperatorWebAssetResolver assetResolver;
+    private readonly OperatorWebHostBridge hostBridge;
     private bool browserInitializationStarted;
 
     public WebViewOperatorWindow()
+        : this(OperatorAppOptions.LoadFromEnvironment())
+    {
+    }
+
+    private WebViewOperatorWindow(OperatorAppOptions appOptions)
         : this(
-            OperatorAppOptions.LoadFromEnvironment(),
+            appOptions,
             OperatorWebShellOptions.LoadFromEnvironment(),
-            new OperatorWebAssetResolver(AppContext.BaseDirectory))
+            new OperatorWebAssetResolver(AppContext.BaseDirectory),
+            CreateDefaultHostBridge(appOptions))
     {
     }
 
@@ -29,14 +38,29 @@ public partial class WebViewOperatorWindow : Window
         OperatorAppOptions appOptions,
         OperatorWebShellOptions shellOptions,
         OperatorWebAssetResolver assetResolver)
+        : this(
+            appOptions,
+            shellOptions,
+            assetResolver,
+            CreateDefaultHostBridge(appOptions))
+    {
+    }
+
+    public WebViewOperatorWindow(
+        OperatorAppOptions appOptions,
+        OperatorWebShellOptions shellOptions,
+        OperatorWebAssetResolver assetResolver,
+        OperatorWebHostBridge hostBridge)
     {
         ArgumentNullException.ThrowIfNull(appOptions);
         ArgumentNullException.ThrowIfNull(shellOptions);
         ArgumentNullException.ThrowIfNull(assetResolver);
+        ArgumentNullException.ThrowIfNull(hostBridge);
 
         this.appOptions = appOptions;
         this.shellOptions = shellOptions;
         this.assetResolver = assetResolver;
+        this.hostBridge = hostBridge;
 
         InitializeComponent();
     }
@@ -106,14 +130,28 @@ public partial class WebViewOperatorWindow : Window
         ShowStartupFailure($"Operator UI navigation failed: {e.WebErrorStatus}");
     }
 
-    private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        if (TryHandleWindowMessage(e.WebMessageAsJson))
+        {
+            return;
+        }
+
+        var responseJson = await hostBridge.HandleAsync(e.WebMessageAsJson, CancellationToken.None);
+        if (responseJson is not null && Browser.CoreWebView2 is not null)
+        {
+            Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
+        }
+    }
+
+    private bool TryHandleWindowMessage(string webMessageJson)
     {
         try
         {
-            using var document = JsonDocument.Parse(e.WebMessageAsJson);
+            using var document = JsonDocument.Parse(webMessageJson);
             if (!document.RootElement.TryGetProperty("type", out var typeProperty))
             {
-                return;
+                return false;
             }
 
             switch (typeProperty.GetString())
@@ -132,11 +170,16 @@ public partial class WebViewOperatorWindow : Window
                 case "window:close":
                     Close();
                     break;
+                default:
+                    return false;
             }
+
+            return true;
         }
         catch (JsonException)
         {
             // Ignore malformed web messages. The bridge is intentionally narrow.
+            return true;
         }
     }
 
@@ -157,6 +200,21 @@ public partial class WebViewOperatorWindow : Window
         StatusTitle.Text = "Operator UI failed to start";
         StatusText.Text = message;
         StartupOverlay.Visibility = Visibility.Visible;
+    }
+
+    private static OperatorWebHostBridge CreateDefaultHostBridge(OperatorAppOptions appOptions)
+    {
+        ArgumentNullException.ThrowIfNull(appOptions);
+
+        var tokenStore = new ProtectedDataOperatorTokenStore();
+        var httpClient = new HttpClient
+        {
+            BaseAddress = appOptions.PlatformBaseUrl
+        };
+
+        return new OperatorWebHostBridge(
+            new HttpOperatorAuthApiClient(httpClient, tokenStore),
+            tokenStore);
     }
 
     [DllImport("user32.dll")]

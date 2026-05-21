@@ -26,7 +26,16 @@ public sealed class OperatorTokenStoreTests
             var loaded = await store.LoadAsync(CancellationToken.None);
             var protectedBytes = await File.ReadAllBytesAsync(path, CancellationToken.None);
 
-            Assert.Equal(snapshot, loaded);
+            Assert.NotNull(loaded);
+            Assert.Equal(snapshot.StaffUserId, loaded.StaffUserId);
+            Assert.Equal(snapshot.OrganizationId, loaded.OrganizationId);
+            Assert.Equal(snapshot.DisplayName, loaded.DisplayName);
+            Assert.Equal(snapshot.AccessToken, loaded.AccessToken);
+            Assert.Equal(snapshot.AccessTokenExpiresAtUtc, loaded.AccessTokenExpiresAtUtc);
+            Assert.Equal(snapshot.RefreshToken, loaded.RefreshToken);
+            Assert.Equal(snapshot.RefreshTokenExpiresAtUtc, loaded.RefreshTokenExpiresAtUtc);
+            Assert.Equal(snapshot.BranchIds, loaded.BranchIds);
+            Assert.Equal(snapshot.Permissions, loaded.Permissions);
             Assert.False(ContainsSequence(protectedBytes, Encoding.UTF8.GetBytes(snapshot.AccessToken)));
             Assert.False(ContainsSequence(protectedBytes, Encoding.UTF8.GetBytes(snapshot.RefreshToken)));
 

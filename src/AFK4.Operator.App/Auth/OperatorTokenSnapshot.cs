@@ -7,4 +7,9 @@ public sealed record OperatorTokenSnapshot(
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAtUtc,
     string RefreshToken,
-    DateTimeOffset RefreshTokenExpiresAtUtc);
+    DateTimeOffset RefreshTokenExpiresAtUtc)
+{
+    public IReadOnlyList<Guid> BranchIds { get; init; } = [];
+
+    public IReadOnlyList<string> Permissions { get; init; } = [];
+}
