@@ -642,6 +642,34 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^wallet-top-up-/);
   });
 
+  it('pays debt for a selected client from the Clients money form', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
+    fireEvent.change(await screen.findByLabelText('Сумма долга'), { target: { value: '20.00' } });
+    fireEvent.change(screen.getByLabelText('Причина долга'), { target: { value: 'cash debt payment' } });
+    fireEvent.click(screen.getByRole('button', { name: /Списать долг/ }));
+
+    expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    const debtCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
+      init?.method === 'POST');
+    expect(debtCall).toBeDefined();
+    const body = JSON.parse(String(debtCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      amount: { currencyCode: 'TJS', minorUnits: 2000 },
+      reason: 'cash debt payment'
+    });
+    expect(body.idempotencyKey).toMatch(/^debt-payment-/);
+  });
+
   it('creates a staff user from the Settings personnel form', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1169,6 +1197,15 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   }
 
   if (pathname.endsWith('/wallet-summary')) {
+    if (pathname.includes('/players/34343434-3434-3434-3434-343434343434/')) {
+      return jsonResponse(createWalletSummary({
+        playerAccountId: '34343434-3434-3434-3434-343434343434',
+        walletBalance: { currencyCode: 'TJS', minorUnits: 0 },
+        debtBalance: { currencyCode: 'TJS', minorUnits: 3500 },
+        recentEntries: []
+      }));
+    }
+
     return jsonResponse(createWalletSummary());
   }
 
@@ -1176,6 +1213,13 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     const body = JSON.parse(String(init.body));
     return jsonResponse(createWalletSummary({
       walletBalance: body.amount
+    }));
+  }
+
+  if (pathname.includes('/players/') && pathname.endsWith('/debts/payments') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createWalletSummary({
+      debtBalance: { currencyCode: body.amount.currencyCode, minorUnits: 0 }
     }));
   }
 
@@ -1784,6 +1828,15 @@ function createPlayers() {
       walletBalanceMinorUnits: 46000,
       debtBalanceMinorUnits: 0,
       activePackageCount: 1,
+      isActive: true
+    },
+    {
+      playerAccountId: '34343434-3434-3434-3434-343434343434',
+      displayName: 'Olim K.',
+      phoneNumber: '+992 90 111 22 33',
+      walletBalanceMinorUnits: 0,
+      debtBalanceMinorUnits: 3500,
+      activePackageCount: 0,
       isActive: true
     }
   ];

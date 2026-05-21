@@ -84,8 +84,9 @@ Current state:
   sale detail through the existing sale lookup endpoint. Clients package
   purchase now calls the existing package option and purchase endpoints for the
   selected backend player, and wallet top-up now uses an operator amount/reason
-  form before calling the existing top-up endpoint. Staging smoke across the
-  newly wired screens is the
+  form before calling the existing top-up endpoint. Debt payment now also uses
+  an operator amount/reason form before calling the existing debt payment
+  endpoint. Staging smoke across the newly wired screens is the
   next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
@@ -138,8 +139,10 @@ POS draft void calls the backend void endpoint after creating a draft from the
 current cart. POS recent receipt rows call the backend sale lookup endpoint for
 line detail. Clients package purchase calls the backend package purchase
 endpoint for the selected player, and Clients wallet top-up sends
-operator-entered amount/reason to the backend. Continue with staging smoke of
-the backend-backed workspaces and close gaps found with real data.
+operator-entered amount/reason to the backend. Clients debt payment now also
+sends operator-entered amount/reason to the backend with a no-overpayment guard.
+Continue with staging smoke of the backend-backed workspaces and close gaps
+found with real data.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -232,8 +235,8 @@ missing-backend copy.
   write-off/adjustment, and discount/promo/combo handling if kept in MVP UI.
   Use existing POS/player/shift endpoints where they exist; create missing
   void/receipt/inventory/provider endpoints before removing the UI warnings.
-- [ ] Clients: `Создать бронь` from a selected player, wallet top-up with
-  operator-entered amount/reason, debt payment, player creation, and package
+- [ ] Clients: `Создать бронь` from a selected player, wallet top-up and debt
+  payment with operator-entered amount/reason, player creation, and package
   purchase now use backend endpoints.
   Remaining local-only client surfaces include richer profile details/edit,
   purchase history, comments, groups, restrictions/discounts, package bonus

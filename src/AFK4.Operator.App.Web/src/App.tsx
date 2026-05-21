@@ -3839,6 +3839,8 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('100.00');
   const [walletTopUpReason, setWalletTopUpReason] = useState('operator wallet top-up');
+  const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
+  const [debtPaymentReason, setDebtPaymentReason] = useState('operator debt payment');
 
   useEffect(() => {
     if (backend === null) {
@@ -3925,6 +3927,18 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient.debtMinorUnits;
   const recentEntries = readArray(walletSummary, 'recentEntries');
   const selectedPackageOption = packageOptions[0] ?? null;
+  useEffect(() => {
+    if (debt <= 0) {
+      setDebtPaymentAmount('');
+      return;
+    }
+
+    setDebtPaymentAmount((current) => {
+      const parsed = parseMoneyInputMinorUnits(current);
+      return parsed !== null && parsed > 0 && parsed <= debt ? current : formatMoneyInputMinorUnits(debt);
+    });
+  }, [debt, selectedClient.playerAccountId]);
+
   const canPurchasePackage = backend !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
@@ -3976,13 +3990,16 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Select a backend player before debt payment.');
         }
 
+        const debtPaymentMinorUnits = parseMoneyInputMinorUnits(debtPaymentAmount);
+        const reason = debtPaymentReason.trim();
+        if (debtPaymentMinorUnits === null || !reason || debtPaymentMinorUnits > debt) {
+          throw new Error('Заполните сумму долга не больше текущего долга и причину оплаты.');
+        }
+
         const wallet = await apiClients.players.payDebt(selectedClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
-          amount: {
-            currencyCode,
-            minorUnits: Math.max(debt, 1000)
-          },
-          reason: 'operator debt payment',
+          amount: { currencyCode, minorUnits: debtPaymentMinorUnits },
+          reason,
           idempotencyKey: createIdempotencyKey('debt-payment')
         });
         setWalletSummary(wallet);
@@ -4140,11 +4157,13 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           <div className="clients-money-form">
             <label>Сумма пополнения<input inputMode="decimal" value={walletTopUpAmount} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpAmount(event.currentTarget.value)} /></label>
             <label>Причина пополнения<input value={walletTopUpReason} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpReason(event.currentTarget.value)} /></label>
+            <label>Сумма долга<input inputMode="decimal" value={debtPaymentAmount} disabled={!canPayDebt} onChange={(event) => setDebtPaymentAmount(event.currentTarget.value)} /></label>
+            <label>Причина долга<input value={debtPaymentReason} disabled={!canPayDebt} onChange={(event) => setDebtPaymentReason(event.currentTarget.value)} /></label>
           </div>
           <div className="clients-action-grid">
             {[
               ['Пополнить депозит', `${walletTopUpAmount || '0'} ${currencyCode}`, CircleDollarSign],
-              ['Списать долг', 'после оплаты', ReceiptText],
+              ['Списать долг', debtPaymentAmount ? `${debtPaymentAmount} ${currencyCode}` : 'нет долга', ReceiptText],
               ['Купить пакет', selectedPackageOption ? readString(selectedPackageOption, 'name', 'backend package') : 'нет пакетов', TimerReset],
               ['Создать бронь', 'бронь из карточки', CalendarClock],
               ['Новая карта', 'создать игрока', UserRoundPlus]
