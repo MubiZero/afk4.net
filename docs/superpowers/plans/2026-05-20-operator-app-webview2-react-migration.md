@@ -61,8 +61,9 @@ Current state:
   prepaid-wallet, package, and postpaid billing selection for start/extend, and
   reads selected-seat device command result status after session commands. The
   primary map now also has real filters and table view parity over the same
-  backend-loaded seat state. Reservation edge-case hardening and staging smoke
-  across the newly wired screens are the next real implementation work.
+  backend-loaded seat state. Booking now has first-pass permission/state guards
+  for mutation controls. Staging smoke across the newly wired screens is the
+  next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
@@ -89,8 +90,9 @@ pressure, focus queue, recent payments, and export fetches. Booking has real
 reservation API wiring, restored staff permissions now gate workspace
 navigation plus selected-seat session actions, the map panel now sends billed
 session metadata plus displays device command status feedback, and the primary
-map has real filter/table parity. Continue with reservation edge-case
-hardening and staging smoke of the backend-backed workspaces.
+map has real filter/table parity. Booking mutation controls now also respect
+`reservations.manage` and selected reservation state. Continue with staging
+smoke of the backend-backed workspaces and close gaps found with real data.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -122,9 +124,7 @@ Start-Process -FilePath 'D:\projects\afk4.net\src\AFK4.Operator.App\bin\Debug\ne
 
 Next implementation order:
 
-1. Harden real booking flows for edge cases; keep Booking from showing fixture
-   success for any flow that is not backed by reservation APIs.
-2. Staging-smoke POS, Clients, Payments, Logs, and Settings against
+1. Staging-smoke POS, Clients, Payments, Logs, and Settings against
    `https://afk4.staging.mubi.dev`, then close parity gaps found with real data.
 
 ## Backend Connectivity TODO From Current React UI Copy
@@ -170,7 +170,10 @@ missing-backend copy.
   persistence/migration, branch-scoped reservation endpoints, permission
   checks, audit records, overlap/session conflict checks, frontend route tests,
   Booking search/create/confirm/seat/update/cancel wiring, and client-card
-  reservation creation.
+  reservation creation. First-pass edge hardening added on 2026-05-21: mutation
+  controls require `reservations.manage`, terminal/empty reservation states
+  disable invalid actions, selected index is reset after reloads, and new
+  reservations validate free-seat availability plus start time before API calls.
 - [ ] POS: wire every quick operation that still uses local feedback or
   handoff copy: select customer for cart, refund by selected backend sale,
   void sale, receipt detail/print/export, wallet top-up handoff, new customer

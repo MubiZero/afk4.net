@@ -2160,6 +2160,25 @@ button {
   color: #ffffff;
 }
 
+.booking-create-action:disabled,
+.booking-create-action:disabled:hover,
+.booking-create-action:disabled:focus-visible,
+.booking-action-grid button:disabled,
+.booking-action-grid button:disabled:hover,
+.booking-action-grid button:disabled:focus-visible,
+.booking-request-card button:disabled,
+.booking-request-card button:disabled:hover,
+.booking-request-card button:disabled:focus-visible,
+.booking-primary-action:disabled,
+.booking-primary-action:disabled:hover,
+.booking-primary-action:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
+  transform: none;
+}
+
 .booking-detail-list {
   display: grid;
   gap: 8px;

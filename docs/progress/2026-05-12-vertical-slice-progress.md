@@ -125,6 +125,12 @@ implementation evidence are needed.
   active sessions, attention states, and offline seats, plus a table view that
   uses the same backend-loaded `SeatSummary` state as the map tiles. Changing a
   filter also keeps the selected-seat context on a visible seat.
+- Booking now has first-pass edge hardening for the React operator flow:
+  create/confirm/seat/move/cancel actions require `reservations.manage`,
+  mutation buttons disable for view-only staff or terminal reservation states,
+  the selected reservation index is reset after backend reloads when needed,
+  and new reservations validate free-seat availability plus start time before
+  sending the backend request.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports and creates paid manual-provider sales; Clients searches backend
@@ -225,7 +231,8 @@ backend-backed floor-map loading, backend-confirmed selected-seat actions,
 first backend-backed parity wiring for the remaining operator workspaces,
 the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
-selection and device-command result feedback, plus map filters/table parity:
+selection and device-command result feedback, map filters/table parity, and
+Booking permission/state hardening:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -236,7 +243,7 @@ selection and device-command result feedback, plus map filters/table parity:
 
 Result:
 
-- frontend tests: 40 passed, 0 failed;
+- frontend tests: 41 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 773 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -259,6 +266,8 @@ Result:
 - Map filter/table tests cover the free-seat filter, selected-seat handoff when
   the active filter hides the previous PC, and the table view's operator
   columns.
+- Booking frontend tests now cover disabled mutation controls for a staff
+  session with `reservations.view` but without `reservations.manage`.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
   copy, and reported no browser console errors.

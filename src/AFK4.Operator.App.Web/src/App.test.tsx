@@ -344,6 +344,23 @@ describe('App', () => {
       init?.method === 'POST')).toBe(true);
   });
 
+  it('keeps booking mutation controls disabled without reservation manage permission', async () => {
+    installSessionBridge(createSession({ permissions: ['floor_map.view', 'reservations.view'] }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Брони'));
+    expect(await screen.findByText('Данные платформы')).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: 'Создать' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Создать бронь' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Посадить/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Перенести/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Отменить/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Принять/ })).toBeDisabled();
+  });
+
   it('creates a reservation from the selected backend player card', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

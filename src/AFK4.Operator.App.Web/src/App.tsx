@@ -196,14 +196,15 @@ function toDateTimeInputValue(date: Date) {
   return `${toDateInputValue(date)}T${hours}:${minutes}`;
 }
 
-function dateTimeInputToIso(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
-}
-
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMinutes(date: Date, minutes: number) {
+  const next = new Date(date);
+  next.setMinutes(next.getMinutes() + minutes);
   return next;
 }
 
@@ -3205,7 +3206,7 @@ function BackendBookingWorkspace({
   const [reloadVersion, setReloadVersion] = useState(0);
   const [draftCustomerName, setDraftCustomerName] = useState('Гость');
   const [draftPhoneNumber, setDraftPhoneNumber] = useState('');
-  const [draftStartsAt, setDraftStartsAt] = useState(() => toDateTimeInputValue(addDays(new Date(), 0)));
+  const [draftStartsAt, setDraftStartsAt] = useState(() => toDateTimeInputValue(addMinutes(new Date(), 15)));
   const [draftDurationMinutes, setDraftDurationMinutes] = useState(60);
   const readySeats = floorMap.seats.filter((seat) => seat.tone === 'ready' && !seat.activeSessionId);
   const activeSeats = floorMap.seats.filter((seat) => seat.tone === 'active' || seat.activeSessionId);
@@ -3274,6 +3275,7 @@ function BackendBookingWorkspace({
 
     return {
       reservationId: readString(reservation, 'reservationId'),
+      state,
       time: formatTime(startsAtUtc),
       client: readString(reservation, 'customerName', 'Гость'),
       seats: seatName ? '1 ПК' : 'без ПК',
@@ -3297,10 +3299,29 @@ function BackendBookingWorkspace({
     tone: 'pending',
     note: loadError ?? 'Свободные места доступны на карте зала',
     seatId: '',
-    source: 'operator'
+    source: 'operator',
+    state: 'empty'
   };
-  const onlineRequests = bookings.filter((booking) => booking.source === 'online' && booking.status === 'Ожидает');
+  useEffect(() => {
+    if (bookings.length > 0 && selectedBookingIndex >= bookings.length) {
+      setSelectedBookingIndex(0);
+    }
+  }, [bookings.length, selectedBookingIndex]);
+
+  const onlineRequests = bookings.filter((booking) => booking.source === 'online' && booking.state === 'pending');
   const selectedReadySeat = readySeats.find((seat) => seat.id === selectedBooking.seatId) ?? readySeats[0] ?? null;
+  const reservationBusy = feedback.state === 'pending';
+  const canManageReservations = backend !== null && hasPermission(backend.session, permissionNames.manageReservations);
+  const hasSelectedReservation = selectedBooking.reservationId.length > 0;
+  const selectedReservationActive = selectedBooking.state !== 'seated' && selectedBooking.state !== 'cancelled' && selectedBooking.state !== 'empty';
+  const canCreateReservation = canManageReservations && loadStatus === 'backend' && selectedReadySeat !== null && !reservationBusy;
+  const canSeatSelectedReservation = canManageReservations && hasSelectedReservation && selectedReservationActive && selectedBooking.seatId.length > 0 && !reservationBusy;
+  const canMoveSelectedReservation = canManageReservations &&
+    hasSelectedReservation &&
+    selectedReservationActive &&
+    readySeats.some((seat) => seat.id !== selectedBooking.seatId) &&
+    !reservationBusy;
+  const canCancelSelectedReservation = canManageReservations && hasSelectedReservation && selectedReservationActive && !reservationBusy;
   const loadLabel = loadStatus === 'backend'
     ? 'Данные платформы'
     : loadStatus === 'loading'
@@ -3315,6 +3336,10 @@ function BackendBookingWorkspace({
 
     try {
       const nextBackend = requireBackend(backend);
+      if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
+        throw new Error('Нет прав на управление бронями.');
+      }
+
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       await operation(clients);
       setFeedback({ label, state: 'confirmed' });
@@ -3337,12 +3362,21 @@ function BackendBookingWorkspace({
       throw new Error('Нет свободного места для новой брони.');
     }
 
+    const startsAt = new Date(draftStartsAt);
+    if (Number.isNaN(startsAt.getTime())) {
+      throw new Error('Укажите корректное время старта брони.');
+    }
+
+    if (startsAt.getTime() < Date.now() - 60000) {
+      throw new Error('Время старта брони уже прошло.');
+    }
+
     return await clients.reservations.create(nextBackend.branchId, {
       organizationId: nextBackend.session.organizationId,
       seatId: selectedReadySeat.id,
       customerName: draftCustomerName.trim() || 'Гость',
       phoneNumber: draftPhoneNumber.trim() || null,
-      startsAtUtc: dateTimeInputToIso(draftStartsAt),
+      startsAtUtc: startsAt.toISOString(),
       durationMinutes: Math.max(15, draftDurationMinutes),
       source: 'operator',
       note: `Создано оператором · ${selectedReadySeat.name}`
@@ -3390,7 +3424,7 @@ function BackendBookingWorkspace({
         </div>
         <div className="screen-actions">
           <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadLabel}</span>
-          <button type="button" className="booking-create-action" onClick={createReservation}><Plus size={14} />Создать</button>
+          <button type="button" className="booking-create-action" disabled={!canCreateReservation} onClick={createReservation}><Plus size={14} />Создать</button>
         </div>
       </section>
 
@@ -3450,10 +3484,10 @@ function BackendBookingWorkspace({
             <em>{selectedBooking.seats} · {selectedBooking.zone} · {selectedBooking.duration}</em>
           </div>
           <div className="booking-action-grid" aria-label="Действия с бронью">
-            <button type="button" onClick={() => selectedBooking.seatId ? onOpenSeat(selectedBooking.seatId) : setFeedback({ label: 'Открыть карту', state: 'failed', detail: 'У выбранной брони нет места.' })}><MonitorCheck size={15} />Открыть карту</button>
-            <button type="button" onClick={seatReservation}><UserRoundPlus size={15} />Посадить</button>
-            <button type="button" onClick={moveReservation}><ArrowRightLeft size={15} />Перенести</button>
-            <button type="button" className="danger" onClick={cancelReservation}><Square size={15} />Отменить</button>
+            <button type="button" disabled={!selectedBooking.seatId || reservationBusy} onClick={() => selectedBooking.seatId ? onOpenSeat(selectedBooking.seatId) : setFeedback({ label: 'Открыть карту', state: 'failed', detail: 'У выбранной брони нет места.' })}><MonitorCheck size={15} />Открыть карту</button>
+            <button type="button" disabled={!canSeatSelectedReservation} onClick={seatReservation}><UserRoundPlus size={15} />Посадить</button>
+            <button type="button" disabled={!canMoveSelectedReservation} onClick={moveReservation}><ArrowRightLeft size={15} />Перенести</button>
+            <button type="button" className="danger" disabled={!canCancelSelectedReservation} onClick={cancelReservation}><Square size={15} />Отменить</button>
           </div>
           <FeedbackNotice feedback={feedback} />
           <div className="booking-detail-list">
@@ -3475,7 +3509,7 @@ function BackendBookingWorkspace({
                 <strong>{request.client}</strong>
                 <em>{request.note}</em>
                 <div>
-                  <button type="button" onClick={() => confirmReservation(request.reservationId, `Принять ${request.client}`)}>Принять</button>
+                  <button type="button" disabled={!canManageReservations || reservationBusy} onClick={() => confirmReservation(request.reservationId, `Принять ${request.client}`)}>Принять</button>
                   <button type="button" onClick={() => {
                     const index = bookings.findIndex((booking) => booking.reservationId === request.reservationId);
                     if (index >= 0) {
@@ -3501,12 +3535,12 @@ function BackendBookingWorkspace({
             <strong>{selectedReadySeat ? `${selectedReadySeat.zone} · ${selectedReadySeat.name}` : 'нет свободного места'}</strong>
           </header>
           <div className="booking-form-grid">
-            <label>Клиент<input value={draftCustomerName} onChange={(event) => setDraftCustomerName(event.target.value)} /></label>
-            <label>Телефон<input value={draftPhoneNumber} onChange={(event) => setDraftPhoneNumber(event.target.value)} /></label>
-            <label>Старт<input type="datetime-local" value={draftStartsAt} onChange={(event) => setDraftStartsAt(event.target.value)} /></label>
-            <label>Длительность<input type="number" min={15} step={15} value={draftDurationMinutes} onChange={(event) => setDraftDurationMinutes(Number(event.target.value) || 60)} /></label>
+            <label>Клиент<input value={draftCustomerName} disabled={reservationBusy} onChange={(event) => setDraftCustomerName(event.target.value)} /></label>
+            <label>Телефон<input value={draftPhoneNumber} disabled={reservationBusy} onChange={(event) => setDraftPhoneNumber(event.target.value)} /></label>
+            <label>Старт<input type="datetime-local" value={draftStartsAt} disabled={reservationBusy} onChange={(event) => setDraftStartsAt(event.target.value)} /></label>
+            <label>Длительность<input type="number" min={15} step={15} value={draftDurationMinutes} disabled={reservationBusy} onChange={(event) => setDraftDurationMinutes(Number(event.target.value) || 60)} /></label>
           </div>
-          <button type="button" className="booking-primary-action" onClick={createReservation}>Создать бронь</button>
+          <button type="button" className="booking-primary-action" disabled={!canCreateReservation} onClick={createReservation}>Создать бронь</button>
         </section>
       </section>
     </main>

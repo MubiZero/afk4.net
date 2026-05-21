@@ -326,8 +326,10 @@ Minimum bar:
   selection beyond fast guest and selected-seat device command result feedback
   now have a first React implementation for the map panel, and the primary map
   now has real problem/offline/free/active filters plus table view parity.
-  Reservation edge-case hardening, general profile/staff invitation settings,
-  and staging smoke of these extra workspaces still remain before the
+  Booking now also disables mutation controls without `reservations.manage` or
+  when selected reservation state/seat availability makes the action invalid.
+  General profile/staff invitation settings and staging smoke of these extra
+  workspaces still remain before the
   WebView2/React app covers the full pilot day flow. Fixture-only/missing-contract
   commands should report backend failures rather than showing backend success.
   The current WPF implementation remains a parity reference and temporary legacy
@@ -371,9 +373,9 @@ Minimum bar:
    disables workspace navigation plus selected-seat session actions based on
    restored staff permissions. The map panel now also supports guest/prepaid/
    package/postpaid billing selection, selected-seat device command status
-   feedback, and real map filters/table view parity. Next deliver reservation
-   edge-case hardening and staging smoke across these backend-backed
-   workspaces. Local builds must
+   feedback, real map filters/table view parity, and Booking permission/state
+   hardening. Next deliver staging smoke across these backend-backed
+   workspaces and close gaps found with real staging data. Local builds must
    still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
    GUID/form surfaces in the main operator path as usability defects unless
