@@ -108,6 +108,10 @@ implementation evidence are needed.
   `SmartShell-like fixture` as operator-facing states; backend loading/failure
   and deliberate browser-dev/no-backend fallback now read as backend status or
   `Dev demo`.
+  Packaged `webview2` auth failures also no longer expose the technical
+  `Native host bridge is unavailable.` diagnostic to operators; browser-dev
+  smoke keeps that exact diagnostic so host-bridge wiring failures remain
+  obvious during local validation.
 - Operator App package builds now run the React frontend build before publishing
   the native shell, replace published `WebAssets` with the Vite `dist` output,
   feed those assets into the Operator App MSI, and assert the finished MSI File
@@ -2270,6 +2274,23 @@ Operator App WebView2/React first implementation on 2026-05-20:
   horizontal overflow, no production-visible `Fixture` copy on the auth entry
   page, and no new browser console errors; four older Vite HMR console errors
   were already present in the browser log before the smoke.
+- Operator App dev-only host-state verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx hostBridge.test.ts
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App/hostBridge tests passed 43/43, full frontend tests passed
+  66/66, and Vite production build passed. Browser smoke against
+  `http://127.0.0.1:5173/` confirmed the browser-dev auth entry still reports
+  `Native host bridge is unavailable.` as a local diagnostic, with title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no production
+  fixture labels, no horizontal or vertical overflow, and no new browser console
+  errors. App tests also cover that packaged `webview2` config projects the same
+  bridge failure into operator-facing restart/check-host copy instead of the
+  raw diagnostic.
 
 ## Historical Reference
 

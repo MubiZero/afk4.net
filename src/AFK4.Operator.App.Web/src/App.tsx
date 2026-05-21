@@ -31,7 +31,7 @@ import {
   type FloorMapLoadStatus,
   type OperatorFloorMapState
 } from './floorMapState';
-import { postHostWindowCommand } from './hostBridge';
+import { isHostBridgeUnavailableError, postHostWindowCommand } from './hostBridge';
 import {
   createOperatorApiClients,
   type AuditSearchResultDto,
@@ -621,6 +621,14 @@ function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string): str
 
 function dataSourceLabel(source: string): string {
   return source === 'backend' ? 'backend' : 'dev demo';
+}
+
+function projectAuthHostError(error: unknown, config: OperatorConfig): string {
+  if (isHostBridgeUnavailableError(error) && config.runtime !== 'browser-dev') {
+    return 'Нативный вход Operator App недоступен. Перезапустите приложение или проверьте WebView2 host.';
+  }
+
+  return projectOperatorError(error).detail;
 }
 
 function realtimeLabel(state: OperatorRealtimeConnectionState, error: string | null): string {
@@ -6108,7 +6116,7 @@ function SignInScreen({
       });
       setPassword('');
     } catch (nextError) {
-      setError(projectOperatorError(nextError).detail);
+      setError(projectAuthHostError(nextError, config));
     } finally {
       setIsBusy(false);
     }
@@ -6235,7 +6243,7 @@ export function App() {
 
         setAuthSession(null);
         setAuthStatus('signed-out');
-        setAuthError(projectOperatorError(error).detail);
+        setAuthError(projectAuthHostError(error, config));
       });
 
     return () => {
@@ -6368,7 +6376,7 @@ export function App() {
       await signOutOperator();
       setAuthError(null);
     } catch (error) {
-      setAuthError(projectOperatorError(error).detail);
+      setAuthError(projectAuthHostError(error, config));
     } finally {
       setAuthSession(null);
       setAuthStatus('signed-out');

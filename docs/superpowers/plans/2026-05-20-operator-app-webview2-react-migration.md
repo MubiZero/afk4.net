@@ -307,9 +307,12 @@ missing-backend copy.
   `Нет backend событий`, and similar empty-state copy after real staging data
   smoke. Keep them only when the backend returned a successful empty result;
   otherwise show actionable loading/error/retry state.
-- [ ] Dev-only host state: keep `Native host bridge is unavailable.` as a
+- [x] Dev-only host state: keep `Native host bridge is unavailable.` as a
   browser-dev/WebView2-smoke diagnostic only. It should not appear in a normal
   packaged Operator App session.
+  Implemented on 2026-05-21: host bridge availability failures are now typed,
+  packaged `webview2` auth errors project to operator-facing restart/check-host
+  copy, and browser-dev still exposes the exact diagnostic for local smoke.
 
 Preserve the accepted fixture design baseline during this work; do not start
 another broad fixture-only polish pass without a concrete staging or real-data

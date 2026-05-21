@@ -102,6 +102,21 @@ describe('App', () => {
     expect(sessionStorage.length).toBe(0);
   });
 
+  it('hides native bridge diagnostics in packaged WebView2 auth errors', async () => {
+    window.__AFK4_OPERATOR_CONFIG__ = {
+      runtime: 'webview2',
+      shellMode: 'vite-dist',
+      platformBaseUrl: 'https://afk4.staging.mubi.dev/',
+      currencyCode: 'TJS'
+    };
+
+    render(<App />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Operator App');
+    expect(alert).not.toHaveTextContent('Native host bridge is unavailable.');
+  });
+
   it('ends the selected active session through the backend before confirming the UI action', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

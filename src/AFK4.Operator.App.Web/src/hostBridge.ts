@@ -13,6 +13,20 @@ export interface HostBridgeResponse<TPayload> {
   error?: HostBridgeError;
 }
 
+export const hostBridgeUnavailableMessage = 'Native host bridge is unavailable.';
+
+export class HostBridgeUnavailableError extends Error {
+  constructor() {
+    super(hostBridgeUnavailableMessage);
+    this.name = 'HostBridgeUnavailableError';
+  }
+}
+
+export function isHostBridgeUnavailableError(error: unknown): boolean {
+  return error instanceof HostBridgeUnavailableError
+    || (error instanceof Error && error.message === hostBridgeUnavailableMessage);
+}
+
 export function postHostWindowCommand(command: HostWindowCommand): void {
   window.chrome?.webview?.postMessage({ type: `window:${command}` });
 }
@@ -27,7 +41,7 @@ export function postHostRequest<TPayload>(
   const addEventListener = webview?.addEventListener;
   const removeEventListener = webview?.removeEventListener;
   if (!webview || !postMessage || !addEventListener || !removeEventListener) {
-    return Promise.reject(new Error('Native host bridge is unavailable.'));
+    return Promise.reject(new HostBridgeUnavailableError());
   }
 
   const sendMessage = postMessage.bind(webview);

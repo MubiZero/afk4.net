@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { postHostRequest, postHostWindowCommand, type HostBridgeMessageEvent } from './hostBridge';
+import {
+  HostBridgeUnavailableError,
+  isHostBridgeUnavailableError,
+  postHostRequest,
+  postHostWindowCommand,
+  type HostBridgeMessageEvent
+} from './hostBridge';
 
 describe('postHostWindowCommand', () => {
   afterEach(() => {
@@ -92,6 +98,12 @@ describe('postHostRequest', () => {
   });
 
   it('rejects when the native bridge is unavailable', async () => {
-    await expect(postHostRequest('auth:loadToken')).rejects.toThrow('Native host bridge is unavailable.');
+    await expect(postHostRequest('auth:loadToken')).rejects.toThrow(HostBridgeUnavailableError);
+  });
+
+  it('identifies host bridge availability failures', () => {
+    expect(isHostBridgeUnavailableError(new HostBridgeUnavailableError())).toBe(true);
+    expect(isHostBridgeUnavailableError(new Error('Native host bridge is unavailable.'))).toBe(true);
+    expect(isHostBridgeUnavailableError(new Error('Native host bridge request timed out.'))).toBe(false);
   });
 });

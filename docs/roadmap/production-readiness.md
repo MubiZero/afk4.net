@@ -376,7 +376,9 @@ Minimum bar:
   missing-contract commands should report backend failures rather than showing
   backend success, and signed-in workspace status copy now reserves fixture data
   for explicit `Dev demo` browser-dev/no-backend fallback states instead of
-  normal operator-facing labels.
+  normal operator-facing labels. Packaged `webview2` auth failures also project
+  host-bridge availability problems into operator-facing restart/check-host copy
+  while browser-dev keeps the raw bridge diagnostic for local smoke.
   The current WPF implementation remains a parity reference and temporary legacy
   source until the WebView2/React Operator App covers the pilot day flow.
 - Staff management workflow is implemented as a minimum API path on `main`;
