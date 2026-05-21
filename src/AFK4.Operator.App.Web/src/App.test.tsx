@@ -708,6 +708,20 @@ describe('App', () => {
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333') &&
       init?.method === 'GET')).toBe(true);
     expect(screen.getByDisplayValue('PC-02 · PC-01')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить credential' }));
+    expect(await screen.findByText('Сменить credential: подтверждено')).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue('23232323-2323-2323-2323-232323232323').length).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue('device-secret-after-rotation')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/rotate') &&
+      init?.method === 'POST')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отозвать credential' }));
+    expect(await screen.findByText('Отозвать credential: подтверждено')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
+      init?.method === 'POST')).toBe(true);
   });
 
   it('creates a POS category and product from Settings', async () => {
@@ -954,6 +968,19 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createDeviceCommandStatus(isLock ? 'lock' : 'unlock', isLock
       ? 'Agent accepted lock'
       : 'Agent accepted unlock'));
+  }
+
+  if (pathname.endsWith('/credentials/rotate') && init?.method === 'POST') {
+    const parts = pathname.split('/');
+    return jsonResponse(createRotatedDeviceCredential({ deviceId: parts[parts.length - 3] }));
+  }
+
+  if (pathname.includes('/credentials/') && pathname.endsWith('/revoke') && init?.method === 'POST') {
+    const parts = pathname.split('/');
+    return jsonResponse(createRevokedDeviceCredential({
+      deviceId: parts[parts.length - 4],
+      credentialId: parts[parts.length - 2]
+    }));
   }
 
   if (pathname.endsWith('/dashboard/summary')) {
@@ -1242,6 +1269,8 @@ const allOperatorPermissions = [
   'devices.enrollment_codes.create',
   'devices.seat_assignment.assign',
   'devices.detail.view',
+  'devices.credentials.rotate',
+  'devices.credentials.revoke',
   'tariffs.view',
   'updates.status.view',
   'updates.packages.manage',
@@ -1827,6 +1856,29 @@ function createDeviceDetail(overrides: Record<string, unknown> = {}) {
     activeCredentialCount: 1,
     installedAppCount: 2,
     recentCommands: [],
+    ...overrides
+  };
+}
+
+function createRotatedDeviceCredential(overrides: Record<string, unknown> = {}) {
+  return {
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    deviceId: '33333333-3333-3333-3333-333333333333',
+    credentialId: '23232323-2323-2323-2323-232323232323',
+    credentialSecret: 'device-secret-after-rotation',
+    rotatedAtUtc: '2026-05-21T09:45:00Z',
+    ...overrides
+  };
+}
+
+function createRevokedDeviceCredential(overrides: Record<string, unknown> = {}) {
+  return {
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    deviceId: '33333333-3333-3333-3333-333333333333',
+    credentialId: '23232323-2323-2323-2323-232323232323',
+    revokedAtUtc: '2026-05-21T09:50:00Z',
     ...overrides
   };
 }

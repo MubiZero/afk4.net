@@ -151,7 +151,9 @@ implementation evidence are needed.
   guarded by `updates.packages.manage` and `updates.rollouts.manage`. Settings
   `Залы и ПК` can now create device enrollment codes, assign an enrolled
   device id to a selected seat, and open device detail through existing device
-  endpoints, guarded by the existing device permissions.
+  endpoints, guarded by the existing device permissions. The same Settings
+  device surface can now rotate and revoke device credentials through the
+  existing credential lifecycle endpoints.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports, creates paid manual-provider sales, can refund the latest backend
@@ -165,8 +167,9 @@ implementation evidence are needed.
   option, and package option data, and can trigger limited backend setup actions
   including package definition creation, inventory stock movement creation,
   update package registration, rollout creation, and update state changes;
-  Settings device setup can create enrollment codes, assign device seats, and
-  read device detail; Logs now applies backend audit search filters for action/outcome/target type
+  Settings device setup can create enrollment codes, assign device seats, read
+  device detail, and rotate/revoke device credentials; Logs now applies backend
+  audit search filters for action/outcome/target type
   and limit through `/api/branches/{branchId}/audit`; Dashboard reads the
   backend dashboard summary and uses existing report exports
   for export confirmation; Booking uses backend reservation
@@ -271,7 +274,8 @@ Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings stock movement creation,
 Settings package definition create, Payments close-shift wiring, Payments cash
 movement creation, Payments open-shift wiring, Settings update package/rollout
-controls, Settings device enrollment/seat assignment, Logs backend audit
+controls, Settings device enrollment/seat assignment/credential lifecycle,
+Logs backend audit
 filters, POS refund quick action, POS
 draft void quick action, POS sale detail lookup, and Clients package purchase:
 
@@ -333,7 +337,9 @@ Result:
   serialization to `/api/branches/{branchId}/audit`.
 - Settings device frontend tests now cover creating device enrollment codes,
   assigning a device id to a selected seat, and reading device detail through
-  the existing device endpoints from `Залы и ПК`.
+  the existing device endpoints from `Залы и ПК`. The same test now covers
+  rotating and revoking device credentials through the existing credential
+  lifecycle endpoints.
 - Payments frontend tests now cover closing the current shift from the
   reconciliation panel through `/api/shifts/{shiftId}/close`, including
   counted cash, closing note, organization id, and idempotency key
@@ -1332,6 +1338,9 @@ Operator App redesign branch-local verification on 2026-05-20:
   `Залы и ПК`. Operators with device permissions can create enrollment codes,
   assign an enrolled device id to an existing seat, and open device detail from
   the current Settings surface.
+- On 2026-05-21, `codex/operator-app-redesign` added device credential
+  rotation and revocation to Settings `Залы и ПК`, guarded by the existing
+  credential lifecycle permissions and confirmed only after backend acceptance.
 - On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
   Operator App implementation: WebView2 startup shell, local asset resolution,
   typed host config injection, Vite/React frontend foundation, first visual

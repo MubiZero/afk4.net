@@ -340,7 +340,8 @@ Minimum bar:
   update endpoints. Logs now applies backend audit search filters for exact
   action, outcome, target type, and limit. Settings `Залы и ПК` now also
   creates device enrollment codes, assigns enrolled devices to seats, and
-  opens device detail through existing device endpoints.
+  opens device detail through existing device endpoints, including credential
+  rotation/revocation controls.
   Payments now opens shifts through the existing open-shift API, closes the
   current shift through the existing close-shift API with counted cash and a
   closing note, and records cash movements through the existing shift cash
@@ -399,7 +400,7 @@ Minimum bar:
   hardening, Settings staff creation, branch profile save, Settings POS
   category/product creation, Settings stock movement creation, Settings package
   definition creation, Settings update package/rollout controls, Settings
-  device enrollment/seat assignment, Payments open/close-shift and
+  device enrollment/seat assignment/credential lifecycle, Payments open/close-shift and
   cash-movement wiring, Logs backend audit filters, POS
    refund/draft-void quick actions, POS sale-detail lookup, and Clients package
    purchase. Next deliver staging smoke across these backend-backed workspaces

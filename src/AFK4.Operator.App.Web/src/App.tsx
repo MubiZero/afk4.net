@@ -142,6 +142,8 @@ const permissionNames = {
   createDeviceEnrollmentCode: 'devices.enrollment_codes.create',
   assignDeviceSeat: 'devices.seat_assignment.assign',
   viewDeviceDetail: 'devices.detail.view',
+  rotateDeviceCredential: 'devices.credentials.rotate',
+  revokeDeviceCredential: 'devices.credentials.revoke',
   viewTariffs: 'tariffs.view',
   viewUpdateStatus: 'updates.status.view',
   manageUpdatePackages: 'updates.packages.manage',
@@ -172,6 +174,8 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.createDeviceEnrollmentCode,
     permissionNames.assignDeviceSeat,
     permissionNames.viewDeviceDetail,
+    permissionNames.rotateDeviceCredential,
+    permissionNames.revokeDeviceCredential,
     permissionNames.viewInventory,
     permissionNames.manageInventoryStock,
     permissionNames.managePosCatalog,
@@ -4893,6 +4897,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [enrollmentExpiresSeconds, setEnrollmentExpiresSeconds] = useState('900');
   const [enrollmentCode, setEnrollmentCode] = useState<Record<string, unknown> | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
+  const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
+  const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
   const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
@@ -5007,6 +5013,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const canCreateDeviceEnrollmentCode = backend !== null && hasPermission(backend.session, permissionNames.createDeviceEnrollmentCode);
   const canAssignDeviceSeat = backend !== null && hasPermission(backend.session, permissionNames.assignDeviceSeat);
   const canViewDeviceDetail = backend !== null && hasPermission(backend.session, permissionNames.viewDeviceDetail);
+  const canRotateDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.rotateDeviceCredential);
+  const canRevokeDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.revokeDeviceCredential);
   const layoutSeatOptions = zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
     seatId: readString(seat, 'seatId'),
     label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
@@ -5075,6 +5083,32 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         }
 
         setDeviceDetail(await apiClients.devices.getDeviceDetail(deviceId));
+      } else if (label === 'Сменить credential') {
+        if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {
+          throw new Error('Нет прав на смену credential устройства.');
+        }
+
+        const deviceId = deviceAssignmentDeviceId.trim();
+        if (!isGuid(deviceId)) {
+          throw new Error('Укажите корректный device id.');
+        }
+
+        const rotated = await apiClients.devices.rotateDeviceCredential(deviceId);
+        setRotatedCredential(rotated);
+        setCredentialIdToRevoke(readString(rotated, 'credentialId'));
+      } else if (label === 'Отозвать credential') {
+        if (!hasPermission(nextBackend.session, permissionNames.revokeDeviceCredential)) {
+          throw new Error('Нет прав на отзыв credential устройства.');
+        }
+
+        const deviceId = deviceAssignmentDeviceId.trim();
+        const credentialId = credentialIdToRevoke.trim();
+        if (!isGuid(deviceId) || !isGuid(credentialId)) {
+          throw new Error('Укажите корректные device id и credential id.');
+        }
+
+        await apiClients.devices.revokeDeviceCredential(deviceId, credentialId);
+        setRotatedCredential(null);
       } else if (label === 'Добавить зал') {
         const zone = await apiClients.settings.createZone(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
@@ -5409,6 +5443,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             </label>
             <label>Карточка устройства<input value={deviceDetail ? `${readString(deviceDetail, 'machineName', 'Device')} · ${readString(deviceDetail, 'seatName', 'без места')}` : 'не открыта'} readOnly /></label>
             <button type="button" disabled={!canViewDeviceDetail || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Открыть карточку устройства')}>Открыть карточку устройства</button>
+            <label>Credential id<input value={credentialIdToRevoke} disabled={!canRevokeDeviceCredential} onChange={(event) => setCredentialIdToRevoke(event.currentTarget.value)} /></label>
+            <label>Новый credential<input value={readString(rotatedCredential, 'credentialId', '—')} readOnly /></label>
+            <label className="settings-form-wide">Секрет credential<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
+            <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Сменить credential')}>Сменить credential</button>
+            <button type="button" disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke)} onClick={() => runSettingsAction('Отозвать credential')}>Отозвать credential</button>
           </div>
         </>
       );

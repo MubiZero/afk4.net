@@ -4119,6 +4119,8 @@ button {
   display: grid;
   align-content: start;
   gap: 8px;
+  min-height: 0;
+  overflow: auto;
   padding-bottom: 6px;
 }
 
