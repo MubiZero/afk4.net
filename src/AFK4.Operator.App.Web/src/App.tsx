@@ -4544,6 +4544,12 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
 }
 
 type LogEventItem = [string, string, string, string, string];
+type AuditSearchOverrides = {
+  action?: string | null;
+  outcome?: string | null;
+  targetType?: string | null;
+  limit?: number | null;
+};
 
 function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const [eventSearch, setEventSearch] = useState('');
@@ -4554,8 +4560,25 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [auditResult, setAuditResult] = useState<AuditSearchResultDto | null>(null);
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
+  const [auditActionFilter, setAuditActionFilter] = useState('');
+  const [auditOutcomeFilter, setAuditOutcomeFilter] = useState('');
+  const [auditTargetTypeFilter, setAuditTargetTypeFilter] = useState('');
+  const [auditLimit, setAuditLimit] = useState('30');
 
-  const loadLogs = async (nextBackend = backend) => {
+  const buildAuditSearchRequest = (nextBackend: OperatorBackendContext, overrides: AuditSearchOverrides = {}) => {
+    const limitValue = overrides.limit ?? Number(auditLimit);
+    const limit = Number.isInteger(limitValue) && limitValue > 0 ? Math.min(limitValue, 200) : 30;
+
+    return {
+      branchId: nextBackend.branchId,
+      action: overrides.action !== undefined ? overrides.action : auditActionFilter.trim(),
+      outcome: overrides.outcome !== undefined ? overrides.outcome : auditOutcomeFilter.trim(),
+      targetType: overrides.targetType !== undefined ? overrides.targetType : auditTargetTypeFilter.trim(),
+      limit
+    };
+  };
+
+  const loadLogs = async (nextBackend = backend, auditOverrides: AuditSearchOverrides = {}) => {
     if (nextBackend === null) {
       setLoadStatus('fixture');
       return;
@@ -4565,11 +4588,12 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const [audit, branchDiagnostics] = await Promise.all([
-        apiClients.audit.search({ branchId: nextBackend.branchId, limit: 30 }),
+        apiClients.audit.search(buildAuditSearchRequest(nextBackend, auditOverrides)),
         apiClients.diagnostics.getDiagnostics(nextBackend.branchId)
       ]);
       setAuditResult(audit);
       setDiagnostics(branchDiagnostics);
+      setSelectedEventKey('');
       setLoadStatus('backend');
     } catch (error) {
       setLoadStatus('failed');
@@ -4617,10 +4641,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const visibleEvents = (events.length > 0 ? events : fallbackEvents).filter(([time, title, detail, source, tone]) => {
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
-      || (activeLogFilter === 'ПК и Agent' && (source === 'Agent' || tone === 'device'))
+      || (activeLogFilter === 'ПК и Agent' && (source === 'Agent' || tone === 'device' || detail.toLowerCase().includes('device')))
       || (activeLogFilter === 'Касса и POS' && (title.toLowerCase().includes('pos') || detail.toLowerCase().includes('cash')))
-      || (activeLogFilter === 'Оператор' && source.toLowerCase().includes('operator'))
-      || (activeLogFilter === 'Системные' && source !== 'Agent');
+      || (activeLogFilter === 'Оператор' && (source.toLowerCase().includes('operator') || title.toLowerCase().includes('identity') || detail.toLowerCase().includes('staff')))
+      || (activeLogFilter === 'Системные' && (source !== 'Agent' || title.toLowerCase().includes('updates') || title.toLowerCase().includes('diagnostics')));
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
     return filterMatches && searchMatches;
   });
@@ -4632,17 +4656,52 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     ['Platform', `${readNumber(commandSummary, 'failedCommands', 0) + readNumber(updateSummary, 'failedDevices', 0)} ошибок`, ShieldAlert]
   ];
 
+  const applyAuditSearch = async (label: string, overrides: AuditSearchOverrides = {}) => {
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, overrides));
+      setAuditResult(audit);
+      setSelectedEventKey('');
+      setLoadStatus('backend');
+      setFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  const selectLogFilter = (filter: string) => {
+    setActiveLogFilter(filter);
+    const presets: Record<string, AuditSearchOverrides> = {
+      'Все события': { action: '', outcome: '', targetType: '', limit: 30 },
+      'Только ошибки': { action: '', outcome: 'denied', targetType: '', limit: 50 },
+      'ПК и Agent': { action: '', outcome: '', targetType: 'Device', limit: 50 },
+      'Касса и POS': { action: 'pos.sales.create', outcome: '', targetType: '', limit: 50 },
+      'Оператор': { action: 'identity.staff.create', outcome: '', targetType: '', limit: 50 },
+      'Системные': { action: 'updates.rollouts.view', outcome: '', targetType: '', limit: 50 }
+    };
+    const preset = presets[filter] ?? {};
+    setAuditActionFilter(preset.action ?? '');
+    setAuditOutcomeFilter(preset.outcome ?? '');
+    setAuditTargetTypeFilter(preset.targetType ?? '');
+    setAuditLimit(String(preset.limit ?? 30));
+    void applyAuditSearch(filter, preset);
+  };
+
   const runLogAction = async (label: string) => {
     setFeedback({ label, state: 'pending' });
     try {
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       if (label === 'Audit trail') {
-        await apiClients.audit.search({ branchId: nextBackend.branchId, limit: 100 });
+        const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', limit: 100 }));
+        setAuditResult(audit);
       } else if (label === 'CSV') {
         await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
       } else if (label === 'Ошибки') {
-        await apiClients.audit.search({ branchId: nextBackend.branchId, outcome: 'denied', limit: 50 });
+        const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: 'denied', targetType: '', limit: 50 }));
+        setAuditResult(audit);
       } else {
         await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
       }
@@ -4735,11 +4794,18 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
                 key={filter}
                 type="button"
                 className={activeLogFilter === filter ? 'active' : undefined}
-                onClick={() => setActiveLogFilter(filter)}
+                onClick={() => selectLogFilter(filter)}
               >
                 {filter}
               </button>
             ))}
+          </div>
+          <div className="logs-audit-filter-form">
+            <label>Audit action<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="sessions.start" /></label>
+            <label>Outcome<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder="succeeded / denied" /></label>
+            <label>Target type<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="Session" /></label>
+            <label>Limit<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
+            <button type="button" onClick={() => applyAuditSearch('Применить audit')}>Применить audit</button>
           </div>
         </section>
 

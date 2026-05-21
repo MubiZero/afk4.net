@@ -300,6 +300,32 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Пригласить сотрудника/ })).toBeInTheDocument();
   });
 
+  it('runs backend audit search filters from Logs', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Логи'));
+    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Audit action'), { target: { value: 'sessions.start' } });
+    fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'succeeded' } });
+    fireEvent.change(screen.getByLabelText('Target type'), { target: { value: 'Session' } });
+    fireEvent.change(screen.getByLabelText('Limit'), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Применить audit' }));
+
+    expect(await screen.findByText('Применить audit: подтверждено')).toBeInTheDocument();
+    const auditCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
+    const auditCall = auditCalls[auditCalls.length - 1];
+    expect(auditCall).toBeDefined();
+    const url = new URL(String(auditCall[0]));
+    expect(url.searchParams.get('action')).toBe('sessions.start');
+    expect(url.searchParams.get('outcome')).toBe('succeeded');
+    expect(url.searchParams.get('targetType')).toBe('Session');
+    expect(url.searchParams.get('limit')).toBe('12');
+  });
+
   it('confirms POS payment only after backend sale and manual payment calls resolve', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

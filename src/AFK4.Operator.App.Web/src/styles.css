@@ -3892,6 +3892,44 @@ button {
   color: #f2f7ff;
 }
 
+.logs-audit-filter-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+  padding: 0 12px 12px;
+}
+
+.logs-audit-filter-form label {
+  display: grid;
+  gap: 4px;
+  color: #8fa0b6;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.logs-audit-filter-form input {
+  height: 27px;
+  min-width: 0;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 8px;
+  outline: 0;
+  background: #0c141f;
+  color: #f7fafc;
+  font-size: 11px;
+}
+
+.logs-audit-filter-form button {
+  grid-column: 1 / -1;
+  height: 30px;
+  border: 1px solid #1f6feb;
+  border-radius: 5px;
+  background: #1f6feb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+}
+
 .logs-filter-grid button:hover,
 .logs-filter-grid button:focus-visible,
 .logs-export-grid button:hover,

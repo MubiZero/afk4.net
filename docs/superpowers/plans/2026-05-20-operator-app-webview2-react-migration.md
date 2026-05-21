@@ -72,7 +72,8 @@ Current state:
   endpoint with counted cash and a closing note, and can record cash movements
   through the existing shift cash movement endpoint. Settings `Интеграции` now
   registers update packages, creates rollouts, and changes package/rollout
-  state through the existing update endpoints. POS
+  state through the existing update endpoints. Logs now refreshes backend audit
+  records through action/outcome/target type/limit filters. POS
   quick refund now calls the existing refund endpoint for the latest backend
   sale, and POS draft void creates a backend draft from the current cart before
   calling the existing void endpoint. POS recent receipt rows now open backend
@@ -119,6 +120,8 @@ cash and note fields, and Payments cash movement creation calls the backend
 shift cash endpoint. Settings `Интеграции` now exposes backend-backed update
 package registration, rollout creation, and package/rollout state changes with
 the existing `updates.packages.manage` and `updates.rollouts.manage` guards.
+Logs now applies backend audit action/outcome/target type/limit filters through
+the existing audit search endpoint.
 POS
 quick refund calls the backend refund endpoint for the latest backend sale, and
 POS draft void calls the backend void endpoint after creating a draft from the
@@ -235,8 +238,10 @@ missing-backend copy.
   pending post-payment resolution, cancellation/refund actions where allowed,
   and selected operation detail. Use existing shift/report/POS contracts first;
   create missing payment-operation detail or approval endpoints if needed.
-- [ ] Logs: replace projected-only event rows with backend-backed event detail,
-  period/category/operator/target filters, correlation IDs, support handoff
+- [ ] Logs: backend audit action/outcome/target type/limit filters were added
+  on 2026-05-21 through the existing audit search endpoint. Remaining Logs
+  gaps are event detail beyond the current audit row projection, period presets,
+  operator-friendly target/source filters, correlation IDs, support handoff
   data, and export generation. Use audit, diagnostics, and report endpoints
   where they exist; create missing event-detail/support-export contracts if the
   current API cannot answer the screen.

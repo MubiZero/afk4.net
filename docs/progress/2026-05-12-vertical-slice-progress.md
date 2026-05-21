@@ -162,7 +162,9 @@ implementation evidence are needed.
   option, and package option data, and can trigger limited backend setup actions
   including package definition creation, inventory stock movement creation,
   update package registration, rollout creation, and update state changes;
-  Dashboard reads the backend dashboard summary and uses existing report exports
+  Logs now applies backend audit search filters for action/outcome/target type
+  and limit through `/api/branches/{branchId}/audit`; Dashboard reads the
+  backend dashboard summary and uses existing report exports
   for export confirmation; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
   availability and action fallback; Payments can now open a shift through
@@ -265,7 +267,7 @@ Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings stock movement creation,
 Settings package definition create, Payments close-shift wiring, Payments cash
 movement creation, Payments open-shift wiring, Settings update package/rollout
-controls, POS refund quick action, POS
+controls, Logs backend audit filters, POS refund quick action, POS
 draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 ```powershell
@@ -277,7 +279,7 @@ draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 Result:
 
-- frontend tests: 55 passed, 0 failed;
+- frontend tests: 56 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -321,6 +323,9 @@ Result:
   rollout creation, package state changes, and rollout state changes from
   `Интеграции`, including package/rollout ids, channels, target kind, batch
   percent, start time, reason, and organization id serialization.
+- Logs frontend tests now cover backend audit search filtering from `Логи`,
+  including action, outcome, target type, and limit query-string
+  serialization to `/api/branches/{branchId}/audit`.
 - Payments frontend tests now cover closing the current shift from the
   reconciliation panel through `/api/shifts/{shiftId}/close`, including
   counted cash, closing note, organization id, and idempotency key
@@ -1311,6 +1316,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   `updates.rollouts.manage` can register signed update metadata, create branch
   or device rollout requests, and change package/rollout states through the
   existing Platform API update endpoints.
+- On 2026-05-21, `codex/operator-app-redesign` added backend audit filtering
+  to `Логи`. Operators can apply exact audit action, outcome, target type, and
+  limit filters, and the UI refreshes event rows from the existing audit search
+  endpoint instead of relying only on local filtering.
 - On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
   Operator App implementation: WebView2 startup shell, local asset resolution,
   typed host config injection, Vite/React frontend foundation, first visual
