@@ -129,7 +129,7 @@ and stop actions are now wired for backend-loaded seats. POS checkout,
 clients/wallet, payments/reports, logs/audit/diagnostics, and settings read
 surfaces now call existing backend endpoints. Dashboard now has a backend
 summary endpoint and React wiring for active shift, revenue/utilization, alert
-pressure, focus queue, recent payments, and export fetches. Booking has real
+pressure, focus queue, recent payments, and export CSV download. Booking has real
 reservation API wiring, restored staff permissions now gate workspace
 navigation plus selected-seat session actions, the map panel now sends billed
 session metadata plus displays device command status feedback, and the primary
@@ -245,7 +245,8 @@ missing-backend copy.
   Implemented on 2026-05-21 with
   `GET /api/branches/{branchId}/dashboard/summary`, shared dashboard DTOs,
   Platform API endpoint tests, frontend route tests, and React Dashboard
-  loading/confirmed/failed state.
+  loading/confirmed/failed state. Dashboard export now downloads the backend
+  sales CSV instead of only confirming the fetch.
 - [x] Map: wire `Техрежим`. Billing-mode
   selection beyond fast guest, registered-player/package selection for session
   start/extend, and selected-seat Agent/device command result feedback were

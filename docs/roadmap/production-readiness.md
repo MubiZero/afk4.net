@@ -332,7 +332,7 @@ Minimum bar:
   backend sale and manual payment before confirming UI success. Dashboard now
   has a backend summary endpoint and React wiring for active shift,
   revenue/utilization, alert pressure, focus queue, recent payments, and export
-  fetch confirmation. Booking now consumes reservation API contracts for
+  CSV download. Booking now consumes reservation API contracts for
   search/create/update/confirm/seat/cancel actions, with floor-map availability
   as a supporting view. React now also has first-pass permission-aware state:
   the workspace rail and selected-seat session actions disable themselves when
@@ -453,8 +453,9 @@ Minimum bar:
   zone/seat creation, Settings POS
   category/product creation, Settings stock movement creation, Settings package
   definition creation, Settings update package/rollout controls, Settings
-   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift,
-   cash-movement wiring, selected-operation detail, and report export downloads,
+   device enrollment/seat assignment/credential lifecycle, Dashboard export download,
+   Payments open/close-shift, cash-movement wiring, selected-operation detail,
+   and report export downloads,
    Logs backend audit/date
    filters, selected-event detail, source-card filtering, period presets, and
    export downloads, POS

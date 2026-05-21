@@ -346,6 +346,41 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Пригласить сотрудника/ })).toBeInTheDocument();
   });
 
+  it('downloads the Dashboard export CSV', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    const createObjectUrl = vi.fn(() => 'blob:dashboard');
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
+    Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
+    const downloads: string[] = [];
+    const createElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const element = createElement(tagName);
+      if (tagName.toLowerCase() === 'a') {
+        Object.defineProperty(element, 'click', {
+          value: () => downloads.push((element as HTMLAnchorElement).download),
+          configurable: true
+        });
+      }
+
+      return element;
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Дашборд'));
+    fireEvent.click(screen.getByRole('button', { name: /Экспорт дашборда за/ }));
+
+    expect(await screen.findByText('Экспорт: подтверждено')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/sales/export.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-dashboard-sales-') && download.endsWith('.csv'))).toBe(true);
+    expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:dashboard');
+    createElementSpy.mockRestore();
+  });
+
   it('runs backend audit search filters from Logs', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

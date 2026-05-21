@@ -1304,10 +1304,12 @@ function DashboardWorkspace({
     try {
       const nextBackend = requireBackend(backend);
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      await Promise.all([
+      const [, salesCsv] = await Promise.all([
         clients.dashboard.getSummary(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to)),
         clients.shifts.exportSalesReportCsv(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to))
       ]);
+      const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
+      downloadTextFile(`afk4-dashboard-sales-${exportStamp}.csv`, salesCsv, 'text/csv;charset=utf-8');
       setFeedback({ label: 'Экспорт', state: 'confirmed' });
     } catch (error) {
       setFeedback({ label: 'Экспорт', state: 'failed', detail: projectOperatorError(error).detail });

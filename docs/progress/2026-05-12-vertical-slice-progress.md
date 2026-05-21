@@ -227,7 +227,7 @@ reads audit and diagnostics
   audit search filters for action/outcome/target type, UTC date range, and
   limit through `/api/branches/{branchId}/audit`; Dashboard reads the backend
   dashboard summary and uses existing report exports
-  for export confirmation; Booking uses backend reservation
+  for export download; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
   availability and action fallback; Payments can now open a shift through
   `/api/branches/{branchId}/shifts/open`, close the current shift through
@@ -347,13 +347,13 @@ checkout, POS new-customer checkout, and Clients package purchase:
 
 Result:
 
-- frontend tests: 80 passed, 0 failed;
+- frontend tests: 81 passed, 0 failed;
 - frontend production build: passed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
-  export feedback that waits for backend reads.
+  export feedback that waits for backend reads and downloads the sales CSV.
 - Booking reservation tests cover shared DTO serialization, unauthorized and
   forbidden reads, create/confirm/update/search/seat/cancel API behavior,
   overlap conflict handling, audit records, frontend route construction,
@@ -430,10 +430,10 @@ Result:
   local shift discrepancy JSON download.
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
   source-card filtering, audit period presets, Logs export downloads, and
-  Payments report export downloads: the React app rendered the WebView auth
-  entry surface with title `AFK4 Operator`, heading `Вход оператора`, sign-in
-  button, no horizontal or vertical body overflow, and no old backend
-  placeholder copy.
+  Payments/Dashboard report export downloads: the React app rendered the
+  WebView auth entry surface with title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
+  and no old backend placeholder copy.
 - Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console
