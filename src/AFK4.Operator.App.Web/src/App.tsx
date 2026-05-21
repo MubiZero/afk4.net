@@ -4318,6 +4318,31 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
 
 type PaymentOperationItem = [string, string, string, string, string, string];
 
+function paymentOperationPlaceholder(
+  loadStatus: LoadStatus,
+  currencyCode: string,
+  loadError: string | null,
+  hasSearchMiss: boolean
+): PaymentOperationItem {
+  if (hasSearchMiss) {
+    return ['—', 'Нет совпадений', 'измените поиск или период', 'filter', `0 ${currencyCode}`, 'session'];
+  }
+
+  if (loadStatus === 'loading') {
+    return ['—', 'Загружаем операции', 'ждём отчёты платформы', 'backend', `0 ${currencyCode}`, 'session'];
+  }
+
+  if (loadStatus === 'failed') {
+    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'backend', `0 ${currencyCode}`, 'refund'];
+  }
+
+  if (loadStatus === 'backend') {
+    return ['—', 'Операций за период нет', 'платформа вернула пустой отчёт', 'backend', `0 ${currencyCode}`, 'session'];
+  }
+
+  return ['—', 'Dev demo: операций нет', 'локальный fallback без платформы', 'dev demo', `0 ${currencyCode}`, 'session'];
+}
+
 function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const [paymentSearch, setPaymentSearch] = useState('');
   const [selectedOperationKey, setSelectedOperationKey] = useState('');
@@ -4328,6 +4353,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
   const [cashReport, setCashReport] = useState<ReportResultDto | null>(null);
   const [shiftReport, setShiftReport] = useState<ReportResultDto | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [openStartingCash, setOpenStartingCash] = useState('0.00');
   const [openingNote, setOpeningNote] = useState('Открытие смены');
   const [closeCountedCash, setCloseCountedCash] = useState('');
@@ -4339,10 +4365,12 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const loadPayments = async (nextBackend = backend) => {
     if (nextBackend === null) {
       setLoadStatus('fixture');
+      setLoadError(null);
       return;
     }
 
     setLoadStatus('loading');
+    setLoadError(null);
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const [shift, sales, cash, shifts] = await Promise.all([
@@ -4363,10 +4391,13 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       if (note) {
         setClosingNote(note);
       }
+      setLoadError(null);
       setLoadStatus('backend');
     } catch (error) {
+      const detail = projectOperatorError(error).detail;
       setLoadStatus('failed');
-      setFeedback({ label: 'Платежи', state: 'failed', detail: projectOperatorError(error).detail });
+      setLoadError(detail);
+      setFeedback({ label: 'Платежи', state: 'failed', detail });
     }
   };
 
@@ -4395,12 +4426,15 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       readNumber(readMoney(row, 'cashImpact'), 'minorUnits', 0) < 0 ? 'refund' : 'deposit'
     ])
   ];
-  const fallbackOperations: PaymentOperationItem[] = [
-    ['—', 'Нет backend операций', 'отчёты пустые', 'backend', `0 ${currencyCode}`, 'session']
-  ];
-  const visibleOperations = (operations.length > 0 ? operations : fallbackOperations).filter(([time, type, client, method, total]) => (
+  const operationSearch = paymentSearch.trim().toLowerCase();
+  const filteredOperations = operations.filter(([time, type, client, method, total]) => (
     `${time} ${type} ${client} ${method} ${total}`.toLowerCase().includes(paymentSearch.trim().toLowerCase())
   ));
+  const visibleOperations = operations.length === 0
+    ? [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, false)]
+    : filteredOperations.length > 0
+      ? filteredOperations
+      : [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, operationSearch.length > 0)];
   const selectedOperation = visibleOperations.find(([time, type, client]) => `${time}-${type}-${client}` === selectedOperationKey) ?? visibleOperations[0];
   const grossSales = readMoney(salesReport, 'grossSalesTotal');
   const refunds = readMoney(salesReport, 'refundsTotal');
@@ -4685,6 +4719,27 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
 }
 
 type LogEventItem = [string, string, string, string, string];
+
+function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, hasSearchMiss: boolean): LogEventItem {
+  if (hasSearchMiss) {
+    return ['—', 'Нет совпадений', 'измените поиск или фильтр', 'Operator', 'audit'];
+  }
+
+  if (loadStatus === 'loading') {
+    return ['—', 'Загружаем события', 'ждём audit и diagnostics', 'Platform', 'audit'];
+  }
+
+  if (loadStatus === 'failed') {
+    return ['—', 'События недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Platform', 'warning'];
+  }
+
+  if (loadStatus === 'backend') {
+    return ['—', 'Событий за период нет', 'audit и diagnostics вернули пустой результат', 'Platform', 'audit'];
+  }
+
+  return ['—', 'Dev demo: событий нет', 'локальный fallback без платформы', 'Platform', 'audit'];
+}
+
 type AuditSearchOverrides = {
   action?: string | null;
   outcome?: string | null;
@@ -4703,6 +4758,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [auditResult, setAuditResult] = useState<AuditSearchResultDto | null>(null);
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [auditActionFilter, setAuditActionFilter] = useState('');
   const [auditOutcomeFilter, setAuditOutcomeFilter] = useState('');
   const [auditTargetTypeFilter, setAuditTargetTypeFilter] = useState('');
@@ -4728,10 +4784,12 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const loadLogs = async (nextBackend = backend, auditOverrides: AuditSearchOverrides = {}) => {
     if (nextBackend === null) {
       setLoadStatus('fixture');
+      setLoadError(null);
       return;
     }
 
     setLoadStatus('loading');
+    setLoadError(null);
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const [audit, branchDiagnostics] = await Promise.all([
@@ -4741,10 +4799,13 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
       setAuditResult(audit);
       setDiagnostics(branchDiagnostics);
       setSelectedEventKey('');
+      setLoadError(null);
       setLoadStatus('backend');
     } catch (error) {
+      const detail = projectOperatorError(error).detail;
       setLoadStatus('failed');
-      setFeedback({ label: 'Логи', state: 'failed', detail: projectOperatorError(error).detail });
+      setLoadError(detail);
+      setFeedback({ label: 'Логи', state: 'failed', detail });
     }
   };
 
@@ -4782,10 +4843,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     ])
   ];
   const events = [...diagnosticEvents, ...auditEvents];
-  const fallbackEvents: LogEventItem[] = [
-    ['—', 'Нет backend событий', 'audit/diagnostics пустые', 'Platform', 'audit']
-  ];
-  const visibleEvents = (events.length > 0 ? events : fallbackEvents).filter(([time, title, detail, source, tone]) => {
+  const filteredEvents = events.filter(([time, title, detail, source, tone]) => {
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
       || (activeLogFilter === 'ПК и Agent' && (source === 'Agent' || tone === 'device' || detail.toLowerCase().includes('device')))
@@ -4795,6 +4853,11 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
     return filterMatches && searchMatches;
   });
+  const visibleEvents = events.length === 0
+    ? [logEventPlaceholder(loadStatus, loadError, false)]
+    : filteredEvents.length > 0
+      ? filteredEvents
+      : [logEventPlaceholder(loadStatus, loadError, eventSearch.trim().length > 0 || activeLogFilter !== 'Все события')];
   const selectedEvent = visibleEvents.find(([time, title]) => `${time}-${title}` === selectedEventKey) ?? visibleEvents[0];
   const sourceCards: Array<[string, string, LucideIcon]> = [
     ['Agent', `${readNumber(deviceSummary, 'onlineDevices', 0)} онлайн · ${readNumber(deviceSummary, 'staleDevices', 0)} stale`, MonitorCheck],

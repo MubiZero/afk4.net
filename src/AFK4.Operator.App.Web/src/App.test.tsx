@@ -345,6 +345,28 @@ describe('App', () => {
     expect(url.searchParams.get('limit')).toBe('12');
   });
 
+  it('shows successful empty Logs results without backend-empty copy', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/audit')) {
+        return Promise.resolve(jsonResponse({ records: [], limit: 30 }));
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Логи'));
+    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
+
+    expect((await screen.findAllByText('Событий за период нет')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Нет backend событий')).not.toBeInTheDocument();
+  });
+
   it('confirms POS payment only after backend sale and manual payment calls resolve', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -505,6 +527,52 @@ describe('App', () => {
       openingNote: 'Утренняя смена'
     });
     expect(body.idempotencyKey).toMatch(/^shift-open-/);
+  });
+
+  it('shows successful empty Payments reports without backend-empty copy', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    const zero = { currencyCode: 'TJS', minorUnits: 0 };
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/reports/sales')) {
+        return Promise.resolve(jsonResponse({
+          ...createSalesReport(),
+          rows: [],
+          grossSalesTotal: zero,
+          refundsTotal: zero,
+          netSalesTotal: zero
+        }));
+      }
+
+      if (pathname.endsWith('/reports/cash-operations')) {
+        return Promise.resolve(jsonResponse({
+          ...createCashReport(),
+          rows: [],
+          cashInTotal: zero,
+          cashOutTotal: zero,
+          netCashTotal: zero
+        }));
+      }
+
+      if (pathname.endsWith('/reports/shifts')) {
+        return Promise.resolve(jsonResponse({
+          ...createShiftReport(),
+          rows: []
+        }));
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Платежи'));
+    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+
+    expect(await screen.findByText('Операций за период нет')).toBeInTheDocument();
+    expect(screen.queryByText('Нет backend операций')).not.toBeInTheDocument();
   });
 
   it('closes the current shift from Payments through the backend', async () => {

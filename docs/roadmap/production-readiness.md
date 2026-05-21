@@ -378,7 +378,10 @@ Minimum bar:
   for explicit `Dev demo` browser-dev/no-backend fallback states instead of
   normal operator-facing labels. Packaged `webview2` auth failures also project
   host-bridge availability problems into operator-facing restart/check-host copy
-  while browser-dev keeps the raw bridge diagnostic for local smoke.
+  while browser-dev keeps the raw bridge diagnostic for local smoke. Payments
+  and Logs now distinguish successful empty backend responses from loading,
+  failed, and search/filter-miss states instead of using generic
+  `Нет backend ...` placeholders.
   The current WPF implementation remains a parity reference and temporary legacy
   source until the WebView2/React Operator App covers the pilot day flow.
 - Staff management workflow is implemented as a minimum API path on `main`;

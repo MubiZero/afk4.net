@@ -112,6 +112,10 @@ implementation evidence are needed.
   `Native host bridge is unavailable.` diagnostic to operators; browser-dev
   smoke keeps that exact diagnostic so host-bridge wiring failures remain
   obvious during local validation.
+  Payments and Logs no longer reuse `Нет backend операций` /
+  `Нет backend событий` as catch-all placeholders: successful empty backend
+  responses, loading, backend failures, and search/filter misses now have
+  separate operator-facing rows.
 - Operator App package builds now run the React frontend build before publishing
   the native shell, replace published `WebAssets` with the Vite `dist` output,
   feed those assets into the Operator App MSI, and assert the finished MSI File
@@ -2291,6 +2295,20 @@ Operator App WebView2/React first implementation on 2026-05-20:
   errors. App tests also cover that packaged `webview2` config projects the same
   bridge failure into operator-facing restart/check-host copy instead of the
   raw diagnostic.
+- Operator App empty-state verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 39/39, full frontend tests passed 68/68, and
+  Vite production build passed. Browser smoke against `http://127.0.0.1:5173/`
+  confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button, no
+  old `Нет backend операций` / `Нет backend событий` copy on the auth entry, no
+  production fixture labels, no horizontal or vertical overflow, and no new
+  browser console errors.
 
 ## Historical Reference
 

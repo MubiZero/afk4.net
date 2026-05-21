@@ -303,10 +303,14 @@ missing-backend copy.
   settings, richer update rollout detail/status controls, diagnostics,
   audit/security settings, and
   validation errors.
-- [ ] Empty backend states: review `Нет backend операций`,
+- [x] Empty backend states: review `Нет backend операций`,
   `Нет backend событий`, and similar empty-state copy after real staging data
   smoke. Keep them only when the backend returned a successful empty result;
   otherwise show actionable loading/error/retry state.
+  Implemented on 2026-05-21 for Payments and Logs: successful empty report/audit
+  responses now show period-specific empty copy, loading and failed states have
+  separate placeholder rows, and search/filter misses have their own no-match
+  copy.
 - [x] Dev-only host state: keep `Native host bridge is unavailable.` as a
   browser-dev/WebView2-smoke diagnostic only. It should not appear in a normal
   packaged Operator App session.
