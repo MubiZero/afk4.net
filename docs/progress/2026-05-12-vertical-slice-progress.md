@@ -121,6 +121,10 @@ implementation evidence are needed.
   tariff or active player package before the session command is enabled, and
   session command feedback now reads backend device-command status when the
   staff session has `devices.commands.status.view`.
+- The primary map now has real operator filters for all seats, free seats,
+  active sessions, attention states, and offline seats, plus a table view that
+  uses the same backend-loaded `SeatSummary` state as the map tiles. Changing a
+  filter also keeps the selected-seat context on a visible seat.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports and creates paid manual-provider sales; Clients searches backend
@@ -220,8 +224,8 @@ the WebView2/React auth/token, typed API client, SignalR realtime,
 backend-backed floor-map loading, backend-confirmed selected-seat actions,
 first backend-backed parity wiring for the remaining operator workspaces,
 the Operator Dashboard summary endpoint, Booking reservation contracts, and
-permission-aware React navigation/session action state, plus map billing-mode
-selection and device-command result feedback:
+permission-aware React navigation/session action state, map billing-mode
+selection and device-command result feedback, plus map filters/table parity:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -232,7 +236,7 @@ selection and device-command result feedback:
 
 Result:
 
-- frontend tests: 39 passed, 0 failed;
+- frontend tests: 40 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 773 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -252,6 +256,9 @@ Result:
   with backend player/tariff metadata, idempotency keys, and follow-up
   `/api/devices/{deviceId}/commands/{commandId}/status` reads for selected-seat
   command feedback.
+- Map filter/table tests cover the free-seat filter, selected-seat handoff when
+  the active filter hides the previous PC, and the table view's operator
+  columns.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
   copy, and reported no browser console errors.

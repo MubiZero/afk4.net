@@ -324,10 +324,10 @@ Minimum bar:
   the workspace rail and selected-seat session actions disable themselves when
   the restored staff session lacks the required backend permissions. Billing-mode
   selection beyond fast guest and selected-seat device command result feedback
-  now have a first React implementation for the map panel. Reservation
-  edge-case hardening, problem-filter/table parity, general profile/staff
-  invitation settings, and staging smoke of these extra workspaces still remain
-  before the
+  now have a first React implementation for the map panel, and the primary map
+  now has real problem/offline/free/active filters plus table view parity.
+  Reservation edge-case hardening, general profile/staff invitation settings,
+  and staging smoke of these extra workspaces still remain before the
   WebView2/React app covers the full pilot day flow. Fixture-only/missing-contract
   commands should report backend failures rather than showing backend success.
   The current WPF implementation remains a parity reference and temporary legacy
@@ -370,10 +370,10 @@ Minimum bar:
    flows. Dashboard now has first-pass backend metrics, and the React shell now
    disables workspace navigation plus selected-seat session actions based on
    restored staff permissions. The map panel now also supports guest/prepaid/
-   package/postpaid billing selection and selected-seat device command status
-   feedback. Next deliver the remaining map parity gaps such as problem
-   filters/table parity, reservation edge-case hardening, and staging smoke
-   across these backend-backed workspaces. Local builds must
+   package/postpaid billing selection, selected-seat device command status
+   feedback, and real map filters/table view parity. Next deliver reservation
+   edge-case hardening and staging smoke across these backend-backed
+   workspaces. Local builds must
    still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
    GUID/form surfaces in the main operator path as usability defects unless

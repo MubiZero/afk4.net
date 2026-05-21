@@ -21,7 +21,7 @@ import {
   X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useEffect, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import { projectOperatorError } from './apiErrors';
 import { loadOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
 import {
@@ -66,6 +66,8 @@ type AuthStatus = 'checking' | 'signed-out' | 'signed-in';
 type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';
 type Feedback = { label: string; state: FeedbackState; detail?: string };
 type LoadStatus = 'fixture' | 'loading' | 'backend' | 'failed';
+type MapFilterId = 'all' | 'ready' | 'active' | 'attention' | 'offline';
+type MapViewMode = 'grid' | 'table';
 type OperatorConfig = ReturnType<typeof getOperatorConfig>;
 type OperatorBackendContext = {
   config: OperatorConfig;
@@ -98,6 +100,13 @@ const billingModeOptions: Array<{ id: SessionBillingModeId; label: string; detai
   { id: 'prepaid_wallet', label: 'Депозит', detail: 'списать с баланса' },
   { id: 'package', label: 'Пакет', detail: 'списать минуты' },
   { id: 'postpaid_debt', label: 'Постоплата', detail: 'долг игрока' }
+];
+const mapFilterOptions: Array<{ id: MapFilterId; label: string }> = [
+  { id: 'all', label: 'Все' },
+  { id: 'ready', label: 'Свободно' },
+  { id: 'active', label: 'Сессии' },
+  { id: 'attention', label: 'Проблемы' },
+  { id: 'offline', label: 'Нет связи' }
 ];
 const permissionNames = {
   viewFloorMap: 'floor_map.view',
@@ -340,6 +349,30 @@ function countByTone(nextSeats: SeatSummary[], tone: SeatTone): number {
 
 function countProblems(nextSeats: SeatSummary[]): number {
   return nextSeats.filter((seat) => problemTones.has(seat.tone)).length;
+}
+
+function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): boolean {
+  if (filterId === 'all') {
+    return true;
+  }
+
+  if (filterId === 'ready') {
+    return seat.tone === 'ready' && !seat.activeSessionId;
+  }
+
+  if (filterId === 'active') {
+    return seat.tone === 'active' || seat.hasActiveSession === true || Boolean(seat.activeSessionId);
+  }
+
+  if (filterId === 'attention') {
+    return problemTones.has(seat.tone);
+  }
+
+  return seat.tone === 'offline' || seat.isDeviceOnline === false;
+}
+
+function countByMapFilter(nextSeats: SeatSummary[], filterId: MapFilterId): number {
+  return nextSeats.filter((seat) => matchesMapFilter(seat, filterId)).length;
 }
 
 function zoneClass(zone: string): string {
@@ -822,12 +855,27 @@ function MapWorkspace({
   onSelectSeat: (seatId: string) => void;
 }) {
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [activeFilter, setActiveFilter] = useState<MapFilterId>('all');
+  const [viewMode, setViewMode] = useState<MapViewMode>('grid');
   const activeCount = countByTone(floorMap.seats, 'active');
   const readyCount = countByTone(floorMap.seats, 'ready');
   const pendingCount = countByTone(floorMap.seats, 'pending');
   const offlineCount = countByTone(floorMap.seats, 'offline');
   const problemCount = countProblems(floorMap.seats);
   const loadLabel = floorMapLoadLabel(floorMap.loadStatus, floorMap.source, floorMap.error);
+  const visibleSeats = useMemo(
+    () => floorMap.seats.filter((seat) => matchesMapFilter(seat, activeFilter)),
+    [activeFilter, floorMap.seats]
+  );
+  const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
+
+  useEffect(() => {
+    if (visibleSeats.length === 0 || selectedSeatVisible) {
+      return;
+    }
+
+    onSelectSeat(visibleSeats[0].id);
+  }, [activeFilter, floorMap.seats, onSelectSeat, selectedSeatVisible, visibleSeats]);
 
   return (
     <main className="floor-workspace">
@@ -857,19 +905,77 @@ function MapWorkspace({
         <StateFlag label="Проблемы" value={String(problemCount)} critical={problemCount > 0} />
         <StateFlag label="Касса" value={`4 820 ${currencyCode}`} />
       </section>
-      <FeedbackNotice feedback={feedback} />
-
-      <section className="map-board" aria-label="ПК зала">
-        <div className="seat-grid">
-          {floorMap.seats.map((seat) => (
-            <SeatTile
-              key={seat.id}
-              seat={seat}
-              selected={seat.id === selectedSeatId}
-              onSelect={() => onSelectSeat(seat.id)}
-            />
+      <section className="map-controls-row" aria-label="Фильтры и вид карты">
+        <div className="filter-row map-filter-row" aria-label="Фильтр ПК">
+          {mapFilterOptions.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={activeFilter === option.id ? 'active' : undefined}
+              onClick={() => setActiveFilter(option.id)}
+            >
+              {option.label}
+              <strong>{countByMapFilter(floorMap.seats, option.id)}</strong>
+            </button>
           ))}
         </div>
+        <div className="filter-row map-view-switch" aria-label="Вид карты">
+          <button type="button" className={viewMode === 'grid' ? 'active' : undefined} onClick={() => setViewMode('grid')}>Карта</button>
+          <button type="button" className={viewMode === 'table' ? 'active' : undefined} onClick={() => setViewMode('table')}>Таблица</button>
+        </div>
+      </section>
+      <FeedbackNotice feedback={feedback} />
+
+      <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label="ПК зала">
+        {visibleSeats.length === 0 ? (
+          <div className="map-empty-state">
+            <strong>Нет ПК в выбранном фильтре</strong>
+            <span>Смените фильтр или проверьте backend карту.</span>
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className="seat-grid">
+            {visibleSeats.map((seat) => (
+              <SeatTile
+                key={seat.id}
+                seat={seat}
+                selected={seat.id === selectedSeatId}
+                onSelect={() => onSelectSeat(seat.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="seat-table-wrap">
+            <table className="seat-table" aria-label="Таблица ПК">
+              <thead>
+                <tr>
+                  <th>ПК</th>
+                  <th>Состояние</th>
+                  <th>Игрок</th>
+                  <th>Остаток</th>
+                  <th>Устройство</th>
+                  <th>Команда</th>
+                  <th>Биллинг</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleSeats.map((seat) => (
+                  <tr key={seat.id} className={`state-${seat.tone}${seat.id === selectedSeatId ? ' selected' : ''}`}>
+                    <td>
+                      <button type="button" onClick={() => onSelectSeat(seat.id)}>{seat.name}</button>
+                      <span>{seat.zone}</span>
+                    </td>
+                    <td><strong>{toneLabels[seat.tone]}</strong><span>{seat.stateLabel}</span></td>
+                    <td>{seat.player}</td>
+                    <td>{seat.remaining}</td>
+                    <td>{deviceStatusLabel(seat.device)}</td>
+                    <td>{commandLabel(seat.command)}</td>
+                    <td>{billingLabel(seat.billing)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );

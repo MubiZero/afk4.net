@@ -41,13 +41,33 @@ describe('App', () => {
     expect(await screen.findByText('Backend live')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Рабочие места' })).toBeInTheDocument();
     expect(screen.getByLabelText('ПК зала')).toBeInTheDocument();
-    expect(screen.getByText('Сессии')).toBeInTheDocument();
+    expect(screen.getAllByText('Сессии').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /Техрежим/ })).toBeInTheDocument();
     expect(screen.getByText('Сессия активна')).toBeInTheDocument();
     expect(screen.getByText('Сессия подтверждена')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
     expect(screen.getByText(/Cashier One/)).toBeInTheDocument();
+  });
+
+  it('filters the floor map and switches to table view', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Свободно/ }));
+
+    expect(await screen.findByRole('heading', { name: 'PC-02' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /PC-01/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Таблица' }));
+
+    expect(await screen.findByRole('table', { name: 'Таблица ПК' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Команда' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'PC-02' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Сессии/ }));
+    expect(await screen.findByRole('button', { name: 'PC-01' })).toBeInTheDocument();
   });
 
   it('uses the host currency in money surfaces', async () => {

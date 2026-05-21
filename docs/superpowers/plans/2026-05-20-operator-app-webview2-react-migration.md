@@ -59,8 +59,9 @@ Current state:
   The React shell also has first-pass permission-aware workspace navigation and
   selected-seat session action state. The map panel now supports guest,
   prepaid-wallet, package, and postpaid billing selection for start/extend, and
-  reads selected-seat device command result status after session commands.
-  Reservation edge-case hardening, map filters/table parity, and staging smoke
+  reads selected-seat device command result status after session commands. The
+  primary map now also has real filters and table view parity over the same
+  backend-loaded seat state. Reservation edge-case hardening and staging smoke
   across the newly wired screens are the next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
@@ -86,10 +87,10 @@ surfaces now call existing backend endpoints. Dashboard now has a backend
 summary endpoint and React wiring for active shift, revenue/utilization, alert
 pressure, focus queue, recent payments, and export fetches. Booking has real
 reservation API wiring, restored staff permissions now gate workspace
-navigation plus selected-seat session actions, and the map panel now sends
-billed session metadata plus displays device command status feedback. Continue
-with the remaining map filters/table parity, reservation edge-case hardening,
-and staging smoke of the backend-backed workspaces.
+navigation plus selected-seat session actions, the map panel now sends billed
+session metadata plus displays device command status feedback, and the primary
+map has real filter/table parity. Continue with reservation edge-case
+hardening and staging smoke of the backend-backed workspaces.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -121,10 +122,9 @@ Start-Process -FilePath 'D:\projects\afk4.net\src\AFK4.Operator.App\bin\Debug\ne
 
 Next implementation order:
 
-1. Finish remaining map parity gaps: problem filters and table parity.
-2. Harden real booking flows for edge cases; keep Booking from showing fixture
+1. Harden real booking flows for edge cases; keep Booking from showing fixture
    success for any flow that is not backed by reservation APIs.
-3. Staging-smoke POS, Clients, Payments, Logs, and Settings against
+2. Staging-smoke POS, Clients, Payments, Logs, and Settings against
    `https://afk4.staging.mubi.dev`, then close parity gaps found with real data.
 
 ## Backend Connectivity TODO From Current React UI Copy
@@ -152,11 +152,13 @@ missing-backend copy.
   `GET /api/branches/{branchId}/dashboard/summary`, shared dashboard DTOs,
   Platform API endpoint tests, frontend route tests, and React Dashboard
   loading/confirmed/failed state.
-- [ ] Map: wire `Техрежим` and problem filters/table parity. Billing-mode
+- [ ] Map: wire `Техрежим`. Billing-mode
   selection beyond fast guest, registered-player/package selection for session
   start/extend, and selected-seat Agent/device command result feedback were
   implemented on 2026-05-21 against existing session, player/tariff/package,
-  and device command status contracts.
+  and device command status contracts. Problem/free/active/offline filters and
+  table view parity were implemented on 2026-05-21 over backend-loaded seat
+  state.
 - [x] Booking: replace `Backend-контракт бронирований ещё не реализован.`,
   `booking API отсутствует`, `нет backend источника заявок`, `черновик ждёт
   backend booking API`, and `нет booking API` copy with real reservation
@@ -338,8 +340,10 @@ Screen roadmap:
   map controls, backend player/tariff/package selection, billed start/extend
   request payloads, command-status feedback, and frontend coverage for fast
   guest plus prepaid-wallet start.
-- [ ] Cover problem filters after backend-backed filter state replaces the
-  fixture-only implementation.
+- [x] Cover problem filters after backend-backed filter state replaces the
+  fixture-only implementation. Implemented on 2026-05-21 with all/free/active/
+  attention/offline filters and a table view backed by the same `SeatSummary`
+  data as the map tiles.
 
 ## Task 5: POS, Players, Shift, And Settings Parity
 
