@@ -374,7 +374,9 @@ Minimum bar:
   smoke of these extra workspaces still remains before
   the WebView2/React app covers the full pilot day flow. Fixture-only/
   missing-contract commands should report backend failures rather than showing
-  backend success.
+  backend success, and signed-in workspace status copy now reserves fixture data
+  for explicit `Dev demo` browser-dev/no-backend fallback states instead of
+  normal operator-facing labels.
   The current WPF implementation remains a parity reference and temporary legacy
   source until the WebView2/React Operator App covers the pilot day flow.
 - Staff management workflow is implemented as a minimum API path on `main`;

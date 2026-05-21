@@ -193,12 +193,16 @@ pending/confirmed/failed states and tests. If no backend contract exists, add
 the backend endpoint/DTO/domain tests first, then wire the UI and remove the
 missing-backend copy.
 
-- [ ] Global fallback copy: remove production-visible `Fixture`,
+- [x] Global fallback copy: remove production-visible `Fixture`,
   `Fixture fallback`, `SmartShell-like fixture`, and
   `Функция пока не подключена к backend.` states from signed-in operator flows.
   Keep fixture data only as a deliberate browser-dev/no-backend fallback behind
   clear dev-only state; production/staging should show backend loading, empty,
   or actionable error states.
+  Implemented on 2026-05-21: signed-in status labels now distinguish
+  `Backend live`, `Loading backend`, `Backend error`, and `Dev demo`; generic
+  missing-contract feedback now says there is no backend contract instead of
+  presenting fixture success.
 - [x] Dashboard: replace fixture KPI values, focus queue, transition cards,
   period-driven synthetic metrics, and dashboard export feedback with backend
   dashboard/report read models. If no dashboard summary API exists, create

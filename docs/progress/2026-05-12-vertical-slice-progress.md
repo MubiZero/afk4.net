@@ -103,7 +103,11 @@ implementation evidence are needed.
   map, sessions, POS, players, shifts/reports/CSV, settings/pilot setup,
   devices, diagnostics, updates, and audit. The primary map now uses those
   clients to load backend floor-map data after native staff auth, while keeping
-  fixture fallback for browser-dev/no-backend runs.
+  fixture fallback for browser-dev/no-backend runs. Signed-in React workspace
+  status labels no longer present `Fixture`, `Fixture fallback`, or
+  `SmartShell-like fixture` as operator-facing states; backend loading/failure
+  and deliberate browser-dev/no-backend fallback now read as backend status or
+  `Dev demo`.
 - Operator App package builds now run the React frontend build before publishing
   the native shell, replace published `WebAssets` with the Vite `dist` output,
   feed those assets into the Operator App MSI, and assert the finished MSI File
@@ -2252,6 +2256,20 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `{"status":"ok",...}` at `2026-05-21T17:44:06Z`. Full signed-in staging
   workflow evidence still requires staff credentials and remains tracked under
   the cutover/staging smoke item.
+- Operator App fallback-copy verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: App tests passed 36/36, full frontend tests passed 64/64, and Vite
+  production build passed. Browser smoke against `http://127.0.0.1:5173/`
+  confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button, no
+  horizontal overflow, no production-visible `Fixture` copy on the auth entry
+  page, and no new browser console errors; four older Vite HMR console errors
+  were already present in the browser log before the smoke.
 
 ## Historical Reference
 

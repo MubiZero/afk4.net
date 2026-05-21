@@ -301,7 +301,7 @@ function triggerFeedback(
   setFeedback: (feedback: Feedback) => void,
   label: string,
   finalState: Exclude<FeedbackState, 'idle' | 'pending'> = 'failed',
-  detail = 'Функция пока не подключена к backend.'
+  detail = 'Для этого действия нет backend-контракта.'
 ) {
   if (finalState === 'failed') {
     setFeedback({ label, state: 'failed', detail });
@@ -597,10 +597,30 @@ function floorMapLoadLabel(status: FloorMapLoadStatus, source: OperatorFloorMapS
   }
 
   if (status === 'failed') {
-    return error ? `Fixture · ${error}` : 'Fixture · API недоступен';
+    return error ? `Backend error · ${error}` : 'Backend error · API unavailable';
   }
 
-  return source === 'backend' ? 'Backend live' : 'Fixture';
+  return source === 'backend' ? 'Backend live' : 'Dev demo';
+}
+
+function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string): string {
+  if (status === 'backend') {
+    return backendLabel;
+  }
+
+  if (status === 'loading') {
+    return 'Loading backend';
+  }
+
+  if (status === 'failed') {
+    return 'Backend error';
+  }
+
+  return 'Dev demo';
+}
+
+function dataSourceLabel(source: string): string {
+  return source === 'backend' ? 'backend' : 'dev demo';
 }
 
 function realtimeLabel(state: OperatorRealtimeConnectionState, error: string | null): string {
@@ -2907,7 +2927,7 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
       <section className="context-section">
         <div className="detail-row"><span>Revenue</span><strong>4 820 {currencyCode}</strong></div>
         <div className="detail-row"><span>Pending</span><strong>2 actions</strong></div>
-        <div className="detail-row"><span>Source</span><strong>SmartShell-like fixture</strong></div>
+        <div className="detail-row"><span>Source</span><strong>Dev demo</strong></div>
       </section>
       <button type="button" className="primary-wide">Open action</button>
     </aside>
@@ -2929,10 +2949,10 @@ type PosCartItem = PosCatalogItem & {
 };
 
 const fixturePosProducts: PosCatalogItem[] = [
-  { name: 'Cola 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'fixture', stockOnHand: 0, source: 'fixture' },
-  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'fixture', stockOnHand: 0, source: 'fixture' },
-  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'fixture', stockOnHand: 0, source: 'fixture' },
-  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'fixture', stockOnHand: 0, source: 'fixture' }
+  { name: 'Cola 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'dev demo', stockOnHand: 0, source: 'fixture' },
+  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'dev demo', stockOnHand: 0, source: 'fixture' },
+  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'dev demo', stockOnHand: 0, source: 'fixture' },
+  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'dev demo', stockOnHand: 0, source: 'fixture' }
 ];
 
 function projectPosProduct(product: PosProductDto, currencyCode: string): PosCatalogItem {
@@ -3239,7 +3259,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <h1>POS · продажа и кассовые операции</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend live' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend live')}</span>
         </div>
       </section>
 
@@ -3836,9 +3856,9 @@ type PlayerClientItem = {
 
 function fixturePlayers(currencyCode: string): PlayerClientItem[] {
   return [
-    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'fixture', tone: 'vip', detail: 'fixture client', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
-    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'fixture', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
-    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'fixture', tone: 'debt', detail: 'postpaid debt', phoneNumber: '', source: 'fixture' }
+    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'dev demo', tone: 'vip', detail: 'dev demo client', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'dev demo', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
+    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'dev demo', tone: 'debt', detail: 'postpaid debt', phoneNumber: '', source: 'fixture' }
   ];
 }
 
@@ -4128,7 +4148,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           <h1>Клиенты · поиск, депозит и долги</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend live' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend live')}</span>
         </div>
       </section>
 
@@ -4184,14 +4204,14 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             <div>
               <span>{selectedClient.status}</span>
               <strong>{selectedClient.name}</strong>
-              <em>{selectedClient.phoneNumber || 'без телефона'} · {selectedClient.source}</em>
+              <em>{selectedClient.phoneNumber || 'без телефона'} · {dataSourceLabel(selectedClient.source)}</em>
             </div>
           </div>
           <div className="client-metrics-grid">
             <div><span>Депозит</span><strong>{formatMinorUnits(balance, currencyCode)}</strong></div>
             <div><span>Долг</span><strong>{formatMinorUnits(debt, currencyCode)}</strong></div>
             <div><span>Пакеты</span><strong>{selectedClient.detail.includes('пакетов') ? selectedClient.detail.split(' · ')[1] : '0'}</strong></div>
-            <div><span>Источник</span><strong>{selectedClient.source}</strong></div>
+            <div><span>Источник</span><strong>{dataSourceLabel(selectedClient.source)}</strong></div>
           </div>
         </section>
 
@@ -4500,7 +4520,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
           <h1>Платежи · касса смены и сверка</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend reports' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend reports')}</span>
         </div>
       </section>
 
@@ -4840,7 +4860,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
           <h1>Логи · аудит и события смены</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend audit' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend audit')}</span>
         </div>
       </section>
 
@@ -4899,7 +4919,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
             <div><span>Источник</span><strong>{selectedEvent[3]}</strong></div>
             <div><span>Объект</span><strong>{selectedEvent[1].split(' ')[0]}</strong></div>
             <div><span>Оператор</span><strong>{backend?.session.displayName ?? 'system'}</strong></div>
-            <div><span>Branch</span><strong>{backend?.branchId.slice(0, 8) ?? 'fixture'}</strong></div>
+            <div><span>Branch</span><strong>{backend?.branchId.slice(0, 8) ?? 'dev demo'}</strong></div>
           </div>
           <FeedbackNotice feedback={feedback} />
         </section>
@@ -5815,7 +5835,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               ['Платежи', 'manual provider'],
               ['Обновления', `${rollouts.length} rollout`],
               ['Ошибки обновлений', `${readNumber(updateSummary, 'failedDevices', 0)} devices`],
-              ['API', backend?.config.platformBaseUrl ?? 'fixture']
+              ['API', backend?.config.platformBaseUrl ?? 'dev demo']
             ].map(([name, detail]) => (
               <button key={name} type="button" onClick={() => triggerFeedback(setFeedback, name, 'confirmed')}>
                 <strong>{name}</strong>
@@ -5934,7 +5954,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <label>Название клуба<input value={clubName} onChange={(event) => { setClubName(event.currentTarget.value); setSettingsDirty(true); }} /></label>
           <label>Город<input value={city} onChange={(event) => { setCity(event.currentTarget.value); setSettingsDirty(true); }} /></label>
           <label>Валюта<input value={currencyCode} readOnly /></label>
-          <label>Филиал<input value={backend?.branchId ?? 'fixture'} readOnly /></label>
+          <label>Филиал<input value={backend?.branchId ?? 'dev demo'} readOnly /></label>
         </div>
         <div className="settings-save-row">
           <span>{settingsDirty ? 'есть несохранённые изменения' : 'изменений нет'}</span>
@@ -5952,7 +5972,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <h1>Настройки · клуб и правила работы</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadStatus === 'backend' ? 'Backend settings' : loadStatus === 'loading' ? 'Loading backend' : loadStatus === 'failed' ? 'Fixture fallback' : 'Fixture'}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend settings')}</span>
         </div>
       </section>
 
@@ -6556,7 +6576,7 @@ export function App() {
         && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">
-        <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)} · {floorMap.source}</span>
+        <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)} · {dataSourceLabel(floorMap.source)}</span>
         <span><MonitorCheck size={14} />Devices: {countByTone(floorMap.seats, 'offline')} offline, {countProblems(floorMap.seats)} attention</span>
         <span><CircleDollarSign size={14} />POS: 2 неоплаченных чека</span>
         <span><LockKeyhole size={14} />Критичные действия ждут подтверждения платформы</span>
