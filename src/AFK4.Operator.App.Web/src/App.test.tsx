@@ -320,6 +320,30 @@ describe('App', () => {
       init?.method === 'POST')).toBe(true);
   });
 
+  it('refunds the latest backend POS sale from quick operations', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
+
+    expect(await screen.findByText('Возврат по чеку: подтверждено')).toBeInTheDocument();
+    const refundCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/refunds') &&
+      init?.method === 'POST');
+    expect(refundCall).toBeDefined();
+    const body = JSON.parse(String(refundCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      reason: 'operator POS refund'
+    });
+    expect(body.idempotencyKey).toMatch(/^pos-refund-/);
+  });
+
   it('closes the current shift from Payments through the backend', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -660,6 +684,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosSale('paid'));
   }
 
+  if (pathname.includes('/pos/sales/') && pathname.endsWith('/refunds')) {
+    return jsonResponse(createPosSale('refunded'));
+  }
+
   if (pathname.endsWith('/players')) {
     return jsonResponse(createPlayers());
   }
@@ -768,6 +796,7 @@ const allOperatorPermissions = [
   'reservations.manage',
   'pos.sales.create',
   'pos.sales.pay',
+  'pos.sales.refund',
   'inventory.view',
   'pos.catalog.manage',
   'receipts.view',
@@ -1070,7 +1099,7 @@ function createPosSale(state: string) {
     createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
     createdAtUtc: '2026-05-21T09:00:00Z',
     paidAtUtc: state === 'paid' ? '2026-05-21T09:01:00Z' : null,
-    refundedAtUtc: null,
+    refundedAtUtc: state === 'refunded' ? '2026-05-21T09:05:00Z' : null,
     voidedAtUtc: null
   };
 }

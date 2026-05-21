@@ -145,13 +145,14 @@ implementation evidence are needed.
   `pos.catalog.manage`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
-  reports and creates paid manual-provider sales; Clients searches backend
-  players and performs wallet top-up/debt payment/player creation; Payments
-  reads shift, sales, cash, and CSV report endpoints; Logs reads audit and
+  reports, creates paid manual-provider sales, and can refund the latest
+  backend sale from the quick-operation panel; Clients searches backend players
+  and performs wallet top-up/debt payment/player creation; Payments reads
+  shift, sales, cash, and CSV report endpoints; Logs reads audit and
   diagnostics; Settings reads staff, layout, catalog, diagnostics, update
-  rollout, and tariff option data and can trigger limited backend setup
-  actions; Dashboard reads the backend dashboard summary and uses existing
-  report exports for export confirmation; Booking uses backend reservation
+  rollout, and tariff option data and can trigger limited backend setup actions;
+  Dashboard reads the backend dashboard summary and uses existing report exports
+  for export confirmation; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
   availability and action fallback; Payments can now close the current shift
   through `/api/shifts/{shiftId}/close` with counted cash, closing note, and
@@ -250,7 +251,7 @@ permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Payments close-shift wiring, and
-Payments cash movement creation:
+Payments cash movement creation, and POS refund quick action:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -261,7 +262,7 @@ Payments cash movement creation:
 
 Result:
 
-- frontend tests: 46 passed, 0 failed;
+- frontend tests: 47 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -320,6 +321,10 @@ Result:
 - POS frontend tests now cover backend-confirmed catalog/current-shift loading,
   POS sale creation, manual payment, and UI confirmation only after both API
   calls resolve.
+- POS frontend tests now cover the `Возврат по чеку` quick operation calling
+  `/api/pos/sales/{saleId}/refunds` for the latest backend sale with
+  organization id, reason, and idempotency key serialization before UI
+  confirmation.
 - Booking is now backed by real reservation API contracts and is no longer blocked
   by missing booking contract support. The app now exercises reservation
   search/create/update/confirm/seat/cancel endpoints. Remaining work is UX
@@ -1233,6 +1238,9 @@ Operator App redesign branch-local verification on 2026-05-20:
   creation against the existing shift cash movement API. Operators with
   `shifts.cash.manage` can enter cash in/out amount and reason, and the UI
   confirms only after the backend accepts the movement.
+- On 2026-05-21, `codex/operator-app-redesign` wired the POS quick
+  `Возврат по чеку` action to the existing refund endpoint for the latest
+  backend sale, guarded by `pos.sales.refund` and idempotency.
 - On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
   Operator App implementation: WebView2 startup shell, local asset resolution,
   typed host config injection, Vite/React frontend foundation, first visual

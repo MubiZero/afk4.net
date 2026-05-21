@@ -2439,6 +2439,16 @@ button {
   transform: translateY(-1px);
 }
 
+.pos-quick-card:disabled,
+.pos-quick-card:disabled:hover,
+.pos-quick-card:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
+  transform: none;
+}
+
 .pos-product-card strong,
 .pos-product-card span,
 .pos-product-card b,

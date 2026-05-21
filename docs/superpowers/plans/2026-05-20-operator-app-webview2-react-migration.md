@@ -67,9 +67,10 @@ Current state:
   profile endpoint, and POS category/product creation backed by the existing
   POS catalog endpoints. Payments can now close the current shift through the
   existing close-shift endpoint with counted cash and a closing note, and can
-  record cash movements through the existing shift cash movement endpoint.
-  Staging smoke across the newly wired screens is the next real implementation
-  work.
+  record cash movements through the existing shift cash movement endpoint. POS
+  quick refund now calls the existing refund endpoint for the latest backend
+  sale. Staging smoke across the newly wired screens is the next real
+  implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
@@ -102,9 +103,10 @@ create branch staff through the existing backend staff API, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product. Payments close-shift now calls
 the backend close-shift endpoint with counted cash and note fields, and
-Payments cash movement creation calls the backend shift cash endpoint. Continue
-with staging smoke of the backend-backed workspaces and close gaps found with
-real data.
+Payments cash movement creation calls the backend shift cash endpoint. POS
+quick refund calls the backend refund endpoint for the latest backend sale.
+Continue with staging smoke of the backend-backed workspaces and close gaps
+found with real data.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -187,12 +189,14 @@ missing-backend copy.
   disable invalid actions, selected index is reset after reloads, and new
   reservations validate free-seat availability plus start time before API calls.
 - [ ] POS: wire every quick operation that still uses local feedback or
-  handoff copy: select customer for cart, refund by selected backend sale,
-  void sale, receipt detail/print/export, wallet top-up handoff, new customer
-  handoff, cash movement, stock write-off/adjustment, and discount/promo/combo
-  handling if kept in MVP UI. Use existing POS/player/shift endpoints where
-  they exist; create missing refund/void/receipt/inventory/provider endpoints
-  before removing the UI warnings.
+  handoff copy. Checkout already creates a backend sale/manual payment, and
+  `Возврат по чеку` now calls the backend refund endpoint for the latest
+  backend sale with `pos.sales.refund` gating. Remaining POS gaps include
+  selected customer for cart, selected-sale refund UX, void sale, receipt
+  detail/print/export, wallet top-up handoff, new customer handoff, stock
+  write-off/adjustment, and discount/promo/combo handling if kept in MVP UI.
+  Use existing POS/player/shift endpoints where they exist; create missing
+  void/receipt/inventory/provider endpoints before removing the UI warnings.
 - [ ] Clients: wire `Создать бронь` from a selected player instead of throwing
   the missing booking-contract error. Also replace remaining local-only client
   surfaces with backend reads/actions: profile details/edit, purchase history,

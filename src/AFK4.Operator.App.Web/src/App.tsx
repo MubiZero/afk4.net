@@ -125,6 +125,7 @@ const permissionNames = {
   manageReservations: 'reservations.manage',
   createPosSale: 'pos.sales.create',
   payPosSale: 'pos.sales.pay',
+  refundPosSale: 'pos.sales.refund',
   viewInventory: 'inventory.view',
   managePosCatalog: 'pos.catalog.manage',
   viewReceipt: 'receipts.view',
@@ -145,6 +146,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.viewInventory,
     permissionNames.createPosSale,
     permissionNames.payPosSale,
+    permissionNames.refundPosSale,
     permissionNames.viewShift,
     permissionNames.viewReports
   ],
@@ -2971,6 +2973,11 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const lowStockCount = catalog.filter((product) => product.source === 'backend' && product.stockOnHand <= 2).length;
   const shiftId = readString(currentShift, 'shiftId');
   const shiftState = readString(currentShift, 'state', currentShift === null ? 'нет смены' : 'unknown');
+  const latestRefundableSale = salesRows.find((row) => readString(row, 'state').toLowerCase() === 'paid') ?? salesRows[0] ?? lastSale;
+  const latestRefundableSaleId = readString(latestRefundableSale, 'posSaleId');
+  const canRefundLatestSale = backend !== null
+    && latestRefundableSaleId.length > 0
+    && hasPermission(backend.session, permissionNames.refundPosSale);
 
   const addProduct = (product: PosCatalogItem) => {
     setCartItems((items) => {
@@ -3033,6 +3040,34 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     } catch (error) {
       setFeedback({
         label: 'Оплата',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
+  const refundLatestSale = async () => {
+    setFeedback({ label: 'Возврат по чеку', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      if (!hasPermission(nextBackend.session, permissionNames.refundPosSale)) {
+        throw new Error('Нет прав на возврат POS продажи.');
+      }
+
+      if (!latestRefundableSaleId) {
+        throw new Error('Нет backend POS продажи для возврата.');
+      }
+
+      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.refundSale(latestRefundableSaleId, {
+        organizationId: nextBackend.session.organizationId,
+        reason: 'operator POS refund',
+        idempotencyKey: createIdempotencyKey('pos-refund')
+      });
+      setFeedback({ label: 'Возврат по чеку', state: 'confirmed' });
+      await loadBackendPos(nextBackend);
+    } catch (error) {
+      setFeedback({
+        label: 'Возврат по чеку',
         state: 'failed',
         detail: projectOperatorError(error).detail
       });
@@ -3195,7 +3230,13 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               ['Новый клиент', 'экран клиентов', UserRoundPlus],
               ['Внести наличные', 'экран платежей', Banknote]
             ].map(([label, detail, Icon]) => (
-              <button key={label as string} type="button" className="pos-quick-card" onClick={() => triggerFeedback(setFeedback, label as string)}>
+              <button
+                key={label as string}
+                type="button"
+                className="pos-quick-card"
+                disabled={(label as string) === 'Возврат по чеку' && (!canRefundLatestSale || feedback.state === 'pending')}
+                onClick={() => (label as string) === 'Возврат по чеку' ? void refundLatestSale() : triggerFeedback(setFeedback, label as string)}
+              >
                 <Icon size={17} />
                 <strong>{label as string}</strong>
                 <span>{detail as string}</span>
