@@ -142,7 +142,9 @@ implementation evidence are needed.
   endpoint for club name and city. Settings `POS и склад` can now create a
   backend POS category and product through `/api/branches/{branchId}/pos/categories`
   and `/api/branches/{branchId}/pos/products`, guarded by
-  `pos.catalog.manage`. Settings `Тарифы` can now create package definitions
+  `pos.catalog.manage`, and can record stock movements through
+  `/api/branches/{branchId}/inventory/stock-movements`, guarded by
+  `inventory.stock.manage`. Settings `Тарифы` can now create package definitions
   through `/api/branches/{branchId}/packages`, guarded by `packages.manage`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
@@ -155,7 +157,7 @@ implementation evidence are needed.
   sales, cash, and CSV report endpoints; Logs reads audit and diagnostics;
   Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
   option, and package option data, and can trigger limited backend setup actions
-  including package definition creation;
+  including package definition creation and inventory stock movement creation;
   Dashboard reads the backend dashboard summary and uses existing report exports
   for export confirmation; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
@@ -255,10 +257,10 @@ the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
-read/update, Settings POS catalog create, Settings package definition create,
-Payments close-shift wiring, Payments cash movement creation, POS refund quick
-action, POS draft void quick action, POS sale detail lookup, and Clients package
-purchase:
+read/update, Settings POS catalog create, Settings stock movement creation,
+Settings package definition create, Payments close-shift wiring, Payments cash
+movement creation, POS refund quick action, POS draft void quick action, POS
+sale detail lookup, and Clients package purchase:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -269,7 +271,7 @@ purchase:
 
 Result:
 
-- frontend tests: 51 passed, 0 failed;
+- frontend tests: 52 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -303,6 +305,9 @@ Result:
 - Settings POS catalog frontend tests now cover backend category/product POST
   serialization from the `POS и склад` form, including price minor units,
   stock flags, and idempotency keys.
+- Settings stock frontend tests now cover inventory stock movement POST
+  serialization from the `POS и склад` form, including product id, movement
+  type, quantity delta, unit cost, reason, organization id, and idempotency key.
 - Settings package frontend tests now cover package definition POST
   serialization from the `Тарифы` form, including price minor units, included
   seconds, bonus seconds, expiry days, organization id, and idempotency key.
@@ -1250,6 +1255,12 @@ Operator App redesign branch-local verification on 2026-05-20:
   then a POS product with price, SKU, stock flags, and idempotency keys through
   the existing Platform API catalog-management endpoints, and is covered by
   frontend route/UI tests plus the full local solution test suite.
+- On 2026-05-21, `codex/operator-app-redesign` added Settings inventory stock
+  movement creation from `POS и склад`. Operators with `inventory.stock.manage`
+  can select a tracked backend product, movement type, quantity delta, unit
+  cost, and reason, and the UI calls
+  `/api/branches/{branchId}/inventory/stock-movements` before reloading the
+  catalog.
 - On 2026-05-21, `codex/operator-app-redesign` wired the Payments
   reconciliation action to the existing close-shift API. Operators with
   `shifts.close` can enter counted cash and a closing note, and the UI waits

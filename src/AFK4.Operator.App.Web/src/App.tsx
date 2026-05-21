@@ -132,6 +132,7 @@ const permissionNames = {
   refundPosSale: 'pos.sales.refund',
   voidPosSale: 'pos.sales.void',
   viewInventory: 'inventory.view',
+  manageInventoryStock: 'inventory.stock.manage',
   managePosCatalog: 'pos.catalog.manage',
   viewReceipt: 'receipts.view',
   viewDiagnostics: 'diagnostics.view',
@@ -163,6 +164,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.manageBranchStaff,
     permissionNames.manageLayout,
     permissionNames.viewInventory,
+    permissionNames.manageInventoryStock,
     permissionNames.managePosCatalog,
     permissionNames.managePackages,
     permissionNames.viewDiagnostics,
@@ -639,6 +641,15 @@ function readNumber(value: unknown, name: string, fallback = 0): number {
   return typeof nextValue === 'number' && Number.isFinite(nextValue) ? nextValue : fallback;
 }
 
+function readBoolean(value: unknown, name: string, fallback = false): boolean {
+  if (!isRecord(value)) {
+    return fallback;
+  }
+
+  const nextValue = value[name];
+  return typeof nextValue === 'boolean' ? nextValue : fallback;
+}
+
 function readArray<T = unknown>(value: unknown, name: string): T[] {
   if (!isRecord(value)) {
     return [];
@@ -707,6 +718,16 @@ function parseMoneyInputMinorUnits(value: string): number | null {
 
   const majorUnits = Number(normalized);
   return Number.isFinite(majorUnits) && majorUnits > 0 ? Math.round(majorUnits * 100) : null;
+}
+
+function parseNonNegativeMoneyInputMinorUnits(value: string): number | null {
+  const normalized = value.trim().replace(',', '.');
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+    return null;
+  }
+
+  const majorUnits = Number(normalized);
+  return Number.isFinite(majorUnits) && majorUnits >= 0 ? Math.round(majorUnits * 100) : null;
 }
 
 function formatMoneyInputMinorUnits(minorUnits: number): string {
@@ -4768,6 +4789,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [productPrice, setProductPrice] = useState('12.00');
   const [productTrackStock, setProductTrackStock] = useState(true);
   const [productAllowNegativeStock, setProductAllowNegativeStock] = useState(false);
+  const [stockProductId, setStockProductId] = useState('');
+  const [stockMovementType, setStockMovementType] = useState('purchase');
+  const [stockQuantityDelta, setStockQuantityDelta] = useState('10');
+  const [stockUnitCost, setStockUnitCost] = useState('0.00');
+  const [stockReason, setStockReason] = useState('initial stock');
   const [packageName, setPackageName] = useState('Night 5h');
   const [packagePrice, setPackagePrice] = useState('250.00');
   const [packageMinutes, setPackageMinutes] = useState('300');
@@ -4793,9 +4819,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         apiClients.settings.getTariffOptions(nextBackend.branchId),
         apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => [])
       ]);
+      const productRows = Array.isArray(products) ? products : [];
       setStaffUsers(Array.isArray(staff) ? staff : []);
       setZones(Array.isArray(layoutZones) ? layoutZones : []);
-      setCatalog(Array.isArray(products) ? products : []);
+      setCatalog(productRows);
+      setStockProductId((current) => productRows.some((product) => readString(product, 'productId') === current && readBoolean(product, 'trackStock'))
+        ? current
+        : readString(productRows.find((product) => readBoolean(product, 'trackStock')), 'productId'));
       setDiagnostics(branchDiagnostics);
       setRollouts(Array.isArray(rolloutStatuses) ? rolloutStatuses : []);
       setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
@@ -4827,7 +4857,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const canManageBranchStaff = backend !== null && hasPermission(backend.session, permissionNames.manageBranchStaff);
   const canManagePosCatalog = backend !== null && hasPermission(backend.session, permissionNames.managePosCatalog);
+  const canManageInventoryStock = backend !== null && hasPermission(backend.session, permissionNames.manageInventoryStock);
   const canManagePackages = backend !== null && hasPermission(backend.session, permissionNames.managePackages);
+  const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
     ['Залы и ПК', `${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0)} рабочих мест`],
@@ -4978,6 +5010,29 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setProductPrice('12.00');
         setProductTrackStock(true);
         setProductAllowNegativeStock(false);
+      } else if (label === 'Записать движение') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageInventoryStock)) {
+          throw new Error('Нет прав на управление остатками.');
+        }
+
+        const selectedProduct = trackedCatalog.find((product) => readString(product, 'productId') === stockProductId);
+        const quantityDelta = Number(stockQuantityDelta);
+        const unitCostMinorUnits = parseNonNegativeMoneyInputMinorUnits(stockUnitCost);
+        const reason = stockReason.trim();
+        if (!selectedProduct || !Number.isInteger(quantityDelta) || quantityDelta === 0 || unitCostMinorUnits === null || !reason) {
+          throw new Error('Выберите товар с учётом остатков, количество не равное нулю, себестоимость и причину.');
+        }
+
+        await apiClients.inventory.createStockMovement(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          productId: readString(selectedProduct, 'productId'),
+          movementType: stockMovementType,
+          quantityDelta,
+          unitCost: { currencyCode, minorUnits: unitCostMinorUnits },
+          reason,
+          idempotencyKey: createIdempotencyKey('stock-movement-create')
+        });
+        await loadSettings(nextBackend);
       } else {
         throw new Error('Backend endpoint for this settings action is not implemented yet.');
       }
@@ -5138,6 +5193,29 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <option value="yes">да</option>
               </select>
             </label>
+          </div>
+          <div className="settings-section-title">
+            <span>Остатки</span>
+            <button type="button" disabled={!canManageInventoryStock || trackedCatalog.length === 0} onClick={() => runSettingsAction('Записать движение')}>Записать движение</button>
+          </div>
+          <div className="settings-form-grid settings-stock-form">
+            <label>Товар склада
+              <select value={stockProductId} disabled={!canManageInventoryStock || trackedCatalog.length === 0} onChange={(event) => setStockProductId(event.currentTarget.value)}>
+                {trackedCatalog.length === 0 && <option value="">нет товаров с остатками</option>}
+                {trackedCatalog.map((product) => (
+                  <option key={readString(product, 'productId')} value={readString(product, 'productId')}>{readString(product, 'name', 'Product')} · stock {readNumber(product, 'stockOnHand', 0)}</option>
+                ))}
+              </select>
+            </label>
+            <label>Тип
+              <select value={stockMovementType} disabled={!canManageInventoryStock} onChange={(event) => setStockMovementType(event.currentTarget.value)}>
+                <option value="purchase">purchase</option>
+                <option value="adjustment">adjustment</option>
+              </select>
+            </label>
+            <label>Кол-во<input inputMode="numeric" value={stockQuantityDelta} disabled={!canManageInventoryStock} onChange={(event) => setStockQuantityDelta(event.currentTarget.value)} /></label>
+            <label>Себестоимость<input inputMode="decimal" value={stockUnitCost} disabled={!canManageInventoryStock} onChange={(event) => setStockUnitCost(event.currentTarget.value)} /></label>
+            <label>Причина<input value={stockReason} disabled={!canManageInventoryStock} onChange={(event) => setStockReason(event.currentTarget.value)} /></label>
           </div>
         </>
       );

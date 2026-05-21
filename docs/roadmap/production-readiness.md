@@ -333,7 +333,9 @@ Minimum bar:
   Settings now supports general staff creation through the existing branch
   staff API, branch profile name/city save through a new branch profile API,
   POS category/product creation through the existing POS catalog endpoints, and
-  package definition creation through the existing package endpoint.
+  inventory stock movement creation through the existing stock-movement
+  endpoint, and package definition creation through the existing package
+  endpoint.
   Payments now closes the current shift through the existing close-shift API
   with counted cash and a closing note, and records cash movements through the
   existing shift cash movement API. POS quick refund now calls the existing
@@ -389,11 +391,11 @@ Minimum bar:
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
    hardening, Settings staff creation, branch profile save, Settings POS
-   category/product creation, Settings package definition creation, Payments
-   close-shift and cash-movement wiring, POS refund/draft-void quick actions,
-   POS sale-detail lookup, and Clients package purchase. Next deliver staging
-   smoke across these backend-backed workspaces and close gaps found with real
-   staging data.
+   category/product creation, Settings stock movement creation, Settings package
+   definition creation, Payments close-shift and cash-movement wiring, POS
+   refund/draft-void quick actions, POS sale-detail lookup, and Clients package
+   purchase. Next deliver staging smoke across these backend-backed workspaces
+   and close gaps found with real staging data.
    Local builds must
    still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw

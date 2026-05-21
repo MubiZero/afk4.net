@@ -130,6 +130,7 @@ export type TariffOptionDto = Record<string, unknown>;
 export type PackageOptionDto = Record<string, unknown>;
 export type PackageDefinitionDto = Record<string, unknown>;
 export type PosProductCategoryDto = Record<string, unknown>;
+export type StockMovementDto = Record<string, unknown>;
 export type DeviceSeatAssignmentDto = Record<string, unknown>;
 export type DeviceEnrollmentCodeDto = Record<string, unknown>;
 export type DeviceCommandDto = Record<string, unknown>;
@@ -259,6 +260,16 @@ export interface CreateProductRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
 
+export interface CreateStockMovementRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  productId: Guid;
+  movementType: string;
+  quantityDelta: number;
+  unitCost: MoneyDto;
+  reason: string;
+  idempotencyKey: string;
+}
+
 export interface AssignDeviceSeatRequest extends Record<string, unknown> {
   organizationId: Guid;
   seatId: Guid;
@@ -305,6 +316,7 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     reservations: createReservationClient(api),
     shifts: createShiftClient(api),
     settings: createSettingsClient(api),
+    inventory: createInventoryClient(api),
     devices: createDeviceClient(api),
     diagnostics: createDiagnosticsClient(api),
     updates: createUpdateClient(api),
@@ -513,6 +525,14 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     assignDeviceSeat(branchId: Guid, deviceId: Guid, request: AssignDeviceSeatRequest): Promise<DeviceSeatAssignmentDto> {
       return api.post<DeviceSeatAssignmentDto, AssignDeviceSeatRequest>(`/api/branches/${branchId}/devices/${deviceId}/seat-assignment`, request);
+    }
+  };
+}
+
+export function createInventoryClient(api: PlatformApiClient) {
+  return {
+    createStockMovement(branchId: Guid, request: CreateStockMovementRequest): Promise<StockMovementDto> {
+      return api.post<StockMovementDto, CreateStockMovementRequest>(`/api/branches/${branchId}/inventory/stock-movements`, request);
     }
   };
 }

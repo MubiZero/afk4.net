@@ -647,6 +647,39 @@ describe('App', () => {
     expect(productBody.idempotencyKey).toMatch(/^pos-product-create-/);
   });
 
+  it('records an inventory stock movement from Settings POS and stock', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^POS и склад/ }));
+    fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'adjustment' } });
+    fireEvent.change(screen.getByLabelText('Кол-во'), { target: { value: '-3' } });
+    fireEvent.change(screen.getByLabelText('Себестоимость'), { target: { value: '0.00' } });
+    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'operator stock count correction' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Записать движение' }));
+
+    expect(await screen.findByText('Записать движение: подтверждено')).toBeInTheDocument();
+    const stockCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/inventory/stock-movements') &&
+      init?.method === 'POST');
+    expect(stockCall).toBeDefined();
+    const body = JSON.parse(String(stockCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      productId: '77777777-7777-7777-7777-777777777777',
+      movementType: 'adjustment',
+      quantityDelta: -3,
+      unitCost: { currencyCode: 'TJS', minorUnits: 0 },
+      reason: 'operator stock count correction'
+    });
+    expect(body.idempotencyKey).toMatch(/^stock-movement-create-/);
+  });
+
   it('creates a package definition from Settings tariffs', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -753,6 +786,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/pos/catalog')) {
     return jsonResponse(createPosCatalog());
+  }
+
+  if (pathname.endsWith('/inventory/stock-movements') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createStockMovement(body));
   }
 
   if (pathname.endsWith('/shifts/current')) {
@@ -933,6 +971,7 @@ const allOperatorPermissions = [
   'pos.sales.refund',
   'pos.sales.void',
   'inventory.view',
+  'inventory.stock.manage',
   'pos.catalog.manage',
   'receipts.view',
   'diagnostics.view',
@@ -1218,6 +1257,22 @@ function createCashMovement(overrides: Record<string, unknown> = {}) {
     amount: { currencyCode: 'TJS', minorUnits: 1000 },
     reason: 'Размен кассы',
     createdAtUtc: '2026-05-21T11:00:00Z',
+    ...overrides
+  };
+}
+
+function createStockMovement(overrides: Record<string, unknown> = {}) {
+  return {
+    stockMovementId: 'cccccccc-0000-0000-0000-000000000001',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    productId: '77777777-7777-7777-7777-777777777777',
+    movementType: 'adjustment',
+    quantityDelta: -3,
+    unitCost: { currencyCode: 'TJS', minorUnits: 0 },
+    reason: 'operator stock count correction',
+    createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+    createdAtUtc: '2026-05-21T11:05:00Z',
     ...overrides
   };
 }

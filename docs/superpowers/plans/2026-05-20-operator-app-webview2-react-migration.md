@@ -65,7 +65,8 @@ Current state:
   for mutation controls. Settings now has a backend-backed staff creation form
   in the Personnel section, branch profile save backed by a new Platform API
   profile endpoint, POS category/product creation backed by the existing
-  POS catalog endpoints, and package definition creation backed by the existing
+  POS catalog endpoints, stock movement creation backed by the existing
+  inventory endpoint, and package definition creation backed by the existing
   package endpoint. Payments can now close the current shift through the
   existing close-shift endpoint with counted cash and a closing note, and can
   record cash movements through the existing shift cash movement endpoint. POS
@@ -107,7 +108,8 @@ map has real filter/table parity. Booking mutation controls now also respect
 create branch staff through the existing backend staff API, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product, and Settings `Тарифы` can
-create a backend package definition. Payments close-shift now calls
+create a backend package definition. Settings `POS и склад` can also record
+inventory stock movements for tracked products. Payments close-shift now calls
 the backend close-shift endpoint with counted cash and note fields, and
 Payments cash movement creation calls the backend shift cash endpoint. POS
 quick refund calls the backend refund endpoint for the latest backend sale, and
@@ -235,13 +237,15 @@ missing-backend copy.
   price/stock form fields, and idempotency keys. Package definition creation
   from `Тарифы` was implemented on 2026-05-21 through the existing package
   endpoint with `packages.manage` gating, minute/bonus/expiry fields, and
-  idempotency keys.
+  idempotency keys. Inventory stock movement creation from `POS и склад` was
+  implemented on 2026-05-21 through the existing stock-movement endpoint with
+  `inventory.stock.manage` gating and idempotency keys.
   Remaining settings gaps include role assignment/editing, general layout
   editor, device-seat management, tariff version edit/deactivate, package edit/
-  deactivate and purchase UX refinements, POS catalog edit/
-  deactivate and stock CRUD, integrations/payment-provider settings, update
-  rollout controls, diagnostics, audit/security settings, and validation
-  errors.
+  deactivate and purchase UX refinements, POS catalog edit/deactivate, stock
+  history and advanced inventory controls, integrations/payment-provider
+  settings, update rollout controls, diagnostics, audit/security settings, and
+  validation errors.
 - [ ] Empty backend states: review `Нет backend операций`,
   `Нет backend событий`, and similar empty-state copy after real staging data
   smoke. Keep them only when the backend returned a successful empty result;

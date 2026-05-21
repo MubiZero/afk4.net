@@ -4173,6 +4173,11 @@ button {
   padding-top: 10px;
 }
 
+.settings-stock-form {
+  border-top: 1px solid #263241;
+  padding-top: 10px;
+}
+
 .settings-package-form {
   border-top: 1px solid #263241;
   padding-top: 10px;
