@@ -117,6 +117,7 @@ export type PlayerPackageDto = Record<string, unknown>;
 export type ShiftDto = Record<string, unknown>;
 export type CashMovementDto = Record<string, unknown>;
 export type ReportResultDto = Record<string, unknown>;
+export type OperatorDashboardSummaryDto = Record<string, unknown>;
 export type StaffUserDto = Record<string, unknown>;
 export type ZoneDto = Record<string, unknown>;
 export type SeatDto = Record<string, unknown>;
@@ -181,6 +182,8 @@ export interface ReportQuery {
   toUtc?: string | Date | null;
   limit?: number | null;
 }
+
+export type DashboardSummaryQuery = ReportQuery;
 
 export interface CreateStaffUserRequest extends Record<string, unknown> {
   organizationId: Guid;
@@ -252,6 +255,7 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     sessions: createSessionClient(api),
     pos: createPosClient(api),
     players: createPlayerClient(api),
+    dashboard: createDashboardClient(api),
     shifts: createShiftClient(api),
     settings: createSettingsClient(api),
     devices: createDeviceClient(api),
@@ -331,6 +335,14 @@ export function createPlayerClient(api: PlatformApiClient) {
     },
     payDebt(playerAccountId: Guid, request: PayDebtRequest): Promise<WalletSummaryDto> {
       return api.post<WalletSummaryDto, PayDebtRequest>(`/api/players/${playerAccountId}/debts/payments`, request);
+    }
+  };
+}
+
+export function createDashboardClient(api: PlatformApiClient) {
+  return {
+    getSummary(branchId: Guid, query?: DashboardSummaryQuery): Promise<OperatorDashboardSummaryDto> {
+      return api.get<OperatorDashboardSummaryDto>(`/api/branches/${branchId}/dashboard/summary`, normalizeReportQuery(query));
     }
   };
 }

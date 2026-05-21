@@ -47,6 +47,11 @@ describe('operator API clients', () => {
     };
 
     await clients.floorMap.getFloorMap(branchId);
+    await clients.dashboard.getSummary(branchId, {
+      fromUtc: '2026-05-21T00:00:00.000Z',
+      toUtc: '2026-05-21T23:59:59.000Z',
+      limit: 8
+    });
     await clients.sessions.startGuestSession(branchId, startRequest);
     await clients.sessions.extendSession(sessionId, extendRequest);
     await clients.sessions.transferSession(sessionId, transferRequest);
@@ -54,13 +59,14 @@ describe('operator API clients', () => {
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
       `GET /api/branches/${branchId}/floor-map`,
+      `GET /api/branches/${branchId}/dashboard/summary?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.000Z&limit=8`,
       `POST /api/branches/${branchId}/sessions/start`,
       `POST /api/sessions/${sessionId}/extend`,
       `POST /api/sessions/${sessionId}/transfer`,
       `POST /api/sessions/${sessionId}/end`
     ]);
-    expect(calls[1].body).toEqual(startRequest);
-    expect(calls[4].body).toEqual(endRequest);
+    expect(calls[2].body).toEqual(startRequest);
+    expect(calls[5].body).toEqual(endRequest);
   });
 
   it('maps POS, player, and shift clients including query and CSV routes', async () => {

@@ -57,8 +57,9 @@ Current state:
   backend-backed React parity wiring against existing endpoints. Booking is
   backend-aware only through floor-map availability until real reservation
   contracts exist. Permission-aware screen state, device command result state,
-  dashboard backend metrics, and staging smoke across the newly wired screens
-  are the next real implementation work. Fixture-only or missing-contract
+  permission-aware screen state, device command result state, real booking
+  contracts, and staging smoke across the newly wired screens are the next
+  real implementation work. Fixture-only or missing-contract
   commands must not display backend success while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
   until the WebView2/React day flow covers pilot operations.
@@ -78,9 +79,11 @@ client boundaries, SignalR realtime state, and backend-backed floor-map data
 loading are now in place. Backend-confirmed floor-map start, extend, transfer,
 and stop actions are now wired for backend-loaded seats. POS checkout,
 clients/wallet, payments/reports, logs/audit/diagnostics, and settings read
-surfaces now call existing backend endpoints. Continue with the remaining map
-parity gaps, dashboard backend metrics, permission-aware UI state, real
-booking contracts, and staging smoke of the backend-backed workspaces.
+surfaces now call existing backend endpoints. Dashboard now has a backend
+summary endpoint and React wiring for active shift, revenue/utilization, alert
+pressure, focus queue, recent payments, and export fetches. Continue with the
+remaining map parity gaps, permission-aware UI state, real booking contracts,
+and staging smoke of the backend-backed workspaces.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -114,8 +117,8 @@ Next implementation order:
 
 1. Finish map parity gaps: permission-aware state/navigation, billing-mode UI
    beyond fast guest, device command result state, filters, and table parity.
-2. Add dashboard backend metrics and real booking contracts; keep Booking from
-   showing fixture success until those contracts exist.
+2. Add real booking contracts; keep Booking from showing fixture success until
+   those contracts exist.
 3. Staging-smoke POS, Clients, Payments, Logs, and Settings against
    `https://afk4.staging.mubi.dev`, then close parity gaps found with real data.
 
@@ -135,11 +138,15 @@ missing-backend copy.
   Keep fixture data only as a deliberate browser-dev/no-backend fallback behind
   clear dev-only state; production/staging should show backend loading, empty,
   or actionable error states.
-- [ ] Dashboard: replace fixture KPI values, focus queue, transition cards,
+- [x] Dashboard: replace fixture KPI values, focus queue, transition cards,
   period-driven synthetic metrics, and dashboard export feedback with backend
   dashboard/report read models. If no dashboard summary API exists, create
   endpoints for active shift summary, revenue/utilization, service/task queue,
   recent payments, and operator alert pressure.
+  Implemented on 2026-05-21 with
+  `GET /api/branches/{branchId}/dashboard/summary`, shared dashboard DTOs,
+  Platform API endpoint tests, frontend route tests, and React Dashboard
+  loading/confirmed/failed state.
 - [ ] Map: wire `Техрежим`, problem filters/table parity, billing-mode
   selection beyond fast guest, registered-player/package selection for session
   start/extend, and Agent/device command result status. Use existing session,

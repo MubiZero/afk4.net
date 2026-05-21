@@ -140,7 +140,7 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Дашборд'));
     expect(screen.getByRole('heading', { name: /Что требует внимания/ })).toBeInTheDocument();
     expect(screen.getByText('Главный фокус')).toBeInTheDocument();
-    expect(screen.getByText('PC-11 · блокировка не подтверждена')).toBeInTheDocument();
+    expect((await screen.findAllByText('lock Failed')).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Сегодня' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Неделя' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Месяц' })).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Экспорт дашборда за/ })).toBeInTheDocument();
     expect(screen.getByText('Пульс смены')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Неделя' }));
-    expect(screen.getByText('14 чеков')).toBeInTheDocument();
+    expect(screen.getByText('1 чек')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Брони'));
     const bookingHead = screen.getByRole('heading', { name: /Брони/ }).closest('.screen-head');
@@ -256,6 +256,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/floor-map')) {
     return jsonResponse(createFloorMap());
+  }
+
+  if (pathname.endsWith('/dashboard/summary')) {
+    return jsonResponse(createDashboardSummary());
   }
 
   if (pathname.endsWith('/pos/catalog')) {
@@ -424,6 +428,75 @@ function createFloorMap() {
         shellVersion: '0.4',
         activeSessionId: null,
         remainingSeconds: null
+      }
+    ]
+  };
+}
+
+function createDashboardSummary() {
+  return {
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    fromUtc: '2026-05-21T00:00:00Z',
+    toUtc: '2026-05-21T23:59:59Z',
+    generatedAtUtc: '2026-05-21T12:00:00Z',
+    shift: {
+      shiftId: '66666666-6666-6666-6666-666666666666',
+      state: 'open',
+      openedAtUtc: '2026-05-21T08:00:00Z',
+      openedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+      expectedCash: { currencyCode: 'TJS', minorUnits: 112000 }
+    },
+    revenue: {
+      posNetSales: { currencyCode: 'TJS', minorUnits: 1200 },
+      gameplayRevenue: { currencyCode: 'TJS', minorUnits: 4800 },
+      totalRevenue: { currencyCode: 'TJS', minorUnits: 6000 },
+      posCheckCount: 1,
+      newPlayerCount: 1
+    },
+    utilization: {
+      totalSeats: 2,
+      activeSessions: 1,
+      endingSessions: 0,
+      onlineDevices: 2,
+      offlineDevices: 0,
+      sessionStarts: 2,
+      utilizationPercent: 50
+    },
+    alertPressure: {
+      pendingCommands: 0,
+      failedCommands: 1,
+      offlineDevices: 0,
+      endingSessions: 0,
+      totalAlerts: 1
+    },
+    reservations: {
+      activeReservations: 0,
+      availableSlots: 1,
+      source: 'floor-map-availability'
+    },
+    focusQueue: [
+      {
+        tone: 'blocking',
+        target: 'PC-02',
+        title: 'lock Failed',
+        detail: 'Agent did not confirm lock.',
+        seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        deviceId: '33333333-3333-3333-3333-333333333333',
+        createdAtUtc: '2026-05-21T10:00:00Z',
+        sourceType: 'device-command'
+      }
+    ],
+    recentPayments: [
+      {
+        paymentId: '19191919-1919-1919-1919-191919191919',
+        posSaleId: '99999999-9999-9999-9999-999999999999',
+        shiftId: '66666666-6666-6666-6666-666666666666',
+        createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+        paymentKind: 'payment',
+        paymentMethod: 'cash',
+        amount: { currencyCode: 'TJS', minorUnits: 1200 },
+        createdAtUtc: '2026-05-21T09:01:00Z'
       }
     ]
   };

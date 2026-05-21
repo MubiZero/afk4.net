@@ -3,6 +3,7 @@ using System.Text;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
@@ -74,6 +75,7 @@ builder.Services.AddScoped<IPosService, EfPosService>();
 builder.Services.AddScoped<IPaymentProvider, ManualPaymentProvider>();
 builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 builder.Services.AddScoped<IReportService, EfReportService>();
+builder.Services.AddScoped<IOperatorDashboardService, EfOperatorDashboardService>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
@@ -2986,6 +2988,73 @@ app.MapPost("/api/shifts/{shiftId:guid}/close", async (
         cancellationToken);
 
     return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/dashboard/summary", async (
+    Guid branchId,
+    DateTimeOffset? fromUtc,
+    DateTimeOffset? toUtc,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IOperatorDashboardService dashboardService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewDashboardSummary,
+            "Dashboard",
+            "summary",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var query = new DashboardSummaryQuery(fromUtc, toUtc, limit);
+    var result = await dashboardService.GetSummaryAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        query,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewDashboardSummary,
+        "Dashboard",
+        "summary",
+        AuditOutcome.Succeeded,
+        new
+        {
+            FocusQueueCount = result.FocusQueue.Count,
+            RecentPaymentCount = result.RecentPayments.Count,
+            result.AlertPressure.TotalAlerts,
+            fromUtc,
+            toUtc,
+            limit
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
 });
 
 app.MapGet("/api/branches/{branchId:guid}/reports/shifts", async (

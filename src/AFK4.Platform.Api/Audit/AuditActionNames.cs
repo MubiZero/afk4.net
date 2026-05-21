@@ -62,6 +62,8 @@ public static class AuditActionNames
 
     public const string ViewOperatorActionReport = "reports.operator_actions.view";
 
+    public const string ViewDashboardSummary = "dashboard.summary.view";
+
     public const string CreateProductCategory = "pos.categories.create";
 
     public const string CreateProduct = "pos.products.create";

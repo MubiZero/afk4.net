@@ -43,6 +43,9 @@ implementation evidence are needed.
 - Branch diagnostics endpoint.
 - Operational reports and CSV exports for shifts, sales, gameplay time, cash
   operations, and operator actions.
+- Operator Dashboard summary endpoint for active shift, revenue/utilization,
+  alert pressure, focus queue, floor-map-derived availability, and recent
+  payments.
 
 ### Operator App
 
@@ -112,8 +115,9 @@ implementation evidence are needed.
   reads shift, sales, cash, and CSV report endpoints; Logs reads audit and
   diagnostics; Settings reads staff, layout, catalog, diagnostics, update
   rollout, and tariff option data and can trigger limited backend setup
-  actions. Missing booking/profile/staff-invite contracts now fail explicitly
-  instead of showing fixture success.
+  actions. Dashboard reads the backend dashboard summary and uses existing
+  report exports for export confirmation. Missing booking/profile/staff-invite
+  contracts now fail explicitly instead of showing fixture success.
 
 ### Agent Service
 
@@ -199,7 +203,8 @@ implementation evidence are needed.
 Current local verification on 2026-05-21 from `D:\projects\afk4.net` after
 the WebView2/React auth/token, typed API client, SignalR realtime,
 backend-backed floor-map loading, backend-confirmed selected-seat actions, and
-first backend-backed parity wiring for the remaining operator workspaces:
+first backend-backed parity wiring for the remaining operator workspaces,
+including the Operator Dashboard summary endpoint and React Dashboard wiring:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -212,8 +217,12 @@ Result:
 
 - frontend tests: 34 passed, 0 failed;
 - frontend production build: passed;
-- full solution tests: 763 passed, 0 failed;
+- full solution tests: 767 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
+- Operator Dashboard backend wiring tests cover shared DTO serialization,
+  unauthorized/forbidden/success API behavior, denied/succeeded audit records,
+  frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
+  export feedback that waits for backend reads.
 - Browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console
@@ -1622,8 +1631,8 @@ Operator App WebView2/React first implementation on 2026-05-20:
   operator-facing Russian copy instead of raw backend/device strings such as
   `Lock command failed`. The separate Dashboard side panel was removed so the
   screen can breathe and fit the 1280x720 minimum viewport without horizontal or
-  vertical page overflow. The screen remains fixture-backed design work, not
-  backend parity.
+  vertical page overflow. This note records the design baseline; the Dashboard
+  was later wired to backend summary data in the same branch.
 - The floor-map fixture received a matching polish pass on 2026-05-21 without
   changing its role as the primary live workspace. It now uses Russian
   operator-facing state-strip labels, separates `Техрежим` from map/table/booking

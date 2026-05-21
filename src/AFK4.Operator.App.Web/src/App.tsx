@@ -37,6 +37,7 @@ import {
   type AuditSearchResultDto,
   type BranchDiagnosticsDto,
   type CashMovementDto,
+  type OperatorDashboardSummaryDto,
   type PosProductDto,
   type PosSaleDto,
   type ReportResultDto,
@@ -531,6 +532,15 @@ function readMoney(value: unknown, name: string): { currencyCode: string; minorU
   return currencyCode && Number.isFinite(minorUnits) ? { currencyCode, minorUnits } : null;
 }
 
+function readRecord(value: unknown, name: string): Record<string, unknown> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const nextValue = value[name];
+  return isRecord(nextValue) ? nextValue : null;
+}
+
 function formatMinorUnits(minorUnits: number, currencyCode: string): string {
   const majorUnits = minorUnits / 100;
   const formatter = new Intl.NumberFormat('ru-RU', {
@@ -555,6 +565,63 @@ function moneyDto(currencyCode: string, majorUnits: number) {
   return {
     currencyCode,
     minorUnits: Math.round(majorUnits * 100)
+  };
+}
+
+function dashboardRangeQuery(from: string, to: string) {
+  return {
+    fromUtc: `${from}T00:00:00.000Z`,
+    toUtc: `${to}T23:59:59.999Z`,
+    limit: 8
+  };
+}
+
+function emptyDashboardSummary(currencyCode: string, from: string, to: string): OperatorDashboardSummaryDto {
+  const zeroMoney = { currencyCode, minorUnits: 0 };
+
+  return {
+    organizationId: '',
+    branchId: '',
+    fromUtc: `${from}T00:00:00.000Z`,
+    toUtc: `${to}T23:59:59.999Z`,
+    generatedAtUtc: new Date().toISOString(),
+    shift: {
+      shiftId: null,
+      state: 'none',
+      openedAtUtc: null,
+      openedByStaffUserId: null,
+      expectedCash: zeroMoney
+    },
+    revenue: {
+      posNetSales: zeroMoney,
+      gameplayRevenue: zeroMoney,
+      totalRevenue: zeroMoney,
+      posCheckCount: 0,
+      newPlayerCount: 0
+    },
+    utilization: {
+      totalSeats: 0,
+      activeSessions: 0,
+      endingSessions: 0,
+      onlineDevices: 0,
+      offlineDevices: 0,
+      sessionStarts: 0,
+      utilizationPercent: 0
+    },
+    alertPressure: {
+      pendingCommands: 0,
+      failedCommands: 0,
+      offlineDevices: 0,
+      endingSessions: 0,
+      totalAlerts: 0
+    },
+    reservations: {
+      activeReservations: 0,
+      availableSlots: 0,
+      source: 'none'
+    },
+    focusQueue: [],
+    recentPayments: []
   };
 }
 
@@ -642,7 +709,17 @@ function MapWorkspace({
   );
 }
 
-function DashboardWorkspace({ currencyCode }: { currencyCode: string }) {
+function DashboardWorkspace({
+  currencyCode,
+  backend,
+  onNavigate,
+  onOpenSeat
+}: {
+  currencyCode: string;
+  backend: OperatorBackendContext | null;
+  onNavigate: (workspace: WorkspaceId) => void;
+  onOpenSeat: (seatId: string) => void;
+}) {
   const today = new Date();
   const todayInput = toDateInputValue(today);
   const weekStartInput = toDateInputValue(addDays(today, -6));
@@ -651,6 +728,9 @@ function DashboardWorkspace({ currencyCode }: { currencyCode: string }) {
   const [customRange, setCustomRange] = useState({ from: weekStartInput, to: todayInput });
   const [selectedFocusIndex, setSelectedFocusIndex] = useState(0);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [dashboardSummary, setDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
+  const [dashboardLoadStatus, setDashboardLoadStatus] = useState<LoadStatus>('loading');
+  const [dashboardLoadError, setDashboardLoadError] = useState<string | null>(null);
 
   const presetRanges = {
     today: { from: todayInput, to: todayInput, label: 'сегодня', metricLabel: 'сегодня' },
@@ -662,16 +742,6 @@ function DashboardWorkspace({ currencyCode }: { currencyCode: string }) {
     ? { ...customRange, label: 'за выбранный период', metricLabel: 'выбранный период' }
     : presetRanges[period];
   const activeDays = countPeriodDays(activeRange.from, activeRange.to);
-  const moneyFormatter = new Intl.NumberFormat('ru-RU');
-  const cashTotal = 4_820 * activeDays;
-  const cashTarget = 6_000 * activeDays;
-  const cashPercent = Math.min(100, Math.round((cashTotal / cashTarget) * 100));
-  const attentionCount = 4 * activeDays;
-  const bookingUsed = 5 * activeDays;
-  const bookingSlots = 8 * activeDays;
-  const posChecks = 2 * activeDays;
-  const newClients = Math.max(1, Math.round(1.4 * activeDays));
-  const averageActivePcs = activeDays === 1 ? 9 : activeDays <= 7 ? 11 : 12;
   const activePeriodLabel = period === 'custom' ? `${activeDays} дн.` : activeRange.metricLabel;
   const periodDaysShort = `${activeDays} дн.`;
   const exportLabel = `${activeRange.from} - ${activeRange.to}`;
@@ -680,25 +750,127 @@ function DashboardWorkspace({ currencyCode }: { currencyCode: string }) {
     setPeriod('custom');
   };
 
-  const focusItems = [
-    ['warning', 'PC-04', 'Долг 86 TJS · 12 мин до лимита', 'Связаться с игроком или перевести долг в оплату'],
-    ['pending', 'PC-03', 'Разблокировка запускается · 1 мин', 'Дождаться ответа ПК, затем проверить старт сессии'],
-    ['service', 'PC-05', 'Нет связи · 7 мин', 'Проверить ПК после восстановления связи']
-  ];
-  const selectedFocus = focusItems[selectedFocusIndex];
+  useEffect(() => {
+    let disposed = false;
+
+    if (backend === null) {
+      setDashboardSummary(null);
+      setDashboardLoadStatus('failed');
+      setDashboardLoadError('Active branch is not assigned.');
+      return undefined;
+    }
+
+    setDashboardLoadStatus('loading');
+    setDashboardLoadError(null);
+
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.dashboard.getSummary(backend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to))
+      .then((summary) => {
+        if (disposed) {
+          return;
+        }
+
+        setDashboardSummary(summary);
+        setDashboardLoadStatus('backend');
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setDashboardSummary(null);
+        setDashboardLoadStatus('failed');
+        setDashboardLoadError(projectOperatorError(error).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, activeRange.from, activeRange.to]);
+
+  const summary = dashboardSummary ?? emptyDashboardSummary(currencyCode, activeRange.from, activeRange.to);
+  const revenue = readRecord(summary, 'revenue');
+  const utilization = readRecord(summary, 'utilization');
+  const alertPressure = readRecord(summary, 'alertPressure');
+  const reservations = readRecord(summary, 'reservations');
+  const shift = readRecord(summary, 'shift');
+  const totalRevenue = readMoney(revenue, 'totalRevenue') ?? { currencyCode, minorUnits: 0 };
+  const expectedCash = readMoney(shift, 'expectedCash') ?? { currencyCode, minorUnits: 0 };
+  const cashTargetMinorUnits = Math.max(expectedCash.minorUnits, totalRevenue.minorUnits);
+  const cashPercent = cashTargetMinorUnits > 0
+    ? Math.min(100, Math.round((totalRevenue.minorUnits / cashTargetMinorUnits) * 100))
+    : 0;
+  const attentionCount = readNumber(alertPressure, 'totalAlerts', 0);
+  const bookingUsed = readNumber(reservations, 'activeReservations', 0);
+  const bookingSlots = readNumber(reservations, 'availableSlots', 0);
+  const posChecks = readNumber(revenue, 'posCheckCount', 0);
+  const newClients = readNumber(revenue, 'newPlayerCount', 0);
+  const activePcs = readNumber(utilization, 'activeSessions', 0);
+  const totalPcs = Math.max(1, readNumber(utilization, 'totalSeats', 0));
+  const focusQueue = readArray<Record<string, unknown>>(summary, 'focusQueue');
+  const dashboardStatusText = dashboardLoadStatus === 'backend'
+    ? 'Данные платформы'
+    : dashboardLoadStatus === 'loading'
+      ? 'Загрузка данных'
+      : 'Ошибка данных';
+  const focusItems = focusQueue.length > 0
+    ? focusQueue.map((item) => [
+      readString(item, 'tone', 'warning'),
+      readString(item, 'target', '-'),
+      readString(item, 'title', 'Сигнал платформы'),
+      readString(item, 'detail', 'Проверьте состояние в рабочей карте.'),
+      readString(item, 'seatId')
+    ] as const)
+    : [[
+      'ready',
+      '-',
+      dashboardLoadStatus === 'failed' ? 'Данные не загружены' : 'Нет срочных сигналов',
+      dashboardLoadStatus === 'failed' ? dashboardLoadError ?? 'Повторите загрузку dashboard.' : 'Платформа не вернула срочных задач за выбранный период.',
+      ''
+    ] as const];
+  const selectedFocus = focusItems[selectedFocusIndex] ?? focusItems[0];
+
+  const openSelectedFocusSeat = (label: string) => {
+    if (selectedFocus[4]) {
+      onOpenSeat(selectedFocus[4]);
+      return;
+    }
+
+    setFeedback({
+      label,
+      state: 'failed',
+      detail: selectedFocus[3]
+    });
+  };
+
+  const exportDashboard = async () => {
+    setFeedback({ label: 'Экспорт', state: 'pending' });
+
+    try {
+      const nextBackend = requireBackend(backend);
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await Promise.all([
+        clients.dashboard.getSummary(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to)),
+        clients.shifts.exportSalesReportCsv(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to))
+      ]);
+      setFeedback({ label: 'Экспорт', state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label: 'Экспорт', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
 
   const pulseItems = [
-    { label: 'Касса', value: `${moneyFormatter.format(cashTotal)} ${currencyCode}`, detail: `из ${moneyFormatter.format(cashTarget)} ${currencyCode}`, chartValue: cashPercent, chartLabel: <><AnimatedNumber value={cashPercent} />%</>, chartSubLabel: formatCompactNumber(cashTotal), tone: 'cash', icon: Banknote },
-    { label: 'Активные ПК', value: `${averageActivePcs} / 24`, detail: `среднее за ${activePeriodLabel}`, chartValue: Math.round((averageActivePcs / 24) * 100), chartLabel: <><AnimatedNumber value={averageActivePcs} />/24</>, chartSubLabel: 'средн.', tone: 'devices', icon: MonitorCheck },
-    { label: 'Внимание', value: String(attentionCount), detail: `${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])} за ${activePeriodLabel}`, chartValue: Math.min(100, Math.round((attentionCount / (24 * activeDays)) * 100)), chartLabel: <AnimatedNumber value={attentionCount} />, chartSubLabel: 'сигн.', tone: 'attention', icon: ShieldAlert },
-    { label: 'Брони', value: `${bookingUsed} / ${bookingSlots}`, detail: `слоты за ${activePeriodLabel}`, chartValue: Math.min(100, Math.round((bookingUsed / bookingSlots) * 100)), chartLabel: <><AnimatedNumber value={bookingUsed} />/{bookingSlots}</>, chartSubLabel: 'слоты', tone: 'booking', icon: CalendarClock }
+    { label: 'Касса', value: formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), detail: `из ${formatMinorUnits(cashTargetMinorUnits, totalRevenue.currencyCode)}`, chartValue: cashPercent, chartLabel: <><AnimatedNumber value={cashPercent} />%</>, chartSubLabel: formatCompactNumber(Math.round(totalRevenue.minorUnits / 100)), tone: 'cash', icon: Banknote },
+    { label: 'Активные ПК', value: `${activePcs} / ${totalPcs}`, detail: `за ${activePeriodLabel}`, chartValue: Math.round((activePcs / totalPcs) * 100), chartLabel: <><AnimatedNumber value={activePcs} />/{totalPcs}</>, chartSubLabel: 'сейчас', tone: 'devices', icon: MonitorCheck },
+    { label: 'Внимание', value: String(attentionCount), detail: `${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])} за ${activePeriodLabel}`, chartValue: Math.min(100, Math.round((attentionCount / Math.max(1, totalPcs * activeDays)) * 100)), chartLabel: <AnimatedNumber value={attentionCount} />, chartSubLabel: 'сигн.', tone: 'attention', icon: ShieldAlert },
+    { label: 'Брони', value: `${bookingUsed} / ${bookingSlots}`, detail: `слоты за ${activePeriodLabel}`, chartValue: bookingSlots > 0 ? Math.min(100, Math.round((bookingUsed / bookingSlots) * 100)) : 0, chartLabel: <><AnimatedNumber value={bookingUsed} />/{bookingSlots}</>, chartSubLabel: 'слоты', tone: 'booking', icon: CalendarClock }
   ];
 
-  const controlCards: Array<[string, string, string, LucideIcon]> = [
-    ['Карта', '24 ПК', `${attentionCount} ${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])}`, MonitorCheck],
-    ['POS', `${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])}`, `за ${activePeriodLabel}`, ReceiptText],
-    ['Депозит', `+${moneyFormatter.format(740 * activeDays)} ${currencyCode}`, `за ${activePeriodLabel}`, CircleDollarSign],
-    ['Клиент', `${newClients} ${pluralRu(newClients, ['новый', 'новых', 'новых'])}`, `за ${activePeriodLabel}`, UserRoundPlus]
+  const controlCards: Array<[WorkspaceId, string, string, string, LucideIcon]> = [
+    ['map', 'Карта', `${totalPcs} ПК`, `${attentionCount} ${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])}`, MonitorCheck],
+    ['pos', 'POS', `${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])}`, `за ${activePeriodLabel}`, ReceiptText],
+    ['payments', 'Касса', formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), `за ${activePeriodLabel}`, CircleDollarSign],
+    ['players', 'Клиент', `${newClients} ${pluralRu(newClients, ['новый', 'новых', 'новых'])}`, `за ${activePeriodLabel}`, UserRoundPlus]
   ];
 
   return (
@@ -739,7 +911,8 @@ function DashboardWorkspace({ currencyCode }: { currencyCode: string }) {
             </label>
             <span className="date-range-days" aria-label={`Длина периода: ${periodDaysShort}`}>{periodDaysShort}</span>
           </div>
-          <button type="button" className="export-button" aria-label={`Экспорт дашборда за ${exportLabel}`}>
+          <span className={`map-load-state ${dashboardLoadStatus === 'backend' ? 'ready' : dashboardLoadStatus}`}>{dashboardStatusText}</span>
+          <button type="button" className="export-button" aria-label={`Экспорт дашборда за ${exportLabel}`} onClick={exportDashboard}>
             Экспорт
           </button>
         </div>
@@ -749,18 +922,19 @@ function DashboardWorkspace({ currencyCode }: { currencyCode: string }) {
         <article className="dashboard-now-panel">
           <header className="dashboard-panel-title">
             <span>Главный фокус</span>
-            <strong>PC-11 · блокировка не подтверждена</strong>
+            <strong>{selectedFocus[2]}</strong>
           </header>
-          <p>ПК не подтвердил блокировку после завершения сессии. Это единственный критический пункт на смене прямо сейчас.</p>
+          <p>{selectedFocus[3]}</p>
           <div className="dashboard-now-meta">
-            <span><AlertTriangle size={15} /> Блокер</span>
-            <span>сейчас</span>
-            <span>Команда принята · ПК не ответил</span>
+            <span><AlertTriangle size={15} /> {selectedFocus[0]}</span>
+            <span>{selectedFocus[1]}</span>
+            <span>{dashboardStatusText}</span>
           </div>
           <div className="dashboard-now-actions">
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Разобрать PC-11')}><AlertTriangle size={15} /> Разобрать</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Техрежим PC-11')}><Wrench size={15} /> Техрежим</button>
+            <button type="button" onClick={() => openSelectedFocusSeat('Разобрать')}><AlertTriangle size={15} /> Разобрать</button>
+            <button type="button" onClick={() => openSelectedFocusSeat('Техрежим')}><Wrench size={15} /> Техрежим</button>
           </div>
+          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: 'Dashboard', state: 'failed', detail: dashboardLoadError ?? 'Dashboard data is unavailable.' }} />}
           <FeedbackNotice feedback={feedback} />
         </article>
 
@@ -797,14 +971,14 @@ function DashboardWorkspace({ currencyCode }: { currencyCode: string }) {
             <strong>карта, POS, депозит, клиент</strong>
           </header>
           <div className="dashboard-control-grid">
-            {controlCards.map(([label, value, detail, Icon]) => (
+            {controlCards.map(([targetWorkspace, label, value, detail, Icon]) => (
               <DashboardControlCard
                 key={label}
                 label={label}
                 value={value}
                 detail={detail}
                 icon={Icon}
-                onActivate={() => triggerFeedback(setFeedback, `Переход ${label}`)}
+                onActivate={() => onNavigate(targetWorkspace)}
               />
             ))}
           </div>
@@ -4242,7 +4416,17 @@ export function App() {
           onSelectSeat={setSelectedSeatId}
         />
       )}
-      {workspace === 'dashboard' && <DashboardWorkspace currencyCode={config.currencyCode} />}
+      {workspace === 'dashboard' && (
+        <DashboardWorkspace
+          currencyCode={config.currencyCode}
+          backend={backendContext}
+          onNavigate={setWorkspace}
+          onOpenSeat={(seatId) => {
+            setSelectedSeatId(seatId);
+            setWorkspace('map');
+          }}
+        />
+      )}
       {workspace === 'booking' && (
         <BackendBookingWorkspace
           floorMap={floorMap}
