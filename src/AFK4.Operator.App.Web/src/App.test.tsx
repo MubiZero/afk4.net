@@ -92,7 +92,7 @@ describe('App', () => {
     expect(await screen.findByText('Backend live')).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Стоп/ }));
 
-    expect((await screen.findAllByText('Стоп: подтверждено')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Стоп: lock: pending/)).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/sessions/22222222-2222-2222-2222-222222222222/end') &&
       init?.method === 'POST');
@@ -115,7 +115,7 @@ describe('App', () => {
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
-    expect((await screen.findAllByText('Старт 60 мин: подтверждено')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Старт 60 мин: unlock: pending/)).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/sessions/start') &&
       init?.method === 'POST');
@@ -129,6 +129,43 @@ describe('App', () => {
       billingMode: ''
     });
     expect(body.idempotencyKey).toMatch(/^session-start-/);
+  });
+
+  it('starts a ready seat with player billing metadata and command status', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Депозит/ }));
+    fireEvent.change(screen.getByLabelText('Игрок для биллинга'), { target: { value: 'Madina' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
+    expect(await screen.findByText('Депозит готов')).toBeInTheDocument();
+
+    const startButton = await screen.findByRole('button', { name: /Старт 60 мин/ });
+    expect(startButton).toBeEnabled();
+    fireEvent.click(startButton);
+
+    expect((await screen.findAllByText(/Старт 60 мин: unlock: pending/)).length).toBeGreaterThan(0);
+    const postCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/sessions/start') &&
+      init?.method === 'POST');
+    expect(postCall).toBeDefined();
+    const body = JSON.parse(String(postCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      durationMinutes: 60,
+      tariffRuleVersionId: 'standard-v1',
+      billingMode: 'prepaid_wallet',
+      playerAccountId: '12121212-1212-1212-1212-121212121212',
+      tariffVersionId: '17171717-1717-1717-1717-171717171717'
+    });
+    expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands/44444444-4444-4444-4444-444444444444/status'))).toBe(true);
   });
 
   it('disables unauthorized workspaces and selected-seat actions', async () => {
@@ -322,6 +359,29 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createFloorMap());
   }
 
+  if (pathname.endsWith('/sessions/start') && init?.method === 'POST') {
+    return jsonResponse(createSessionCommandResponse('unlock', '33333333-3333-3333-3333-333333333333'));
+  }
+
+  if (pathname.includes('/sessions/') && pathname.endsWith('/extend')) {
+    return jsonResponse(createSessionCommandResponse('unlock', '11111111-1111-1111-1111-111111111111'));
+  }
+
+  if (pathname.includes('/sessions/') && pathname.endsWith('/transfer')) {
+    return jsonResponse(createSessionCommandResponse('transfer', '11111111-1111-1111-1111-111111111111'));
+  }
+
+  if (pathname.includes('/sessions/') && pathname.endsWith('/end')) {
+    return jsonResponse(createSessionCommandResponse('lock', '11111111-1111-1111-1111-111111111111'));
+  }
+
+  if (pathname.includes('/commands/') && pathname.endsWith('/status')) {
+    const isLock = pathname.includes('11111111-1111-1111-1111-111111111111');
+    return jsonResponse(createDeviceCommandStatus(isLock ? 'lock' : 'unlock', isLock
+      ? 'Agent accepted lock'
+      : 'Agent accepted unlock'));
+  }
+
   if (pathname.endsWith('/dashboard/summary')) {
     return jsonResponse(createDashboardSummary());
   }
@@ -395,7 +455,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   }
 
   if (pathname.endsWith('/packages')) {
-    return jsonResponse([]);
+    return jsonResponse(createPlayerPackages());
   }
 
   if (pathname.endsWith('/staff')) {
@@ -485,6 +545,7 @@ const allOperatorPermissions = [
   'layout.manage',
   'tariffs.view',
   'updates.status.view',
+  'devices.commands.status.view',
   'audit.view'
 ];
 
@@ -543,6 +604,41 @@ function createFloorMap() {
         remainingSeconds: null
       }
     ]
+  };
+}
+
+function createSessionCommandResponse(type: string, deviceId: string) {
+  return {
+    idempotencyKey: 'test-idempotency-key',
+    session: {
+      sessionId: '22222222-2222-2222-2222-222222222222',
+      deviceId
+    },
+    deviceCommands: [
+      {
+        commandId: '44444444-4444-4444-4444-444444444444',
+        deviceId,
+        type,
+        status: 'pending',
+        message: 'Queued for Agent',
+        createdAtUtc: '2026-05-21T10:00:00Z',
+        updatedAtUtc: '2026-05-21T10:00:00Z'
+      }
+    ]
+  };
+}
+
+function createDeviceCommandStatus(type: string, message: string) {
+  return {
+    deviceId: type === 'lock'
+      ? '11111111-1111-1111-1111-111111111111'
+      : '33333333-3333-3333-3333-333333333333',
+    commandId: '44444444-4444-4444-4444-444444444444',
+    type,
+    status: 'pending',
+    message,
+    createdAtUtc: '2026-05-21T10:00:00Z',
+    updatedAtUtc: '2026-05-21T10:00:01Z'
   };
 }
 
@@ -809,6 +905,20 @@ function createWalletSummary() {
       }
     ]
   };
+}
+
+function createPlayerPackages() {
+  return [
+    {
+      playerPackageId: '19191919-1919-1919-1919-191919191919',
+      playerAccountId: '12121212-1212-1212-1212-121212121212',
+      name: 'Night 5h',
+      remainingIncludedSeconds: 10800,
+      remainingBonusSeconds: 0,
+      state: 'active',
+      expiresAtUtc: '2026-05-22T10:00:00Z'
+    }
+  ];
 }
 
 function createStaffUsers() {

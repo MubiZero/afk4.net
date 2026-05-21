@@ -115,6 +115,12 @@ implementation evidence are needed.
   permissions those screens need, and selected-seat start/extend/transfer/end
   actions are disabled and guarded by matching session permissions before any
   API call is attempted.
+- The selected-seat map panel now supports real billing-mode selection for
+  guest/no-ledger, prepaid wallet, player package, and postpaid debt starts and
+  extensions. Billed modes require a backend player selection plus the relevant
+  tariff or active player package before the session command is enabled, and
+  session command feedback now reads backend device-command status when the
+  staff session has `devices.commands.status.view`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports and creates paid manual-provider sales; Clients searches backend
@@ -214,7 +220,8 @@ the WebView2/React auth/token, typed API client, SignalR realtime,
 backend-backed floor-map loading, backend-confirmed selected-seat actions,
 first backend-backed parity wiring for the remaining operator workspaces,
 the Operator Dashboard summary endpoint, Booking reservation contracts, and
-permission-aware React navigation/session action state:
+permission-aware React navigation/session action state, plus map billing-mode
+selection and device-command result feedback:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -225,7 +232,7 @@ permission-aware React navigation/session action state:
 
 Result:
 
-- frontend tests: 38 passed, 0 failed;
+- frontend tests: 39 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 773 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -241,6 +248,13 @@ Result:
 - Permission-aware frontend tests cover disabled workspace navigation and
   disabled selected-seat actions when the staff session only has
   `floor_map.view`.
+- Map billing/action tests now cover fast guest start, prepaid-wallet start
+  with backend player/tariff metadata, idempotency keys, and follow-up
+  `/api/devices/{deviceId}/commands/{commandId}/status` reads for selected-seat
+  command feedback.
+- Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
+  WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
+  copy, and reported no browser console errors.
 - Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console

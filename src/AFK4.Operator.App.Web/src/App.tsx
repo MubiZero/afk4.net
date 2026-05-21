@@ -38,6 +38,8 @@ import {
   type BranchDiagnosticsDto,
   type CashMovementDto,
   type OperatorDashboardSummaryDto,
+  type PlayerPackageDto,
+  type PlayerSearchResultDto,
   type PosProductDto,
   type PosSaleDto,
   type ReservationSearchResultDto,
@@ -70,9 +72,20 @@ type OperatorBackendContext = {
   session: OperatorAuthSession;
   branchId: string;
 };
+type SessionBillingModeId = 'guest' | 'prepaid_wallet' | 'package' | 'postpaid_debt';
+type SessionBillingSelection = {
+  mode: SessionBillingModeId;
+  playerAccountId?: string | null;
+  tariffRuleVersionId: string;
+  tariffVersionId?: string | null;
+  playerPackageId?: string | null;
+};
+type SeatActionResult = {
+  detail?: string;
+};
 type SeatActionRequest =
-  | { type: 'start'; seat: SeatSummary }
-  | { type: 'extend'; seat: SeatSummary; minutes: number }
+  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection }
+  | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
   | { type: 'end'; seat: SeatSummary };
 
@@ -80,6 +93,12 @@ const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'play
 const fallbackOrganizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const defaultSessionDurationMinutes = 60;
 const defaultTariffRuleVersionId = 'manual-v1';
+const billingModeOptions: Array<{ id: SessionBillingModeId; label: string; detail: string }> = [
+  { id: 'guest', label: 'Гость', detail: 'без ledger' },
+  { id: 'prepaid_wallet', label: 'Депозит', detail: 'списать с баланса' },
+  { id: 'package', label: 'Пакет', detail: 'списать минуты' },
+  { id: 'postpaid_debt', label: 'Постоплата', detail: 'долг игрока' }
+];
 const permissionNames = {
   viewFloorMap: 'floor_map.view',
   startSession: 'sessions.start',
@@ -101,6 +120,7 @@ const permissionNames = {
   manageLayout: 'layout.manage',
   viewTariffs: 'tariffs.view',
   viewUpdateStatus: 'updates.status.view',
+  viewDeviceCommandStatus: 'devices.commands.status.view',
   viewAudit: 'audit.view'
 } as const;
 
@@ -246,6 +266,10 @@ function feedbackText(feedback: Feedback) {
   }
 
   if (feedback.state === 'confirmed') {
+    if (feedback.detail) {
+      return `${feedback.label}: ${feedback.detail}`;
+    }
+
     return `${feedback.label}: подтверждено`;
   }
 
@@ -722,6 +746,66 @@ function canOpenWorkspace(session: OperatorAuthSession | null, workspaceId: Work
 
 function firstAllowedWorkspace(session: OperatorAuthSession | null) {
   return workspaceIds.find((workspaceId) => canOpenWorkspace(session, workspaceId)) ?? 'map';
+}
+
+function billingModeLabel(mode: SessionBillingModeId) {
+  return billingModeOptions.find((option) => option.id === mode)?.label ?? mode;
+}
+
+function tariffOptionLabel(tariff: Record<string, unknown>, currencyCode: string) {
+  const name = readString(tariff, 'name', 'Тариф');
+  const price = readNumber(tariff, 'pricePerMinuteMinorUnits', 0);
+  const currency = readString(tariff, 'currencyCode', currencyCode);
+  return `${name} · ${formatMinorUnits(price, currency)}/мин`;
+}
+
+function playerPackageLabel(playerPackage: Record<string, unknown>) {
+  const remainingSeconds = readNumber(playerPackage, 'remainingIncludedSeconds', 0) +
+    readNumber(playerPackage, 'remainingBonusSeconds', 0);
+  return `${readString(playerPackage, 'name', 'Пакет')} · ${Math.floor(remainingSeconds / 60)} мин`;
+}
+
+function describeDeviceCommandStatus(status: Record<string, unknown>) {
+  const type = readString(status, 'type', 'command');
+  const state = readString(status, 'status', 'pending');
+  const message = readString(status, 'message');
+  return message ? `${type}: ${state} · ${message}` : `${type}: ${state}`;
+}
+
+function describeSessionCommandFallback(response: unknown) {
+  const commands = readArray<Record<string, unknown>>(response, 'deviceCommands');
+  if (commands.length === 0) {
+    return 'backend подтвердил, команда Agent не нужна';
+  }
+
+  const command = commands[0];
+  return `${readString(command, 'type', 'command')}: создана, ждём Agent`;
+}
+
+async function describeSeatActionResult(
+  clients: ReturnType<typeof createAuthenticatedOperatorClients>,
+  session: OperatorAuthSession,
+  seat: SeatSummary,
+  response: unknown
+) {
+  const fallback = describeSessionCommandFallback(response);
+  const command = readArray<Record<string, unknown>>(response, 'deviceCommands')[0];
+  if (!command || !hasPermission(session, permissionNames.viewDeviceCommandStatus)) {
+    return fallback;
+  }
+
+  const commandId = readString(command, 'commandId');
+  const responseSession = readRecord(response, 'session');
+  const deviceId = readString(command, 'deviceId') || seat.deviceId || readString(responseSession, 'deviceId');
+  if (!commandId || !deviceId) {
+    return fallback;
+  }
+
+  try {
+    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId));
+  } catch (error) {
+    return `${fallback} · статус недоступен: ${projectOperatorError(error).detail}`;
+  }
 }
 
 function MapWorkspace({
@@ -2211,26 +2295,43 @@ function MapSidePanel({
   seat,
   seats: floorSeats,
   currencyCode,
-  session,
+  backend,
   actionsEnabled,
   onSeatAction
 }: {
   seat: SeatSummary;
   seats: SeatSummary[];
   currencyCode: string;
-  session: OperatorAuthSession | null;
+  backend: OperatorBackendContext | null;
   actionsEnabled: boolean;
-  onSeatAction: (request: SeatActionRequest) => Promise<void>;
+  onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
 }) {
+  const session = backend?.session ?? null;
   const status = mapSeatStatus(seat);
   const activeBilling = billingLabel(seat.billing);
-  const billingModes = ['Гость', 'Депозит', 'Пакет', 'Постоплата'];
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [billingPlayers, setBillingPlayers] = useState<PlayerClientItem[]>([]);
+  const [selectedPlayerId, setSelectedPlayerId] = useState('');
+  const [tariffOptions, setTariffOptions] = useState<TariffOptionDto[]>([]);
+  const [selectedTariffVersionId, setSelectedTariffVersionId] = useState('');
+  const [playerPackages, setPlayerPackages] = useState<PlayerPackageDto[]>([]);
+  const [selectedPlayerPackageId, setSelectedPlayerPackageId] = useState('');
+  const [billingStatus, setBillingStatus] = useState<LoadStatus>('fixture');
+  const [billingError, setBillingError] = useState<string | null>(null);
   const transferCandidates = floorSeats.filter((candidate) =>
     candidate.id !== seat.id &&
     candidate.tone === 'ready' &&
     !candidate.activeSessionId);
   const [targetSeatId, setTargetSeatId] = useState(transferCandidates[0]?.id ?? '');
+  const selectedPlayer = billingPlayers.find((player) => player.playerAccountId === selectedPlayerId) ?? null;
+  const selectedTariff = tariffOptions.find((tariff) => readString(tariff, 'tariffVersionId') === selectedTariffVersionId) ??
+    tariffOptions[0] ??
+    null;
+  const selectedPlayerPackage = playerPackages.find((playerPackage) => readString(playerPackage, 'playerPackageId') === selectedPlayerPackageId) ??
+    playerPackages[0] ??
+    null;
   const hasActionableSession = Boolean(seat.activeSessionId);
   const hasActiveSession = hasActionableSession || seat.hasActiveSession === true || seat.tone === 'active';
   const isBusy = feedback.state === 'pending';
@@ -2242,17 +2343,57 @@ function MapSidePanel({
     canExtendPermission ||
     canTransferPermission ||
     canEndPermission;
-  const canStartSession = actionsEnabled && canStartPermission && !hasActionableSession && seat.tone === 'ready';
-  const canExtendSession = actionsEnabled && canExtendPermission && hasActionableSession;
+  const billingSelection: SessionBillingSelection = billingMode === 'guest'
+    ? {
+        mode: 'guest',
+        tariffRuleVersionId: defaultTariffRuleVersionId,
+        playerAccountId: null,
+        tariffVersionId: null,
+        playerPackageId: null
+      }
+    : billingMode === 'package'
+      ? {
+          mode: 'package',
+          tariffRuleVersionId: defaultTariffRuleVersionId,
+          playerAccountId: selectedPlayerId || null,
+          playerPackageId: selectedPlayerPackage === null ? null : readString(selectedPlayerPackage, 'playerPackageId')
+        }
+      : {
+          mode: billingMode,
+          tariffRuleVersionId: selectedTariff === null
+            ? defaultTariffRuleVersionId
+            : readString(selectedTariff, 'tariffRuleVersionId', defaultTariffRuleVersionId),
+          playerAccountId: selectedPlayerId || null,
+          tariffVersionId: selectedTariff === null ? null : readString(selectedTariff, 'tariffVersionId')
+        };
+  const billingMissing = billingMode !== 'guest' && !selectedPlayerId
+    ? 'выберите игрока'
+    : (billingMode === 'prepaid_wallet' || billingMode === 'postpaid_debt') && !billingSelection.tariffVersionId
+      ? 'выберите тариф'
+      : billingMode === 'package' && !billingSelection.playerPackageId
+        ? 'выберите пакет игрока'
+        : null;
+  const billingReady = billingMissing === null;
+  const canStartSession = actionsEnabled && canStartPermission && billingReady && !hasActionableSession && seat.tone === 'ready';
+  const canExtendSession = actionsEnabled && canExtendPermission && billingReady && hasActionableSession;
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
   const canTransferSession = actionsEnabled && canTransferPermission && hasActionableSession && targetSeatId.length > 0;
   const confirmationText = !actionsEnabled
     ? 'Backend карта недоступна'
     : !hasAnySessionActionPermission
       ? 'Нет прав на действия с сессией'
+      : !billingReady
+        ? `Биллинг: ${billingMissing}`
       : feedback.state === 'idle'
         ? 'Ждём платформу'
         : feedbackText(feedback);
+  const billingLoadText = billingStatus === 'backend'
+    ? 'данные backend'
+    : billingStatus === 'loading'
+      ? 'загрузка'
+      : billingStatus === 'failed'
+        ? billingError ?? 'ошибка загрузки'
+        : 'ожидает backend';
 
   useEffect(() => {
     if (targetSeatId.length > 0 && transferCandidates.some((candidate) => candidate.id === targetSeatId)) {
@@ -2262,12 +2403,122 @@ function MapSidePanel({
     setTargetSeatId(transferCandidates[0]?.id ?? '');
   }, [seat.id, floorSeats]);
 
+  useEffect(() => {
+    let disposed = false;
+
+    if (backend === null || !hasPermission(session, permissionNames.viewTariffs)) {
+      setTariffOptions([]);
+      setSelectedTariffVersionId('');
+      setBillingStatus(backend === null ? 'failed' : 'fixture');
+      setBillingError(backend === null ? 'Backend operator session is not available.' : null);
+      return undefined;
+    }
+
+    setBillingStatus('loading');
+    setBillingError(null);
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.settings.getTariffOptions(backend.branchId)
+      .then((options) => {
+        if (disposed) {
+          return;
+        }
+
+        setTariffOptions(options);
+        setSelectedTariffVersionId((current) => current || readString(options[0], 'tariffVersionId'));
+        setBillingStatus('backend');
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setTariffOptions([]);
+        setSelectedTariffVersionId('');
+        setBillingStatus('failed');
+        setBillingError(projectOperatorError(error).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
+
+  useEffect(() => {
+    let disposed = false;
+    const query = playerSearch.trim();
+
+    if (backend === null || query.length < 2 || !hasPermission(session, permissionNames.viewPlayers)) {
+      setBillingPlayers([]);
+      setSelectedPlayerId('');
+      return undefined;
+    }
+
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.players.searchPlayers(backend.branchId, query, 8)
+      .then((players: PlayerSearchResultDto[]) => {
+        if (disposed) {
+          return;
+        }
+
+        const projected = players.map(projectPlayerClient);
+        setBillingPlayers(projected);
+        setSelectedPlayerId((current) => current || (projected[0]?.playerAccountId ?? ''));
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setBillingPlayers([]);
+        setSelectedPlayerId('');
+        setBillingError(projectOperatorError(error).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, playerSearch]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    if (backend === null || !selectedPlayerId || !hasPermission(session, permissionNames.viewBilling)) {
+      setPlayerPackages([]);
+      setSelectedPlayerPackageId('');
+      return undefined;
+    }
+
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.players.getPlayerPackages(selectedPlayerId)
+      .then((packages: PlayerPackageDto[]) => {
+        if (disposed) {
+          return;
+        }
+
+        setPlayerPackages(packages);
+        setSelectedPlayerPackageId((current) => current || readString(packages[0], 'playerPackageId'));
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setPlayerPackages([]);
+        setSelectedPlayerPackageId('');
+        setBillingError(projectOperatorError(error).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedPlayerId]);
+
   const runSeatAction = async (label: string, request: SeatActionRequest) => {
     setFeedback({ label, state: 'pending' });
 
     try {
-      await onSeatAction(request);
-      setFeedback({ label, state: 'confirmed' });
+      const result = await onSeatAction(request);
+      setFeedback({ label, state: 'confirmed', detail: result.detail });
     } catch (error) {
       setFeedback({
         label,
@@ -2295,14 +2546,14 @@ function MapSidePanel({
       <section className="action-grid context-actions" aria-label="Быстрые действия">
         {hasActiveSession ? (
           <>
-            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+15 мин', { type: 'extend', seat, minutes: 15 })}><Plus size={15} />15 мин</button>
-            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+30 мин', { type: 'extend', seat, minutes: 30 })}><TimerReset size={15} />30 мин</button>
+            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+15 мин', { type: 'extend', seat, minutes: 15, billing: billingSelection })}><Plus size={15} />15 мин</button>
+            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+30 мин', { type: 'extend', seat, minutes: 30, billing: billingSelection })}><TimerReset size={15} />30 мин</button>
             <button type="button" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction('Перенос', { type: 'transfer', seat, targetSeatId })}><ArrowRightLeft size={15} />Перенос</button>
             <button type="button" className="danger" disabled={!canEndSession || isBusy} onClick={() => runSeatAction('Стоп', { type: 'end', seat })}><Square size={15} />Стоп</button>
           </>
         ) : (
           <>
-            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction('Старт 60 мин', { type: 'start', seat })}><Plus size={15} />Старт 60 мин</button>
+            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction('Старт 60 мин', { type: 'start', seat, billing: billingSelection })}><Plus size={15} />Старт 60 мин</button>
             <button type="button" disabled><TimerReset size={15} />Нет сессии</button>
           </>
         )}
@@ -2353,12 +2604,101 @@ function MapSidePanel({
         </div>
       </section>
 
-      <section className="billing-mode" aria-label="Режим биллинга">
-        {billingModes.map((mode) => (
-          <button key={mode} type="button" className={mode === activeBilling ? 'active' : undefined}>
-            {mode}
-          </button>
-        ))}
+      <section className="context-section billing-selection-panel" aria-label="Настройка биллинга">
+        <div className="billing-panel-head">
+          <span>Биллинг сессии</span>
+          <strong>{billingModeLabel(billingMode)}</strong>
+          <em>{billingLoadText}</em>
+        </div>
+        <div className="billing-mode" aria-label="Режим биллинга">
+          {billingModeOptions.map((option) => {
+            const isBilledMode = option.id !== 'guest';
+            return (
+              <button
+                key={option.id}
+                type="button"
+                className={option.id === billingMode ? 'active' : undefined}
+                disabled={!actionsEnabled || isBusy || (isBilledMode && !hasPermission(session, permissionNames.viewBilling))}
+                title={option.detail}
+                onClick={() => setBillingMode(option.id)}
+              >
+                <span>{option.label}</span>
+                <small>{option.detail}</small>
+              </button>
+            );
+          })}
+        </div>
+        {billingMode !== 'guest' && (
+          <>
+            <label className="context-transfer-target billing-input-row">
+              <span>Игрок</span>
+              <input
+                aria-label="Игрок для биллинга"
+                value={playerSearch}
+                disabled={!actionsEnabled || isBusy || !hasPermission(session, permissionNames.viewPlayers)}
+                placeholder="имя или телефон"
+                onChange={(event) => setPlayerSearch(event.currentTarget.value)}
+              />
+            </label>
+            <div className="billing-candidate-list" aria-label="Найденные игроки">
+              {billingPlayers.map((player) => (
+                <button
+                  key={player.playerAccountId ?? player.name}
+                  type="button"
+                  className={player.playerAccountId === selectedPlayerId ? 'active' : undefined}
+                  disabled={!player.playerAccountId || isBusy}
+                  onClick={() => setSelectedPlayerId(player.playerAccountId ?? '')}
+                >
+                  <strong>{player.name}</strong>
+                  <span>{formatMinorUnits(player.balanceMinorUnits, currencyCode)} · долг {formatMinorUnits(player.debtMinorUnits, currencyCode)}</span>
+                </button>
+              ))}
+              {playerSearch.trim().length > 1 && billingPlayers.length === 0 && (
+                <p>Игрок не найден</p>
+              )}
+            </div>
+            {(billingMode === 'prepaid_wallet' || billingMode === 'postpaid_debt') && (
+              <label className="context-transfer-target billing-input-row">
+                <span>Тариф</span>
+                <select
+                  aria-label="Тариф для сессии"
+                  value={selectedTariffVersionId}
+                  disabled={!actionsEnabled || isBusy || tariffOptions.length === 0}
+                  onChange={(event) => setSelectedTariffVersionId(event.currentTarget.value)}
+                >
+                  {tariffOptions.length === 0 && <option value="">Нет тарифов</option>}
+                  {tariffOptions.map((tariff) => (
+                    <option key={readString(tariff, 'tariffVersionId')} value={readString(tariff, 'tariffVersionId')}>
+                      {tariffOptionLabel(tariff, currencyCode)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {billingMode === 'package' && (
+              <label className="context-transfer-target billing-input-row">
+                <span>Пакет</span>
+                <select
+                  aria-label="Пакет для сессии"
+                  value={selectedPlayerPackageId}
+                  disabled={!actionsEnabled || isBusy || !selectedPlayer || playerPackages.length === 0}
+                  onChange={(event) => setSelectedPlayerPackageId(event.currentTarget.value)}
+                >
+                  {playerPackages.length === 0 && <option value="">Нет активных пакетов</option>}
+                  {playerPackages.map((playerPackage) => (
+                    <option key={readString(playerPackage, 'playerPackageId')} value={readString(playerPackage, 'playerPackageId')}>
+                      {playerPackageLabel(playerPackage)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <div className="detail-row billing-meta">
+              <span>Выбор</span>
+              <strong>{billingMissing ?? `${billingModeLabel(billingMode)} готов`}</strong>
+            </div>
+          </>
+        )}
       </section>
     </aside>
   );
@@ -4601,7 +4941,7 @@ export function App() {
     }
   };
 
-  const handleSeatAction = async (request: SeatActionRequest) => {
+  const handleSeatAction = async (request: SeatActionRequest): Promise<SeatActionResult> => {
     const session = authSession;
     if (session === null) {
       throw new Error('Operator is not signed in.');
@@ -4617,6 +4957,7 @@ export function App() {
     }
 
     const clients = createAuthenticatedOperatorClients(config, session);
+    let response: unknown;
     if (request.type === 'start') {
       if (!hasPermission(session, permissionNames.startSession)) {
         throw new Error('Operator is not allowed to start sessions.');
@@ -4626,13 +4967,17 @@ export function App() {
         throw new Error('Seat is not ready for session start.');
       }
 
-      await clients.sessions.startGuestSession(branchId, {
+      const billing = request.billing;
+      response = await clients.sessions.startGuestSession(branchId, {
         organizationId: session.organizationId,
         seatId: request.seat.id,
         durationMinutes: defaultSessionDurationMinutes,
-        tariffRuleVersionId: defaultTariffRuleVersionId,
+        tariffRuleVersionId: billing.tariffRuleVersionId,
         idempotencyKey: createIdempotencyKey('session-start'),
-        billingMode: ''
+        playerAccountId: billing.playerAccountId ?? null,
+        billingMode: billing.mode === 'guest' ? '' : billing.mode,
+        tariffVersionId: billing.tariffVersionId ?? null,
+        playerPackageId: billing.playerPackageId ?? null
       });
     } else if (request.type === 'extend') {
       if (!hasPermission(session, permissionNames.extendSession)) {
@@ -4643,10 +4988,15 @@ export function App() {
         throw new Error('Selected seat has no active session.');
       }
 
-      await clients.sessions.extendSession(request.seat.activeSessionId, {
+      const billing = request.billing;
+      response = await clients.sessions.extendSession(request.seat.activeSessionId, {
         additionalMinutes: request.minutes,
-        tariffRuleVersionId: defaultTariffRuleVersionId,
-        idempotencyKey: createIdempotencyKey('session-extend')
+        tariffRuleVersionId: billing.tariffRuleVersionId,
+        idempotencyKey: createIdempotencyKey('session-extend'),
+        playerAccountId: billing.playerAccountId ?? null,
+        billingMode: billing.mode === 'guest' ? '' : billing.mode,
+        tariffVersionId: billing.tariffVersionId ?? null,
+        playerPackageId: billing.playerPackageId ?? null
       });
     } else if (request.type === 'transfer') {
       if (!hasPermission(session, permissionNames.transferSession)) {
@@ -4657,7 +5007,7 @@ export function App() {
         throw new Error('Selected seat has no active session.');
       }
 
-      await clients.sessions.transferSession(request.seat.activeSessionId, {
+      response = await clients.sessions.transferSession(request.seat.activeSessionId, {
         targetSeatId: request.targetSeatId,
         idempotencyKey: createIdempotencyKey('session-transfer')
       });
@@ -4670,18 +5020,20 @@ export function App() {
         throw new Error('Selected seat has no active session.');
       }
 
-      await clients.sessions.endSession(request.seat.activeSessionId, {
+      response = await clients.sessions.endSession(request.seat.activeSessionId, {
         reason: 'operator',
         idempotencyKey: createIdempotencyKey('session-end')
       });
     }
 
+    const detail = await describeSeatActionResult(clients, session, request.seat, response);
     const nextState = await loadBackendFloorMapState(config, session, branchId);
     const preferredSeatId = request.type === 'transfer' ? request.targetSeatId : request.seat.id;
     setFloorMap(nextState);
     setSelectedSeatId(nextState.seats.some((seat) => seat.id === preferredSeatId)
       ? preferredSeatId
       : nextState.seats[0]?.id ?? '');
+    return { detail };
   };
 
   if (authStatus !== 'signed-in' || authSession === null) {
@@ -4781,7 +5133,7 @@ export function App() {
           seat={selectedSeat}
           seats={floorMap.seats}
           currencyCode={config.currencyCode}
-          session={authSession}
+          backend={backendContext}
           actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
           onSeatAction={handleSeatAction}
         />

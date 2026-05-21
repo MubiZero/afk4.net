@@ -57,9 +57,11 @@ Current state:
   backend-backed React parity wiring against existing endpoints. Booking now
   uses real reservation contracts for search/create/update/confirm/seat/cancel.
   The React shell also has first-pass permission-aware workspace navigation and
-  selected-seat session action state. Device command result state, billing-mode
-  selection beyond fast guest, reservation edge-case hardening, and staging
-  smoke across the newly wired screens are the next real implementation work.
+  selected-seat session action state. The map panel now supports guest,
+  prepaid-wallet, package, and postpaid billing selection for start/extend, and
+  reads selected-seat device command result status after session commands.
+  Reservation edge-case hardening, map filters/table parity, and staging smoke
+  across the newly wired screens are the next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
@@ -83,10 +85,11 @@ clients/wallet, payments/reports, logs/audit/diagnostics, and settings read
 surfaces now call existing backend endpoints. Dashboard now has a backend
 summary endpoint and React wiring for active shift, revenue/utilization, alert
 pressure, focus queue, recent payments, and export fetches. Booking has real
-reservation API wiring, and restored staff permissions now gate workspace
-navigation plus selected-seat session actions. Continue with the remaining map
-parity gaps, reservation edge-case hardening, and staging smoke of the
-backend-backed workspaces.
+reservation API wiring, restored staff permissions now gate workspace
+navigation plus selected-seat session actions, and the map panel now sends
+billed session metadata plus displays device command status feedback. Continue
+with the remaining map filters/table parity, reservation edge-case hardening,
+and staging smoke of the backend-backed workspaces.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -118,8 +121,7 @@ Start-Process -FilePath 'D:\projects\afk4.net\src\AFK4.Operator.App\bin\Debug\ne
 
 Next implementation order:
 
-1. Finish map parity gaps: billing-mode UI beyond fast guest, device command
-   result state, filters, and table parity.
+1. Finish remaining map parity gaps: problem filters and table parity.
 2. Harden real booking flows for edge cases; keep Booking from showing fixture
    success for any flow that is not backed by reservation APIs.
 3. Staging-smoke POS, Clients, Payments, Logs, and Settings against
@@ -150,12 +152,11 @@ missing-backend copy.
   `GET /api/branches/{branchId}/dashboard/summary`, shared dashboard DTOs,
   Platform API endpoint tests, frontend route tests, and React Dashboard
   loading/confirmed/failed state.
-- [ ] Map: wire `Техрежим`, problem filters/table parity, billing-mode
+- [ ] Map: wire `Техрежим` and problem filters/table parity. Billing-mode
   selection beyond fast guest, registered-player/package selection for session
-  start/extend, and Agent/device command result status. Use existing session,
-  device command, and diagnostics contracts where possible; create missing
-  command-result/read-model endpoints if the UI cannot show authoritative
-  pending/succeeded/failed command state.
+  start/extend, and selected-seat Agent/device command result feedback were
+  implemented on 2026-05-21 against existing session, player/tariff/package,
+  and device command status contracts.
 - [x] Booking: replace `Backend-контракт бронирований ещё не реализован.`,
   `booking API отсутствует`, `нет backend источника заявок`, `черновик ждёт
   backend booking API`, and `нет booking API` copy with real reservation
@@ -332,10 +333,11 @@ Screen roadmap:
   frontend tests.
 - [x] Preserve selected-seat actions: fast guest start, extend +15/+30,
   transfer, end, and backend confirmation for backend-loaded seats.
-- [ ] Add billing-mode selection beyond fast guest and Agent/device command
-  result status. First-pass permission-aware action state is implemented for
-  workspace navigation and selected-seat session actions; broaden it as more
-  backend-backed commands become actionable.
+- [x] Add billing-mode selection beyond fast guest and Agent/device command
+  result status. Implemented on 2026-05-21 with guest/prepaid/package/postpaid
+  map controls, backend player/tariff/package selection, billed start/extend
+  request payloads, command-status feedback, and frontend coverage for fast
+  guest plus prepaid-wallet start.
 - [ ] Cover problem filters after backend-backed filter state replaces the
   fixture-only implementation.
 

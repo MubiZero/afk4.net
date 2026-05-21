@@ -1100,14 +1100,145 @@ button {
   font-weight: 800;
 }
 
+.context-transfer-target input {
+  min-width: 0;
+  height: 26px;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 7px;
+  background: #121b27;
+  color: #dbe3ef;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .context-transfer-target select:disabled {
   color: #6f7d91;
+}
+
+.context-transfer-target input:disabled {
+  color: #6f7d91;
+}
+
+.billing-selection-panel {
+  gap: 8px;
+}
+
+.billing-panel-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.billing-panel-head span,
+.billing-panel-head em {
+  color: #8090a4;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.billing-panel-head strong {
+  color: #f8fbff;
+  font-size: 12px;
+}
+
+.billing-panel-head em {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
 }
 
 .billing-mode {
   padding-top: 10px;
   border-top: 1px solid #202a36;
   flex-wrap: wrap;
+}
+
+.billing-selection-panel .billing-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.billing-selection-panel .billing-mode button {
+  justify-content: center;
+  min-width: 0;
+  height: 42px;
+  padding: 4px 6px;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.billing-selection-panel .billing-mode small {
+  overflow: hidden;
+  color: #8fa0b6;
+  font-size: 9px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.billing-selection-panel .billing-mode button.active small {
+  color: #bdd7ff;
+}
+
+.billing-input-row {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.billing-candidate-list {
+  display: grid;
+  gap: 6px;
+}
+
+.billing-candidate-list button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  min-height: 40px;
+  border: 1px solid #263241;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #111923;
+  color: #dbe3ef;
+  text-align: left;
+}
+
+.billing-candidate-list button.active {
+  border-color: #1f6feb;
+  background: #142846;
+}
+
+.billing-candidate-list strong,
+.billing-candidate-list span,
+.billing-candidate-list p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.billing-candidate-list strong {
+  color: #f8fbff;
+  font-size: 12px;
+}
+
+.billing-candidate-list span,
+.billing-candidate-list p {
+  margin: 0;
+  color: #8fa0b6;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.billing-meta strong {
+  max-width: 190px;
 }
 
 .smart-grid {
