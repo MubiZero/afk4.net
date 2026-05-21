@@ -318,16 +318,16 @@ Minimum bar:
   backend sale and manual payment before confirming UI success. Dashboard now
   has a backend summary endpoint and React wiring for active shift,
   revenue/utilization, alert pressure, focus queue, recent payments, and export
-  fetch confirmation. Booking remains floor-map-backed for availability only
-  because backend booking contracts do not exist yet. Billing-mode selection
+  fetch confirmation. Booking now consumes reservation API contracts for
+  search/create/update/confirm/seat/cancel actions, with floor-map availability
+  as a supporting view. Billing-mode selection
   beyond fast guest, permission-aware action state, device command result
-  state, real booking contracts, general profile/staff invitation settings, and
-  staging smoke of these extra workspaces still remain before the WebView2/
-  React app covers the full pilot day flow. Fixture-only/missing-contract
-  commands should report missing backend wiring rather than showing backend
-  success. The current WPF implementation remains a parity reference and
-  temporary legacy source until the WebView2/React Operator App covers the
-  pilot day flow.
+  state, reservation edge-case hardening, general profile/staff invitation
+  settings, and staging smoke of these extra workspaces still remain before the
+  WebView2/React app covers the full pilot day flow. Fixture-only/missing-contract
+  commands should report backend failures rather than showing backend success.
+  The current WPF implementation remains a parity reference and temporary legacy
+  source until the WebView2/React Operator App covers the pilot day flow.
 - Staff management workflow is implemented as a minimum API path on `main`;
   the Operator App has a minimum one-shot Pilot Setup panel, but not a general
   staff management UI.
@@ -361,12 +361,13 @@ Minimum bar:
    primary floor-map loading, SignalR device-status state, and
    backend-confirmed selected-seat start/extend/transfer/end actions now exist.
    POS, clients, payments, logs, and settings now have first-pass backend data
-   and action wiring where current backend contracts exist, while Booking is
-   only floor-map-backed until reservation contracts are added. Dashboard now
-   has first-pass backend metrics. Next deliver permission-aware React state,
-   map action parity gaps such as billing-mode selection and device command
-   result status, real booking contracts, and staging smoke across these
-   backend-backed workspaces. Local builds must still target staging with
+   and action wiring where current backend contracts exist; Booking now also has
+   backend reservation contract wiring for search/create/update/confirm/seat/cancel
+   flows. Dashboard now has first-pass backend metrics. Next deliver
+   permission-aware React state, map action parity gaps such as billing-mode
+   selection and device command result status, reservation edge-case hardening,
+   and staging smoke across these backend-backed workspaces. Local builds must
+   still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
    GUID/form surfaces in the main operator path as usability defects unless
    they are explicitly advanced technician tools.

@@ -24,6 +24,8 @@ implementation evidence are needed.
 - EF Core/Npgsql persistence and migrations for identity, tenancy, devices,
   layout, sessions, billing, POS, shifts, updates, audit, diagnostics, and
   reports.
+- Reservations module with branch-scoped reservation search/create/update,
+  confirm/seat/cancel actions, overlap checks, and reservation audit entries.
 - Staff sign-in and refresh-token rotation.
 - Predefined MVP role-to-permission mapping.
 - Branch-scoped authorization for implemented operator-facing endpoints.
@@ -115,9 +117,11 @@ implementation evidence are needed.
   reads shift, sales, cash, and CSV report endpoints; Logs reads audit and
   diagnostics; Settings reads staff, layout, catalog, diagnostics, update
   rollout, and tariff option data and can trigger limited backend setup
-  actions. Dashboard reads the backend dashboard summary and uses existing
-  report exports for export confirmation. Missing booking/profile/staff-invite
-  contracts now fail explicitly instead of showing fixture success.
+  actions; Dashboard reads the backend dashboard summary and uses existing
+  report exports for export confirmation; Booking uses backend reservation
+  search/create/update/confirm/seat/cancel endpoints with floor-map-backed
+  availability and action fallback. Missing profile/staff-invite contracts
+  still fail explicitly instead of showing fixture success.
 
 ### Agent Service
 
@@ -238,9 +242,10 @@ Result:
 - POS frontend tests now cover backend-confirmed catalog/current-shift loading,
   POS sale creation, manual payment, and UI confirmation only after both API
   calls resolve.
-- Booking is backend-aware through the authoritative floor-map availability
-  state, but full create/edit/cancel reservation workflows still explicitly
-  report that backend booking contracts are not implemented.
+- Booking is now backed by real reservation API contracts and is no longer blocked
+  by missing booking contract support. The app now exercises reservation
+  search/create/update/confirm/seat/cancel endpoints. Remaining work is
+  permission-hardening and UX polish for edge cases, not absence of API.
 - Typed frontend API client boundary verification on 2026-05-21:
 
   ```powershell
