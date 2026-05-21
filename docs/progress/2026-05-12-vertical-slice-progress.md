@@ -193,11 +193,12 @@ implementation evidence are needed.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports, searches backend players for the cart customer, creates paid
-  manual-provider sales with an optional backend `playerAccountId`, can refund
-  the selected backend sale from the quick-operation panel, and can void a
-  backend draft sale created from the current cart, and opens backend sale
-  details from the recent receipt list plus the linked backend receipt
-  projection; Clients searches backend players
+  manual-provider sales with an optional backend `playerAccountId`, can create
+  a new backend player card from the POS cart and immediately use it for
+  checkout, can refund the selected backend sale from the quick-operation
+  panel, and can void a backend draft sale created from the current cart, and
+  opens backend sale details from the recent receipt list plus the linked
+  backend receipt projection; Clients searches backend players
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
   name/phone, and reservation creation from a selected backend player; Payments
@@ -322,7 +323,7 @@ wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
 refund quick action, Settings layout zone/seat creation, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
-checkout, and Clients package purchase:
+checkout, POS new-customer checkout, and Clients package purchase:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -333,7 +334,7 @@ checkout, and Clients package purchase:
 
 Result:
 
-- frontend tests: 70 passed, 0 failed;
+- frontend tests: 71 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 782 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -429,6 +430,10 @@ Result:
   the cart, `playerAccountId` serialization on create-sale requests, nullable
   POS sale persistence/projection through EF and the Platform API, and manual
   card payment mapping to the backend `card_manual` payment method.
+- POS frontend tests now cover creating a new backend player card from the POS
+  cart through `/api/branches/{branchId}/players`, selecting that new player in
+  the cart, and sending the created `playerAccountId` with the next checkout
+  sale.
 - POS frontend tests now cover the `Возврат по чеку` quick operation calling
   `/api/pos/sales/{saleId}/refunds` for the latest backend sale with
   organization id, reason, and idempotency key serialization before UI
@@ -2356,6 +2361,23 @@ Operator App WebView2/React first implementation on 2026-05-20:
   fixture labels, no old backend-empty placeholder copy, and no horizontal or
   vertical overflow; older Vite HMR errors from before the current reload
   remained in the browser log buffer.
+- Operator App POS new-customer checkout verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx operatorApiClients.test.ts
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused frontend App/API-client tests passed 47/47, full frontend
+  tests passed 71/71, Vite production build passed, and whitespace check was
+  clean apart from expected CRLF conversion warnings. The new App test covers
+  creating a backend player from the POS cart, selecting the created player,
+  and attaching its `playerAccountId` to the next POS sale request. Browser
+  smoke against `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`,
+  heading `Вход оператора`, sign-in button, no old backend-empty placeholder
+  copy, and no horizontal or vertical overflow outside WebView2.
 
 ## Historical Reference
 

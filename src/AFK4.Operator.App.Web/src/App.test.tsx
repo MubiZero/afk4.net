@@ -470,6 +470,47 @@ describe('App', () => {
     });
   });
 
+  it('creates a POS customer card from the cart and attaches it to checkout', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Имя клиента POS'), { target: { value: 'Zarina N.' } });
+    fireEvent.change(screen.getByLabelText('Телефон клиента POS'), { target: { value: '+992 90 777 88 99' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
+
+    expect(await screen.findByText('Новая карта: подтверждено')).toBeInTheDocument();
+    expect(screen.getByText('Zarina N.')).toBeInTheDocument();
+    const createPlayerCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/players') &&
+      init?.method === 'POST');
+    expect(createPlayerCall).toBeDefined();
+    const createPlayerBody = JSON.parse(String(createPlayerCall?.[1]?.body));
+    expect(createPlayerBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      displayName: 'Zarina N.',
+      phoneNumber: '+992 90 777 88 99'
+    });
+    expect(createPlayerBody.idempotencyKey).toMatch(/^player-create-/);
+
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+
+    expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
+    const saleCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
+      init?.method === 'POST');
+    expect(saleCall).toBeDefined();
+    const saleBody = JSON.parse(String(saleCall?.[1]?.body));
+    expect(saleBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      playerAccountId: '45454545-4545-4545-4545-454545454545'
+    });
+  });
+
   it('refunds the latest backend POS sale from quick operations', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

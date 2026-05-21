@@ -2314,7 +2314,7 @@ button {
 .pos-cart-panel {
   grid-area: cart;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
   gap: 8px;
 }
 
@@ -2588,6 +2588,61 @@ button {
 .pos-client-candidates p {
   color: #8fa0b6;
   font-size: 10px;
+}
+
+.pos-new-client-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr) auto;
+  gap: 6px;
+  margin: 0 12px;
+}
+
+.pos-new-client-form label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pos-new-client-form span {
+  overflow: hidden;
+  color: #8fa0b6;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pos-new-client-form input {
+  min-width: 0;
+  height: 28px;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 8px;
+  outline: 0;
+  background: #0c141f;
+  color: #f8fbff;
+  font-size: 11px;
+}
+
+.pos-new-client-form button {
+  align-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 8px;
+  background: #121b27;
+  color: #dbe3ef;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pos-new-client-form button:not(:disabled):hover,
+.pos-new-client-form button:not(:disabled):focus-visible {
+  border-color: #5b9dff;
+  background: #193457;
 }
 
 .pos-cart-list {

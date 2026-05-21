@@ -85,7 +85,9 @@ Current state:
   latest receipt id to read `GET /api/receipts/{receiptId}` for receipt
   number/type/total display. POS cart customer lookup now searches backend
   players and sends nullable `playerAccountId` through the POS sale contract,
-  with Platform API persistence/projection and EF migration coverage. Clients package
+  with Platform API persistence/projection and EF migration coverage. POS cart
+  new-customer creation now posts to the existing branch player API and
+  immediately selects the created player for checkout. Clients package
   purchase now calls the existing package option and purchase endpoints for the
   selected backend player, and wallet top-up now uses an operator amount/reason
   form before calling the existing top-up endpoint. Debt payment now also uses
@@ -146,7 +148,8 @@ current cart. POS recent receipt rows call the backend sale lookup endpoint for
 line detail and then call the receipt lookup endpoint through the sale's
 `latestReceipt` projection. POS cart customer lookup now searches backend
 players and attaches the selected `playerAccountId` to checkout/draft sale
-creation. Clients package purchase calls the backend package purchase
+creation. POS cart new-customer creation now posts to the existing branch
+player API and selects the created player for checkout. Clients package purchase calls the backend package purchase
 endpoint for the selected player, and Clients wallet top-up sends
 operator-entered amount/reason to the backend. Clients debt payment now also
 sends operator-entered amount/reason to the backend with a no-overpayment guard.
@@ -251,8 +254,10 @@ missing-backend copy.
   `GET /api/pos/sales/{saleId}` plus `GET /api/receipts/{receiptId}`.
   Selected customer for cart was implemented on 2026-05-21 with backend player
   search, nullable `playerAccountId` on POS sale request/response/entity, EF
-  migration, and checkout/draft create-sale wiring. Remaining POS gaps include
-  receipt print/export, wallet top-up handoff, new customer handoff, stock
+  migration, and checkout/draft create-sale wiring. New customer handoff was
+  implemented on 2026-05-21 with POS-cart player creation through the existing
+  branch player API and immediate checkout selection. Remaining POS gaps include
+  receipt print/export, wallet top-up handoff, stock
   write-off/adjustment, and discount/promo/combo handling if kept in MVP UI.
   Use existing POS/player/shift endpoints where they exist; create missing
   customer/cart/inventory/provider endpoints before removing the UI warnings.
@@ -473,8 +478,8 @@ Screen roadmap:
 - [x] Port current POS product/cart/payment/refund/void workflows. Implemented
   on 2026-05-21 with backend catalog/current-shift/sales report reads, sale
   creation, manual payment, selected backend customer attribution,
-  selected-sale refund, draft void, sale detail, and receipt lookup through
-  existing POS/receipt endpoints.
+  POS-cart new-customer creation, selected-sale refund, draft void, sale
+  detail, and receipt lookup through existing POS/receipt endpoints.
 - [ ] Port player search, wallet/debt, top-up, and debt payment workflows.
 - [ ] Port shift open, cash movement, close, reports, and CSV export flows.
 - [x] Port Settings/Pilot Setup, device tools, updates, audit, and diagnostics

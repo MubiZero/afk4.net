@@ -370,7 +370,9 @@ Minimum bar:
   existing receipt endpoint for receipt number/type/total display. POS cart
   customer lookup now searches backend players and attaches the selected
   nullable `playerAccountId` to checkout and draft sale creation through the
-  shared POS sale contract and EF-backed Platform API persistence. Clients package purchase now calls the existing package
+  shared POS sale contract and EF-backed Platform API persistence. POS cart
+  new-customer creation now posts to the existing branch player API and selects
+  the created player for checkout. Clients package purchase now calls the existing package
   option and purchase endpoints for the selected backend player, and Clients
   wallet top-up sends operator-entered amount/reason to the existing top-up
   endpoint. Clients debt payment sends operator-entered amount/reason to the
@@ -436,7 +438,7 @@ Minimum bar:
   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift and
    cash-movement wiring, Logs backend audit/date filters, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt lookup,
-   POS selected-customer checkout, Clients wallet
+   POS selected-customer/new-customer checkout, Clients wallet
    top-up/debt-payment forms, Clients new-player form, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must

@@ -3025,6 +3025,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [posPlayers, setPosPlayers] = useState<PlayerClientItem[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [playerLoadStatus, setPlayerLoadStatus] = useState<LoadStatus>('fixture');
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [cartItems, setCartItems] = useState<PosCartItem[]>([
     { ...fixturePosProducts[0], quantity: 1 },
     { ...fixturePosProducts[3], quantity: 1 }
@@ -3130,6 +3132,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const selectedPosPlayerId = selectedPosPlayer?.playerAccountId ?? null;
   const playerSearchQuery = playerSearch.trim();
   const paymentMethodName = paymentMethod === 'Карта' ? 'card_manual' : 'cash';
+  const newPlayerDisplayName = newPlayerName.trim() || playerSearchQuery;
   const cartTotalMinorUnits = cartItems.reduce((sum, item) => sum + item.priceMinorUnits * item.quantity, 0);
   const acceptedCashMinorUnits = paymentMethod === 'Наличные'
     ? Math.ceil(cartTotalMinorUnits / 1000) * 1000
@@ -3157,6 +3160,9 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     && cartItems.every((item) => Boolean(item.productId) && item.source === 'backend')
     && hasPermission(backend.session, permissionNames.createPosSale)
     && hasPermission(backend.session, permissionNames.voidPosSale);
+  const canCreatePosPlayer = backend !== null
+    && hasPermission(backend.session, permissionNames.createPlayerAccount)
+    && newPlayerDisplayName.length > 0;
 
   const addProduct = (product: PosCatalogItem) => {
     setCartItems((items) => {
@@ -3168,6 +3174,43 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       return [...items, { ...product, quantity: 1 }];
     });
     triggerFeedback(setFeedback, `${product.name} добавлен`, 'confirmed');
+  };
+
+  const createPosPlayer = async () => {
+    setFeedback({ label: 'Новая карта', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
+        throw new Error('Нет прав на создание карты клиента.');
+      }
+
+      const displayName = newPlayerDisplayName;
+      if (!displayName) {
+        throw new Error('Введите имя клиента для новой карты.');
+      }
+
+      const player = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).players.createPlayer(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        displayName,
+        phoneNumber: newPlayerPhone.trim() || null,
+        idempotencyKey: createIdempotencyKey('player-create')
+      });
+      const projected = projectPlayerClient(player);
+      setPosPlayers((players) => [
+        projected,
+        ...players.filter((candidate) => candidate.playerAccountId !== projected.playerAccountId)
+      ]);
+      setSelectedPlayerId(projected.playerAccountId ?? '');
+      setNewPlayerName('');
+      setNewPlayerPhone('');
+      setFeedback({ label: 'Новая карта', state: 'confirmed' });
+    } catch (error) {
+      setFeedback({
+        label: 'Новая карта',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
   };
 
   const acceptPayment = async () => {
@@ -3454,6 +3497,32 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               {playerLoadStatus !== 'loading' && posPlayers.length === 0 && <p>Клиент не найден</p>}
             </div>
           )}
+          <div className="pos-new-client-form">
+            <label>
+              <span>Новая карта</span>
+              <input
+                aria-label="Имя клиента POS"
+                value={newPlayerName}
+                disabled={backend !== null && !hasPermission(backend.session, permissionNames.createPlayerAccount)}
+                placeholder={playerSearchQuery || 'имя клиента'}
+                onChange={(event) => setNewPlayerName(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              <span>Телефон</span>
+              <input
+                aria-label="Телефон клиента POS"
+                value={newPlayerPhone}
+                disabled={backend !== null && !hasPermission(backend.session, permissionNames.createPlayerAccount)}
+                placeholder="+992..."
+                onChange={(event) => setNewPlayerPhone(event.currentTarget.value)}
+              />
+            </label>
+            <button type="button" disabled={!canCreatePosPlayer || feedback.state === 'pending'} onClick={createPosPlayer}>
+              <UserRoundPlus size={14} />
+              Создать
+            </button>
+          </div>
           <div className="pos-cart-list">
             {cartItems.map((item) => (
               <article key={`${item.productId ?? item.name}-${item.name}`} className="pos-cart-row interactive-row">
@@ -3571,7 +3640,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               ['Пополнить депозит', 'откройте экран клиентов', CircleDollarSign],
               ['Возврат по чеку', 'требует выбранный backend sale', ReceiptText],
               ['Аннулировать черновик', 'создать и отменить draft', X],
-              ['Новый клиент', 'экран клиентов', UserRoundPlus],
+              ['Новый клиент', newPlayerDisplayName || 'заполните имя', UserRoundPlus],
               ['Внести наличные', 'экран платежей', Banknote]
             ].map(([label, detail, Icon]) => (
               <button
@@ -3579,12 +3648,15 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 type="button"
                 className="pos-quick-card"
                 disabled={((label as string) === 'Возврат по чеку' && (!canRefundSelectedSale || feedback.state === 'pending'))
-                  || ((label as string) === 'Аннулировать черновик' && (!canVoidDraftCart || feedback.state === 'pending'))}
+                  || ((label as string) === 'Аннулировать черновик' && (!canVoidDraftCart || feedback.state === 'pending'))
+                  || ((label as string) === 'Новый клиент' && (!canCreatePosPlayer || feedback.state === 'pending'))}
                 onClick={() => {
                   if ((label as string) === 'Возврат по чеку') {
                     void refundLatestSale();
                   } else if ((label as string) === 'Аннулировать черновик') {
                     void voidDraftCart();
+                  } else if ((label as string) === 'Новый клиент') {
+                    void createPosPlayer();
                   } else {
                     triggerFeedback(setFeedback, label as string);
                   }
