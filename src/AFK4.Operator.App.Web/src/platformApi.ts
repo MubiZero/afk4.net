@@ -49,6 +49,10 @@ export class PlatformApiClient {
     return this.send<TResponse>('POST', path, body);
   }
 
+  patch<TResponse, TRequest = unknown>(path: string, body?: TRequest): Promise<TResponse> {
+    return this.send<TResponse>('PATCH', path, body);
+  }
+
   buildUrl(path: string, query?: QueryParams): string {
     const url = new URL(path, this.baseUrl);
 

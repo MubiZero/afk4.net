@@ -86,7 +86,7 @@ public sealed class DashboardEndpointTests
         Assert.Equal(1, result.AlertPressure.OfflineDevices);
         Assert.Equal(1, result.AlertPressure.EndingSessions);
         Assert.Equal(4, result.AlertPressure.TotalAlerts);
-        Assert.Equal("floor-map-availability", result.Reservations.Source);
+        Assert.Equal("reservation-contract", result.Reservations.Source);
         Assert.Equal(0, result.Reservations.AvailableSlots);
         Assert.Contains(result.FocusQueue, item => item.SourceType == "device-command" && item.Tone == "blocking");
         Assert.Contains(result.FocusQueue, item => item.SourceType == "device" && item.Target == "PC-02");

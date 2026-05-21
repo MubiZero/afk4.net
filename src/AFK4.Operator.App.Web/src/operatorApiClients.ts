@@ -118,6 +118,8 @@ export type ShiftDto = Record<string, unknown>;
 export type CashMovementDto = Record<string, unknown>;
 export type ReportResultDto = Record<string, unknown>;
 export type OperatorDashboardSummaryDto = Record<string, unknown>;
+export type ReservationDto = Record<string, unknown>;
+export type ReservationSearchResultDto = Record<string, unknown>;
 export type StaffUserDto = Record<string, unknown>;
 export type ZoneDto = Record<string, unknown>;
 export type SeatDto = Record<string, unknown>;
@@ -184,6 +186,32 @@ export interface ReportQuery {
 }
 
 export type DashboardSummaryQuery = ReportQuery;
+
+export type ReservationSearchQuery = ReportQuery & {
+  state?: string | null;
+  source?: string | null;
+};
+
+export interface CreateReservationRequest extends Record<string, unknown> {
+  organizationId: Guid;
+}
+
+export interface UpdateReservationRequest extends Record<string, unknown> {
+  organizationId: Guid;
+}
+
+export interface ConfirmReservationRequest {
+  organizationId: Guid;
+}
+
+export interface SeatReservationRequest {
+  organizationId: Guid;
+}
+
+export interface CancelReservationRequest {
+  organizationId: Guid;
+  reason: string;
+}
 
 export interface CreateStaffUserRequest extends Record<string, unknown> {
   organizationId: Guid;
@@ -256,6 +284,7 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     pos: createPosClient(api),
     players: createPlayerClient(api),
     dashboard: createDashboardClient(api),
+    reservations: createReservationClient(api),
     shifts: createShiftClient(api),
     settings: createSettingsClient(api),
     devices: createDeviceClient(api),
@@ -343,6 +372,29 @@ export function createDashboardClient(api: PlatformApiClient) {
   return {
     getSummary(branchId: Guid, query?: DashboardSummaryQuery): Promise<OperatorDashboardSummaryDto> {
       return api.get<OperatorDashboardSummaryDto>(`/api/branches/${branchId}/dashboard/summary`, normalizeReportQuery(query));
+    }
+  };
+}
+
+export function createReservationClient(api: PlatformApiClient) {
+  return {
+    search(branchId: Guid, query?: ReservationSearchQuery): Promise<ReservationSearchResultDto> {
+      return api.get<ReservationSearchResultDto>(`/api/branches/${branchId}/reservations`, normalizeReportQuery(query));
+    },
+    create(branchId: Guid, request: CreateReservationRequest): Promise<ReservationDto> {
+      return api.post<ReservationDto, CreateReservationRequest>(`/api/branches/${branchId}/reservations`, request);
+    },
+    update(reservationId: Guid, request: UpdateReservationRequest): Promise<ReservationDto> {
+      return api.patch<ReservationDto, UpdateReservationRequest>(`/api/reservations/${reservationId}`, request);
+    },
+    confirm(reservationId: Guid, request: ConfirmReservationRequest): Promise<ReservationDto> {
+      return api.post<ReservationDto, ConfirmReservationRequest>(`/api/reservations/${reservationId}/confirm`, request);
+    },
+    seat(reservationId: Guid, request: SeatReservationRequest): Promise<ReservationDto> {
+      return api.post<ReservationDto, SeatReservationRequest>(`/api/reservations/${reservationId}/seat`, request);
+    },
+    cancel(reservationId: Guid, request: CancelReservationRequest): Promise<ReservationDto> {
+      return api.post<ReservationDto, CancelReservationRequest>(`/api/reservations/${reservationId}/cancel`, request);
     }
   };
 }
@@ -498,7 +550,7 @@ export function createAuditClient(api: PlatformApiClient) {
   };
 }
 
-function normalizeReportQuery(query?: ReportQuery | Omit<AuditSearchRequest, 'branchId'>): QueryParams | undefined {
+function normalizeReportQuery(query?: ReportQuery | ReservationSearchQuery | Omit<AuditSearchRequest, 'branchId'>): QueryParams | undefined {
   if (!query) {
     return undefined;
   }

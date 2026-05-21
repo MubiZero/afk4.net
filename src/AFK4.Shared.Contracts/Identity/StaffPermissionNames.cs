@@ -64,6 +64,10 @@ public static class StaffPermissionNames
 
     public const string ViewReports = "reports.view";
 
+    public const string ViewReservations = "reservations.view";
+
+    public const string ManageReservations = "reservations.manage";
+
     public const string ManagePosCatalog = "pos.catalog.manage";
 
     public const string CreatePosSale = "pos.sales.create";

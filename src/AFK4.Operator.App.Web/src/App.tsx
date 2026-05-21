@@ -40,6 +40,7 @@ import {
   type OperatorDashboardSummaryDto,
   type PosProductDto,
   type PosSaleDto,
+  type ReservationSearchResultDto,
   type ReportResultDto,
   type ShiftDto,
   type StaffUserDto,
@@ -79,6 +80,53 @@ const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'play
 const fallbackOrganizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const defaultSessionDurationMinutes = 60;
 const defaultTariffRuleVersionId = 'manual-v1';
+const permissionNames = {
+  viewFloorMap: 'floor_map.view',
+  startSession: 'sessions.start',
+  extendSession: 'sessions.extend',
+  transferSession: 'sessions.transfer',
+  endSession: 'sessions.end',
+  viewPlayers: 'players.view',
+  viewBilling: 'billing.view',
+  viewShift: 'shifts.view',
+  viewReports: 'reports.view',
+  viewReservations: 'reservations.view',
+  manageReservations: 'reservations.manage',
+  createPosSale: 'pos.sales.create',
+  payPosSale: 'pos.sales.pay',
+  viewInventory: 'inventory.view',
+  viewReceipt: 'receipts.view',
+  viewDiagnostics: 'diagnostics.view',
+  manageBranchStaff: 'identity.branch_staff.manage',
+  manageLayout: 'layout.manage',
+  viewTariffs: 'tariffs.view',
+  viewUpdateStatus: 'updates.status.view',
+  viewAudit: 'audit.view'
+} as const;
+
+const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
+  map: [permissionNames.viewFloorMap],
+  dashboard: [permissionNames.viewReports],
+  booking: [permissionNames.viewReservations],
+  pos: [
+    permissionNames.viewInventory,
+    permissionNames.createPosSale,
+    permissionNames.payPosSale,
+    permissionNames.viewShift,
+    permissionNames.viewReports
+  ],
+  players: [permissionNames.viewPlayers, permissionNames.viewBilling],
+  payments: [permissionNames.viewShift, permissionNames.viewReports],
+  logs: [permissionNames.viewAudit, permissionNames.viewDiagnostics],
+  settings: [
+    permissionNames.manageBranchStaff,
+    permissionNames.manageLayout,
+    permissionNames.viewInventory,
+    permissionNames.viewDiagnostics,
+    permissionNames.viewUpdateStatus,
+    permissionNames.viewTariffs
+  ]
+};
 
 const toneLabels: Record<SeatTone, string> = {
   ready: 'Готов',
@@ -111,6 +159,17 @@ function toDateInputValue(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function toDateTimeInputValue(date: Date) {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${toDateInputValue(date)}T${hours}:${minutes}`;
+}
+
+function dateTimeInputToIso(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
 function addDays(date: Date, days: number) {
@@ -649,14 +708,32 @@ function requireBackend(backend: OperatorBackendContext | null): OperatorBackend
   return backend;
 }
 
+function hasPermission(session: OperatorAuthSession | null, permission: string) {
+  return session?.permissions.some((candidate) => candidate.toLowerCase() === permission.toLowerCase()) ?? false;
+}
+
+function hasAllPermissions(session: OperatorAuthSession | null, permissions: readonly string[]) {
+  return permissions.every((permission) => hasPermission(session, permission));
+}
+
+function canOpenWorkspace(session: OperatorAuthSession | null, workspaceId: WorkspaceId) {
+  return hasAllPermissions(session, workspacePermissionRules[workspaceId]);
+}
+
+function firstAllowedWorkspace(session: OperatorAuthSession | null) {
+  return workspaceIds.find((workspaceId) => canOpenWorkspace(session, workspaceId)) ?? 'map';
+}
+
 function MapWorkspace({
   currencyCode,
   floorMap,
+  canUseTechMode,
   selectedSeatId,
   onSelectSeat
 }: {
   currencyCode: string;
   floorMap: OperatorFloorMapState;
+  canUseTechMode: boolean;
   selectedSeatId: string;
   onSelectSeat: (seatId: string) => void;
 }) {
@@ -677,7 +754,12 @@ function MapWorkspace({
         </div>
         <div className="screen-actions">
           <span className={`map-load-state ${floorMap.loadStatus}`}>{loadLabel}</span>
-          <button type="button" className="map-tool-action" onClick={() => triggerFeedback(setFeedback, 'Техрежим')}>
+          <button
+            type="button"
+            className="map-tool-action"
+            disabled={!canUseTechMode}
+            onClick={() => triggerFeedback(setFeedback, 'Техрежим')}
+          >
             <Wrench size={14} />Техрежим
           </button>
         </div>
@@ -2129,12 +2211,14 @@ function MapSidePanel({
   seat,
   seats: floorSeats,
   currencyCode,
+  session,
   actionsEnabled,
   onSeatAction
 }: {
   seat: SeatSummary;
   seats: SeatSummary[];
   currencyCode: string;
+  session: OperatorAuthSession | null;
   actionsEnabled: boolean;
   onSeatAction: (request: SeatActionRequest) => Promise<void>;
 }) {
@@ -2150,9 +2234,25 @@ function MapSidePanel({
   const hasActionableSession = Boolean(seat.activeSessionId);
   const hasActiveSession = hasActionableSession || seat.hasActiveSession === true || seat.tone === 'active';
   const isBusy = feedback.state === 'pending';
-  const canStartSession = actionsEnabled && !hasActionableSession && seat.tone === 'ready';
-  const canManageActiveSession = actionsEnabled && hasActionableSession;
-  const canTransferSession = canManageActiveSession && targetSeatId.length > 0;
+  const canStartPermission = hasPermission(session, permissionNames.startSession);
+  const canExtendPermission = hasPermission(session, permissionNames.extendSession);
+  const canTransferPermission = hasPermission(session, permissionNames.transferSession);
+  const canEndPermission = hasPermission(session, permissionNames.endSession);
+  const hasAnySessionActionPermission = canStartPermission ||
+    canExtendPermission ||
+    canTransferPermission ||
+    canEndPermission;
+  const canStartSession = actionsEnabled && canStartPermission && !hasActionableSession && seat.tone === 'ready';
+  const canExtendSession = actionsEnabled && canExtendPermission && hasActionableSession;
+  const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
+  const canTransferSession = actionsEnabled && canTransferPermission && hasActionableSession && targetSeatId.length > 0;
+  const confirmationText = !actionsEnabled
+    ? 'Backend карта недоступна'
+    : !hasAnySessionActionPermission
+      ? 'Нет прав на действия с сессией'
+      : feedback.state === 'idle'
+        ? 'Ждём платформу'
+        : feedbackText(feedback);
 
   useEffect(() => {
     if (targetSeatId.length > 0 && transferCandidates.some((candidate) => candidate.id === targetSeatId)) {
@@ -2195,10 +2295,10 @@ function MapSidePanel({
       <section className="action-grid context-actions" aria-label="Быстрые действия">
         {hasActiveSession ? (
           <>
-            <button type="button" disabled={!canManageActiveSession || isBusy} onClick={() => runSeatAction('+15 мин', { type: 'extend', seat, minutes: 15 })}><Plus size={15} />15 мин</button>
-            <button type="button" disabled={!canManageActiveSession || isBusy} onClick={() => runSeatAction('+30 мин', { type: 'extend', seat, minutes: 30 })}><TimerReset size={15} />30 мин</button>
+            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+15 мин', { type: 'extend', seat, minutes: 15 })}><Plus size={15} />15 мин</button>
+            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+30 мин', { type: 'extend', seat, minutes: 30 })}><TimerReset size={15} />30 мин</button>
             <button type="button" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction('Перенос', { type: 'transfer', seat, targetSeatId })}><ArrowRightLeft size={15} />Перенос</button>
-            <button type="button" className="danger" disabled={!canManageActiveSession || isBusy} onClick={() => runSeatAction('Стоп', { type: 'end', seat })}><Square size={15} />Стоп</button>
+            <button type="button" className="danger" disabled={!canEndSession || isBusy} onClick={() => runSeatAction('Стоп', { type: 'end', seat })}><Square size={15} />Стоп</button>
           </>
         ) : (
           <>
@@ -2210,7 +2310,7 @@ function MapSidePanel({
       {hasActiveSession && (
         <label className="context-transfer-target">
           <span>Перенести на</span>
-          <select value={targetSeatId} disabled={!actionsEnabled || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
+          <select value={targetSeatId} disabled={!actionsEnabled || !canTransferPermission || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
             {transferCandidates.length === 0 && <option value="">Нет свободных ПК</option>}
             {transferCandidates.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
@@ -2249,7 +2349,7 @@ function MapSidePanel({
         </div>
         <div className="detail-row">
           <span>Подтверждение</span>
-          <strong>{!actionsEnabled ? 'Backend карта недоступна' : feedback.state === 'idle' ? 'Ждём платформу' : feedbackText(feedback)}</strong>
+          <strong>{confirmationText}</strong>
         </div>
       </section>
 
@@ -2644,51 +2744,207 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
 
 function BackendBookingWorkspace({
   floorMap,
+  backend,
   onOpenSeat
 }: {
   floorMap: OperatorFloorMapState;
+  backend: OperatorBackendContext | null;
   onOpenSeat: (seatId: string) => void;
 }) {
   const [selectedBookingIndex, setSelectedBookingIndex] = useState(0);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [reservationResult, setReservationResult] = useState<ReservationSearchResultDto | null>(null);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [draftCustomerName, setDraftCustomerName] = useState('Гость');
+  const [draftPhoneNumber, setDraftPhoneNumber] = useState('');
+  const [draftStartsAt, setDraftStartsAt] = useState(() => toDateTimeInputValue(addDays(new Date(), 0)));
+  const [draftDurationMinutes, setDraftDurationMinutes] = useState(60);
   const readySeats = floorMap.seats.filter((seat) => seat.tone === 'ready' && !seat.activeSessionId);
   const activeSeats = floorMap.seats.filter((seat) => seat.tone === 'active' || seat.activeSessionId);
   const problemSeats = floorMap.seats.filter((seat) => problemTones.has(seat.tone));
-  const bookings = readySeats.slice(0, 4).map((seat, index) => ({
-    time: `${16 + Math.floor(index / 2)}:${index % 2 === 0 ? '00' : '30'}`,
-    client: `Свободный слот · ${seat.name}`,
-    seats: '1 ПК',
-    zone: seat.zone,
-    duration: '60 мин',
-    status: floorMap.source === 'backend' ? 'Доступно по backend' : 'Fixture слот',
-    tone: floorMap.source === 'backend' ? 'confirmed' : 'pending',
-    note: `${seat.deviceName ?? seat.name} · ${deviceStatusLabel(seat.device)}`,
-    seatId: seat.id
-  }));
+  const today = new Date();
+  const bookingFromUtc = `${toDateInputValue(today)}T00:00:00.000Z`;
+  const bookingToUtc = `${toDateInputValue(today)}T23:59:59.999Z`;
+
+  useEffect(() => {
+    let disposed = false;
+
+    if (backend === null) {
+      setReservationResult(null);
+      setLoadStatus('failed');
+      setLoadError('Active branch is not assigned.');
+      return undefined;
+    }
+
+    setLoadStatus('loading');
+    setLoadError(null);
+
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.reservations.search(backend.branchId, {
+      fromUtc: bookingFromUtc,
+      toUtc: bookingToUtc,
+      limit: 40
+    })
+      .then((result) => {
+        if (disposed) {
+          return;
+        }
+
+        setReservationResult(result);
+        setLoadStatus('backend');
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setReservationResult(null);
+        setLoadStatus('failed');
+        setLoadError(projectOperatorError(error).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, bookingFromUtc, bookingToUtc, reloadVersion]);
+
+  const reservations = readArray<Record<string, unknown>>(reservationResult, 'reservations');
+  const bookings = reservations.map((reservation) => {
+    const state = readString(reservation, 'state', 'pending');
+    const source = readString(reservation, 'source', 'operator');
+    const startsAtUtc = readString(reservation, 'startsAtUtc');
+    const durationMinutes = readNumber(reservation, 'durationMinutes', 60);
+    const seatName = readString(reservation, 'seatName', '');
+    const zoneName = readString(reservation, 'zoneName', 'Без места');
+    const tone = state === 'cancelled'
+      ? 'blocking'
+      : state === 'seated'
+        ? 'confirmed'
+        : source === 'online'
+          ? 'online'
+          : 'pending';
+
+    return {
+      reservationId: readString(reservation, 'reservationId'),
+      time: formatTime(startsAtUtc),
+      client: readString(reservation, 'customerName', 'Гость'),
+      seats: seatName ? '1 ПК' : 'без ПК',
+      zone: seatName ? `${zoneName} · ${seatName}` : zoneName,
+      duration: `${durationMinutes} мин`,
+      status: reservationStateLabel(state),
+      tone,
+      note: readString(reservation, 'note', readString(reservation, 'phoneNumber', 'без комментария')),
+      seatId: readString(reservation, 'seatId'),
+      source
+    };
+  });
   const selectedBooking = bookings[selectedBookingIndex] ?? bookings[0] ?? {
+    reservationId: '',
     time: '—',
-    client: 'Нет свободных слотов',
+    client: loadStatus === 'failed' ? 'Брони не загружены' : 'Нет броней за сегодня',
     seats: '0 ПК',
     zone: floorMap.branchName,
     duration: '—',
-    status: 'Нет доступных мест',
+    status: loadStatus === 'loading' ? 'Загрузка' : 'Пусто',
     tone: 'pending',
-    note: 'Проверьте карту зала',
-    seatId: ''
+    note: loadError ?? 'Свободные места доступны на карте зала',
+    seatId: '',
+    source: 'operator'
   };
-  const bookingContractMissing = 'Backend-контракт бронирований ещё не реализован.';
-  const failBookingAction = (label: string) => triggerFeedback(setFeedback, label, 'failed', bookingContractMissing);
+  const onlineRequests = bookings.filter((booking) => booking.source === 'online' && booking.status === 'Ожидает');
+  const selectedReadySeat = readySeats.find((seat) => seat.id === selectedBooking.seatId) ?? readySeats[0] ?? null;
+  const loadLabel = loadStatus === 'backend'
+    ? 'Данные платформы'
+    : loadStatus === 'loading'
+      ? 'Загрузка броней'
+      : 'Ошибка броней';
+  const runReservationAction = async (
+    label: string,
+    operation: (clients: ReturnType<typeof createOperatorApiClients>) => Promise<unknown>,
+    afterSuccess?: () => void
+  ) => {
+    setFeedback({ label, state: 'pending' });
+
+    try {
+      const nextBackend = requireBackend(backend);
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await operation(clients);
+      setFeedback({ label, state: 'confirmed' });
+      setReloadVersion((value) => value + 1);
+      afterSuccess?.();
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+  const requireSelectedReservationId = () => {
+    if (!selectedBooking.reservationId) {
+      throw new Error('Выберите бронь из данных платформы.');
+    }
+
+    return selectedBooking.reservationId;
+  };
+  const createReservation = () => runReservationAction('Создать бронь', async (clients) => {
+    const nextBackend = requireBackend(backend);
+    if (!selectedReadySeat) {
+      throw new Error('Нет свободного места для новой брони.');
+    }
+
+    return await clients.reservations.create(nextBackend.branchId, {
+      organizationId: nextBackend.session.organizationId,
+      seatId: selectedReadySeat.id,
+      customerName: draftCustomerName.trim() || 'Гость',
+      phoneNumber: draftPhoneNumber.trim() || null,
+      startsAtUtc: dateTimeInputToIso(draftStartsAt),
+      durationMinutes: Math.max(15, draftDurationMinutes),
+      source: 'operator',
+      note: `Создано оператором · ${selectedReadySeat.name}`
+    });
+  });
+  const confirmReservation = (reservationId: string, label: string) => runReservationAction(label, async (clients) => {
+    const nextBackend = requireBackend(backend);
+    return await clients.reservations.confirm(reservationId, { organizationId: nextBackend.session.organizationId });
+  });
+  const seatReservation = () => runReservationAction('Посадить бронь', async (clients) => {
+    const nextBackend = requireBackend(backend);
+    return await clients.reservations.seat(requireSelectedReservationId(), { organizationId: nextBackend.session.organizationId });
+  }, () => {
+    if (selectedBooking.seatId) {
+      onOpenSeat(selectedBooking.seatId);
+    }
+  });
+  const moveReservation = () => runReservationAction('Перенести бронь', async (clients) => {
+    const nextBackend = requireBackend(backend);
+    const targetSeat = readySeats.find((seat) => seat.id !== selectedBooking.seatId);
+    if (!targetSeat) {
+      throw new Error('Нет другого свободного места для переноса.');
+    }
+
+    return await clients.reservations.update(requireSelectedReservationId(), {
+      organizationId: nextBackend.session.organizationId,
+      seatId: targetSeat.id,
+      note: `Перенесено оператором · ${targetSeat.name}`
+    });
+  });
+  const cancelReservation = () => runReservationAction('Отменить бронь', async (clients) => {
+    const nextBackend = requireBackend(backend);
+    return await clients.reservations.cancel(requireSelectedReservationId(), {
+      organizationId: nextBackend.session.organizationId,
+      reason: 'Отменено оператором'
+    });
+  });
 
   return (
     <main className="workspace-screen booking-screen">
       <section className="screen-head booking-head">
         <div>
           <span>Брони</span>
-          <h1>Брони сегодня · доступность мест из backend карты</h1>
+          <h1>Брони сегодня · посадка гостей и онлайн-заявки</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${floorMap.source === 'backend' ? 'ready' : floorMap.loadStatus}`}>{floorMap.source === 'backend' ? 'Backend floor map' : 'Fixture availability'}</span>
-          <button type="button" className="booking-create-action" onClick={() => failBookingAction('Новая бронь')}><Plus size={14} />Создать</button>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadLabel}</span>
+          <button type="button" className="booking-create-action" onClick={createReservation}><Plus size={14} />Создать</button>
         </div>
       </section>
 
@@ -2696,15 +2952,15 @@ function BackendBookingWorkspace({
         <StateFlag label="Свободно" value={String(readySeats.length)} />
         <StateFlag label="Занято" value={String(activeSeats.length)} />
         <StateFlag label="Проблемы" value={String(problemSeats.length)} critical={problemSeats.length > 0} />
-        <StateFlag label="Источник" value={floorMap.source} critical={floorMap.source !== 'backend'} />
-        <StateFlag label="Слоты" value={String(bookings.length)} />
+        <StateFlag label="Брони" value={String(bookings.length)} critical={loadStatus === 'failed'} />
+        <StateFlag label="Заявки" value={String(onlineRequests.length)} critical={onlineRequests.length > 0} />
       </section>
 
       <section className="booking-layout">
         <section className="booking-panel booking-timeline-panel">
           <header className="booking-panel-title">
             <span>Лента броней</span>
-            <strong>показывает доступность, пока booking API отсутствует</strong>
+            <strong>активные брони из платформы</strong>
           </header>
           <div className="booking-list">
             {bookings.map((booking, index) => (
@@ -2727,11 +2983,11 @@ function BackendBookingWorkspace({
               <article className="booking-card pending">
                 <span className="booking-time">—</span>
                 <span className="booking-client">
-                  <strong>Нет свободных мест</strong>
-                  <em>backend карта не дала доступных слотов</em>
+                  <strong>{loadStatus === 'loading' ? 'Загрузка броней' : 'Нет броней'}</strong>
+                  <em>{loadError ?? 'Платформа вернула пустой список за сегодня.'}</em>
                 </span>
                 <span className="booking-meta">{floorMap.branchName}</span>
-                <b>Нет слота</b>
+                <b>{loadStatus === 'failed' ? 'Ошибка' : 'Пусто'}</b>
               </article>
             )}
           </div>
@@ -2743,60 +2999,87 @@ function BackendBookingWorkspace({
             <strong>{selectedBooking.client} · {selectedBooking.time}</strong>
           </header>
           <div className={`booking-status-card ${selectedBooking.tone}`}>
-            <span>Доступность подтверждена картой</span>
+            <span>{selectedBooking.status}</span>
             <strong>{selectedBooking.time}</strong>
             <em>{selectedBooking.seats} · {selectedBooking.zone} · {selectedBooking.duration}</em>
           </div>
           <div className="booking-action-grid" aria-label="Действия с бронью">
-            <button type="button" onClick={() => selectedBooking.seatId ? onOpenSeat(selectedBooking.seatId) : failBookingAction('Открыть карту')}><MonitorCheck size={15} />Открыть карту</button>
-            <button type="button" onClick={() => failBookingAction('Посадить бронь')}><UserRoundPlus size={15} />Посадить</button>
-            <button type="button" onClick={() => failBookingAction('Перенести бронь')}><ArrowRightLeft size={15} />Перенести</button>
-            <button type="button" className="danger" onClick={() => failBookingAction('Отменить бронь')}><Square size={15} />Отменить</button>
+            <button type="button" onClick={() => selectedBooking.seatId ? onOpenSeat(selectedBooking.seatId) : setFeedback({ label: 'Открыть карту', state: 'failed', detail: 'У выбранной брони нет места.' })}><MonitorCheck size={15} />Открыть карту</button>
+            <button type="button" onClick={seatReservation}><UserRoundPlus size={15} />Посадить</button>
+            <button type="button" onClick={moveReservation}><ArrowRightLeft size={15} />Перенести</button>
+            <button type="button" className="danger" onClick={cancelReservation}><Square size={15} />Отменить</button>
           </div>
           <FeedbackNotice feedback={feedback} />
           <div className="booking-detail-list">
             <div><span>Клиент</span><strong>{selectedBooking.client}</strong></div>
             <div><span>Комментарий</span><strong>{selectedBooking.note}</strong></div>
-            <div><span>Backend</span><strong>{bookingContractMissing}</strong></div>
+            <div><span>Источник</span><strong>{selectedBooking.source === 'online' ? 'онлайн-заявка' : 'оператор'}</strong></div>
           </div>
         </section>
 
         <section className="booking-panel booking-requests-panel">
           <header className="booking-panel-title">
             <span>Онлайн-заявки</span>
-            <strong>нет backend источника заявок</strong>
+            <strong>заявки в ожидании подтверждения</strong>
           </header>
           <div className="booking-request-list">
-            {['Telegram', 'Сайт'].map((source, index) => (
-              <article key={source} className="booking-request-card">
-                <span>{index === 0 ? '—' : '—'}</span>
-                <strong>{source}</strong>
-                <em>{bookingContractMissing}</em>
+            {onlineRequests.map((request) => (
+              <article key={request.reservationId} className="booking-request-card">
+                <span>{request.time}</span>
+                <strong>{request.client}</strong>
+                <em>{request.note}</em>
                 <div>
-                  <button type="button" onClick={() => failBookingAction(`Принять ${source}`)}>Принять</button>
-                  <button type="button" onClick={() => failBookingAction(`Уточнить ${source}`)}>Уточнить</button>
+                  <button type="button" onClick={() => confirmReservation(request.reservationId, `Принять ${request.client}`)}>Принять</button>
+                  <button type="button" onClick={() => {
+                    const index = bookings.findIndex((booking) => booking.reservationId === request.reservationId);
+                    if (index >= 0) {
+                      setSelectedBookingIndex(index);
+                    }
+                  }}>Уточнить</button>
                 </div>
               </article>
             ))}
+            {onlineRequests.length === 0 && (
+              <article className="booking-request-card">
+                <span>—</span>
+                <strong>Нет онлайн-заявок</strong>
+                <em>{loadStatus === 'failed' ? loadError ?? 'Не удалось загрузить заявки.' : 'Платформа не вернула заявок в ожидании.'}</em>
+              </article>
+            )}
           </div>
         </section>
 
         <section className="booking-panel booking-create-panel">
           <header className="booking-panel-title">
             <span>Новая бронь</span>
-            <strong>черновик ждёт backend booking API</strong>
+            <strong>{selectedReadySeat ? `${selectedReadySeat.zone} · ${selectedReadySeat.name}` : 'нет свободного места'}</strong>
           </header>
           <div className="booking-form-grid">
-            <label>Клиент<input value="имя или телефон" readOnly /></label>
-            <label>Старт<input value={selectedBooking.time} readOnly /></label>
-            <label>Длительность<input value={selectedBooking.duration} readOnly /></label>
-            <label>ПК<input value={selectedBooking.zone} readOnly /></label>
+            <label>Клиент<input value={draftCustomerName} onChange={(event) => setDraftCustomerName(event.target.value)} /></label>
+            <label>Телефон<input value={draftPhoneNumber} onChange={(event) => setDraftPhoneNumber(event.target.value)} /></label>
+            <label>Старт<input type="datetime-local" value={draftStartsAt} onChange={(event) => setDraftStartsAt(event.target.value)} /></label>
+            <label>Длительность<input type="number" min={15} step={15} value={draftDurationMinutes} onChange={(event) => setDraftDurationMinutes(Number(event.target.value) || 60)} /></label>
           </div>
-          <button type="button" className="booking-primary-action" onClick={() => failBookingAction('Создать бронь')}>Создать бронь</button>
+          <button type="button" className="booking-primary-action" onClick={createReservation}>Создать бронь</button>
         </section>
       </section>
     </main>
   );
+}
+
+function reservationStateLabel(state: string) {
+  switch (state) {
+    case 'confirmed':
+      return 'Подтверждена';
+    case 'pending':
+      return 'Ожидает';
+    case 'seated':
+      return 'Посажен';
+    case 'cancelled':
+      return 'Отменена';
+    default:
+      return state || 'Неизвестно';
+  }
 }
 
 type PlayerClientItem = {
@@ -2979,8 +3262,24 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         });
         setClients((items) => [createdClient, ...items]);
         setSelectedClientId(createdClient.playerAccountId ?? null);
+      } else if (label === 'Создать бронь') {
+        if (!selectedClient.playerAccountId || selectedClient.source !== 'backend') {
+          throw new Error('Выберите backend игрока перед созданием брони.');
+        }
+
+        await apiClients.reservations.create(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          playerAccountId: selectedClient.playerAccountId,
+          seatId: null,
+          customerName: selectedClient.name,
+          phoneNumber: selectedClient.phoneNumber || null,
+          startsAtUtc: new Date(Date.now() + 30 * 60_000).toISOString(),
+          durationMinutes: 60,
+          source: 'operator',
+          note: 'Создано из карточки клиента'
+        });
       } else {
-        throw new Error('Backend booking contract is not implemented yet.');
+        throw new Error('Операция пока не подключена к backend.');
       }
 
       setFeedback({ label, state: 'confirmed' });
@@ -3073,7 +3372,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             {[
               ['Пополнить депозит', '100 к депозиту', CircleDollarSign],
               ['Списать долг', 'после оплаты', ReceiptText],
-              ['Создать бронь', 'нет booking API', CalendarClock],
+              ['Создать бронь', 'бронь из карточки', CalendarClock],
               ['Новая карта', 'создать игрока', UserRoundPlus]
             ].map(([label, detail, Icon]) => (
               <button key={label as string} type="button" className="clients-action-card" onClick={() => runClientAction(label as string)}>
@@ -4140,6 +4439,7 @@ export function App() {
   const backendContext: OperatorBackendContext | null = authSession !== null && activeBranchId !== null
     ? { config, session: authSession, branchId: activeBranchId }
     : null;
+  const canUseTechMode = hasPermission(authSession, permissionNames.viewDiagnostics);
 
   useEffect(() => {
     let disposed = false;
@@ -4168,6 +4468,16 @@ export function App() {
       disposed = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (authStatus !== 'signed-in' || authSession === null) {
+      return;
+    }
+
+    if (!canOpenWorkspace(authSession, workspace)) {
+      setWorkspace(firstAllowedWorkspace(authSession));
+    }
+  }, [authStatus, authSession, workspace]);
 
   useEffect(() => {
     if (authStatus !== 'signed-in' || authSession === null) {
@@ -4308,6 +4618,10 @@ export function App() {
 
     const clients = createAuthenticatedOperatorClients(config, session);
     if (request.type === 'start') {
+      if (!hasPermission(session, permissionNames.startSession)) {
+        throw new Error('Operator is not allowed to start sessions.');
+      }
+
       if (request.seat.tone !== 'ready' || request.seat.activeSessionId) {
         throw new Error('Seat is not ready for session start.');
       }
@@ -4321,6 +4635,10 @@ export function App() {
         billingMode: ''
       });
     } else if (request.type === 'extend') {
+      if (!hasPermission(session, permissionNames.extendSession)) {
+        throw new Error('Operator is not allowed to extend sessions.');
+      }
+
       if (!request.seat.activeSessionId) {
         throw new Error('Selected seat has no active session.');
       }
@@ -4331,6 +4649,10 @@ export function App() {
         idempotencyKey: createIdempotencyKey('session-extend')
       });
     } else if (request.type === 'transfer') {
+      if (!hasPermission(session, permissionNames.transferSession)) {
+        throw new Error('Operator is not allowed to transfer sessions.');
+      }
+
       if (!request.seat.activeSessionId) {
         throw new Error('Selected seat has no active session.');
       }
@@ -4340,6 +4662,10 @@ export function App() {
         idempotencyKey: createIdempotencyKey('session-transfer')
       });
     } else {
+      if (!hasPermission(session, permissionNames.endSession)) {
+        throw new Error('Operator is not allowed to end sessions.');
+      }
+
       if (!request.seat.activeSessionId) {
         throw new Error('Selected seat has no active session.');
       }
@@ -4393,13 +4719,19 @@ export function App() {
         {navItems.map((item, index) => {
           const Icon = item.icon;
           const id = workspaceIds[index];
+          const isAllowed = canOpenWorkspace(authSession, id);
           return (
             <button
               key={item.label}
               type="button"
               className={workspace === id ? 'active' : ''}
+              disabled={!isAllowed}
               title={item.label}
-              onClick={() => setWorkspace(id)}
+              onClick={() => {
+                if (isAllowed) {
+                  setWorkspace(id);
+                }
+              }}
             >
               <Icon size={22} />
               <span>{item.label}</span>
@@ -4412,6 +4744,7 @@ export function App() {
         <MapWorkspace
           currencyCode={config.currencyCode}
           floorMap={floorMap}
+          canUseTechMode={canUseTechMode}
           selectedSeatId={selectedSeat?.id ?? ''}
           onSelectSeat={setSelectedSeatId}
         />
@@ -4430,6 +4763,7 @@ export function App() {
       {workspace === 'booking' && (
         <BackendBookingWorkspace
           floorMap={floorMap}
+          backend={backendContext}
           onOpenSeat={(seatId) => {
             setSelectedSeatId(seatId);
             setWorkspace('map');
@@ -4447,6 +4781,7 @@ export function App() {
           seat={selectedSeat}
           seats={floorMap.seats}
           currencyCode={config.currencyCode}
+          session={authSession}
           actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
           onSeatAction={handleSeatAction}
         />

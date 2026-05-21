@@ -3,6 +3,7 @@ using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Dashboard;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
@@ -89,6 +90,16 @@ public sealed class EfOperatorDashboardService(
                     assignment.DetachedAtUtc == null &&
                     deviceIds.Contains(assignment.DeviceId))
                 .ToListAsync(cancellationToken);
+        var activeReservations = await dbContext.Reservations
+            .AsNoTracking()
+            .Where(reservation =>
+                reservation.OrganizationId == organizationId &&
+                reservation.BranchId == branchId &&
+                reservation.StartsAtUtc <= toUtc &&
+                reservation.EndsAtUtc >= fromUtc &&
+                (reservation.State == ReservationStateNames.Pending ||
+                    reservation.State == ReservationStateNames.Confirmed))
+            .ToListAsync(cancellationToken);
 
         var activeSessionCount = sessions.Count(session => IsState(session.State, SessionStateNames.Active));
         var endingSessionCount = sessions.Count(session => IsState(session.State, SessionStateNames.Ending));
@@ -167,9 +178,9 @@ public sealed class EfOperatorDashboardService(
                 endingSessionCount,
                 totalAlerts),
             new OperatorDashboardReservationSummaryDto(
-                ActiveReservations: 0,
-                AvailableSlots: Math.Max(0, totalSeats - activeSessionCount - endingSessionCount),
-                Source: "floor-map-availability"),
+                ActiveReservations: activeReservations.Count,
+                AvailableSlots: Math.Max(0, totalSeats - activeSessionCount - endingSessionCount - activeReservations.Where(reservation => reservation.SeatId is not null).Select(reservation => reservation.SeatId).Distinct().Count()),
+                Source: "reservation-contract"),
             BuildFocusQueue(commands, devices, assignments, seats, sessions, limit),
             payments.Take(limit).Select(payment => new OperatorDashboardRecentPaymentDto(
                 payment.PaymentId,

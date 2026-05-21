@@ -131,6 +131,20 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^session-start-/);
   });
 
+  it('disables unauthorized workspaces and selected-seat actions', async () => {
+    installSessionBridge(createSession({ permissions: ['floor_map.view'] }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect(screen.getByTitle('POS')).toBeDisabled();
+    expect(screen.getByTitle('Брони')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /15 мин/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Стоп/ })).toBeDisabled();
+    expect(screen.getByText('Нет прав на действия с сессией')).toBeInTheDocument();
+  });
+
   it('switches to SmartShell-like booking, POS, and logs workspaces', async () => {
     installSessionBridge();
 
@@ -248,6 +262,56 @@ describe('App', () => {
       String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/payments/manual') &&
       init?.method === 'POST')).toBe(true);
   });
+
+  it('confirms booking create and cancel only after reservation backend calls resolve', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Брони'));
+    expect(await screen.findByText('Данные платформы')).toBeInTheDocument();
+    expect(screen.getAllByText('Aziz P.').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Создать бронь$/ }));
+    expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/reservations') &&
+      init?.method === 'POST')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /Отменить/ }));
+    expect(await screen.findByText('Отменить бронь: подтверждено')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/reservations/99999999-9999-9999-9999-999999999999/cancel') &&
+      init?.method === 'POST')).toBe(true);
+  });
+
+  it('creates a reservation from the selected backend player card', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText('Madina S.')).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: /Создать бронь/ }));
+
+    expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
+    const reservationCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/reservations') &&
+      init?.method === 'POST');
+    expect(reservationCall).toBeDefined();
+    const body = JSON.parse(String(reservationCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      playerAccountId: '12121212-1212-1212-1212-121212121212',
+      customerName: 'Madina S.',
+      source: 'operator'
+    });
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -260,6 +324,30 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/dashboard/summary')) {
     return jsonResponse(createDashboardSummary());
+  }
+
+  if (pathname.endsWith('/reservations') && init?.method === 'POST') {
+    return jsonResponse(createReservation({ state: 'confirmed', source: 'operator' }));
+  }
+
+  if (pathname.includes('/reservations/') && pathname.endsWith('/cancel')) {
+    return jsonResponse(createReservation({ state: 'cancelled', source: 'online', cancelReason: 'Отменено оператором' }));
+  }
+
+  if (pathname.includes('/reservations/') && pathname.endsWith('/seat')) {
+    return jsonResponse(createReservation({ state: 'seated', source: 'online' }));
+  }
+
+  if (pathname.includes('/reservations/') && pathname.endsWith('/confirm')) {
+    return jsonResponse(createReservation({ state: 'confirmed', source: 'online' }));
+  }
+
+  if (pathname.includes('/reservations/') && init?.method === 'PATCH') {
+    return jsonResponse(createReservation({ state: 'confirmed', source: 'operator', seatName: 'PC-02' }));
+  }
+
+  if (pathname.endsWith('/reservations')) {
+    return jsonResponse(createReservationSearch());
   }
 
   if (pathname.endsWith('/pos/catalog')) {
@@ -376,7 +464,31 @@ function installSessionBridge(loadSession: ReturnType<typeof createSession> | nu
   };
 }
 
-function createSession() {
+const allOperatorPermissions = [
+  'floor_map.view',
+  'sessions.start',
+  'sessions.extend',
+  'sessions.transfer',
+  'sessions.end',
+  'players.view',
+  'billing.view',
+  'shifts.view',
+  'reports.view',
+  'reservations.view',
+  'reservations.manage',
+  'pos.sales.create',
+  'pos.sales.pay',
+  'inventory.view',
+  'receipts.view',
+  'diagnostics.view',
+  'identity.branch_staff.manage',
+  'layout.manage',
+  'tariffs.view',
+  'updates.status.view',
+  'audit.view'
+];
+
+function createSession(overrides: Record<string, unknown> = {}) {
   return {
     staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
     organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
@@ -386,7 +498,8 @@ function createSession() {
     refreshTokenExpiresAtUtc: '2026-05-15T10:00:00Z',
     branchIds: ['acfc0212-967f-4d84-94be-9003387b09c2'],
     activeBranchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
-    permissions: ['floor-map:view']
+    permissions: allOperatorPermissions,
+    ...overrides
   };
 }
 
@@ -499,6 +612,40 @@ function createDashboardSummary() {
         createdAtUtc: '2026-05-21T09:01:00Z'
       }
     ]
+  };
+}
+
+function createReservationSearch() {
+  return {
+    reservations: [
+      createReservation({ state: 'pending', source: 'online' })
+    ],
+    limit: 40
+  };
+}
+
+function createReservation(overrides: Record<string, unknown> = {}) {
+  return {
+    reservationId: '99999999-9999-9999-9999-999999999999',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    playerAccountId: null,
+    seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    seatName: 'PC-01',
+    zoneName: 'Main',
+    customerName: 'Aziz P.',
+    phoneNumber: '+992900000001',
+    startsAtUtc: '2026-05-21T16:00:00Z',
+    endsAtUtc: '2026-05-21T17:00:00Z',
+    durationMinutes: 60,
+    state: 'pending',
+    source: 'online',
+    note: 'online request',
+    createdAtUtc: '2026-05-21T10:00:00Z',
+    updatedAtUtc: '2026-05-21T10:00:00Z',
+    cancelledAtUtc: null,
+    cancelReason: '',
+    ...overrides
   };
 }
 

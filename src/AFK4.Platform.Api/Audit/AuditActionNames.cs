@@ -64,6 +64,18 @@ public static class AuditActionNames
 
     public const string ViewDashboardSummary = "dashboard.summary.view";
 
+    public const string ViewReservations = "reservations.view";
+
+    public const string CreateReservation = "reservations.create";
+
+    public const string UpdateReservation = "reservations.update";
+
+    public const string ConfirmReservation = "reservations.confirm";
+
+    public const string SeatReservation = "reservations.seat";
+
+    public const string CancelReservation = "reservations.cancel";
+
     public const string CreateProductCategory = "pos.categories.create";
 
     public const string CreateProduct = "pos.products.create";

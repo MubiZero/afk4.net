@@ -20,6 +20,7 @@ const shiftId = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 const saleId = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 const deviceId = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
 const commandId = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+const reservationId = '99999999-9999-9999-9999-999999999999';
 
 describe('operator API clients', () => {
   it('maps floor-map and session clients to current backend routes', async () => {
@@ -134,6 +135,53 @@ describe('operator API clients', () => {
     });
 
     await expect(clients.shifts.getCurrentShift(branchId)).resolves.toBeNull();
+  });
+
+  it('maps reservation clients to booking backend routes', async () => {
+    const { clients, calls } = createRecordedClients();
+    const createRequest = {
+      organizationId,
+      seatId,
+      customerName: 'Aziz P.',
+      phoneNumber: '+992900000001',
+      startsAtUtc: '2026-05-21T16:00:00.000Z',
+      durationMinutes: 60,
+      source: 'operator',
+      note: 'front desk'
+    };
+    const updateRequest = {
+      organizationId,
+      seatId,
+      customerName: 'Aziz Prime',
+      startsAtUtc: '2026-05-21T17:00:00.000Z',
+      durationMinutes: 90,
+      source: 'operator',
+      note: 'moved'
+    };
+
+    await clients.reservations.search(branchId, {
+      fromUtc: '2026-05-21T00:00:00.000Z',
+      toUtc: '2026-05-21T23:59:59.999Z',
+      limit: 40,
+      state: 'confirmed'
+    });
+    await clients.reservations.create(branchId, createRequest);
+    await clients.reservations.update(reservationId, updateRequest);
+    await clients.reservations.confirm(reservationId, { organizationId });
+    await clients.reservations.seat(reservationId, { organizationId });
+    await clients.reservations.cancel(reservationId, { organizationId, reason: 'client called' });
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      `GET /api/branches/${branchId}/reservations?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.999Z&limit=40&state=confirmed`,
+      `POST /api/branches/${branchId}/reservations`,
+      `PATCH /api/reservations/${reservationId}`,
+      `POST /api/reservations/${reservationId}/confirm`,
+      `POST /api/reservations/${reservationId}/seat`,
+      `POST /api/reservations/${reservationId}/cancel`
+    ]);
+    expect(calls[1].body).toEqual(createRequest);
+    expect(calls[2].body).toEqual(updateRequest);
+    expect(calls[5].body).toEqual({ organizationId, reason: 'client called' });
   });
 
   it('maps settings, device, diagnostics, updates, and audit clients', async () => {

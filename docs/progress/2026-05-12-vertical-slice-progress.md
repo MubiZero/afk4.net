@@ -110,6 +110,11 @@ implementation evidence are needed.
   with the required session/seat ids, use idempotency keys, wait for backend
   confirmation, reload the authoritative floor map, and show failed backend
   responses as action feedback instead of confirming fixture-only clicks.
+- The React UI now has its first permission-aware state: the workspace rail
+  disables screens when the restored staff session lacks the backend
+  permissions those screens need, and selected-seat start/extend/transfer/end
+  actions are disabled and guarded by matching session permissions before any
+  API call is attempted.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports and creates paid manual-provider sales; Clients searches backend
@@ -206,9 +211,10 @@ implementation evidence are needed.
 
 Current local verification on 2026-05-21 from `D:\projects\afk4.net` after
 the WebView2/React auth/token, typed API client, SignalR realtime,
-backend-backed floor-map loading, backend-confirmed selected-seat actions, and
+backend-backed floor-map loading, backend-confirmed selected-seat actions,
 first backend-backed parity wiring for the remaining operator workspaces,
-including the Operator Dashboard summary endpoint and React Dashboard wiring:
+the Operator Dashboard summary endpoint, Booking reservation contracts, and
+permission-aware React navigation/session action state:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -219,15 +225,23 @@ including the Operator Dashboard summary endpoint and React Dashboard wiring:
 
 Result:
 
-- frontend tests: 34 passed, 0 failed;
+- frontend tests: 38 passed, 0 failed;
 - frontend production build: passed;
-- full solution tests: 767 passed, 0 failed;
+- full solution tests: 773 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
   export feedback that waits for backend reads.
-- Browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
+- Booking reservation tests cover shared DTO serialization, unauthorized and
+  forbidden reads, create/confirm/update/search/seat/cancel API behavior,
+  overlap conflict handling, audit records, frontend route construction,
+  Booking create/cancel confirmation, and reservation creation from a backend
+  player card.
+- Permission-aware frontend tests cover disabled workspace navigation and
+  disabled selected-seat actions when the staff session only has
+  `floor_map.view`.
+- Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console
   errors, and no horizontal or vertical page overflow. Because the smoke runs
@@ -244,8 +258,8 @@ Result:
   calls resolve.
 - Booking is now backed by real reservation API contracts and is no longer blocked
   by missing booking contract support. The app now exercises reservation
-  search/create/update/confirm/seat/cancel endpoints. Remaining work is
-  permission-hardening and UX polish for edge cases, not absence of API.
+  search/create/update/confirm/seat/cancel endpoints. Remaining work is UX
+  polish for edge cases and staging smoke, not absence of API.
 - Typed frontend API client boundary verification on 2026-05-21:
 
   ```powershell
