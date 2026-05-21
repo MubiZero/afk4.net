@@ -211,7 +211,9 @@ implementation evidence are needed.
   and shows selected audit/diagnostics event detail from the loaded backend
   rows, while source cards filter the loaded event list by all/Agent/POS/
   Operator/Platform, and operator period presets execute audit searches for
-  today, the last 24 hours, or the last 7 days;
+  today, the last 24 hours, or the last 7 days; Logs export buttons now
+  download backend operator-action/shift CSV files and local audit/error JSON
+  bundles from loaded audit/diagnostics data;
   Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
   option, and package option data, and can trigger limited backend setup actions
   including tariff/version creation, package definition creation, inventory
@@ -330,7 +332,7 @@ close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters and
 selected audit/diagnostics event detail plus source-card filtering and period
-presets, POS
+presets plus export downloads, POS
 refund quick action, Settings layout zone/seat creation, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
 checkout, POS new-customer checkout, and Clients package purchase:
@@ -343,7 +345,7 @@ checkout, POS new-customer checkout, and Clients package purchase:
 
 Result:
 
-- frontend tests: 78 passed, 0 failed;
+- frontend tests: 79 passed, 0 failed;
 - frontend production build: passed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
@@ -398,6 +400,9 @@ Result:
   and diagnostics command-failure rows, including ids, target/source data,
   command status, diagnostic messages, and source-card filtering between POS
   and Agent events.
+- Logs frontend tests now cover CSV and audit-trail downloads from the Logs
+  export panel, including the backend operator-action CSV endpoint and local
+  audit JSON filename generation.
 - Settings device frontend tests now cover creating device enrollment codes,
   assigning a device id to a selected seat, and reading device detail through
   the existing device endpoints from `Залы и ПК`. The same test now covers
@@ -419,10 +424,10 @@ Result:
   exists through `/api/branches/{branchId}/shifts/open`, including starting
   cash, opening note, organization id, and idempotency key serialization.
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
-  source-card filtering, and audit period presets: the React app rendered the
-  WebView auth entry surface with title `AFK4 Operator`, heading
-  `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
-  and no old backend placeholder copy.
+  source-card filtering, audit period presets, and export downloads: the React
+  app rendered the WebView auth entry surface with title `AFK4 Operator`,
+  heading `Вход оператора`, sign-in button, no horizontal or vertical body
+  overflow, and no old backend placeholder copy.
 - Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console

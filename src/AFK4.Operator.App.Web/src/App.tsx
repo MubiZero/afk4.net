@@ -887,6 +887,17 @@ function safeReceiptFileName(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'receipt';
 }
 
+function downloadTextFile(fileName: string, contents: string, mimeType = 'text/plain;charset=utf-8') {
+  const url = window.URL.createObjectURL(new Blob([contents], { type: mimeType }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> | null, currencyCode: string): string {
   const saleId = readString(sale, 'posSaleId');
   const receiptNumber = readString(receipt, 'receiptNumber', saleId.slice(0, 8) || 'receipt');
@@ -3504,14 +3515,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
 
       const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
       const receiptNumber = readString(selectedReceiptRecord, 'receiptNumber', readString(selectedSaleDetail, 'posSaleId').slice(0, 8));
-      const url = window.URL.createObjectURL(new Blob([receiptText], { type: 'text/plain;charset=utf-8' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${safeReceiptFileName(receiptNumber)}.txt`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      downloadTextFile(`${safeReceiptFileName(receiptNumber)}.txt`, receiptText);
       setFeedback({ label: 'Экспорт чека', state: 'confirmed' });
     } catch (error) {
       setFeedback({
@@ -5234,6 +5238,56 @@ function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, h
   return ['—', 'Dev demo: событий нет', 'локальный fallback без платформы', 'Platform', 'audit', 'placeholder', null];
 }
 
+function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[]): LogEventItem[] {
+  return auditRecords.map((record): LogEventItem => [
+    formatTime(readString(record, 'createdAtUtc')),
+    readString(record, 'action', 'audit'),
+    `${readString(record, 'targetType', 'target')} · ${readString(record, 'outcome', 'unknown')}`,
+    readString(record, 'sourceApp', 'Audit'),
+    readString(record, 'outcome').toLowerCase().includes('denied') || readString(record, 'outcome').toLowerCase().includes('failed') ? 'warning' : 'audit',
+    'audit',
+    record
+  ]);
+}
+
+function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): LogEventItem[] {
+  const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
+  const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
+  const recentCommandFailures = readArray<Record<string, unknown>>(commandSummary, 'recentFailures');
+  const recentUpdateFailures = readArray<Record<string, unknown>>(updateSummary, 'recentFailures');
+  const staleDevices = readArray<Record<string, unknown>>(diagnostics, 'staleDevices');
+
+  return [
+    ...recentCommandFailures.map((failure): LogEventItem => [
+      formatTime(readString(failure, 'updatedAtUtc')),
+      `${readString(failure, 'machineName', 'Device')} ${readString(failure, 'type', 'command')}`,
+      readString(failure, 'message', readString(failure, 'status', 'failed')),
+      'Agent',
+      'device',
+      'commandFailure',
+      failure
+    ]),
+    ...recentUpdateFailures.map((failure): LogEventItem => [
+      formatTime(readString(failure, 'updatedAtUtc')),
+      `${readString(failure, 'component', 'Update')} ${readString(failure, 'targetVersion', '')}`,
+      readString(failure, 'message', readString(failure, 'status', 'failed')),
+      'Updates',
+      'warning',
+      'updateFailure',
+      failure
+    ]),
+    ...staleDevices.map((device): LogEventItem => [
+      formatTime(readString(device, 'lastHeartbeatAtUtc')),
+      `${readString(device, 'machineName', 'Device')} heartbeat`,
+      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} sec без heartbeat`,
+      'Agent',
+      'warning',
+      'staleDevice',
+      device
+    ])
+  ];
+}
+
 function shortLogValue(value: string, fallback = '—'): string {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
@@ -5331,6 +5385,29 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
     ['Оператор', backend?.session.displayName ?? 'system'],
     ['Branch', backend?.branchId.slice(0, 8) ?? 'dev demo']
   ];
+}
+
+function buildLogsExportJson(
+  branchId: string,
+  auditRecords: Record<string, unknown>[],
+  diagnostics: BranchDiagnosticsDto | null,
+  events: LogEventItem[]
+): string {
+  return JSON.stringify({
+    exportedAtUtc: new Date().toISOString(),
+    branchId,
+    auditRecords,
+    diagnostics,
+    events: events.map(([time, title, detail, source, tone, kind, record]) => ({
+      time,
+      title,
+      detail,
+      source,
+      tone,
+      kind,
+      record
+    }))
+  }, null, 2);
 }
 
 function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
@@ -5468,47 +5545,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
-  const recentCommandFailures = readArray<Record<string, unknown>>(commandSummary, 'recentFailures');
-  const recentUpdateFailures = readArray<Record<string, unknown>>(updateSummary, 'recentFailures');
-  const staleDevices = readArray<Record<string, unknown>>(diagnostics, 'staleDevices');
-  const auditEvents: LogEventItem[] = auditRecords.map((record): LogEventItem => [
-    formatTime(readString(record, 'createdAtUtc')),
-    readString(record, 'action', 'audit'),
-    `${readString(record, 'targetType', 'target')} · ${readString(record, 'outcome', 'unknown')}`,
-    readString(record, 'sourceApp', 'Audit'),
-    readString(record, 'outcome').toLowerCase().includes('denied') || readString(record, 'outcome').toLowerCase().includes('failed') ? 'warning' : 'audit',
-    'audit',
-    record
-  ]);
-  const diagnosticEvents: LogEventItem[] = [
-    ...recentCommandFailures.map((failure): LogEventItem => [
-      formatTime(readString(failure, 'updatedAtUtc')),
-      `${readString(failure, 'machineName', 'Device')} ${readString(failure, 'type', 'command')}`,
-      readString(failure, 'message', readString(failure, 'status', 'failed')),
-      'Agent',
-      'device',
-      'commandFailure',
-      failure
-    ]),
-    ...recentUpdateFailures.map((failure): LogEventItem => [
-      formatTime(readString(failure, 'updatedAtUtc')),
-      `${readString(failure, 'component', 'Update')} ${readString(failure, 'targetVersion', '')}`,
-      readString(failure, 'message', readString(failure, 'status', 'failed')),
-      'Updates',
-      'warning',
-      'updateFailure',
-      failure
-    ]),
-    ...staleDevices.map((device): LogEventItem => [
-      formatTime(readString(device, 'lastHeartbeatAtUtc')),
-      `${readString(device, 'machineName', 'Device')} heartbeat`,
-      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} sec без heartbeat`,
-      'Agent',
-      'warning',
-      'staleDevice',
-      device
-    ])
-  ];
+  const auditEvents = mapAuditRecordsToLogEvents(auditRecords);
+  const diagnosticEvents = mapDiagnosticsToLogEvents(diagnostics);
   const events = [...diagnosticEvents, ...auditEvents];
   const filteredEvents = events.filter((event) => {
     const [time, title, detail, source, tone] = event;
@@ -5585,16 +5623,33 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     try {
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
       if (label === 'Audit trail') {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', fromUtc: '', toUtc: '', limit: 100 }));
+        const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
+        downloadTextFile(
+          `afk4-audit-trail-${exportStamp}.json`,
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)]),
+          'application/json;charset=utf-8'
+        );
       } else if (label === 'CSV') {
-        await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
+        const csv = await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
+        downloadTextFile(`afk4-operator-actions-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       } else if (label === 'Ошибки') {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: 'denied', targetType: '', fromUtc: '', toUtc: '', limit: 50 }));
+        const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
+        const failureEvents = [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)]
+          .filter((event) => event[4] === 'warning');
+        downloadTextFile(
+          `afk4-log-errors-${exportStamp}.json`,
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, failureEvents),
+          'application/json;charset=utf-8'
+        );
       } else {
-        await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
+        const csv = await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
+        downloadTextFile(`afk4-shift-log-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       }
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {

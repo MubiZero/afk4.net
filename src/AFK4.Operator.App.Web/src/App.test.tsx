@@ -456,6 +456,46 @@ describe('App', () => {
     expect(detailPanel).not.toHaveTextContent('pos.sale.create');
   });
 
+  it('downloads Logs CSV and audit trail exports', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    const createObjectUrl = vi.fn(() => 'blob:logs');
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
+    Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
+    const downloads: string[] = [];
+    const createElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const element = createElement(tagName);
+      if (tagName.toLowerCase() === 'a') {
+        Object.defineProperty(element, 'click', {
+          value: () => downloads.push((element as HTMLAnchorElement).download),
+          configurable: true
+        });
+      }
+
+      return element;
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Логи'));
+    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
+
+    expect(await screen.findByText('CSV: подтверждено')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/operator-actions/export.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-operator-actions-') && download.endsWith('.csv'))).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /Audit trail/ }));
+    expect(await screen.findByText('Audit trail: подтверждено')).toBeInTheDocument();
+    expect(createObjectUrl).toHaveBeenCalledTimes(2);
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:logs');
+    expect(downloads.some((download) => download.startsWith('afk4-audit-trail-') && download.endsWith('.json'))).toBe(true);
+    createElementSpy.mockRestore();
+  });
+
   it('shows successful empty Logs results without backend-empty copy', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

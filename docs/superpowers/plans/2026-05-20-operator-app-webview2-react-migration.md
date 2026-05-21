@@ -78,7 +78,9 @@ Current state:
   selected audit/diagnostics event detail from the loaded backend rows; source
   cards now filter loaded events by all/Agent/POS/Operator/Platform; period
   presets now execute audit searches for today, the last 24 hours, or the last
-  7 days. Settings `Залы и
+  7 days; export buttons now download backend operator-action/shift CSV files
+  and local audit/error JSON bundles from loaded audit/diagnostics data.
+  Settings `Залы и
   ПК` now creates layout zones/seats, creates enrollment codes, assigns device
   ids to seats, and reads device detail through existing layout/device
   endpoints, including credential rotation/revocation controls. POS
@@ -151,7 +153,9 @@ Logs now applies backend audit action/outcome/target type/date range/limit
 filters through the existing audit search endpoint and selected event detail
 now uses loaded audit/diagnostics rows; source cards now filter the loaded
 event list by all/Agent/POS/Operator/Platform; period presets now execute
-audit searches for today, the last 24 hours, or the last 7 days. Settings `Залы и ПК` now exposes
+audit searches for today, the last 24 hours, or the last 7 days; export buttons
+now download backend operator-action/shift CSV files and local audit/error JSON
+bundles from loaded audit/diagnostics data. Settings `Залы и ПК` now exposes
 backend-backed layout zone/seat creation, enrollment-code creation,
 device-to-seat assignment, and device detail lookup with the existing layout
 and device permissions, plus credential rotation and revocation through the
@@ -314,10 +318,12 @@ missing-backend copy.
   detail from already loaded audit rows and diagnostics command/update/stale
   rows was added on 2026-05-21, and source cards now filter loaded events by
   all/Agent/POS/Operator/Platform. Operator period presets for today, the last
-  24 hours, and the last 7 days were added on 2026-05-21. Remaining Logs gaps
-  are correlation IDs, support handoff data, and export generation. Use audit,
-  diagnostics, and report endpoints where they exist; create missing
-  support-export contracts if the current API cannot answer the screen.
+  24 hours, and the last 7 days were added on 2026-05-21. Export downloads for
+  backend operator-action/shift CSV plus local audit/error JSON bundles were
+  added on 2026-05-21. Remaining Logs gaps are correlation IDs and richer
+  support handoff data. Use audit, diagnostics, and report endpoints where
+  they exist; create missing support-export contracts if the current API cannot
+  answer the screen.
 - [ ] Settings: continue replacing local-only settings actions with real flows.
   Branch profile name/city save and general staff creation were implemented on
   2026-05-21 using backend profile/staff APIs plus existing permissions. POS
