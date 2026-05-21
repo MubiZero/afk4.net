@@ -158,7 +158,9 @@ implementation evidence are needed.
   creates layout zones and seats from operator-entered names/sort orders
   through the existing layout endpoints, guarded by `layout.manage`. The same
   Settings device surface can now rotate and revoke device credentials through
-  the existing credential lifecycle endpoints.
+  the existing credential lifecycle endpoints and dispatch lock/unlock device
+  commands through `/api/devices/{deviceId}/commands`, guarded by
+  `devices.commands.dispatch`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports, creates paid manual-provider sales, can refund the selected backend
@@ -176,7 +178,8 @@ implementation evidence are needed.
   stock movement creation, update package registration, rollout creation, and
   update state changes;
   Settings device setup can create enrollment codes, assign device seats, read
-  device detail, and rotate/revoke device credentials; Logs now applies backend
+  device detail, dispatch device commands, and rotate/revoke device credentials;
+  Logs now applies backend
   audit search filters for action/outcome/target type, UTC date range, and
   limit through `/api/branches/{branchId}/audit`; Dashboard reads the backend
   dashboard summary and uses existing report exports
@@ -2168,6 +2171,19 @@ Operator App WebView2/React first implementation on 2026-05-20:
   expected CRLF conversion warnings. The route-level frontend tests now include
   tariff/package option reads, and the App tests verify POS sale/manual payment
   confirmation through backend calls.
+- Settings device-command verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: App tests passed 36/36, full frontend tests passed 64/64, and Vite
+  production build passed. Browser smoke against `http://127.0.0.1:5173/`
+  confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button,
+  no horizontal overflow, and no new browser console errors; four older Vite
+  HMR console errors were already present in the browser log before the smoke.
 
 ## Historical Reference
 

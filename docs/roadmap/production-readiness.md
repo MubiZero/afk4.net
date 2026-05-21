@@ -185,8 +185,9 @@ Minimum bar:
    `Pilot Setup` panel for staff, one zone/seats, one tariff/version, one POS
    category/product, and optional already-enrolled device assignment. The
    WebView2/React Settings work has since added tariff/version creation and
-   package definition creation through the existing tariff/package endpoints on
-   `codex/operator-app-redesign`.
+   package definition creation, layout zone/seat creation, device command
+   dispatch, and device credential rotation/revocation through existing backend
+   endpoints on `codex/operator-app-redesign`.
 
 ## Commercial Production Blockers
 

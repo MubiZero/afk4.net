@@ -146,6 +146,7 @@ const permissionNames = {
   createDeviceEnrollmentCode: 'devices.enrollment_codes.create',
   assignDeviceSeat: 'devices.seat_assignment.assign',
   viewDeviceDetail: 'devices.detail.view',
+  dispatchDeviceCommand: 'devices.commands.dispatch',
   rotateDeviceCredential: 'devices.credentials.rotate',
   revokeDeviceCredential: 'devices.credentials.revoke',
   manageTariffs: 'tariffs.manage',
@@ -5011,6 +5012,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
   const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
+  const [deviceCommandType, setDeviceCommandType] = useState('lock');
+  const [deviceCommandReason, setDeviceCommandReason] = useState('operator device tool');
+  const [lastDeviceCommand, setLastDeviceCommand] = useState<Record<string, unknown> | null>(null);
   const [layoutZoneName, setLayoutZoneName] = useState('Main Hall');
   const [layoutZoneSortOrder, setLayoutZoneSortOrder] = useState('10');
   const [layoutSeatZoneId, setLayoutSeatZoneId] = useState('');
@@ -5138,6 +5142,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const canCreateDeviceEnrollmentCode = backend !== null && hasPermission(backend.session, permissionNames.createDeviceEnrollmentCode);
   const canAssignDeviceSeat = backend !== null && hasPermission(backend.session, permissionNames.assignDeviceSeat);
   const canViewDeviceDetail = backend !== null && hasPermission(backend.session, permissionNames.viewDeviceDetail);
+  const canDispatchDeviceCommand = backend !== null && hasPermission(backend.session, permissionNames.dispatchDeviceCommand);
   const canRotateDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.rotateDeviceCredential);
   const canRevokeDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.revokeDeviceCredential);
   const layoutSeatOptions = zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
@@ -5208,6 +5213,26 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         }
 
         setDeviceDetail(await apiClients.devices.getDeviceDetail(deviceId));
+      } else if (label === 'Отправить команду') {
+        if (!hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
+          throw new Error('Нет прав на отправку команд устройствам.');
+        }
+
+        const deviceId = deviceAssignmentDeviceId.trim();
+        const type = deviceCommandType.trim();
+        const reason = deviceCommandReason.trim();
+        if (!isGuid(deviceId) || !type || !reason) {
+          throw new Error('Укажите device id, тип команды и причину.');
+        }
+
+        const command = await apiClients.devices.dispatchDeviceCommand(deviceId, {
+          type,
+          payload: {
+            reason,
+            source: 'operator-settings'
+          }
+        });
+        setLastDeviceCommand(command);
       } else if (label === 'Сменить credential') {
         if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {
           throw new Error('Нет прав на смену credential устройства.');
@@ -5624,6 +5649,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             </label>
             <label>Карточка устройства<input value={deviceDetail ? `${readString(deviceDetail, 'machineName', 'Device')} · ${readString(deviceDetail, 'seatName', 'без места')}` : 'не открыта'} readOnly /></label>
             <button type="button" disabled={!canViewDeviceDetail || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Открыть карточку устройства')}>Открыть карточку устройства</button>
+            <label>Команда
+              <select value={deviceCommandType} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandType(event.currentTarget.value)}>
+                <option value="lock">lock</option>
+                <option value="unlock">unlock</option>
+              </select>
+            </label>
+            <label>Причина команды<input value={deviceCommandReason} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandReason(event.currentTarget.value)} /></label>
+            <label>Последняя команда<input value={lastDeviceCommand ? `${readString(lastDeviceCommand, 'type', 'command')} · ${readString(lastDeviceCommand, 'commandId').slice(0, 8)}` : 'не отправлена'} readOnly /></label>
+            <button type="button" disabled={!canDispatchDeviceCommand || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Отправить команду')}>Отправить команду</button>
             <label>Credential id<input value={credentialIdToRevoke} disabled={!canRevokeDeviceCredential} onChange={(event) => setCredentialIdToRevoke(event.currentTarget.value)} /></label>
             <label>Новый credential<input value={readString(rotatedCredential, 'credentialId', '—')} readOnly /></label>
             <label className="settings-form-wide">Секрет credential<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>

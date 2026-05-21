@@ -455,8 +455,11 @@ Screen roadmap:
   receipt lookup through existing POS/receipt endpoints.
 - [ ] Port player search, wallet/debt, top-up, and debt payment workflows.
 - [ ] Port shift open, cash movement, close, reports, and CSV export flows.
-- [ ] Port Settings/Pilot Setup, device tools, updates, audit, and diagnostics
-  enough to preserve current operator capability.
+- [x] Port Settings/Pilot Setup, device tools, updates, audit, and diagnostics
+  enough to preserve current operator capability. Implemented on 2026-05-21
+  with branch profile, staff, layout, tariff/package, POS/inventory, updates,
+  audit/diagnostics, enrollment, seat assignment, device detail, command
+  dispatch, and credential lifecycle wiring through existing backend endpoints.
 
 ## Task 6: Realtime State
 

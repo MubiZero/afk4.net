@@ -876,6 +876,33 @@ describe('App', () => {
       init?.method === 'POST')).toBe(true);
   });
 
+  it('dispatches device commands from Settings device tools', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
+    fireEvent.change(screen.getByLabelText('Device id'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
+    fireEvent.change(screen.getByLabelText('Команда'), { target: { value: 'unlock' } });
+    fireEvent.change(screen.getByLabelText('Причина команды'), { target: { value: 'manual unlock check' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить команду' }));
+
+    expect(await screen.findByText('Отправить команду: подтверждено')).toBeInTheDocument();
+    const commandCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands') &&
+      init?.method === 'POST');
+    expect(commandCall).toBeDefined();
+    expect(JSON.parse(String(commandCall?.[1]?.body))).toMatchObject({
+      type: 'unlock',
+      payload: { reason: 'manual unlock check', source: 'operator-settings' }
+    });
+    expect(screen.getByDisplayValue('unlock · 56565656')).toBeInTheDocument();
+  });
+
   it('creates a POS category and product from Settings', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1165,6 +1192,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createDeviceCommandStatus(isLock ? 'lock' : 'unlock', isLock
       ? 'Agent accepted lock'
       : 'Agent accepted unlock'));
+  }
+
+  if (pathname.endsWith('/commands') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createDeviceCommand(body.type, body.payload));
   }
 
   if (pathname.endsWith('/credentials/rotate') && init?.method === 'POST') {
@@ -1525,6 +1557,7 @@ const allOperatorPermissions = [
   'devices.enrollment_codes.create',
   'devices.seat_assignment.assign',
   'devices.detail.view',
+  'devices.commands.dispatch',
   'devices.credentials.rotate',
   'devices.credentials.revoke',
   'tariffs.manage',
@@ -1626,6 +1659,15 @@ function createDeviceCommandStatus(type: string, message: string) {
     message,
     createdAtUtc: '2026-05-21T10:00:00Z',
     updatedAtUtc: '2026-05-21T10:00:01Z'
+  };
+}
+
+function createDeviceCommand(type: string, payload: Record<string, string>) {
+  return {
+    commandId: '56565656-5656-5656-5656-565656565656',
+    type,
+    payload,
+    createdAtUtc: '2026-05-21T10:00:00Z'
   };
 }
 
