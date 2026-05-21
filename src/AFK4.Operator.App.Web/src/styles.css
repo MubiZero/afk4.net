@@ -2830,6 +2830,33 @@ button {
   white-space: nowrap;
 }
 
+.pos-sale-detail .pos-receipt-actions {
+  display: flex;
+  grid-template-columns: none;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pos-receipt-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 27px;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 8px;
+  background: #121b27;
+  color: #dbe3ef;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pos-receipt-actions button:disabled {
+  cursor: not-allowed;
+  color: #6f7d91;
+}
+
 .pos-quick-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

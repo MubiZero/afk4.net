@@ -873,6 +873,45 @@ function formatTime(value: unknown): string {
   }).format(date);
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character] ?? character);
+}
+
+function safeReceiptFileName(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'receipt';
+}
+
+function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> | null, currencyCode: string): string {
+  const saleId = readString(sale, 'posSaleId');
+  const receiptNumber = readString(receipt, 'receiptNumber', saleId.slice(0, 8) || 'receipt');
+  const receiptType = readString(receipt, 'receiptType', readString(sale, 'state', 'sale'));
+  const createdAtUtc = readString(receipt, 'createdAtUtc', readString(sale, 'createdAtUtc'));
+  const lines = readArray(sale, 'lines').map((line) => [
+    readString(line, 'productName', 'POS item'),
+    `${readNumber(line, 'quantity', 0)} шт.`,
+    formatMoney(readMoney(line, 'unitPrice'), currencyCode),
+    formatMoney(readMoney(line, 'lineTotal'), currencyCode)
+  ].join(' | '));
+
+  return [
+    'AFK4 POS',
+    `Receipt: ${receiptNumber}`,
+    `Type: ${receiptType}`,
+    `Created: ${createdAtUtc || '—'}`,
+    `Sale: ${saleId || '—'}`,
+    '',
+    ...lines,
+    '',
+    `Total: ${formatMoney(readMoney(sale, 'total'), currencyCode)}`
+  ].join('\n');
+}
+
 function requireBackend(backend: OperatorBackendContext | null): OperatorBackendContext {
   if (backend === null) {
     throw new Error('Backend operator session is not available.');
@@ -3427,6 +3466,62 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     }
   };
 
+  const selectedReceiptRecord = selectedReceiptDetail ?? readRecord(selectedSaleDetail, 'latestReceipt');
+
+  const printSelectedReceipt = () => {
+    setFeedback({ label: 'Печать чека', state: 'pending' });
+    try {
+      if (selectedSaleDetail === null) {
+        throw new Error('Откройте backend чек перед печатью.');
+      }
+
+      const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
+      const printWindow = window.open('', '_blank', 'width=360,height=640');
+      if (printWindow === null) {
+        throw new Error('Не удалось открыть окно печати чека.');
+      }
+
+      printWindow.document.write(`<pre style="font: 13px/1.45 monospace; white-space: pre-wrap;">${escapeHtml(receiptText)}</pre>`);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      setFeedback({ label: 'Печать чека', state: 'confirmed' });
+    } catch (error) {
+      setFeedback({
+        label: 'Печать чека',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
+  const exportSelectedReceipt = () => {
+    setFeedback({ label: 'Экспорт чека', state: 'pending' });
+    try {
+      if (selectedSaleDetail === null) {
+        throw new Error('Откройте backend чек перед экспортом.');
+      }
+
+      const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
+      const receiptNumber = readString(selectedReceiptRecord, 'receiptNumber', readString(selectedSaleDetail, 'posSaleId').slice(0, 8));
+      const url = window.URL.createObjectURL(new Blob([receiptText], { type: 'text/plain;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${safeReceiptFileName(receiptNumber)}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setFeedback({ label: 'Экспорт чека', state: 'confirmed' });
+    } catch (error) {
+      setFeedback({
+        label: 'Экспорт чека',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
   const voidDraftCart = async () => {
     setFeedback({ label: 'Аннулировать черновик', state: 'pending' });
     try {
@@ -3722,6 +3817,16 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                   <p>{readString(selectedReceiptDetail, 'receiptType', 'sale')}</p>
                 </div>
               )}
+              <div className="pos-receipt-actions">
+                <button type="button" disabled={feedback.state === 'pending'} onClick={printSelectedReceipt}>
+                  <ReceiptText size={13} />
+                  Печать
+                </button>
+                <button type="button" disabled={feedback.state === 'pending'} onClick={exportSelectedReceipt}>
+                  <ArrowRightLeft size={13} />
+                  Экспорт
+                </button>
+              </div>
             </div>
           )}
         </section>

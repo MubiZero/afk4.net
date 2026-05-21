@@ -30,6 +30,7 @@ describe('App', () => {
     localStorage.clear();
     sessionStorage.clear();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('opens on the floor map operator workspace after native session restore', async () => {
@@ -602,6 +603,56 @@ describe('App', () => {
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/receipts/11111111-1111-1111-1111-111111111111') &&
       init?.method !== 'POST')).toBe(true);
+  });
+
+  it('prints and exports the loaded backend POS receipt', async () => {
+    installSessionBridge();
+    const writeMock = vi.fn();
+    const printMock = vi.fn();
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({
+      document: {
+        write: writeMock,
+        close: vi.fn()
+      },
+      focus: vi.fn(),
+      print: printMock
+    } as unknown as Window);
+    const createObjectUrl = vi.fn(() => 'blob:receipt');
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
+    Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
+    const linkClick = vi.fn();
+    const createElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const element = createElement(tagName);
+      if (tagName.toLowerCase() === 'a') {
+        Object.defineProperty(element, 'click', { value: linkClick, configurable: true });
+      }
+
+      return element;
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: /paid/ })[0]);
+    expect(await screen.findByText('POS-20260521-0001')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Печать' }));
+    expect(await screen.findByText('Печать чека: подтверждено')).toBeInTheDocument();
+    expect(openSpy).toHaveBeenCalled();
+    expect(writeMock.mock.calls[0]?.[0]).toContain('POS-20260521-0001');
+    expect(writeMock.mock.calls[0]?.[0]).toContain('Cola 0.5');
+    expect(printMock).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Экспорт' }));
+    expect(await screen.findByText('Экспорт чека: подтверждено')).toBeInTheDocument();
+    expect(createObjectUrl).toHaveBeenCalled();
+    expect(linkClick).toHaveBeenCalled();
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:receipt');
+    createElementSpy.mockRestore();
   });
 
   it('voids a backend POS draft from the current cart', async () => {

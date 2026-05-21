@@ -367,8 +367,9 @@ Minimum bar:
   backend draft from the current cart before calling the existing void endpoint.
   POS recent receipt rows now open backend sale details through the existing
   sale lookup endpoint and then read the linked receipt projection through the
-  existing receipt endpoint for receipt number/type/total display. POS cart
-  customer lookup now searches backend players and attaches the selected
+  existing receipt endpoint for receipt number/type/total display; the loaded
+  receipt can now be printed or exported locally from the POS detail panel. POS
+  cart customer lookup now searches backend players and attaches the selected
   nullable `playerAccountId` to checkout and draft sale creation through the
   shared POS sale contract and EF-backed Platform API persistence. POS cart
   new-customer creation now posts to the existing branch player API and selects
@@ -441,7 +442,7 @@ Minimum bar:
   definition creation, Settings update package/rollout controls, Settings
   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift and
    cash-movement wiring, Logs backend audit/date filters, POS
-   selected-sale refund/draft-void quick actions, POS sale-detail/receipt lookup,
+   selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
    POS selected-customer/new-customer checkout/wallet top-up/stock write-off, Clients wallet
    top-up/debt-payment forms, Clients new-player form, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
