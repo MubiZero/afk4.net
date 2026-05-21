@@ -67,9 +67,10 @@ Current state:
   profile endpoint, POS category/product creation backed by the existing
   POS catalog endpoints, stock movement creation backed by the existing
   inventory endpoint, and package definition creation backed by the existing
-  package endpoint. Payments can now close the current shift through the
-  existing close-shift endpoint with counted cash and a closing note, and can
-  record cash movements through the existing shift cash movement endpoint. POS
+  package endpoint. Payments can now open a shift through the existing
+  open-shift endpoint, close the current shift through the existing close-shift
+  endpoint with counted cash and a closing note, and can record cash movements
+  through the existing shift cash movement endpoint. POS
   quick refund now calls the existing refund endpoint for the latest backend
   sale, and POS draft void creates a backend draft from the current cart before
   calling the existing void endpoint. POS recent receipt rows now open backend
@@ -109,9 +110,11 @@ create branch staff through the existing backend staff API, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product, and Settings `Тарифы` can
 create a backend package definition. Settings `POS и склад` can also record
-inventory stock movements for tracked products. Payments close-shift now calls
-the backend close-shift endpoint with counted cash and note fields, and
-Payments cash movement creation calls the backend shift cash endpoint. POS
+inventory stock movements for tracked products. Payments open-shift now calls
+the backend open-shift endpoint with starting cash and opening note fields.
+Payments close-shift now calls the backend close-shift endpoint with counted
+cash and note fields, and Payments cash movement creation calls the backend
+shift cash endpoint. POS
 quick refund calls the backend refund endpoint for the latest backend sale, and
 POS draft void calls the backend void endpoint after creating a draft from the
 current cart. POS recent receipt rows call the backend sale lookup endpoint for
@@ -216,11 +219,14 @@ missing-backend copy.
   purchase history, comments, groups, restrictions/discounts, package bonus
   operations, and privacy/audit-sensitive details. Create backend contracts
   where these do not already exist.
-- [ ] Payments/Shifts: `Подготовить закрытие` now calls the real close-shift
-  workflow with counted cash, notes, `shifts.close` permission gating, and
-  backend confirmation. Cash movement creation now calls the real
-  `/api/shifts/{shiftId}/cash-movements` endpoint with `shifts.cash.manage`
-  permission gating. Remaining gaps include richer discrepancy handling,
+- [ ] Payments/Shifts: `Открыть смену` now calls the real open-shift workflow
+  with starting cash, opening note, `shifts.open` permission gating, and backend
+  confirmation when no current shift exists. `Подготовить закрытие` now calls
+  the real close-shift workflow with counted cash, notes, `shifts.close`
+  permission gating, and backend confirmation. Cash movement creation now calls
+  the real `/api/shifts/{shiftId}/cash-movements` endpoint with
+  `shifts.cash.manage` permission gating. Remaining gaps include richer
+  discrepancy handling,
   pending post-payment resolution, cancellation/refund actions where allowed,
   and selected operation detail. Use existing shift/report/POS contracts first;
   create missing payment-operation detail or approval endpoints if needed.

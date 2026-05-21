@@ -398,6 +398,46 @@ describe('App', () => {
     expect(voidBody.idempotencyKey).toMatch(/^pos-void-/);
   });
 
+  it('opens a shift from Payments when no current shift exists', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    let shiftOpened = false;
+    fetchMock.mockImplementation((input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/shifts/current') && !shiftOpened) {
+        return Promise.resolve(new Response('', { status: 404, statusText: 'Not Found' }));
+      }
+
+      if (url.pathname.endsWith('/shifts/open') && init?.method === 'POST') {
+        shiftOpened = true;
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Платежи'));
+    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Старт cash'), { target: { value: '150.00' } });
+    fireEvent.change(screen.getByLabelText('Открытие'), { target: { value: 'Утренняя смена' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть смену' }));
+
+    expect(await screen.findByText('Открыть смену: подтверждено')).toBeInTheDocument();
+    const openCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/shifts/open') &&
+      init?.method === 'POST');
+    expect(openCall).toBeDefined();
+    const body = JSON.parse(String(openCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      startingCash: { currencyCode: 'TJS', minorUnits: 15000 },
+      openingNote: 'Утренняя смена'
+    });
+    expect(body.idempotencyKey).toMatch(/^shift-open-/);
+  });
+
   it('closes the current shift from Payments through the backend', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -797,6 +837,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createCurrentShift());
   }
 
+  if (pathname.endsWith('/shifts/open') && init?.method === 'POST') {
+    return jsonResponse(createCurrentShift());
+  }
+
   if (pathname.includes('/shifts/') && pathname.endsWith('/cash-movements') && init?.method === 'POST') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createCashMovement(body));
@@ -961,6 +1005,7 @@ const allOperatorPermissions = [
   'packages.manage',
   'packages.purchase',
   'shifts.view',
+  'shifts.open',
   'shifts.close',
   'shifts.cash.manage',
   'reports.view',

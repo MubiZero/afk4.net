@@ -161,8 +161,9 @@ implementation evidence are needed.
   Dashboard reads the backend dashboard summary and uses existing report exports
   for export confirmation; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
-  availability and action fallback; Payments can now close the current shift
-  through `/api/shifts/{shiftId}/close` with counted cash, closing note, and
+  availability and action fallback; Payments can now open a shift through
+  `/api/branches/{branchId}/shifts/open`, close the current shift through
+  `/api/shifts/{shiftId}/close` with counted cash, closing note, and
   `shifts.close` permission gating, and records cash in/out movements through
   `/api/shifts/{shiftId}/cash-movements` with `shifts.cash.manage` gating.
   Remaining fixture-only or missing-contract actions still fail explicitly
@@ -259,8 +260,8 @@ selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings stock movement creation,
 Settings package definition create, Payments close-shift wiring, Payments cash
-movement creation, POS refund quick action, POS draft void quick action, POS
-sale detail lookup, and Clients package purchase:
+movement creation, Payments open-shift wiring, POS refund quick action, POS
+draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -271,7 +272,7 @@ sale detail lookup, and Clients package purchase:
 
 Result:
 
-- frontend tests: 52 passed, 0 failed;
+- frontend tests: 53 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -318,6 +319,9 @@ Result:
 - Payments frontend tests now also cover recording cash movements through
   `/api/shifts/{shiftId}/cash-movements`, including movement type, amount,
   reason, organization id, and idempotency key serialization.
+- Payments frontend tests now cover opening a shift when no current shift
+  exists through `/api/branches/{branchId}/shifts/open`, including starting
+  cash, opening note, organization id, and idempotency key serialization.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
   copy, and reported no browser console errors.
@@ -1265,6 +1269,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   reconciliation action to the existing close-shift API. Operators with
   `shifts.close` can enter counted cash and a closing note, and the UI waits
   for backend confirmation before showing close-shift success.
+- On 2026-05-21, `codex/operator-app-redesign` added Payments shift opening
+  against the existing open-shift API. Operators with `shifts.open` can enter
+  starting cash and an opening note when no current shift exists, and the UI
+  confirms only after `/api/branches/{branchId}/shifts/open` succeeds.
 - On 2026-05-21, `codex/operator-app-redesign` added Payments cash movement
   creation against the existing shift cash movement API. Operators with
   `shifts.cash.manage` can enter cash in/out amount and reason, and the UI

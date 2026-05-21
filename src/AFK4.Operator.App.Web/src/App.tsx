@@ -122,6 +122,7 @@ const permissionNames = {
   managePackages: 'packages.manage',
   purchasePackage: 'packages.purchase',
   viewShift: 'shifts.view',
+  openShift: 'shifts.open',
   closeShift: 'shifts.close',
   manageShiftCash: 'shifts.cash.manage',
   viewReports: 'reports.view',
@@ -158,7 +159,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.viewReports
   ],
   players: [permissionNames.viewPlayers, permissionNames.viewBilling, permissionNames.viewPackages, permissionNames.purchasePackage],
-  payments: [permissionNames.viewShift, permissionNames.viewReports],
+  payments: [permissionNames.viewShift, permissionNames.openShift, permissionNames.viewReports],
   logs: [permissionNames.viewAudit, permissionNames.viewDiagnostics],
   settings: [
     permissionNames.manageBranchStaff,
@@ -4182,6 +4183,8 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
   const [cashReport, setCashReport] = useState<ReportResultDto | null>(null);
   const [shiftReport, setShiftReport] = useState<ReportResultDto | null>(null);
+  const [openStartingCash, setOpenStartingCash] = useState('0.00');
+  const [openingNote, setOpeningNote] = useState('Открытие смены');
   const [closeCountedCash, setCloseCountedCash] = useState('');
   const [closingNote, setClosingNote] = useState('Сверка оператором');
   const [cashMovementType, setCashMovementType] = useState('cash_in');
@@ -4265,6 +4268,9 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const difference = readMoney(currentShift, 'difference') ?? readMoney(latestShiftRow, 'difference');
   const currentShiftId = readString(currentShift, 'shiftId');
   const currentShiftState = readString(currentShift, 'state');
+  const canOpenShift = backend !== null
+    && currentShiftId.length === 0
+    && hasPermission(backend.session, permissionNames.openShift);
   const canCloseShift = backend !== null
     && currentShiftId.length > 0
     && currentShiftState === 'open'
@@ -4291,6 +4297,28 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
       } else if (label === 'Экспорт CSV') {
         await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
+      } else if (label === 'Открыть смену') {
+        if (!hasPermission(nextBackend.session, permissionNames.openShift)) {
+          throw new Error('Нет прав на открытие смены.');
+        }
+
+        if (currentShiftId) {
+          throw new Error('Смена уже открыта.');
+        }
+
+        const startingCashMinorUnits = parseNonNegativeMoneyInputMinorUnits(openStartingCash);
+        if (startingCashMinorUnits === null) {
+          throw new Error('Введите стартовую сумму наличных не ниже нуля.');
+        }
+
+        const openedShift = await apiClients.shifts.openShift(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          startingCash: { currencyCode, minorUnits: startingCashMinorUnits },
+          openingNote: openingNote.trim(),
+          idempotencyKey: createIdempotencyKey('shift-open')
+        });
+        setCurrentShift(openedShift);
+        await loadPayments(nextBackend);
       } else if (label === 'Добавить движение') {
         if (!hasPermission(nextBackend.session, permissionNames.manageShiftCash)) {
           throw new Error('Нет прав на движение наличных.');
@@ -4424,6 +4452,11 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
             <span>Сверка кассы</span>
             <strong>read model before close</strong>
           </header>
+          <div className="payments-open-form">
+            <label>Старт cash<input inputMode="decimal" value={openStartingCash} disabled={!canOpenShift} onChange={(event) => setOpenStartingCash(event.currentTarget.value)} /></label>
+            <label>Открытие<input value={openingNote} disabled={!canOpenShift} onChange={(event) => setOpeningNote(event.currentTarget.value)} /></label>
+            <button type="button" disabled={!canOpenShift} onClick={() => runReportAction('Открыть смену')}>Открыть смену</button>
+          </div>
           <div className="payments-reconcile-list">
             <div><span>Ожидается</span><strong>{expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`}</strong></div>
             <div><span>Посчитано</span><strong>{countedCash ? formatMinorUnits(countedCash.minorUnits, countedCash.currencyCode) : 'не закрыта'}</strong></div>

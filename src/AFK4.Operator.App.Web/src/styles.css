@@ -3378,6 +3378,7 @@ button {
   color: #fca5a5;
 }
 
+.payments-open-form,
 .payments-close-form {
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
@@ -3385,6 +3386,13 @@ button {
   padding: 0 12px;
 }
 
+.payments-open-form {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+  padding-bottom: 8px;
+  border-bottom: 1px solid #263241;
+}
+
+.payments-open-form label,
 .payments-close-form label {
   display: grid;
   gap: 4px;
@@ -3393,6 +3401,7 @@ button {
   font-weight: 800;
 }
 
+.payments-open-form input,
 .payments-close-form input {
   height: 28px;
   min-width: 0;
@@ -3405,7 +3414,35 @@ button {
   font-size: 12px;
 }
 
+.payments-open-form input:disabled,
 .payments-close-form input:disabled {
+  color: #6f7d91;
+}
+
+.payments-open-form button {
+  grid-column: 1 / 3;
+  height: 30px;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  background: #121b27;
+  color: #dbe3ef;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.payments-open-form button:hover,
+.payments-open-form button:focus-visible {
+  border-color: #3d5f87;
+  background: #172334;
+  outline: none;
+}
+
+.payments-open-form button:disabled,
+.payments-open-form button:disabled:hover,
+.payments-open-form button:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
   color: #6f7d91;
 }
 

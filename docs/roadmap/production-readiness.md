@@ -336,9 +336,10 @@ Minimum bar:
   inventory stock movement creation through the existing stock-movement
   endpoint, and package definition creation through the existing package
   endpoint.
-  Payments now closes the current shift through the existing close-shift API
-  with counted cash and a closing note, and records cash movements through the
-  existing shift cash movement API. POS quick refund now calls the existing
+  Payments now opens shifts through the existing open-shift API, closes the
+  current shift through the existing close-shift API with counted cash and a
+  closing note, and records cash movements through the existing shift cash
+  movement API. POS quick refund now calls the existing
   refund endpoint for the latest backend sale, and POS draft void creates a
   backend draft from the current cart before calling the existing void endpoint.
   POS recent receipt rows now open backend sale details through the existing
@@ -392,7 +393,7 @@ Minimum bar:
    feedback, real map filters/table view parity, Booking permission/state
    hardening, Settings staff creation, branch profile save, Settings POS
    category/product creation, Settings stock movement creation, Settings package
-   definition creation, Payments close-shift and cash-movement wiring, POS
+   definition creation, Payments open/close-shift and cash-movement wiring, POS
    refund/draft-void quick actions, POS sale-detail lookup, and Clients package
    purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
