@@ -128,6 +128,7 @@ export type TariffDto = Record<string, unknown>;
 export type TariffVersionDto = Record<string, unknown>;
 export type TariffOptionDto = Record<string, unknown>;
 export type PackageOptionDto = Record<string, unknown>;
+export type PackageDefinitionDto = Record<string, unknown>;
 export type PosProductCategoryDto = Record<string, unknown>;
 export type DeviceSeatAssignmentDto = Record<string, unknown>;
 export type DeviceEnrollmentCodeDto = Record<string, unknown>;
@@ -243,6 +244,10 @@ export interface CreateTariffRequest extends Record<string, unknown> {
 }
 
 export interface CreateTariffVersionRequest extends Record<string, unknown> {
+  organizationId: Guid;
+}
+
+export interface CreatePackageDefinitionRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
 
@@ -496,6 +501,9 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     getPackageOptions(branchId: Guid): Promise<PackageOptionDto[]> {
       return api.get<PackageOptionDto[]>(`/api/branches/${branchId}/packages/options`);
+    },
+    createPackageDefinition(branchId: Guid, request: CreatePackageDefinitionRequest): Promise<PackageDefinitionDto> {
+      return api.post<PackageDefinitionDto, CreatePackageDefinitionRequest>(`/api/branches/${branchId}/packages`, request);
     },
     createProductCategory(branchId: Guid, request: CreateProductCategoryRequest): Promise<PosProductCategoryDto> {
       return api.post<PosProductCategoryDto, CreateProductCategoryRequest>(`/api/branches/${branchId}/pos/categories`, request);

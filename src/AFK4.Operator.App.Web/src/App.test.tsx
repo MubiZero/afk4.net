@@ -592,6 +592,40 @@ describe('App', () => {
     });
     expect(productBody.idempotencyKey).toMatch(/^pos-product-create-/);
   });
+
+  it('creates a package definition from Settings tariffs', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
+    fireEvent.change(screen.getByLabelText('Пакет'), { target: { value: 'Weekend 10h' } });
+    fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '320.00' } });
+    fireEvent.change(screen.getByLabelText('Минуты'), { target: { value: '600' } });
+    fireEvent.change(screen.getByLabelText('Бонус'), { target: { value: '60' } });
+    fireEvent.change(screen.getByLabelText('Дней'), { target: { value: '45' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать пакет' }));
+
+    expect(await screen.findByText('Создать пакет: подтверждено')).toBeInTheDocument();
+    const packageCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages') &&
+      init?.method === 'POST');
+    expect(packageCall).toBeDefined();
+    const body = JSON.parse(String(packageCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'Weekend 10h',
+      price: { currencyCode: 'TJS', minorUnits: 32000 },
+      includedSeconds: 36000,
+      bonusSeconds: 3600,
+      expiresAfterDays: 45
+    });
+    expect(body.idempotencyKey).toMatch(/^package-definition-create-/);
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -735,6 +769,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPlayerPackage(body));
   }
 
+  if (pathname.includes('/branches/') && pathname.endsWith('/packages') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createPackageDefinition(body));
+  }
+
   if (pathname.endsWith('/packages')) {
     return jsonResponse(createPlayerPackages());
   }
@@ -819,6 +858,7 @@ const allOperatorPermissions = [
   'players.view',
   'billing.view',
   'packages.view',
+  'packages.manage',
   'packages.purchase',
   'shifts.view',
   'shifts.close',
@@ -1275,6 +1315,22 @@ function createPackageOptions() {
       expiresAfterDays: 30
     }
   ];
+}
+
+function createPackageDefinition(overrides: Record<string, unknown> = {}) {
+  return {
+    packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    name: 'Night 5h',
+    price: { currencyCode: 'TJS', minorUnits: 25000 },
+    includedSeconds: 18000,
+    bonusSeconds: 1800,
+    expiresAfterDays: 30,
+    isActive: true,
+    createdAtUtc: '2026-05-21T12:00:00Z',
+    ...overrides
+  };
 }
 
 function createStaffUsers() {

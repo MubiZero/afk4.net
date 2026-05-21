@@ -119,6 +119,7 @@ const permissionNames = {
   viewPlayers: 'players.view',
   viewBilling: 'billing.view',
   viewPackages: 'packages.view',
+  managePackages: 'packages.manage',
   purchasePackage: 'packages.purchase',
   viewShift: 'shifts.view',
   closeShift: 'shifts.close',
@@ -161,6 +162,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.manageLayout,
     permissionNames.viewInventory,
     permissionNames.managePosCatalog,
+    permissionNames.managePackages,
     permissionNames.viewDiagnostics,
     permissionNames.viewUpdateStatus,
     permissionNames.viewTariffs
@@ -4633,6 +4635,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
+  const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
   const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
@@ -4643,6 +4646,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [productPrice, setProductPrice] = useState('12.00');
   const [productTrackStock, setProductTrackStock] = useState(true);
   const [productAllowNegativeStock, setProductAllowNegativeStock] = useState(false);
+  const [packageName, setPackageName] = useState('Night 5h');
+  const [packagePrice, setPackagePrice] = useState('250.00');
+  const [packageMinutes, setPackageMinutes] = useState('300');
+  const [packageBonusMinutes, setPackageBonusMinutes] = useState('30');
+  const [packageExpiresDays, setPackageExpiresDays] = useState('30');
 
   const loadSettings = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -4653,14 +4661,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setLoadStatus('loading');
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [branchProfile, staff, layoutZones, products, branchDiagnostics, rolloutStatuses, tariffOptions] = await Promise.all([
+      const [branchProfile, staff, layoutZones, products, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows] = await Promise.all([
         apiClients.settings.getBranchProfile(nextBackend.branchId),
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
         apiClients.pos.getCatalog(nextBackend.branchId),
         apiClients.diagnostics.getDiagnostics(nextBackend.branchId),
         apiClients.updates.getRolloutStatuses(nextBackend.branchId),
-        apiClients.settings.getTariffOptions(nextBackend.branchId)
+        apiClients.settings.getTariffOptions(nextBackend.branchId),
+        apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => [])
       ]);
       setStaffUsers(Array.isArray(staff) ? staff : []);
       setZones(Array.isArray(layoutZones) ? layoutZones : []);
@@ -4668,6 +4677,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setDiagnostics(branchDiagnostics);
       setRollouts(Array.isArray(rolloutStatuses) ? rolloutStatuses : []);
       setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
+      setPackageOptions(Array.isArray(packageOptionRows) ? packageOptionRows : []);
       setClubName(readString(branchProfile, 'name', 'AFK4'));
       setCity(readString(branchProfile, 'city', 'Dushanbe'));
       setSettingsDirty(false);
@@ -4695,6 +4705,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const canManageBranchStaff = backend !== null && hasPermission(backend.session, permissionNames.manageBranchStaff);
   const canManagePosCatalog = backend !== null && hasPermission(backend.session, permissionNames.managePosCatalog);
+  const canManagePackages = backend !== null && hasPermission(backend.session, permissionNames.managePackages);
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
     ['Залы и ПК', `${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0)} рабочих мест`],
@@ -4755,6 +4766,32 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             idempotencyKey: createIdempotencyKey('tariff-version-create')
           });
         }
+        await loadSettings(nextBackend);
+      } else if (label === 'Создать пакет') {
+        if (!hasPermission(nextBackend.session, permissionNames.managePackages)) {
+          throw new Error('Нет прав на управление пакетами.');
+        }
+
+        const name = packageName.trim();
+        const priceMinorUnits = parseMoneyInputMinorUnits(packagePrice);
+        const includedMinutes = Number(packageMinutes);
+        const bonusMinutes = Number(packageBonusMinutes);
+        const expiresDays = Number(packageExpiresDays);
+        if (!name || priceMinorUnits === null || !Number.isInteger(includedMinutes) || includedMinutes <= 0
+          || !Number.isInteger(bonusMinutes) || bonusMinutes < 0
+          || !Number.isInteger(expiresDays) || expiresDays <= 0) {
+          throw new Error('Заполните название, цену, минуты, бонус и срок действия пакета.');
+        }
+
+        await apiClients.settings.createPackageDefinition(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          name,
+          price: { currencyCode, minorUnits: priceMinorUnits },
+          includedSeconds: includedMinutes * 60,
+          bonusSeconds: bonusMinutes * 60,
+          expiresAfterDays: expiresDays,
+          idempotencyKey: createIdempotencyKey('package-definition-create')
+        });
         await loadSettings(nextBackend);
       } else if (label === 'Пригласить сотрудника') {
         if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
@@ -4889,6 +4926,26 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <span>v{readNumber(tariff, 'versionNumber', 0)} · {readString(tariff, 'tariffRuleVersionId', 'rule')}</span>
               </button>
             ))}
+          </div>
+          <div className="settings-section-title">
+            <span>Пакеты</span>
+            <button type="button" disabled={!canManagePackages} onClick={() => runSettingsAction('Создать пакет')}>Создать пакет</button>
+          </div>
+          <div className="settings-tariff-list">
+            {packageOptions.map((option) => (
+              <button key={readString(option, 'packageDefinitionId')} type="button" className="settings-tariff-row" onClick={() => triggerFeedback(setFeedback, readString(option, 'name', 'Package'), 'confirmed')}>
+                <strong>{readString(option, 'name', 'Package')}</strong>
+                <b>{formatMinorUnits(readNumber(option, 'priceMinorUnits', 0), readString(option, 'currencyCode', currencyCode))}</b>
+                <span>{Math.round(readNumber(option, 'includedSeconds', 0) / 60)} мин · +{Math.round(readNumber(option, 'bonusSeconds', 0) / 60)} бонус · {readNumber(option, 'expiresAfterDays', 0)} дн.</span>
+              </button>
+            ))}
+          </div>
+          <div className="settings-form-grid settings-package-form">
+            <label>Пакет<input value={packageName} disabled={!canManagePackages} onChange={(event) => setPackageName(event.currentTarget.value)} /></label>
+            <label>Цена<input inputMode="decimal" value={packagePrice} disabled={!canManagePackages} onChange={(event) => setPackagePrice(event.currentTarget.value)} /></label>
+            <label>Минуты<input inputMode="numeric" value={packageMinutes} disabled={!canManagePackages} onChange={(event) => setPackageMinutes(event.currentTarget.value)} /></label>
+            <label>Бонус<input inputMode="numeric" value={packageBonusMinutes} disabled={!canManagePackages} onChange={(event) => setPackageBonusMinutes(event.currentTarget.value)} /></label>
+            <label>Дней<input inputMode="numeric" value={packageExpiresDays} disabled={!canManagePackages} onChange={(event) => setPackageExpiresDays(event.currentTarget.value)} /></label>
           </div>
         </>
       );

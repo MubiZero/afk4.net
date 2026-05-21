@@ -183,7 +183,9 @@ Minimum bar:
    against staging on 2026-05-19 using a branch manager account and no direct
    PostgreSQL edits. PR #41 added the minimum Operator App `Settings` ->
    `Pilot Setup` panel for staff, one zone/seats, one tariff/version, one POS
-   category/product, and optional already-enrolled device assignment.
+   category/product, and optional already-enrolled device assignment. The
+   WebView2/React Settings work has since added package definition creation
+   through the existing package endpoint on `codex/operator-app-redesign`.
 
 ## Commercial Production Blockers
 
@@ -330,7 +332,8 @@ Minimum bar:
   when selected reservation state/seat availability makes the action invalid.
   Settings now supports general staff creation through the existing branch
   staff API, branch profile name/city save through a new branch profile API,
-  and POS category/product creation through the existing POS catalog endpoints.
+   POS category/product creation through the existing POS catalog endpoints, and
+   package definition creation through the existing package endpoint.
   Payments now closes the current shift through the existing close-shift API
   with counted cash and a closing note, and records cash movements through the
   existing shift cash movement API. POS quick refund now calls the existing

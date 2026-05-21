@@ -204,6 +204,15 @@ describe('operator API clients', () => {
     await clients.settings.createZone(branchId, { organizationId, name: 'Main', sortOrder: 10 });
     await clients.settings.getTariffOptions(branchId);
     await clients.settings.getPackageOptions(branchId);
+    await clients.settings.createPackageDefinition(branchId, {
+      organizationId,
+      name: 'Night 5h',
+      price: { currencyCode: 'TJS', minorUnits: 25000 },
+      includedSeconds: 18000,
+      bonusSeconds: 1800,
+      expiresAfterDays: 30,
+      idempotencyKey: 'idem-package-definition'
+    });
     await clients.settings.createProductCategory(branchId, {
       organizationId,
       name: 'Snacks',
@@ -244,6 +253,7 @@ describe('operator API clients', () => {
       `POST /api/branches/${branchId}/layout/zones`,
       `GET /api/branches/${branchId}/tariffs/options`,
       `GET /api/branches/${branchId}/packages/options`,
+      `POST /api/branches/${branchId}/packages`,
       `POST /api/branches/${branchId}/pos/categories`,
       `POST /api/branches/${branchId}/pos/products`,
       `POST /api/branches/${branchId}/devices/${deviceId}/seat-assignment`,
@@ -256,10 +266,11 @@ describe('operator API clients', () => {
       `GET /api/branches/${branchId}/audit?action=session.end&outcome=success&targetType=session&limit=25`
     ]);
     expect(calls[2].body).toEqual({ organizationId, name: 'AFK4 Pilot', city: 'Dushanbe' });
-    expect(calls[6].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
-    expect(calls[7].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
-    expect(calls[9].body).toEqual({ organizationId, expiresInSeconds: 900 });
-    expect(calls[10].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
+    expect(calls[6].body).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
+    expect(calls[7].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
+    expect(calls[8].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
+    expect(calls[10].body).toEqual({ organizationId, expiresInSeconds: 900 });
+    expect(calls[11].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 });
 

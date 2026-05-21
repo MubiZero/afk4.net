@@ -142,7 +142,8 @@ implementation evidence are needed.
   endpoint for club name and city. Settings `POS и склад` can now create a
   backend POS category and product through `/api/branches/{branchId}/pos/categories`
   and `/api/branches/{branchId}/pos/products`, guarded by
-  `pos.catalog.manage`.
+  `pos.catalog.manage`. Settings `Тарифы` can now create package definitions
+  through `/api/branches/{branchId}/packages`, guarded by `packages.manage`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports, creates paid manual-provider sales, and can refund the latest
@@ -150,8 +151,9 @@ implementation evidence are needed.
   and performs wallet top-up, debt payment, package purchase, player creation,
   and reservation creation from a selected backend player; Payments reads shift,
   sales, cash, and CSV report endpoints; Logs reads audit and diagnostics;
-  Settings reads staff, layout, catalog, diagnostics, update rollout, and
-  tariff option data and can trigger limited backend setup actions;
+  Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
+  option, and package option data, and can trigger limited backend setup actions
+  including package definition creation;
   Dashboard reads the backend dashboard summary and uses existing report exports
   for export confirmation; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
@@ -251,9 +253,9 @@ the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
-read/update, Settings POS catalog create, Payments close-shift wiring, and
-Payments cash movement creation, POS refund quick action, and Clients package
-purchase:
+read/update, Settings POS catalog create, Settings package definition create,
+Payments close-shift wiring, Payments cash movement creation, POS refund quick
+action, and Clients package purchase:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -264,7 +266,7 @@ purchase:
 
 Result:
 
-- frontend tests: 48 passed, 0 failed;
+- frontend tests: 49 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -298,6 +300,9 @@ Result:
 - Settings POS catalog frontend tests now cover backend category/product POST
   serialization from the `POS и склад` form, including price minor units,
   stock flags, and idempotency keys.
+- Settings package frontend tests now cover package definition POST
+  serialization from the `Тарифы` form, including price minor units, included
+  seconds, bonus seconds, expiry days, organization id, and idempotency key.
 - Payments frontend tests now cover closing the current shift from the
   reconciliation panel through `/api/shifts/{shiftId}/close`, including
   counted cash, closing note, organization id, and idempotency key
@@ -1249,6 +1254,11 @@ Operator App redesign branch-local verification on 2026-05-20:
 - On 2026-05-21, `codex/operator-app-redesign` wired Clients `Купить пакет`
   to existing package option and package purchase endpoints, guarded by
   `packages.purchase` and idempotency.
+- On 2026-05-21, `codex/operator-app-redesign` added Settings package
+  definition creation. Operators with `packages.manage` can create a package
+  name, price, included minutes, bonus minutes, and expiry through
+  `/api/branches/{branchId}/packages`; the UI reloads backend package options
+  after confirmation.
 - On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
   Operator App implementation: WebView2 startup shell, local asset resolution,
   typed host config injection, Vite/React frontend foundation, first visual
