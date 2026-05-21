@@ -2288,7 +2288,7 @@ button {
 .pos-layout {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 1fr) 187px;
+  grid-template-rows: minmax(0, 1fr) 220px;
   grid-template-areas:
     "catalog catalog cart payment"
     "receipts receipts quick quick";
@@ -2832,9 +2832,76 @@ button {
 
 .pos-quick-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 12px 10px;
+}
+
+.pos-stock-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) 72px minmax(0, 1fr) auto;
   gap: 8px;
-  padding: 10px 12px 12px;
+  padding: 10px 12px 0;
+}
+
+.pos-stock-form label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.pos-stock-form span {
+  overflow: hidden;
+  color: #8fa0b6;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pos-stock-form input,
+.pos-stock-form select {
+  min-width: 0;
+  height: 29px;
+  border: 1px solid #263241;
+  border-radius: 5px;
+  padding: 0 8px;
+  background: #0c141f;
+  color: #f8fbff;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.pos-stock-form input:disabled,
+.pos-stock-form select:disabled {
+  color: #6f7d91;
+}
+
+.pos-stock-form button {
+  align-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 29px;
+  border: 1px solid #1f6feb;
+  border-radius: 5px;
+  padding: 0 9px;
+  background: #1f6feb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.pos-stock-form button:disabled {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
 }
 
 .pos-quick-card {
@@ -2842,12 +2909,12 @@ button {
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center;
-  gap: 2px 8px;
-  min-height: 44px;
+  gap: 1px 6px;
+  min-height: 38px;
   min-width: 0;
   border: 1px solid #263241;
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: #141d29;
   color: #dbe3ef;
   text-align: left;

@@ -613,6 +613,39 @@ describe('App', () => {
     expect(voidBody.idempotencyKey).toMatch(/^pos-void-/);
   });
 
+  it('records a POS stock write-off from quick operations', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Товар для списания POS'), {
+      target: { value: '77777777-7777-7777-7777-777777777777' }
+    });
+    fireEvent.change(screen.getByLabelText('Количество списания POS'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Причина списания POS'), { target: { value: 'broken bottle' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Списать' }));
+
+    expect(await screen.findByText('Списание склада: подтверждено')).toBeInTheDocument();
+    const stockCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/inventory/stock-movements') &&
+      init?.method === 'POST');
+    expect(stockCall).toBeDefined();
+    const body = JSON.parse(String(stockCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      productId: '77777777-7777-7777-7777-777777777777',
+      movementType: 'adjustment',
+      quantityDelta: -3,
+      unitCost: { currencyCode: 'TJS', minorUnits: 0 },
+      reason: 'broken bottle'
+    });
+    expect(body.idempotencyKey).toMatch(/^stock-write-off-/);
+  });
+
   it('opens a shift from Payments when no current shift exists', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

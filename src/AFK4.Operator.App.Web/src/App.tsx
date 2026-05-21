@@ -3027,6 +3027,9 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [playerLoadStatus, setPlayerLoadStatus] = useState<LoadStatus>('fixture');
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
+  const [stockWriteOffProductId, setStockWriteOffProductId] = useState('');
+  const [stockWriteOffQuantity, setStockWriteOffQuantity] = useState('1');
+  const [stockWriteOffReason, setStockWriteOffReason] = useState('операторское списание POS');
   const [cartItems, setCartItems] = useState<PosCartItem[]>([
     { ...fixturePosProducts[0], quantity: 1 },
     { ...fixturePosProducts[3], quantity: 1 }
@@ -3051,7 +3054,11 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         ? nextCatalog.map((product) => projectPosProduct(product, currencyCode))
         : [];
 
+      const backendProducts = products.filter((product) => product.source === 'backend' && product.productId);
       setCatalog(products.length > 0 ? products : fixturePosProducts);
+      setStockWriteOffProductId((current) => backendProducts.some((product) => product.productId === current)
+        ? current
+        : backendProducts[0]?.productId ?? '');
       setCurrentShift(nextShift);
       setSalesReport(nextSalesReport);
       const nextSalesRows = readArray(nextSalesReport, 'rows');
@@ -3163,6 +3170,13 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const canCreatePosPlayer = backend !== null
     && hasPermission(backend.session, permissionNames.createPlayerAccount)
     && newPlayerDisplayName.length > 0;
+  const backendCatalogProducts = catalog.filter((product) => product.source === 'backend' && product.productId);
+  const selectedStockProduct = backendCatalogProducts.find((product) => product.productId === stockWriteOffProductId)
+    ?? backendCatalogProducts[0]
+    ?? null;
+  const canWriteOffStock = backend !== null
+    && selectedStockProduct !== null
+    && hasPermission(backend.session, permissionNames.manageInventoryStock);
 
   const addProduct = (product: PosCatalogItem) => {
     setCartItems((items) => {
@@ -3207,6 +3221,42 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     } catch (error) {
       setFeedback({
         label: 'Новая карта',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
+  const writeOffStock = async () => {
+    setFeedback({ label: 'Списание склада', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      if (!hasPermission(nextBackend.session, permissionNames.manageInventoryStock)) {
+        throw new Error('Нет прав на управление остатками.');
+      }
+
+      const productId = selectedStockProduct?.productId;
+      const quantity = Number(stockWriteOffQuantity);
+      const reason = stockWriteOffReason.trim();
+      if (!productId || !Number.isInteger(quantity) || quantity <= 0 || !reason) {
+        throw new Error('Выберите backend товар, целое количество больше нуля и причину списания.');
+      }
+
+      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).inventory.createStockMovement(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        productId,
+        movementType: 'adjustment',
+        quantityDelta: -quantity,
+        unitCost: { currencyCode, minorUnits: 0 },
+        reason,
+        idempotencyKey: createIdempotencyKey('stock-write-off')
+      });
+
+      setFeedback({ label: 'Списание склада', state: 'confirmed' });
+      await loadBackendPos(nextBackend);
+    } catch (error) {
+      setFeedback({
+        label: 'Списание склада',
         state: 'failed',
         detail: projectOperatorError(error).detail
       });
@@ -3635,11 +3685,53 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <span>Быстрые операции</span>
             <strong>actions require backend confirmation</strong>
           </header>
+          <div className="pos-stock-form">
+            <label>
+              <span>Списание</span>
+              <select
+                aria-label="Товар для списания POS"
+                value={selectedStockProduct?.productId ?? ''}
+                disabled={backendCatalogProducts.length === 0 || feedback.state === 'pending'}
+                onChange={(event) => setStockWriteOffProductId(event.currentTarget.value)}
+              >
+                {backendCatalogProducts.length === 0 && <option value="">Нет backend товара</option>}
+                {backendCatalogProducts.map((product) => (
+                  <option key={product.productId} value={product.productId}>
+                    {product.name} · {product.stockOnHand} шт.
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Кол-во</span>
+              <input
+                aria-label="Количество списания POS"
+                inputMode="numeric"
+                value={stockWriteOffQuantity}
+                disabled={!canWriteOffStock || feedback.state === 'pending'}
+                onChange={(event) => setStockWriteOffQuantity(event.currentTarget.value)}
+              />
+            </label>
+            <label className="pos-stock-reason">
+              <span>Причина</span>
+              <input
+                aria-label="Причина списания POS"
+                value={stockWriteOffReason}
+                disabled={!canWriteOffStock || feedback.state === 'pending'}
+                onChange={(event) => setStockWriteOffReason(event.currentTarget.value)}
+              />
+            </label>
+            <button type="button" disabled={!canWriteOffStock || feedback.state === 'pending'} onClick={writeOffStock}>
+              <AlertTriangle size={14} />
+              Списать
+            </button>
+          </div>
           <div className="pos-quick-grid">
             {[
               ['Пополнить депозит', 'откройте экран клиентов', CircleDollarSign],
               ['Возврат по чеку', 'требует выбранный backend sale', ReceiptText],
               ['Аннулировать черновик', 'создать и отменить draft', X],
+              ['Списать склад', selectedStockProduct?.name ?? 'выберите товар', AlertTriangle],
               ['Новый клиент', newPlayerDisplayName || 'заполните имя', UserRoundPlus],
               ['Внести наличные', 'экран платежей', Banknote]
             ].map(([label, detail, Icon]) => (
@@ -3649,12 +3741,15 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 className="pos-quick-card"
                 disabled={((label as string) === 'Возврат по чеку' && (!canRefundSelectedSale || feedback.state === 'pending'))
                   || ((label as string) === 'Аннулировать черновик' && (!canVoidDraftCart || feedback.state === 'pending'))
+                  || ((label as string) === 'Списать склад' && (!canWriteOffStock || feedback.state === 'pending'))
                   || ((label as string) === 'Новый клиент' && (!canCreatePosPlayer || feedback.state === 'pending'))}
                 onClick={() => {
                   if ((label as string) === 'Возврат по чеку') {
                     void refundLatestSale();
                   } else if ((label as string) === 'Аннулировать черновик') {
                     void voidDraftCart();
+                  } else if ((label as string) === 'Списать склад') {
+                    void writeOffStock();
                   } else if ((label as string) === 'Новый клиент') {
                     void createPosPlayer();
                   } else {

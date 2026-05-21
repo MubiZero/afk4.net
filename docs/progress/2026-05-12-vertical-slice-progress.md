@@ -195,9 +195,11 @@ implementation evidence are needed.
   reports, searches backend players for the cart customer, creates paid
   manual-provider sales with an optional backend `playerAccountId`, can create
   a new backend player card from the POS cart and immediately use it for
-  checkout, can refund the selected backend sale from the quick-operation
-  panel, and can void a backend draft sale created from the current cart, and
-  opens backend sale details from the recent receipt list plus the linked
+  checkout, can record POS stock write-offs through the existing inventory
+  stock-movement endpoint, can refund the selected backend sale from the
+  quick-operation panel, and can void a backend draft sale created from the
+  current cart, and opens backend sale details from the recent receipt list
+  plus the linked
   backend receipt projection; Clients searches backend players
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
@@ -2378,6 +2380,24 @@ Operator App WebView2/React first implementation on 2026-05-20:
   smoke against `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`,
   heading `Вход оператора`, sign-in button, no old backend-empty placeholder
   copy, and no horizontal or vertical overflow outside WebView2.
+- Operator App POS stock write-off verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused App tests passed 43/43, full frontend tests passed 72/72,
+  Vite production build passed, and whitespace check was clean apart from
+  expected CRLF conversion warnings. The new App test covers POS quick-panel
+  stock write-off posting `movementType=adjustment`, a negative quantity delta,
+  zero unit cost, operator reason, and `stock-write-off-*` idempotency key to
+  `/api/branches/{branchId}/inventory/stock-movements`. Browser smoke against
+  `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no old backend-empty placeholder copy, and
+  no horizontal or vertical overflow outside WebView2.
 
 ## Historical Reference
 
