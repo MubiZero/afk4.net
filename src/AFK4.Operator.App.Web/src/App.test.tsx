@@ -1149,6 +1149,20 @@ describe('App', () => {
     });
   });
 
+  it('keeps client reservation creation disabled without reservation manage permission', async () => {
+    installSessionBridge(createSession({
+      permissions: allOperatorPermissions.filter((permission) => permission !== 'reservations.manage')
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: /Создать бронь/ })).toBeDisabled();
+  });
+
   it('purchases a backend package from the selected client card', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

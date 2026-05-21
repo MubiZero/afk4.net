@@ -205,11 +205,12 @@ implementation evidence are needed.
   backend players, loads active packages for the selected player profile,
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
-name/phone, and reservation creation from a selected backend player; Payments
-reads shift, sales, cash, and CSV report endpoints and shows selected
-operation detail from backend report rows, with report export buttons now
-downloading sales/cash/shift CSV files and a local discrepancy JSON; Logs
-reads audit and diagnostics
+  name/phone, and reservation creation from a selected backend player guarded by
+  `reservations.manage`; Payments
+  reads shift, sales, cash, and CSV report endpoints and shows selected
+  operation detail from backend report rows, with report export buttons now
+  downloading sales/cash/shift CSV files and a local discrepancy JSON; Logs
+  reads audit and diagnostics
   and shows selected audit/diagnostics event detail from the loaded backend
   rows, while source cards filter the loaded event list by all/Agent/POS/
   Operator/Platform, and operator period presets execute audit searches for
@@ -337,7 +338,8 @@ selected audit/diagnostics event detail plus source-card filtering and period
 presets plus export downloads, POS
 refund quick action, Settings layout zone/seat creation, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
-checkout, POS new-customer checkout, and Clients package purchase:
+checkout, POS new-customer checkout, Clients package purchase, and Clients
+reservation permission gating:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -347,7 +349,7 @@ checkout, POS new-customer checkout, and Clients package purchase:
 
 Result:
 
-- frontend tests: 81 passed, 0 failed;
+- frontend tests: 82 passed, 0 failed;
 - frontend production build: passed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
@@ -430,7 +432,8 @@ Result:
   local shift discrepancy JSON download.
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
   source-card filtering, audit period presets, Logs export downloads, and
-  Payments/Dashboard report export downloads: the React app rendered the
+  Payments/Dashboard report export downloads plus Clients reservation
+  permission gating: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
   and no old backend placeholder copy.
@@ -488,6 +491,8 @@ Result:
 - Clients frontend tests now cover player creation from the Clients new-card
   form through `/api/branches/{branchId}/players`, including display name,
   phone number, organization id, and idempotency key serialization.
+- Clients frontend tests now cover disabling client-card reservation creation
+  when the restored staff session lacks `reservations.manage`.
 - Booking is now backed by real reservation API contracts and is no longer blocked
   by missing booking contract support. The app now exercises reservation
   search/create/update/confirm/seat/cancel endpoints. Remaining work is UX

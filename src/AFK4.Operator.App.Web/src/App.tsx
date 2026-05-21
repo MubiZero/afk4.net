@@ -4478,6 +4478,10 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
     && debt > 0
     && hasPermission(backend.session, permissionNames.payDebt);
   const canCreatePlayer = backend !== null && hasPermission(backend.session, permissionNames.createPlayerAccount);
+  const canCreateClientReservation = backend !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && hasPermission(backend.session, permissionNames.manageReservations);
 
   const runClientAction = async (label: string) => {
     setFeedback({ label, state: 'pending' });
@@ -4586,6 +4590,10 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         });
         setWalletSummary(await apiClients.players.getWalletSummary(selectedClient.playerAccountId));
       } else if (label === 'Создать бронь') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
+          throw new Error('Нет прав на создание брони.');
+        }
+
         if (!selectedClient.playerAccountId || selectedClient.source !== 'backend') {
           throw new Error('Выберите backend игрока перед созданием брони.');
         }
@@ -4731,6 +4739,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
                 disabled={((label as string) === 'Пополнить депозит' && !canTopUpWallet)
                   || ((label as string) === 'Списать долг' && !canPayDebt)
                   || ((label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0))
+                  || ((label as string) === 'Создать бронь' && !canCreateClientReservation)
                   || ((label as string) === 'Новая карта' && !canCreatePlayer)}
                 onClick={() => runClientAction(label as string)}
               >

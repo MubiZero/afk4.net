@@ -181,6 +181,8 @@ endpoint for the selected player, and Clients wallet top-up sends
 operator-entered amount/reason to the backend. Clients debt payment now also
 sends operator-entered amount/reason to the backend with a no-overpayment guard.
 Clients player creation now sends operator-entered name/phone to the backend.
+Clients reservation creation from the selected backend player now remains
+disabled unless the restored staff session includes `reservations.manage`.
 Continue with staging smoke of the backend-backed workspaces and close gaps
 found with real data.
 
@@ -298,6 +300,8 @@ missing-backend copy.
 - [ ] Clients: `Создать бронь` from a selected player, wallet top-up and debt
   payment with operator-entered amount/reason, player creation with
   operator-entered name/phone, and package purchase now use backend endpoints.
+  Reservation creation from the selected backend player now also respects
+  `reservations.manage` in the UI.
   Selected client active package detail now reads the existing player packages
   endpoint and renders package name/minutes/state in the profile. Remaining
   local-only client surfaces include richer profile edit, purchase history,

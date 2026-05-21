@@ -395,7 +395,9 @@ Minimum bar:
   operator-entered amount/reason to the existing top-up endpoint. Clients debt
   payment sends operator-entered amount/reason to the
   existing debt payment endpoint. Clients player creation sends
-  operator-entered name/phone to the existing player creation endpoint. Staging
+  operator-entered name/phone to the existing player creation endpoint. Clients
+  reservation creation from the selected backend player now stays disabled
+  unless the restored staff session includes `reservations.manage`. Staging
   smoke of these extra workspaces still remains before
   the WebView2/React app covers the full pilot day flow. Fixture-only/
   missing-contract commands should report backend failures rather than showing
