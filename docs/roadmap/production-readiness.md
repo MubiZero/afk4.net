@@ -329,9 +329,10 @@ Minimum bar:
   Booking now also disables mutation controls without `reservations.manage` or
   when selected reservation state/seat availability makes the action invalid.
   Settings now supports general staff creation through the existing branch
-  staff API and branch profile name/city save through a new branch profile API.
-  Staging smoke of these extra workspaces still remains before the
-  WebView2/React app covers the full pilot day flow. Fixture-only/missing-contract
+  staff API, branch profile name/city save through a new branch profile API,
+  and POS category/product creation through the existing POS catalog endpoints.
+  Staging smoke of these extra workspaces still remains before the WebView2/
+  React app covers the full pilot day flow. Fixture-only/missing-contract
   commands should report backend failures rather than showing backend success.
   The current WPF implementation remains a parity reference and temporary legacy
   source until the WebView2/React Operator App covers the pilot day flow.
@@ -375,9 +376,9 @@ Minimum bar:
    restored staff permissions. The map panel now also supports guest/prepaid/
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
-   hardening, Settings staff creation, and branch profile save. Next deliver
-   staging smoke across these backend-backed workspaces and close gaps found
-   with real staging data.
+   hardening, Settings staff creation, branch profile save, and Settings POS
+   category/product creation. Next deliver staging smoke across these
+   backend-backed workspaces and close gaps found with real staging data.
    Local builds must
    still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw

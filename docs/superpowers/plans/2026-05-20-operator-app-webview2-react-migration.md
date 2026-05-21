@@ -63,9 +63,10 @@ Current state:
   primary map now also has real filters and table view parity over the same
   backend-loaded seat state. Booking now has first-pass permission/state guards
   for mutation controls. Settings now has a backend-backed staff creation form
-  in the Personnel section and branch profile save backed by a new Platform API
-  profile endpoint. Staging smoke across the newly wired screens is the next
-  real implementation work.
+  in the Personnel section, branch profile save backed by a new Platform API
+  profile endpoint, and POS category/product creation backed by the existing
+  POS catalog endpoints. Staging smoke across the newly wired screens is the
+  next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
@@ -95,8 +96,9 @@ session metadata plus displays device command status feedback, and the primary
 map has real filter/table parity. Booking mutation controls now also respect
 `reservations.manage` and selected reservation state. Settings Personnel can
 create branch staff through the existing backend staff API, and profile save
-now updates branch name/city through the backend. Continue with staging smoke
-of the backend-backed workspaces and close gaps found with real data.
+now updates branch name/city through the backend. Settings `POS и склад` can
+also create a backend POS category and product. Continue with staging smoke of
+the backend-backed workspaces and close gaps found with real data.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -204,11 +206,15 @@ missing-backend copy.
   current API cannot answer the screen.
 - [ ] Settings: continue replacing local-only settings actions with real flows.
   Branch profile name/city save and general staff creation were implemented on
-  2026-05-21 using backend profile/staff APIs plus existing permissions.
+  2026-05-21 using backend profile/staff APIs plus existing permissions. POS
+  category/product creation from `POS и склад` was implemented on 2026-05-21
+  through existing POS catalog endpoints with `pos.catalog.manage` gating,
+  price/stock form fields, and idempotency keys.
   Remaining settings gaps include role assignment/editing, general layout
-  editor, device-seat management, tariff/package management, POS catalog and
-  stock CRUD, integrations/payment-provider settings, update rollout controls,
-  diagnostics, audit/security settings, and validation errors.
+  editor, device-seat management, tariff/package management, POS catalog edit/
+  deactivate and stock CRUD, integrations/payment-provider settings, update
+  rollout controls, diagnostics, audit/security settings, and validation
+  errors.
 - [ ] Empty backend states: review `Нет backend операций`,
   `Нет backend событий`, and similar empty-state copy after real staging data
   smoke. Keep them only when the backend returned a successful empty result;

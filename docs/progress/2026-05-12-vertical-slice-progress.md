@@ -137,9 +137,12 @@ implementation evidence are needed.
 - Settings `Персонал` now has a general staff creation form backed by the
   existing branch staff API. It validates the form client-side, requires the
   existing branch-staff management permission, posts login/display name/
-  temporary password/role names to `/api/branches/{branchId}/staff`, and keeps
-  branch profile saving now uses the new `/api/branches/{branchId}/profile`
-  backend endpoint for club name and city.
+  temporary password/role names to `/api/branches/{branchId}/staff`. Branch
+  profile saving now uses the new `/api/branches/{branchId}/profile` backend
+  endpoint for club name and city. Settings `POS и склад` can now create a
+  backend POS category and product through `/api/branches/{branchId}/pos/categories`
+  and `/api/branches/{branchId}/pos/products`, guarded by
+  `pos.catalog.manage`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports and creates paid manual-provider sales; Clients searches backend
@@ -150,8 +153,8 @@ implementation evidence are needed.
   actions; Dashboard reads the backend dashboard summary and uses existing
   report exports for export confirmation; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
-  availability and action fallback. Missing profile/staff-invite contracts
-  still fail explicitly instead of showing fixture success.
+  availability and action fallback. Remaining fixture-only or missing-contract
+  actions still fail explicitly instead of showing fixture success.
 
 ### Agent Service
 
@@ -242,7 +245,7 @@ the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
-read/update:
+read/update, and Settings POS catalog create:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -253,7 +256,7 @@ read/update:
 
 Result:
 
-- frontend tests: 43 passed, 0 failed;
+- frontend tests: 44 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -284,6 +287,9 @@ Result:
 - Branch profile backend tests cover owner/manager read/update and forbidden
   cashier updates. Frontend tests cover Settings profile PATCH body
   serialization for club name and city.
+- Settings POS catalog frontend tests now cover backend category/product POST
+  serialization from the `POS и склад` form, including price minor units,
+  stock flags, and idempotency keys.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
   copy, and reported no browser console errors.
@@ -1202,6 +1208,11 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 ## Recent Integration Notes
 
+- On 2026-05-21, `codex/operator-app-redesign` added a backend-backed
+  Settings `POS и склад` product creation form. It creates a POS category,
+  then a POS product with price, SKU, stock flags, and idempotency keys through
+  the existing Platform API catalog-management endpoints, and is covered by
+  frontend route/UI tests plus the full local solution test suite.
 - On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
   Operator App implementation: WebView2 startup shell, local asset resolution,
   typed host config injection, Vite/React frontend foundation, first visual

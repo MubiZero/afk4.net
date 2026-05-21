@@ -124,6 +124,7 @@ const permissionNames = {
   createPosSale: 'pos.sales.create',
   payPosSale: 'pos.sales.pay',
   viewInventory: 'inventory.view',
+  managePosCatalog: 'pos.catalog.manage',
   viewReceipt: 'receipts.view',
   viewDiagnostics: 'diagnostics.view',
   manageBranchStaff: 'identity.branch_staff.manage',
@@ -152,6 +153,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.manageBranchStaff,
     permissionNames.manageLayout,
     permissionNames.viewInventory,
+    permissionNames.managePosCatalog,
     permissionNames.viewDiagnostics,
     permissionNames.viewUpdateStatus,
     permissionNames.viewTariffs
@@ -684,6 +686,16 @@ function moneyDto(currencyCode: string, majorUnits: number) {
     currencyCode,
     minorUnits: Math.round(majorUnits * 100)
   };
+}
+
+function parseMoneyInputMinorUnits(value: string): number | null {
+  const normalized = value.trim().replace(',', '.');
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+    return null;
+  }
+
+  const majorUnits = Number(normalized);
+  return Number.isFinite(majorUnits) && majorUnits > 0 ? Math.round(majorUnits * 100) : null;
 }
 
 function dashboardRangeQuery(from: string, to: string) {
@@ -4447,6 +4459,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
   const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
   const [inviteRoleName, setInviteRoleName] = useState('cashier');
+  const [productCategoryName, setProductCategoryName] = useState('POS category 1');
+  const [productName, setProductName] = useState('POS item 1');
+  const [productSku, setProductSku] = useState('POS-001');
+  const [productPrice, setProductPrice] = useState('12.00');
+  const [productTrackStock, setProductTrackStock] = useState(true);
+  const [productAllowNegativeStock, setProductAllowNegativeStock] = useState(false);
 
   const loadSettings = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -4498,6 +4516,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const canManageBranchStaff = backend !== null && hasPermission(backend.session, permissionNames.manageBranchStaff);
+  const canManagePosCatalog = backend !== null && hasPermission(backend.session, permissionNames.managePosCatalog);
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
     ['Залы и ПК', `${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0)} рабочих мест`],
@@ -4581,6 +4600,47 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setInviteUserName(`operator${staffUsers.length + 2}`);
         setInviteDisplayName('Новый оператор');
         setInvitePassword('ChangeMe123!');
+      } else if (label === 'Создать товар') {
+        if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
+          throw new Error('Нет прав на управление POS каталогом.');
+        }
+
+        const categoryName = productCategoryName.trim();
+        const nextProductName = productName.trim();
+        const sku = productSku.trim();
+        const priceMinorUnits = parseMoneyInputMinorUnits(productPrice);
+        if (!categoryName || !nextProductName || !sku || priceMinorUnits === null) {
+          throw new Error('Заполните категорию, товар, SKU и цену больше нуля.');
+        }
+
+        const category = await apiClients.settings.createProductCategory(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          name: categoryName,
+          idempotencyKey: createIdempotencyKey('pos-category-create')
+        });
+        const categoryId = readString(category, 'categoryId');
+        if (!categoryId) {
+          throw new Error('Platform API returned a POS category without category id.');
+        }
+
+        const product = await apiClients.settings.createProduct(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          categoryId,
+          name: nextProductName,
+          sku,
+          price: { currencyCode, minorUnits: priceMinorUnits },
+          trackStock: productTrackStock,
+          allowNegativeStock: productAllowNegativeStock,
+          idempotencyKey: createIdempotencyKey('pos-product-create')
+        });
+        setCatalog((items) => [...items, product]);
+        const nextIndex = catalog.length + 2;
+        setProductCategoryName(`POS category ${nextIndex}`);
+        setProductName(`POS item ${nextIndex}`);
+        setProductSku(`POS-${String(nextIndex).padStart(3, '0')}`);
+        setProductPrice('12.00');
+        setProductTrackStock(true);
+        setProductAllowNegativeStock(false);
       } else {
         throw new Error('Backend endpoint for this settings action is not implemented yet.');
       }
@@ -4691,14 +4751,38 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
     if (selectedSection === 'POS и склад') {
       return (
-        <div className="settings-config-grid">
-          {catalog.slice(0, 8).map((product) => (
-            <button key={readString(product, 'productId')} type="button" onClick={() => triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed')}>
-              <strong>{readString(product, 'name', 'Product')}</strong>
-              <span>{formatMoney(readMoney(product, 'price'), currencyCode)} · stock {readNumber(product, 'stockOnHand', 0)}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="settings-section-title">
+            <span>POS каталог</span>
+            <button type="button" disabled={!canManagePosCatalog} onClick={() => runSettingsAction('Создать товар')}>Создать товар</button>
+          </div>
+          <div className="settings-config-grid">
+            {catalog.slice(0, 8).map((product) => (
+              <button key={readString(product, 'productId')} type="button" onClick={() => triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed')}>
+                <strong>{readString(product, 'name', 'Product')}</strong>
+                <span>{formatMoney(readMoney(product, 'price'), currencyCode)} · stock {readNumber(product, 'stockOnHand', 0)}</span>
+              </button>
+            ))}
+          </div>
+          <div className="settings-form-grid settings-pos-form">
+            <label>Категория<input value={productCategoryName} disabled={!canManagePosCatalog} onChange={(event) => setProductCategoryName(event.currentTarget.value)} /></label>
+            <label>Товар<input value={productName} disabled={!canManagePosCatalog} onChange={(event) => setProductName(event.currentTarget.value)} /></label>
+            <label>SKU<input value={productSku} disabled={!canManagePosCatalog} onChange={(event) => setProductSku(event.currentTarget.value)} /></label>
+            <label>Цена<input inputMode="decimal" value={productPrice} disabled={!canManagePosCatalog} onChange={(event) => setProductPrice(event.currentTarget.value)} /></label>
+            <label>Учёт остатков
+              <select value={productTrackStock ? 'yes' : 'no'} disabled={!canManagePosCatalog} onChange={(event) => setProductTrackStock(event.currentTarget.value === 'yes')}>
+                <option value="yes">да</option>
+                <option value="no">нет</option>
+              </select>
+            </label>
+            <label>Минусовой остаток
+              <select value={productAllowNegativeStock ? 'yes' : 'no'} disabled={!canManagePosCatalog} onChange={(event) => setProductAllowNegativeStock(event.currentTarget.value === 'yes')}>
+                <option value="no">нет</option>
+                <option value="yes">да</option>
+              </select>
+            </label>
+          </div>
+        </>
       );
     }
 

@@ -3995,6 +3995,11 @@ button {
   padding-top: 10px;
 }
 
+.settings-pos-form {
+  border-top: 1px solid #263241;
+  padding-top: 10px;
+}
+
 .settings-room-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

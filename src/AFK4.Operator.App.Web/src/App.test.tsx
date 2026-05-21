@@ -443,6 +443,51 @@ describe('App', () => {
       city: 'Khujand'
     });
   });
+
+  it('creates a POS category and product from Settings', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /POS и склад/ }));
+    fireEvent.change(screen.getByLabelText('Категория'), { target: { value: 'Snacks' } });
+    fireEvent.change(screen.getByLabelText('Товар'), { target: { value: 'Energy Bar' } });
+    fireEvent.change(screen.getByLabelText('SKU'), { target: { value: 'BAR-01' } });
+    fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '35.50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать товар' }));
+
+    expect(await screen.findByText('Создать товар: подтверждено')).toBeInTheDocument();
+    const categoryCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/categories') &&
+      init?.method === 'POST');
+    expect(categoryCall).toBeDefined();
+    const categoryBody = JSON.parse(String(categoryCall?.[1]?.body));
+    expect(categoryBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'Snacks'
+    });
+    expect(categoryBody.idempotencyKey).toMatch(/^pos-category-create-/);
+
+    const productCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products') &&
+      init?.method === 'POST');
+    expect(productCall).toBeDefined();
+    const productBody = JSON.parse(String(productCall?.[1]?.body));
+    expect(productBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      categoryId: '88888888-8888-8888-8888-888888888888',
+      name: 'Energy Bar',
+      sku: 'BAR-01',
+      price: { currencyCode: 'TJS', minorUnits: 3550 },
+      trackStock: true,
+      allowNegativeStock: false
+    });
+    expect(productBody.idempotencyKey).toMatch(/^pos-product-create-/);
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -502,6 +547,16 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/reservations')) {
     return jsonResponse(createReservationSearch());
+  }
+
+  if (pathname.endsWith('/pos/categories') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createPosCategory(body));
+  }
+
+  if (pathname.endsWith('/pos/products') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createPosProduct(body));
   }
 
   if (pathname.endsWith('/pos/catalog')) {
@@ -647,6 +702,7 @@ const allOperatorPermissions = [
   'pos.sales.create',
   'pos.sales.pay',
   'inventory.view',
+  'pos.catalog.manage',
   'receipts.view',
   'diagnostics.view',
   'identity.branch_staff.manage',
@@ -855,21 +911,38 @@ function createReservation(overrides: Record<string, unknown> = {}) {
 
 function createPosCatalog() {
   return [
-    {
-      productId: '77777777-7777-7777-7777-777777777777',
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
-      categoryId: '88888888-8888-8888-8888-888888888888',
-      name: 'Cola 0.5',
-      sku: 'COLA-05',
-      price: { currencyCode: 'TJS', minorUnits: 1200 },
-      trackStock: true,
-      allowNegativeStock: false,
-      isActive: true,
-      stockOnHand: 12,
-      createdAtUtc: '2026-05-21T08:00:00Z'
-    }
+    createPosProduct()
   ];
+}
+
+function createPosCategory(overrides: Record<string, unknown> = {}) {
+  return {
+    categoryId: '88888888-8888-8888-8888-888888888888',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    name: 'Drinks',
+    isActive: true,
+    createdAtUtc: '2026-05-21T08:00:00Z',
+    ...overrides
+  };
+}
+
+function createPosProduct(overrides: Record<string, unknown> = {}) {
+  return {
+    productId: '77777777-7777-7777-7777-777777777777',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    categoryId: '88888888-8888-8888-8888-888888888888',
+    name: 'Cola 0.5',
+    sku: 'COLA-05',
+    price: { currencyCode: 'TJS', minorUnits: 1200 },
+    trackStock: true,
+    allowNegativeStock: false,
+    isActive: true,
+    stockOnHand: 12,
+    createdAtUtc: '2026-05-21T08:00:00Z',
+    ...overrides
+  };
 }
 
 function createCurrentShift() {
