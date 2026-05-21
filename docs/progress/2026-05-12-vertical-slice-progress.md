@@ -1097,16 +1097,19 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Continue `codex/operator-app-redesign` from the completed native
-   auth/token bridge and typed API client boundary by wiring SignalR state,
-   backend-backed floor-map data loading, backend-confirmed selected-seat
-   actions, and then parity screens for POS, players, shifts, Pilot Setup,
-   diagnostics, updates, audit, and reports. Then test the WebView2 Operator
-   App against deployed staging: sign-in, floor map, the setup panel,
-   shift/POS basics, session actions against current staging device/seat state,
-   and actionable error handling. Preserve the accepted fixture design
-   baseline while replacing local state with backend-backed behavior. Treat
-   any remaining raw GUID/form surfaces as usability bugs unless they are
+2. Continue `codex/operator-app-redesign` from the backend-connected React
+   shell by working through the new "Backend Connectivity TODO From Current
+   React UI Copy" checklist in
+   `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
+   Every production-visible `Fixture`, `not implemented`, `нет backend`,
+   missing-contract, or local-only action state should either be wired to an
+   existing Platform API contract or backed by a new backend contract before
+   the copy is removed. Then test the WebView2 Operator App against deployed
+   staging: sign-in, floor map, booking, POS, clients, payments/shifts, logs,
+   settings, session actions against current staging device/seat state, and
+   actionable error handling. Preserve the accepted fixture design baseline
+   while replacing local state with backend-backed behavior. Treat any
+   remaining raw GUID/form surfaces as usability bugs unless they are
    explicitly advanced technician tools.
 3. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update

@@ -119,6 +119,80 @@ Next implementation order:
 3. Staging-smoke POS, Clients, Payments, Logs, and Settings against
    `https://afk4.staging.mubi.dev`, then close parity gaps found with real data.
 
+## Backend Connectivity TODO From Current React UI Copy
+
+This checklist tracks every current Operator React surface that still tells the
+operator, directly or indirectly, that the action is fixture-only, fallback-only,
+or missing backend wiring. For each item, first check whether a Platform API
+contract already exists. If it exists, wire the UI to that contract with
+pending/confirmed/failed states and tests. If no backend contract exists, add
+the backend endpoint/DTO/domain tests first, then wire the UI and remove the
+missing-backend copy.
+
+- [ ] Global fallback copy: remove production-visible `Fixture`,
+  `Fixture fallback`, `SmartShell-like fixture`, and
+  `Функция пока не подключена к backend.` states from signed-in operator flows.
+  Keep fixture data only as a deliberate browser-dev/no-backend fallback behind
+  clear dev-only state; production/staging should show backend loading, empty,
+  or actionable error states.
+- [ ] Dashboard: replace fixture KPI values, focus queue, transition cards,
+  period-driven synthetic metrics, and dashboard export feedback with backend
+  dashboard/report read models. If no dashboard summary API exists, create
+  endpoints for active shift summary, revenue/utilization, service/task queue,
+  recent payments, and operator alert pressure.
+- [ ] Map: wire `Техрежим`, problem filters/table parity, billing-mode
+  selection beyond fast guest, registered-player/package selection for session
+  start/extend, and Agent/device command result status. Use existing session,
+  device command, and diagnostics contracts where possible; create missing
+  command-result/read-model endpoints if the UI cannot show authoritative
+  pending/succeeded/failed command state.
+- [ ] Booking: replace `Backend-контракт бронирований ещё не реализован.`,
+  `booking API отсутствует`, `нет backend источника заявок`, `черновик ждёт
+  backend booking API`, and `нет booking API` copy with real reservation
+  functionality. If the backend still has no reservation module, create it:
+  branch-scoped reservations, online requests, availability/conflict checks,
+  create/edit/seat/move/cancel flows, permissions, audit records, and realtime
+  updates.
+- [ ] POS: wire every quick operation that still uses local feedback or
+  handoff copy: select customer for cart, refund by selected backend sale,
+  void sale, receipt detail/print/export, wallet top-up handoff, new customer
+  handoff, cash movement, stock write-off/adjustment, and discount/promo/combo
+  handling if kept in MVP UI. Use existing POS/player/shift endpoints where
+  they exist; create missing refund/void/receipt/inventory/provider endpoints
+  before removing the UI warnings.
+- [ ] Clients: wire `Создать бронь` from a selected player instead of throwing
+  the missing booking-contract error. Also replace remaining local-only client
+  surfaces with backend reads/actions: profile details/edit, purchase history,
+  comments, groups, restrictions/discounts, package purchase/bonus operations,
+  and privacy/audit-sensitive details. Create backend contracts where these do
+  not already exist.
+- [ ] Payments/Shifts: turn `Подготовить закрытие` into the real close-shift
+  workflow with counted cash, notes, discrepancy handling, permissions, and
+  backend confirmation. Add UI for cash movement creation, pending post-payment
+  resolution, cancellation/refund actions where allowed, and selected operation
+  detail. Use existing shift/report/POS contracts first; create missing
+  payment-operation detail or approval endpoints if needed.
+- [ ] Logs: replace projected-only event rows with backend-backed event detail,
+  period/category/operator/target filters, correlation IDs, support handoff
+  data, and export generation. Use audit, diagnostics, and report endpoints
+  where they exist; create missing event-detail/support-export contracts if the
+  current API cannot answer the screen.
+- [ ] Settings: replace
+  `General staff invite form is not implemented in the React operator yet.`
+  and `Backend endpoint for branch profile settings is not implemented yet.`
+  with real flows. Wire or create backend for branch profile settings, staff
+  invite and role assignment/editing, general layout editor, device-seat
+  management, tariff/package management, POS catalog and stock CRUD,
+  integrations/payment-provider settings, update rollout controls, diagnostics,
+  audit/security settings, and validation errors.
+- [ ] Empty backend states: review `Нет backend операций`,
+  `Нет backend событий`, and similar empty-state copy after real staging data
+  smoke. Keep them only when the backend returned a successful empty result;
+  otherwise show actionable loading/error/retry state.
+- [ ] Dev-only host state: keep `Native host bridge is unavailable.` as a
+  browser-dev/WebView2-smoke diagnostic only. It should not appear in a normal
+  packaged Operator App session.
+
 Preserve the accepted fixture design baseline during this work; do not start
 another broad fixture-only polish pass without a concrete staging or real-data
 defect.
