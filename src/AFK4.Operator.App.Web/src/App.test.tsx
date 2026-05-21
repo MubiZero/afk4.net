@@ -374,6 +374,17 @@ describe('App', () => {
     expect(url.searchParams.get('fromUtc')).toBe('2026-05-21T00:00:00Z');
     expect(url.searchParams.get('toUtc')).toBe('2026-05-21T23:59:59Z');
     expect(url.searchParams.get('limit')).toBe('12');
+
+    const beforePreset = new Date();
+    fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }));
+
+    expect(await screen.findByText('Сегодня: подтверждено')).toBeInTheDocument();
+    const presetCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
+    const presetUrl = new URL(String(presetCalls[presetCalls.length - 1][0]));
+    const expectedFromUtc = new Date(Date.UTC(beforePreset.getUTCFullYear(), beforePreset.getUTCMonth(), beforePreset.getUTCDate())).toISOString();
+    expect(presetUrl.searchParams.get('fromUtc')).toBe(expectedFromUtc);
+    expect(Date.parse(presetUrl.searchParams.get('toUtc') ?? '')).toBeGreaterThanOrEqual(beforePreset.getTime());
+    expect(presetUrl.searchParams.get('limit')).toBe('50');
   });
 
   it('shows backend audit record detail in Logs', async () => {

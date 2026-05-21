@@ -5376,6 +5376,29 @@ type AuditSearchOverrides = {
   toUtc?: string | null;
   limit?: number | null;
 };
+type AuditPeriodPreset = 'today' | 'last24h' | 'last7d';
+
+const auditPeriodPresetOptions: Array<[string, AuditPeriodPreset]> = [
+  ['Сегодня', 'today'],
+  ['24 часа', 'last24h'],
+  ['7 дней', 'last7d']
+];
+
+function auditPeriodPresetRange(preset: AuditPeriodPreset, now = new Date()): Pick<AuditSearchOverrides, 'fromUtc' | 'toUtc'> {
+  const toUtc = now.toISOString();
+  if (preset === 'today') {
+    return {
+      fromUtc: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString(),
+      toUtc
+    };
+  }
+
+  const hours = preset === 'last24h' ? 24 : 24 * 7;
+  return {
+    fromUtc: new Date(now.getTime() - hours * 60 * 60 * 1000).toISOString(),
+    toUtc
+  };
+}
 
 function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const [eventSearch, setEventSearch] = useState('');
@@ -5529,6 +5552,14 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     }
   };
 
+  const applyAuditPeriodPreset = async (label: string, preset: AuditPeriodPreset) => {
+    const range = auditPeriodPresetRange(preset);
+    setAuditFromUtcFilter(range.fromUtc ?? '');
+    setAuditToUtcFilter(range.toUtc ?? '');
+    setAuditLimit('50');
+    await applyAuditSearch(label, { ...range, limit: 50 });
+  };
+
   const selectLogFilter = (filter: string) => {
     setActiveLogFilter(filter);
     const presets: Record<string, AuditSearchOverrides> = {
@@ -5664,6 +5695,11 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
             ))}
           </div>
           <div className="logs-audit-filter-form">
+            <div className="logs-period-presets" aria-label="Период audit">
+              {auditPeriodPresetOptions.map(([label, preset]) => (
+                <button key={preset} type="button" onClick={() => void applyAuditPeriodPreset(label, preset)}>{label}</button>
+              ))}
+            </div>
             <label>Audit action<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="sessions.start" /></label>
             <label>Outcome<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder="succeeded / denied" /></label>
             <label>Target type<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="Session" /></label>

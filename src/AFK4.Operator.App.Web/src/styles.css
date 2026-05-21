@@ -4249,6 +4249,21 @@ button {
   font-weight: 850;
 }
 
+.logs-period-presets {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.logs-period-presets button {
+  grid-column: auto;
+  height: 28px;
+  border-color: #2b3748;
+  background: #101b2a;
+  color: #dbeafe;
+}
+
 .logs-filter-grid button:hover,
 .logs-filter-grid button:focus-visible,
 .logs-export-grid button:hover,

@@ -356,7 +356,8 @@ Minimum bar:
   action, outcome, target type, UTC date range, and limit, and selected Logs
   event detail now uses the already loaded audit/diagnostics backend rows.
   Logs source cards now filter the loaded event list by all/Agent/POS/
-  Operator/Platform.
+  Operator/Platform, and operator period presets execute audit searches for
+  today, the last 24 hours, or the last 7 days.
   Settings `Залы и ПК` now also
   creates device enrollment codes, assigns enrolled devices to seats, and
   opens device detail through existing device endpoints, including credential
@@ -450,7 +451,7 @@ Minimum bar:
   definition creation, Settings update package/rollout controls, Settings
   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift,
    cash-movement wiring, and selected-operation detail, Logs backend audit/date
-   filters, selected-event detail, and source-card filtering, POS
+   filters, selected-event detail, source-card filtering, and period presets, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
    POS selected-customer/new-customer checkout/wallet top-up/stock write-off, Clients wallet
    top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces

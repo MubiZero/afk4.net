@@ -210,7 +210,8 @@ implementation evidence are needed.
   operation detail from backend report rows; Logs reads audit and diagnostics
   and shows selected audit/diagnostics event detail from the loaded backend
   rows, while source cards filter the loaded event list by all/Agent/POS/
-  Operator/Platform;
+  Operator/Platform, and operator period presets execute audit searches for
+  today, the last 24 hours, or the last 7 days;
   Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
   option, and package option data, and can trigger limited backend setup actions
   including tariff/version creation, package definition creation, inventory
@@ -328,7 +329,8 @@ form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters and
-selected audit/diagnostics event detail plus source-card filtering, POS
+selected audit/diagnostics event detail plus source-card filtering and period
+presets, POS
 refund quick action, Settings layout zone/seat creation, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
 checkout, POS new-customer checkout, and Clients package purchase:
@@ -390,7 +392,8 @@ Result:
   percent, start time, reason, and organization id serialization.
 - Logs frontend tests now cover backend audit search filtering from `Логи`,
   including action, outcome, target type, UTC from/to, and limit query-string
-  serialization to `/api/branches/{branchId}/audit`.
+  serialization to `/api/branches/{branchId}/audit`, plus the `Сегодня`
+  period preset's generated UTC from/to range and default limit.
 - Logs frontend tests now cover selected event detail from backend audit rows
   and diagnostics command-failure rows, including ids, target/source data,
   command status, diagnostic messages, and source-card filtering between POS
@@ -416,9 +419,10 @@ Result:
   exists through `/api/branches/{branchId}/shifts/open`, including starting
   cash, opening note, organization id, and idempotency key serialization.
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
-  and source-card filtering: the React app rendered the WebView auth entry
-  surface with title `AFK4 Operator`, heading `Вход оператора`, sign-in button,
-  no horizontal or vertical body overflow, and no old backend placeholder copy.
+  source-card filtering, and audit period presets: the React app rendered the
+  WebView auth entry surface with title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
+  and no old backend placeholder copy.
 - Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console
