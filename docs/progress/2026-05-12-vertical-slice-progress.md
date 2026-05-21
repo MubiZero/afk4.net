@@ -154,9 +154,11 @@ implementation evidence are needed.
   guarded by `updates.packages.manage` and `updates.rollouts.manage`. Settings
   `Залы и ПК` can now create device enrollment codes, assign an enrolled
   device id to a selected seat, and open device detail through existing device
-  endpoints, guarded by the existing device permissions. The same Settings
-  device surface can now rotate and revoke device credentials through the
-  existing credential lifecycle endpoints.
+  endpoints, guarded by the existing device permissions. The same section now
+  creates layout zones and seats from operator-entered names/sort orders
+  through the existing layout endpoints, guarded by `layout.manage`. The same
+  Settings device surface can now rotate and revoke device credentials through
+  the existing credential lifecycle endpoints.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports, creates paid manual-provider sales, can refund the selected backend
@@ -284,7 +286,7 @@ form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
-refund quick action, POS
+refund quick action, Settings layout zone/seat creation, POS
 draft void quick action, POS sale detail/receipt lookup, and Clients package purchase:
 
 ```powershell
@@ -296,7 +298,7 @@ draft void quick action, POS sale detail/receipt lookup, and Clients package pur
 
 Result:
 
-- frontend tests: 62 passed, 0 failed;
+- frontend tests: 63 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -352,6 +354,11 @@ Result:
   the existing device endpoints from `Залы и ПК`. The same test now covers
   rotating and revoking device credentials through the existing credential
   lifecycle endpoints.
+- Settings layout frontend tests now cover creating a layout zone and seat from
+  `Залы и ПК`, including operator-entered zone name/sort order, selected seat
+  zone id, seat name/sort order, organization id, and the existing
+  `/api/branches/{branchId}/layout/zones` plus
+  `/api/branches/{branchId}/layout/seats` endpoints.
 - Payments frontend tests now cover closing the current shift from the
   reconciliation panel through `/api/shifts/{shiftId}/close`, including
   counted cash, closing note, organization id, and idempotency key
@@ -1337,6 +1344,11 @@ Operator App redesign branch-local verification on 2026-05-20:
   creation against the existing shift cash movement API. Operators with
   `shifts.cash.manage` can enter cash in/out amount and reason, and the UI
   confirms only after the backend accepts the movement.
+- On 2026-05-21, `codex/operator-app-redesign` added a general Settings
+  layout form in `Залы и ПК`. Operators with `layout.manage` can enter zone
+  name/sort order and seat zone/name/sort order, then create zones and seats
+  through the existing layout endpoints instead of the previous generic
+  `Zone N`/`PC-N` payloads.
 - On 2026-05-21, `codex/operator-app-redesign` wired the POS quick
   `Возврат по чеку` action to the existing refund endpoint for the latest
   backend sale, guarded by `pos.sales.refund` and idempotency.

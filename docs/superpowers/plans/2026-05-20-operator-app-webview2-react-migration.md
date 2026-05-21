@@ -75,9 +75,9 @@ Current state:
   registers update packages, creates rollouts, and changes package/rollout
   state through the existing update endpoints. Logs now refreshes backend audit
   records through action/outcome/target type/date range/limit filters. Settings `Залы и
-  ПК` now creates enrollment codes, assigns device ids to seats, and reads
-  device detail through existing device endpoints, including credential
-  rotation/revocation controls. POS
+  ПК` now creates layout zones/seats, creates enrollment codes, assigns device
+  ids to seats, and reads device detail through existing layout/device
+  endpoints, including credential rotation/revocation controls. POS
   quick refund now calls the existing refund endpoint for the selected backend
   sale, and POS draft void creates a backend draft from the current cart before
   calling the existing void endpoint. POS recent receipt rows now open backend
@@ -133,9 +133,10 @@ package registration, rollout creation, and package/rollout state changes with
 the existing `updates.packages.manage` and `updates.rollouts.manage` guards.
 Logs now applies backend audit action/outcome/target type/date range/limit
 filters through the existing audit search endpoint. Settings `Залы и ПК` now exposes
-backend-backed enrollment-code creation, device-to-seat assignment, and device
-detail lookup with the existing device permissions, plus credential rotation
-and revocation through the existing credential lifecycle endpoints.
+backend-backed layout zone/seat creation, enrollment-code creation,
+device-to-seat assignment, and device detail lookup with the existing layout
+and device permissions, plus credential rotation and revocation through the
+existing credential lifecycle endpoints.
 POS
 quick refund calls the backend refund endpoint for the selected backend sale, and
 POS draft void calls the backend void endpoint after creating a draft from the
@@ -286,11 +287,13 @@ missing-backend copy.
   endpoints with `updates.packages.manage` and `updates.rollouts.manage`
   gating. Device setup from `Залы и ПК` was implemented on 2026-05-21 through
   the existing enrollment-code, device-seat assignment, and device detail
-  endpoints with existing device permission gating. Credential rotation and
-  revocation were added to the same section on 2026-05-21 through the existing
-  credential lifecycle endpoints.
-  Remaining settings gaps include role assignment/editing, general layout
-  editor, richer device inventory/history management, tariff version edit/deactivate, package edit/
+  endpoints with existing device permission gating. The same section now has a
+  general layout form for zone and seat creation through the existing layout
+  endpoints with `layout.manage` gating. Credential rotation and revocation were
+  added to the same section on 2026-05-21 through the existing credential
+  lifecycle endpoints.
+  Remaining settings gaps include role assignment/editing, richer layout
+  editing beyond create-only zones/seats, richer device inventory/history management, tariff version edit/deactivate, package edit/
   deactivate and purchase UX refinements, POS catalog edit/deactivate, stock
   history and advanced inventory controls, integrations/payment-provider
   settings, richer update rollout detail/status controls, diagnostics,

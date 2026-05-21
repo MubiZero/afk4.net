@@ -4296,7 +4296,13 @@ button {
   padding-top: 10px;
 }
 
-.settings-device-form button {
+.settings-layout-form {
+  border-top: 1px solid #263241;
+  padding-top: 10px;
+}
+
+.settings-device-form button,
+.settings-layout-form button {
   align-self: end;
   height: 28px;
   border: 1px solid #1f6feb;
@@ -4308,7 +4314,8 @@ button {
   font-weight: 850;
 }
 
-.settings-device-form button:disabled {
+.settings-device-form button:disabled,
+.settings-layout-form button:disabled {
   cursor: not-allowed;
   border-color: #263241;
   background: #17202c;

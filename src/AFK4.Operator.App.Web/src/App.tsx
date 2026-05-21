@@ -5011,6 +5011,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
   const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
+  const [layoutZoneName, setLayoutZoneName] = useState('Main Hall');
+  const [layoutZoneSortOrder, setLayoutZoneSortOrder] = useState('10');
+  const [layoutSeatZoneId, setLayoutSeatZoneId] = useState('');
+  const [layoutSeatName, setLayoutSeatName] = useState('PC-01');
+  const [layoutSeatSortOrder, setLayoutSeatSortOrder] = useState('10');
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
   const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
@@ -5081,6 +5086,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setStaffUsers(Array.isArray(staff) ? staff : []);
       const zoneRows = Array.isArray(layoutZones) ? layoutZones : [];
       setZones(zoneRows);
+      const firstZoneId = readString(zoneRows[0], 'zoneId');
+      setLayoutSeatZoneId((current) => zoneRows.some((zone) => readString(zone, 'zoneId') === current) ? current : firstZoneId);
       const firstSeatId = zoneRows.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats')).map((seat) => readString(seat, 'seatId')).find(Boolean) ?? '';
       setDeviceAssignmentSeatId((current) => isGuid(current) ? current : firstSeatId);
       setCatalog(productRows);
@@ -5120,6 +5127,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const selectedSectionDetail = sections.find(([name]) => name === selectedSection)?.[1] ?? '';
   const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
+  const canManageLayout = backend !== null && hasPermission(backend.session, permissionNames.manageLayout);
   const canManageBranchStaff = backend !== null && hasPermission(backend.session, permissionNames.manageBranchStaff);
   const canManagePosCatalog = backend !== null && hasPermission(backend.session, permissionNames.managePosCatalog);
   const canManageInventoryStock = backend !== null && hasPermission(backend.session, permissionNames.manageInventoryStock);
@@ -5227,24 +5235,49 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         await apiClients.devices.revokeDeviceCredential(deviceId, credentialId);
         setRotatedCredential(null);
       } else if (label === 'Добавить зал') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageLayout)) {
+          throw new Error('Нет прав на управление залами и рабочими местами.');
+        }
+
+        const name = layoutZoneName.trim();
+        const sortOrder = Number(layoutZoneSortOrder);
+        if (!name || !Number.isInteger(sortOrder)) {
+          throw new Error('Заполните название зала и целый порядок сортировки.');
+        }
+
         const zone = await apiClients.settings.createZone(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
-          name: `Zone ${zones.length + 1}`,
-          sortOrder: (zones.length + 1) * 10
+          name,
+          sortOrder
         });
         setZones((items) => [...items, zone]);
+        setLayoutSeatZoneId(readString(zone, 'zoneId'));
+        setLayoutZoneName(`Zone ${zones.length + 2}`);
+        setLayoutZoneSortOrder(String(sortOrder + 10));
       } else if (label === 'Добавить ПК') {
-        const zoneId = readString(zones[0], 'zoneId');
+        if (!hasPermission(nextBackend.session, permissionNames.manageLayout)) {
+          throw new Error('Нет прав на управление залами и рабочими местами.');
+        }
+
+        const zoneId = layoutSeatZoneId.trim();
         if (!zoneId) {
           throw new Error('Create a layout zone before adding a seat.');
+        }
+
+        const name = layoutSeatName.trim();
+        const sortOrder = Number(layoutSeatSortOrder);
+        if (!name || !Number.isInteger(sortOrder)) {
+          throw new Error('Заполните название ПК и целый порядок сортировки.');
         }
 
         await apiClients.settings.createSeat(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
           zoneId,
-          name: `PC-${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0) + 1}`,
-          sortOrder: 1000
+          name,
+          sortOrder
         });
+        setLayoutSeatName(`PC-${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0) + 2}`);
+        setLayoutSeatSortOrder(String(sortOrder + 10));
         await loadSettings(nextBackend);
       } else if (label === 'Создать тариф') {
         if (!hasPermission(nextBackend.session, permissionNames.manageTariffs)) {
@@ -5546,6 +5579,22 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-section-title">
             <span>Залы и рабочие места</span>
             <button type="button" onClick={() => runSettingsAction('Добавить зал')}>Добавить зал</button>
+          </div>
+          <div className="settings-form-grid settings-layout-form">
+            <label>Название зала<input value={layoutZoneName} disabled={!canManageLayout} onChange={(event) => setLayoutZoneName(event.currentTarget.value)} /></label>
+            <label>Сортировка зала<input inputMode="numeric" value={layoutZoneSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutZoneSortOrder(event.currentTarget.value)} /></label>
+            <button type="button" disabled={!canManageLayout} onClick={() => runSettingsAction('Добавить зал')}>Создать зал</button>
+            <label>Зона ПК
+              <select value={layoutSeatZoneId} disabled={!canManageLayout || zones.length === 0} onChange={(event) => setLayoutSeatZoneId(event.currentTarget.value)}>
+                {zones.length === 0 && <option value="">нет залов</option>}
+                {zones.map((zone) => (
+                  <option key={readString(zone, 'zoneId')} value={readString(zone, 'zoneId')}>{readString(zone, 'name', 'Zone')}</option>
+                ))}
+              </select>
+            </label>
+            <label>Название ПК<input value={layoutSeatName} disabled={!canManageLayout} onChange={(event) => setLayoutSeatName(event.currentTarget.value)} /></label>
+            <label>Сортировка ПК<input inputMode="numeric" value={layoutSeatSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutSeatSortOrder(event.currentTarget.value)} /></label>
+            <button type="button" disabled={!canManageLayout || !layoutSeatZoneId} onClick={() => runSettingsAction('Добавить ПК')}>Создать ПК</button>
           </div>
           <div className="settings-room-grid">
             {zones.map((zone) => (

@@ -343,7 +343,9 @@ Minimum bar:
   action, outcome, target type, UTC date range, and limit. Settings `Залы и ПК` now also
   creates device enrollment codes, assigns enrolled devices to seats, and
   opens device detail through existing device endpoints, including credential
-  rotation/revocation controls.
+  rotation/revocation controls. The same Settings section now creates layout
+  zones and seats from operator-entered names/sort orders through the existing
+  layout endpoints with `layout.manage` gating.
   Payments now opens shifts through the existing open-shift API, closes the
   current shift through the existing close-shift API with counted cash and a
   closing note, and records cash movements through the existing shift cash
@@ -404,7 +406,8 @@ Minimum bar:
    restored staff permissions. The map panel now also supports guest/prepaid/
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
-  hardening, Settings staff creation, branch profile save, Settings POS
+  hardening, Settings staff creation, branch profile save, Settings layout
+  zone/seat creation, Settings POS
   category/product creation, Settings stock movement creation, Settings package
   definition creation, Settings update package/rollout controls, Settings
   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift and

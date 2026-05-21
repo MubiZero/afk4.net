@@ -778,6 +778,48 @@ describe('App', () => {
     });
   });
 
+  it('creates layout zones and seats from Settings layout form', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
+    fireEvent.change(screen.getByLabelText('Название зала'), { target: { value: 'VIP Hall' } });
+    fireEvent.change(screen.getByLabelText('Сортировка зала'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать зал' }));
+
+    expect(await screen.findByText('Добавить зал: подтверждено')).toBeInTheDocument();
+    const zoneCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones') &&
+      init?.method === 'POST');
+    expect(zoneCall).toBeDefined();
+    expect(JSON.parse(String(zoneCall?.[1]?.body))).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'VIP Hall',
+      sortOrder: 30
+    });
+
+    fireEvent.change(screen.getByLabelText('Название ПК'), { target: { value: 'VIP-01' } });
+    fireEvent.change(screen.getByLabelText('Сортировка ПК'), { target: { value: '40' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать ПК' }));
+
+    expect(await screen.findByText('Добавить ПК: подтверждено')).toBeInTheDocument();
+    const seatCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats') &&
+      init?.method === 'POST');
+    expect(seatCall).toBeDefined();
+    expect(JSON.parse(String(seatCall?.[1]?.body))).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      name: 'VIP-01',
+      sortOrder: 40
+    });
+  });
+
   it('creates device enrollment codes and assigns devices to seats from Settings', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1313,6 +1355,16 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/staff')) {
     return jsonResponse(createStaffUsers());
+  }
+
+  if (pathname.endsWith('/layout/zones') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createZone(body));
+  }
+
+  if (pathname.endsWith('/layout/seats') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createSeat(body));
   }
 
   if (pathname.endsWith('/layout/zones')) {
@@ -2056,6 +2108,32 @@ function createStaffUser(overrides: Record<string, unknown> = {}) {
     displayName: 'Cashier One',
     isActive: true,
     roleNames: ['cashier'],
+    createdAtUtc: '2026-05-21T08:00:00Z',
+    ...overrides
+  };
+}
+
+function createZone(overrides: Record<string, unknown> = {}) {
+  return {
+    zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    name: 'Зал A',
+    sortOrder: 10,
+    createdAtUtc: '2026-05-21T08:00:00Z',
+    seats: [],
+    ...overrides
+  };
+}
+
+function createSeat(overrides: Record<string, unknown> = {}) {
+  return {
+    seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    name: 'PC-01',
+    sortOrder: 10,
     createdAtUtc: '2026-05-21T08:00:00Z',
     ...overrides
   };
