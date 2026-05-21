@@ -670,6 +670,33 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^debt-payment-/);
   });
 
+  it('creates a backend player from the Clients new card form', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Имя нового клиента'), { target: { value: 'Zarina N.' } });
+    fireEvent.change(screen.getByLabelText('Телефон нового клиента'), { target: { value: '+992 90 777 88 99' } });
+    fireEvent.click(screen.getByRole('button', { name: /Новая карта/ }));
+
+    expect(await screen.findByText('Новая карта: подтверждено')).toBeInTheDocument();
+    const createPlayerCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/players') &&
+      init?.method === 'POST');
+    expect(createPlayerCall).toBeDefined();
+    const body = JSON.parse(String(createPlayerCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      displayName: 'Zarina N.',
+      phoneNumber: '+992 90 777 88 99'
+    });
+    expect(body.idempotencyKey).toMatch(/^player-create-/);
+  });
+
   it('creates a staff user from the Settings personnel form', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1192,6 +1219,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosSale('paid'));
   }
 
+  if (pathname.endsWith('/players') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createPlayerAccount(body));
+  }
+
   if (pathname.endsWith('/players')) {
     return jsonResponse(createPlayers());
   }
@@ -1385,6 +1417,7 @@ const allOperatorPermissions = [
   'sessions.transfer',
   'sessions.end',
   'players.view',
+  'players.create',
   'billing.view',
   'billing.wallet.top_up',
   'billing.debt.pay',
@@ -1875,6 +1908,22 @@ function createPlayerPackage(overrides: Record<string, unknown> = {}) {
     remainingBonusSeconds: 0,
     state: 'active',
     expiresAtUtc: '2026-05-22T10:00:00Z',
+    ...overrides
+  };
+}
+
+function createPlayerAccount(overrides: Record<string, unknown> = {}) {
+  return {
+    playerAccountId: '45454545-4545-4545-4545-454545454545',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    displayName: 'New Client',
+    phoneNumber: '+992 90 777 88 99',
+    walletBalanceMinorUnits: 0,
+    debtBalanceMinorUnits: 0,
+    activePackageCount: 0,
+    isActive: true,
+    createdAtUtc: '2026-05-21T12:40:00Z',
     ...overrides
   };
 }

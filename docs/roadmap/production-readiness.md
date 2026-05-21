@@ -355,8 +355,9 @@ Minimum bar:
   option and purchase endpoints for the selected backend player, and Clients
   wallet top-up sends operator-entered amount/reason to the existing top-up
   endpoint. Clients debt payment sends operator-entered amount/reason to the
-  existing debt payment endpoint. Staging smoke of these extra workspaces still
-  remains before
+  existing debt payment endpoint. Clients player creation sends
+  operator-entered name/phone to the existing player creation endpoint. Staging
+  smoke of these extra workspaces still remains before
   the WebView2/React app covers the full pilot day flow. Fixture-only/
   missing-contract commands should report backend failures rather than showing
   backend success.
@@ -408,7 +409,7 @@ Minimum bar:
   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift and
   cash-movement wiring, Logs backend audit/date filters, POS
    refund/draft-void quick actions, POS sale-detail lookup, Clients wallet
-   top-up/debt-payment forms, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
+   top-up/debt-payment forms, Clients new-player form, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must
    still target staging with

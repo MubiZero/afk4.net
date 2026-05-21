@@ -164,8 +164,9 @@ implementation evidence are needed.
   from the current cart, and opens backend sale details from the recent receipt
   list; Clients searches backend players
   and performs wallet top-up and debt payment with operator-entered
-  amount/reason, package purchase, player creation, and reservation creation
-  from a selected backend player; Payments reads shift,
+  amount/reason, package purchase, player creation with operator-entered
+  name/phone, and reservation creation from a selected backend player; Payments
+  reads shift,
   sales, cash, and CSV report endpoints; Logs reads audit and diagnostics;
   Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
   option, and package option data, and can trigger limited backend setup actions
@@ -278,7 +279,8 @@ selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings stock movement creation,
 Settings tariff/version create, Settings package definition create, Clients
-wallet top-up/debt payment amount/reason forms, Payments
+wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
+form, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
@@ -294,7 +296,7 @@ draft void quick action, POS sale detail lookup, and Clients package purchase:
 
 Result:
 
-- frontend tests: 60 passed, 0 failed;
+- frontend tests: 61 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -401,6 +403,9 @@ Result:
   `/api/players/{playerAccountId}/debts/payments`, including the no-overpayment
   client guard, amount minor units, organization id, reason, and idempotency
   key serialization.
+- Clients frontend tests now cover player creation from the Clients new-card
+  form through `/api/branches/{branchId}/players`, including display name,
+  phone number, organization id, and idempotency key serialization.
 - Booking is now backed by real reservation API contracts and is no longer blocked
   by missing booking contract support. The app now exercises reservation
   search/create/update/confirm/seat/cancel endpoints. Remaining work is UX

@@ -86,7 +86,8 @@ Current state:
   selected backend player, and wallet top-up now uses an operator amount/reason
   form before calling the existing top-up endpoint. Debt payment now also uses
   an operator amount/reason form before calling the existing debt payment
-  endpoint. Staging smoke across the newly wired screens is the
+  endpoint. Player creation now uses an operator name/phone form before calling
+  the existing player creation endpoint. Staging smoke across the newly wired screens is the
   next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
@@ -141,6 +142,7 @@ line detail. Clients package purchase calls the backend package purchase
 endpoint for the selected player, and Clients wallet top-up sends
 operator-entered amount/reason to the backend. Clients debt payment now also
 sends operator-entered amount/reason to the backend with a no-overpayment guard.
+Clients player creation now sends operator-entered name/phone to the backend.
 Continue with staging smoke of the backend-backed workspaces and close gaps
 found with real data.
 
@@ -236,8 +238,8 @@ missing-backend copy.
   Use existing POS/player/shift endpoints where they exist; create missing
   void/receipt/inventory/provider endpoints before removing the UI warnings.
 - [ ] Clients: `Создать бронь` from a selected player, wallet top-up and debt
-  payment with operator-entered amount/reason, player creation, and package
-  purchase now use backend endpoints.
+  payment with operator-entered amount/reason, player creation with
+  operator-entered name/phone, and package purchase now use backend endpoints.
   Remaining local-only client surfaces include richer profile details/edit,
   purchase history, comments, groups, restrictions/discounts, package bonus
   operations, and privacy/audit-sensitive details. Create backend contracts

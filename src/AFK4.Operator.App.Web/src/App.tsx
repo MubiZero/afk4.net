@@ -117,6 +117,7 @@ const permissionNames = {
   transferSession: 'sessions.transfer',
   endSession: 'sessions.end',
   viewPlayers: 'players.view',
+  createPlayerAccount: 'players.create',
   viewBilling: 'billing.view',
   topUpWallet: 'billing.wallet.top_up',
   payDebt: 'billing.debt.pay',
@@ -170,6 +171,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
   ],
   players: [
     permissionNames.viewPlayers,
+    permissionNames.createPlayerAccount,
     permissionNames.viewBilling,
     permissionNames.topUpWallet,
     permissionNames.payDebt,
@@ -3841,6 +3843,8 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const [walletTopUpReason, setWalletTopUpReason] = useState('operator wallet top-up');
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
   const [debtPaymentReason, setDebtPaymentReason] = useState('operator debt payment');
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newPlayerPhone, setNewPlayerPhone] = useState('');
 
   useEffect(() => {
     if (backend === null) {
@@ -3952,6 +3956,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
     && Boolean(selectedClient.playerAccountId)
     && debt > 0
     && hasPermission(backend.session, permissionNames.payDebt);
+  const canCreatePlayer = backend !== null && hasPermission(backend.session, permissionNames.createPlayerAccount);
 
   const runClientAction = async (label: string) => {
     setFeedback({ label, state: 'pending' });
@@ -4004,10 +4009,19 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         });
         setWalletSummary(wallet);
       } else if (label === 'Новая карта') {
+        if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
+          throw new Error('Нет прав на создание игрока.');
+        }
+
+        const displayName = newPlayerName.trim() || clientSearch.trim();
+        if (!displayName) {
+          throw new Error('Заполните имя нового клиента.');
+        }
+
         const created = await apiClients.players.createPlayer(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
-          displayName: clientSearch.trim() || `Новый клиент ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`,
-          phoneNumber: null,
+          displayName,
+          phoneNumber: newPlayerPhone.trim() || null,
           idempotencyKey: createIdempotencyKey('player-create')
         });
         const createdClient = projectPlayerClient({
@@ -4021,6 +4035,8 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         });
         setClients((items) => [createdClient, ...items]);
         setSelectedClientId(createdClient.playerAccountId ?? null);
+        setNewPlayerName('');
+        setNewPlayerPhone('');
       } else if (label === 'Купить пакет') {
         if (!hasPermission(nextBackend.session, permissionNames.purchasePackage)) {
           throw new Error('Нет прав на покупку пакетов.');
@@ -4159,6 +4175,8 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             <label>Причина пополнения<input value={walletTopUpReason} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpReason(event.currentTarget.value)} /></label>
             <label>Сумма долга<input inputMode="decimal" value={debtPaymentAmount} disabled={!canPayDebt} onChange={(event) => setDebtPaymentAmount(event.currentTarget.value)} /></label>
             <label>Причина долга<input value={debtPaymentReason} disabled={!canPayDebt} onChange={(event) => setDebtPaymentReason(event.currentTarget.value)} /></label>
+            <label>Имя нового клиента<input value={newPlayerName} disabled={!canCreatePlayer} onChange={(event) => setNewPlayerName(event.currentTarget.value)} /></label>
+            <label>Телефон нового клиента<input value={newPlayerPhone} disabled={!canCreatePlayer} onChange={(event) => setNewPlayerPhone(event.currentTarget.value)} /></label>
           </div>
           <div className="clients-action-grid">
             {[
@@ -4166,7 +4184,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
               ['Списать долг', debtPaymentAmount ? `${debtPaymentAmount} ${currencyCode}` : 'нет долга', ReceiptText],
               ['Купить пакет', selectedPackageOption ? readString(selectedPackageOption, 'name', 'backend package') : 'нет пакетов', TimerReset],
               ['Создать бронь', 'бронь из карточки', CalendarClock],
-              ['Новая карта', 'создать игрока', UserRoundPlus]
+              ['Новая карта', newPlayerName || 'создать игрока', UserRoundPlus]
             ].map(([label, detail, Icon]) => (
               <button
                 key={label as string}
@@ -4174,7 +4192,8 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
                 className="clients-action-card"
                 disabled={((label as string) === 'Пополнить депозит' && !canTopUpWallet)
                   || ((label as string) === 'Списать долг' && !canPayDebt)
-                  || ((label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0))}
+                  || ((label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0))
+                  || ((label as string) === 'Новая карта' && !canCreatePlayer)}
                 onClick={() => runClientAction(label as string)}
               >
                 <Icon size={17} />
