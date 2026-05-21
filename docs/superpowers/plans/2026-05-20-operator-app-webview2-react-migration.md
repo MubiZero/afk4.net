@@ -65,8 +65,9 @@ Current state:
   for mutation controls. Settings now has a backend-backed staff creation form
   in the Personnel section, branch profile save backed by a new Platform API
   profile endpoint, and POS category/product creation backed by the existing
-  POS catalog endpoints. Staging smoke across the newly wired screens is the
-  next real implementation work.
+  POS catalog endpoints. Payments can now close the current shift through the
+  existing close-shift endpoint with counted cash and a closing note. Staging
+  smoke across the newly wired screens is the next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
@@ -97,8 +98,10 @@ map has real filter/table parity. Booking mutation controls now also respect
 `reservations.manage` and selected reservation state. Settings Personnel can
 create branch staff through the existing backend staff API, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
-also create a backend POS category and product. Continue with staging smoke of
-the backend-backed workspaces and close gaps found with real data.
+also create a backend POS category and product. Payments close-shift now calls
+the backend close-shift endpoint with counted cash and note fields. Continue
+with staging smoke of the backend-backed workspaces and close gaps found with
+real data.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -193,12 +196,13 @@ missing-backend copy.
   comments, groups, restrictions/discounts, package purchase/bonus operations,
   and privacy/audit-sensitive details. Create backend contracts where these do
   not already exist.
-- [ ] Payments/Shifts: turn `Подготовить закрытие` into the real close-shift
-  workflow with counted cash, notes, discrepancy handling, permissions, and
-  backend confirmation. Add UI for cash movement creation, pending post-payment
-  resolution, cancellation/refund actions where allowed, and selected operation
-  detail. Use existing shift/report/POS contracts first; create missing
-  payment-operation detail or approval endpoints if needed.
+- [ ] Payments/Shifts: `Подготовить закрытие` now calls the real close-shift
+  workflow with counted cash, notes, `shifts.close` permission gating, and
+  backend confirmation. Remaining gaps include richer discrepancy handling,
+  cash movement creation, pending post-payment resolution, cancellation/refund
+  actions where allowed, and selected operation detail. Use existing shift/
+  report/POS contracts first; create missing payment-operation detail or
+  approval endpoints if needed.
 - [ ] Logs: replace projected-only event rows with backend-backed event detail,
   period/category/operator/target filters, correlation IDs, support handoff
   data, and export generation. Use audit, diagnostics, and report endpoints

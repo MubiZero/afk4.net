@@ -153,7 +153,9 @@ implementation evidence are needed.
   actions; Dashboard reads the backend dashboard summary and uses existing
   report exports for export confirmation; Booking uses backend reservation
   search/create/update/confirm/seat/cancel endpoints with floor-map-backed
-  availability and action fallback. Remaining fixture-only or missing-contract
+  availability and action fallback; Payments can now close the current shift
+  through `/api/shifts/{shiftId}/close` with counted cash, closing note, and
+  `shifts.close` permission gating. Remaining fixture-only or missing-contract
   actions still fail explicitly instead of showing fixture success.
 
 ### Agent Service
@@ -245,7 +247,7 @@ the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
-read/update, and Settings POS catalog create:
+read/update, Settings POS catalog create, and Payments close-shift wiring:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -256,7 +258,7 @@ read/update, and Settings POS catalog create:
 
 Result:
 
-- frontend tests: 44 passed, 0 failed;
+- frontend tests: 45 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -290,6 +292,10 @@ Result:
 - Settings POS catalog frontend tests now cover backend category/product POST
   serialization from the `POS и склад` form, including price minor units,
   stock flags, and idempotency keys.
+- Payments frontend tests now cover closing the current shift from the
+  reconciliation panel through `/api/shifts/{shiftId}/close`, including
+  counted cash, closing note, organization id, and idempotency key
+  serialization.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
   copy, and reported no browser console errors.
@@ -1213,6 +1219,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   then a POS product with price, SKU, stock flags, and idempotency keys through
   the existing Platform API catalog-management endpoints, and is covered by
   frontend route/UI tests plus the full local solution test suite.
+- On 2026-05-21, `codex/operator-app-redesign` wired the Payments
+  reconciliation action to the existing close-shift API. Operators with
+  `shifts.close` can enter counted cash and a closing note, and the UI waits
+  for backend confirmation before showing close-shift success.
 - On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
   Operator App implementation: WebView2 startup shell, local asset resolution,
   typed host config injection, Vite/React frontend foundation, first visual

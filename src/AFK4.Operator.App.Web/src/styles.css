@@ -3310,6 +3310,37 @@ button {
   color: #fca5a5;
 }
 
+.payments-close-form {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.payments-close-form label {
+  display: grid;
+  gap: 4px;
+  color: #8fa0b6;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.payments-close-form input {
+  height: 28px;
+  min-width: 0;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 9px;
+  outline: 0;
+  background: #0c141f;
+  color: #f7fafc;
+  font-size: 12px;
+}
+
+.payments-close-form input:disabled {
+  color: #6f7d91;
+}
+
 .payments-primary-action {
   display: inline-flex;
   align-items: center;
@@ -3331,6 +3362,15 @@ button {
   border-color: #5b9dff;
   background: #2f81f7;
   outline: none;
+}
+
+.payments-primary-action:disabled,
+.payments-primary-action:disabled:hover,
+.payments-primary-action:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
 }
 
 .payments-method-grid {

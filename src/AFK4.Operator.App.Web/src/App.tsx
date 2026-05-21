@@ -118,6 +118,7 @@ const permissionNames = {
   viewPlayers: 'players.view',
   viewBilling: 'billing.view',
   viewShift: 'shifts.view',
+  closeShift: 'shifts.close',
   viewReports: 'reports.view',
   viewReservations: 'reservations.view',
   manageReservations: 'reservations.manage',
@@ -696,6 +697,10 @@ function parseMoneyInputMinorUnits(value: string): number | null {
 
   const majorUnits = Number(normalized);
   return Number.isFinite(majorUnits) && majorUnits > 0 ? Math.round(majorUnits * 100) : null;
+}
+
+function formatMoneyInputMinorUnits(minorUnits: number): string {
+  return (minorUnits / 100).toFixed(2);
 }
 
 function dashboardRangeQuery(from: string, to: string) {
@@ -3943,6 +3948,8 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
   const [cashReport, setCashReport] = useState<ReportResultDto | null>(null);
   const [shiftReport, setShiftReport] = useState<ReportResultDto | null>(null);
+  const [closeCountedCash, setCloseCountedCash] = useState('');
+  const [closingNote, setClosingNote] = useState('Сверка оператором');
 
   const loadPayments = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -3963,6 +3970,14 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       setSalesReport(sales);
       setCashReport(cash);
       setShiftReport(shifts);
+      const closeSeed = readMoney(shift, 'countedCash') ?? readMoney(shift, 'expectedCash');
+      if (closeSeed !== null) {
+        setCloseCountedCash(formatMoneyInputMinorUnits(closeSeed.minorUnits));
+      }
+      const note = readString(shift, 'closingNote');
+      if (note) {
+        setClosingNote(note);
+      }
       setLoadStatus('backend');
     } catch (error) {
       setLoadStatus('failed');
@@ -4011,6 +4026,12 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const expectedCash = readMoney(currentShift, 'expectedCash') ?? readMoney(latestShiftRow, 'expectedCash');
   const countedCash = readMoney(currentShift, 'countedCash') ?? readMoney(latestShiftRow, 'countedCash');
   const difference = readMoney(currentShift, 'difference') ?? readMoney(latestShiftRow, 'difference');
+  const currentShiftId = readString(currentShift, 'shiftId');
+  const currentShiftState = readString(currentShift, 'state');
+  const canCloseShift = backend !== null
+    && currentShiftId.length > 0
+    && currentShiftState === 'open'
+    && hasPermission(backend.session, permissionNames.closeShift);
   const methods = [
     ['Наличные', cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, 'cash report', `${cashRows.length} операций`],
     ['Карта', netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, 'sales report', `${salesRows.length} чеков`],
@@ -4029,6 +4050,27 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
       } else if (label === 'Экспорт CSV') {
         await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
+      } else if (label === 'Подготовить закрытие') {
+        if (!hasPermission(nextBackend.session, permissionNames.closeShift)) {
+          throw new Error('Нет прав на закрытие смены.');
+        }
+
+        if (!currentShiftId) {
+          throw new Error('Нет открытой смены для закрытия.');
+        }
+
+        const countedCashMinorUnits = parseMoneyInputMinorUnits(closeCountedCash);
+        if (countedCashMinorUnits === null) {
+          throw new Error('Введите фактическую сумму наличных больше нуля.');
+        }
+
+        const closedShift = await apiClients.shifts.closeShift(currentShiftId, {
+          organizationId: nextBackend.session.organizationId,
+          countedCash: { currencyCode, minorUnits: countedCashMinorUnits },
+          closingNote: closingNote.trim(),
+          idempotencyKey: createIdempotencyKey('shift-close')
+        });
+        setCurrentShift(closedShift);
       } else {
         await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
       }
@@ -4121,7 +4163,11 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
             <div><span>Посчитано</span><strong>{countedCash ? formatMinorUnits(countedCash.minorUnits, countedCash.currencyCode) : 'не закрыта'}</strong></div>
             <div className={(difference?.minorUnits ?? 0) !== 0 ? 'attention' : undefined}><span>Расхождение</span><strong>{difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`}</strong></div>
           </div>
-          <button type="button" className="payments-primary-action" onClick={() => runReportAction('Подготовить закрытие')}>Подготовить закрытие</button>
+          <div className="payments-close-form">
+            <label>Факт в кассе<input inputMode="decimal" value={closeCountedCash} disabled={!canCloseShift} onChange={(event) => setCloseCountedCash(event.currentTarget.value)} /></label>
+            <label>Комментарий<input value={closingNote} disabled={!canCloseShift} onChange={(event) => setClosingNote(event.currentTarget.value)} /></label>
+          </div>
+          <button type="button" className="payments-primary-action" disabled={!canCloseShift} onClick={() => runReportAction('Подготовить закрытие')}>Подготовить закрытие</button>
           <FeedbackNotice feedback={feedback} />
         </section>
 
