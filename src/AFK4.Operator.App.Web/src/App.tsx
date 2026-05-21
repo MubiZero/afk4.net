@@ -623,6 +623,21 @@ function dataSourceLabel(source: string): string {
   return source === 'backend' ? 'backend' : 'dev demo';
 }
 
+function describeTechModeResult(
+  seat: SeatSummary,
+  device: Record<string, unknown>,
+  diagnostics: BranchDiagnosticsDto
+): string {
+  const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
+  const machineName = readString(device, 'machineName', seat.deviceName || seat.name);
+  const agentVersion = readString(device, 'agentVersion', 'unknown');
+  const shellVersion = readString(device, 'shellVersion', 'unknown');
+  const pendingCommands = readNumber(commandSummary, 'pendingCommands', 0);
+  const failedCommands = readNumber(commandSummary, 'failedCommands', 0);
+
+  return `${machineName} · Agent ${agentVersion} / Shell ${shellVersion} · ${pendingCommands} pending, ${failedCommands} failed commands`;
+}
+
 function projectAuthHostError(error: unknown, config: OperatorConfig): string {
   if (isHostBridgeUnavailableError(error) && config.runtime !== 'browser-dev') {
     return 'Нативный вход Operator App недоступен. Перезапустите приложение или проверьте WebView2 host.';
@@ -947,13 +962,15 @@ function MapWorkspace({
   floorMap,
   canUseTechMode,
   selectedSeatId,
-  onSelectSeat
+  onSelectSeat,
+  onTechMode
 }: {
   currencyCode: string;
   floorMap: OperatorFloorMapState;
   canUseTechMode: boolean;
   selectedSeatId: string;
   onSelectSeat: (seatId: string) => void;
+  onTechMode: (seat: SeatSummary) => Promise<string>;
 }) {
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [activeFilter, setActiveFilter] = useState<MapFilterId>('all');
@@ -968,7 +985,22 @@ function MapWorkspace({
     () => floorMap.seats.filter((seat) => matchesMapFilter(seat, activeFilter)),
     [activeFilter, floorMap.seats]
   );
+  const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
+
+  const runTechMode = async () => {
+    if (selectedSeat === null) {
+      setFeedback({ label: 'Техрежим', state: 'failed', detail: 'Выберите ПК для диагностики.' });
+      return;
+    }
+
+    setFeedback({ label: 'Техрежим', state: 'pending' });
+    try {
+      setFeedback({ label: 'Техрежим', state: 'confirmed', detail: await onTechMode(selectedSeat) });
+    } catch (error) {
+      setFeedback({ label: 'Техрежим', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
 
   useEffect(() => {
     if (visibleSeats.length === 0 || selectedSeatVisible) {
@@ -990,8 +1022,8 @@ function MapWorkspace({
           <button
             type="button"
             className="map-tool-action"
-            disabled={!canUseTechMode}
-            onClick={() => triggerFeedback(setFeedback, 'Техрежим')}
+            disabled={!canUseTechMode || selectedSeat === null || feedback.state === 'pending'}
+            onClick={runTechMode}
           >
             <Wrench size={14} />Техрежим
           </button>
@@ -6284,7 +6316,8 @@ export function App() {
   const backendContext: OperatorBackendContext | null = authSession !== null && activeBranchId !== null
     ? { config, session: authSession, branchId: activeBranchId }
     : null;
-  const canUseTechMode = hasPermission(authSession, permissionNames.viewDiagnostics);
+  const canUseTechMode = hasPermission(authSession, permissionNames.viewDiagnostics)
+    && hasPermission(authSession, permissionNames.viewDeviceDetail);
 
   useEffect(() => {
     let disposed = false;
@@ -6541,6 +6574,26 @@ export function App() {
     return { detail };
   };
 
+  const handleTechMode = async (seat: SeatSummary): Promise<string> => {
+    const nextBackend = requireBackend(backendContext);
+    if (!hasPermission(nextBackend.session, permissionNames.viewDiagnostics) ||
+      !hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
+      throw new Error('Нет прав на диагностику устройства.');
+    }
+
+    if (!seat.deviceId) {
+      throw new Error('У выбранного ПК нет привязанного устройства.');
+    }
+
+    const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+    const [device, diagnostics] = await Promise.all([
+      clients.devices.getDeviceDetail(seat.deviceId),
+      clients.diagnostics.getDiagnostics(nextBackend.branchId)
+    ]);
+
+    return describeTechModeResult(seat, device, diagnostics);
+  };
+
   if (authStatus !== 'signed-in' || authSession === null) {
     return (
       <SignInScreen
@@ -6604,6 +6657,7 @@ export function App() {
           canUseTechMode={canUseTechMode}
           selectedSeatId={selectedSeat?.id ?? ''}
           onSelectSeat={setSelectedSeatId}
+          onTechMode={handleTechMode}
         />
       )}
       {workspace === 'dashboard' && (

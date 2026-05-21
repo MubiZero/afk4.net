@@ -151,7 +151,11 @@ implementation evidence are needed.
 - The primary map now has real operator filters for all seats, free seats,
   active sessions, attention states, and offline seats, plus a table view that
   uses the same backend-loaded `SeatSummary` state as the map tiles. Changing a
-  filter also keeps the selected-seat context on a visible seat.
+  filter also keeps the selected-seat context on a visible seat. The map
+  `Техрежим` toolbar action is now backend-confirmed for the selected seat: it
+  requires diagnostics and device-detail permissions, reads the selected device
+  detail plus branch diagnostics, and reports a technician summary only after
+  those backend calls complete.
 - Booking now has first-pass edge hardening for the React operator flow:
   create/confirm/seat/move/cancel actions require `reservations.manage`,
   mutation buttons disable for view-only staff or terminal reservation states,
@@ -2309,6 +2313,20 @@ Operator App WebView2/React first implementation on 2026-05-20:
   old `Нет backend операций` / `Нет backend событий` copy on the auth entry, no
   production fixture labels, no horizontal or vertical overflow, and no new
   browser console errors.
+- Operator App map tech-mode verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 40/40, full frontend tests passed 69/69, and
+  Vite production build passed after wiring the map `Техрежим` button to the
+  selected device-detail and branch diagnostics endpoints. Browser smoke against
+  `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no production fixture labels, no horizontal
+  or vertical overflow, and no new browser console errors.
 
 ## Historical Reference
 

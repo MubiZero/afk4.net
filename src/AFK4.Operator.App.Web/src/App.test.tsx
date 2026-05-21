@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { HostBridgeMessageEvent } from './hostBridge';
@@ -48,6 +48,36 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
     expect(screen.getByText(/Cashier One/)).toBeInTheDocument();
+  });
+
+  it('opens selected map tech mode through backend device diagnostics', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/api/devices/11111111-1111-1111-1111-111111111111')) {
+        return Promise.resolve(jsonResponse(createDeviceDetail({
+          deviceId: '11111111-1111-1111-1111-111111111111',
+          machineName: 'PC-01',
+          agentVersion: '0.4',
+          shellVersion: '0.4'
+        })));
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Техрежим/ }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).includes('/api/devices/11111111-1111-1111-1111-111111111111'))).toBe(true));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/diagnostics'))).toBe(true));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Agent 0.4'));
   });
 
   it('filters the floor map and switches to table view', async () => {

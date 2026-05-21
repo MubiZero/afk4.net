@@ -212,13 +212,16 @@ missing-backend copy.
   `GET /api/branches/{branchId}/dashboard/summary`, shared dashboard DTOs,
   Platform API endpoint tests, frontend route tests, and React Dashboard
   loading/confirmed/failed state.
-- [ ] Map: wire `Техрежим`. Billing-mode
+- [x] Map: wire `Техрежим`. Billing-mode
   selection beyond fast guest, registered-player/package selection for session
   start/extend, and selected-seat Agent/device command result feedback were
   implemented on 2026-05-21 against existing session, player/tariff/package,
   and device command status contracts. Problem/free/active/offline filters and
   table view parity were implemented on 2026-05-21 over backend-loaded seat
   state.
+  `Техрежим` was implemented on 2026-05-21 as a backend-confirmed selected-seat
+  action that reads the selected device detail and branch diagnostics through
+  existing contracts before showing a technician summary.
 - [x] Booking: replace `Backend-контракт бронирований ещё не реализован.`,
   `booking API отсутствует`, `нет backend источника заявок`, `черновик ждёт
   backend booking API`, and `нет booking API` copy with real reservation

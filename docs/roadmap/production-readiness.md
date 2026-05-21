@@ -340,6 +340,8 @@ Minimum bar:
   selection beyond fast guest and selected-seat device command result feedback
   now have a first React implementation for the map panel, and the primary map
   now has real problem/offline/free/active filters plus table view parity.
+  Map `Техрежим` now requires diagnostics/device-detail permissions and reads
+  the selected device detail plus branch diagnostics before confirming.
   Booking now also disables mutation controls without `reservations.manage` or
   when selected reservation state/seat availability makes the action invalid.
   Settings now supports general staff creation through the existing branch
