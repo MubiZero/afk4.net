@@ -146,8 +146,10 @@ Payments close-shift now calls the backend close-shift endpoint with counted
 cash and note fields, and Payments cash movement creation calls the backend
 shift cash endpoint. Payments selected operation detail now uses already
 loaded backend sales/cash report rows for id, shift, source, and line/reason
-context. Settings `Интеграции` now exposes backend-backed update
-package registration, rollout creation, and package/rollout state changes with
+context. Payments report export buttons now download backend sales/cash/shift
+CSV files plus a local discrepancy JSON. Settings `Интеграции` now exposes
+backend-backed update package registration, rollout creation, and
+package/rollout state changes with
 the existing `updates.packages.manage` and `updates.rollouts.manage` guards.
 Logs now applies backend audit action/outcome/target type/date range/limit
 filters through the existing audit search endpoint and selected event detail
@@ -309,10 +311,12 @@ missing-backend copy.
   the real `/api/shifts/{shiftId}/cash-movements` endpoint with
   `shifts.cash.manage` permission gating. Selected operation detail now uses
   the already loaded backend sales/cash report row for id, shift, source, and
-  line/reason context. Remaining gaps include richer discrepancy handling,
-  pending post-payment resolution, and cancellation/refund actions where
-  allowed. Use existing shift/report/POS contracts first;
-  create missing payment-operation detail or approval endpoints if needed.
+  line/reason context. Payments report export buttons now download backend
+  sales/cash/shift CSV files plus a local discrepancy JSON. Remaining gaps
+  include richer discrepancy handling, pending post-payment resolution, and
+  cancellation/refund actions where allowed. Use existing shift/report/POS
+  contracts first; create missing payment-operation detail or approval
+  endpoints if needed.
 - [ ] Logs: backend audit action/outcome/target type/date range/limit filters were added
   on 2026-05-21 through the existing audit search endpoint. Selected event
   detail from already loaded audit rows and diagnostics command/update/stale

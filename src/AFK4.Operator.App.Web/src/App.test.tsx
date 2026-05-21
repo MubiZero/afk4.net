@@ -946,6 +946,52 @@ describe('App', () => {
     expect(screen.getAllByText('test').length).toBeGreaterThan(1);
   });
 
+  it('downloads Payments report exports', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    const createObjectUrl = vi.fn(() => 'blob:payments');
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
+    Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
+    const downloads: string[] = [];
+    const createElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const element = createElement(tagName);
+      if (tagName.toLowerCase() === 'a') {
+        Object.defineProperty(element, 'click', {
+          value: () => downloads.push((element as HTMLAnchorElement).download),
+          configurable: true
+        });
+      }
+
+      return element;
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Платежи'));
+    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    const exportPanel = document.querySelector('.payments-export-panel') as HTMLElement;
+    fireEvent.click(within(exportPanel).getByRole('button', { name: /Экспорт CSV/ }));
+
+    expect(await screen.findByText('Экспорт CSV: подтверждено')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/sales/export.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-sales-report-') && download.endsWith('.csv'))).toBe(true);
+
+    fireEvent.click(within(exportPanel).getByRole('button', { name: /Кассовый отчёт/ }));
+    expect(await screen.findByText('Кассовый отчёт: подтверждено')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/cash-operations/export.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-cash-report-') && download.endsWith('.csv'))).toBe(true);
+
+    fireEvent.click(within(exportPanel).getByRole('button', { name: /Расхождения/ }));
+    expect(await screen.findByText('Расхождения: подтверждено')).toBeInTheDocument();
+    expect(downloads.some((download) => download.startsWith('afk4-shift-discrepancies-') && download.endsWith('.json'))).toBe(true);
+    expect(createObjectUrl).toHaveBeenCalledTimes(3);
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:payments');
+    createElementSpy.mockRestore();
+  });
+
   it('closes the current shift from Payments through the backend', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

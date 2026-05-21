@@ -371,7 +371,9 @@ Minimum bar:
   closing note, and records cash movements through the existing shift cash
   movement API. Payments selected operation detail now uses already loaded
   backend sales/cash report rows for id, shift, source, and line/reason
-  context. POS quick refund now calls the existing
+  context, and Payments report export buttons now download backend sales/cash/
+  shift CSV files plus a local discrepancy JSON. POS quick refund now calls the
+  existing
   refund endpoint for the selected backend sale, and POS draft void creates a
   backend draft from the current cart before calling the existing void endpoint.
   POS recent receipt rows now open backend sale details through the existing
@@ -451,8 +453,9 @@ Minimum bar:
   zone/seat creation, Settings POS
   category/product creation, Settings stock movement creation, Settings package
   definition creation, Settings update package/rollout controls, Settings
-  device enrollment/seat assignment/credential lifecycle, Payments open/close-shift,
-   cash-movement wiring, and selected-operation detail, Logs backend audit/date
+   device enrollment/seat assignment/credential lifecycle, Payments open/close-shift,
+   cash-movement wiring, selected-operation detail, and report export downloads,
+   Logs backend audit/date
    filters, selected-event detail, source-card filtering, period presets, and
    export downloads, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,

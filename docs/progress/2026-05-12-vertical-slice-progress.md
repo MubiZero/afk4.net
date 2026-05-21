@@ -205,9 +205,11 @@ implementation evidence are needed.
   backend players, loads active packages for the selected player profile,
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
-  name/phone, and reservation creation from a selected backend player; Payments
-  reads shift, sales, cash, and CSV report endpoints and shows selected
-  operation detail from backend report rows; Logs reads audit and diagnostics
+name/phone, and reservation creation from a selected backend player; Payments
+reads shift, sales, cash, and CSV report endpoints and shows selected
+operation detail from backend report rows, with report export buttons now
+downloading sales/cash/shift CSV files and a local discrepancy JSON; Logs
+reads audit and diagnostics
   and shows selected audit/diagnostics event detail from the loaded backend
   rows, while source cards filter the loaded event list by all/Agent/POS/
   Operator/Platform, and operator period presets execute audit searches for
@@ -345,7 +347,7 @@ checkout, POS new-customer checkout, and Clients package purchase:
 
 Result:
 
-- frontend tests: 79 passed, 0 failed;
+- frontend tests: 80 passed, 0 failed;
 - frontend production build: passed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
@@ -423,11 +425,15 @@ Result:
 - Payments frontend tests now cover opening a shift when no current shift
   exists through `/api/branches/{branchId}/shifts/open`, including starting
   cash, opening note, organization id, and idempotency key serialization.
+- Payments frontend tests now cover report export downloads from the Payments
+  reports panel, including backend sales and cash CSV export endpoints plus a
+  local shift discrepancy JSON download.
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
-  source-card filtering, audit period presets, and export downloads: the React
-  app rendered the WebView auth entry surface with title `AFK4 Operator`,
-  heading `Вход оператора`, sign-in button, no horizontal or vertical body
-  overflow, and no old backend placeholder copy.
+  source-card filtering, audit period presets, Logs export downloads, and
+  Payments report export downloads: the React app rendered the WebView auth
+  entry surface with title `AFK4 Operator`, heading `Вход оператора`, sign-in
+  button, no horizontal or vertical body overflow, and no old backend
+  placeholder copy.
 - Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console

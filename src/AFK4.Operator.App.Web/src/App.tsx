@@ -4960,12 +4960,16 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
     try {
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
       if (label === 'Журнал смены') {
-        await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
+        const csv = await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
+        downloadTextFile(`afk4-shift-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       } else if (label === 'Кассовый отчёт') {
-        await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
+        const csv = await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
+        downloadTextFile(`afk4-cash-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       } else if (label === 'Экспорт CSV') {
-        await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
+        const csv = await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
+        downloadTextFile(`afk4-sales-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       } else if (label === 'Открыть смену') {
         if (!hasPermission(nextBackend.session, permissionNames.openShift)) {
           throw new Error('Нет прав на открытие смены.');
@@ -5034,6 +5038,9 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
           idempotencyKey: createIdempotencyKey('shift-close')
         });
         setCurrentShift(closedShift);
+      } else if (label === 'Расхождения') {
+        const report = await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
+        downloadTextFile(`afk4-shift-discrepancies-${exportStamp}.json`, JSON.stringify(report, null, 2), 'application/json;charset=utf-8');
       } else {
         await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
       }
