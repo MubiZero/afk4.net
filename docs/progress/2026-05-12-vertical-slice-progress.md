@@ -146,8 +146,9 @@ implementation evidence are needed.
   through `/api/branches/{branchId}/packages`, guarded by `packages.manage`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
-  reports, creates paid manual-provider sales, and can refund the latest
-  backend sale from the quick-operation panel; Clients searches backend players
+  reports, creates paid manual-provider sales, can refund the latest backend
+  sale from the quick-operation panel, and can void a backend draft sale created
+  from the current cart; Clients searches backend players
   and performs wallet top-up, debt payment, package purchase, player creation,
   and reservation creation from a selected backend player; Payments reads shift,
   sales, cash, and CSV report endpoints; Logs reads audit and diagnostics;
@@ -255,7 +256,7 @@ selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation, and branch profile
 read/update, Settings POS catalog create, Settings package definition create,
 Payments close-shift wiring, Payments cash movement creation, POS refund quick
-action, and Clients package purchase:
+action, POS draft void quick action, and Clients package purchase:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -266,7 +267,7 @@ action, and Clients package purchase:
 
 Result:
 
-- frontend tests: 49 passed, 0 failed;
+- frontend tests: 50 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -332,6 +333,10 @@ Result:
   `/api/pos/sales/{saleId}/refunds` for the latest backend sale with
   organization id, reason, and idempotency key serialization before UI
   confirmation.
+- POS frontend tests now cover the `Аннулировать черновик` quick operation
+  creating a backend draft sale from the current cart and then calling
+  `/api/pos/sales/{saleId}/void` with organization id, reason, and idempotency
+  key serialization before UI confirmation.
 - Clients frontend tests now cover package purchase from the selected backend
   player card through `/api/players/{playerAccountId}/packages/purchases`,
   including package definition id and idempotency key serialization.
@@ -1251,6 +1256,11 @@ Operator App redesign branch-local verification on 2026-05-20:
 - On 2026-05-21, `codex/operator-app-redesign` wired the POS quick
   `Возврат по чеку` action to the existing refund endpoint for the latest
   backend sale, guarded by `pos.sales.refund` and idempotency.
+- On 2026-05-21, `codex/operator-app-redesign` wired the POS quick
+  `Аннулировать черновик` action to the existing draft-sale void endpoint. The
+  React UI creates a backend draft from the current cart, calls
+  `/api/pos/sales/{saleId}/void`, and confirms only after the backend accepts
+  the void.
 - On 2026-05-21, `codex/operator-app-redesign` wired Clients `Купить пакет`
   to existing package option and package purchase endpoints, guarded by
   `packages.purchase` and idempotency.

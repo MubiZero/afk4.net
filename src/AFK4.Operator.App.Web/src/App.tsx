@@ -130,6 +130,7 @@ const permissionNames = {
   createPosSale: 'pos.sales.create',
   payPosSale: 'pos.sales.pay',
   refundPosSale: 'pos.sales.refund',
+  voidPosSale: 'pos.sales.void',
   viewInventory: 'inventory.view',
   managePosCatalog: 'pos.catalog.manage',
   viewReceipt: 'receipts.view',
@@ -151,6 +152,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.createPosSale,
     permissionNames.payPosSale,
     permissionNames.refundPosSale,
+    permissionNames.voidPosSale,
     permissionNames.viewShift,
     permissionNames.viewReports
   ],
@@ -2983,6 +2985,12 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const canRefundLatestSale = backend !== null
     && latestRefundableSaleId.length > 0
     && hasPermission(backend.session, permissionNames.refundPosSale);
+  const canVoidDraftCart = backend !== null
+    && shiftId.length > 0
+    && cartItems.length > 0
+    && cartItems.every((item) => Boolean(item.productId) && item.source === 'backend')
+    && hasPermission(backend.session, permissionNames.createPosSale)
+    && hasPermission(backend.session, permissionNames.voidPosSale);
 
   const addProduct = (product: PosCatalogItem) => {
     setCartItems((items) => {
@@ -3000,6 +3008,10 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     setFeedback({ label: 'Оплата', state: 'pending' });
     try {
       const nextBackend = requireBackend(backend);
+      if (!hasPermission(nextBackend.session, permissionNames.createPosSale) || !hasPermission(nextBackend.session, permissionNames.payPosSale)) {
+        throw new Error('Нет прав на создание или оплату POS продажи.');
+      }
+
       if (!shiftId) {
         throw new Error('Open shift is required before POS payment.');
       }
@@ -3073,6 +3085,60 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     } catch (error) {
       setFeedback({
         label: 'Возврат по чеку',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
+  const voidDraftCart = async () => {
+    setFeedback({ label: 'Аннулировать черновик', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      if (!hasPermission(nextBackend.session, permissionNames.createPosSale) || !hasPermission(nextBackend.session, permissionNames.voidPosSale)) {
+        throw new Error('Нет прав на создание или аннулирование POS продажи.');
+      }
+
+      if (!shiftId) {
+        throw new Error('Открытая смена обязательна для аннулирования черновика.');
+      }
+
+      if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
+        throw new Error('Backend POS catalog is not loaded for the current cart.');
+      }
+
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const draft = await clients.pos.createSale(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        shiftId,
+        lines: cartItems.map((item) => ({
+          productId: item.productId!,
+          quantity: item.quantity,
+          unitPrice: {
+            currencyCode,
+            minorUnits: item.priceMinorUnits
+          }
+        })),
+        idempotencyKey: createIdempotencyKey('pos-sale-draft')
+      });
+      const saleId = readString(draft, 'posSaleId');
+      if (!saleId) {
+        throw new Error('Platform API returned a POS draft without sale id.');
+      }
+
+      const voidedSale = await clients.pos.voidSale(saleId, {
+        organizationId: nextBackend.session.organizationId,
+        reason: 'operator discarded draft cart',
+        idempotencyKey: createIdempotencyKey('pos-void')
+      });
+
+      setLastSale(voidedSale);
+      setCartItems([]);
+      setFeedback({ label: 'Аннулировать черновик', state: 'confirmed' });
+      await loadBackendPos(nextBackend);
+    } catch (error) {
+      setFeedback({
+        label: 'Аннулировать черновик',
         state: 'failed',
         detail: projectOperatorError(error).detail
       });
@@ -3232,6 +3298,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             {[
               ['Пополнить депозит', 'откройте экран клиентов', CircleDollarSign],
               ['Возврат по чеку', 'требует выбранный backend sale', ReceiptText],
+              ['Аннулировать черновик', 'создать и отменить draft', X],
               ['Новый клиент', 'экран клиентов', UserRoundPlus],
               ['Внести наличные', 'экран платежей', Banknote]
             ].map(([label, detail, Icon]) => (
@@ -3239,8 +3306,17 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 key={label as string}
                 type="button"
                 className="pos-quick-card"
-                disabled={(label as string) === 'Возврат по чеку' && (!canRefundLatestSale || feedback.state === 'pending')}
-                onClick={() => (label as string) === 'Возврат по чеку' ? void refundLatestSale() : triggerFeedback(setFeedback, label as string)}
+                disabled={((label as string) === 'Возврат по чеку' && (!canRefundLatestSale || feedback.state === 'pending'))
+                  || ((label as string) === 'Аннулировать черновик' && (!canVoidDraftCart || feedback.state === 'pending'))}
+                onClick={() => {
+                  if ((label as string) === 'Возврат по чеку') {
+                    void refundLatestSale();
+                  } else if ((label as string) === 'Аннулировать черновик') {
+                    void voidDraftCart();
+                  } else {
+                    triggerFeedback(setFeedback, label as string);
+                  }
+                }}
               >
                 <Icon size={17} />
                 <strong>{label as string}</strong>

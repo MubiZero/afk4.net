@@ -344,6 +344,42 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^pos-refund-/);
   });
 
+  it('voids a backend POS draft from the current cart', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Аннулировать черновик/ }));
+
+    expect(await screen.findByText('Аннулировать черновик: подтверждено')).toBeInTheDocument();
+    const saleCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
+      init?.method === 'POST');
+    expect(saleCall).toBeDefined();
+    const saleBody = JSON.parse(String(saleCall?.[1]?.body));
+    expect(saleBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      shiftId: '66666666-6666-6666-6666-666666666666'
+    });
+    expect(saleBody.lines).toHaveLength(1);
+    expect(saleBody.idempotencyKey).toMatch(/^pos-sale-draft-/);
+
+    const voidCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/void') &&
+      init?.method === 'POST');
+    expect(voidCall).toBeDefined();
+    const voidBody = JSON.parse(String(voidCall?.[1]?.body));
+    expect(voidBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      reason: 'operator discarded draft cart'
+    });
+    expect(voidBody.idempotencyKey).toMatch(/^pos-void-/);
+  });
+
   it('closes the current shift from Payments through the backend', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -747,6 +783,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosSale('refunded'));
   }
 
+  if (pathname.includes('/pos/sales/') && pathname.endsWith('/void')) {
+    return jsonResponse(createPosSale('voided'));
+  }
+
   if (pathname.endsWith('/players')) {
     return jsonResponse(createPlayers());
   }
@@ -869,6 +909,7 @@ const allOperatorPermissions = [
   'pos.sales.create',
   'pos.sales.pay',
   'pos.sales.refund',
+  'pos.sales.void',
   'inventory.view',
   'pos.catalog.manage',
   'receipts.view',
@@ -1172,7 +1213,7 @@ function createPosSale(state: string) {
     createdAtUtc: '2026-05-21T09:00:00Z',
     paidAtUtc: state === 'paid' ? '2026-05-21T09:01:00Z' : null,
     refundedAtUtc: state === 'refunded' ? '2026-05-21T09:05:00Z' : null,
-    voidedAtUtc: null
+    voidedAtUtc: state === 'voided' ? '2026-05-21T09:03:00Z' : null
   };
 }
 

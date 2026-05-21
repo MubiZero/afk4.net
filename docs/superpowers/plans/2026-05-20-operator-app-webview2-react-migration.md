@@ -70,9 +70,11 @@ Current state:
   existing close-shift endpoint with counted cash and a closing note, and can
   record cash movements through the existing shift cash movement endpoint. POS
   quick refund now calls the existing refund endpoint for the latest backend
-  sale. Clients package purchase now calls the existing package option and
-  purchase endpoints for the selected backend player. Staging smoke across the
-  newly wired screens is the next real implementation work.
+  sale, and POS draft void creates a backend draft from the current cart before
+  calling the existing void endpoint. Clients package purchase now calls the
+  existing package option and purchase endpoints for the selected backend
+  player. Staging smoke across the newly wired screens is the next real
+  implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
@@ -102,15 +104,16 @@ session metadata plus displays device command status feedback, and the primary
 map has real filter/table parity. Booking mutation controls now also respect
 `reservations.manage` and selected reservation state. Settings Personnel can
 create branch staff through the existing backend staff API, and profile save
-  now updates branch name/city through the backend. Settings `POS и склад` can
-  also create a backend POS category and product, and Settings `Тарифы` can
-  create a backend package definition. Payments close-shift now calls
+now updates branch name/city through the backend. Settings `POS и склад` can
+also create a backend POS category and product, and Settings `Тарифы` can
+create a backend package definition. Payments close-shift now calls
 the backend close-shift endpoint with counted cash and note fields, and
 Payments cash movement creation calls the backend shift cash endpoint. POS
-quick refund calls the backend refund endpoint for the latest backend sale.
-Clients package purchase calls the backend package purchase endpoint for the
-selected player. Continue with staging smoke of the backend-backed workspaces
-and close gaps found with real data.
+quick refund calls the backend refund endpoint for the latest backend sale, and
+POS draft void calls the backend void endpoint after creating a draft from the
+current cart. Clients package purchase calls the backend package purchase
+endpoint for the selected player. Continue with staging smoke of the
+backend-backed workspaces and close gaps found with real data.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -195,8 +198,10 @@ missing-backend copy.
 - [ ] POS: wire every quick operation that still uses local feedback or
   handoff copy. Checkout already creates a backend sale/manual payment, and
   `Возврат по чеку` now calls the backend refund endpoint for the latest
-  backend sale with `pos.sales.refund` gating. Remaining POS gaps include
-  selected customer for cart, selected-sale refund UX, void sale, receipt
+  backend sale with `pos.sales.refund` gating. `Аннулировать черновик` now
+  creates a backend draft sale from the current cart and voids it through the
+  existing void endpoint with `pos.sales.void` gating. Remaining POS gaps
+  include selected customer for cart, selected-sale refund UX, receipt
   detail/print/export, wallet top-up handoff, new customer handoff, stock
   write-off/adjustment, and discount/promo/combo handling if kept in MVP UI.
   Use existing POS/player/shift endpoints where they exist; create missing
