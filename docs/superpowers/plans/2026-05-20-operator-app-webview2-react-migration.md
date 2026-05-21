@@ -81,7 +81,9 @@ Current state:
   quick refund now calls the existing refund endpoint for the selected backend
   sale, and POS draft void creates a backend draft from the current cart before
   calling the existing void endpoint. POS recent receipt rows now open backend
-  sale detail through the existing sale lookup endpoint. Clients package
+  sale detail through the existing sale lookup endpoint and use the sale's
+  latest receipt id to read `GET /api/receipts/{receiptId}` for receipt
+  number/type/total display. Clients package
   purchase now calls the existing package option and purchase endpoints for the
   selected backend player, and wallet top-up now uses an operator amount/reason
   form before calling the existing top-up endpoint. Debt payment now also uses
@@ -138,7 +140,8 @@ POS
 quick refund calls the backend refund endpoint for the selected backend sale, and
 POS draft void calls the backend void endpoint after creating a draft from the
 current cart. POS recent receipt rows call the backend sale lookup endpoint for
-line detail. Clients package purchase calls the backend package purchase
+line detail and then call the receipt lookup endpoint through the sale's
+`latestReceipt` projection. Clients package purchase calls the backend package purchase
 endpoint for the selected player, and Clients wallet top-up sends
 operator-entered amount/reason to the backend. Clients debt payment now also
 sends operator-entered amount/reason to the backend with a no-overpayment guard.
@@ -231,12 +234,14 @@ missing-backend copy.
   `Возврат по чеку` now calls the backend refund endpoint for the selected
   backend sale with `pos.sales.refund` gating. `Аннулировать черновик` now
   creates a backend draft sale from the current cart and voids it through the
-  existing void endpoint with `pos.sales.void` gating. Remaining POS gaps
+  existing void endpoint with `pos.sales.void` gating. Recent receipt rows now
+  open backend sale line detail and receipt number/type/total through
+  `GET /api/pos/sales/{saleId}` plus `GET /api/receipts/{receiptId}`. Remaining POS gaps
   include selected customer for cart, receipt print/export, wallet top-up
   handoff, new customer handoff, stock
   write-off/adjustment, and discount/promo/combo handling if kept in MVP UI.
   Use existing POS/player/shift endpoints where they exist; create missing
-  void/receipt/inventory/provider endpoints before removing the UI warnings.
+  customer/cart/inventory/provider endpoints before removing the UI warnings.
 - [ ] Clients: `Создать бронь` from a selected player, wallet top-up and debt
   payment with operator-entered amount/reason, player creation with
   operator-entered name/phone, and package purchase now use backend endpoints.
@@ -441,7 +446,10 @@ Screen roadmap:
 - [x] Add fixture-level interactivity and motion across the reviewable React
   workspaces, including local selection/filter/cart/payment/settings state,
   action feedback notices, animated values, and reduced-motion support.
-- [ ] Port current POS product/cart/payment/refund/void workflows.
+- [x] Port current POS product/cart/payment/refund/void workflows. Implemented
+  on 2026-05-21 with backend catalog/current-shift/sales report reads, sale
+  creation, manual payment, selected-sale refund, draft void, sale detail, and
+  receipt lookup through existing POS/receipt endpoints.
 - [ ] Port player search, wallet/debt, top-up, and debt payment workflows.
 - [ ] Port shift open, cash movement, close, reports, and CSV export flows.
 - [ ] Port Settings/Pilot Setup, device tools, updates, audit, and diagnostics

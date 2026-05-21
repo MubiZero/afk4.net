@@ -2,6 +2,7 @@ using System.Text.Json;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Receipts;
 
 namespace AFK4.Shared.Contracts.Tests;
 
@@ -127,7 +128,16 @@ public sealed class PosContractSerializationTests
             CreatedAtUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
             PaidAtUtc: DateTimeOffset.Parse("2026-05-13T10:01:00Z"),
             RefundedAtUtc: null,
-            VoidedAtUtc: null);
+            VoidedAtUtc: null,
+            LatestReceipt: new ReceiptDto(
+                Guid.Parse("ffffffff-0000-0000-0000-000000000001"),
+                Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"),
+                Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+                Guid.Parse("eeeeeeee-0000-0000-0000-000000000001"),
+                "POS-20260513-0001",
+                "sale",
+                new MoneyDto("TJS", 2400),
+                DateTimeOffset.Parse("2026-05-13T10:01:00Z")));
 
         var copy = JsonSerializer.Deserialize<PosSaleDto>(
             JsonSerializer.Serialize(sale, Options),
@@ -137,6 +147,7 @@ public sealed class PosContractSerializationTests
         Assert.Equal(PosSaleStateNames.Paid, copy.State);
         Assert.Single(copy.Lines);
         Assert.Equal(2400, copy.Total.MinorUnits);
+        Assert.Equal("POS-20260513-0001", copy.LatestReceipt?.ReceiptNumber);
     }
 
     [Fact]

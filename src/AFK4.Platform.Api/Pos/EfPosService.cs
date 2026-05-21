@@ -8,6 +8,7 @@ using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
@@ -264,7 +265,7 @@ public sealed class EfPosService(
                 SaleReceiptType,
                 now,
                 cancellationToken);
-            dbContext.Receipts.Add(new ReceiptEntity
+            var receipt = new ReceiptEntity
             {
                 ReceiptId = Guid.NewGuid(),
                 OrganizationId = sale.OrganizationId,
@@ -275,13 +276,14 @@ public sealed class EfPosService(
                 CurrencyCode = sale.CurrencyCode,
                 TotalMinorUnits = sale.TotalMinorUnits,
                 CreatedAtUtc = now
-            });
+            };
+            dbContext.Receipts.Add(receipt);
 
             sale.State = PosSaleStateNames.Paid;
             sale.PaidAtUtc = now;
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            var response = ToDto(sale, lines);
+            var response = ToDto(sale, lines, receipt);
             AddIdempotencyRecord(
                 sale.OrganizationId,
                 sale.BranchId,
@@ -407,7 +409,7 @@ public sealed class EfPosService(
                 RefundReceiptType,
                 now,
                 cancellationToken);
-            dbContext.Receipts.Add(new ReceiptEntity
+            var receipt = new ReceiptEntity
             {
                 ReceiptId = Guid.NewGuid(),
                 OrganizationId = sale.OrganizationId,
@@ -418,14 +420,15 @@ public sealed class EfPosService(
                 CurrencyCode = sale.CurrencyCode,
                 TotalMinorUnits = sale.TotalMinorUnits,
                 CreatedAtUtc = now
-            });
+            };
+            dbContext.Receipts.Add(receipt);
 
             sale.State = PosSaleStateNames.Refunded;
             sale.RefundReason = request.Reason.Trim();
             sale.RefundedAtUtc = now;
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            var response = ToDto(sale, lines);
+            var response = ToDto(sale, lines, receipt);
             AddIdempotencyRecord(
                 sale.OrganizationId,
                 sale.BranchId,
@@ -546,8 +549,16 @@ public sealed class EfPosService(
         }
 
         var lines = await LoadSaleLinesAsync(posSaleId, cancellationToken);
+        var latestReceipt = await dbContext.Receipts
+            .AsNoTracking()
+            .Where(receipt =>
+                receipt.OrganizationId == organizationId &&
+                receipt.PosSaleId == posSaleId)
+            .OrderByDescending(receipt => receipt.CreatedAtUtc)
+            .ThenByDescending(receipt => receipt.ReceiptId)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        return BillingCommandServiceResult<PosSaleDto>.Ok(ToDto(sale, lines));
+        return BillingCommandServiceResult<PosSaleDto>.Ok(ToDto(sale, lines, latestReceipt));
     }
 
     private static string? ValidateCreateSaleRequest(CreatePosSaleRequest request)
@@ -751,7 +762,8 @@ public sealed class EfPosService(
 
     private static PosSaleDto ToDto(
         PosSaleEntity sale,
-        IReadOnlyList<PosSaleLineEntity> lines)
+        IReadOnlyList<PosSaleLineEntity> lines,
+        ReceiptEntity? latestReceipt = null)
     {
         return new PosSaleDto(
             sale.PosSaleId,
@@ -765,7 +777,21 @@ public sealed class EfPosService(
             sale.CreatedAtUtc,
             sale.PaidAtUtc,
             sale.RefundedAtUtc,
-            sale.VoidedAtUtc);
+            sale.VoidedAtUtc,
+            latestReceipt is null ? null : ToDto(latestReceipt));
+    }
+
+    private static ReceiptDto ToDto(ReceiptEntity receipt)
+    {
+        return new ReceiptDto(
+            receipt.ReceiptId,
+            receipt.OrganizationId,
+            receipt.BranchId,
+            receipt.PosSaleId,
+            receipt.ReceiptNumber,
+            receipt.ReceiptType,
+            new MoneyDto(receipt.CurrencyCode, receipt.TotalMinorUnits),
+            receipt.CreatedAtUtc);
     }
 
     private static PosSaleLineDto ToDto(PosSaleLineEntity line)

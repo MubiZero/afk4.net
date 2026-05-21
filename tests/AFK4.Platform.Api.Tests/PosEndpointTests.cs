@@ -153,10 +153,14 @@ public sealed class PosEndpointTests
                 "cash drawer",
                 "pay-001"));
         Assert.Equal(PosSaleStateNames.Paid, paid.State);
+        Assert.NotNull(paid.LatestReceipt);
+        Assert.StartsWith("POS-", paid.LatestReceipt.ReceiptNumber, StringComparison.Ordinal);
 
         var readSale = await client.GetFromJsonAsync<PosSaleDto>($"/api/pos/sales/{sale.PosSaleId:D}");
         Assert.NotNull(readSale);
         Assert.Equal(PosSaleStateNames.Paid, readSale.State);
+        Assert.NotNull(readSale.LatestReceipt);
+        Assert.Equal(paid.LatestReceipt.ReceiptNumber, readSale.LatestReceipt.ReceiptNumber);
 
         var receiptId = await LoadReceiptIdAsync(factory, sale.PosSaleId, "sale");
         var receipt = await client.GetFromJsonAsync<ReceiptDto>($"/api/receipts/{receiptId:D}");
@@ -172,6 +176,8 @@ public sealed class PosEndpointTests
                 "customer returned unopened item",
                 "refund-001"));
         Assert.Equal(PosSaleStateNames.Refunded, refunded.State);
+        Assert.NotNull(refunded.LatestReceipt);
+        Assert.StartsWith("REF-", refunded.LatestReceipt.ReceiptNumber, StringComparison.Ordinal);
 
         var draftToVoid = await PostOkAsync<PosSaleDto>(
             client,

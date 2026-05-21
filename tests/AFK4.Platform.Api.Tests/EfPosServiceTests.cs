@@ -111,6 +111,9 @@ public sealed class EfPosServiceTests
         Assert.NotNull(result.Response);
         Assert.Equal(PosSaleStateNames.Paid, result.Response.State);
         Assert.Equal(Now, result.Response.PaidAtUtc);
+        Assert.NotNull(result.Response.LatestReceipt);
+        Assert.Equal("POS-20260513-0001", result.Response.LatestReceipt.ReceiptNumber);
+        Assert.Equal("sale", result.Response.LatestReceipt.ReceiptType);
 
         var payment = await db.Payments.SingleAsync();
         Assert.Equal(sale.PosSaleId, payment.PosSaleId);
@@ -198,6 +201,9 @@ public sealed class EfPosServiceTests
         Assert.NotNull(result.Response);
         Assert.Equal(PosSaleStateNames.Refunded, result.Response.State);
         Assert.Equal(Now, result.Response.RefundedAtUtc);
+        Assert.NotNull(result.Response.LatestReceipt);
+        Assert.Equal("REF-20260513-0001", result.Response.LatestReceipt.ReceiptNumber);
+        Assert.Equal("refund", result.Response.LatestReceipt.ReceiptType);
 
         var refundReceipt = await db.Receipts.SingleAsync(receipt => receipt.ReceiptType == "refund");
         Assert.Equal("REF-20260513-0001", refundReceipt.ReceiptNumber);

@@ -407,8 +407,12 @@ describe('App', () => {
 
     expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
     expect(screen.getAllByText(/Cola 0.5/).length).toBeGreaterThan(0);
+    expect(await screen.findByText('POS-20260521-0001')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999') &&
+      init?.method !== 'POST')).toBe(true);
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/receipts/11111111-1111-1111-1111-111111111111') &&
       init?.method !== 'POST')).toBe(true);
   });
 
@@ -1219,6 +1223,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return new Response('csv', { status: 200 });
   }
 
+  if (pathname.includes('/receipts/')) {
+    return jsonResponse(createReceipt());
+  }
+
   if (pathname.endsWith('/pos/sales') && init?.method === 'POST') {
     return jsonResponse(createPosSale('draft'));
   }
@@ -1791,7 +1799,30 @@ function createPosSale(state: string) {
     createdAtUtc: '2026-05-21T09:00:00Z',
     paidAtUtc: state === 'paid' ? '2026-05-21T09:01:00Z' : null,
     refundedAtUtc: state === 'refunded' ? '2026-05-21T09:05:00Z' : null,
-    voidedAtUtc: state === 'voided' ? '2026-05-21T09:03:00Z' : null
+    voidedAtUtc: state === 'voided' ? '2026-05-21T09:03:00Z' : null,
+    latestReceipt: state === 'paid'
+      ? createReceipt()
+      : state === 'refunded'
+        ? createReceipt({
+          receiptId: '22222222-2222-2222-2222-222222222222',
+          receiptNumber: 'REF-20260521-0001',
+          receiptType: 'refund'
+        })
+        : null
+  };
+}
+
+function createReceipt(overrides: Record<string, unknown> = {}) {
+  return {
+    receiptId: '11111111-1111-1111-1111-111111111111',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    posSaleId: '99999999-9999-9999-9999-999999999999',
+    receiptNumber: 'POS-20260521-0001',
+    receiptType: 'sale',
+    total: { currencyCode: 'TJS', minorUnits: 1200 },
+    createdAtUtc: '2026-05-21T09:01:00Z',
+    ...overrides
   };
 }
 

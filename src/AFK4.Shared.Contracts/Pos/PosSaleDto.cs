@@ -1,4 +1,5 @@
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Receipts;
 
 namespace AFK4.Shared.Contracts.Pos;
 
@@ -14,4 +15,5 @@ public sealed record PosSaleDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? PaidAtUtc,
     DateTimeOffset? RefundedAtUtc,
-    DateTimeOffset? VoidedAtUtc);
+    DateTimeOffset? VoidedAtUtc,
+    ReceiptDto? LatestReceipt = null);

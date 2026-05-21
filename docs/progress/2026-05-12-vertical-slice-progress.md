@@ -162,7 +162,7 @@ implementation evidence are needed.
   reports, creates paid manual-provider sales, can refund the selected backend
   sale from the quick-operation panel, and can void a backend draft sale created
   from the current cart, and opens backend sale details from the recent receipt
-  list; Clients searches backend players
+  list plus the linked backend receipt projection; Clients searches backend players
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
   name/phone, and reservation creation from a selected backend player; Payments
@@ -285,7 +285,7 @@ close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
 refund quick action, POS
-draft void quick action, POS sale detail lookup, and Clients package purchase:
+draft void quick action, POS sale detail/receipt lookup, and Clients package purchase:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -363,8 +363,11 @@ Result:
   exists through `/api/branches/{branchId}/shifts/open`, including starting
   cash, opening note, organization id, and idempotency key serialization.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
-  WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
-  copy, and reported no browser console errors.
+  WebView auth entry surface with title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
+  and 0 new console errors after reload. Four older Vite HMR error logs remain
+  in the browser log buffer from the earlier duplicate helper issue and were
+  filtered by timestamp.
 - Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console
@@ -390,8 +393,12 @@ Result:
   `/api/pos/sales/{saleId}/void` with organization id, reason, and idempotency
   key serialization before UI confirmation.
 - POS frontend tests now cover opening backend sale details from the recent
-  receipt list through `GET /api/pos/sales/{saleId}` before rendering line
-  detail.
+  receipt list through `GET /api/pos/sales/{saleId}`, reading the sale's
+  `latestReceipt`, then calling `GET /api/receipts/{receiptId}` before
+  rendering line detail and receipt number/total.
+- POS contract/backend tests now cover `PosSaleDto.LatestReceipt` serialization
+  plus sale/manual-payment/refund responses and sale reads carrying the latest
+  receipt projection for the Operator App.
 - Clients frontend tests now cover package purchase from the selected backend
   player card through `/api/players/{playerAccountId}/packages/purchases`,
   including package definition id and idempotency key serialization.
@@ -1342,6 +1349,11 @@ Operator App redesign branch-local verification on 2026-05-20:
   open backend sale details through `GET /api/pos/sales/{saleId}` with
   `receipts.view` gating, replacing another static receipt surface with
   backend-confirmed line detail.
+- On 2026-05-21, `codex/operator-app-redesign` extended `PosSaleDto` with
+  nullable `LatestReceipt`, has POS service responses and sale reads carry the
+  latest sale/refund receipt projection, and has the React POS detail panel use
+  that receipt id to call `GET /api/receipts/{receiptId}` before showing the
+  receipt number/type/total.
 - On 2026-05-21, `codex/operator-app-redesign` wired Clients `Купить пакет`
   to existing package option and package purchase endpoints, guarded by
   `packages.purchase` and idempotency.

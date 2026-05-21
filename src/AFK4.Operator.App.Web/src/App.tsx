@@ -44,6 +44,7 @@ import {
   type PlayerSearchResultDto,
   type PosProductDto,
   type PosSaleDto,
+  type ReceiptDto,
   type ReservationSearchResultDto,
   type ReportResultDto,
   type ShiftDto,
@@ -2957,6 +2958,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
   const [lastSale, setLastSale] = useState<PosSaleDto | null>(null);
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<PosSaleDto | null>(null);
+  const [selectedReceiptDetail, setSelectedReceiptDetail] = useState<ReceiptDto | null>(null);
   const [selectedRefundSaleId, setSelectedRefundSaleId] = useState('');
   const [cartItems, setCartItems] = useState<PosCartItem[]>([
     { ...fixturePosProducts[0], quantity: 1 },
@@ -3145,6 +3147,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   };
 
   const loadSaleDetail = async (saleId: string) => {
+    setSelectedReceiptDetail(null);
     setFeedback({ label: 'Детали чека', state: 'pending' });
     try {
       const nextBackend = requireBackend(backend);
@@ -3156,8 +3159,13 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         throw new Error('Backend POS sale id is required for receipt detail.');
       }
 
-      const sale = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.getSale(saleId);
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const sale = await clients.pos.getSale(saleId);
+      const latestReceipt = readRecord(sale, 'latestReceipt');
+      const receiptId = readString(latestReceipt, 'receiptId');
+      const receipt = receiptId ? await clients.pos.getReceipt(receiptId) : null;
       setSelectedSaleDetail(sale);
+      setSelectedReceiptDetail(receipt);
       setFeedback({ label: 'Детали чека', state: 'confirmed' });
     } catch (error) {
       setFeedback({
@@ -3386,6 +3394,14 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                   {readString(line, 'productName', 'POS item')} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
                 </p>
               ))}
+              {selectedReceiptDetail !== null && (
+                <div className="pos-receipt-detail">
+                  <span>Чек backend</span>
+                  <strong>{readString(selectedReceiptDetail, 'receiptNumber', 'receipt')}</strong>
+                  <b>{formatMoney(readMoney(selectedReceiptDetail, 'total'), currencyCode)}</b>
+                  <p>{readString(selectedReceiptDetail, 'receiptType', 'sale')}</p>
+                </div>
+              )}
             </div>
           )}
         </section>
