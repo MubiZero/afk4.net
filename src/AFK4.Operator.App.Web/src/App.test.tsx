@@ -386,6 +386,37 @@ describe('App', () => {
       source: 'operator'
     });
   });
+
+  it('creates a staff user from the Settings personnel form', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
+    fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'manager2' } });
+    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Manager Two' } });
+    fireEvent.change(screen.getByLabelText('Временный пароль'), { target: { value: 'Secret123!' } });
+    fireEvent.change(screen.getByLabelText('Роль'), { target: { value: 'branch_manager' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать сотрудника' }));
+
+    expect(await screen.findByText('Пригласить сотрудника: подтверждено')).toBeInTheDocument();
+    const staffCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff') &&
+      init?.method === 'POST');
+    expect(staffCall).toBeDefined();
+    const body = JSON.parse(String(staffCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      userName: 'manager2',
+      displayName: 'Manager Two',
+      password: 'Secret123!',
+      roleNames: ['branch_manager']
+    });
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -493,6 +524,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/packages')) {
     return jsonResponse(createPlayerPackages());
+  }
+
+  if (pathname.endsWith('/staff') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createStaffUser(body));
   }
 
   if (pathname.endsWith('/staff')) {
@@ -960,16 +996,26 @@ function createPlayerPackages() {
 
 function createStaffUsers() {
   return [
-    {
+    createStaffUser({
       staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       userName: 'cashier',
       displayName: 'Cashier One',
-      isActive: true,
-      roleNames: ['cashier'],
-      createdAtUtc: '2026-05-21T08:00:00Z'
-    }
+      roleNames: ['cashier']
+    })
   ];
+}
+
+function createStaffUser(overrides: Record<string, unknown> = {}) {
+  return {
+    staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    userName: 'cashier',
+    displayName: 'Cashier One',
+    isActive: true,
+    roleNames: ['cashier'],
+    createdAtUtc: '2026-05-21T08:00:00Z',
+    ...overrides
+  };
 }
 
 function createZones() {

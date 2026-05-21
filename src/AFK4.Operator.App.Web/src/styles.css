@@ -3839,6 +3839,7 @@ button {
 .settings-panel-title strong,
 .settings-form-grid label,
 .settings-form-grid input,
+.settings-form-grid select,
 .settings-section-title span,
 .settings-room-card strong,
 .settings-room-card b,
@@ -3933,6 +3934,23 @@ button {
   font-size: 12px;
 }
 
+.settings-form-grid select {
+  height: 28px;
+  min-width: 0;
+  border: 1px solid #2b3748;
+  border-radius: 5px;
+  padding: 0 9px;
+  outline: 0;
+  background: #0c141f;
+  color: #f7fafc;
+  font-size: 12px;
+}
+
+.settings-form-grid input:disabled,
+.settings-form-grid select:disabled {
+  color: #6f7d91;
+}
+
 .settings-section-title {
   display: flex;
   align-items: center;
@@ -3956,6 +3974,25 @@ button {
   color: #dbe3ef;
   font-size: 11px;
   font-weight: 800;
+}
+
+.settings-section-title button:disabled,
+.settings-section-title button:disabled:hover,
+.settings-section-title button:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
+}
+
+.settings-staff-layout {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-staff-form {
+  border-top: 1px solid #263241;
+  padding-top: 10px;
 }
 
 .settings-room-grid {

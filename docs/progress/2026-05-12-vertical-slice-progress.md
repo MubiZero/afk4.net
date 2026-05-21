@@ -131,6 +131,12 @@ implementation evidence are needed.
   the selected reservation index is reset after backend reloads when needed,
   and new reservations validate free-seat availability plus start time before
   sending the backend request.
+- Settings `Персонал` now has a general staff creation form backed by the
+  existing branch staff API. It validates the form client-side, requires the
+  existing branch-staff management permission, posts login/display name/
+  temporary password/role names to `/api/branches/{branchId}/staff`, and keeps
+  branch profile saving as an explicit failed state until a profile endpoint
+  exists.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports and creates paid manual-provider sales; Clients searches backend
@@ -231,8 +237,8 @@ backend-backed floor-map loading, backend-confirmed selected-seat actions,
 first backend-backed parity wiring for the remaining operator workspaces,
 the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
-selection and device-command result feedback, map filters/table parity, and
-Booking permission/state hardening:
+selection and device-command result feedback, map filters/table parity,
+Booking permission/state hardening, and Settings staff creation:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -243,7 +249,7 @@ Booking permission/state hardening:
 
 Result:
 
-- frontend tests: 41 passed, 0 failed;
+- frontend tests: 42 passed, 0 failed;
 - frontend production build: passed;
 - full solution tests: 773 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
@@ -268,6 +274,9 @@ Result:
   columns.
 - Booking frontend tests now cover disabled mutation controls for a staff
   session with `reservations.view` but without `reservations.manage`.
+- Settings frontend tests now cover branch staff creation from the Personnel
+  form, including request body serialization for login, display name, temporary
+  password, and role names.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
   copy, and reported no browser console errors.

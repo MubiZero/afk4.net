@@ -62,7 +62,8 @@ Current state:
   reads selected-seat device command result status after session commands. The
   primary map now also has real filters and table view parity over the same
   backend-loaded seat state. Booking now has first-pass permission/state guards
-  for mutation controls. Staging smoke across the newly wired screens is the
+  for mutation controls. Settings now has a backend-backed staff creation form
+  in the Personnel section. Staging smoke across the newly wired screens is the
   next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
@@ -91,8 +92,10 @@ reservation API wiring, restored staff permissions now gate workspace
 navigation plus selected-seat session actions, the map panel now sends billed
 session metadata plus displays device command status feedback, and the primary
 map has real filter/table parity. Booking mutation controls now also respect
-`reservations.manage` and selected reservation state. Continue with staging
-smoke of the backend-backed workspaces and close gaps found with real data.
+`reservations.manage` and selected reservation state. Settings Personnel can
+create branch staff through the existing backend staff API, while branch
+profile saving remains a known missing endpoint. Continue with staging smoke of
+the backend-backed workspaces and close gaps found with real data.
 
 The backend remains authoritative for sessions, money, POS, shifts, devices,
 and critical actions. Any local UI feedback must become pending/confirmed/
@@ -198,14 +201,14 @@ missing-backend copy.
   data, and export generation. Use audit, diagnostics, and report endpoints
   where they exist; create missing event-detail/support-export contracts if the
   current API cannot answer the screen.
-- [ ] Settings: replace
-  `General staff invite form is not implemented in the React operator yet.`
-  and `Backend endpoint for branch profile settings is not implemented yet.`
-  with real flows. Wire or create backend for branch profile settings, staff
-  invite and role assignment/editing, general layout editor, device-seat
-  management, tariff/package management, POS catalog and stock CRUD,
-  integrations/payment-provider settings, update rollout controls, diagnostics,
-  audit/security settings, and validation errors.
+- [ ] Settings: replace `Backend endpoint for branch profile settings is not
+  implemented yet.` with a real branch profile flow. The general staff creation
+  form was implemented on 2026-05-21 using the existing branch staff API and
+  `identity.branch_staff.manage`; remaining settings gaps include role
+  assignment/editing, general layout editor, device-seat management,
+  tariff/package management, POS catalog and stock CRUD, integrations/payment-
+  provider settings, update rollout controls, diagnostics, audit/security
+  settings, and validation errors.
 - [ ] Empty backend states: review `Нет backend операций`,
   `Нет backend событий`, and similar empty-state copy after real staging data
   smoke. Keep them only when the backend returned a successful empty result;

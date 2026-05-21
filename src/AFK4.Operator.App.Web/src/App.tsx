@@ -4442,6 +4442,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
+  const [inviteUserName, setInviteUserName] = useState('operator');
+  const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
+  const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
+  const [inviteRoleName, setInviteRoleName] = useState('cashier');
 
   const loadSettings = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -4489,6 +4493,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const selectedSectionDetail = sections.find(([name]) => name === selectedSection)?.[1] ?? '';
   const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
+  const canManageBranchStaff = backend !== null && hasPermission(backend.session, permissionNames.manageBranchStaff);
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
     ['Залы и ПК', `${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0)} рабочих мест`],
@@ -4499,7 +4504,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const actions: Array<[string, string, LucideIcon]> = [
     ['Добавить ПК', 'новое рабочее место', MonitorCheck],
     ['Создать тариф', 'backend tariff/version', CircleDollarSign],
-    ['Пригласить сотрудника', 'нужна форма доступа', UserRoundPlus],
+    ['Пригласить сотрудника', canManageBranchStaff ? 'создать staff user' : 'нет прав доступа', UserRoundPlus],
     ['Проверить устройства', 'diagnostics refresh', Wifi]
   ];
 
@@ -4550,8 +4555,30 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           });
         }
         await loadSettings(nextBackend);
+      } else if (label === 'Пригласить сотрудника') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
+          throw new Error('Нет прав на управление сотрудниками.');
+        }
+
+        const userName = inviteUserName.trim();
+        const displayName = inviteDisplayName.trim();
+        if (!userName || !displayName || !invitePassword) {
+          throw new Error('Заполните имя пользователя, имя сотрудника и временный пароль.');
+        }
+
+        const staffUser = await apiClients.settings.createStaffUser(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          userName,
+          displayName,
+          password: invitePassword,
+          roleNames: [inviteRoleName || 'cashier']
+        });
+        setStaffUsers((items) => [...items, staffUser]);
+        setInviteUserName(`operator${staffUsers.length + 2}`);
+        setInviteDisplayName('Новый оператор');
+        setInvitePassword('ChangeMe123!');
       } else {
-        throw new Error('General staff invite form is not implemented in the React operator yet.');
+        throw new Error('Backend endpoint for this settings action is not implemented yet.');
       }
 
       setFeedback({ label, state: 'confirmed' });
@@ -4612,14 +4639,34 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
     if (selectedSection === 'Персонал') {
       return (
-        <div className="settings-config-grid">
-          {staffUsers.map((user) => (
-            <button key={readString(user, 'staffUserId')} type="button" onClick={() => triggerFeedback(setFeedback, readString(user, 'displayName', 'Staff'), 'confirmed')}>
-              <strong>{readString(user, 'displayName', 'Staff')}</strong>
-              <span>{readString(user, 'userName', 'user')} · {readArray<string>(user, 'roleNames').join(', ') || 'roles'}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="settings-section-title">
+            <span>Сотрудники</span>
+            <button type="button" disabled={!canManageBranchStaff} onClick={() => runSettingsAction('Пригласить сотрудника')}>Создать сотрудника</button>
+          </div>
+          <div className="settings-staff-layout">
+            <div className="settings-config-grid">
+              {staffUsers.map((user) => (
+                <button key={readString(user, 'staffUserId')} type="button" onClick={() => triggerFeedback(setFeedback, readString(user, 'displayName', 'Staff'), 'confirmed')}>
+                  <strong>{readString(user, 'displayName', 'Staff')}</strong>
+                  <span>{readString(user, 'userName', 'user')} · {readArray<string>(user, 'roleNames').join(', ') || 'roles'}</span>
+                </button>
+              ))}
+            </div>
+            <div className="settings-form-grid settings-staff-form">
+              <label>Логин<input value={inviteUserName} disabled={!canManageBranchStaff} onChange={(event) => setInviteUserName(event.currentTarget.value)} /></label>
+              <label>Имя<input value={inviteDisplayName} disabled={!canManageBranchStaff} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} /></label>
+              <label>Временный пароль<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
+              <label>Роль
+                <select value={inviteRoleName} disabled={!canManageBranchStaff} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
+                  <option value="cashier">cashier</option>
+                  <option value="branch_manager">branch_manager</option>
+                  <option value="technician">technician</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </>
       );
     }
 
