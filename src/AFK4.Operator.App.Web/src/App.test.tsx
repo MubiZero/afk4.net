@@ -753,6 +753,108 @@ describe('App', () => {
     });
     expect(body.idempotencyKey).toMatch(/^package-definition-create-/);
   });
+
+  it('registers update packages and creates rollouts from Settings integrations', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
+    fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '0.2.0' } });
+    fireEvent.change(screen.getByLabelText('Artifact URL'), { target: { value: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi' } });
+    fireEvent.change(screen.getByLabelText('Signature'), { target: { value: 'operator-package-signature' } });
+    fireEvent.change(screen.getByLabelText('Размер bytes'), { target: { value: '4096' } });
+    fireEvent.change(screen.getByLabelText('Release notes'), { target: { value: 'Operator App 0.2.0.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрировать пакет' }));
+
+    expect(await screen.findByText('Зарегистрировать пакет обновления: подтверждено')).toBeInTheDocument();
+    const packageCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages') &&
+      init?.method === 'POST');
+    expect(packageCall).toBeDefined();
+    const packageBody = JSON.parse(String(packageCall?.[1]?.body));
+    expect(packageBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      component: 'operator-app',
+      version: '0.2.0',
+      channel: 'internal',
+      artifactUri: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi',
+      signature: 'operator-package-signature',
+      signatureAlgorithm: 'ECDSA-P256-SHA256-IEEE-P1363',
+      sizeBytes: 4096,
+      releaseNotes: 'Operator App 0.2.0.'
+    });
+
+    fireEvent.change(screen.getByLabelText('Batch %'), { target: { value: '25' } });
+    fireEvent.change(screen.getByLabelText('Rollout package'), { target: { value: '19191919-1919-1919-1919-191919191919' } });
+    fireEvent.change(screen.getByLabelText('Start UTC'), { target: { value: '2026-05-21T10:00:00Z' } });
+    fireEvent.change(screen.getAllByLabelText('Причина rollout')[0], { target: { value: 'Canary rollout.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать rollout' }));
+
+    expect(await screen.findByText('Создать rollout обновления: подтверждено')).toBeInTheDocument();
+    const rolloutCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts') &&
+      init?.method === 'POST');
+    expect(rolloutCall).toBeDefined();
+    const rolloutBody = JSON.parse(String(rolloutCall?.[1]?.body));
+    expect(rolloutBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      updatePackageId: '19191919-1919-1919-1919-191919191919',
+      channel: 'internal',
+      targetKind: 'branch',
+      targetDeviceIds: [],
+      batchPercent: 25,
+      startsAtUtc: '2026-05-21T10:00:00.000Z',
+      reason: 'Canary rollout.'
+    });
+  });
+
+  it('changes update package and rollout states from Settings integrations', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
+    fireEvent.change(screen.getByLabelText('Состояние пакета'), { target: { value: 'validated' } });
+    fireEvent.change(screen.getByLabelText('Причина пакета'), { target: { value: 'Signature verified.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние пакета' }));
+
+    expect(await screen.findByText('Изменить состояние пакета: подтверждено')).toBeInTheDocument();
+    const packageStateCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
+      init?.method === 'POST');
+    expect(packageStateCall).toBeDefined();
+    const packageStateBody = JSON.parse(String(packageStateCall?.[1]?.body));
+    expect(packageStateBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      state: 'validated',
+      reason: 'Signature verified.'
+    });
+
+    fireEvent.change(screen.getByLabelText('Состояние rollout'), { target: { value: 'paused' } });
+    fireEvent.change(screen.getAllByLabelText('Причина rollout')[1], { target: { value: 'Pause while checking failures.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние rollout' }));
+
+    expect(await screen.findByText('Изменить состояние rollout: подтверждено')).toBeInTheDocument();
+    const rolloutStateCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
+      init?.method === 'POST');
+    expect(rolloutStateCall).toBeDefined();
+    const rolloutStateBody = JSON.parse(String(rolloutStateCall?.[1]?.body));
+    expect(rolloutStateBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      state: 'paused',
+      reason: 'Pause while checking failures.'
+    });
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -939,6 +1041,34 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createDiagnostics());
   }
 
+  if (pathname.endsWith('/updates/packages') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createUpdatePackage(body));
+  }
+
+  if (pathname.includes('/updates/packages/') && pathname.endsWith('/state') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const parts = pathname.split('/');
+    return jsonResponse(createUpdatePackage({
+      updatePackageId: parts[parts.length - 2],
+      state: body.state
+    }));
+  }
+
+  if (pathname.endsWith('/updates/rollouts') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createUpdateRollout(body));
+  }
+
+  if (pathname.includes('/updates/rollouts/') && pathname.endsWith('/state') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const parts = pathname.split('/');
+    return jsonResponse(createUpdateRollout({
+      updateRolloutId: parts[parts.length - 2],
+      state: body.state
+    }));
+  }
+
   if (pathname.endsWith('/updates/rollouts')) {
     return jsonResponse(createRollouts());
   }
@@ -1024,6 +1154,8 @@ const allOperatorPermissions = [
   'layout.manage',
   'tariffs.view',
   'updates.status.view',
+  'updates.packages.manage',
+  'updates.rollouts.manage',
   'devices.commands.status.view',
   'audit.view'
 ];
@@ -1599,7 +1731,7 @@ function createRollouts() {
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
       updatePackageId: '15151515-1515-1515-1515-151515151515',
-      component: 'agent',
+      component: 'agent-service',
       version: '0.1.14',
       channel: 'internal',
       state: 'active',
@@ -1612,6 +1744,47 @@ function createRollouts() {
       deviceStatuses: []
     }
   ];
+}
+
+function createUpdatePackage(overrides: Record<string, unknown> = {}) {
+  return {
+    updatePackageId: '19191919-1919-1919-1919-191919191919',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    component: 'operator-app',
+    version: '0.1.0',
+    channel: 'internal',
+    artifactUri: 'https://updates.afk4.staging.mubi.dev/operator-app/0.1.0/operator-app.msi',
+    sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    signature: 'signed-update-package',
+    signatureAlgorithm: 'ECDSA-P256-SHA256-IEEE-P1363',
+    sizeBytes: 1048576,
+    state: 'registered',
+    releaseNotes: 'Operator App update package.',
+    createdAtUtc: '2026-05-21T09:10:00Z',
+    ...overrides
+  };
+}
+
+function createUpdateRollout(overrides: Record<string, unknown> = {}) {
+  return {
+    updateRolloutId: '20202020-2020-2020-2020-202020202020',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    updatePackageId: '19191919-1919-1919-1919-191919191919',
+    component: 'operator-app',
+    version: '0.1.0',
+    channel: 'internal',
+    state: 'active',
+    targetKind: 'branch',
+    targetDeviceIds: [],
+    batchPercent: 100,
+    createdAtUtc: '2026-05-21T09:15:00Z',
+    startsAtUtc: '2026-05-21T10:00:00Z',
+    completedAtUtc: null,
+    deviceStatuses: [],
+    ...overrides
+  };
 }
 
 function createTariffs() {

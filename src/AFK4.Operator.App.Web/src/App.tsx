@@ -141,6 +141,8 @@ const permissionNames = {
   manageLayout: 'layout.manage',
   viewTariffs: 'tariffs.view',
   viewUpdateStatus: 'updates.status.view',
+  manageUpdatePackages: 'updates.packages.manage',
+  manageUpdateRollouts: 'updates.rollouts.manage',
   viewDeviceCommandStatus: 'devices.commands.status.view',
   viewAudit: 'audit.view'
 } as const;
@@ -170,6 +172,8 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.managePackages,
     permissionNames.viewDiagnostics,
     permissionNames.viewUpdateStatus,
+    permissionNames.manageUpdatePackages,
+    permissionNames.manageUpdateRollouts,
     permissionNames.viewTariffs
   ]
 };
@@ -4832,6 +4836,28 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [packageMinutes, setPackageMinutes] = useState('300');
   const [packageBonusMinutes, setPackageBonusMinutes] = useState('30');
   const [packageExpiresDays, setPackageExpiresDays] = useState('30');
+  const [updateComponent, setUpdateComponent] = useState('operator-app');
+  const [updateVersion, setUpdateVersion] = useState('0.1.0');
+  const [updateChannel, setUpdateChannel] = useState('internal');
+  const [updateArtifactUri, setUpdateArtifactUri] = useState('https://updates.afk4.staging.mubi.dev/operator-app/0.1.0/operator-app.msi');
+  const [updateSha256, setUpdateSha256] = useState('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
+  const [updateSignature, setUpdateSignature] = useState('signed-update-package');
+  const [updateSignatureAlgorithm, setUpdateSignatureAlgorithm] = useState('ECDSA-P256-SHA256-IEEE-P1363');
+  const [updateSizeBytes, setUpdateSizeBytes] = useState('1048576');
+  const [updateReleaseNotes, setUpdateReleaseNotes] = useState('Operator App update package.');
+  const [rolloutPackageId, setRolloutPackageId] = useState('');
+  const [rolloutChannel, setRolloutChannel] = useState('internal');
+  const [rolloutTargetKind, setRolloutTargetKind] = useState('branch');
+  const [rolloutTargetDeviceIds, setRolloutTargetDeviceIds] = useState('');
+  const [rolloutBatchPercent, setRolloutBatchPercent] = useState('100');
+  const [rolloutStartsAtUtc, setRolloutStartsAtUtc] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString());
+  const [rolloutReason, setRolloutReason] = useState('Operator rollout.');
+  const [packageStatePackageId, setPackageStatePackageId] = useState('');
+  const [packageState, setPackageState] = useState('validated');
+  const [packageStateReason, setPackageStateReason] = useState('Signature verified.');
+  const [rolloutStateRolloutId, setRolloutStateRolloutId] = useState('');
+  const [rolloutState, setRolloutState] = useState('paused');
+  const [rolloutStateReason, setRolloutStateReason] = useState('Operator state change.');
 
   const loadSettings = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -4860,7 +4886,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         ? current
         : readString(productRows.find((product) => readBoolean(product, 'trackStock')), 'productId'));
       setDiagnostics(branchDiagnostics);
-      setRollouts(Array.isArray(rolloutStatuses) ? rolloutStatuses : []);
+      const rolloutRows = Array.isArray(rolloutStatuses) ? rolloutStatuses : [];
+      setRollouts(rolloutRows);
+      setRolloutPackageId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updatePackageId'));
+      setPackageStatePackageId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updatePackageId'));
+      setRolloutStateRolloutId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updateRolloutId'));
       setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
       setPackageOptions(Array.isArray(packageOptionRows) ? packageOptionRows : []);
       setClubName(readString(branchProfile, 'name', 'AFK4'));
@@ -4892,6 +4922,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const canManagePosCatalog = backend !== null && hasPermission(backend.session, permissionNames.managePosCatalog);
   const canManageInventoryStock = backend !== null && hasPermission(backend.session, permissionNames.manageInventoryStock);
   const canManagePackages = backend !== null && hasPermission(backend.session, permissionNames.managePackages);
+  const canManageUpdatePackages = backend !== null && hasPermission(backend.session, permissionNames.manageUpdatePackages);
+  const canManageUpdateRollouts = backend !== null && hasPermission(backend.session, permissionNames.manageUpdateRollouts);
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
@@ -5066,6 +5098,118 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           idempotencyKey: createIdempotencyKey('stock-movement-create')
         });
         await loadSettings(nextBackend);
+      } else if (label === 'Зарегистрировать пакет обновления') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageUpdatePackages)) {
+          throw new Error('Нет прав на управление пакетами обновлений.');
+        }
+
+        const component = updateComponent.trim();
+        const version = updateVersion.trim();
+        const channel = updateChannel.trim();
+        const artifactUri = updateArtifactUri.trim();
+        const sha256 = updateSha256.trim();
+        const signature = updateSignature.trim();
+        const signatureAlgorithm = updateSignatureAlgorithm.trim();
+        const sizeBytes = Number(updateSizeBytes);
+        if (!component || !version || !channel || !artifactUri || !sha256 || !signature || !signatureAlgorithm
+          || !Number.isInteger(sizeBytes) || sizeBytes <= 0) {
+          throw new Error('Заполните component, version, channel, artifact URL, sha256, signature, algorithm и size.');
+        }
+
+        try {
+          new URL(artifactUri);
+        } catch {
+          throw new Error('Artifact URL должен быть абсолютным URL.');
+        }
+
+        const createdPackage = await apiClients.updates.registerPackage(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          component,
+          version,
+          channel,
+          artifactUri,
+          sha256,
+          signature,
+          signatureAlgorithm,
+          sizeBytes,
+          releaseNotes: updateReleaseNotes.trim()
+        });
+        const updatePackageId = readString(createdPackage, 'updatePackageId');
+        if (updatePackageId) {
+          setRolloutPackageId(updatePackageId);
+          setPackageStatePackageId(updatePackageId);
+        }
+      } else if (label === 'Создать rollout обновления') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
+          throw new Error('Нет прав на управление rollout обновлений.');
+        }
+
+        const updatePackageId = rolloutPackageId.trim();
+        const channel = rolloutChannel.trim();
+        const targetKind = rolloutTargetKind.trim();
+        const batchPercent = Number(rolloutBatchPercent);
+        const startsAtText = rolloutStartsAtUtc.trim();
+        const startsAt = new Date(startsAtText);
+        const targetDeviceIds = targetKind === 'device'
+          ? rolloutTargetDeviceIds.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean)
+          : [];
+        if (!isGuid(updatePackageId) || !channel || (targetKind !== 'branch' && targetKind !== 'device')
+          || !Number.isInteger(batchPercent) || batchPercent < 1 || batchPercent > 100
+          || Number.isNaN(startsAt.getTime()) || !rolloutReason.trim()
+          || targetDeviceIds.some((deviceId) => !isGuid(deviceId))) {
+          throw new Error('Заполните package id, channel, target, batch, start UTC и reason для rollout.');
+        }
+
+        const rollout = await apiClients.updates.createRollout(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          updatePackageId,
+          channel,
+          targetKind,
+          targetDeviceIds,
+          batchPercent,
+          startsAtUtc: startsAt.toISOString(),
+          reason: rolloutReason.trim()
+        });
+        const updateRolloutId = readString(rollout, 'updateRolloutId');
+        if (updateRolloutId) {
+          setRolloutStateRolloutId(updateRolloutId);
+          setRollouts((items) => [rollout, ...items.filter((item) => readString(item, 'updateRolloutId') !== updateRolloutId)]);
+        }
+      } else if (label === 'Изменить состояние пакета') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageUpdatePackages)) {
+          throw new Error('Нет прав на управление пакетами обновлений.');
+        }
+
+        const updatePackageId = packageStatePackageId.trim();
+        const state = packageState.trim();
+        const reason = packageStateReason.trim();
+        if (!isGuid(updatePackageId) || !state || !reason) {
+          throw new Error('Заполните package id, state и reason.');
+        }
+
+        await apiClients.updates.changePackageState(nextBackend.branchId, updatePackageId, {
+          organizationId: nextBackend.session.organizationId,
+          state,
+          reason
+        });
+      } else if (label === 'Изменить состояние rollout') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
+          throw new Error('Нет прав на управление rollout обновлений.');
+        }
+
+        const updateRolloutId = rolloutStateRolloutId.trim();
+        const state = rolloutState.trim();
+        const reason = rolloutStateReason.trim();
+        if (!isGuid(updateRolloutId) || !state || !reason) {
+          throw new Error('Заполните rollout id, state и reason.');
+        }
+
+        const rollout = await apiClients.updates.changeRolloutState(nextBackend.branchId, updateRolloutId, {
+          organizationId: nextBackend.session.organizationId,
+          state,
+          reason
+        });
+        setRollouts((items) => items.map((item) => readString(item, 'updateRolloutId') === updateRolloutId ? rollout : item));
       } else {
         throw new Error('Backend endpoint for this settings action is not implemented yet.');
       }
@@ -5256,19 +5400,122 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
     if (selectedSection === 'Интеграции') {
       return (
-        <div className="settings-config-grid">
-          {[
-            ['Платежи', 'manual provider'],
-            ['Обновления', `${rollouts.length} rollout`],
-            ['Ошибки обновлений', `${readNumber(updateSummary, 'failedDevices', 0)} devices`],
-            ['API', backend?.config.platformBaseUrl ?? 'fixture']
-          ].map(([name, detail]) => (
-            <button key={name} type="button" onClick={() => triggerFeedback(setFeedback, name, 'confirmed')}>
-              <strong>{name}</strong>
-              <span>{detail}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="settings-config-grid">
+            {[
+              ['Платежи', 'manual provider'],
+              ['Обновления', `${rollouts.length} rollout`],
+              ['Ошибки обновлений', `${readNumber(updateSummary, 'failedDevices', 0)} devices`],
+              ['API', backend?.config.platformBaseUrl ?? 'fixture']
+            ].map(([name, detail]) => (
+              <button key={name} type="button" onClick={() => triggerFeedback(setFeedback, name, 'confirmed')}>
+                <strong>{name}</strong>
+                <span>{detail}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="settings-section-title">
+            <span>Update packages</span>
+            <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Зарегистрировать пакет обновления')}>Зарегистрировать пакет</button>
+          </div>
+          <div className="settings-form-grid settings-update-form">
+            <label>Компонент
+              <select value={updateComponent} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateComponent(event.currentTarget.value)}>
+                <option value="operator-app">operator-app</option>
+                <option value="agent-service">agent-service</option>
+                <option value="player-shell">player-shell</option>
+              </select>
+            </label>
+            <label>Версия<input value={updateVersion} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateVersion(event.currentTarget.value)} /></label>
+            <label>Канал
+              <select value={updateChannel} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateChannel(event.currentTarget.value)}>
+                <option value="internal">internal</option>
+                <option value="beta">beta</option>
+                <option value="stable">stable</option>
+              </select>
+            </label>
+            <label className="settings-form-wide">Artifact URL<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">SHA-256<input value={updateSha256} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSha256(event.currentTarget.value)} /></label>
+            <label>Signature<input value={updateSignature} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignature(event.currentTarget.value)} /></label>
+            <label>Алгоритм<input value={updateSignatureAlgorithm} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignatureAlgorithm(event.currentTarget.value)} /></label>
+            <label>Размер bytes<input inputMode="numeric" value={updateSizeBytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeBytes(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Release notes<input value={updateReleaseNotes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateReleaseNotes(event.currentTarget.value)} /></label>
+          </div>
+
+          <div className="settings-section-title">
+            <span>Rollouts</span>
+            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Создать rollout обновления')}>Создать rollout</button>
+          </div>
+          <div className="settings-tariff-list">
+            {rollouts.map((rollout) => (
+              <button
+                key={readString(rollout, 'updateRolloutId')}
+                type="button"
+                className="settings-tariff-row"
+                onClick={() => {
+                  setRolloutStateRolloutId(readString(rollout, 'updateRolloutId'));
+                  setRolloutPackageId(readString(rollout, 'updatePackageId'));
+                  setPackageStatePackageId(readString(rollout, 'updatePackageId'));
+                }}
+              >
+                <strong>{readString(rollout, 'component', 'component')} {readString(rollout, 'version', 'version')}</strong>
+                <b>{readString(rollout, 'state', 'state')}</b>
+                <span>{readString(rollout, 'targetKind', 'target')} · {readNumber(rollout, 'batchPercent', 0)}% · {readArray(rollout, 'deviceStatuses').length} devices</span>
+              </button>
+            ))}
+          </div>
+          <div className="settings-form-grid settings-update-form">
+            <label className="settings-form-wide">Rollout package<input value={rolloutPackageId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutPackageId(event.currentTarget.value)} /></label>
+            <label>Канал
+              <select value={rolloutChannel} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutChannel(event.currentTarget.value)}>
+                <option value="internal">internal</option>
+                <option value="beta">beta</option>
+                <option value="stable">stable</option>
+              </select>
+            </label>
+            <label>Target
+              <select value={rolloutTargetKind} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutTargetKind(event.currentTarget.value)}>
+                <option value="branch">branch</option>
+                <option value="device">device</option>
+              </select>
+            </label>
+            <label>Batch %<input inputMode="numeric" value={rolloutBatchPercent} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutBatchPercent(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Target device ids<input value={rolloutTargetDeviceIds} disabled={!canManageUpdateRollouts || rolloutTargetKind !== 'device'} onChange={(event) => setRolloutTargetDeviceIds(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Start UTC<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Причина rollout<input value={rolloutReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutReason(event.currentTarget.value)} /></label>
+          </div>
+
+          <div className="settings-section-title">
+            <span>Состояния обновлений</span>
+            <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Изменить состояние пакета')}>Изменить состояние пакета</button>
+            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Изменить состояние rollout')}>Изменить состояние rollout</button>
+          </div>
+          <div className="settings-form-grid settings-update-form">
+            <label className="settings-form-wide">Package id<input value={packageStatePackageId} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStatePackageId(event.currentTarget.value)} /></label>
+            <label>Состояние пакета
+              <select value={packageState} disabled={!canManageUpdatePackages} onChange={(event) => setPackageState(event.currentTarget.value)}>
+                <option value="registered">registered</option>
+                <option value="validated">validated</option>
+                <option value="rejected">rejected</option>
+                <option value="retired">retired</option>
+              </select>
+            </label>
+            <label>Причина пакета<input value={packageStateReason} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStateReason(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Rollout id<input value={rolloutStateRolloutId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateRolloutId(event.currentTarget.value)} /></label>
+            <label>Состояние rollout
+              <select value={rolloutState} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutState(event.currentTarget.value)}>
+                <option value="active">active</option>
+                <option value="paused">paused</option>
+                <option value="completed">completed</option>
+                <option value="rollback_requested">rollback_requested</option>
+                <option value="rolled_back">rolled_back</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+            </label>
+            <label>Причина rollout<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
+          </div>
+        </>
       );
     }
 

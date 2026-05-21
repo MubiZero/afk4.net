@@ -335,7 +335,9 @@ Minimum bar:
   POS category/product creation through the existing POS catalog endpoints, and
   inventory stock movement creation through the existing stock-movement
   endpoint, and package definition creation through the existing package
-  endpoint.
+  endpoint. Settings `Интеграции` now also registers update packages, creates
+  update rollouts, and changes package/rollout states through the existing
+  update endpoints.
   Payments now opens shifts through the existing open-shift API, closes the
   current shift through the existing close-shift API with counted cash and a
   closing note, and records cash movements through the existing shift cash
@@ -391,9 +393,10 @@ Minimum bar:
    restored staff permissions. The map panel now also supports guest/prepaid/
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
-   hardening, Settings staff creation, branch profile save, Settings POS
-   category/product creation, Settings stock movement creation, Settings package
-   definition creation, Payments open/close-shift and cash-movement wiring, POS
+  hardening, Settings staff creation, branch profile save, Settings POS
+  category/product creation, Settings stock movement creation, Settings package
+  definition creation, Settings update package/rollout controls, Payments
+  open/close-shift and cash-movement wiring, POS
    refund/draft-void quick actions, POS sale-detail lookup, and Clients package
    purchase. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.

@@ -70,7 +70,9 @@ Current state:
   package endpoint. Payments can now open a shift through the existing
   open-shift endpoint, close the current shift through the existing close-shift
   endpoint with counted cash and a closing note, and can record cash movements
-  through the existing shift cash movement endpoint. POS
+  through the existing shift cash movement endpoint. Settings `Интеграции` now
+  registers update packages, creates rollouts, and changes package/rollout
+  state through the existing update endpoints. POS
   quick refund now calls the existing refund endpoint for the latest backend
   sale, and POS draft void creates a backend draft from the current cart before
   calling the existing void endpoint. POS recent receipt rows now open backend
@@ -114,7 +116,10 @@ inventory stock movements for tracked products. Payments open-shift now calls
 the backend open-shift endpoint with starting cash and opening note fields.
 Payments close-shift now calls the backend close-shift endpoint with counted
 cash and note fields, and Payments cash movement creation calls the backend
-shift cash endpoint. POS
+shift cash endpoint. Settings `Интеграции` now exposes backend-backed update
+package registration, rollout creation, and package/rollout state changes with
+the existing `updates.packages.manage` and `updates.rollouts.manage` guards.
+POS
 quick refund calls the backend refund endpoint for the latest backend sale, and
 POS draft void calls the backend void endpoint after creating a draft from the
 current cart. POS recent receipt rows call the backend sale lookup endpoint for
@@ -245,12 +250,17 @@ missing-backend copy.
   endpoint with `packages.manage` gating, minute/bonus/expiry fields, and
   idempotency keys. Inventory stock movement creation from `POS и склад` was
   implemented on 2026-05-21 through the existing stock-movement endpoint with
-  `inventory.stock.manage` gating and idempotency keys.
+  `inventory.stock.manage` gating and idempotency keys. Update package
+  registration, rollout creation, and package/rollout state changes from
+  `Интеграции` were implemented on 2026-05-21 through the existing update
+  endpoints with `updates.packages.manage` and `updates.rollouts.manage`
+  gating.
   Remaining settings gaps include role assignment/editing, general layout
   editor, device-seat management, tariff version edit/deactivate, package edit/
   deactivate and purchase UX refinements, POS catalog edit/deactivate, stock
   history and advanced inventory controls, integrations/payment-provider
-  settings, update rollout controls, diagnostics, audit/security settings, and
+  settings, richer update rollout detail/status controls, diagnostics,
+  audit/security settings, and
   validation errors.
 - [ ] Empty backend states: review `Нет backend операций`,
   `Нет backend событий`, and similar empty-state copy after real staging data

@@ -4220,6 +4220,15 @@ button {
   padding-top: 10px;
 }
 
+.settings-update-form {
+  border-top: 1px solid #263241;
+  padding-top: 10px;
+}
+
+.settings-form-wide {
+  grid-column: 1 / -1;
+}
+
 .settings-room-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
