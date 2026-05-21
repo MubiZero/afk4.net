@@ -41,7 +41,7 @@ export const navItems: NavItem[] = [
   { label: 'Клиенты', icon: Users },
   { label: 'Платежи', icon: CircleDollarSign },
   { label: 'Логи', icon: ScrollText },
-  { label: 'Ops', icon: Settings }
+  { label: 'Настройки', icon: Settings }
 ];
 
 export const seats: SeatSummary[] = [

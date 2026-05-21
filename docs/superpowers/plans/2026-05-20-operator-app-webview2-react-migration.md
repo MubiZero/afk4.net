@@ -30,12 +30,51 @@ Current state:
   WPF `MainWindow`.
 - `src/AFK4.Operator.App.Web` contains the React/Vite frontend and local
   SmartShell-inspired fixture screens for Map, Dashboard, Booking, POS/Shop,
-  Clients, Payments, Logs, and Ops/Settings.
+  Clients, Payments, Logs, and Settings.
+- As of 2026-05-21, Dashboard, Map, Booking, POS, Clients, Payments, Logs, and
+  Settings have had fixture-level design passes. Settings is intentionally
+  simpler and owner/admin-facing rather than a dense operations grid, and should
+  not inherit shared top status strips or period controls unless a concrete
+  settings subsection needs them. Header controls should only be used when they
+  change screen data or trigger a clear action; unwired top pseudo-tabs were
+  removed from the reviewed fixtures, while operational summary strips remain
+  where they provide quick context. A same-day motion/interaction pass added
+  fixture-local selections, filters, carts, payment/source/section choices,
+  action feedback notices, animated counters/donut values, restrained
+  transitions, and reduced-motion handling. These passes are visual/interaction
+  direction only; backend-backed parity is still pending.
+- The fixture design phase is closed for this branch as of 2026-05-21. Treat
+  the current Map, Dashboard, Booking, POS, Clients, Payments, Logs, and
+  Settings screens as the accepted design baseline while replacing fixture
+  state with real backend state. Reopen design only for concrete defects found
+  during real-data or staging smoke.
 - The current UI is still fixture-backed. Backend auth, protected token bridge,
   typed API clients, SignalR, permissions, and backend-confirmed critical
   actions are the next real implementation work.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
   until the WebView2/React day flow covers pilot operations.
+
+Next-session kickoff:
+
+The design phase is done. Do not reopen broad fixture polish. The accepted
+baseline is the current WebView2/React Operator UI: Map as the primary
+workspace, plus Dashboard, Booking, POS, Clients, Payments, Logs, and Settings
+with the reviewed dense operator layout, Russian-first copy, local
+interactions, action feedback, animated values, and reduced-motion support.
+
+Start the next session by turning this fixture UI into a real operator app
+without changing the approved visual direction. The next work is engineering:
+native protected-token bridge and staff sign-in, typed frontend API clients,
+common error projection, SignalR realtime state, and backend-confirmed
+floor-map actions. After that, replace fixture state with backend-backed
+behavior for POS, clients, payments, logs, settings, shifts, diagnostics,
+updates, audit, and reports.
+
+The backend remains authoritative for sessions, money, POS, shifts, devices,
+and critical actions. Any local UI feedback must become pending/confirmed/
+failed state based on real backend/API results. Use legacy WPF/MVVM screens only
+as parity reference, not as the target runtime. Reopen design only for concrete
+defects found with real staging data or real operator flows.
 
 Fresh workstation setup:
 
@@ -46,6 +85,7 @@ cd D:\projects\afk4.net\src\AFK4.Operator.App.Web
 & 'C:\Program Files\nodejs\npm.cmd' test
 & 'C:\Program Files\nodejs\npm.cmd' run build
 cd D:\projects\afk4.net
+& 'C:\Program Files\dotnet\dotnet.exe' restore AFK4.sln -p:NuGetAudit=false
 & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 ```
@@ -53,6 +93,7 @@ cd D:\projects\afk4.net
 To open the current desktop app locally after build:
 
 ```powershell
+$env:AFK4_OPERATOR_PLATFORM_BASE_URL = 'https://afk4.staging.mubi.dev'
 $env:AFK4_OPERATOR_CURRENCY_CODE = 'TJS'
 Start-Process -FilePath 'D:\projects\afk4.net\src\AFK4.Operator.App\bin\Debug\net10.0-windows\AFK4.Operator.App.exe' -WorkingDirectory 'D:\projects\afk4.net\src\AFK4.Operator.App\bin\Debug\net10.0-windows'
 ```
@@ -65,7 +106,11 @@ Next implementation order:
 4. Real floor-map actions with backend-confirmed start, extend, transfer, and
    stop flows.
 5. Backend-backed parity for Dashboard, Booking, POS/Shop, Clients, Payments,
-   Logs, and Ops/Settings following the roadmap below.
+   Logs, and Settings following the roadmap below.
+
+Preserve the accepted fixture design baseline during this work; do not start
+another broad fixture-only polish pass without a concrete staging or real-data
+defect.
 
 ## Non-Negotiables
 
@@ -165,9 +210,9 @@ Screen roadmap:
    profile, purchase history, comments, groups, top-up, and debt payment.
 7. **Logs:** current-shift/all-events toggle, period/category filters, universal
    search across client/item/computer/operator, and action history detail.
-8. **Ops/settings:** Pilot Setup, staff/roles, layout, devices, tariffs, POS
-   catalog, diagnostics, update rollouts, audit, integrations, and security
-   settings grouped by operator task.
+8. **Settings:** club profile, staff/roles, layout, devices, tariffs, POS
+   catalog, integrations, diagnostics, updates, audit, and security settings
+   grouped for an owner/admin setting up their club.
 
 ## Task 4: Floor Map Concept UI
 
@@ -183,8 +228,11 @@ Screen roadmap:
 ## Task 5: POS, Players, Shift, And Settings Parity
 
 - [x] Add local SmartShell-inspired fixture workspaces for Dashboard, Booking,
-  POS/Shop, Clients, Payments, Logs, and Ops/Settings so the visual direction
+  POS/Shop, Clients, Payments, Logs, and Settings so the visual direction
   and navigation are reviewable before backend parity.
+- [x] Add fixture-level interactivity and motion across the reviewable React
+  workspaces, including local selection/filter/cart/payment/settings state,
+  action feedback notices, animated values, and reduced-motion support.
 - [ ] Port current POS product/cart/payment/refund/void workflows.
 - [ ] Port player search, wallet/debt, top-up, and debt payment workflows.
 - [ ] Port shift open, cash movement, close, reports, and CSV export flows.

@@ -2,7 +2,7 @@
 
 ## Project Root
 
-The repository root is `D:\afk4.net`.
+The repository root is `D:\projects\afk4.net`.
 
 Use Windows/PowerShell by default. Do not switch to WSL unless the user
 explicitly asks for it.

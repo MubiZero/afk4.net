@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-20
+Last updated: 2026-05-21
 
 ## Purpose
 
@@ -1021,8 +1021,10 @@ Operator App redesign branch-local verification on 2026-05-20:
    diagnostics, updates, audit, and reports. Then test the WebView2 Operator
    App against deployed staging: sign-in, floor map, the setup panel,
    shift/POS basics, session actions against current staging device/seat state,
-   and actionable error handling. Treat any remaining raw GUID/form surfaces as
-   usability bugs unless they are explicitly advanced technician tools.
+   and actionable error handling. Preserve the accepted fixture design
+   baseline while replacing local state with backend-backed behavior. Treat any
+   remaining raw GUID/form surfaces as usability bugs unless they are
+   explicitly advanced technician tools.
 3. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
@@ -1512,10 +1514,122 @@ Operator App WebView2/React first implementation on 2026-05-20:
   selected-PC detail panel, and 24 local fixture hosts for density review.
 - The React fixture app now also includes SmartShell-inspired secondary
   workspaces for Dashboard, Booking, POS/Shop, Clients, Payments, Logs, and
-  Ops/Settings. These screens are visual/workflow fixtures only; backend auth,
+  Settings. These screens are visual/workflow fixtures only; backend auth,
   protected token bridge, typed API clients, SignalR, permissions, and
   backend-confirmed critical actions still need to be wired before this can
   replace WPF parity for pilot operations.
+- On 2026-05-21, the Dashboard fixture received a focused design pass so it
+  matches the dense floor-map direction more closely without trying to show the
+  whole product at once. The current Dashboard uses a four-column/four-panel
+  grid: the primary operator focus and secondary signal queue span the first
+  three columns, while `Управление` and `Пульс смены` are separate top-right and
+  bottom-right panels. The management panel has four big-number quick
+  transitions, and the shift pulse panel uses circular donut charts for cash
+  against daily target, active PCs out of total PCs, attention items out of
+  monitored PCs, and bookings out of available slots. The Dashboard period
+  control now uses common `Сегодня`, `Неделя`, and `Месяц` presets plus a
+  manual date range; the same active range drives the fixture KPI values and
+  the export action label. A final polish pass separated export from the period
+  presets, added a compact range-duration label, fixed Russian KPI plural
+  forms, and added hover/focus states for quick transition cards. Dashboard
+  headings and subtitles now use
+  operator-facing Russian copy instead of raw backend/device strings such as
+  `Lock command failed`. The separate Dashboard side panel was removed so the
+  screen can breathe and fit the 1280x720 minimum viewport without horizontal or
+  vertical page overflow. The screen remains fixture-backed design work, not
+  backend parity.
+- The floor-map fixture received a matching polish pass on 2026-05-21 without
+  changing its role as the primary live workspace. It now uses Russian
+  operator-facing state-strip labels, separates `Техрежим` from map/table/booking
+  view switches, makes host tiles keyboard-focusable with hover/focus feedback,
+  and keeps the selected-PC side panel production-dense with a compact status
+  row before fast actions and session/device/billing details. The selected-PC panel now maps fixture
+  values such as `Wallet`, `Lease fresh`, and `Online · unlocked` into operator
+  copy such as `Депозит`, `Сессия подтверждена`, and
+  `Онлайн · разблокирован`; critical-action copy references platform
+  confirmation instead of raw backend wording.
+- The booking fixture received its first operator-flow design pass on
+  2026-05-21. The screen is now full-width, without the generic right summary
+  panel, and uses a four-column grid split into `Лента броней`,
+  `Выбранная бронь`, `Онлайн-заявки`, and `Новая бронь`. The fixture copy now
+  targets real operator work: today's landing list, selected booking actions
+  (`Открыть карту`, `Посадить`, `Перенести`, `Отменить`), online request
+  handling, and quick booking creation. This is still fixture-backed design
+  work; backend booking contracts, conflict validation, permissions, and
+  realtime updates remain to be wired.
+- The POS fixture received its first operator-flow design pass on 2026-05-21.
+  The screen is now full-width, without the generic right summary panel, and
+  uses a four-column cashier layout: product/service catalog, current cart,
+  payment confirmation, recent receipts, and quick cashier operations. The copy
+  is now operator-facing Russian for sale, refund, stock, receipt, cash,
+  deposit, customer, and shift surfaces. This remains fixture-backed design
+  work; backend POS contracts, inventory writes, refund/void rules, payment
+  idempotency, receipt state, permissions, and realtime shift totals remain to
+  be wired.
+- The Clients fixture received its first operator-flow design pass on
+  2026-05-21. The screen is now full-width, without the generic right summary
+  panel, and uses a four-column customer-service layout: searchable client
+  list, selected client card, deposit/debt/discount/visit metrics, quick client
+  operations, segments, and recent client history. The copy is now
+  operator-facing Russian for client search, online clients, deposits, debts,
+  VIP state, booking context, and client-card actions. This remains
+  fixture-backed design work; backend client search, account details, wallet
+  ledger, debt settlement, discount rules, privacy/audit constraints, and
+  realtime session linkage remain to be wired.
+- The Payments fixture received its first operator-flow design pass on
+  2026-05-21. The screen is now full-width, without the generic right summary
+  panel, and uses a four-column cashier-settlement layout: shift operation
+  ledger, shift totals, cash reconciliation, payment method breakdown, cash
+  movement log, and report/export actions. The copy is now operator-facing
+  Russian for revenue, cash, card, deposits, refunds, reconciliation, shift
+  journal, cash report, CSV export, and discrepancies. This remains
+  fixture-backed design work; backend immutable ledger reads, cash drawer
+  movements, refund/void policy, reconciliation workflow, report exports,
+  permissions, audit trail, and shift-close confirmation remain to be wired.
+- The Logs fixture received its first operator-flow design pass on 2026-05-21.
+  The screen is now full-width, without the generic right summary panel, and
+  uses a four-column investigation layout: event journal, selected event
+  details, filters, shift audit, event sources, and export actions. The copy is
+  now operator-facing Russian for shift events, errors, commands, cash events,
+  audit, source filtering, selected event context, and support exports. This
+  remains fixture-backed design work; backend audit/event search, retention
+  policy, permission filtering, correlation IDs, export generation, and support
+  handoff flows remain to be wired.
+- The Settings fixture was revised on 2026-05-21 from a technician-oriented
+  `Ops` screen into an owner/admin-facing settings screen. The rail label is now
+  `Настройки`; the screen remains full-width, without the generic right summary
+  panel, but no longer follows the dense operations grid. It now uses a simpler
+  settings layout with section navigation, club profile fields, room/workstation
+  setup, tariffs, club readiness, and common admin actions such as adding a PC,
+  creating a tariff, inviting staff, and checking devices. A same-day polish pass
+  removed the shared top status strip and period-style tabs from Settings because
+  they duplicated the left settings navigation and did not fit this screen's
+  configuration task. This remains fixture-backed design work; backend club settings, room/workstation
+  management, tariff rules, staff/role management, device setup, and validation
+  flows remain to be wired.
+- A same-day header-control audit removed unwired top pseudo-tabs from Map,
+  Booking, POS, Clients, Payments, Logs, and Settings. Summary strips remain on
+  the operational screens where they provide quick context. The only remaining
+  segmented top control is the Dashboard period/date range because it changes
+  the displayed fixture metrics and export label; Map and Booking keep only
+  direct header actions (`Техрежим` and `Создать`).
+- A same-day fixture interaction and motion pass added local stateful behavior
+  across the React Operator UI: selected floor-map seat state, Dashboard
+  period/focus/card interactions, Booking selection/action feedback, POS
+  category/search/cart/payment behavior, Clients segment/client/action
+  behavior, Payments ledger/method/export behavior, Logs filter/source/export
+  behavior, and Settings section/profile-save behavior. The visual layer now
+  includes restrained enter/hover/focus transitions, attention pulse,
+  animated numeric counters, donut-chart value transitions, global feedback
+  notices, and `prefers-reduced-motion` handling. This remains fixture-backed
+  UI polish; critical actions still need real backend confirmation after API
+  clients and SignalR are wired.
+- The WebView2/React Operator App design phase is closed for the current
+  branch as of 2026-05-21. Map, Dashboard, Booking, POS, Clients, Payments,
+  Logs, and Settings should now be treated as the accepted fixture design
+  baseline. Continue with backend auth/API/SignalR and parity wiring; reopen
+  visual design only for concrete defects found during real-data or staging
+  smoke, not for another broad fixture-only polish pass.
 - local frontend tests passed:
 
   ```powershell
@@ -1548,11 +1662,101 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `http://127.0.0.1:4174/`: title `AFK4 Operator`, heading
   `AFK4 Dushanbe · Floor A`, 24 seat tiles rendered, Russian copy rendered
   correctly, expanded navigation rendered for `Карта`, `Дашборд`, `Брони`,
-  `POS`, `Клиенты`, `Платежи`, `Логи`, and `Ops`, cash `4 820 TJS` rendered,
+  `POS`, `Клиенты`, `Платежи`, `Логи`, and `Настройки`, cash `4 820 TJS` rendered,
   and the custom `Свернуть` window control was present. The current floor-map
   CSS targets larger 88 px host rows. The desktop `AFK4.Operator.App.exe` was
   launched locally and opened a live `AFK4 Operator` window backed by the React
   build.
+- Dashboard design-pass verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: frontend tests passed 7/7, Vite production build passed, and Browser
+  smoke against `http://127.0.0.1:4174/` confirmed the simplified Dashboard
+  heading, four-column Dashboard grid, four separate panels, content-sized
+  primary focus card, stable secondary queue header, four big-number
+  management cards, four 90 px donut-chart pulse cards, readable
+  numerator/denominator labels, operator-facing section subtitles, the
+  `Сегодня`/`Неделя`/`Месяц` period controls, manual date range handoff to
+  fixture KPI values/export label, compact range-duration label, Russian KPI
+  plural forms, quick transition hover/focus states, removal of the Dashboard
+  side panel, and no
+  horizontal or vertical page overflow at 1280x720. The desktop
+  `AFK4.Operator.App.exe` was relaunched locally against the new React build.
+- Map polish verification on 2026-05-21 reused the same frontend test and Vite
+  build commands. Browser smoke against `http://127.0.0.1:4174/` confirmed the
+  Russian state-strip labels, separated `Техрежим` action, compact selected-PC
+  status row, translated billing/device/command labels, hover/focus-capable
+  host tiles and quick actions, no visible raw `backend` copy on the map screen,
+  and no horizontal or vertical page overflow.
+- Booking design-pass verification on 2026-05-21 reused the same frontend test
+  and Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width booking screen, four-panel booking grid, no generic
+  summary side panel, expected booking filters and actions, four timeline
+  booking cards, two online request cards, and no horizontal or vertical page
+  overflow at 1280x720.
+- POS design-pass verification on 2026-05-21 reused the same frontend test and
+  Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width POS screen, five POS panels, eight product cards,
+  four quick operation cards, three recent receipts, no generic summary side
+  panel, readable quick operations, fitting cart/catalog content, and no
+  horizontal or vertical page overflow at 1280x720.
+- Clients design-pass verification on 2026-05-21 reused the same frontend test
+  and Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width Clients screen, five clients panels, five client
+  rows, four quick operation cards, four segment cards, three history rows, no
+  generic summary side panel, fitting list/actions/segments/history content,
+  and no horizontal or vertical page overflow at 1280x720.
+- Payments design-pass verification on 2026-05-21 reused the same frontend test
+  and Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width Payments screen, six payment panels, five operation
+  rows, four payment method cards, three cash movement rows, four report/export
+  actions, no generic summary side panel, fitting ledger/summary/reconcile/
+  methods/cash/export content, and no horizontal or vertical page overflow at
+  1280x720.
+- Logs design-pass verification on 2026-05-21 reused the same frontend test and
+  Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width Logs screen, six log panels, five event rows, three
+  audit rows, four source cards, six filter actions, four export actions, no
+  generic summary side panel, fitting journal/detail/filter/audit/source/export
+  content, and no horizontal or vertical page overflow at 1280x720.
+- Settings design-pass verification on 2026-05-21 reused the same frontend test and
+  Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the `Настройки` rail label, full-width Settings screen, section
+  navigation, four profile fields, four room cards, four tariff rows, five
+  readiness rows, four admin action cards, no visible `Ops` heading, no generic
+  summary side panel, no Settings top status strip or period-style tabs, fitting
+  navigation/main/side content, and no horizontal or vertical page overflow at
+  1280x720.
+- Header-control verification on 2026-05-21 reused the frontend test and Vite
+  build commands. Browser smoke across Map, Dashboard, Booking, POS, Clients,
+  Payments, Logs, and Settings confirmed no top pseudo-tabs outside Dashboard's
+  functional period/date range control; Map and Booking headers now expose only
+  `Техрежим` and `Создать`, respectively, and POS/Clients/Payments/Logs/Settings
+  have no header tab rows. Operational summary strips remain present on Map,
+  Booking, POS, Clients, Payments, and Logs.
+- Fixture interaction/motion verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: frontend tests passed 7/7, Vite production build passed, and
+  whitespace check was clean apart from expected CRLF conversion warnings.
+  Browser smoke against `http://127.0.0.1:4174/` confirmed stateful selected
+  seat/action feedback on Map; Dashboard period/focus/donut behavior; Booking
+  selection/action feedback; POS add-to-cart, payment-method selection, and
+  payment feedback; Clients segment filtering, client selection, and action
+  feedback; Payments operation/method/export behavior; Logs filter/detail/
+  source/export behavior; Settings section switching and profile-save
+  feedback. A follow-up layout check across Map, Dashboard, Booking, POS,
+  Clients, Payments, Logs, and Settings reported zero horizontal overflow for
+  document, body, shell, and main workspaces.
 
 ## Historical Reference
 
