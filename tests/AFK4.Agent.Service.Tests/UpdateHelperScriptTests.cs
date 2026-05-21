@@ -71,6 +71,22 @@ public sealed class UpdateHelperScriptTests
         Assert.DoesNotContain(" Exclude=", package, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void OperatorAppWixPackage_RequiresWebView2Runtime()
+    {
+        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "operator-app", "Package.wxs");
+        var package = File.ReadAllText(packagePath);
+
+        Assert.Contains("WEBVIEW2_RUNTIME_HKLM_PV", package, StringComparison.Ordinal);
+        Assert.Contains("WEBVIEW2_RUNTIME_HKCU_PV", package, StringComparison.Ordinal);
+        Assert.Contains(@"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", package, StringComparison.Ordinal);
+        Assert.Contains(@"Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", package, StringComparison.Ordinal);
+        Assert.Contains("<Launch", package, StringComparison.Ordinal);
+        Assert.Contains("WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
+        Assert.Contains("WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
+        Assert.Contains("Microsoft Edge WebView2 Runtime is required.", package, StringComparison.Ordinal);
+    }
+
     private static string GetRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

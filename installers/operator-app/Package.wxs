@@ -8,6 +8,26 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4 Operator App is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
+    <Property Id="WEBVIEW2_RUNTIME_HKLM_PV">
+      <RegistrySearch
+          Id="WebView2RuntimeHklmPv"
+          Root="HKLM"
+          Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+          Name="pv"
+          Type="raw" />
+    </Property>
+    <Property Id="WEBVIEW2_RUNTIME_HKCU_PV">
+      <RegistrySearch
+          Id="WebView2RuntimeHkcuPv"
+          Root="HKCU"
+          Key="Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+          Name="pv"
+          Type="raw" />
+    </Property>
+    <Launch
+        Condition="Installed OR (WEBVIEW2_RUNTIME_HKLM_PV AND WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKCU_PV AND WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;)"
+        Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen WebView2 Runtime, then run AFK4 Operator App setup again." />
+
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="AFK4RootFolder" Name="AFK4">
         <Directory Id="OperatorAppFolder" Name="Operator App" />

@@ -142,7 +142,10 @@ Minimum bar:
    device rollout. Client package workflows now set up Node 24 and the package
    script builds `src/AFK4.Operator.App.Web`, then copies the fresh Vite `dist`
    output into the Operator App publish `WebAssets` before WiX builds the
-   Operator App MSI. On 2026-05-18, an already enrolled Windows 11 VM installed
+   Operator App MSI. The Operator App MSI now also has a WebView2 Evergreen
+   Runtime launch condition using the documented EdgeUpdate `pv` registry
+   values, so unsupported machines fail closed with a clear prerequisite message.
+   On 2026-05-18, an already enrolled Windows 11 VM installed
    Agent/Shell `0.1.3` through the Agent update pipeline and reported
    `installed` to the backend. Follow-up staging rollouts brought that VM to
    `0.1.7`, verified atomic artifact download/recovery behavior, and fixed the

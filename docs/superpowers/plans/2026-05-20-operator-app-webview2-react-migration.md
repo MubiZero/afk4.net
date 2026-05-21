@@ -477,8 +477,11 @@ Screen roadmap:
   `WebAssets`, Node setup in client package workflows, and a local
   `0.1.999-internal` package build that produced Operator/Gaming PC MSI
   artifacts.
-- [ ] Add WebView2 Runtime prerequisite/bootstrap handling to the Operator App
-  installer.
+- [x] Add WebView2 Runtime prerequisite/bootstrap handling to the Operator App
+  installer. Implemented as an MSI launch condition on 2026-05-21 using
+  WebView2 Evergreen Runtime HKLM/HKCU EdgeUpdate `pv` registry searches and a
+  clear first-install prerequisite message; no offline runtime bootstrapper is
+  bundled yet.
 - [ ] Add automated MSI content assertion for built frontend assets after WiX
   output, beyond the current publish-directory/package-script guard tests.
 - [x] Keep update package component name `operator-app`.
@@ -502,5 +505,5 @@ Screen roadmap:
 - [x] Local Operator App package build includes built React frontend assets in
   published `WebAssets`.
 - [ ] Operator App can target `https://afk4.staging.mubi.dev`.
-- [ ] Operator App MSI includes host binaries, built frontend assets, and WebView2
+- [x] Operator App MSI includes host binaries, built frontend assets, and WebView2
   prerequisite handling.
