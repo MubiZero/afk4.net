@@ -74,7 +74,8 @@ Current state:
   through the existing shift cash movement endpoint. Settings `Интеграции` now
   registers update packages, creates rollouts, and changes package/rollout
   state through the existing update endpoints. Logs now refreshes backend audit
-  records through action/outcome/target type/date range/limit filters. Settings `Залы и
+  records through action/outcome/target type/date range/limit filters and shows
+  selected audit/diagnostics event detail from the loaded backend rows. Settings `Залы и
   ПК` now creates layout zones/seats, creates enrollment codes, assigns device
   ids to seats, and reads device detail through existing layout/device
   endpoints, including credential rotation/revocation controls. POS
@@ -144,7 +145,8 @@ context. Settings `Интеграции` now exposes backend-backed update
 package registration, rollout creation, and package/rollout state changes with
 the existing `updates.packages.manage` and `updates.rollouts.manage` guards.
 Logs now applies backend audit action/outcome/target type/date range/limit
-filters through the existing audit search endpoint. Settings `Залы и ПК` now exposes
+filters through the existing audit search endpoint and selected event detail
+now uses loaded audit/diagnostics rows. Settings `Залы и ПК` now exposes
 backend-backed layout zone/seat creation, enrollment-code creation,
 device-to-seat assignment, and device detail lookup with the existing layout
 and device permissions, plus credential rotation and revocation through the
@@ -303,12 +305,13 @@ missing-backend copy.
   allowed. Use existing shift/report/POS contracts first;
   create missing payment-operation detail or approval endpoints if needed.
 - [ ] Logs: backend audit action/outcome/target type/date range/limit filters were added
-  on 2026-05-21 through the existing audit search endpoint. Remaining Logs
-  gaps are event detail beyond the current audit row projection, operator-friendly
-  period presets, target/source filters, correlation IDs, support handoff
-  data, and export generation. Use audit, diagnostics, and report endpoints
-  where they exist; create missing event-detail/support-export contracts if the
-  current API cannot answer the screen.
+  on 2026-05-21 through the existing audit search endpoint. Selected event
+  detail from already loaded audit rows and diagnostics command/update/stale
+  rows was added on 2026-05-21. Remaining Logs gaps are operator-friendly
+  period presets, target/source filters, correlation IDs, support handoff data,
+  and export generation. Use audit, diagnostics, and report endpoints where
+  they exist; create missing support-export contracts if the current API cannot
+  answer the screen.
 - [ ] Settings: continue replacing local-only settings actions with real flows.
   Branch profile name/city save and general staff creation were implemented on
   2026-05-21 using backend profile/staff APIs plus existing permissions. POS

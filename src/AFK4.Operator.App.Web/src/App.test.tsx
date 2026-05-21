@@ -376,6 +376,66 @@ describe('App', () => {
     expect(url.searchParams.get('limit')).toBe('12');
   });
 
+  it('shows backend audit record detail in Logs', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Логи'));
+    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
+
+    const detailPanel = document.querySelector('.logs-detail-panel') as HTMLElement;
+    expect(detailPanel).toHaveTextContent('Audit ID');
+    expect(detailPanel).toHaveTextContent('18181818');
+    expect(detailPanel).toHaveTextContent('pos.sale.create');
+    expect(detailPanel).toHaveTextContent('PosSale 99999999');
+    expect(detailPanel).toHaveTextContent('PlatformApi');
+  });
+
+  it('shows backend diagnostics failure detail in Logs', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/diagnostics')) {
+        return Promise.resolve(jsonResponse(createDiagnostics({
+          commandSummary: {
+            pendingCommands: 0,
+            failedCommands: 1,
+            recentFailures: [
+              {
+                deviceId: '33333333-3333-3333-3333-333333333333',
+                machineName: 'PC-03',
+                commandId: '44444444-4444-4444-4444-444444444444',
+                type: 'unlock',
+                status: 'Failed',
+                message: 'timeout waiting for Agent',
+                updatedAtUtc: '2026-05-21T10:10:00Z'
+              }
+            ]
+          }
+        })));
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Логи'));
+    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
+    expect(screen.getAllByText('PC-03 unlock').length).toBeGreaterThan(0);
+
+    const detailPanel = document.querySelector('.logs-detail-panel') as HTMLElement;
+    expect(detailPanel).toHaveTextContent('Device');
+    expect(detailPanel).toHaveTextContent('PC-03 · 33333333');
+    expect(detailPanel).toHaveTextContent('unlock · 44444444');
+    expect(detailPanel).toHaveTextContent('Failed');
+    expect(detailPanel).toHaveTextContent('timeout waiting for Agent');
+  });
+
   it('shows successful empty Logs results without backend-empty copy', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -2624,7 +2684,7 @@ function createRevokedDeviceCredential(overrides: Record<string, unknown> = {}) 
   };
 }
 
-function createDiagnostics() {
+function createDiagnostics(overrides: Record<string, unknown> = {}) {
   return {
     organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
     branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
@@ -2649,7 +2709,8 @@ function createDiagnostics() {
       rollbackDevices: 0,
       recentFailures: []
     },
-    staleDevices: []
+    staleDevices: [],
+    ...overrides
   };
 }
 

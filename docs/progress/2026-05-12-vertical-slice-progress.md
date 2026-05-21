@@ -207,7 +207,9 @@ implementation evidence are needed.
   amount/reason, package purchase, player creation with operator-entered
   name/phone, and reservation creation from a selected backend player; Payments
   reads shift, sales, cash, and CSV report endpoints and shows selected
-  operation detail from backend report rows; Logs reads audit and diagnostics;
+  operation detail from backend report rows; Logs reads audit and diagnostics
+  and shows selected audit/diagnostics event detail from the loaded backend
+  rows;
   Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
   option, and package option data, and can trigger limited backend setup actions
   including tariff/version creation, package definition creation, inventory
@@ -310,7 +312,7 @@ implementation evidence are needed.
 
 ## Latest Verification
 
-Current local verification on 2026-05-21 from `D:\projects\afk4.net` after
+Current frontend verification on 2026-05-21 from `D:\projects\afk4.net` after
 the WebView2/React auth/token, typed API client, SignalR realtime,
 backend-backed floor-map loading, backend-confirmed selected-seat actions,
 first backend-backed parity wiring for the remaining operator workspaces,
@@ -324,7 +326,8 @@ wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
 form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
-seat assignment, and credential lifecycle, Logs backend audit/date filters, POS
+seat assignment, and credential lifecycle, Logs backend audit/date filters and
+selected audit/diagnostics event detail, POS
 refund quick action, Settings layout zone/seat creation, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
 checkout, POS new-customer checkout, and Clients package purchase:
@@ -332,15 +335,13 @@ checkout, POS new-customer checkout, and Clients package purchase:
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
 & 'C:\Program Files\nodejs\npm.cmd' run build
-& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 & 'C:\Program Files\Git\cmd\git.exe' diff --check
 ```
 
 Result:
 
-- frontend tests: 71 passed, 0 failed;
+- frontend tests: 78 passed, 0 failed;
 - frontend production build: passed;
-- full solution tests: 782 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -389,6 +390,9 @@ Result:
 - Logs frontend tests now cover backend audit search filtering from `Логи`,
   including action, outcome, target type, UTC from/to, and limit query-string
   serialization to `/api/branches/{branchId}/audit`.
+- Logs frontend tests now cover selected event detail from backend audit rows
+  and diagnostics command-failure rows, including ids, target/source data,
+  command status, and diagnostic messages.
 - Settings device frontend tests now cover creating device enrollment codes,
   assigning a device id to a selected seat, and reading device detail through
   the existing device endpoints from `Залы и ПК`. The same test now covers
@@ -409,12 +413,10 @@ Result:
 - Payments frontend tests now cover opening a shift when no current shift
   exists through `/api/branches/{branchId}/shifts/open`, including starting
   cash, opening note, organization id, and idempotency key serialization.
-- Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
-  WebView auth entry surface with title `AFK4 Operator`, heading
-  `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
-  and 0 new console errors after reload. Four older Vite HMR error logs remain
-  in the browser log buffer from the earlier duplicate helper issue and were
-  filtered by timestamp.
+- Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail:
+  the React app rendered the WebView auth entry surface with title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no horizontal or
+  vertical body overflow, and no old backend placeholder copy.
 - Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
   rendered with title `AFK4 Operator`, heading `Вход оператора`, password
   field, sign-in button, custom window controls, platform URL, no console

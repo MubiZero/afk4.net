@@ -5210,26 +5210,127 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   );
 }
 
-type LogEventItem = [string, string, string, string, string];
+type LogEventKind = 'audit' | 'commandFailure' | 'updateFailure' | 'staleDevice' | 'placeholder';
+type LogEventTone = 'audit' | 'device' | 'money' | 'session' | 'warning';
+type LogEventItem = [string, string, string, string, LogEventTone, LogEventKind, Record<string, unknown> | null];
 
 function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, hasSearchMiss: boolean): LogEventItem {
   if (hasSearchMiss) {
-    return ['—', 'Нет совпадений', 'измените поиск или фильтр', 'Operator', 'audit'];
+    return ['—', 'Нет совпадений', 'измените поиск или фильтр', 'Operator', 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', 'Загружаем события', 'ждём audit и diagnostics', 'Platform', 'audit'];
+    return ['—', 'Загружаем события', 'ждём audit и diagnostics', 'Platform', 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', 'События недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Platform', 'warning'];
+    return ['—', 'События недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Platform', 'warning', 'placeholder', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', 'Событий за период нет', 'audit и diagnostics вернули пустой результат', 'Platform', 'audit'];
+    return ['—', 'Событий за период нет', 'audit и diagnostics вернули пустой результат', 'Platform', 'audit', 'placeholder', null];
   }
 
-  return ['—', 'Dev demo: событий нет', 'локальный fallback без платформы', 'Platform', 'audit'];
+  return ['—', 'Dev demo: событий нет', 'локальный fallback без платформы', 'Platform', 'audit', 'placeholder', null];
+}
+
+function shortLogValue(value: string, fallback = '—'): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return fallback;
+  }
+
+  return trimmed.length > 8 ? trimmed.slice(0, 8) : trimmed;
+}
+
+function compactAuditDetails(detailsJson: string): string {
+  const trimmed = detailsJson.trim();
+  if (trimmed.length === 0 || trimmed === '{}') {
+    return 'нет деталей';
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (!isRecord(parsed)) {
+      return String(parsed).slice(0, 120);
+    }
+
+    const entries = Object.entries(parsed)
+      .filter(([, value]) => value !== null && value !== undefined && String(value).trim().length > 0)
+      .slice(0, 3)
+      .map(([key, value]) => `${key}: ${String(value)}`);
+
+    return entries.length > 0 ? entries.join(' · ') : 'нет деталей';
+  } catch {
+    return trimmed.slice(0, 120);
+  }
+}
+
+function logEventKey(event: LogEventItem): string {
+  const record = event[6];
+  const recordId = readString(record, 'auditRecordId')
+    || readString(record, 'commandId')
+    || readString(record, 'updateRolloutId')
+    || readString(record, 'deviceId')
+    || `${event[0]}-${event[1]}`;
+
+  return `${event[5]}-${recordId}-${event[0]}-${event[1]}`;
+}
+
+function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendContext | null): Array<[string, string]> {
+  const record = event[6];
+
+  if (event[5] === 'audit' && record !== null) {
+    const targetType = readString(record, 'targetType', 'target');
+    const targetId = readString(record, 'targetId');
+
+    return [
+      ['Audit ID', shortLogValue(readString(record, 'auditRecordId'))],
+      ['Action', readString(record, 'action', 'audit')],
+      ['Outcome', readString(record, 'outcome', 'unknown')],
+      ['Target', targetId ? `${targetType} ${shortLogValue(targetId)}` : targetType],
+      ['Actor', shortLogValue(readString(record, 'actorStaffUserId'), 'system')],
+      ['Source app', readString(record, 'sourceApp', 'Audit')],
+      ['Details', compactAuditDetails(readString(record, 'detailsJson'))]
+    ];
+  }
+
+  if (event[5] === 'commandFailure' && record !== null) {
+    return [
+      ['Device', `${readString(record, 'machineName', 'Device')} · ${shortLogValue(readString(record, 'deviceId'))}`],
+      ['Command', `${readString(record, 'type', 'command')} · ${shortLogValue(readString(record, 'commandId'))}`],
+      ['Status', readString(record, 'status', 'failed')],
+      ['Message', readString(record, 'message', 'нет сообщения')],
+      ['Updated', readString(record, 'updatedAtUtc', event[0])]
+    ];
+  }
+
+  if (event[5] === 'updateFailure' && record !== null) {
+    return [
+      ['Device', `${readString(record, 'machineName', 'Device')} · ${shortLogValue(readString(record, 'deviceId'))}`],
+      ['Rollout', shortLogValue(readString(record, 'updateRolloutId'))],
+      ['Component', `${readString(record, 'component', 'Update')} ${readString(record, 'targetVersion')}`.trim()],
+      ['Status', readString(record, 'status', 'failed')],
+      ['Message', readString(record, 'message', 'нет сообщения')]
+    ];
+  }
+
+  if (event[5] === 'staleDevice' && record !== null) {
+    return [
+      ['Device', `${readString(record, 'machineName', 'Device')} · ${shortLogValue(readString(record, 'deviceId'))}`],
+      ['Agent', readString(record, 'agentVersion', 'unknown')],
+      ['Shell', readString(record, 'shellVersion', 'unknown')],
+      ['Last heartbeat', readString(record, 'lastHeartbeatAtUtc', event[0])],
+      ['Age', `${readNumber(record, 'lastHeartbeatAgeSeconds', 0)} sec`]
+    ];
+  }
+
+  return [
+    ['Источник', event[3]],
+    ['Объект', event[1].split(' ')[0]],
+    ['Оператор', backend?.session.displayName ?? 'system'],
+    ['Branch', backend?.branchId.slice(0, 8) ?? 'dev demo']
+  ];
 }
 
 type AuditSearchOverrides = {
@@ -5305,18 +5406,21 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     void loadLogs();
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
-  const auditRecords = readArray(auditResult, 'records');
+  const auditRecords = readArray<Record<string, unknown>>(auditResult, 'records');
   const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
-  const recentCommandFailures = readArray(commandSummary, 'recentFailures');
-  const recentUpdateFailures = readArray(updateSummary, 'recentFailures');
+  const recentCommandFailures = readArray<Record<string, unknown>>(commandSummary, 'recentFailures');
+  const recentUpdateFailures = readArray<Record<string, unknown>>(updateSummary, 'recentFailures');
+  const staleDevices = readArray<Record<string, unknown>>(diagnostics, 'staleDevices');
   const auditEvents: LogEventItem[] = auditRecords.map((record): LogEventItem => [
     formatTime(readString(record, 'createdAtUtc')),
     readString(record, 'action', 'audit'),
     `${readString(record, 'targetType', 'target')} · ${readString(record, 'outcome', 'unknown')}`,
     readString(record, 'sourceApp', 'Audit'),
-    readString(record, 'outcome').toLowerCase().includes('denied') || readString(record, 'outcome').toLowerCase().includes('failed') ? 'warning' : 'audit'
+    readString(record, 'outcome').toLowerCase().includes('denied') || readString(record, 'outcome').toLowerCase().includes('failed') ? 'warning' : 'audit',
+    'audit',
+    record
   ]);
   const diagnosticEvents: LogEventItem[] = [
     ...recentCommandFailures.map((failure): LogEventItem => [
@@ -5324,14 +5428,27 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
       `${readString(failure, 'machineName', 'Device')} ${readString(failure, 'type', 'command')}`,
       readString(failure, 'message', readString(failure, 'status', 'failed')),
       'Agent',
-      'device'
+      'device',
+      'commandFailure',
+      failure
     ]),
     ...recentUpdateFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
       `${readString(failure, 'component', 'Update')} ${readString(failure, 'targetVersion', '')}`,
       readString(failure, 'message', readString(failure, 'status', 'failed')),
       'Updates',
-      'warning'
+      'warning',
+      'updateFailure',
+      failure
+    ]),
+    ...staleDevices.map((device): LogEventItem => [
+      formatTime(readString(device, 'lastHeartbeatAtUtc')),
+      `${readString(device, 'machineName', 'Device')} heartbeat`,
+      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} sec без heartbeat`,
+      'Agent',
+      'warning',
+      'staleDevice',
+      device
     ])
   ];
   const events = [...diagnosticEvents, ...auditEvents];
@@ -5350,7 +5467,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     : filteredEvents.length > 0
       ? filteredEvents
       : [logEventPlaceholder(loadStatus, loadError, eventSearch.trim().length > 0 || activeLogFilter !== 'Все события')];
-  const selectedEvent = visibleEvents.find(([time, title]) => `${time}-${title}` === selectedEventKey) ?? visibleEvents[0];
+  const selectedEvent = visibleEvents.find((event) => logEventKey(event) === selectedEventKey) ?? visibleEvents[0];
+  const selectedEventDetails = buildLogEventDetailRows(selectedEvent, backend);
   const sourceCards: Array<[string, string, LucideIcon]> = [
     ['Agent', `${readNumber(deviceSummary, 'onlineDevices', 0)} онлайн · ${readNumber(deviceSummary, 'staleDevices', 0)} stale`, MonitorCheck],
     ['POS', `${auditRecords.filter((record) => readString(record, 'action').toLowerCase().includes('pos')).length} audit`, ReceiptText],
@@ -5450,21 +5568,25 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
             />
           </label>
           <div className="logs-event-list">
-            {visibleEvents.map(([time, title, detail, source, tone]) => (
-              <button
-                key={`${time}-${title}`}
-                type="button"
-                className={`log-event-row ${tone}${`${time}-${title}` === selectedEventKey ? ' active' : ''}`}
-                onClick={() => setSelectedEventKey(`${time}-${title}`)}
-              >
-                <span>{time}</span>
-                <div>
-                  <strong>{title}</strong>
-                  <em>{detail}</em>
-                </div>
-                <b>{source}</b>
-              </button>
-            ))}
+            {visibleEvents.map((event) => {
+              const [time, title, detail, source, tone] = event;
+              const eventKey = logEventKey(event);
+              return (
+                <button
+                  key={eventKey}
+                  type="button"
+                  className={`log-event-row ${tone}${eventKey === selectedEventKey ? ' active' : ''}`}
+                  onClick={() => setSelectedEventKey(eventKey)}
+                >
+                  <span>{time}</span>
+                  <div>
+                    <strong>{title}</strong>
+                    <em>{detail}</em>
+                  </div>
+                  <b>{source}</b>
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -5479,10 +5601,9 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
             <em>{selectedEvent[2]}</em>
           </div>
           <div className="log-detail-list">
-            <div><span>Источник</span><strong>{selectedEvent[3]}</strong></div>
-            <div><span>Объект</span><strong>{selectedEvent[1].split(' ')[0]}</strong></div>
-            <div><span>Оператор</span><strong>{backend?.session.displayName ?? 'system'}</strong></div>
-            <div><span>Branch</span><strong>{backend?.branchId.slice(0, 8) ?? 'dev demo'}</strong></div>
+            {selectedEventDetails.map(([label, value]) => (
+              <div key={label}><span>{label}</span><strong>{value}</strong></div>
+            ))}
           </div>
           <FeedbackNotice feedback={feedback} />
         </section>
