@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Identity;
+using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Layout;
 
@@ -8,6 +9,45 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed class PilotSetupEndpointTests
 {
+    [Fact]
+    public async Task BranchProfile_WithBranchManagerRole_ReadsAndUpdatesProfile()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+
+        var readResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/profile");
+        var readProfile = await readResponse.Content.ReadFromJsonAsync<BranchProfileDto>();
+
+        Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
+        Assert.NotNull(readProfile);
+        Assert.Equal("Demo Branch", readProfile.Name);
+
+        var updateResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/profile",
+            new UpdateBranchProfileRequest(TestIds.OrganizationId, "AFK4 Pilot", "Dushanbe"));
+        var updatedProfile = await updateResponse.Content.ReadFromJsonAsync<BranchProfileDto>();
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.NotNull(updatedProfile);
+        Assert.Equal("AFK4 Pilot", updatedProfile.Name);
+        Assert.Equal("Dushanbe", updatedProfile.City);
+    }
+
+    [Fact]
+    public async Task BranchProfile_WithCashierRole_ReturnsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/profile",
+            new UpdateBranchProfileRequest(TestIds.OrganizationId, "Blocked", "Dushanbe"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     [Fact]
     public async Task CreateStaffUser_WithOwnerRole_CreatesUserRoleAssignmentAndAllowsSignIn()
     {

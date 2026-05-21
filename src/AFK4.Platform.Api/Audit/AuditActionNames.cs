@@ -113,4 +113,8 @@ public static class AuditActionNames
     public const string CreateSeat = "layout.seats.create";
 
     public const string ViewLayout = "layout.view";
+
+    public const string ViewBranchProfile = "branches.profile.view";
+
+    public const string UpdateBranchProfile = "branches.profile.update";
 }

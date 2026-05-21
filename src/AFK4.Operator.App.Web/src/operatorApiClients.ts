@@ -121,6 +121,7 @@ export type OperatorDashboardSummaryDto = Record<string, unknown>;
 export type ReservationDto = Record<string, unknown>;
 export type ReservationSearchResultDto = Record<string, unknown>;
 export type StaffUserDto = Record<string, unknown>;
+export type BranchProfileDto = Record<string, unknown>;
 export type ZoneDto = Record<string, unknown>;
 export type SeatDto = Record<string, unknown>;
 export type TariffDto = Record<string, unknown>;
@@ -215,6 +216,12 @@ export interface CancelReservationRequest {
 
 export interface CreateStaffUserRequest extends Record<string, unknown> {
   organizationId: Guid;
+}
+
+export interface UpdateBranchProfileRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  name: string;
+  city: string;
 }
 
 export interface CreateZoneRequest extends Record<string, unknown> {
@@ -448,6 +455,12 @@ export function createShiftClient(api: PlatformApiClient) {
 
 export function createSettingsClient(api: PlatformApiClient) {
   return {
+    getBranchProfile(branchId: Guid): Promise<BranchProfileDto> {
+      return api.get<BranchProfileDto>(`/api/branches/${branchId}/profile`);
+    },
+    updateBranchProfile(branchId: Guid, request: UpdateBranchProfileRequest): Promise<BranchProfileDto> {
+      return api.patch<BranchProfileDto, UpdateBranchProfileRequest>(`/api/branches/${branchId}/profile`, request);
+    },
     getStaffUsers(branchId: Guid): Promise<StaffUserDto[]> {
       return api.get<StaffUserDto[]>(`/api/branches/${branchId}/staff`);
     },

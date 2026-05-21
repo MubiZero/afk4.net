@@ -417,6 +417,32 @@ describe('App', () => {
       roleNames: ['branch_manager']
     });
   });
+
+  it('saves the Settings branch profile through the backend', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Название клуба'), { target: { value: 'AFK4 Pilot' } });
+    fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Khujand' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    expect(await screen.findByText('Профиль клуба: подтверждено')).toBeInTheDocument();
+    const profileCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/profile') &&
+      init?.method === 'PATCH');
+    expect(profileCall).toBeDefined();
+    const body = JSON.parse(String(profileCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'AFK4 Pilot',
+      city: 'Khujand'
+    });
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -520,6 +546,15 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/wallet-summary')) {
     return jsonResponse(createWalletSummary());
+  }
+
+  if (pathname.endsWith('/profile') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createBranchProfile(body));
+  }
+
+  if (pathname.endsWith('/profile')) {
+    return jsonResponse(createBranchProfile());
   }
 
   if (pathname.endsWith('/packages')) {
@@ -1003,6 +1038,17 @@ function createStaffUsers() {
       roleNames: ['cashier']
     })
   ];
+}
+
+function createBranchProfile(overrides: Record<string, unknown> = {}) {
+  return {
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    name: 'AFK4 Dushanbe',
+    city: 'Dushanbe',
+    createdAtUtc: '2026-05-21T08:00:00Z',
+    ...overrides
+  };
 }
 
 function createStaffUser(overrides: Record<string, unknown> = {}) {

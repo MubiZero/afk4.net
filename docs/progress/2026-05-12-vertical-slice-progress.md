@@ -29,6 +29,9 @@ implementation evidence are needed.
 - Staff sign-in and refresh-token rotation.
 - Predefined MVP role-to-permission mapping.
 - Branch-scoped authorization for implemented operator-facing endpoints.
+- Branch profile read/update endpoint for owner/manager setup, with branch name
+  and city stored on the branch record, `layout.manage` authorization, and
+  audit records.
 - Device enrollment, credential issuance, heartbeat validation, command
   dispatch/status, command result fallback, credential rotation, and revocation.
 - Persisted zones, seats, staff-authorized device-seat assignment, floor-map
@@ -135,8 +138,8 @@ implementation evidence are needed.
   existing branch staff API. It validates the form client-side, requires the
   existing branch-staff management permission, posts login/display name/
   temporary password/role names to `/api/branches/{branchId}/staff`, and keeps
-  branch profile saving as an explicit failed state until a profile endpoint
-  exists.
+  branch profile saving now uses the new `/api/branches/{branchId}/profile`
+  backend endpoint for club name and city.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports and creates paid manual-provider sales; Clients searches backend
@@ -238,7 +241,8 @@ first backend-backed parity wiring for the remaining operator workspaces,
 the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
-Booking permission/state hardening, and Settings staff creation:
+Booking permission/state hardening, Settings staff creation, and branch profile
+read/update:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -249,9 +253,9 @@ Booking permission/state hardening, and Settings staff creation:
 
 Result:
 
-- frontend tests: 42 passed, 0 failed;
+- frontend tests: 43 passed, 0 failed;
 - frontend production build: passed;
-- full solution tests: 773 passed, 0 failed;
+- full solution tests: 775 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -277,6 +281,9 @@ Result:
 - Settings frontend tests now cover branch staff creation from the Personnel
   form, including request body serialization for login, display name, temporary
   password, and role names.
+- Branch profile backend tests cover owner/manager read/update and forbidden
+  cashier updates. Frontend tests cover Settings profile PATCH body
+  serialization for club name and city.
 - Browser smoke on `http://127.0.0.1:5173/`: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, detected AFK4/sign-in
   copy, and reported no browser console errors.

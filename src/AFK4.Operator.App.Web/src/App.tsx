@@ -35,6 +35,7 @@ import { postHostWindowCommand } from './hostBridge';
 import {
   createOperatorApiClients,
   type AuditSearchResultDto,
+  type BranchProfileDto,
   type BranchDiagnosticsDto,
   type CashMovementDto,
   type OperatorDashboardSummaryDto,
@@ -4456,7 +4457,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setLoadStatus('loading');
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [staff, layoutZones, products, branchDiagnostics, rolloutStatuses, tariffOptions] = await Promise.all([
+      const [branchProfile, staff, layoutZones, products, branchDiagnostics, rolloutStatuses, tariffOptions] = await Promise.all([
+        apiClients.settings.getBranchProfile(nextBackend.branchId),
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
         apiClients.pos.getCatalog(nextBackend.branchId),
@@ -4470,7 +4472,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setDiagnostics(branchDiagnostics);
       setRollouts(Array.isArray(rolloutStatuses) ? rolloutStatuses : []);
       setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
-      setClubName(readString(nextBackend.session, 'organizationName', 'AFK4'));
+      setClubName(readString(branchProfile, 'name', 'AFK4'));
+      setCity(readString(branchProfile, 'city', 'Dushanbe'));
+      setSettingsDirty(false);
       setLoadStatus('backend');
     } catch (error) {
       setLoadStatus('failed');
@@ -4587,13 +4591,28 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     }
   };
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     if (!clubName.trim() || !city.trim()) {
       triggerFeedback(setFeedback, 'Проверить обязательные поля', 'failed', 'Заполните обязательные поля.');
       return;
     }
 
-    triggerFeedback(setFeedback, 'Профиль клуба', 'failed', 'Backend endpoint for branch profile settings is not implemented yet.');
+    setFeedback({ label: 'Профиль клуба', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const branchProfile: BranchProfileDto = await apiClients.settings.updateBranchProfile(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        name: clubName.trim(),
+        city: city.trim()
+      });
+      setClubName(readString(branchProfile, 'name', clubName.trim()));
+      setCity(readString(branchProfile, 'city', city.trim()));
+      setSettingsDirty(false);
+      setFeedback({ label: 'Профиль клуба', state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label: 'Профиль клуба', state: 'failed', detail: projectOperatorError(error).detail });
+    }
   };
 
   const renderSettingsContent = () => {

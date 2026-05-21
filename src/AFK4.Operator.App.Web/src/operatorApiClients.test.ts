@@ -188,6 +188,8 @@ describe('operator API clients', () => {
     const { clients, calls } = createRecordedClients();
 
     await clients.settings.getStaffUsers(branchId);
+    await clients.settings.getBranchProfile(branchId);
+    await clients.settings.updateBranchProfile(branchId, { organizationId, name: 'AFK4 Pilot', city: 'Dushanbe' });
     await clients.settings.createZone(branchId, { organizationId, name: 'Main', sortOrder: 10 });
     await clients.settings.getTariffOptions(branchId);
     await clients.settings.getPackageOptions(branchId);
@@ -211,6 +213,8 @@ describe('operator API clients', () => {
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
       `GET /api/branches/${branchId}/staff`,
+      `GET /api/branches/${branchId}/profile`,
+      `PATCH /api/branches/${branchId}/profile`,
       `POST /api/branches/${branchId}/layout/zones`,
       `GET /api/branches/${branchId}/tariffs/options`,
       `GET /api/branches/${branchId}/packages/options`,
@@ -223,8 +227,9 @@ describe('operator API clients', () => {
       `POST /api/branches/${branchId}/updates/rollouts/99999999-9999-9999-9999-999999999999/state`,
       `GET /api/branches/${branchId}/audit?action=session.end&outcome=success&targetType=session&limit=25`
     ]);
-    expect(calls[5].body).toEqual({ organizationId, expiresInSeconds: 900 });
-    expect(calls[6].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
+    expect(calls[2].body).toEqual({ organizationId, name: 'AFK4 Pilot', city: 'Dushanbe' });
+    expect(calls[7].body).toEqual({ organizationId, expiresInSeconds: 900 });
+    expect(calls[8].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 });
 

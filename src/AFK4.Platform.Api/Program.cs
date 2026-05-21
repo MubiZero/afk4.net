@@ -20,6 +20,7 @@ using AFK4.Platform.Api.Tenancy;
 using AFK4.Platform.Api.Updates;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Audit;
+using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Diagnostics;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
@@ -346,6 +347,144 @@ app.MapPost("/api/branches/{branchId:guid}/staff", async (
         staffUser.StaffUserId.ToString("D"),
         AuditOutcome.Succeeded,
         new { staffUser.UserName, response.RoleNames },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/profile", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewBranchProfile,
+            "Branch",
+            branchId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var organizationId = authorization.StaffContext!.OrganizationId;
+    var branch = await dbContext.Branches
+        .AsNoTracking()
+        .SingleOrDefaultAsync(
+            candidate => candidate.OrganizationId == organizationId && candidate.BranchId == branchId,
+            cancellationToken);
+
+    if (branch is null)
+    {
+        return Results.NotFound();
+    }
+
+    var response = ToBranchProfileDto(branch);
+    await WriteAuditAsync(
+        auditRecordWriter,
+        organizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewBranchProfile,
+        "Branch",
+        branchId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { branch.Name, branch.City },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
+app.MapPatch("/api/branches/{branchId:guid}/profile", async (
+    Guid branchId,
+    UpdateBranchProfileRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdateBranchProfile,
+            "Branch",
+            branchId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.Name, request.City, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateUpdateBranchProfileRequest(request);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var branch = await dbContext.Branches
+        .SingleOrDefaultAsync(
+            candidate => candidate.OrganizationId == request.OrganizationId && candidate.BranchId == branchId,
+            cancellationToken);
+
+    if (branch is null)
+    {
+        return Results.NotFound();
+    }
+
+    branch.Name = request.Name.Trim();
+    branch.City = request.City.Trim();
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    var response = ToBranchProfileDto(branch);
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdateBranchProfile,
+        "Branch",
+        branchId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { branch.Name, branch.City },
         cancellationToken);
 
     return Results.Ok(response);
@@ -5543,6 +5682,16 @@ static StaffUserDto ToStaffUserDto(StaffUserEntity staffUser, IReadOnlyList<stri
         staffUser.CreatedAtUtc);
 }
 
+static BranchProfileDto ToBranchProfileDto(BranchEntity branch)
+{
+    return new BranchProfileDto(
+        branch.OrganizationId,
+        branch.BranchId,
+        branch.Name,
+        branch.City,
+        branch.CreatedAtUtc);
+}
+
 static ZoneDto ToZoneDto(ZoneEntity zone, IReadOnlyList<SeatEntity> seats)
 {
     return new ZoneDto(
@@ -5607,6 +5756,33 @@ static bool IsAssignableBranchStaffRole(string roleName)
         StaffRoleNames.CashierOperator or
         StaffRoleNames.Technician or
         StaffRoleNames.AccountantAuditor;
+}
+
+static string? ValidateUpdateBranchProfileRequest(UpdateBranchProfileRequest request)
+{
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return "OrganizationId is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+        return "Name is required.";
+    }
+
+    if (request.Name.Trim().Length > 160)
+    {
+        return "Name must contain 160 characters or fewer.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.City))
+    {
+        return "City is required.";
+    }
+
+    return request.City.Trim().Length <= 120
+        ? null
+        : "City must contain 120 characters or fewer.";
 }
 
 static async Task<IResult> CompleteReconciliationAsync(

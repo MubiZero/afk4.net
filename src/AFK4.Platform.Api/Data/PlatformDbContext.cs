@@ -98,6 +98,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.ToTable("branches");
             entity.HasKey(branch => branch.BranchId);
             entity.Property(branch => branch.Name).HasMaxLength(160).IsRequired();
+            entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.BranchId }).IsUnique();
         });
 
