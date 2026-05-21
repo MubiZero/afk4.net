@@ -195,11 +195,12 @@ implementation evidence are needed.
   reports, searches backend players for the cart customer, creates paid
   manual-provider sales with an optional backend `playerAccountId`, can create
   a new backend player card from the POS cart and immediately use it for
-  checkout, can record POS stock write-offs through the existing inventory
-  stock-movement endpoint, can refund the selected backend sale from the
-  quick-operation panel, and can void a backend draft sale created from the
-  current cart, and opens backend sale details from the recent receipt list
-  plus the linked
+  checkout, can top up the selected cart client's wallet from the current cart
+  total through the existing wallet top-up endpoint, can record POS stock
+  write-offs through the existing inventory stock-movement endpoint, can refund
+  the selected backend sale from the quick-operation panel, and can void a
+  backend draft sale created from the current cart, and opens backend sale
+  details from the recent receipt list plus the linked
   backend receipt projection; Clients searches backend players
   and performs wallet top-up and debt payment with operator-entered
   amount/reason, package purchase, player creation with operator-entered
@@ -2398,6 +2399,23 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no old backend-empty placeholder copy, and
   no horizontal or vertical overflow outside WebView2.
+- Operator App POS wallet top-up verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 44/44, full frontend tests passed 73/73,
+  and Vite production build passed. The new App test covers selecting a
+  backend POS client and posting the current cart total to
+  `/api/players/{playerAccountId}/wallet/top-ups` with
+  `operator POS wallet top-up` reason and `wallet-top-up-*` idempotency key.
+  Browser smoke against `http://127.0.0.1:5173/` confirmed title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no old
+  backend-empty placeholder copy, and no horizontal or vertical overflow
+  outside WebView2.
 
 ## Historical Reference
 

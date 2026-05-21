@@ -87,9 +87,11 @@ Current state:
   players and sends nullable `playerAccountId` through the POS sale contract,
   with Platform API persistence/projection and EF migration coverage. POS cart
   new-customer creation now posts to the existing branch player API and
-  immediately selects the created player for checkout. POS quick stock
-  write-off now records an inventory stock movement through the existing
-  stock-movement endpoint with `inventory.stock.manage` gating. Clients package
+  immediately selects the created player for checkout. POS quick deposit
+  top-up now posts the selected cart client's current cart total to the
+  existing wallet top-up endpoint with `billing.wallet.top_up` gating. POS
+  quick stock write-off now records an inventory stock movement through the
+  existing stock-movement endpoint with `inventory.stock.manage` gating. Clients package
   purchase now calls the existing package option and purchase endpoints for the
   selected backend player, and wallet top-up now uses an operator amount/reason
   form before calling the existing top-up endpoint. Debt payment now also uses
@@ -151,8 +153,10 @@ line detail and then call the receipt lookup endpoint through the sale's
 `latestReceipt` projection. POS cart customer lookup now searches backend
 players and attaches the selected `playerAccountId` to checkout/draft sale
 creation. POS cart new-customer creation now posts to the existing branch
-player API and selects the created player for checkout. POS quick stock
-write-off now records an inventory stock movement through the existing
+player API and selects the created player for checkout. POS quick deposit
+top-up now posts the selected cart client's current cart total to the
+existing wallet top-up endpoint with `billing.wallet.top_up` gating. POS quick
+stock write-off now records an inventory stock movement through the existing
 stock-movement endpoint with `inventory.stock.manage` gating. Clients package purchase calls the backend package purchase
 endpoint for the selected player, and Clients wallet top-up sends
 operator-entered amount/reason to the backend. Clients debt payment now also
@@ -263,9 +267,11 @@ missing-backend copy.
   branch player API and immediate checkout selection. POS stock write-off was
   implemented on 2026-05-21 through the existing inventory stock-movement
   endpoint with `inventory.stock.manage` gating, negative adjustment quantity,
-  operator reason, and idempotency key. Remaining POS gaps include receipt
-  print/export, wallet top-up handoff, and discount/promo/combo handling if
-  kept in MVP UI.
+  operator reason, and idempotency key. POS wallet top-up handoff was
+  implemented on 2026-05-21 by posting the selected cart client's current cart
+  total to the existing wallet top-up endpoint with `billing.wallet.top_up`
+  gating and idempotency key. Remaining POS gaps include receipt print/export
+  and discount/promo/combo handling if kept in MVP UI.
   Use existing POS/player/shift endpoints where they exist; create missing
   customer/cart/inventory/provider endpoints before removing the UI warnings.
 - [ ] Clients: `Создать бронь` from a selected player, wallet top-up and debt
@@ -486,8 +492,8 @@ Screen roadmap:
   on 2026-05-21 with backend catalog/current-shift/sales report reads, sale
   creation, manual payment, selected backend customer attribution,
   POS-cart new-customer creation, selected-sale refund, draft void, sale
-  detail, receipt lookup, and quick stock write-off through existing
-  POS/receipt/inventory endpoints.
+  detail, receipt lookup, quick wallet top-up, and quick stock write-off
+  through existing POS/player/receipt/inventory endpoints.
 - [ ] Port player search, wallet/debt, top-up, and debt payment workflows.
 - [ ] Port shift open, cash movement, close, reports, and CSV export flows.
 - [x] Port Settings/Pilot Setup, device tools, updates, audit, and diagnostics

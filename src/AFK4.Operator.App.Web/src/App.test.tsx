@@ -470,6 +470,33 @@ describe('App', () => {
     });
   });
 
+  it('tops up the selected POS client wallet from the cart total', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Клиент POS'), { target: { value: 'Madina' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
+    fireEvent.click(screen.getByRole('button', { name: /Пополнить депозит/ }));
+
+    expect(await screen.findByText('Пополнить депозит: 12 TJS')).toBeInTheDocument();
+    const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
+      init?.method === 'POST');
+    expect(topUpCall).toBeDefined();
+    const body = JSON.parse(String(topUpCall?.[1]?.body));
+    expect(body).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      amount: { currencyCode: 'TJS', minorUnits: 1200 },
+      reason: 'operator POS wallet top-up'
+    });
+    expect(body.idempotencyKey).toMatch(/^wallet-top-up-/);
+  });
+
   it('creates a POS customer card from the cart and attaches it to checkout', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);

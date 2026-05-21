@@ -3170,6 +3170,10 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const canCreatePosPlayer = backend !== null
     && hasPermission(backend.session, permissionNames.createPlayerAccount)
     && newPlayerDisplayName.length > 0;
+  const canTopUpPosWallet = backend !== null
+    && selectedPosPlayerId !== null
+    && cartTotalMinorUnits > 0
+    && hasPermission(backend.session, permissionNames.topUpWallet);
   const backendCatalogProducts = catalog.filter((product) => product.source === 'backend' && product.productId);
   const selectedStockProduct = backendCatalogProducts.find((product) => product.productId === stockWriteOffProductId)
     ?? backendCatalogProducts[0]
@@ -3257,6 +3261,48 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     } catch (error) {
       setFeedback({
         label: 'Списание склада',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
+  const topUpSelectedPosPlayer = async () => {
+    setFeedback({ label: 'Пополнить депозит', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      if (!hasPermission(nextBackend.session, permissionNames.topUpWallet)) {
+        throw new Error('Нет прав на пополнение депозита.');
+      }
+
+      if (!selectedPosPlayerId) {
+        throw new Error('Выберите backend клиента для пополнения депозита.');
+      }
+
+      if (cartTotalMinorUnits <= 0) {
+        throw new Error('Добавьте сумму в корзину перед пополнением депозита.');
+      }
+
+      const wallet = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).players.topUpWallet(selectedPosPlayerId, {
+        organizationId: nextBackend.session.organizationId,
+        amount: { currencyCode, minorUnits: cartTotalMinorUnits },
+        reason: 'operator POS wallet top-up',
+        idempotencyKey: createIdempotencyKey('wallet-top-up')
+      });
+      const walletBalance = readMoney(wallet, 'walletBalance')?.minorUnits;
+      if (walletBalance !== undefined) {
+        setPosPlayers((players) => players.map((player) => player.playerAccountId === selectedPosPlayerId
+          ? { ...player, balanceMinorUnits: walletBalance }
+          : player));
+      }
+      setFeedback({
+        label: 'Пополнить депозит',
+        state: 'confirmed',
+        detail: formatMinorUnits(cartTotalMinorUnits, currencyCode)
+      });
+    } catch (error) {
+      setFeedback({
+        label: 'Пополнить депозит',
         state: 'failed',
         detail: projectOperatorError(error).detail
       });
@@ -3728,7 +3774,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           </div>
           <div className="pos-quick-grid">
             {[
-              ['Пополнить депозит', 'откройте экран клиентов', CircleDollarSign],
+              ['Пополнить депозит', selectedPosPlayer ? `корзина ${formatMinorUnits(cartTotalMinorUnits, currencyCode)}` : 'выберите клиента', CircleDollarSign],
               ['Возврат по чеку', 'требует выбранный backend sale', ReceiptText],
               ['Аннулировать черновик', 'создать и отменить draft', X],
               ['Списать склад', selectedStockProduct?.name ?? 'выберите товар', AlertTriangle],
@@ -3739,12 +3785,15 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 key={label as string}
                 type="button"
                 className="pos-quick-card"
-                disabled={((label as string) === 'Возврат по чеку' && (!canRefundSelectedSale || feedback.state === 'pending'))
+                disabled={((label as string) === 'Пополнить депозит' && (!canTopUpPosWallet || feedback.state === 'pending'))
+                  || ((label as string) === 'Возврат по чеку' && (!canRefundSelectedSale || feedback.state === 'pending'))
                   || ((label as string) === 'Аннулировать черновик' && (!canVoidDraftCart || feedback.state === 'pending'))
                   || ((label as string) === 'Списать склад' && (!canWriteOffStock || feedback.state === 'pending'))
                   || ((label as string) === 'Новый клиент' && (!canCreatePosPlayer || feedback.state === 'pending'))}
                 onClick={() => {
-                  if ((label as string) === 'Возврат по чеку') {
+                  if ((label as string) === 'Пополнить депозит') {
+                    void topUpSelectedPosPlayer();
+                  } else if ((label as string) === 'Возврат по чеку') {
                     void refundLatestSale();
                   } else if ((label as string) === 'Аннулировать черновик') {
                     void voidDraftCart();
