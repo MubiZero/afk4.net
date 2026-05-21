@@ -113,6 +113,7 @@ describe('operator API clients', () => {
     await clients.pos.paySaleManual(saleId, paymentRequest);
     await clients.pos.refundSale(saleId, refundRequest);
     await clients.pos.voidSale(saleId, voidRequest);
+    await clients.pos.getSale(saleId);
     await clients.pos.getReceipt('11111111-1111-1111-1111-111111111111');
     await clients.players.searchPlayers(branchId, 'Amir K&VIP', 20);
     await clients.players.purchasePackage('12121212-1212-1212-1212-121212121212', {
@@ -134,6 +135,7 @@ describe('operator API clients', () => {
       `POST /api/pos/sales/${saleId}/payments/manual`,
       `POST /api/pos/sales/${saleId}/refunds`,
       `POST /api/pos/sales/${saleId}/void`,
+      `GET /api/pos/sales/${saleId}`,
       'GET /api/receipts/11111111-1111-1111-1111-111111111111',
       `GET /api/branches/${branchId}/players?query=Amir+K%26VIP&limit=20`,
       'POST /api/players/12121212-1212-1212-1212-121212121212/packages/purchases',
@@ -145,7 +147,7 @@ describe('operator API clients', () => {
     expect(calls[2].body).toEqual(paymentRequest);
     expect(calls[3].body).toEqual(refundRequest);
     expect(calls[4].body).toEqual(voidRequest);
-    expect(calls[7].body).toEqual({
+    expect(calls[8].body).toEqual({
       organizationId,
       packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
       idempotencyKey: 'idem-package'

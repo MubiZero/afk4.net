@@ -339,9 +339,10 @@ Minimum bar:
   existing shift cash movement API. POS quick refund now calls the existing
   refund endpoint for the latest backend sale, and POS draft void creates a
   backend draft from the current cart before calling the existing void endpoint.
-  Clients package purchase now calls the existing package option and purchase
-  endpoints for the selected backend player. Staging smoke of these extra
-  workspaces still remains before
+  POS recent receipt rows now open backend sale details through the existing
+  sale lookup endpoint. Clients package purchase now calls the existing package
+  option and purchase endpoints for the selected backend player. Staging smoke
+  of these extra workspaces still remains before
   the WebView2/React app covers the full pilot day flow. Fixture-only/
   missing-contract commands should report backend failures rather than showing
   backend success.
@@ -390,8 +391,9 @@ Minimum bar:
    hardening, Settings staff creation, branch profile save, Settings POS
    category/product creation, Settings package definition creation, Payments
    close-shift and cash-movement wiring, POS refund/draft-void quick actions,
-   and Clients package purchase. Next deliver staging smoke across these
-   backend-backed workspaces and close gaps found with real staging data.
+   POS sale-detail lookup, and Clients package purchase. Next deliver staging
+   smoke across these backend-backed workspaces and close gaps found with real
+   staging data.
    Local builds must
    still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw

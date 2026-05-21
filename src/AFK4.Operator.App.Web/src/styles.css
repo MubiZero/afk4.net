@@ -2658,11 +2658,59 @@ button {
   gap: 9px;
   min-height: 28px;
   border-bottom: 1px solid #202a36;
+  background: transparent;
+  color: inherit;
+  text-align: left;
 }
 
 .pos-receipt-row b {
   color: #f8fbff;
   font-size: 13px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pos-receipt-row:not(:disabled):hover,
+.pos-receipt-row:not(:disabled):focus-visible {
+  border-bottom-color: #355579;
+  color: #ffffff;
+}
+
+.pos-sale-detail {
+  display: grid;
+  gap: 7px;
+  margin: 0 12px 12px;
+  padding: 10px;
+  border: 1px solid #263241;
+  border-radius: 7px;
+  background: #121c27;
+}
+
+.pos-sale-detail div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+}
+
+.pos-sale-detail span,
+.pos-sale-detail p {
+  margin: 0;
+  color: #8fa0b6;
+  font-size: 11px;
+}
+
+.pos-sale-detail strong {
+  overflow: hidden;
+  color: #f8fbff;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pos-sale-detail b {
+  color: #f8fbff;
+  font-size: 13px;
+  grid-row: span 2;
   text-align: right;
   white-space: nowrap;
 }

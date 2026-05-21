@@ -344,6 +344,24 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^pos-refund-/);
   });
 
+  it('loads backend POS sale details from the recent receipt list', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /paid/ }));
+
+    expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
+    expect(screen.getAllByText(/Cola 0.5/).length).toBeGreaterThan(0);
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999') &&
+      init?.method !== 'POST')).toBe(true);
+  });
+
   it('voids a backend POS draft from the current cart', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -787,6 +805,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosSale('voided'));
   }
 
+  if (pathname.includes('/pos/sales/') && init?.method !== 'POST') {
+    return jsonResponse(createPosSale('paid'));
+  }
+
   if (pathname.endsWith('/players')) {
     return jsonResponse(createPlayers());
   }
@@ -1207,7 +1229,15 @@ function createPosSale(state: string) {
     branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
     shiftId: '66666666-6666-6666-6666-666666666666',
     state,
-    lines: [],
+    lines: [
+      {
+        productId: '77777777-7777-7777-7777-777777777777',
+        productName: 'Cola 0.5',
+        quantity: 1,
+        unitPrice: { currencyCode: 'TJS', minorUnits: 1200 },
+        lineTotal: { currencyCode: 'TJS', minorUnits: 1200 }
+      }
+    ],
     total: { currencyCode: 'TJS', minorUnits: 1200 },
     createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
     createdAtUtc: '2026-05-21T09:00:00Z',

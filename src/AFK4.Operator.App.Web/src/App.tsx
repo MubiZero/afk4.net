@@ -2914,6 +2914,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [catalog, setCatalog] = useState<PosCatalogItem[]>(fixturePosProducts);
   const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
   const [lastSale, setLastSale] = useState<PosSaleDto | null>(null);
+  const [selectedSaleDetail, setSelectedSaleDetail] = useState<PosSaleDto | null>(null);
   const [cartItems, setCartItems] = useState<PosCartItem[]>([
     { ...fixturePosProducts[0], quantity: 1 },
     { ...fixturePosProducts[3], quantity: 1 }
@@ -2985,6 +2986,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const canRefundLatestSale = backend !== null
     && latestRefundableSaleId.length > 0
     && hasPermission(backend.session, permissionNames.refundPosSale);
+  const canViewSaleDetails = backend !== null && hasPermission(backend.session, permissionNames.viewReceipt);
   const canVoidDraftCart = backend !== null
     && shiftId.length > 0
     && cartItems.length > 0
@@ -3085,6 +3087,30 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     } catch (error) {
       setFeedback({
         label: 'Возврат по чеку',
+        state: 'failed',
+        detail: projectOperatorError(error).detail
+      });
+    }
+  };
+
+  const loadSaleDetail = async (saleId: string) => {
+    setFeedback({ label: 'Детали чека', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      if (!hasPermission(nextBackend.session, permissionNames.viewReceipt)) {
+        throw new Error('Нет прав на просмотр чеков.');
+      }
+
+      if (!saleId) {
+        throw new Error('Backend POS sale id is required for receipt detail.');
+      }
+
+      const sale = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.getSale(saleId);
+      setSelectedSaleDetail(sale);
+      setFeedback({ label: 'Детали чека', state: 'confirmed' });
+    } catch (error) {
+      setFeedback({
+        label: 'Детали чека',
         state: 'failed',
         detail: projectOperatorError(error).detail
       });
@@ -3271,12 +3297,18 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           </header>
           <div className="pos-receipt-list">
             {salesRows.slice(0, 4).map((row) => (
-              <article key={readString(row, 'posSaleId')} className="pos-receipt-row">
+              <button
+                key={readString(row, 'posSaleId')}
+                type="button"
+                className="pos-receipt-row"
+                disabled={!canViewSaleDetails || feedback.state === 'pending'}
+                onClick={() => void loadSaleDetail(readString(row, 'posSaleId'))}
+              >
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
                 <strong>{readString(row, 'state', 'sale')}</strong>
                 <em>{readNumber(row, 'lineCount', 0)} lines</em>
                 <b>{formatMoney(readMoney(row, 'total'), currencyCode)}</b>
-              </article>
+              </button>
             ))}
             {salesRows.length === 0 && (
               <article className="pos-receipt-row">
@@ -3287,6 +3319,20 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               </article>
             )}
           </div>
+          {selectedSaleDetail !== null && (
+            <div className="pos-sale-detail">
+              <div>
+                <span>Детали продажи</span>
+                <strong>{readString(selectedSaleDetail, 'state', 'sale')} · {readString(selectedSaleDetail, 'posSaleId').slice(0, 8)}</strong>
+                <b>{formatMoney(readMoney(selectedSaleDetail, 'total'), currencyCode)}</b>
+              </div>
+              {readArray(selectedSaleDetail, 'lines').slice(0, 3).map((line) => (
+                <p key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}>
+                  {readString(line, 'productName', 'POS item')} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
+                </p>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="pos-panel pos-quick-panel">

@@ -71,10 +71,11 @@ Current state:
   record cash movements through the existing shift cash movement endpoint. POS
   quick refund now calls the existing refund endpoint for the latest backend
   sale, and POS draft void creates a backend draft from the current cart before
-  calling the existing void endpoint. Clients package purchase now calls the
-  existing package option and purchase endpoints for the selected backend
-  player. Staging smoke across the newly wired screens is the next real
-  implementation work.
+  calling the existing void endpoint. POS recent receipt rows now open backend
+  sale detail through the existing sale lookup endpoint. Clients package
+  purchase now calls the existing package option and purchase endpoints for the
+  selected backend player. Staging smoke across the newly wired screens is the
+  next real implementation work.
   Fixture-only or missing-contract commands must not display backend success
   while that wiring is missing.
 - Legacy WPF screens/ViewModels remain in the repository as parity reference
@@ -111,7 +112,8 @@ the backend close-shift endpoint with counted cash and note fields, and
 Payments cash movement creation calls the backend shift cash endpoint. POS
 quick refund calls the backend refund endpoint for the latest backend sale, and
 POS draft void calls the backend void endpoint after creating a draft from the
-current cart. Clients package purchase calls the backend package purchase
+current cart. POS recent receipt rows call the backend sale lookup endpoint for
+line detail. Clients package purchase calls the backend package purchase
 endpoint for the selected player. Continue with staging smoke of the
 backend-backed workspaces and close gaps found with real data.
 
@@ -202,7 +204,7 @@ missing-backend copy.
   creates a backend draft sale from the current cart and voids it through the
   existing void endpoint with `pos.sales.void` gating. Remaining POS gaps
   include selected customer for cart, selected-sale refund UX, receipt
-  detail/print/export, wallet top-up handoff, new customer handoff, stock
+  print/export, wallet top-up handoff, new customer handoff, stock
   write-off/adjustment, and discount/promo/combo handling if kept in MVP UI.
   Use existing POS/player/shift endpoints where they exist; create missing
   void/receipt/inventory/provider endpoints before removing the UI warnings.
