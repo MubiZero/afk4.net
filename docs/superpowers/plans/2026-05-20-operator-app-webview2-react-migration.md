@@ -65,10 +65,10 @@ Current state:
   for mutation controls. Settings now has backend-backed staff creation and
   predefined branch-role reassignment in the Personnel section, branch profile
   save backed by a new Platform API
-  profile endpoint, POS category/product creation backed by the existing
-  POS catalog endpoints, stock movement creation backed by the existing
-  inventory endpoint, stock movement history backed by the existing inventory
-  read endpoint, tariff/version creation backed by the existing tariff
+  profile endpoint, POS category/product creation and product update/deactivation
+  backed by the existing POS catalog model, stock movement creation backed by
+  the existing inventory endpoint, stock movement history backed by the existing
+  inventory read endpoint, tariff/version creation backed by the existing tariff
   endpoints, and package definition creation backed by the existing package
   endpoint. Payments can now open a shift through the existing
   open-shift endpoint, close the current shift through the existing close-shift
@@ -142,8 +142,8 @@ APIs, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product, and Settings `Тарифы` can
 create a backend tariff/version plus package definition. Settings `POS и
-склад` can also record inventory stock movements for tracked products and read
-the latest stock movement history.
+склад` can also record inventory stock movements for tracked products, read
+the latest stock movement history, and update/deactivate selected POS products.
 Payments open-shift now calls
 the backend open-shift endpoint with starting cash and opening note fields.
 Payments close-shift now calls the backend close-shift endpoint with counted
@@ -346,7 +346,10 @@ missing-backend copy.
   `identity.roles.manage` gating. POS
   category/product creation from `POS и склад` was implemented on 2026-05-21
   through existing POS catalog endpoints with `pos.catalog.manage` gating,
-  price/stock form fields, and idempotency keys. Tariff/version creation from
+  price/stock form fields, and idempotency keys. POS product
+  update/deactivation from `POS и склад` was implemented on 2026-05-22 through
+  `PATCH /api/branches/{branchId}/pos/products/{productId}` with
+  `pos.catalog.manage` gating. Tariff/version creation from
   `Тарифы` was implemented on 2026-05-21 through the existing tariff endpoints
   with `tariffs.manage` gating, hourly price, minimum/rounding fields, and
   idempotency keys. Package definition creation from `Тарифы` was implemented
@@ -372,7 +375,7 @@ missing-backend copy.
   staff activation/deactivation/password reset/profile detail, richer layout
   editing beyond create-only zones/seats, richer device inventory/history
   management, tariff version edit/deactivate, package edit/deactivate and
-  purchase UX refinements, POS catalog edit/deactivate, advanced inventory
+  purchase UX refinements, advanced POS catalog management, advanced inventory
   controls and reconciliation, integrations/payment-provider
   settings, richer update rollout detail/status controls, diagnostics,
   audit/security settings, and
@@ -547,8 +550,8 @@ Screen roadmap:
   enough to preserve current operator capability. Implemented on 2026-05-21
   with branch profile, staff, layout, tariff/package, POS/inventory, updates,
   audit/diagnostics, enrollment, seat assignment, device detail, command
-  dispatch, credential lifecycle, and stock movement history wiring through
-  existing backend endpoints.
+  dispatch, credential lifecycle, stock movement history, and POS product
+  update/deactivation wiring through existing backend endpoints.
 
 ## Task 6: Realtime State
 

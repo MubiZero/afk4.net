@@ -268,6 +268,16 @@ describe('operator API clients', () => {
       allowNegativeStock: false,
       idempotencyKey: 'idem-product'
     });
+    await clients.settings.updateProduct(branchId, '77777777-7777-7777-7777-777777777777', {
+      organizationId,
+      categoryId: '88888888-8888-8888-8888-888888888888',
+      name: 'Energy Bar Zero',
+      sku: 'BAR-ZERO',
+      price: { currencyCode: 'TJS', minorUnits: 3950 },
+      trackStock: true,
+      allowNegativeStock: true,
+      isActive: false
+    });
     await clients.settings.assignDeviceSeat(branchId, deviceId, { organizationId, seatId });
     await clients.devices.createEnrollmentCode(branchId, organizationId, 900);
     await clients.devices.dispatchDeviceCommand(deviceId, { type: 'lock', payload: { reason: 'operator' } });
@@ -297,6 +307,7 @@ describe('operator API clients', () => {
       `POST /api/branches/${branchId}/packages`,
       `POST /api/branches/${branchId}/pos/categories`,
       `POST /api/branches/${branchId}/pos/products`,
+      `PATCH /api/branches/${branchId}/pos/products/77777777-7777-7777-7777-777777777777`,
       `POST /api/branches/${branchId}/devices/${deviceId}/seat-assignment`,
       `POST /api/branches/${branchId}/device-enrollment-codes`,
       `POST /api/devices/${deviceId}/commands`,
@@ -311,8 +322,9 @@ describe('operator API clients', () => {
     expect(calls[7].body).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
     expect(calls[8].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
     expect(calls[9].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
-    expect(calls[11].body).toEqual({ organizationId, expiresInSeconds: 900 });
-    expect(calls[12].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
+    expect(calls[10].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
+    expect(calls[12].body).toEqual({ organizationId, expiresInSeconds: 900 });
+    expect(calls[13].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 });
 

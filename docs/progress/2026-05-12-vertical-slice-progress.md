@@ -174,7 +174,8 @@ implementation evidence are needed.
   endpoint for club name and city. Settings `POS и склад` can now create a
   backend POS category and product through `/api/branches/{branchId}/pos/categories`
   and `/api/branches/{branchId}/pos/products`, guarded by
-  `pos.catalog.manage`, and can record stock movements through
+  `pos.catalog.manage`, update/deactivate selected POS products through
+  `PATCH /api/branches/{branchId}/pos/products/{productId}`, and can record stock movements through
   `/api/branches/{branchId}/inventory/stock-movements`, guarded by
   `inventory.stock.manage`. The same Settings section now reads recent stock
   movement history from `GET /api/branches/{branchId}/inventory/stock-movements`,
@@ -225,9 +226,9 @@ implementation evidence are needed.
   Settings reads staff, layout, catalog, stock movement history, diagnostics,
   update rollout, tariff option, and package option data, and can trigger
   limited backend setup actions
-  including tariff/version creation, package definition creation, inventory
-  stock movement creation, update package registration, rollout creation, and
-  update state changes;
+  including tariff/version creation, package definition creation, POS product
+  update/deactivation, inventory stock movement creation, update package
+  registration, rollout creation, and update state changes;
   Settings device setup can create enrollment codes, assign device seats, read
   device detail, dispatch device commands, and rotate/revoke device credentials;
   Logs now applies backend
@@ -333,8 +334,8 @@ the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation/role update, and
-branch profile read/update, Settings POS catalog create, Settings stock movement creation,
-Settings stock movement history, Settings tariff/version create, Settings package definition create, Clients
+branch profile read/update, Settings POS catalog create/update/deactivate,
+Settings stock movement creation, Settings stock movement history, Settings tariff/version create, Settings package definition create, Clients
 wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
 form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
@@ -356,9 +357,9 @@ reservation permission gating, and Settings staff role editing:
 
 Result:
 
-- frontend tests: 84 passed, 0 failed;
+- frontend tests: 85 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 785 passed, 0 failed;
+- full local .NET solution tests: 787 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -396,6 +397,12 @@ Result:
 - Settings POS catalog frontend tests now cover backend category/product POST
   serialization from the `POS и склад` form, including price minor units,
   stock flags, and idempotency keys.
+- Settings POS catalog backend/API/frontend tests now cover selected product
+  update and deactivation through
+  `PATCH /api/branches/{branchId}/pos/products/{productId}`, including
+  `pos.catalog.manage` authorization, SKU uniqueness, derived stock-on-hand in
+  update responses, frontend request serialization, and active-catalog removal
+  after deactivation.
 - Settings stock frontend tests now cover inventory stock movement POST
   serialization from the `POS и склад` form, including product id, movement
   type, quantity delta, unit cost, reason, organization id, and idempotency key.
@@ -451,8 +458,8 @@ Result:
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
   source-card filtering, audit period presets, Logs export downloads,
   Payments/Dashboard report export downloads, Clients reservation permission
-  gating, Settings staff role editing, and Settings stock movement history:
-  the React app rendered the
+  gating, Settings staff role editing, Settings stock movement history, and
+  Settings POS product update/deactivation: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
   and no old backend placeholder copy.
@@ -1420,6 +1427,13 @@ Operator App redesign branch-local verification on 2026-05-20:
   `inventory.view` authorization, optional `productId`, and a bounded `limit`;
   the React Settings screen loads the latest rows and shows product, movement
   type, quantity delta, unit cost, and reason next to the stock form.
+- On 2026-05-22, `codex/operator-app-redesign` added Settings POS product
+  update/deactivation. The Platform API now exposes
+  `PATCH /api/branches/{branchId}/pos/products/{productId}` with
+  `pos.catalog.manage` authorization, SKU uniqueness checks, active category
+  validation, audit action `pos.products.update`, and stock-on-hand projection
+  in the response. The React `POS и склад` section lets operators select a
+  catalog item, edit name/SKU/price/stock flags, or mark it inactive.
 - On 2026-05-21, `codex/operator-app-redesign` added a backend-backed
   Settings `POS и склад` product creation form. It creates a POS category,
   then a POS product with price, SKU, stock flags, and idempotency keys through

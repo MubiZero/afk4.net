@@ -5888,6 +5888,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [productPrice, setProductPrice] = useState('12.00');
   const [productTrackStock, setProductTrackStock] = useState(true);
   const [productAllowNegativeStock, setProductAllowNegativeStock] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [stockProductId, setStockProductId] = useState('');
   const [stockMovementType, setStockMovementType] = useState('purchase');
   const [stockQuantityDelta, setStockQuantityDelta] = useState('10');
@@ -5960,6 +5961,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       const firstSeatId = zoneRows.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats')).map((seat) => readString(seat, 'seatId')).find(Boolean) ?? '';
       setDeviceAssignmentSeatId((current) => isGuid(current) ? current : firstSeatId);
       setCatalog(productRows);
+      setSelectedProductId((current) => productRows.some((product) => readString(product, 'productId') === current) ? current : '');
       setStockMovements(Array.isArray(stockMovementRows) ? stockMovementRows : []);
       setStockProductId((current) => productRows.some((product) => readString(product, 'productId') === current && readBoolean(product, 'trackStock'))
         ? current
@@ -6017,6 +6019,17 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
   }))).filter((seat) => isGuid(seat.seatId));
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
+  const selectCatalogProduct = (product: PosProductDto) => {
+    const productId = readString(product, 'productId');
+    const price = readMoney(product, 'price');
+    setSelectedProductId(productId);
+    setProductName(readString(product, 'name', productName));
+    setProductSku(readString(product, 'sku', productSku));
+    setProductPrice(price ? formatMoneyInputMinorUnits(price.minorUnits) : productPrice);
+    setProductTrackStock(readBoolean(product, 'trackStock', true));
+    setProductAllowNegativeStock(readBoolean(product, 'allowNegativeStock'));
+    triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed');
+  };
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
     ['Залы и ПК', `${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0)} рабочих мест`],
@@ -6315,6 +6328,34 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setProductPrice('12.00');
         setProductTrackStock(true);
         setProductAllowNegativeStock(false);
+        setSelectedProductId(readString(product, 'productId'));
+      } else if (label === 'Обновить товар' || label === 'Снять с продажи') {
+        if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
+          throw new Error('Нет прав на управление POS каталогом.');
+        }
+
+        const selectedProduct = catalog.find((product) => readString(product, 'productId') === selectedProductId);
+        const nextProductName = productName.trim();
+        const sku = productSku.trim();
+        const priceMinorUnits = parseMoneyInputMinorUnits(productPrice);
+        if (!selectedProduct || !nextProductName || !sku || priceMinorUnits === null) {
+          throw new Error('Выберите товар и заполните товар, SKU и цену больше нуля.');
+        }
+
+        await apiClients.settings.updateProduct(nextBackend.branchId, readString(selectedProduct, 'productId'), {
+          organizationId: nextBackend.session.organizationId,
+          categoryId: readString(selectedProduct, 'categoryId'),
+          name: nextProductName,
+          sku,
+          price: { currencyCode, minorUnits: priceMinorUnits },
+          trackStock: productTrackStock,
+          allowNegativeStock: productAllowNegativeStock,
+          isActive: label !== 'Снять с продажи'
+        });
+        if (label === 'Снять с продажи') {
+          setSelectedProductId('');
+        }
+        await loadSettings(nextBackend);
       } else if (label === 'Записать движение') {
         if (!hasPermission(nextBackend.session, permissionNames.manageInventoryStock)) {
           throw new Error('Нет прав на управление остатками.');
@@ -6653,11 +6694,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         <>
           <div className="settings-section-title">
             <span>POS каталог</span>
-            <button type="button" disabled={!canManagePosCatalog} onClick={() => runSettingsAction('Создать товар')}>Создать товар</button>
+            <div className="settings-section-actions">
+              <button type="button" disabled={!canManagePosCatalog} onClick={() => runSettingsAction('Создать товар')}>Создать товар</button>
+              <button type="button" disabled={!canManagePosCatalog || !selectedProductId} onClick={() => runSettingsAction('Обновить товар')}>Обновить товар</button>
+              <button type="button" disabled={!canManagePosCatalog || !selectedProductId} onClick={() => runSettingsAction('Снять с продажи')}>Снять с продажи</button>
+            </div>
           </div>
           <div className="settings-config-grid">
             {catalog.slice(0, 8).map((product) => (
-              <button key={readString(product, 'productId')} type="button" onClick={() => triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed')}>
+              <button key={readString(product, 'productId')} type="button" className={readString(product, 'productId') === selectedProductId ? 'active' : undefined} onClick={() => selectCatalogProduct(product)}>
                 <strong>{readString(product, 'name', 'Product')}</strong>
                 <span>{formatMoney(readMoney(product, 'price'), currencyCode)} · stock {readNumber(product, 'stockOnHand', 0)}</span>
               </button>

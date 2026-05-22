@@ -80,6 +80,8 @@ public static class AuditActionNames
 
     public const string CreateProduct = "pos.products.create";
 
+    public const string UpdateProduct = "pos.products.update";
+
     public const string CreateStockMovement = "inventory.stock.create";
 
     public const string CreatePosSale = "pos.sales.create";

@@ -347,9 +347,9 @@ Minimum bar:
   Settings now supports general staff creation and predefined branch-role
   reassignment through staff APIs, branch profile name/city save through a new
   branch profile API,
-  POS category/product creation through the existing POS catalog endpoints, and
-  inventory stock movement creation through the existing stock-movement
-  endpoint. The same Settings section now reads recent stock movement history
+  POS category/product creation plus product update/deactivation through the
+  existing POS catalog endpoints, and inventory stock movement creation through
+  the existing stock-movement endpoint. The same Settings section now reads recent stock movement history
   through `GET /api/branches/{branchId}/inventory/stock-movements` with
   `inventory.view` gating, plus tariff/version creation and package definition
   creation through the existing tariff/package endpoints. Settings `Интеграции` now also
@@ -456,7 +456,7 @@ Minimum bar:
    feedback, real map filters/table view parity, Booking permission/state
    hardening, Settings staff creation/role reassignment, branch profile save,
    Settings layout zone/seat creation, Settings POS
-   category/product creation, Settings stock movement creation/history,
+   category/product creation/update/deactivation, Settings stock movement creation/history,
    Settings package definition creation, Settings update package/rollout controls, Settings
    device enrollment/seat assignment/credential lifecycle, Dashboard export download,
    Payments open/close-shift, cash-movement wiring, selected-operation detail,

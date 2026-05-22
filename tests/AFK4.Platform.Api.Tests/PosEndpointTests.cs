@@ -138,6 +138,21 @@ public sealed class PosEndpointTests
         Assert.Equal(stock.StockMovementId, stockHistoryRow.StockMovementId);
         Assert.Equal(24, stockHistoryRow.QuantityDelta);
 
+        var updatedProduct = await PatchOkAsync<PosProductDto>(
+            client,
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}",
+            new UpdateProductRequest(
+                TestIds.OrganizationId,
+                category.CategoryId,
+                "Cola Zero 0.5",
+                "COLA-ZERO-05",
+                new MoneyDto("TJS", 1300),
+                TrackStock: true,
+                AllowNegativeStock: true,
+                IsActive: true));
+        Assert.Equal("COLA-ZERO-05", updatedProduct.Sku);
+        Assert.Equal(24, updatedProduct.StockOnHand);
+
         var player = await PostOkAsync<PlayerAccountDto>(
             client,
             $"/api/branches/{TestIds.BranchId:D}/players",
@@ -151,6 +166,7 @@ public sealed class PosEndpointTests
             $"/api/branches/{TestIds.BranchId:D}/pos/catalog");
         Assert.NotNull(catalog);
         Assert.Single(catalog);
+        Assert.Equal("COLA-ZERO-05", catalog[0].Sku);
         Assert.Equal(24, catalog[0].StockOnHand);
 
         var sale = await PostOkAsync<PosSaleDto>(
@@ -171,7 +187,7 @@ public sealed class PosEndpointTests
             new ManualPaymentRequest(
                 TestIds.OrganizationId,
                 PaymentMethodNames.Cash,
-                new MoneyDto("TJS", 2400),
+                new MoneyDto("TJS", 2600),
                 "cash drawer",
                 "pay-001"));
         Assert.Equal(PosSaleStateNames.Paid, paid.State);
@@ -236,6 +252,7 @@ public sealed class PosEndpointTests
         Assert.Contains(AuditActionNames.CreateProductCategory, auditActions);
         Assert.Contains(AuditActionNames.CreateProduct, auditActions);
         Assert.Contains(AuditActionNames.CreateStockMovement, auditActions);
+        Assert.Contains(AuditActionNames.UpdateProduct, auditActions);
         Assert.Contains(AuditActionNames.CreatePlayerAccount, auditActions);
         Assert.Contains(AuditActionNames.CreatePosSale, auditActions);
         Assert.Contains(AuditActionNames.PayPosSale, auditActions);
@@ -290,6 +307,10 @@ public sealed class PosEndpointTests
                 $"/api/branches/{TestIds.BranchId:D}/pos/products",
                 new CreateProductRequest(TestIds.OrganizationId, Guid.NewGuid(), "Cola 0.5", "COLA-05", new MoneyDto("TJS", 1200), true, false, "product-001")),
             new EndpointCase(
+                HttpMethod.Patch,
+                $"/api/branches/{TestIds.BranchId:D}/pos/products/{Guid.NewGuid():D}",
+                new UpdateProductRequest(TestIds.OrganizationId, Guid.NewGuid(), "Cola 0.5", "COLA-05", new MoneyDto("TJS", 1200), true, false, true)),
+            new EndpointCase(
                 HttpMethod.Get,
                 $"/api/branches/{TestIds.BranchId:D}/pos/catalog",
                 null),
@@ -335,6 +356,11 @@ public sealed class PosEndpointTests
             return await client.GetAsync(endpoint.Path);
         }
 
+        if (endpoint.Method == HttpMethod.Patch)
+        {
+            return await client.PatchAsJsonAsync(endpoint.Path, endpoint.Body);
+        }
+
         return await client.PostAsJsonAsync(endpoint.Path, endpoint.Body);
     }
 
@@ -344,6 +370,20 @@ public sealed class PosEndpointTests
         object request)
     {
         using var response = await client.PostAsJsonAsync(path, request);
+        var body = await response.Content.ReadFromJsonAsync<TResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+
+        return body;
+    }
+
+    private static async Task<TResponse> PatchOkAsync<TResponse>(
+        HttpClient client,
+        string path,
+        object request)
+    {
+        using var response = await client.PatchAsJsonAsync(path, request);
         var body = await response.Content.ReadFromJsonAsync<TResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

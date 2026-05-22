@@ -270,6 +270,10 @@ export interface CreateProductRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
 
+export interface UpdateProductRequest extends Record<string, unknown> {
+  organizationId: Guid;
+}
+
 export interface CreateStockMovementRequest extends Record<string, unknown> {
   organizationId: Guid;
   productId: Guid;
@@ -535,6 +539,9 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     createProduct(branchId: Guid, request: CreateProductRequest): Promise<PosProductDto> {
       return api.post<PosProductDto, CreateProductRequest>(`/api/branches/${branchId}/pos/products`, request);
+    },
+    updateProduct(branchId: Guid, productId: Guid, request: UpdateProductRequest): Promise<PosProductDto> {
+      return api.patch<PosProductDto, UpdateProductRequest>(`/api/branches/${branchId}/pos/products/${productId}`, request);
     },
     assignDeviceSeat(branchId: Guid, deviceId: Guid, request: AssignDeviceSeatRequest): Promise<DeviceSeatAssignmentDto> {
       return api.post<DeviceSeatAssignmentDto, AssignDeviceSeatRequest>(`/api/branches/${branchId}/devices/${deviceId}/seat-assignment`, request);

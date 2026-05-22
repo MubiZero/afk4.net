@@ -1554,6 +1554,55 @@ describe('App', () => {
     expect(productBody.idempotencyKey).toMatch(/^pos-product-create-/);
   });
 
+  it('updates and deactivates a POS product from Settings', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^POS и склад/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Cola 0.5/ })[0]);
+    fireEvent.change(screen.getByLabelText('Товар'), { target: { value: 'Cola Zero 0.5' } });
+    fireEvent.change(screen.getByLabelText('SKU'), { target: { value: 'COLA-ZERO-05' } });
+    fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '13.00' } });
+    fireEvent.change(screen.getByLabelText('Минусовой остаток'), { target: { value: 'yes' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить товар' }));
+
+    expect(await screen.findByText('Обновить товар: подтверждено')).toBeInTheDocument();
+    const updateCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products/77777777-7777-7777-7777-777777777777') &&
+      init?.method === 'PATCH');
+    expect(updateCall).toBeDefined();
+    const updateBody = JSON.parse(String(updateCall?.[1]?.body));
+    expect(updateBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      categoryId: '88888888-8888-8888-8888-888888888888',
+      name: 'Cola Zero 0.5',
+      sku: 'COLA-ZERO-05',
+      price: { currencyCode: 'TJS', minorUnits: 1300 },
+      trackStock: true,
+      allowNegativeStock: true,
+      isActive: true
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Снять с продажи' }));
+    expect(await screen.findByText('Снять с продажи: подтверждено')).toBeInTheDocument();
+    const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products/77777777-7777-7777-7777-777777777777') &&
+      init?.method === 'PATCH').at(-1);
+    expect(deactivateCall).toBeDefined();
+    const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
+    expect(deactivateBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'Cola Zero 0.5',
+      sku: 'COLA-ZERO-05',
+      isActive: false
+    });
+  });
+
   it('records an inventory stock movement from Settings POS and stock', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1853,6 +1902,12 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   if (pathname.endsWith('/pos/categories') && init?.method === 'POST') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createPosCategory(body));
+  }
+
+  if (pathname.includes('/pos/products/') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    const productId = pathname.split('/').at(-1);
+    return jsonResponse(createPosProduct({ ...body, productId }));
   }
 
   if (pathname.endsWith('/pos/products') && init?.method === 'POST') {
