@@ -395,6 +395,54 @@ public sealed class PilotSetupEndpointTests
     }
 
     [Fact]
+    public async Task LayoutUpdate_WithBranchManagerRole_UpdatesZoneSeatAndWritesAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var zoneResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/zones",
+            new CreateZoneRequest(TestIds.OrganizationId, "Main Hall", 10));
+        var zone = await zoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
+        Assert.NotNull(zone);
+        var seatResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/seats",
+            new CreateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "PC-001", 1));
+        var seat = await seatResponse.Content.ReadFromJsonAsync<SeatDto>();
+        Assert.NotNull(seat);
+
+        var updateZoneResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}",
+            new UpdateZoneRequest(TestIds.OrganizationId, "VIP Hall", 30));
+        var updatedZone = await updateZoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
+        var updateSeatResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}",
+            new UpdateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "VIP-01", 40));
+        var updatedSeat = await updateSeatResponse.Content.ReadFromJsonAsync<SeatDto>();
+
+        Assert.Equal(HttpStatusCode.OK, updateZoneResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateSeatResponse.StatusCode);
+        Assert.NotNull(updatedZone);
+        Assert.NotNull(updatedSeat);
+        Assert.Equal("VIP Hall", updatedZone.Name);
+        Assert.Equal(30, updatedZone.SortOrder);
+        Assert.Equal("VIP-01", updatedSeat.Name);
+        Assert.Equal(40, updatedSeat.SortOrder);
+
+        var listResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/layout/zones");
+        var zones = await listResponse.Content.ReadFromJsonAsync<IReadOnlyList<ZoneDto>>();
+        var listedZone = Assert.Single(zones!);
+        Assert.Equal("VIP Hall", listedZone.Name);
+        var listedSeat = Assert.Single(listedZone.Seats);
+        Assert.Equal("VIP-01", listedSeat.Name);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(1, await dbContext.AuditRecords.CountAsync(audit => audit.Action == AuditActionNames.UpdateZone));
+        Assert.Equal(1, await dbContext.AuditRecords.CountAsync(audit => audit.Action == AuditActionNames.UpdateSeat));
+    }
+
+    [Fact]
     public async Task CreateZone_WithCashierRole_ReturnsForbidden()
     {
         await using var factory = new PlatformApiFactory();

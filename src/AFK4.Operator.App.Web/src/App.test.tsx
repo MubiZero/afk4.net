@@ -1477,6 +1477,50 @@ describe('App', () => {
     });
   });
 
+  it('updates selected layout zones and seats from Settings layout form', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Зал A/ })[0]);
+    fireEvent.change(screen.getByLabelText('Название зала'), { target: { value: 'VIP Hall' } });
+    fireEvent.change(screen.getByLabelText('Сортировка зала'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить зал' }));
+
+    expect(await screen.findByText('Обновить зал: подтверждено')).toBeInTheDocument();
+    const zoneCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') &&
+      init?.method === 'PATCH');
+    expect(zoneCall).toBeDefined();
+    expect(JSON.parse(String(zoneCall?.[1]?.body))).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'VIP Hall',
+      sortOrder: 30
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /PC-01/ }));
+    fireEvent.change(screen.getByLabelText('Название ПК'), { target: { value: 'VIP-01' } });
+    fireEvent.change(screen.getByLabelText('Сортировка ПК'), { target: { value: '40' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить ПК' }));
+
+    expect(await screen.findByText('Обновить ПК: подтверждено')).toBeInTheDocument();
+    const seatCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') &&
+      init?.method === 'PATCH');
+    expect(seatCall).toBeDefined();
+    expect(JSON.parse(String(seatCall?.[1]?.body))).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      name: 'VIP-01',
+      sortOrder: 40
+    });
+  });
+
   it('creates device enrollment codes and assigns devices to seats from Settings', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -2244,9 +2288,25 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createZone(body));
   }
 
+  if (pathname.includes('/layout/zones/') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createZone({
+      zoneId: pathname.split('/').at(-1),
+      ...body
+    }));
+  }
+
   if (pathname.endsWith('/layout/seats') && init?.method === 'POST') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createSeat(body));
+  }
+
+  if (pathname.includes('/layout/seats/') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createSeat({
+      seatId: pathname.split('/').at(-1),
+      ...body
+    }));
   }
 
   if (pathname.endsWith('/layout/zones')) {

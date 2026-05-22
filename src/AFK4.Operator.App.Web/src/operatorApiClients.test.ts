@@ -250,6 +250,14 @@ describe('operator API clients', () => {
     await clients.settings.getBranchProfile(branchId);
     await clients.settings.updateBranchProfile(branchId, { organizationId, name: 'AFK4 Pilot', city: 'Dushanbe' });
     await clients.settings.createZone(branchId, { organizationId, name: 'Main', sortOrder: 10 });
+    await clients.settings.createSeat(branchId, { organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'PC-01', sortOrder: 20 });
+    await clients.settings.updateZone(branchId, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', { organizationId, name: 'VIP', sortOrder: 30 });
+    await clients.settings.updateSeat(branchId, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', {
+      organizationId,
+      zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      name: 'VIP-01',
+      sortOrder: 40
+    });
     await clients.settings.getTariffOptions(branchId);
     await clients.settings.updateTariff(branchId, '11111111-1111-1111-1111-111111111111', {
       organizationId,
@@ -339,6 +347,9 @@ describe('operator API clients', () => {
       `GET /api/branches/${branchId}/profile`,
       `PATCH /api/branches/${branchId}/profile`,
       `POST /api/branches/${branchId}/layout/zones`,
+      `POST /api/branches/${branchId}/layout/seats`,
+      `PATCH /api/branches/${branchId}/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb`,
+      `PATCH /api/branches/${branchId}/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`,
       `GET /api/branches/${branchId}/tariffs/options`,
       `PATCH /api/branches/${branchId}/tariffs/11111111-1111-1111-1111-111111111111`,
       `PATCH /api/branches/${branchId}/tariffs/11111111-1111-1111-1111-111111111111/versions/22222222-2222-2222-2222-222222222222`,
@@ -361,15 +372,19 @@ describe('operator API clients', () => {
     expect(calls[2].body).toEqual({ organizationId, isActive: false });
     expect(calls[3].body).toEqual({ organizationId, newPassword: 'ChangeMe456!' });
     expect(calls[5].body).toEqual({ organizationId, name: 'AFK4 Pilot', city: 'Dushanbe' });
-    expect(calls[8].body).toEqual({ organizationId, name: 'Standard Plus', isActive: false });
-    expect(calls[9].body).toMatchObject({ organizationId, pricePerMinuteMinorUnits: 75, isActive: false });
-    expect(calls[11].body).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
-    expect(calls[12].body).toMatchObject({ organizationId, name: 'Night 6h', includedSeconds: 21600, isActive: false });
-    expect(calls[13].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
-    expect(calls[14].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
-    expect(calls[15].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
-    expect(calls[17].body).toEqual({ organizationId, expiresInSeconds: 900 });
-    expect(calls[18].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
+    expect(calls[6].body).toEqual({ organizationId, name: 'Main', sortOrder: 10 });
+    expect(calls[7].body).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'PC-01', sortOrder: 20 });
+    expect(calls[8].body).toEqual({ organizationId, name: 'VIP', sortOrder: 30 });
+    expect(calls[9].body).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'VIP-01', sortOrder: 40 });
+    expect(calls[11].body).toEqual({ organizationId, name: 'Standard Plus', isActive: false });
+    expect(calls[12].body).toMatchObject({ organizationId, pricePerMinuteMinorUnits: 75, isActive: false });
+    expect(calls[14].body).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
+    expect(calls[15].body).toMatchObject({ organizationId, name: 'Night 6h', includedSeconds: 21600, isActive: false });
+    expect(calls[16].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
+    expect(calls[17].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
+    expect(calls[18].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
+    expect(calls[20].body).toEqual({ organizationId, expiresInSeconds: 900 });
+    expect(calls[21].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 });
 

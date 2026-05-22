@@ -124,7 +124,11 @@ public static class AuditActionNames
 
     public const string CreateZone = "layout.zones.create";
 
+    public const string UpdateZone = "layout.zones.update";
+
     public const string CreateSeat = "layout.seats.create";
+
+    public const string UpdateSeat = "layout.seats.update";
 
     public const string ViewLayout = "layout.view";
 

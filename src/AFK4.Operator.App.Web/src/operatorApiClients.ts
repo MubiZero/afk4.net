@@ -254,10 +254,28 @@ export interface UpdateBranchProfileRequest extends Record<string, unknown> {
 
 export interface CreateZoneRequest extends Record<string, unknown> {
   organizationId: Guid;
+  name: string;
+  sortOrder: number;
+}
+
+export interface UpdateZoneRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  name: string;
+  sortOrder: number;
 }
 
 export interface CreateSeatRequest extends Record<string, unknown> {
   organizationId: Guid;
+  zoneId: Guid;
+  name: string;
+  sortOrder: number;
+}
+
+export interface UpdateSeatRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  zoneId: Guid;
+  name: string;
+  sortOrder: number;
 }
 
 export interface CreateTariffRequest extends Record<string, unknown> {
@@ -552,8 +570,14 @@ export function createSettingsClient(api: PlatformApiClient) {
     createZone(branchId: Guid, request: CreateZoneRequest): Promise<ZoneDto> {
       return api.post<ZoneDto, CreateZoneRequest>(`/api/branches/${branchId}/layout/zones`, request);
     },
+    updateZone(branchId: Guid, zoneId: Guid, request: UpdateZoneRequest): Promise<ZoneDto> {
+      return api.patch<ZoneDto, UpdateZoneRequest>(`/api/branches/${branchId}/layout/zones/${zoneId}`, request);
+    },
     createSeat(branchId: Guid, request: CreateSeatRequest): Promise<SeatDto> {
       return api.post<SeatDto, CreateSeatRequest>(`/api/branches/${branchId}/layout/seats`, request);
+    },
+    updateSeat(branchId: Guid, seatId: Guid, request: UpdateSeatRequest): Promise<SeatDto> {
+      return api.patch<SeatDto, UpdateSeatRequest>(`/api/branches/${branchId}/layout/seats/${seatId}`, request);
     },
     createTariff(branchId: Guid, request: CreateTariffRequest): Promise<TariffDto> {
       return api.post<TariffDto, CreateTariffRequest>(`/api/branches/${branchId}/tariffs`, request);

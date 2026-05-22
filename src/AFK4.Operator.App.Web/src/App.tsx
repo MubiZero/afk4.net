@@ -5876,6 +5876,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [layoutSeatZoneId, setLayoutSeatZoneId] = useState('');
   const [layoutSeatName, setLayoutSeatName] = useState('PC-01');
   const [layoutSeatSortOrder, setLayoutSeatSortOrder] = useState('10');
+  const [selectedLayoutZoneId, setSelectedLayoutZoneId] = useState('');
+  const [selectedLayoutSeatId, setSelectedLayoutSeatId] = useState('');
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
   const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
@@ -5962,7 +5964,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setZones(zoneRows);
       const firstZoneId = readString(zoneRows[0], 'zoneId');
       setLayoutSeatZoneId((current) => zoneRows.some((zone) => readString(zone, 'zoneId') === current) ? current : firstZoneId);
+      setSelectedLayoutZoneId((current) => zoneRows.some((zone) => readString(zone, 'zoneId') === current) ? current : '');
       const firstSeatId = zoneRows.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats')).map((seat) => readString(seat, 'seatId')).find(Boolean) ?? '';
+      setSelectedLayoutSeatId((current) => zoneRows.some((zone) => readArray<Record<string, unknown>>(zone, 'seats').some((seat) => readString(seat, 'seatId') === current)) ? current : '');
       setDeviceAssignmentSeatId((current) => isGuid(current) ? current : firstSeatId);
       setCatalog(productRows);
       setSelectedProductId((current) => productRows.some((product) => readString(product, 'productId') === current) ? current : '');
@@ -6029,6 +6033,21 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
   }))).filter((seat) => isGuid(seat.seatId));
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
+  const selectLayoutZone = (zone: Record<string, unknown>) => {
+    const zoneId = readString(zone, 'zoneId');
+    setSelectedLayoutZoneId(zoneId);
+    setLayoutSeatZoneId(zoneId);
+    setLayoutZoneName(readString(zone, 'name', layoutZoneName));
+    setLayoutZoneSortOrder(String(readNumber(zone, 'sortOrder', Number(layoutZoneSortOrder))));
+    triggerFeedback(setFeedback, readString(zone, 'name', 'Zone'), 'confirmed');
+  };
+  const selectLayoutSeat = (zone: Record<string, unknown>, seat: Record<string, unknown>) => {
+    setSelectedLayoutSeatId(readString(seat, 'seatId'));
+    setLayoutSeatZoneId(readString(zone, 'zoneId'));
+    setLayoutSeatName(readString(seat, 'name', layoutSeatName));
+    setLayoutSeatSortOrder(String(readNumber(seat, 'sortOrder', Number(layoutSeatSortOrder))));
+    triggerFeedback(setFeedback, readString(seat, 'name', 'Seat'), 'confirmed');
+  };
   const selectCatalogProduct = (product: PosProductDto) => {
     const productId = readString(product, 'productId');
     const price = readMoney(product, 'price');
@@ -6167,7 +6186,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
         await apiClients.devices.revokeDeviceCredential(deviceId, credentialId);
         setRotatedCredential(null);
-      } else if (label === 'Добавить зал') {
+      } else if (label === 'Добавить зал' || label === 'Обновить зал') {
         if (!hasPermission(nextBackend.session, permissionNames.manageLayout)) {
           throw new Error('Нет прав на управление залами и рабочими местами.');
         }
@@ -6177,17 +6196,30 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         if (!name || !Number.isInteger(sortOrder)) {
           throw new Error('Заполните название зала и целый порядок сортировки.');
         }
+        if (label === 'Обновить зал' && !isGuid(selectedLayoutZoneId)) {
+          throw new Error('Выберите зал для обновления.');
+        }
 
-        const zone = await apiClients.settings.createZone(nextBackend.branchId, {
-          organizationId: nextBackend.session.organizationId,
-          name,
-          sortOrder
-        });
-        setZones((items) => [...items, zone]);
-        setLayoutSeatZoneId(readString(zone, 'zoneId'));
-        setLayoutZoneName(`Zone ${zones.length + 2}`);
-        setLayoutZoneSortOrder(String(sortOrder + 10));
-      } else if (label === 'Добавить ПК') {
+        const zone = label === 'Обновить зал'
+          ? await apiClients.settings.updateZone(nextBackend.branchId, selectedLayoutZoneId, {
+            organizationId: nextBackend.session.organizationId,
+            name,
+            sortOrder
+          })
+          : await apiClients.settings.createZone(nextBackend.branchId, {
+            organizationId: nextBackend.session.organizationId,
+            name,
+            sortOrder
+          });
+        const zoneId = readString(zone, 'zoneId', selectedLayoutZoneId);
+        setSelectedLayoutZoneId(zoneId);
+        setLayoutSeatZoneId(zoneId);
+        if (label === 'Добавить зал') {
+          setLayoutZoneName(`Zone ${zones.length + 2}`);
+          setLayoutZoneSortOrder(String(sortOrder + 10));
+        }
+        await loadSettings(nextBackend);
+      } else if (label === 'Добавить ПК' || label === 'Обновить ПК') {
         if (!hasPermission(nextBackend.session, permissionNames.manageLayout)) {
           throw new Error('Нет прав на управление залами и рабочими местами.');
         }
@@ -6202,15 +6234,28 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         if (!name || !Number.isInteger(sortOrder)) {
           throw new Error('Заполните название ПК и целый порядок сортировки.');
         }
+        if (label === 'Обновить ПК' && !isGuid(selectedLayoutSeatId)) {
+          throw new Error('Выберите ПК для обновления.');
+        }
 
-        await apiClients.settings.createSeat(nextBackend.branchId, {
-          organizationId: nextBackend.session.organizationId,
-          zoneId,
-          name,
-          sortOrder
-        });
-        setLayoutSeatName(`PC-${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0) + 2}`);
-        setLayoutSeatSortOrder(String(sortOrder + 10));
+        const seat = label === 'Обновить ПК'
+          ? await apiClients.settings.updateSeat(nextBackend.branchId, selectedLayoutSeatId, {
+            organizationId: nextBackend.session.organizationId,
+            zoneId,
+            name,
+            sortOrder
+          })
+          : await apiClients.settings.createSeat(nextBackend.branchId, {
+            organizationId: nextBackend.session.organizationId,
+            zoneId,
+            name,
+            sortOrder
+          });
+        setSelectedLayoutSeatId(readString(seat, 'seatId', selectedLayoutSeatId));
+        if (label === 'Добавить ПК') {
+          setLayoutSeatName(`PC-${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0) + 2}`);
+          setLayoutSeatSortOrder(String(sortOrder + 10));
+        }
         await loadSettings(nextBackend);
       } else if (label === 'Создать тариф') {
         if (!hasPermission(nextBackend.session, permissionNames.manageTariffs)) {
@@ -6662,12 +6707,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         <>
           <div className="settings-section-title">
             <span>Залы и рабочие места</span>
-            <button type="button" onClick={() => runSettingsAction('Добавить зал')}>Добавить зал</button>
+            <div className="settings-section-actions">
+              <button type="button" disabled={!canManageLayout} onClick={() => runSettingsAction('Добавить зал')}>Создать зал</button>
+              <button type="button" disabled={!canManageLayout || !selectedLayoutZoneId} onClick={() => runSettingsAction('Обновить зал')}>Обновить зал</button>
+            </div>
           </div>
           <div className="settings-form-grid settings-layout-form">
             <label>Название зала<input value={layoutZoneName} disabled={!canManageLayout} onChange={(event) => setLayoutZoneName(event.currentTarget.value)} /></label>
             <label>Сортировка зала<input inputMode="numeric" value={layoutZoneSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutZoneSortOrder(event.currentTarget.value)} /></label>
-            <button type="button" disabled={!canManageLayout} onClick={() => runSettingsAction('Добавить зал')}>Создать зал</button>
             <label>Зона ПК
               <select value={layoutSeatZoneId} disabled={!canManageLayout || zones.length === 0} onChange={(event) => setLayoutSeatZoneId(event.currentTarget.value)}>
                 {zones.length === 0 && <option value="">нет залов</option>}
@@ -6679,15 +6726,25 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <label>Название ПК<input value={layoutSeatName} disabled={!canManageLayout} onChange={(event) => setLayoutSeatName(event.currentTarget.value)} /></label>
             <label>Сортировка ПК<input inputMode="numeric" value={layoutSeatSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutSeatSortOrder(event.currentTarget.value)} /></label>
             <button type="button" disabled={!canManageLayout || !layoutSeatZoneId} onClick={() => runSettingsAction('Добавить ПК')}>Создать ПК</button>
+            <button type="button" disabled={!canManageLayout || !selectedLayoutSeatId || !layoutSeatZoneId} onClick={() => runSettingsAction('Обновить ПК')}>Обновить ПК</button>
           </div>
           <div className="settings-room-grid">
             {zones.map((zone) => (
-              <button key={readString(zone, 'zoneId')} type="button" className="settings-room-card" onClick={() => triggerFeedback(setFeedback, readString(zone, 'name', 'Zone'), 'confirmed')}>
+              <button key={readString(zone, 'zoneId')} type="button" className={`settings-room-card ${readString(zone, 'zoneId') === selectedLayoutZoneId ? 'active' : ''}`} onClick={() => selectLayoutZone(zone)}>
                 <strong>{readString(zone, 'name', 'Zone')}</strong>
                 <b>{readArray(zone, 'seats').length} ПК</b>
                 <span>sort {readNumber(zone, 'sortOrder', 0)}</span>
               </button>
             ))}
+          </div>
+          <div className="settings-tariff-list">
+            {zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => (
+              <button key={readString(seat, 'seatId')} type="button" className={`settings-tariff-row ${readString(seat, 'seatId') === selectedLayoutSeatId ? 'active' : ''}`} onClick={() => selectLayoutSeat(zone, seat)}>
+                <strong>{readString(seat, 'name', 'Seat')}</strong>
+                <b>{readString(zone, 'name', 'Zone')}</b>
+                <span>sort {readNumber(seat, 'sortOrder', 0)}</span>
+              </button>
+            )))}
           </div>
           <div className="settings-section-title">
             <span>Подключение устройств</span>

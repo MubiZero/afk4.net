@@ -964,6 +964,109 @@ app.MapPost("/api/branches/{branchId:guid}/layout/zones", async (
     return Results.Ok(response);
 });
 
+app.MapPatch("/api/branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
+    Guid branchId,
+    Guid zoneId,
+    UpdateZoneRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdateZone,
+            "Zone",
+            zoneId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.Name, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+        return Results.BadRequest(new { Error = "Zone name is required." });
+    }
+
+    var zone = await dbContext.Zones.SingleOrDefaultAsync(
+        candidate =>
+            candidate.OrganizationId == request.OrganizationId &&
+            candidate.BranchId == branchId &&
+            candidate.ZoneId == zoneId,
+        cancellationToken);
+
+    if (zone is null)
+    {
+        return Results.NotFound(new { Error = "Zone was not found." });
+    }
+
+    var trimmedName = request.Name.Trim();
+    var normalizedName = trimmedName.ToUpperInvariant();
+    var duplicateName = await dbContext.Zones.AnyAsync(
+        candidate =>
+            candidate.OrganizationId == request.OrganizationId &&
+            candidate.BranchId == branchId &&
+            candidate.ZoneId != zoneId &&
+            candidate.Name.ToUpper() == normalizedName,
+        cancellationToken);
+
+    if (duplicateName)
+    {
+        return Results.Conflict(new { Error = "Zone name already exists." });
+    }
+
+    zone.Name = trimmedName;
+    zone.SortOrder = request.SortOrder;
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    var seats = await dbContext.Seats
+        .AsNoTracking()
+        .Where(seat =>
+            seat.OrganizationId == request.OrganizationId &&
+            seat.BranchId == branchId &&
+            seat.ZoneId == zoneId)
+        .OrderBy(seat => seat.SortOrder)
+        .ThenBy(seat => seat.Name)
+        .ToListAsync(cancellationToken);
+    var response = ToZoneDto(zone, seats);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdateZone,
+        "Zone",
+        zone.ZoneId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { zone.Name, zone.SortOrder },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/layout/seats", async (
     Guid branchId,
     CreateSeatRequest request,
@@ -1058,6 +1161,117 @@ app.MapPost("/api/branches/{branchId:guid}/layout/seats", async (
         branchId,
         authorization.StaffContext.StaffUserId,
         AuditActionNames.CreateSeat,
+        "Seat",
+        seat.SeatId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { seat.ZoneId, seat.Name, seat.SortOrder },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
+app.MapPatch("/api/branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
+    Guid branchId,
+    Guid seatId,
+    UpdateSeatRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdateSeat,
+            "Seat",
+            seatId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.ZoneId, request.Name, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (request.ZoneId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "ZoneId is required." });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+        return Results.BadRequest(new { Error = "Seat name is required." });
+    }
+
+    var zoneExists = await dbContext.Zones.AnyAsync(
+        zone =>
+            zone.OrganizationId == request.OrganizationId &&
+            zone.BranchId == branchId &&
+            zone.ZoneId == request.ZoneId,
+        cancellationToken);
+    if (!zoneExists)
+    {
+        return Results.NotFound(new { Error = "Zone was not found." });
+    }
+
+    var seat = await dbContext.Seats.SingleOrDefaultAsync(
+        candidate =>
+            candidate.OrganizationId == request.OrganizationId &&
+            candidate.BranchId == branchId &&
+            candidate.SeatId == seatId,
+        cancellationToken);
+
+    if (seat is null)
+    {
+        return Results.NotFound(new { Error = "Seat was not found." });
+    }
+
+    var trimmedName = request.Name.Trim();
+    var normalizedName = trimmedName.ToUpperInvariant();
+    var duplicateName = await dbContext.Seats.AnyAsync(
+        candidate =>
+            candidate.OrganizationId == request.OrganizationId &&
+            candidate.BranchId == branchId &&
+            candidate.ZoneId == request.ZoneId &&
+            candidate.SeatId != seatId &&
+            candidate.Name.ToUpper() == normalizedName,
+        cancellationToken);
+
+    if (duplicateName)
+    {
+        return Results.Conflict(new { Error = "Seat name already exists in the target zone." });
+    }
+
+    seat.ZoneId = request.ZoneId;
+    seat.Name = trimmedName;
+    seat.SortOrder = request.SortOrder;
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    var response = ToSeatDto(seat);
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdateSeat,
         "Seat",
         seat.SeatId.ToString("D"),
         AuditOutcome.Succeeded,

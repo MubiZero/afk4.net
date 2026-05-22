@@ -4685,6 +4685,7 @@ button {
   transform: translateY(-1px);
 }
 
+.settings-room-card.active,
 .settings-tariff-row.active {
   border-color: #1f6feb;
   background: #132743;

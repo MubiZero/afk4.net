@@ -194,7 +194,7 @@ Minimum bar:
    category/product, and optional already-enrolled device assignment. The
    WebView2/React Settings work has since added tariff/version
    creation/update/deactivation and package definition creation/update/
-   deactivation, layout zone/seat creation, device command
+   deactivation, layout zone/seat creation/update, device command
    dispatch, and device credential rotation/revocation through existing backend
    endpoints on `codex/operator-app-redesign`.
 
@@ -369,8 +369,9 @@ Minimum bar:
   creates device enrollment codes, assigns enrolled devices to seats, and
   opens device detail through existing device endpoints, including credential
   rotation/revocation controls. The same Settings section now creates layout
-  zones and seats from operator-entered names/sort orders through the existing
-  layout endpoints with `layout.manage` gating.
+  zones and seats from operator-entered names/sort orders, then update selected
+  zone/seat names, sort orders, and seat zones through layout endpoints with
+  `layout.manage` gating.
   Payments now opens shifts through the existing open-shift API, closes the
   current shift through the existing close-shift API with counted cash and a
   closing note, and records cash movements through the existing shift cash
@@ -421,8 +422,9 @@ Minimum bar:
 - Custom roles, arbitrary permission-set editing, and richer staff profile
   management are not implemented.
 - Branch layout management is implemented as a minimum API path on `main`;
-  the Operator App has a minimum one-zone/seats Pilot Setup panel, but not a
-  general layout editor.
+  the Operator App now has Settings creation/update controls for zone and seat
+  names, sort orders, and seat moves, but not visual drag/drop layout editing
+  or archive/delete flows.
 - Device-seat assignment has a staff-authorized API path and staging smoke
   setup integration plus optional assignment in the Pilot Setup panel, but no
   general device/seat management UI yet.
@@ -458,7 +460,7 @@ Minimum bar:
    feedback, real map filters/table view parity, Booking permission/state
    hardening, Settings staff creation/role reassignment/lifecycle controls,
    branch profile save,
-   Settings layout zone/seat creation, Settings POS
+   Settings layout zone/seat creation/update, Settings POS
    category/product creation/update/deactivation, Settings stock movement creation/history,
    Settings tariff/package definition creation/update/deactivation, Settings update package/rollout controls, Settings
    device enrollment/seat assignment/credential lifecycle, Dashboard export download,

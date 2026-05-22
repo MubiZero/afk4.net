@@ -83,7 +83,7 @@ Current state:
   7 days; export buttons now download backend operator-action/shift CSV files
   and local audit/error JSON bundles from loaded audit/diagnostics data.
   Settings `Залы и
-  ПК` now creates layout zones/seats, creates enrollment codes, assigns device
+  ПК` now creates/updates layout zones/seats, creates enrollment codes, assigns device
   ids to seats, and reads device detail through existing layout/device
   endpoints, including credential rotation/revocation controls. POS
   quick refund now calls the existing refund endpoint for the selected backend
@@ -163,7 +163,7 @@ event list by all/Agent/POS/Operator/Platform; period presets now execute
 audit searches for today, the last 24 hours, or the last 7 days; export buttons
 now download backend operator-action/shift CSV files and local audit/error JSON
 bundles from loaded audit/diagnostics data. Settings `Залы и ПК` now exposes
-backend-backed layout zone/seat creation, enrollment-code creation,
+backend-backed layout zone/seat creation/update, enrollment-code creation,
 device-to-seat assignment, and device detail lookup with the existing layout
 and device permissions, plus credential rotation and revocation through the
 existing credential lifecycle endpoints.
@@ -371,8 +371,8 @@ missing-backend copy.
   gating. Device setup from `Залы и ПК` was implemented on 2026-05-21 through
   the existing enrollment-code, device-seat assignment, and device detail
   endpoints with existing device permission gating. The same section now has a
-  general layout form for zone and seat creation through the existing layout
-  endpoints with `layout.manage` gating. Credential rotation and revocation were
+  general layout form for zone/seat creation and selected zone/seat update
+  through layout endpoints with `layout.manage` gating. Credential rotation and revocation were
   added to the same section on 2026-05-21 through the existing credential
   lifecycle endpoints.
   Staff activation/deactivation and password reset from `Персонал` were
@@ -387,8 +387,13 @@ missing-backend copy.
   with `tariffs.manage` gating, audit records, active option removal after
   deactivation, and material-change rejection when a tariff version is already
   used by sessions.
+  Layout update/reorder from `Залы и ПК` was implemented on 2026-05-22
+  through `PATCH /api/branches/{branchId}/layout/zones/{zoneId}` and
+  `PATCH /api/branches/{branchId}/layout/seats/{seatId}` with `layout.manage`
+  gating, audit records, duplicate-name checks, and seat moves between zones.
   Remaining settings gaps include custom roles/arbitrary permission-set editing,
-  staff profile detail, richer layout editing beyond create-only zones/seats,
+  staff profile detail, richer visual/archive layout editing beyond name/sort/
+  zone updates,
   richer device inventory/history management, package purchase UX refinements,
   advanced POS catalog management, advanced inventory
   controls and reconciliation, integrations/payment-provider

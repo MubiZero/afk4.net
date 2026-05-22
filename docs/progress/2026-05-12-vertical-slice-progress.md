@@ -200,8 +200,8 @@ implementation evidence are needed.
   `Залы и ПК` can now create device enrollment codes, assign an enrolled
   device id to a selected seat, and open device detail through existing device
   endpoints, guarded by the existing device permissions. The same section now
-  creates layout zones and seats from operator-entered names/sort orders
-  through the existing layout endpoints, guarded by `layout.manage`. The same
+  creates and updates layout zones/seats from operator-entered names/sort
+  orders through the existing layout endpoints, guarded by `layout.manage`. The same
   Settings device surface can now rotate and revoke device credentials through
   the existing credential lifecycle endpoints and dispatch lock/unlock device
   commands through `/api/devices/{deviceId}/commands`, guarded by
@@ -236,9 +236,10 @@ implementation evidence are needed.
   Settings reads staff, layout, catalog, stock movement history, diagnostics,
   update rollout, tariff option, and package option data, and can trigger
   limited backend setup actions
-  including tariff/version creation/update/deactivation, package definition
-  creation/update/deactivation, POS product update/deactivation, inventory stock movement
-  creation, update package registration, rollout creation, and update state changes;
+  including layout zone/seat creation/update, tariff/version
+  creation/update/deactivation, package definition creation/update/deactivation,
+  POS product update/deactivation, inventory stock movement creation, update
+  package registration, rollout creation, and update state changes;
   Settings device setup can create enrollment codes, assign device seats, read
   device detail, dispatch device commands, and rotate/revoke device credentials;
   Logs now applies backend
@@ -353,7 +354,7 @@ wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters and
 selected audit/diagnostics event detail plus source-card filtering and period
 presets plus export downloads, POS
-refund quick action, Settings layout zone/seat creation, POS
+refund quick action, Settings layout zone/seat creation/update, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
 checkout, POS new-customer checkout, Clients package purchase, Clients
 reservation permission gating, and Settings staff role editing:
@@ -367,9 +368,9 @@ reservation permission gating, and Settings staff role editing:
 
 Result:
 
-- frontend tests: 89 passed, 0 failed;
+- frontend tests: 90 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 802 passed, 0 failed;
+- full local .NET solution tests: 805 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -469,11 +470,14 @@ Result:
   the existing device endpoints from `Залы и ПК`. The same test now covers
   rotating and revoking device credentials through the existing credential
   lifecycle endpoints.
-- Settings layout frontend tests now cover creating a layout zone and seat from
-  `Залы и ПК`, including operator-entered zone name/sort order, selected seat
-  zone id, seat name/sort order, organization id, and the existing
-  `/api/branches/{branchId}/layout/zones` plus
-  `/api/branches/{branchId}/layout/seats` endpoints.
+- Settings layout backend/API/frontend tests now cover creating and updating a
+  layout zone and seat from `Залы и ПК`, including operator-entered zone
+  name/sort order, selected seat zone id, seat name/sort order, organization
+  id, `layout.manage` authorization, audit records, shared contract JSON
+  round-trips, and the `/api/branches/{branchId}/layout/zones`,
+  `/api/branches/{branchId}/layout/zones/{zoneId}`,
+  `/api/branches/{branchId}/layout/seats`, and
+  `/api/branches/{branchId}/layout/seats/{seatId}` endpoints.
 - Payments frontend tests now cover closing the current shift from the
   reconciliation panel through `/api/shifts/{shiftId}/close`, including
   counted cash, closing note, organization id, and idempotency key
@@ -491,8 +495,9 @@ Result:
   source-card filtering, audit period presets, Logs export downloads,
   Payments/Dashboard report export downloads, Clients reservation permission
   gating, Settings staff role editing/lifecycle controls, Settings stock
-  movement history, Settings POS product update/deactivation, Settings tariff
-  update/deactivation, and Settings package update/deactivation: the React app rendered the
+  movement history, Settings POS product update/deactivation, Settings layout
+  zone/seat update, Settings tariff update/deactivation, and Settings package
+  update/deactivation: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
   and no old backend placeholder copy.
@@ -1351,8 +1356,9 @@ Operator App redesign branch-local verification on 2026-05-20:
   reassignment, activation/deactivation, and password reset. Custom roles,
   arbitrary permission-set editing, and richer staff profile management are
   still not implemented.
-- General Operator App layout management UI is not implemented beyond the
-  minimum one-zone/seats Pilot Setup panel.
+- General Operator App layout management UI now supports Settings-based zone/
+  seat creation, rename/reorder, and seat moves between zones. Visual drag/drop
+  layout editing and archive/delete flows are still not implemented.
 - Device-seat assignment now has an authorized Platform API path and staging
   setup integration; general Operator App device/seat management UI is not
   implemented beyond optional already-enrolled device assignment in the Pilot
@@ -1483,6 +1489,14 @@ Operator App redesign branch-local verification on 2026-05-20:
   tariff version is already used by sessions. The React `Тарифы` section lets
   operators select a tariff, edit name/price/minimum/rounding, or mark it
   inactive.
+- On 2026-05-22, `codex/operator-app-redesign` added Settings layout
+  update/reorder. The Platform API now exposes
+  `PATCH /api/branches/{branchId}/layout/zones/{zoneId}` and
+  `PATCH /api/branches/{branchId}/layout/seats/{seatId}` with `layout.manage`
+  authorization, audit actions `layout.zones.update` and
+  `layout.seats.update`, duplicate-name checks, and seat moves between zones.
+  The React `Залы и ПК` section lets operators select a zone or PC, edit its
+  name/sort order, and move a PC to another zone.
 - On 2026-05-21, `codex/operator-app-redesign` added a backend-backed
   Settings `POS и склад` product creation form. It creates a POS category,
   then a POS product with price, SKU, stock flags, and idempotency keys through
