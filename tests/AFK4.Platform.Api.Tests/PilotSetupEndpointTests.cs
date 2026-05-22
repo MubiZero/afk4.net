@@ -541,6 +541,79 @@ public sealed class PilotSetupEndpointTests
     }
 
     [Fact]
+    public async Task LayoutDelete_WithBranchManagerRole_RemovesUnusedSeatAndEmptyZone()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var zoneResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/zones",
+            new CreateZoneRequest(TestIds.OrganizationId, "Delete Hall", 50));
+        var zone = await zoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
+        Assert.NotNull(zone);
+        var seatResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/seats",
+            new CreateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "DELETE-01", 50));
+        var seat = await seatResponse.Content.ReadFromJsonAsync<SeatDto>();
+        Assert.NotNull(seat);
+
+        var deleteSeatResponse = await client.DeleteAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}?organizationId={TestIds.OrganizationId:D}");
+        var deleteZoneResponse = await client.DeleteAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}?organizationId={TestIds.OrganizationId:D}");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleteSeatResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deleteZoneResponse.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await dbContext.Seats.AnyAsync(candidate => candidate.SeatId == seat.SeatId));
+        Assert.False(await dbContext.Zones.AnyAsync(candidate => candidate.ZoneId == zone.ZoneId));
+        Assert.Equal(1, await dbContext.AuditRecords.CountAsync(audit => audit.Action == AuditActionNames.DeleteSeat));
+        Assert.Equal(1, await dbContext.AuditRecords.CountAsync(audit => audit.Action == AuditActionNames.DeleteZone));
+    }
+
+    [Fact]
+    public async Task LayoutDelete_WithActiveDeviceAssignment_ReturnsConflict()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var zoneResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/zones",
+            new CreateZoneRequest(TestIds.OrganizationId, "Assigned Hall", 60));
+        var zone = await zoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
+        Assert.NotNull(zone);
+        var seatResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/seats",
+            new CreateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "ASSIGNED-01", 60));
+        var seat = await seatResponse.Content.ReadFromJsonAsync<SeatDto>();
+        Assert.NotNull(seat);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            dbContext.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+            {
+                DeviceSeatAssignmentId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                SeatId = seat.SeatId,
+                DeviceId = TestIds.DeviceId,
+                AttachedAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var deleteSeatResponse = await client.DeleteAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}?organizationId={TestIds.OrganizationId:D}");
+        var deleteZoneResponse = await client.DeleteAsync(
+            $"/api/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}?organizationId={TestIds.OrganizationId:D}");
+
+        Assert.Equal(HttpStatusCode.Conflict, deleteSeatResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, deleteZoneResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateZone_WithCashierRole_ReturnsForbidden()
     {
         await using var factory = new PlatformApiFactory();

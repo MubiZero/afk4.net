@@ -587,11 +587,17 @@ export function createSettingsClient(api: PlatformApiClient) {
     updateZone(branchId: Guid, zoneId: Guid, request: UpdateZoneRequest): Promise<ZoneDto> {
       return api.patch<ZoneDto, UpdateZoneRequest>(`/api/branches/${branchId}/layout/zones/${zoneId}`, request);
     },
+    deleteZone(branchId: Guid, zoneId: Guid, organizationId: Guid): Promise<void> {
+      return api.delete<void>(`/api/branches/${branchId}/layout/zones/${zoneId}`, { organizationId });
+    },
     createSeat(branchId: Guid, request: CreateSeatRequest): Promise<SeatDto> {
       return api.post<SeatDto, CreateSeatRequest>(`/api/branches/${branchId}/layout/seats`, request);
     },
     updateSeat(branchId: Guid, seatId: Guid, request: UpdateSeatRequest): Promise<SeatDto> {
       return api.patch<SeatDto, UpdateSeatRequest>(`/api/branches/${branchId}/layout/seats/${seatId}`, request);
+    },
+    deleteSeat(branchId: Guid, seatId: Guid, organizationId: Guid): Promise<void> {
+      return api.delete<void>(`/api/branches/${branchId}/layout/seats/${seatId}`, { organizationId });
     },
     createTariff(branchId: Guid, request: CreateTariffRequest): Promise<TariffDto> {
       return api.post<TariffDto, CreateTariffRequest>(`/api/branches/${branchId}/tariffs`, request);

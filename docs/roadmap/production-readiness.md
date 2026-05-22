@@ -370,9 +370,9 @@ Minimum bar:
   opens device detail through existing device endpoints with status/version/
   credential/app counts plus selected-device and branch-wide command history,
   including credential rotation/revocation controls. The same Settings section now creates layout
-  zones and seats from operator-entered names/sort orders, then update selected
-  zone/seat names, sort orders, and seat zones through layout endpoints with
-  `layout.manage` gating.
+  zones and seats from operator-entered names/sort orders, updates selected
+  zone/seat names, sort orders, and seat zones, and safely deletes unused seats
+  plus empty zones through layout endpoints with `layout.manage` gating.
   Payments now opens shifts through the existing open-shift API, closes the
   current shift through the existing close-shift API with counted cash and a
   closing note, and records cash movements through the existing shift cash
@@ -431,8 +431,8 @@ Minimum bar:
 - Custom roles and arbitrary permission-set editing are not implemented.
 - Branch layout management is implemented as a minimum API path on `main`;
   the Operator App now has Settings creation/update controls for zone and seat
-  names, sort orders, and seat moves, but not visual drag/drop layout editing
-  or archive/delete flows.
+  names, sort orders, seat moves, unused-seat deletion, and empty-zone deletion,
+  but not visual drag/drop layout editing or soft archive flows.
 - Device-seat assignment has a staff-authorized API path and staging smoke
   setup integration plus Settings inventory/assignment/detail/command/
   command-history/credential controls and a branch-wide command-history
@@ -470,7 +470,7 @@ Minimum bar:
    feedback, real map filters/table view parity, Booking permission/state
    hardening, Settings staff creation/profile editing/role reassignment/lifecycle controls,
    branch profile save,
-   Settings layout zone/seat creation/update, Settings POS
+   Settings layout zone/seat creation/update/delete, Settings POS
    category/product creation/update/deactivation, Settings stock movement creation/history,
    Settings tariff/package definition creation/update/deactivation, Settings update package/rollout controls/detail, Settings
    device enrollment/seat assignment/credential lifecycle, Dashboard export download,
@@ -481,7 +481,7 @@ Minimum bar:
    export downloads, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
    POS selected-customer/new-customer checkout/wallet top-up/stock write-off, Clients wallet
-   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, Clients package purchase selector/confirmation, Settings branch device inventory, selected-device command history, and branch-wide device command history. Next deliver staging smoke across these backend-backed workspaces
+   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, Clients package purchase selector/confirmation, Settings branch device inventory, selected-device command history, branch-wide device command history, and Settings safe layout deletion. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must
    still target staging with

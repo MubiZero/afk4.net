@@ -1181,6 +1181,91 @@ app.MapPatch("/api/branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
     return Results.Ok(response);
 });
 
+app.MapDelete("/api/branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
+    Guid branchId,
+    Guid zoneId,
+    Guid organizationId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.DeleteZone,
+            "Zone",
+            zoneId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (organizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var zone = await dbContext.Zones.SingleOrDefaultAsync(
+        candidate =>
+            candidate.OrganizationId == organizationId &&
+            candidate.BranchId == branchId &&
+            candidate.ZoneId == zoneId,
+        cancellationToken);
+
+    if (zone is null)
+    {
+        return Results.NotFound(new { Error = "Zone was not found." });
+    }
+
+    var hasSeats = await dbContext.Seats.AnyAsync(
+        seat =>
+            seat.OrganizationId == organizationId &&
+            seat.BranchId == branchId &&
+            seat.ZoneId == zoneId,
+        cancellationToken);
+
+    if (hasSeats)
+    {
+        return Results.Conflict(new { Error = "Zone must be empty before deletion." });
+    }
+
+    var zoneName = zone.Name;
+    var sortOrder = zone.SortOrder;
+    dbContext.Zones.Remove(zone);
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        organizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.DeleteZone,
+        "Zone",
+        zoneId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { Name = zoneName, SortOrder = sortOrder },
+        cancellationToken);
+
+    return Results.NoContent();
+});
+
 app.MapPost("/api/branches/{branchId:guid}/layout/seats", async (
     Guid branchId,
     CreateSeatRequest request,
@@ -1393,6 +1478,105 @@ app.MapPatch("/api/branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
         cancellationToken);
 
     return Results.Ok(response);
+});
+
+app.MapDelete("/api/branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
+    Guid branchId,
+    Guid seatId,
+    Guid organizationId,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageLayout,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.DeleteSeat,
+            "Seat",
+            seatId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (organizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var seat = await dbContext.Seats.SingleOrDefaultAsync(
+        candidate =>
+            candidate.OrganizationId == organizationId &&
+            candidate.BranchId == branchId &&
+            candidate.SeatId == seatId,
+        cancellationToken);
+
+    if (seat is null)
+    {
+        return Results.NotFound(new { Error = "Seat was not found." });
+    }
+
+    var hasActiveAssignment = await dbContext.DeviceSeatAssignments.AnyAsync(
+        assignment =>
+            assignment.OrganizationId == organizationId &&
+            assignment.BranchId == branchId &&
+            assignment.SeatId == seatId &&
+            assignment.DetachedAtUtc == null,
+        cancellationToken);
+
+    if (hasActiveAssignment)
+    {
+        return Results.Conflict(new { Error = "Seat has an active device assignment." });
+    }
+
+    var hasSessionHistory = await dbContext.Sessions.AnyAsync(
+        session =>
+            session.OrganizationId == organizationId &&
+            session.BranchId == branchId &&
+            session.SeatId == seatId,
+        cancellationToken);
+
+    if (hasSessionHistory)
+    {
+        return Results.Conflict(new { Error = "Seat has session history and cannot be deleted." });
+    }
+
+    var zoneId = seat.ZoneId;
+    var seatName = seat.Name;
+    var sortOrder = seat.SortOrder;
+    dbContext.Seats.Remove(seat);
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        organizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.DeleteSeat,
+        "Seat",
+        seatId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { ZoneId = zoneId, Name = seatName, SortOrder = sortOrder },
+        cancellationToken);
+
+    return Results.NoContent();
 });
 
 app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (

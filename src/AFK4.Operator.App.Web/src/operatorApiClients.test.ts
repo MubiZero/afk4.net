@@ -399,6 +399,18 @@ describe('operator API clients', () => {
     expect(calls[22].body).toEqual({ organizationId, expiresInSeconds: 900 });
     expect(calls[23].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
+
+  it('maps layout delete clients with organization scoping', async () => {
+    const { clients, calls } = createRecordedClients();
+
+    await clients.settings.deleteSeat(branchId, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', organizationId);
+    await clients.settings.deleteZone(branchId, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', organizationId);
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      `DELETE /api/branches/${branchId}/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?organizationId=${organizationId}`,
+      `DELETE /api/branches/${branchId}/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb?organizationId=${organizationId}`
+    ]);
+  });
 });
 
 interface RecordedCall {

@@ -205,7 +205,8 @@ implementation evidence are needed.
   device id to a selected seat, and open device detail through existing device
   endpoints, guarded by the existing device permissions. The same section now
   creates and updates layout zones/seats from operator-entered names/sort
-  orders through the existing layout endpoints, guarded by `layout.manage`. The same
+  orders and can delete unused seats plus empty zones through the existing
+  layout endpoints, guarded by `layout.manage`. The same
   Settings device surface can now rotate and revoke device credentials through
   the existing credential lifecycle endpoints and dispatch lock/unlock device
   commands through `/api/devices/{deviceId}/commands`, guarded by
@@ -372,7 +373,7 @@ draft void quick action, POS sale detail/receipt lookup, POS selected-customer
 checkout, POS new-customer checkout, Clients package purchase, Clients
 reservation permission gating, Settings staff role editing, Settings branch
 device inventory, selected-device command history, and branch-wide device
-command history:
+command history, and Settings safe layout deletion:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -383,15 +384,15 @@ command history:
 
 Result:
 
-- frontend tests: 92 passed, 0 failed;
+- frontend tests: 94 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 818 passed, 0 failed;
+- full local .NET solution tests: 820 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Browser smoke on `http://127.0.0.1:5173/` after Settings staff profile
-  editing and branch-wide device command history rendered the WebView auth
-  entry surface with title `AFK4 Operator`, heading `Вход оператора`, sign-in
-  button, no old backend placeholder copy, and no horizontal or vertical body
-  overflow.
+  editing, branch-wide device command history, and Settings safe layout
+  deletion rendered the WebView auth entry surface with title `AFK4 Operator`,
+  heading `Вход оператора`, sign-in button, no old backend placeholder copy,
+  and no horizontal or vertical body overflow.
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
@@ -521,6 +522,11 @@ Result:
   `/api/branches/{branchId}/layout/zones/{zoneId}`,
   `/api/branches/{branchId}/layout/seats`, and
   `/api/branches/{branchId}/layout/seats/{seatId}` endpoints.
+- Settings layout backend/API/frontend tests now cover deleting an unused seat
+  and then deleting an empty zone through the layout DELETE endpoints,
+  including organization scoping, audit records, active-device-assignment
+  conflict handling, frontend route construction, and Operator App buttons in
+  `Залы и ПК`.
 - Payments frontend tests now cover closing the current shift from the
   reconciliation panel through `/api/shifts/{shiftId}/close`, including
   counted cash, closing note, organization id, and idempotency key
@@ -1401,8 +1407,9 @@ Operator App redesign branch-local verification on 2026-05-20:
   reset. Custom roles and arbitrary permission-set editing are still not
   implemented.
 - General Operator App layout management UI now supports Settings-based zone/
-  seat creation, rename/reorder, and seat moves between zones. Visual drag/drop
-  layout editing and archive/delete flows are still not implemented.
+  seat creation, rename/reorder, seat moves between zones, safe deletion of
+  unused seats, and deletion of empty zones. Visual drag/drop layout editing and
+  soft archive flows are still not implemented.
 - Device-seat assignment now has an authorized Platform API path and staging
   setup integration, and Operator App Settings now has a branch device
   inventory list plus device-card/assignment/command-history/credential

@@ -1551,6 +1551,35 @@ describe('App', () => {
     });
   });
 
+  it('deletes selected layout seats and empty zones from Settings layout form', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
+    fireEvent.click(screen.getByRole('button', { name: /PC-01/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить ПК' }));
+
+    expect(await screen.findByText('Удалить ПК: подтверждено')).toBeInTheDocument();
+    const seatDeleteCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
+      init?.method === 'DELETE');
+    expect(seatDeleteCall).toBeDefined();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Зал A/ })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить зал' }));
+
+    expect(await screen.findByText('Удалить зал: подтверждено')).toBeInTheDocument();
+    const zoneDeleteCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
+      init?.method === 'DELETE');
+    expect(zoneDeleteCall).toBeDefined();
+  });
+
   it('creates device enrollment codes and assigns devices to seats from Settings', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -2395,6 +2424,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     }));
   }
 
+  if (pathname.includes('/layout/zones/') && init?.method === 'DELETE') {
+    return new Response(null, { status: 204 });
+  }
+
   if (pathname.endsWith('/layout/seats') && init?.method === 'POST') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createSeat(body));
@@ -2406,6 +2439,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
       seatId: pathname.split('/').at(-1),
       ...body
     }));
+  }
+
+  if (pathname.includes('/layout/seats/') && init?.method === 'DELETE') {
+    return new Response(null, { status: 204 });
   }
 
   if (pathname.endsWith('/layout/zones')) {

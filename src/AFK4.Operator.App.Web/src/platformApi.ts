@@ -53,6 +53,10 @@ export class PlatformApiClient {
     return this.send<TResponse>('PATCH', path, body);
   }
 
+  delete<TResponse>(path: string, query?: QueryParams): Promise<TResponse> {
+    return this.send<TResponse>('DELETE', path, undefined, query);
+  }
+
   buildUrl(path: string, query?: QueryParams): string {
     const url = new URL(path, this.baseUrl);
 

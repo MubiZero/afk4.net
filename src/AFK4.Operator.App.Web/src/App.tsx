@@ -6356,6 +6356,20 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           setLayoutZoneSortOrder(String(sortOrder + 10));
         }
         await loadSettings(nextBackend);
+      } else if (label === 'Удалить зал') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageLayout)) {
+          throw new Error('Нет прав на управление залами и рабочими местами.');
+        }
+
+        const zoneId = selectedLayoutZoneId.trim();
+        if (!isGuid(zoneId)) {
+          throw new Error('Выберите зал для удаления.');
+        }
+
+        await apiClients.settings.deleteZone(nextBackend.branchId, zoneId, nextBackend.session.organizationId);
+        setSelectedLayoutZoneId('');
+        setLayoutSeatZoneId('');
+        await loadSettings(nextBackend);
       } else if (label === 'Добавить ПК' || label === 'Обновить ПК') {
         if (!hasPermission(nextBackend.session, permissionNames.manageLayout)) {
           throw new Error('Нет прав на управление залами и рабочими местами.');
@@ -6393,6 +6407,20 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           setLayoutSeatName(`PC-${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0) + 2}`);
           setLayoutSeatSortOrder(String(sortOrder + 10));
         }
+        await loadSettings(nextBackend);
+      } else if (label === 'Удалить ПК') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageLayout)) {
+          throw new Error('Нет прав на управление залами и рабочими местами.');
+        }
+
+        const seatId = selectedLayoutSeatId.trim();
+        if (!isGuid(seatId)) {
+          throw new Error('Выберите ПК для удаления.');
+        }
+
+        await apiClients.settings.deleteSeat(nextBackend.branchId, seatId, nextBackend.session.organizationId);
+        setSelectedLayoutSeatId('');
+        setDeviceAssignmentSeatId('');
         await loadSettings(nextBackend);
       } else if (label === 'Создать тариф') {
         if (!hasPermission(nextBackend.session, permissionNames.manageTariffs)) {
@@ -6871,6 +6899,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <div className="settings-section-actions">
               <button type="button" disabled={!canManageLayout} onClick={() => runSettingsAction('Добавить зал')}>Создать зал</button>
               <button type="button" disabled={!canManageLayout || !selectedLayoutZoneId} onClick={() => runSettingsAction('Обновить зал')}>Обновить зал</button>
+              <button type="button" disabled={!canManageLayout || !selectedLayoutZoneId} onClick={() => runSettingsAction('Удалить зал')}>Удалить зал</button>
             </div>
           </div>
           <div className="settings-form-grid settings-layout-form">
@@ -6888,6 +6917,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <label>Сортировка ПК<input inputMode="numeric" value={layoutSeatSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutSeatSortOrder(event.currentTarget.value)} /></label>
             <button type="button" disabled={!canManageLayout || !layoutSeatZoneId} onClick={() => runSettingsAction('Добавить ПК')}>Создать ПК</button>
             <button type="button" disabled={!canManageLayout || !selectedLayoutSeatId || !layoutSeatZoneId} onClick={() => runSettingsAction('Обновить ПК')}>Обновить ПК</button>
+            <button type="button" disabled={!canManageLayout || !selectedLayoutSeatId} onClick={() => runSettingsAction('Удалить ПК')}>Удалить ПК</button>
           </div>
           <div className="settings-room-grid">
             {zones.map((zone) => (
