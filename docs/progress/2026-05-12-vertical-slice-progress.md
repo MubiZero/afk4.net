@@ -241,7 +241,8 @@ implementation evidence are needed.
   POS product update/deactivation, inventory stock movement creation, update
   package registration, rollout creation, and update state changes;
   Settings device setup can create enrollment codes, assign device seats, read
-  device detail, dispatch device commands, and rotate/revoke device credentials;
+  device detail with status/version/credential/app/recent-command history,
+  dispatch device commands, and rotate/revoke device credentials;
   Logs now applies backend
   audit search filters for action/outcome/target type, UTC date range, and
   limit through `/api/branches/{branchId}/audit`; Dashboard reads the backend
@@ -467,9 +468,10 @@ Result:
   audit JSON filename generation.
 - Settings device frontend tests now cover creating device enrollment codes,
   assigning a device id to a selected seat, and reading device detail through
-  the existing device endpoints from `Залы и ПК`. The same test now covers
-  rotating and revoking device credentials through the existing credential
-  lifecycle endpoints.
+  the existing device endpoints from `Залы и ПК`, including displayed online/
+  locked state, Agent/Shell versions, credential/app counts, and recent command
+  history. The same test now covers rotating and revoking device credentials
+  through the existing credential lifecycle endpoints.
 - Settings layout backend/API/frontend tests now cover creating and updating a
   layout zone and seat from `Залы и ПК`, including operator-entered zone
   name/sort order, selected seat zone id, seat name/sort order, organization
@@ -1497,6 +1499,11 @@ Operator App redesign branch-local verification on 2026-05-20:
   `layout.seats.update`, duplicate-name checks, and seat moves between zones.
   The React `Залы и ПК` section lets operators select a zone or PC, edit its
   name/sort order, and move a PC to another zone.
+- On 2026-05-22, `codex/operator-app-redesign` expanded Settings device detail
+  in `Залы и ПК`. The existing device detail response now renders online/locked
+  state, seat/zone placement, last heartbeat, Agent/Shell versions, active
+  credential count, installed app count, and recent command status/message
+  rows instead of only a single machine/seat summary field.
 - On 2026-05-21, `codex/operator-app-redesign` added a backend-backed
   Settings `POS и склад` product creation form. It creates a POS category,
   then a POS product with price, SKU, stock flags, and idempotency keys through

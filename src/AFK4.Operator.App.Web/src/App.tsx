@@ -6033,6 +6033,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
   }))).filter((seat) => isGuid(seat.seatId));
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
+  const deviceRecentCommands = readArray<Record<string, unknown>>(deviceDetail, 'recentCommands');
   const selectLayoutZone = (zone: Record<string, unknown>) => {
     const zoneId = readString(zone, 'zoneId');
     setSelectedLayoutZoneId(zoneId);
@@ -6780,6 +6781,29 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Сменить credential')}>Сменить credential</button>
             <button type="button" disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke)} onClick={() => runSettingsAction('Отозвать credential')}>Отозвать credential</button>
           </div>
+          {deviceDetail && (
+            <div className="settings-device-detail-grid">
+              <span><strong>Устройство</strong><b>{readString(deviceDetail, 'machineName', 'Device')}</b></span>
+              <span><strong>Статус</strong><b>{readBoolean(deviceDetail, 'isOnline') ? 'online' : 'offline'} · {readBoolean(deviceDetail, 'isLocked') ? 'locked' : 'unlocked'}</b></span>
+              <span><strong>Место</strong><b>{readString(deviceDetail, 'zoneName', 'без зала')} · {readString(deviceDetail, 'seatName', 'без места')}</b></span>
+              <span><strong>Heartbeat</strong><b>{formatTime(readString(deviceDetail, 'lastHeartbeatAtUtc'))}</b></span>
+              <span><strong>Agent</strong><b>{readString(deviceDetail, 'agentVersion', '—')}</b></span>
+              <span><strong>Shell</strong><b>{readString(deviceDetail, 'shellVersion', '—')}</b></span>
+              <span><strong>Credentials</strong><b>{readNumber(deviceDetail, 'activeCredentialCount', 0)}</b></span>
+              <span><strong>Apps</strong><b>{readNumber(deviceDetail, 'installedAppCount', 0)}</b></span>
+            </div>
+          )}
+          {deviceRecentCommands.length > 0 && (
+            <div className="settings-command-history">
+              {deviceRecentCommands.map((command) => (
+                <span key={readString(command, 'commandId')}>
+                  <strong>{readString(command, 'type', 'command')}</strong>
+                  <b>{readString(command, 'status', 'unknown')}</b>
+                  <em>{readString(command, 'message') || formatTime(readString(command, 'updatedAtUtc'))}</em>
+                </span>
+              ))}
+            </div>
+          )}
         </>
       );
     }

@@ -367,7 +367,8 @@ Minimum bar:
   bundles from loaded audit/diagnostics data.
   Settings `Залы и ПК` now also
   creates device enrollment codes, assigns enrolled devices to seats, and
-  opens device detail through existing device endpoints, including credential
+  opens device detail through existing device endpoints with status/version/
+  credential/app counts plus recent command history, including credential
   rotation/revocation controls. The same Settings section now creates layout
   zones and seats from operator-entered names/sort orders, then update selected
   zone/seat names, sort orders, and seat zones through layout endpoints with
@@ -426,8 +427,9 @@ Minimum bar:
   names, sort orders, and seat moves, but not visual drag/drop layout editing
   or archive/delete flows.
 - Device-seat assignment has a staff-authorized API path and staging smoke
-  setup integration plus optional assignment in the Pilot Setup panel, but no
-  general device/seat management UI yet.
+  setup integration plus Settings assignment/detail/command/credential controls,
+  but no fleet-level device inventory list or historical command/device event
+  browser yet.
 - Pilot branch setup can now run through either the Operator App Pilot Setup
   panel or the Platform API script fallback. Commercial production still needs
   broader operator-safe configuration screens.

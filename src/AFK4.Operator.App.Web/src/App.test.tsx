@@ -1561,6 +1561,11 @@ describe('App', () => {
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333') &&
       init?.method === 'GET')).toBe(true);
     expect(screen.getByDisplayValue('PC-02 · PC-01')).toBeInTheDocument();
+    expect(screen.getByText('Agent')).toBeInTheDocument();
+    expect(screen.getAllByText('0.1.14').length).toBeGreaterThan(0);
+    expect(screen.getByText('refresh-session-lease')).toBeInTheDocument();
+    expect(screen.getByText('acked')).toBeInTheDocument();
+    expect(screen.getByText('lease refreshed')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Сменить credential' }));
     expect(await screen.findByText('Сменить credential: подтверждено')).toBeInTheDocument();
@@ -3182,7 +3187,17 @@ function createDeviceDetail(overrides: Record<string, unknown> = {}) {
     zoneName: 'Зал A',
     activeCredentialCount: 1,
     installedAppCount: 2,
-    recentCommands: [],
+    recentCommands: [
+      {
+        deviceId: '33333333-3333-3333-3333-333333333333',
+        commandId: '56565656-5656-5656-5656-565656565656',
+        type: 'refresh-session-lease',
+        status: 'acked',
+        message: 'lease refreshed',
+        createdAtUtc: '2026-05-21T09:20:00Z',
+        updatedAtUtc: '2026-05-21T09:21:00Z'
+      }
+    ],
     ...overrides
   };
 }

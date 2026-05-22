@@ -84,8 +84,9 @@ Current state:
   and local audit/error JSON bundles from loaded audit/diagnostics data.
   Settings `Залы и
   ПК` now creates/updates layout zones/seats, creates enrollment codes, assigns device
-  ids to seats, and reads device detail through existing layout/device
-  endpoints, including credential rotation/revocation controls. POS
+  ids to seats, and reads device detail with status/version/credential/app
+  counts plus recent command history through existing layout/device endpoints,
+  including credential rotation/revocation controls. POS
   quick refund now calls the existing refund endpoint for the selected backend
   sale, and POS draft void creates a backend draft from the current cart before
   calling the existing void endpoint. POS recent receipt rows now open backend
@@ -164,7 +165,8 @@ audit searches for today, the last 24 hours, or the last 7 days; export buttons
 now download backend operator-action/shift CSV files and local audit/error JSON
 bundles from loaded audit/diagnostics data. Settings `Залы и ПК` now exposes
 backend-backed layout zone/seat creation/update, enrollment-code creation,
-device-to-seat assignment, and device detail lookup with the existing layout
+device-to-seat assignment, and device detail lookup with status/version/
+credential/app counts plus recent command history through the existing layout
 and device permissions, plus credential rotation and revocation through the
 existing credential lifecycle endpoints.
 POS
@@ -391,10 +393,13 @@ missing-backend copy.
   through `PATCH /api/branches/{branchId}/layout/zones/{zoneId}` and
   `PATCH /api/branches/{branchId}/layout/seats/{seatId}` with `layout.manage`
   gating, audit records, duplicate-name checks, and seat moves between zones.
+  Settings device detail display was expanded on 2026-05-22 to show online/
+  locked state, seat/zone placement, heartbeat, Agent/Shell versions,
+  credential/app counts, and recent command status/message rows.
   Remaining settings gaps include custom roles/arbitrary permission-set editing,
   staff profile detail, richer visual/archive layout editing beyond name/sort/
   zone updates,
-  richer device inventory/history management, package purchase UX refinements,
+  fleet-level device inventory/history management, package purchase UX refinements,
   advanced POS catalog management, advanced inventory
   controls and reconciliation, integrations/payment-provider
   settings, richer update rollout detail/status controls, diagnostics,
