@@ -243,9 +243,11 @@ implementation evidence are needed.
   POS product update/deactivation, inventory stock movement creation, update
   package registration, rollout creation, rollout status/detail display, and
   update state changes;
-  Settings device setup can create enrollment codes, assign device seats, read
-  device detail with status/version/credential/app/recent-command history,
-  dispatch device commands, and rotate/revoke device credentials;
+  Settings device setup can list branch device inventory through
+  `/api/branches/{branchId}/devices`, select a device without manual GUID
+  entry, create enrollment codes, assign device seats, read device detail with
+  status/version/credential/app/recent-command history, dispatch device
+  commands, and rotate/revoke device credentials;
   Logs now applies backend
   audit search filters for action/outcome/target type, UTC date range, and
   limit through `/api/branches/{branchId}/audit`; Dashboard reads the backend
@@ -350,7 +352,7 @@ permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation/role update/
 lifecycle controls, and branch profile read/update, Settings POS catalog create/update/deactivate,
-Settings stock movement creation, Settings stock movement history, Settings tariff/version create/update/deactivate, Settings package definition create/update/deactivate, Clients
+Settings stock movement creation, Settings stock movement history, Settings tariff/version create/update/deactivate, Settings package definition create/update/deactivate, Settings branch device inventory, Clients
 wallet top-up/debt payment amount/reason forms, Clients package selector/price
 preview purchase, Clients new-player name/phone form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
@@ -361,7 +363,8 @@ presets plus export downloads, POS
 refund quick action, Settings layout zone/seat creation/update, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
 checkout, POS new-customer checkout, Clients package purchase, Clients
-reservation permission gating, and Settings staff role editing:
+reservation permission gating, Settings staff role editing, and Settings branch
+device inventory:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -372,9 +375,9 @@ reservation permission gating, and Settings staff role editing:
 
 Result:
 
-- frontend tests: 90 passed, 0 failed;
+- frontend tests: 91 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 805 passed, 0 failed;
+- full local .NET solution tests: 809 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -476,6 +479,11 @@ Result:
   locked state, Agent/Shell versions, credential/app counts, and recent command
   history. The same test now covers rotating and revoking device credentials
   through the existing credential lifecycle endpoints.
+- Device inventory backend/API/frontend tests now cover
+  `GET /api/branches/{branchId}/devices` with `devices.detail.view`
+  authorization, branch scoping, seat/zone projection, credential/app counts,
+  pending/failed command counts, frontend route construction, Settings device
+  inventory display, and opening a selected device card without typing a GUID.
 - Settings layout backend/API/frontend tests now cover creating and updating a
   layout zone and seat from `Залы и ПК`, including operator-entered zone
   name/sort order, selected seat zone id, seat name/sort order, organization
@@ -1367,9 +1375,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   seat creation, rename/reorder, and seat moves between zones. Visual drag/drop
   layout editing and archive/delete flows are still not implemented.
 - Device-seat assignment now has an authorized Platform API path and staging
-  setup integration; general Operator App device/seat management UI is not
-  implemented beyond optional already-enrolled device assignment in the Pilot
-  Setup panel.
+  setup integration, and Operator App Settings now has a branch device
+  inventory list plus device-card/assignment/command/credential controls.
+  A historical command/device event browser beyond the selected device detail
+  remains unimplemented.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook. Physical Windows
   10/11 hardware execution remains recommended hardening before wider rollout,

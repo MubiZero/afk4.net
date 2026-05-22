@@ -38,6 +38,7 @@ import {
   type BranchProfileDto,
   type BranchDiagnosticsDto,
   type CashMovementDto,
+  type DeviceInventoryItemDto,
   type OperatorDashboardSummaryDto,
   type PackageOptionDto,
   type PlayerPackageDto,
@@ -5921,6 +5922,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
   const [deviceAssignmentDeviceId, setDeviceAssignmentDeviceId] = useState('');
   const [deviceAssignmentSeatId, setDeviceAssignmentSeatId] = useState('');
   const [enrollmentExpiresSeconds, setEnrollmentExpiresSeconds] = useState('900');
@@ -6001,7 +6003,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setLoadStatus('loading');
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [branchProfile, staff, layoutZones, products, stockMovementRows, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows] = await Promise.all([
+      const [branchProfile, staff, layoutZones, products, stockMovementRows, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows, deviceRows] = await Promise.all([
         apiClients.settings.getBranchProfile(nextBackend.branchId),
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
@@ -6010,7 +6012,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         apiClients.diagnostics.getDiagnostics(nextBackend.branchId),
         apiClients.updates.getRolloutStatuses(nextBackend.branchId),
         apiClients.settings.getTariffOptions(nextBackend.branchId),
-        apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => [])
+        apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => []),
+        hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)
+          ? apiClients.devices.listDevices(nextBackend.branchId).catch(() => [])
+          : Promise.resolve([])
       ]);
       const productRows = Array.isArray(products) ? products : [];
       const staffRows = Array.isArray(staff) ? staff : [];
@@ -6046,6 +6051,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       const packageRows = Array.isArray(packageOptionRows) ? packageOptionRows : [];
       setPackageOptions(packageRows);
       setSelectedPackageDefinitionId((current) => packageRows.some((option) => readString(option, 'packageDefinitionId') === current) ? current : '');
+      const nextDeviceInventory = Array.isArray(deviceRows) ? deviceRows : [];
+      setDeviceInventory(nextDeviceInventory);
+      setDeviceAssignmentDeviceId((current) => isGuid(current) ? current : readString(nextDeviceInventory[0], 'deviceId'));
       setClubName(readString(branchProfile, 'name', 'AFK4'));
       setCity(readString(branchProfile, 'city', 'Dushanbe'));
       setSettingsDirty(false);
@@ -6140,6 +6148,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setPackageExpiresDays(String(readNumber(option, 'expiresAfterDays', 30)));
     triggerFeedback(setFeedback, readString(option, 'name', 'Package'), 'confirmed');
   };
+  const selectDeviceInventoryItem = (device: DeviceInventoryItemDto) => {
+    const deviceId = readString(device, 'deviceId');
+    const seatId = readString(device, 'seatId');
+    setDeviceAssignmentDeviceId(deviceId);
+    if (isGuid(seatId)) {
+      setDeviceAssignmentSeatId(seatId);
+    }
+    triggerFeedback(setFeedback, readString(device, 'machineName', 'Device'), 'confirmed');
+  };
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
     ['Залы и ПК', `${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0)} рабочих мест`],
@@ -6223,6 +6240,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           }
         });
         setLastDeviceCommand(command);
+        if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
+          setDeviceInventory(await apiClients.devices.listDevices(nextBackend.branchId).catch(() => deviceInventory));
+        }
       } else if (label === 'Сменить credential') {
         if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {
           throw new Error('Нет прав на смену credential устройства.');
@@ -6236,6 +6256,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const rotated = await apiClients.devices.rotateDeviceCredential(deviceId);
         setRotatedCredential(rotated);
         setCredentialIdToRevoke(readString(rotated, 'credentialId'));
+        if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
+          setDeviceInventory(await apiClients.devices.listDevices(nextBackend.branchId).catch(() => deviceInventory));
+        }
       } else if (label === 'Отозвать credential') {
         if (!hasPermission(nextBackend.session, permissionNames.revokeDeviceCredential)) {
           throw new Error('Нет прав на отзыв credential устройства.');
@@ -6249,6 +6272,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
         await apiClients.devices.revokeDeviceCredential(deviceId, credentialId);
         setRotatedCredential(null);
+        if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
+          setDeviceInventory(await apiClients.devices.listDevices(nextBackend.branchId).catch(() => deviceInventory));
+        }
       } else if (label === 'Добавить зал' || label === 'Обновить зал') {
         if (!hasPermission(nextBackend.session, permissionNames.manageLayout)) {
           throw new Error('Нет прав на управление залами и рабочими местами.');
@@ -6842,6 +6868,30 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <label className="settings-form-wide">Секрет credential<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
             <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Сменить credential')}>Сменить credential</button>
             <button type="button" disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke)} onClick={() => runSettingsAction('Отозвать credential')}>Отозвать credential</button>
+          </div>
+          <div className="settings-device-inventory" aria-label="Устройства филиала">
+            {deviceInventory.map((device) => {
+              const pendingCommands = readNumber(device, 'pendingCommandCount', 0);
+              const failedCommands = readNumber(device, 'failedCommandCount', 0);
+              return (
+                <button
+                  key={readString(device, 'deviceId')}
+                  type="button"
+                  aria-label={readString(device, 'machineName', 'Device')}
+                  className={`settings-device-row ${readString(device, 'deviceId') === deviceAssignmentDeviceId ? 'active' : ''}${failedCommands > 0 ? ' attention' : ''}`}
+                  disabled={!canViewDeviceDetail}
+                  onClick={() => selectDeviceInventoryItem(device)}
+                >
+                  <strong>{readString(device, 'machineName', 'Device')}</strong>
+                  <b>{readBoolean(device, 'isOnline') ? 'online' : 'offline'} · {readBoolean(device, 'isLocked') ? 'locked' : 'unlocked'}</b>
+                  <span>{readString(device, 'zoneName', 'без зала')} · {readString(device, 'seatName', 'без места')}</span>
+                  <em>Agent {readString(device, 'agentVersion', '—')} · apps {readNumber(device, 'installedAppCount', 0)} · pending {pendingCommands} · failed {failedCommands} · {formatTime(readString(device, 'lastHeartbeatAtUtc'))}</em>
+                </button>
+              );
+            })}
+            {deviceInventory.length === 0 && (
+              <span className="settings-device-empty">Нет подключенных устройств в филиале</span>
+            )}
           </div>
           {deviceDetail && (
             <div className="settings-device-detail-grid">

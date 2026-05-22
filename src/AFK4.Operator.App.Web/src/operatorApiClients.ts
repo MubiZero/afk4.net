@@ -137,6 +137,7 @@ export type DeviceEnrollmentCodeDto = Record<string, unknown>;
 export type DeviceCommandDto = Record<string, unknown>;
 export type DeviceCommandStatusDto = Record<string, unknown>;
 export type DeviceDetailDto = Record<string, unknown>;
+export type DeviceInventoryItemDto = Record<string, unknown>;
 export type RotateDeviceCredentialResponse = Record<string, unknown>;
 export type RevokeDeviceCredentialResponse = Record<string, unknown>;
 export type BranchDiagnosticsDto = Record<string, unknown>;
@@ -631,6 +632,9 @@ export function createInventoryClient(api: PlatformApiClient) {
 
 export function createDeviceClient(api: PlatformApiClient) {
   return {
+    listDevices(branchId: Guid): Promise<DeviceInventoryItemDto[]> {
+      return api.get<DeviceInventoryItemDto[]>(`/api/branches/${branchId}/devices`);
+    },
     createEnrollmentCode(branchId: Guid, organizationId: Guid, expiresInSeconds: number): Promise<DeviceEnrollmentCodeDto> {
       return api.post<DeviceEnrollmentCodeDto>(`/api/branches/${branchId}/device-enrollment-codes`, {
         organizationId,

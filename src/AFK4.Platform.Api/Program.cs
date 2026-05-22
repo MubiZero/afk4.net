@@ -1953,6 +1953,129 @@ app.MapPost("/api/devices/{deviceId:guid}/installed-apps/report", async (
     return Results.NoContent();
 });
 
+app.MapGet("/api/branches/{branchId:guid}/devices", async (
+    Guid branchId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewDeviceDetail,
+        cancellationToken);
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var devices = await dbContext.Devices
+        .AsNoTracking()
+        .Where(device => device.BranchId == branchId)
+        .OrderBy(device => device.MachineName)
+        .ThenBy(device => device.DeviceId)
+        .ToListAsync(cancellationToken);
+
+    if (devices.Count == 0)
+    {
+        return Results.Ok(Array.Empty<DeviceInventoryItemDto>());
+    }
+
+    var deviceIds = devices.Select(device => device.DeviceId).ToList();
+    var assignments = await dbContext.DeviceSeatAssignments
+        .AsNoTracking()
+        .Where(assignment => deviceIds.Contains(assignment.DeviceId) && assignment.DetachedAtUtc == null)
+        .OrderByDescending(assignment => assignment.AttachedAtUtc)
+        .ToListAsync(cancellationToken);
+    var assignmentsByDevice = assignments
+        .GroupBy(assignment => assignment.DeviceId)
+        .ToDictionary(group => group.Key, group => group.First());
+    var seatIds = assignmentsByDevice.Values
+        .Select(assignment => assignment.SeatId)
+        .Distinct()
+        .ToList();
+    var seats = seatIds.Count == 0
+        ? []
+        : await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat => seatIds.Contains(seat.SeatId))
+            .ToListAsync(cancellationToken);
+    var seatsById = seats.ToDictionary(seat => seat.SeatId);
+    var zoneIds = seats
+        .Select(seat => seat.ZoneId)
+        .Distinct()
+        .ToList();
+    var zones = zoneIds.Count == 0
+        ? []
+        : await dbContext.Zones
+            .AsNoTracking()
+            .Where(zone => zoneIds.Contains(zone.ZoneId))
+            .ToListAsync(cancellationToken);
+    var zonesById = zones.ToDictionary(zone => zone.ZoneId);
+    var activeCredentialCounts = await dbContext.DeviceCredentials
+        .AsNoTracking()
+        .Where(credential => deviceIds.Contains(credential.DeviceId) && credential.RevokedAtUtc == null)
+        .GroupBy(credential => credential.DeviceId)
+        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
+        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+    var installedAppCounts = await dbContext.DeviceInstalledApps
+        .AsNoTracking()
+        .Where(app => deviceIds.Contains(app.DeviceId))
+        .GroupBy(app => app.DeviceId)
+        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
+        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+    var pendingCommandCounts = await dbContext.DeviceCommands
+        .AsNoTracking()
+        .Where(command => deviceIds.Contains(command.DeviceId) && command.Status == "Pending")
+        .GroupBy(command => command.DeviceId)
+        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
+        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+    var failedCommandCounts = await dbContext.DeviceCommands
+        .AsNoTracking()
+        .Where(command => deviceIds.Contains(command.DeviceId) && (command.Status == "Failed" || command.Status == "Rejected"))
+        .GroupBy(command => command.DeviceId)
+        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
+        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+
+    return Results.Ok(devices.Select(device =>
+    {
+        assignmentsByDevice.TryGetValue(device.DeviceId, out var assignment);
+        SeatEntity? seat = null;
+        ZoneEntity? zone = null;
+        if (assignment is not null && seatsById.TryGetValue(assignment.SeatId, out var assignedSeat))
+        {
+            seat = assignedSeat;
+            zonesById.TryGetValue(assignedSeat.ZoneId, out zone);
+        }
+
+        return new DeviceInventoryItemDto(
+            OrganizationId: device.OrganizationId,
+            BranchId: device.BranchId,
+            DeviceId: device.DeviceId,
+            MachineName: device.MachineName,
+            AgentVersion: device.AgentVersion,
+            ShellVersion: device.ShellVersion,
+            EnrolledAtUtc: device.EnrolledAtUtc,
+            LastHeartbeatAtUtc: device.LastHeartbeatAtUtc,
+            IsOnline: device.IsOnline,
+            IsLocked: device.IsLocked,
+            SeatId: seat?.SeatId,
+            SeatName: seat?.Name,
+            ZoneId: zone?.ZoneId,
+            ZoneName: zone?.Name,
+            ActiveCredentialCount: activeCredentialCounts.GetValueOrDefault(device.DeviceId),
+            InstalledAppCount: installedAppCounts.GetValueOrDefault(device.DeviceId),
+            PendingCommandCount: pendingCommandCounts.GetValueOrDefault(device.DeviceId),
+            FailedCommandCount: failedCommandCounts.GetValueOrDefault(device.DeviceId));
+    }).ToList());
+});
+
 app.MapGet("/api/devices/{deviceId:guid}", async (
     Guid deviceId,
     PlatformDbContext dbContext,

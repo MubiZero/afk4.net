@@ -4473,6 +4473,10 @@ button {
 .settings-room-card strong,
 .settings-room-card b,
 .settings-room-card span,
+.settings-device-row strong,
+.settings-device-row b,
+.settings-device-row span,
+.settings-device-row em,
 .settings-tariff-row strong,
 .settings-tariff-row b,
 .settings-tariff-row span,
@@ -4711,7 +4715,8 @@ button {
 }
 
 .settings-device-detail-grid,
-.settings-command-history {
+.settings-command-history,
+.settings-device-inventory {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
@@ -4751,6 +4756,7 @@ button {
 }
 
 .settings-room-card,
+.settings-device-row,
 .settings-tariff-row {
   border: 1px solid #263241;
   border-radius: 6px;
@@ -4762,6 +4768,8 @@ button {
 
 .settings-room-card:hover,
 .settings-room-card:focus-visible,
+.settings-device-row:hover,
+.settings-device-row:focus-visible,
 .settings-tariff-row:hover,
 .settings-tariff-row:focus-visible,
 .settings-action-card:hover,
@@ -4773,6 +4781,7 @@ button {
 }
 
 .settings-room-card.active,
+.settings-device-row.active,
 .settings-tariff-row.active {
   border-color: #1f6feb;
   background: #132743;
@@ -4799,6 +4808,8 @@ button {
 }
 
 .settings-room-card span,
+.settings-device-row span,
+.settings-device-row em,
 .settings-tariff-row span,
 .settings-action-card span,
 .settings-readiness-list span {
@@ -4811,6 +4822,52 @@ button {
   display: grid;
   gap: 4px;
   padding: 0 12px;
+}
+
+.settings-device-row {
+  display: grid;
+  gap: 3px;
+  min-height: 72px;
+  padding: 8px 10px;
+}
+
+.settings-device-row.attention {
+  border-color: rgba(239, 68, 68, 0.58);
+}
+
+.settings-device-row:disabled,
+.settings-device-row:disabled:hover,
+.settings-device-row:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #17202c;
+  color: #6f7d91;
+  transform: none;
+}
+
+.settings-device-row strong,
+.settings-device-row b {
+  color: #f8fbff;
+}
+
+.settings-device-row strong {
+  font-size: 13px;
+}
+
+.settings-device-row b {
+  font-size: 11px;
+}
+
+.settings-device-empty {
+  grid-column: 1 / -1;
+  min-height: 36px;
+  border: 1px solid #263241;
+  border-radius: 6px;
+  padding: 10px;
+  background: #101821;
+  color: #8fa0b6;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .settings-tariff-row {

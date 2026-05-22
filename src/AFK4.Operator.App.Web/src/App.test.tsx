@@ -1583,6 +1583,35 @@ describe('App', () => {
       init?.method === 'POST')).toBe(true);
   });
 
+  it('loads branch device inventory in Settings and opens a selected device card', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
+
+    expect(await screen.findByRole('button', { name: /PC-03/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /PC-03/ }));
+    expect(screen.getByLabelText('Device id')).toHaveValue('44444444-4444-4444-8444-444444444444');
+    expect(screen.getByText(/pending 1/)).toBeInTheDocument();
+    expect(screen.getByText(/failed 1/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть карточку устройства' }));
+
+    expect(await screen.findByText('Открыть карточку устройства: подтверждено')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('PC-03 · PC-01')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/devices') &&
+      init?.method === 'GET')).toBe(true);
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/devices/44444444-4444-4444-8444-444444444444') &&
+      init?.method === 'GET')).toBe(true);
+  });
+
   it('dispatches device commands from Settings device tools', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -2336,9 +2365,17 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     }));
   }
 
+  if (pathname.endsWith('/devices') && pathname.includes('/api/branches/') && init?.method !== 'POST') {
+    return jsonResponse(createDeviceInventory());
+  }
+
   if (pathname.includes('/api/devices/') && !pathname.includes('/commands') && init?.method !== 'POST') {
     const parts = pathname.split('/');
-    return jsonResponse(createDeviceDetail({ deviceId: parts[parts.length - 1] }));
+    const deviceId = parts[parts.length - 1];
+    return jsonResponse(createDeviceDetail({
+      deviceId,
+      machineName: deviceId === '44444444-4444-4444-8444-444444444444' ? 'PC-03' : 'PC-02'
+    }));
   }
 
   if (pathname.endsWith('/diagnostics')) {
@@ -3180,6 +3217,51 @@ function createDeviceSeatAssignment(overrides: Record<string, unknown> = {}) {
     detachedAtUtc: null,
     ...overrides
   };
+}
+
+function createDeviceInventory() {
+  return [
+    {
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+      deviceId: '33333333-3333-3333-3333-333333333333',
+      machineName: 'PC-02',
+      agentVersion: '0.1.14',
+      shellVersion: '0.1.14',
+      enrolledAtUtc: '2026-05-21T08:30:00Z',
+      lastHeartbeatAtUtc: '2026-05-21T09:30:00Z',
+      isOnline: true,
+      isLocked: true,
+      seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      seatName: 'PC-01',
+      zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      zoneName: 'Зал A',
+      activeCredentialCount: 1,
+      installedAppCount: 2,
+      pendingCommandCount: 0,
+      failedCommandCount: 0
+    },
+    {
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+      deviceId: '44444444-4444-4444-8444-444444444444',
+      machineName: 'PC-03',
+      agentVersion: '0.1.14',
+      shellVersion: '0.1.13',
+      enrolledAtUtc: '2026-05-21T08:40:00Z',
+      lastHeartbeatAtUtc: '2026-05-21T09:20:00Z',
+      isOnline: false,
+      isLocked: true,
+      seatId: null,
+      seatName: null,
+      zoneId: null,
+      zoneName: null,
+      activeCredentialCount: 1,
+      installedAppCount: 1,
+      pendingCommandCount: 1,
+      failedCommandCount: 1
+    }
+  ];
 }
 
 function createDeviceDetail(overrides: Record<string, unknown> = {}) {

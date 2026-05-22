@@ -406,7 +406,11 @@ Minimum bar:
   existing debt payment endpoint. Clients player creation sends
   operator-entered name/phone to the existing player creation endpoint. Clients
   reservation creation from the selected backend player now stays disabled
-  unless the restored staff session includes `reservations.manage`. Staging
+  unless the restored staff session includes `reservations.manage`. Settings
+  device setup now reads branch device inventory through
+  `/api/branches/{branchId}/devices`, lets operators select a device without
+  typing a GUID, and then opens the existing device detail/command/credential
+  tools for that device. Staging
   smoke of these extra workspaces still remains before
   the WebView2/React app covers the full pilot day flow. Fixture-only/
   missing-contract commands should report backend failures rather than showing
@@ -429,9 +433,9 @@ Minimum bar:
   names, sort orders, and seat moves, but not visual drag/drop layout editing
   or archive/delete flows.
 - Device-seat assignment has a staff-authorized API path and staging smoke
-  setup integration plus Settings assignment/detail/command/credential controls,
-  but no fleet-level device inventory list or historical command/device event
-  browser yet.
+  setup integration plus Settings inventory/assignment/detail/command/
+  credential controls. A broader historical command/device event browser is
+  still missing.
 - Pilot branch setup can now run through either the Operator App Pilot Setup
   panel or the Platform API script fallback. Commercial production still needs
   broader operator-safe configuration screens.
@@ -475,7 +479,7 @@ Minimum bar:
    export downloads, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
    POS selected-customer/new-customer checkout/wallet top-up/stock write-off, Clients wallet
-   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, and Clients package purchase selector/confirmation. Next deliver staging smoke across these backend-backed workspaces
+   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, Clients package purchase selector/confirmation, and Settings branch device inventory. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must
    still target staging with
