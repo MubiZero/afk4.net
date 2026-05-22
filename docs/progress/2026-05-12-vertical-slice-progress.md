@@ -166,7 +166,10 @@ implementation evidence are needed.
 - Settings `Персонал` now has a general staff creation form backed by the
   existing branch staff API. It validates the form client-side, requires the
   existing branch-staff management permission, posts login/display name/
-  temporary password/role names to `/api/branches/{branchId}/staff`. Branch
+  temporary password/role names to `/api/branches/{branchId}/staff`. It can also
+  update an existing staff user's predefined branch role through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/roles`, guarded by
+  `identity.roles.manage`. Branch
   profile saving now uses the new `/api/branches/{branchId}/profile` backend
   endpoint for club name and city. Settings `POS и склад` can now create a
   backend POS category and product through `/api/branches/{branchId}/pos/categories`
@@ -326,8 +329,8 @@ first backend-backed parity wiring for the remaining operator workspaces,
 the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
-Booking permission/state hardening, Settings staff creation, and branch profile
-read/update, Settings POS catalog create, Settings stock movement creation,
+Booking permission/state hardening, Settings staff creation/role update, and
+branch profile read/update, Settings POS catalog create, Settings stock movement creation,
 Settings tariff/version create, Settings package definition create, Clients
 wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
 form, POS selected-sale refund, Payments
@@ -338,19 +341,21 @@ selected audit/diagnostics event detail plus source-card filtering and period
 presets plus export downloads, POS
 refund quick action, Settings layout zone/seat creation, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
-checkout, POS new-customer checkout, Clients package purchase, and Clients
-reservation permission gating:
+checkout, POS new-customer checkout, Clients package purchase, Clients
+reservation permission gating, and Settings staff role editing:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
 & 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 & 'C:\Program Files\Git\cmd\git.exe' diff --check
 ```
 
 Result:
 
-- frontend tests: 82 passed, 0 failed;
+- frontend tests: 84 passed, 0 failed;
 - frontend production build: passed;
+- full local .NET solution tests: 784 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -376,6 +381,12 @@ Result:
 - Settings frontend tests now cover branch staff creation from the Personnel
   form, including request body serialization for login, display name, temporary
   password, and role names.
+- Settings backend/frontend tests now cover replacing a selected staff user's
+  predefined branch role through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/roles`, including
+  `identity.roles.manage` authorization, role replacement persistence, audit,
+  frontend request serialization, and disabled UI state without role-management
+  permission.
 - Branch profile backend tests cover owner/manager read/update and forbidden
   cashier updates. Frontend tests cover Settings profile PATCH body
   serialization for club name and city.
@@ -433,7 +444,7 @@ Result:
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
   source-card filtering, audit period presets, Logs export downloads, and
   Payments/Dashboard report export downloads plus Clients reservation
-  permission gating: the React app rendered the
+  permission gating plus Settings staff role editing: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
   and no old backend placeholder copy.
@@ -1288,8 +1299,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   becomes available, PR merges must manually require a green
   `PR Verification Result` on the current head commit, as recorded in
   `AGENTS.md`.
-- General staff management workflows, custom roles, and role editing UI are not
-  implemented beyond the minimum Pilot Setup panel.
+- General staff management now includes creation and predefined branch-role
+  reassignment. Custom roles, arbitrary permission-set editing, staff
+  activation/deactivation, password reset, and richer staff profile management
+  are still not implemented.
 - General Operator App layout management UI is not implemented beyond the
   minimum one-zone/seats Pilot Setup panel.
 - Device-seat assignment now has an authorized Platform API path and staging

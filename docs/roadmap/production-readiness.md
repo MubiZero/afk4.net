@@ -344,8 +344,9 @@ Minimum bar:
   the selected device detail plus branch diagnostics before confirming.
   Booking now also disables mutation controls without `reservations.manage` or
   when selected reservation state/seat availability makes the action invalid.
-  Settings now supports general staff creation through the existing branch
-  staff API, branch profile name/city save through a new branch profile API,
+  Settings now supports general staff creation and predefined branch-role
+  reassignment through staff APIs, branch profile name/city save through a new
+  branch profile API,
   POS category/product creation through the existing POS catalog endpoints, and
   inventory stock movement creation through the existing stock-movement
   endpoint, plus tariff/version creation and package definition creation
@@ -411,10 +412,10 @@ Minimum bar:
   `Нет backend ...` placeholders.
   The current WPF implementation remains a parity reference and temporary legacy
   source until the WebView2/React Operator App covers the pilot day flow.
-- Staff management workflow is implemented as a minimum API path on `main`;
-  the Operator App has a minimum one-shot Pilot Setup panel, but not a general
-  staff management UI.
-- Custom roles and role editing UI are not implemented.
+- Staff management now has general Operator App creation and predefined
+  branch-role reassignment paths.
+- Custom roles, arbitrary permission-set editing, staff activation/deactivation,
+  password reset, and richer staff profile management are not implemented.
 - Branch layout management is implemented as a minimum API path on `main`;
   the Operator App has a minimum one-zone/seats Pilot Setup panel, but not a
   general layout editor.
@@ -451,8 +452,8 @@ Minimum bar:
    restored staff permissions. The map panel now also supports guest/prepaid/
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
-  hardening, Settings staff creation, branch profile save, Settings layout
-  zone/seat creation, Settings POS
+  hardening, Settings staff creation/role reassignment, branch profile save,
+  Settings layout zone/seat creation, Settings POS
   category/product creation, Settings stock movement creation, Settings package
   definition creation, Settings update package/rollout controls, Settings
    device enrollment/seat assignment/credential lifecycle, Dashboard export download,

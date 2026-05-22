@@ -4600,6 +4600,7 @@ button {
 }
 
 .settings-device-form button,
+.settings-staff-form button,
 .settings-layout-form button {
   align-self: end;
   height: 28px;
@@ -4613,6 +4614,7 @@ button {
 }
 
 .settings-device-form button:disabled,
+.settings-staff-form button:disabled,
 .settings-layout-form button:disabled {
   cursor: not-allowed;
   border-color: #263241;
@@ -4788,6 +4790,11 @@ button {
   background: #172334;
   outline: none;
   transform: translateY(-1px);
+}
+
+.settings-config-grid button.active {
+  border-color: #1f6feb;
+  background: #132743;
 }
 
 .settings-config-grid strong,

@@ -142,6 +142,7 @@ const permissionNames = {
   viewReceipt: 'receipts.view',
   viewDiagnostics: 'diagnostics.view',
   manageBranchStaff: 'identity.branch_staff.manage',
+  manageRoles: 'identity.roles.manage',
   manageLayout: 'layout.manage',
   createDeviceEnrollmentCode: 'devices.enrollment_codes.create',
   assignDeviceSeat: 'devices.seat_assignment.assign',
@@ -157,6 +158,8 @@ const permissionNames = {
   viewDeviceCommandStatus: 'devices.commands.status.view',
   viewAudit: 'audit.view'
 } as const;
+
+const staffRoleOptions = ['cashier_operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant_auditor'] as const;
 
 const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
   map: [permissionNames.viewFloorMap],
@@ -5874,7 +5877,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
   const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
-  const [inviteRoleName, setInviteRoleName] = useState('cashier');
+  const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
+  const [selectedStaffUserId, setSelectedStaffUserId] = useState('');
+  const [staffRoleName, setStaffRoleName] = useState('cashier_operator');
   const [productCategoryName, setProductCategoryName] = useState('POS category 1');
   const [productName, setProductName] = useState('POS item 1');
   const [productSku, setProductSku] = useState('POS-001');
@@ -5938,7 +5943,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => [])
       ]);
       const productRows = Array.isArray(products) ? products : [];
-      setStaffUsers(Array.isArray(staff) ? staff : []);
+      const staffRows = Array.isArray(staff) ? staff : [];
+      const selectedStaff = staffRows.find((user) => readString(user, 'staffUserId') === selectedStaffUserId) ?? staffRows[0];
+      const selectedStaffRole = readArray<string>(selectedStaff, 'roleNames')
+        .find((role) => staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]));
+      setStaffUsers(staffRows);
+      setSelectedStaffUserId(readString(selectedStaff, 'staffUserId'));
+      setStaffRoleName(selectedStaffRole ?? 'cashier_operator');
       const zoneRows = Array.isArray(layoutZones) ? layoutZones : [];
       setZones(zoneRows);
       const firstZoneId = readString(zoneRows[0], 'zoneId');
@@ -5984,6 +5995,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const canManageLayout = backend !== null && hasPermission(backend.session, permissionNames.manageLayout);
   const canManageBranchStaff = backend !== null && hasPermission(backend.session, permissionNames.manageBranchStaff);
+  const canManageRoles = backend !== null && hasPermission(backend.session, permissionNames.manageRoles);
   const canManagePosCatalog = backend !== null && hasPermission(backend.session, permissionNames.managePosCatalog);
   const canManageInventoryStock = backend !== null && hasPermission(backend.session, permissionNames.manageInventoryStock);
   const canManageTariffs = backend !== null && hasPermission(backend.session, permissionNames.manageTariffs);
@@ -6232,12 +6244,32 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           userName,
           displayName,
           password: invitePassword,
-          roleNames: [inviteRoleName || 'cashier']
+          roleNames: [inviteRoleName || 'cashier_operator']
         });
         setStaffUsers((items) => [...items, staffUser]);
+        setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
+        setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? 'cashier_operator');
         setInviteUserName(`operator${staffUsers.length + 2}`);
         setInviteDisplayName('Новый оператор');
         setInvitePassword('ChangeMe123!');
+      } else if (label === 'Обновить роль') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageRoles)) {
+          throw new Error('Нет прав на изменение ролей сотрудников.');
+        }
+
+        const staffUserId = selectedStaffUserId.trim();
+        const roleName = staffRoleName.trim();
+        if (!isGuid(staffUserId) || !staffRoleOptions.includes(roleName as (typeof staffRoleOptions)[number])) {
+          throw new Error('Выберите сотрудника и роль.');
+        }
+
+        const staffUser = await apiClients.settings.updateStaffUserRoles(nextBackend.branchId, staffUserId, {
+          organizationId: nextBackend.session.organizationId,
+          roleNames: [roleName]
+        });
+        setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
+        setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
+        setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? roleName);
       } else if (label === 'Создать товар') {
         if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
           throw new Error('Нет прав на управление POS каталогом.');
@@ -6575,7 +6607,17 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-staff-layout">
             <div className="settings-config-grid">
               {staffUsers.map((user) => (
-                <button key={readString(user, 'staffUserId')} type="button" onClick={() => triggerFeedback(setFeedback, readString(user, 'displayName', 'Staff'), 'confirmed')}>
+                <button
+                  key={readString(user, 'staffUserId')}
+                  type="button"
+                  className={readString(user, 'staffUserId') === selectedStaffUserId ? 'active' : ''}
+                  onClick={() => {
+                    const roleName = readArray<string>(user, 'roleNames').find((role) => staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]));
+                    setSelectedStaffUserId(readString(user, 'staffUserId'));
+                    setStaffRoleName(roleName ?? 'cashier_operator');
+                    triggerFeedback(setFeedback, readString(user, 'displayName', 'Staff'), 'confirmed');
+                  }}
+                >
                   <strong>{readString(user, 'displayName', 'Staff')}</strong>
                   <span>{readString(user, 'userName', 'user')} · {readArray<string>(user, 'roleNames').join(', ') || 'roles'}</span>
                 </button>
@@ -6587,11 +6629,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <label>Временный пароль<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
               <label>Роль
                 <select value={inviteRoleName} disabled={!canManageBranchStaff} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
-                  <option value="cashier">cashier</option>
-                  <option value="branch_manager">branch_manager</option>
-                  <option value="technician">technician</option>
+                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{roleName}</option>)}
                 </select>
               </label>
+              <label>Роль сотрудника
+                <select value={staffRoleName} disabled={!canManageRoles || !selectedStaffUserId} onChange={(event) => setStaffRoleName(event.currentTarget.value)}>
+                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{roleName}</option>)}
+                </select>
+              </label>
+              <button type="button" disabled={!canManageRoles || !selectedStaffUserId} onClick={() => runSettingsAction('Обновить роль')}>Обновить роль</button>
             </div>
           </div>
         </>

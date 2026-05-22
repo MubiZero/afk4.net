@@ -62,8 +62,9 @@ Current state:
   reads selected-seat device command result status after session commands. The
   primary map now also has real filters and table view parity over the same
   backend-loaded seat state. Booking now has first-pass permission/state guards
-  for mutation controls. Settings now has a backend-backed staff creation form
-  in the Personnel section, branch profile save backed by a new Platform API
+  for mutation controls. Settings now has backend-backed staff creation and
+  predefined branch-role reassignment in the Personnel section, branch profile
+  save backed by a new Platform API
   profile endpoint, POS category/product creation backed by the existing
   POS catalog endpoints, stock movement creation backed by the existing
   inventory endpoint, tariff/version creation backed by the existing tariff
@@ -135,7 +136,8 @@ navigation plus selected-seat session actions, the map panel now sends billed
 session metadata plus displays device command status feedback, and the primary
 map has real filter/table parity. Booking mutation controls now also respect
 `reservations.manage` and selected reservation state. Settings Personnel can
-create branch staff through the existing backend staff API, and profile save
+create branch staff and reassign predefined branch roles through backend staff
+APIs, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product, and Settings `Тарифы` can
 create a backend tariff/version plus package definition. Settings `POS и
@@ -335,7 +337,11 @@ missing-backend copy.
   answer the screen.
 - [ ] Settings: continue replacing local-only settings actions with real flows.
   Branch profile name/city save and general staff creation were implemented on
-  2026-05-21 using backend profile/staff APIs plus existing permissions. POS
+  2026-05-21 using backend profile/staff APIs plus existing permissions.
+  Predefined branch-role reassignment from Personnel was implemented on
+  2026-05-22 through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/roles` with
+  `identity.roles.manage` gating. POS
   category/product creation from `POS и склад` was implemented on 2026-05-21
   through existing POS catalog endpoints with `pos.catalog.manage` gating,
   price/stock form fields, and idempotency keys. Tariff/version creation from
@@ -357,10 +363,12 @@ missing-backend copy.
   endpoints with `layout.manage` gating. Credential rotation and revocation were
   added to the same section on 2026-05-21 through the existing credential
   lifecycle endpoints.
-  Remaining settings gaps include role assignment/editing, richer layout
-  editing beyond create-only zones/seats, richer device inventory/history management, tariff version edit/deactivate, package edit/
-  deactivate and purchase UX refinements, POS catalog edit/deactivate, stock
-  history and advanced inventory controls, integrations/payment-provider
+  Remaining settings gaps include custom roles/arbitrary permission-set editing,
+  staff activation/deactivation/password reset/profile detail, richer layout
+  editing beyond create-only zones/seats, richer device inventory/history
+  management, tariff version edit/deactivate, package edit/deactivate and
+  purchase UX refinements, POS catalog edit/deactivate, stock history and
+  advanced inventory controls, integrations/payment-provider
   settings, richer update rollout detail/status controls, diagnostics,
   audit/security settings, and
   validation errors.

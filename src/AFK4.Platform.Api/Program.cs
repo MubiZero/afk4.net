@@ -352,6 +352,125 @@ app.MapPost("/api/branches/{branchId:guid}/staff", async (
     return Results.Ok(response);
 });
 
+app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/roles", async (
+    Guid branchId,
+    Guid staffUserId,
+    UpdateStaffUserRolesRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageRoles,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdateStaffRoles,
+            "StaffUser",
+            staffUserId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.RoleNames, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateStaffRoleNames(request.RoleNames);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var staffUser = await dbContext.StaffUsers
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.StaffUserId == staffUserId,
+            cancellationToken);
+
+    if (staffUser is null)
+    {
+        return Results.NotFound();
+    }
+
+    var existingAssignments = await dbContext.StaffRoleAssignments
+        .Where(roleAssignment =>
+            roleAssignment.OrganizationId == request.OrganizationId &&
+            roleAssignment.BranchId == branchId &&
+            roleAssignment.StaffUserId == staffUserId)
+        .ToListAsync(cancellationToken);
+
+    if (existingAssignments.Count == 0)
+    {
+        return Results.NotFound();
+    }
+
+    var roleNames = request.RoleNames
+        .Select(roleName => roleName.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(roleName => roleName, StringComparer.Ordinal)
+        .ToList();
+    var requestedRoleSet = roleNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var assignmentsToRemove = existingAssignments
+        .Where(roleAssignment => !requestedRoleSet.Contains(roleAssignment.RoleName))
+        .ToList();
+
+    dbContext.StaffRoleAssignments.RemoveRange(assignmentsToRemove);
+
+    var existingRoleSet = existingAssignments
+        .Where(roleAssignment => requestedRoleSet.Contains(roleAssignment.RoleName))
+        .Select(roleAssignment => roleAssignment.RoleName)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var roleName in roleNames.Where(roleName => !existingRoleSet.Contains(roleName)))
+    {
+        dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(),
+            StaffUserId = staffUserId,
+            OrganizationId = request.OrganizationId,
+            BranchId = branchId,
+            RoleName = roleName
+        });
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    var response = ToStaffUserDto(staffUser, roleNames);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdateStaffRoles,
+        "StaffUser",
+        staffUserId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { staffUser.UserName, response.RoleNames },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
 app.MapGet("/api/branches/{branchId:guid}/profile", async (
     Guid branchId,
     StaffAuthorizationService authorizationService,
@@ -5738,12 +5857,17 @@ static string? ValidateCreateStaffUserRequest(CreateStaffUserRequest request)
         return "Password must contain at least 8 characters.";
     }
 
-    if (request.RoleNames.Count == 0)
+    return ValidateStaffRoleNames(request.RoleNames);
+}
+
+static string? ValidateStaffRoleNames(IReadOnlyList<string> roleNames)
+{
+    if (roleNames.Count == 0)
     {
         return "At least one role is required.";
     }
 
-    return request.RoleNames.All(IsAssignableBranchStaffRole)
+    return roleNames.All(IsAssignableBranchStaffRole)
         ? null
         : "Unsupported branch staff role name.";
 }

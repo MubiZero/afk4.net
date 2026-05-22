@@ -1317,6 +1317,47 @@ describe('App', () => {
     });
   });
 
+  it('updates the selected staff user role from Settings personnel', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Cashier One/ }));
+    fireEvent.change(screen.getByLabelText('Роль сотрудника'), { target: { value: 'technician' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить роль' }));
+
+    expect(await screen.findByText('Обновить роль: подтверждено')).toBeInTheDocument();
+    const roleCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/roles') &&
+      init?.method === 'PATCH');
+    expect(roleCall).toBeDefined();
+    const body = JSON.parse(String(roleCall?.[1]?.body));
+    expect(body).toEqual({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      roleNames: ['technician']
+    });
+  });
+
+  it('keeps staff role update disabled without role management permission', async () => {
+    installSessionBridge(createSession({
+      permissions: allOperatorPermissions.filter((permission) => permission !== 'identity.roles.manage')
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
+
+    expect(screen.getByRole('button', { name: 'Обновить роль' })).toBeDisabled();
+  });
+
   it('saves the Settings branch profile through the backend', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -1950,6 +1991,14 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createStaffUser(body));
   }
 
+  if (pathname.includes('/staff/') && pathname.endsWith('/roles') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createStaffUser({
+      staffUserId: pathname.split('/').at(-2),
+      roleNames: body.roleNames
+    }));
+  }
+
   if (pathname.endsWith('/staff')) {
     return jsonResponse(createStaffUsers());
   }
@@ -2118,6 +2167,7 @@ const allOperatorPermissions = [
   'receipts.view',
   'diagnostics.view',
   'identity.branch_staff.manage',
+  'identity.roles.manage',
   'layout.manage',
   'devices.enrollment_codes.create',
   'devices.seat_assignment.assign',
@@ -2691,7 +2741,7 @@ function createStaffUsers() {
       staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
       userName: 'cashier',
       displayName: 'Cashier One',
-      roleNames: ['cashier']
+      roleNames: ['cashier_operator']
     })
   ];
 }
@@ -2714,7 +2764,7 @@ function createStaffUser(overrides: Record<string, unknown> = {}) {
     userName: 'cashier',
     displayName: 'Cashier One',
     isActive: true,
-    roleNames: ['cashier'],
+    roleNames: ['cashier_operator'],
     createdAtUtc: '2026-05-21T08:00:00Z',
     ...overrides
   };

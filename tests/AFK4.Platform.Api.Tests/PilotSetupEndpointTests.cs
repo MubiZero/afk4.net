@@ -1,9 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
+using AFK4.Platform.Api.Audit;
+using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Layout;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -143,6 +147,69 @@ public sealed class PilotSetupEndpointTests
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/staff",
             request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateStaffRoles_WithOwnerRole_ReplacesBranchRoleAssignments()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff",
+            new CreateStaffUserRequest(
+                TestIds.OrganizationId,
+                "roles.one@afk4.test",
+                "Roles One",
+                "Passw0rd!Pilot",
+                [StaffRoleNames.CashierOperator]));
+        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.NotNull(createdStaffUser);
+
+        var updateResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/roles",
+            new UpdateStaffUserRolesRequest(
+                TestIds.OrganizationId,
+                [StaffRoleNames.Technician, StaffRoleNames.ShiftSupervisor]));
+        var updatedStaffUser = await updateResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.NotNull(updatedStaffUser);
+        Assert.DoesNotContain(StaffRoleNames.CashierOperator, updatedStaffUser.RoleNames);
+        Assert.Contains(StaffRoleNames.Technician, updatedStaffUser.RoleNames);
+        Assert.Contains(StaffRoleNames.ShiftSupervisor, updatedStaffUser.RoleNames);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var persistedRoleNames = await dbContext.StaffRoleAssignments
+            .Where(roleAssignment =>
+                roleAssignment.OrganizationId == TestIds.OrganizationId &&
+                roleAssignment.BranchId == TestIds.BranchId &&
+                roleAssignment.StaffUserId == createdStaffUser.StaffUserId)
+            .Select(roleAssignment => roleAssignment.RoleName)
+            .OrderBy(roleName => roleName)
+            .ToListAsync();
+        Assert.Equal([StaffRoleNames.ShiftSupervisor, StaffRoleNames.Technician], persistedRoleNames);
+        Assert.Contains(await dbContext.AuditRecords.ToListAsync(), audit =>
+            audit.Action == AuditActionNames.UpdateStaffRoles &&
+            audit.TargetId == createdStaffUser.StaffUserId.ToString("D") &&
+            audit.Outcome == AuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task UpdateStaffRoles_WithBranchManagerRole_ReturnsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/roles",
+            new UpdateStaffUserRolesRequest(TestIds.OrganizationId, [StaffRoleNames.Technician]));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
