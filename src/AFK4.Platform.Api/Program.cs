@@ -2840,6 +2840,74 @@ app.MapPost("/api/branches/{branchId:guid}/packages", async (
     return Results.Ok(result.Response);
 });
 
+app.MapPatch("/api/branches/{branchId:guid}/packages/{packageDefinitionId:guid}", async (
+    Guid branchId,
+    Guid packageDefinitionId,
+    UpdatePackageDefinitionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IPackageService packageService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManagePackages,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdatePackageDefinition,
+            "PackageDefinition",
+            packageDefinitionId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.Name, request.IsActive, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await packageService.UpdatePackageDefinitionAsync(
+        branchId,
+        packageDefinitionId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdatePackageDefinition,
+        "PackageDefinition",
+        result.Response!.PackageDefinitionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.Name, request.Price, request.IsActive },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
 app.MapGet("/api/branches/{branchId:guid}/packages/options", async (
     Guid branchId,
     StaffAuthorizationService authorizationService,

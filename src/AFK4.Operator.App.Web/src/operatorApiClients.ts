@@ -262,6 +262,10 @@ export interface CreatePackageDefinitionRequest extends Record<string, unknown> 
   organizationId: Guid;
 }
 
+export interface UpdatePackageDefinitionRequest extends Record<string, unknown> {
+  organizationId: Guid;
+}
+
 export interface CreateProductCategoryRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
@@ -533,6 +537,9 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     createPackageDefinition(branchId: Guid, request: CreatePackageDefinitionRequest): Promise<PackageDefinitionDto> {
       return api.post<PackageDefinitionDto, CreatePackageDefinitionRequest>(`/api/branches/${branchId}/packages`, request);
+    },
+    updatePackageDefinition(branchId: Guid, packageDefinitionId: Guid, request: UpdatePackageDefinitionRequest): Promise<PackageDefinitionDto> {
+      return api.patch<PackageDefinitionDto, UpdatePackageDefinitionRequest>(`/api/branches/${branchId}/packages/${packageDefinitionId}`, request);
     },
     createProductCategory(branchId: Guid, request: CreateProductCategoryRequest): Promise<PosProductCategoryDto> {
       return api.post<PosProductCategoryDto, CreateProductCategoryRequest>(`/api/branches/${branchId}/pos/categories`, request);

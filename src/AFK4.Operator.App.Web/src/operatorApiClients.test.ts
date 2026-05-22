@@ -253,6 +253,15 @@ describe('operator API clients', () => {
       expiresAfterDays: 30,
       idempotencyKey: 'idem-package-definition'
     });
+    await clients.settings.updatePackageDefinition(branchId, 'abababab-abab-abab-abab-abababababab', {
+      organizationId,
+      name: 'Night 6h',
+      price: { currencyCode: 'TJS', minorUnits: 30000 },
+      includedSeconds: 21600,
+      bonusSeconds: 2400,
+      expiresAfterDays: 45,
+      isActive: false
+    });
     await clients.settings.createProductCategory(branchId, {
       organizationId,
       name: 'Snacks',
@@ -305,6 +314,7 @@ describe('operator API clients', () => {
       `GET /api/branches/${branchId}/tariffs/options`,
       `GET /api/branches/${branchId}/packages/options`,
       `POST /api/branches/${branchId}/packages`,
+      `PATCH /api/branches/${branchId}/packages/abababab-abab-abab-abab-abababababab`,
       `POST /api/branches/${branchId}/pos/categories`,
       `POST /api/branches/${branchId}/pos/products`,
       `PATCH /api/branches/${branchId}/pos/products/77777777-7777-7777-7777-777777777777`,
@@ -320,11 +330,12 @@ describe('operator API clients', () => {
     expect(calls[1].body).toEqual({ organizationId, roleNames: ['technician'] });
     expect(calls[3].body).toEqual({ organizationId, name: 'AFK4 Pilot', city: 'Dushanbe' });
     expect(calls[7].body).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
-    expect(calls[8].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
-    expect(calls[9].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
-    expect(calls[10].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
-    expect(calls[12].body).toEqual({ organizationId, expiresInSeconds: 900 });
-    expect(calls[13].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
+    expect(calls[8].body).toMatchObject({ organizationId, name: 'Night 6h', includedSeconds: 21600, isActive: false });
+    expect(calls[9].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
+    expect(calls[10].body).toMatchObject({ organizationId, name: 'Energy Bar', sku: 'BAR-01' });
+    expect(calls[11].body).toMatchObject({ organizationId, name: 'Energy Bar Zero', sku: 'BAR-ZERO', isActive: false });
+    expect(calls[13].body).toEqual({ organizationId, expiresInSeconds: 900 });
+    expect(calls[14].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 });
 

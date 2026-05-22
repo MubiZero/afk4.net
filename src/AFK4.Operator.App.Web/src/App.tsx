@@ -5903,6 +5903,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [packageMinutes, setPackageMinutes] = useState('300');
   const [packageBonusMinutes, setPackageBonusMinutes] = useState('30');
   const [packageExpiresDays, setPackageExpiresDays] = useState('30');
+  const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
   const [updateComponent, setUpdateComponent] = useState('operator-app');
   const [updateVersion, setUpdateVersion] = useState('0.1.0');
   const [updateChannel, setUpdateChannel] = useState('internal');
@@ -5973,7 +5974,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setPackageStatePackageId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updatePackageId'));
       setRolloutStateRolloutId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updateRolloutId'));
       setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
-      setPackageOptions(Array.isArray(packageOptionRows) ? packageOptionRows : []);
+      const packageRows = Array.isArray(packageOptionRows) ? packageOptionRows : [];
+      setPackageOptions(packageRows);
+      setSelectedPackageDefinitionId((current) => packageRows.some((option) => readString(option, 'packageDefinitionId') === current) ? current : '');
       setClubName(readString(branchProfile, 'name', 'AFK4'));
       setCity(readString(branchProfile, 'city', 'Dushanbe'));
       setSettingsDirty(false);
@@ -6029,6 +6032,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setProductTrackStock(readBoolean(product, 'trackStock', true));
     setProductAllowNegativeStock(readBoolean(product, 'allowNegativeStock'));
     triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed');
+  };
+  const selectPackageOption = (option: PackageOptionDto) => {
+    setSelectedPackageDefinitionId(readString(option, 'packageDefinitionId'));
+    setPackageName(readString(option, 'name', packageName));
+    setPackagePrice(formatMoneyInputMinorUnits(readNumber(option, 'priceMinorUnits', 0)));
+    setPackageMinutes(String(Math.round(readNumber(option, 'includedSeconds', 0) / 60)));
+    setPackageBonusMinutes(String(Math.round(readNumber(option, 'bonusSeconds', 0) / 60)));
+    setPackageExpiresDays(String(readNumber(option, 'expiresAfterDays', 30)));
+    triggerFeedback(setFeedback, readString(option, 'name', 'Package'), 'confirmed');
   };
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
@@ -6244,6 +6256,36 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           expiresAfterDays: expiresDays,
           idempotencyKey: createIdempotencyKey('package-definition-create')
         });
+        await loadSettings(nextBackend);
+      } else if (label === 'Обновить пакет' || label === 'Снять пакет') {
+        if (!hasPermission(nextBackend.session, permissionNames.managePackages)) {
+          throw new Error('Нет прав на управление пакетами.');
+        }
+
+        const packageDefinitionId = selectedPackageDefinitionId.trim();
+        const name = packageName.trim();
+        const priceMinorUnits = parseMoneyInputMinorUnits(packagePrice);
+        const includedMinutes = Number(packageMinutes);
+        const bonusMinutes = Number(packageBonusMinutes);
+        const expiresDays = Number(packageExpiresDays);
+        if (!isGuid(packageDefinitionId) || !name || priceMinorUnits === null || !Number.isInteger(includedMinutes) || includedMinutes <= 0
+          || !Number.isInteger(bonusMinutes) || bonusMinutes < 0
+          || !Number.isInteger(expiresDays) || expiresDays <= 0) {
+          throw new Error('Выберите пакет и заполните название, цену, минуты, бонус и срок действия.');
+        }
+
+        await apiClients.settings.updatePackageDefinition(nextBackend.branchId, packageDefinitionId, {
+          organizationId: nextBackend.session.organizationId,
+          name,
+          price: { currencyCode, minorUnits: priceMinorUnits },
+          includedSeconds: includedMinutes * 60,
+          bonusSeconds: bonusMinutes * 60,
+          expiresAfterDays: expiresDays,
+          isActive: label !== 'Снять пакет'
+        });
+        if (label === 'Снять пакет') {
+          setSelectedPackageDefinitionId('');
+        }
         await loadSettings(nextBackend);
       } else if (label === 'Пригласить сотрудника') {
         if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
@@ -6620,11 +6662,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
           <div className="settings-section-title">
             <span>Пакеты</span>
-            <button type="button" disabled={!canManagePackages} onClick={() => runSettingsAction('Создать пакет')}>Создать пакет</button>
+            <div className="settings-section-actions">
+              <button type="button" disabled={!canManagePackages} onClick={() => runSettingsAction('Создать пакет')}>Создать пакет</button>
+              <button type="button" disabled={!canManagePackages || !selectedPackageDefinitionId} onClick={() => runSettingsAction('Обновить пакет')}>Обновить пакет</button>
+              <button type="button" disabled={!canManagePackages || !selectedPackageDefinitionId} onClick={() => runSettingsAction('Снять пакет')}>Снять пакет</button>
+            </div>
           </div>
           <div className="settings-tariff-list">
             {packageOptions.map((option) => (
-              <button key={readString(option, 'packageDefinitionId')} type="button" className="settings-tariff-row" onClick={() => triggerFeedback(setFeedback, readString(option, 'name', 'Package'), 'confirmed')}>
+              <button key={readString(option, 'packageDefinitionId')} type="button" className={`settings-tariff-row ${readString(option, 'packageDefinitionId') === selectedPackageDefinitionId ? 'active' : ''}`} onClick={() => selectPackageOption(option)}>
                 <strong>{readString(option, 'name', 'Package')}</strong>
                 <b>{formatMinorUnits(readNumber(option, 'priceMinorUnits', 0), readString(option, 'currencyCode', currencyCode))}</b>
                 <span>{Math.round(readNumber(option, 'includedSeconds', 0) / 60)} мин · +{Math.round(readNumber(option, 'bonusSeconds', 0) / 60)} бонус · {readNumber(option, 'expiresAfterDays', 0)} дн.</span>

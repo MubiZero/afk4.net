@@ -11,6 +11,13 @@ public interface IPackageService
         CreatePackageDefinitionRequest request,
         CancellationToken cancellationToken);
 
+    Task<BillingCommandServiceResult<PackageDefinitionDto>> UpdatePackageDefinitionAsync(
+        Guid branchId,
+        Guid packageDefinitionId,
+        Guid actorStaffUserId,
+        UpdatePackageDefinitionRequest request,
+        CancellationToken cancellationToken);
+
     Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageAsync(
         Guid playerAccountId,
         Guid branchId,

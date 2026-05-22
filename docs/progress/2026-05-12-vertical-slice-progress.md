@@ -183,7 +183,9 @@ implementation evidence are needed.
   first price-rule versions through `/api/branches/{branchId}/tariffs` and
   `/api/branches/{branchId}/tariffs/{tariffId}/versions`, guarded by
   `tariffs.manage`, and can create package definitions through
-  `/api/branches/{branchId}/packages`, guarded by `packages.manage`.
+  `/api/branches/{branchId}/packages`, then update/deactivate selected package
+  definitions through `/api/branches/{branchId}/packages/{packageDefinitionId}`,
+  guarded by `packages.manage`.
   Settings `Интеграции` can now register update packages, create rollouts, and
   change update package/rollout states through the existing update endpoints,
   guarded by `updates.packages.manage` and `updates.rollouts.manage`. Settings
@@ -226,9 +228,9 @@ implementation evidence are needed.
   Settings reads staff, layout, catalog, stock movement history, diagnostics,
   update rollout, tariff option, and package option data, and can trigger
   limited backend setup actions
-  including tariff/version creation, package definition creation, POS product
-  update/deactivation, inventory stock movement creation, update package
-  registration, rollout creation, and update state changes;
+  including tariff/version creation, package definition creation/update/
+  deactivation, POS product update/deactivation, inventory stock movement
+  creation, update package registration, rollout creation, and update state changes;
   Settings device setup can create enrollment codes, assign device seats, read
   device detail, dispatch device commands, and rotate/revoke device credentials;
   Logs now applies backend
@@ -335,7 +337,7 @@ permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation/role update, and
 branch profile read/update, Settings POS catalog create/update/deactivate,
-Settings stock movement creation, Settings stock movement history, Settings tariff/version create, Settings package definition create, Clients
+Settings stock movement creation, Settings stock movement history, Settings tariff/version create, Settings package definition create/update/deactivate, Clients
 wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
 form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
@@ -357,9 +359,9 @@ reservation permission gating, and Settings staff role editing:
 
 Result:
 
-- frontend tests: 85 passed, 0 failed;
+- frontend tests: 86 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 787 passed, 0 failed;
+- full local .NET solution tests: 790 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -413,6 +415,11 @@ Result:
 - Settings package frontend tests now cover package definition POST
   serialization from the `Тарифы` form, including price minor units, included
   seconds, bonus seconds, expiry days, organization id, and idempotency key.
+- Settings package backend/API/frontend tests now cover selected package
+  update and deactivation through
+  `PATCH /api/branches/{branchId}/packages/{packageDefinitionId}`, including
+  `packages.manage` authorization, duplicate-name validation, frontend request
+  serialization, and removal from active package options after deactivation.
 - Settings tariff frontend tests now cover creating a tariff plus first rule
   version from the `Тарифы` form, including tariff name, hourly price converted
   to per-minute minor units, minimum billable minutes, rounding increment,
@@ -458,8 +465,9 @@ Result:
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
   source-card filtering, audit period presets, Logs export downloads,
   Payments/Dashboard report export downloads, Clients reservation permission
-  gating, Settings staff role editing, Settings stock movement history, and
-  Settings POS product update/deactivation: the React app rendered the
+  gating, Settings staff role editing, Settings stock movement history,
+  Settings POS product update/deactivation, and Settings package
+  update/deactivation: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
   and no old backend placeholder copy.
@@ -1434,6 +1442,13 @@ Operator App redesign branch-local verification on 2026-05-20:
   validation, audit action `pos.products.update`, and stock-on-hand projection
   in the response. The React `POS и склад` section lets operators select a
   catalog item, edit name/SKU/price/stock flags, or mark it inactive.
+- On 2026-05-22, `codex/operator-app-redesign` added Settings package
+  definition update/deactivation. The Platform API now exposes
+  `PATCH /api/branches/{branchId}/packages/{packageDefinitionId}` with
+  `packages.manage` authorization, duplicate-name validation, audit action
+  `packages.update`, and active package option removal after deactivation. The
+  React `Тарифы` section lets operators select a package, edit price/minutes/
+  bonus/expiry, or mark it inactive.
 - On 2026-05-21, `codex/operator-app-redesign` added a backend-backed
   Settings `POS и склад` product creation form. It creates a POS category,
   then a POS product with price, SKU, stock flags, and idempotency keys through

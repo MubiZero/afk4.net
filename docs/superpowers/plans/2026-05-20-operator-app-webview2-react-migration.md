@@ -69,8 +69,8 @@ Current state:
   backed by the existing POS catalog model, stock movement creation backed by
   the existing inventory endpoint, stock movement history backed by the existing
   inventory read endpoint, tariff/version creation backed by the existing tariff
-  endpoints, and package definition creation backed by the existing package
-  endpoint. Payments can now open a shift through the existing
+  endpoints, and package definition creation/update/deactivation backed by the
+  existing package endpoint. Payments can now open a shift through the existing
   open-shift endpoint, close the current shift through the existing close-shift
   endpoint with counted cash and a closing note, and can record cash movements
   through the existing shift cash movement endpoint. Settings `Интеграции` now
@@ -141,7 +141,8 @@ create branch staff and reassign predefined branch roles through backend staff
 APIs, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product, and Settings `Тарифы` can
-create a backend tariff/version plus package definition. Settings `POS и
+create a backend tariff/version plus create/update/deactivate package
+definitions. Settings `POS и
 склад` can also record inventory stock movements for tracked products, read
 the latest stock movement history, and update/deactivate selected POS products.
 Payments open-shift now calls
@@ -354,7 +355,10 @@ missing-backend copy.
   with `tariffs.manage` gating, hourly price, minimum/rounding fields, and
   idempotency keys. Package definition creation from `Тарифы` was implemented
   on 2026-05-21 through the existing package endpoint with `packages.manage`
-  gating, minute/bonus/expiry fields, and idempotency keys. Inventory stock
+  gating, minute/bonus/expiry fields, and idempotency keys. Package definition
+  update/deactivation from `Тарифы` was implemented on 2026-05-22 through
+  `PATCH /api/branches/{branchId}/packages/{packageDefinitionId}` with
+  `packages.manage` gating. Inventory stock
   movement creation from `POS и склад` was
   implemented on 2026-05-21 through the existing stock-movement endpoint with
   `inventory.stock.manage` gating and idempotency keys. Read-only stock
@@ -374,8 +378,8 @@ missing-backend copy.
   Remaining settings gaps include custom roles/arbitrary permission-set editing,
   staff activation/deactivation/password reset/profile detail, richer layout
   editing beyond create-only zones/seats, richer device inventory/history
-  management, tariff version edit/deactivate, package edit/deactivate and
-  purchase UX refinements, advanced POS catalog management, advanced inventory
+  management, tariff version edit/deactivate, package purchase UX refinements,
+  advanced POS catalog management, advanced inventory
   controls and reconciliation, integrations/payment-provider
   settings, richer update rollout detail/status controls, diagnostics,
   audit/security settings, and
@@ -550,8 +554,9 @@ Screen roadmap:
   enough to preserve current operator capability. Implemented on 2026-05-21
   with branch profile, staff, layout, tariff/package, POS/inventory, updates,
   audit/diagnostics, enrollment, seat assignment, device detail, command
-  dispatch, credential lifecycle, stock movement history, and POS product
-  update/deactivation wiring through existing backend endpoints.
+  dispatch, credential lifecycle, stock movement history, POS product
+  update/deactivation, and package definition update/deactivation wiring
+  through existing backend endpoints.
 
 ## Task 6: Realtime State
 

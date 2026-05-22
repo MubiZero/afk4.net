@@ -412,6 +412,38 @@ public sealed class BillingEndpointTests
     }
 
     [Fact]
+    public async Task UpdatePackage_WithBranchManager_UpdatesPackageDefinition()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var package = await SeedPackageDefinitionAsync(factory);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/packages/{package.PackageDefinitionId:D}",
+            new UpdatePackageDefinitionRequest(
+                TestIds.OrganizationId,
+                "Night 6h",
+                new MoneyDto("TJS", 4500),
+                IncludedSeconds: 21600,
+                BonusSeconds: 2400,
+                ExpiresAfterDays: 45,
+                IsActive: false));
+        var body = await response.Content.ReadFromJsonAsync<PackageDefinitionDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal("NIGHT 6H", body.Name);
+        Assert.False(body.IsActive);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.UpdatePackageDefinition, audit.Action);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+    }
+
+    [Fact]
     public async Task PurchasePackage_WithCashier_PurchasesPackage()
     {
         await using var factory = new PlatformApiFactory();

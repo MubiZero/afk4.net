@@ -1674,6 +1674,54 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^package-definition-create-/);
   });
 
+  it('updates and deactivates a package definition from Settings tariffs', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Night 5h/ }));
+    fireEvent.change(screen.getByLabelText('Пакет'), { target: { value: 'Night 6h' } });
+    fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '300.00' } });
+    fireEvent.change(screen.getByLabelText('Минуты'), { target: { value: '360' } });
+    fireEvent.change(screen.getByLabelText('Бонус'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Дней'), { target: { value: '45' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить пакет' }));
+
+    expect(await screen.findByText('Обновить пакет: подтверждено')).toBeInTheDocument();
+    const updateCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages/abababab-abab-abab-abab-abababababab') &&
+      init?.method === 'PATCH');
+    expect(updateCall).toBeDefined();
+    const updateBody = JSON.parse(String(updateCall?.[1]?.body));
+    expect(updateBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'Night 6h',
+      price: { currencyCode: 'TJS', minorUnits: 30000 },
+      includedSeconds: 21600,
+      bonusSeconds: 2400,
+      expiresAfterDays: 45,
+      isActive: true
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Снять пакет' }));
+    expect(await screen.findByText('Снять пакет: подтверждено')).toBeInTheDocument();
+    const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages/abababab-abab-abab-abab-abababababab') &&
+      init?.method === 'PATCH').at(-1);
+    expect(deactivateCall).toBeDefined();
+    const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
+    expect(deactivateBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'Night 6h',
+      isActive: false
+    });
+  });
+
   it('creates a tariff and rule version from Settings tariffs', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -2038,6 +2086,12 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   if (pathname.includes('/players/') && pathname.endsWith('/packages/purchases')) {
     const body = JSON.parse(String(init?.body));
     return jsonResponse(createPlayerPackage(body));
+  }
+
+  if (pathname.includes('/branches/') && pathname.includes('/packages/') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    const packageDefinitionId = pathname.split('/').at(-1);
+    return jsonResponse(createPackageDefinition({ ...body, packageDefinitionId }));
   }
 
   if (pathname.includes('/branches/') && pathname.endsWith('/packages') && init?.method === 'POST') {

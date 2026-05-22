@@ -42,6 +42,8 @@ public static class AuditActionNames
 
     public const string CreatePackageDefinition = "packages.create";
 
+    public const string UpdatePackageDefinition = "packages.update";
+
     public const string ViewPackages = "packages.view";
 
     public const string PurchasePackage = "packages.purchase";
