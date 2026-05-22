@@ -398,7 +398,9 @@ Minimum bar:
   endpoint with `inventory.stock.manage` gating. Clients profile now reads
   active player packages through the existing player packages endpoint. Clients
   package purchase now calls the existing package option and purchase endpoints
-  for the selected backend player, and Clients wallet top-up sends
+  for the selected backend player with an explicit package selector, price/
+  minute preview, deposit guard, and active-package refresh after confirmation,
+  and Clients wallet top-up sends
   operator-entered amount/reason to the existing top-up endpoint. Clients debt
   payment sends operator-entered amount/reason to the
   existing debt payment endpoint. Clients player creation sends
@@ -473,7 +475,7 @@ Minimum bar:
    export downloads, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
    POS selected-customer/new-customer checkout/wallet top-up/stock write-off, Clients wallet
-   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, and Clients package purchase. Next deliver staging smoke across these backend-backed workspaces
+   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, and Clients package purchase selector/confirmation. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must
    still target staging with

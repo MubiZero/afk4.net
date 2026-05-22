@@ -968,6 +968,14 @@ function playerPackageLabel(playerPackage: Record<string, unknown>) {
   return `${readString(playerPackage, 'name', 'Пакет')} · ${Math.floor(remainingSeconds / 60)} мин`;
 }
 
+function packageOptionLabel(packageOption: Record<string, unknown>, currencyCode: string) {
+  const name = readString(packageOption, 'name', 'Пакет');
+  const price = readNumber(packageOption, 'priceMinorUnits', 0);
+  const currency = readString(packageOption, 'currencyCode', currencyCode);
+  const totalMinutes = Math.floor((readNumber(packageOption, 'includedSeconds', 0) + readNumber(packageOption, 'bonusSeconds', 0)) / 60);
+  return `${name} · ${formatMinorUnits(price, currency)} · ${totalMinutes} мин`;
+}
+
 function describeDeviceCommandStatus(status: Record<string, unknown>) {
   const type = readString(status, 'type', 'command');
   const state = readString(status, 'status', 'pending');
@@ -4354,6 +4362,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const [clients, setClients] = useState<PlayerClientItem[]>(() => fixturePlayers(currencyCode));
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
   const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('100.00');
   const [walletTopUpReason, setWalletTopUpReason] = useState('operator wallet top-up');
@@ -4365,6 +4374,8 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   useEffect(() => {
     if (backend === null) {
       setLoadStatus('fixture');
+      setPackageOptions([]);
+      setSelectedPackageDefinitionId('');
       return undefined;
     }
 
@@ -4382,8 +4393,12 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         }
 
         const nextClients = Array.isArray(players) ? players.map(projectPlayerClient) : [];
+        const nextOptions = Array.isArray(nextPackageOptions) ? nextPackageOptions : [];
         setClients(nextClients.length > 0 ? nextClients : []);
-        setPackageOptions(Array.isArray(nextPackageOptions) ? nextPackageOptions : []);
+        setPackageOptions(nextOptions);
+        setSelectedPackageDefinitionId((current) => current && nextOptions.some((option) => readString(option, 'packageDefinitionId') === current)
+          ? current
+          : readString(nextOptions[0], 'packageDefinitionId'));
         setSelectedClientId((current) => current && nextClients.some((client) => client.playerAccountId === current)
           ? current
           : nextClients[0]?.playerAccountId ?? null);
@@ -4455,7 +4470,16 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient.debtMinorUnits;
   const recentEntries = readArray(walletSummary, 'recentEntries');
   const selectedClientPackageCount = selectedClientPackages.length || Number.parseInt(selectedClient.last, 10) || 0;
-  const selectedPackageOption = packageOptions[0] ?? null;
+  const selectedPackageOption = packageOptions.find((option) => readString(option, 'packageDefinitionId') === selectedPackageDefinitionId)
+    ?? packageOptions[0]
+    ?? null;
+  const selectedPackagePriceMinorUnits = selectedPackageOption === null ? 0 : readNumber(selectedPackageOption, 'priceMinorUnits', 0);
+  const selectedPackageCurrencyCode = selectedPackageOption === null ? currencyCode : readString(selectedPackageOption, 'currencyCode', currencyCode);
+  const selectedPackageIncludedMinutes = selectedPackageOption === null ? 0 : Math.floor(readNumber(selectedPackageOption, 'includedSeconds', 0) / 60);
+  const selectedPackageBonusMinutes = selectedPackageOption === null ? 0 : Math.floor(readNumber(selectedPackageOption, 'bonusSeconds', 0) / 60);
+  const selectedPackageTotalMinutes = selectedPackageIncludedMinutes + selectedPackageBonusMinutes;
+  const selectedPackageExpiresDays = selectedPackageOption === null ? 0 : readNumber(selectedPackageOption, 'expiresAfterDays', 0);
+  const canAffordSelectedPackage = selectedPackageOption !== null && balance >= selectedPackagePriceMinorUnits;
   useEffect(() => {
     if (debt <= 0) {
       setDebtPaymentAmount('');
@@ -4578,7 +4602,9 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         let packageOption: PackageOptionDto | null = selectedPackageOption;
         if (packageOption === null) {
           const options = await apiClients.settings.getPackageOptions(nextBackend.branchId);
-          setPackageOptions(Array.isArray(options) ? options : []);
+          const nextOptions = Array.isArray(options) ? options : [];
+          setPackageOptions(nextOptions);
+          setSelectedPackageDefinitionId(readString(nextOptions[0], 'packageDefinitionId'));
           packageOption = Array.isArray(options) ? options[0] ?? null : null;
         }
 
@@ -4587,12 +4613,22 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Нет доступного backend пакета для покупки.');
         }
 
-        await apiClients.players.purchasePackage(selectedClient.playerAccountId, {
+        const packagePriceMinorUnits = readNumber(packageOption, 'priceMinorUnits', 0);
+        if (packagePriceMinorUnits > balance) {
+          throw new Error('Недостаточно депозита для выбранного пакета.');
+        }
+
+        const purchasedPackage = await apiClients.players.purchasePackage(selectedClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
           packageDefinitionId,
           idempotencyKey: createIdempotencyKey('package-purchase')
         });
-        setWalletSummary(await apiClients.players.getWalletSummary(selectedClient.playerAccountId));
+        const [wallet, packages] = await Promise.all([
+          apiClients.players.getWalletSummary(selectedClient.playerAccountId),
+          apiClients.players.getPlayerPackages(selectedClient.playerAccountId).catch(() => [purchasedPackage])
+        ]);
+        setWalletSummary(wallet);
+        setSelectedClientPackages(Array.isArray(packages) ? packages : [purchasedPackage]);
       } else if (label === 'Создать бронь') {
         if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
           throw new Error('Нет прав на создание брони.');
@@ -4728,11 +4764,35 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             <label>Имя нового клиента<input value={newPlayerName} disabled={!canCreatePlayer} onChange={(event) => setNewPlayerName(event.currentTarget.value)} /></label>
             <label>Телефон нового клиента<input value={newPlayerPhone} disabled={!canCreatePlayer} onChange={(event) => setNewPlayerPhone(event.currentTarget.value)} /></label>
           </div>
+          <div className="clients-package-form">
+            <label>
+              Пакет для покупки
+              <select
+                value={selectedPackageOption === null ? '' : readString(selectedPackageOption, 'packageDefinitionId')}
+                disabled={!canPurchasePackage || packageOptions.length === 0}
+                onChange={(event) => setSelectedPackageDefinitionId(event.currentTarget.value)}
+              >
+                {packageOptions.length === 0 && <option value="">Нет активных пакетов</option>}
+                {packageOptions.map((option) => (
+                  <option key={readString(option, 'packageDefinitionId')} value={readString(option, 'packageDefinitionId')}>
+                    {packageOptionLabel(option, currencyCode)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="clients-package-preview" aria-label="Пакет к покупке">
+              <span><strong>Цена</strong><b>{formatMinorUnits(selectedPackagePriceMinorUnits, selectedPackageCurrencyCode)}</b></span>
+              <span><strong>Минуты</strong><b>{selectedPackageTotalMinutes}</b></span>
+              <span><strong>Бонус</strong><b>{selectedPackageBonusMinutes}</b></span>
+              <span><strong>Срок</strong><b>{selectedPackageExpiresDays > 0 ? `${selectedPackageExpiresDays} дн.` : 'без срока'}</b></span>
+              <span className={canAffordSelectedPackage ? undefined : 'attention'}><strong>Депозит</strong><b>{canAffordSelectedPackage ? 'достаточно' : 'пополнить'}</b></span>
+            </div>
+          </div>
           <div className="clients-action-grid">
             {[
               ['Пополнить депозит', `${walletTopUpAmount || '0'} ${currencyCode}`, CircleDollarSign],
               ['Списать долг', debtPaymentAmount ? `${debtPaymentAmount} ${currencyCode}` : 'нет долга', ReceiptText],
-              ['Купить пакет', selectedPackageOption ? readString(selectedPackageOption, 'name', 'backend package') : 'нет пакетов', TimerReset],
+              ['Купить пакет', selectedPackageOption ? packageOptionLabel(selectedPackageOption, currencyCode) : 'нет пакетов', TimerReset],
               ['Создать бронь', 'бронь из карточки', CalendarClock],
               ['Новая карта', newPlayerName || 'создать игрока', UserRoundPlus]
             ].map(([label, detail, Icon]) => (
@@ -4742,7 +4802,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
                 className="clients-action-card"
                 disabled={((label as string) === 'Пополнить депозит' && !canTopUpWallet)
                   || ((label as string) === 'Списать долг' && !canPayDebt)
-                  || ((label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0))
+                  || ((label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0 || !canAffordSelectedPackage))
                   || ((label as string) === 'Создать бронь' && !canCreateClientReservation)
                   || ((label as string) === 'Новая карта' && !canCreatePlayer)}
                 onClick={() => runClientAction(label as string)}

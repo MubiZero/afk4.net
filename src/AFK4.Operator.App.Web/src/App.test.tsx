@@ -1172,6 +1172,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText('Пакет для покупки'), { target: { value: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd' } });
     expect(await screen.findByRole('button', { name: /Купить пакет/ })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /Купить пакет/ }));
 
@@ -1183,7 +1184,7 @@ describe('App', () => {
     const body = JSON.parse(String(purchaseCall?.[1]?.body));
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      packageDefinitionId: 'abababab-abab-abab-abab-abababababab'
+      packageDefinitionId: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd'
     });
     expect(body.idempotencyKey).toMatch(/^package-purchase-/);
   });
@@ -3044,6 +3045,15 @@ function createPackageOptions() {
       includedSeconds: 18000,
       bonusSeconds: 0,
       expiresAfterDays: 30
+    },
+    {
+      packageDefinitionId: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd',
+      name: 'Morning 2h',
+      currencyCode: 'TJS',
+      priceMinorUnits: 12000,
+      includedSeconds: 7200,
+      bonusSeconds: 1800,
+      expiresAfterDays: 14
     }
   ];
 }

@@ -221,8 +221,9 @@ implementation evidence are needed.
   projection, and can print/export the loaded receipt locally; Clients searches
   backend players, loads active packages for the selected player profile,
   and performs wallet top-up and debt payment with operator-entered
-  amount/reason, package purchase, player creation with operator-entered
-  name/phone, and reservation creation from a selected backend player guarded by
+  amount/reason, package purchase with explicit package selection, price/minute
+  preview, deposit guard, and active-package refresh, player creation with
+  operator-entered name/phone, and reservation creation from a selected backend player guarded by
   `reservations.manage`; Payments
   reads shift, sales, cash, and CSV report endpoints and shows selected
   operation detail from backend report rows, with report export buttons now
@@ -350,8 +351,8 @@ selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation/role update/
 lifecycle controls, and branch profile read/update, Settings POS catalog create/update/deactivate,
 Settings stock movement creation, Settings stock movement history, Settings tariff/version create/update/deactivate, Settings package definition create/update/deactivate, Clients
-wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
-form, POS selected-sale refund, Payments
+wallet top-up/debt payment amount/reason forms, Clients package selector/price
+preview purchase, Clients new-player name/phone form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
 wiring, Settings update package/rollout controls, Settings device enrollment,
 seat assignment, and credential lifecycle, Logs backend audit/date filters and
@@ -547,7 +548,8 @@ Result:
   receipt projection for the Operator App.
 - Clients frontend tests now cover package purchase from the selected backend
   player card through `/api/players/{playerAccountId}/packages/purchases`,
-  including package definition id and idempotency key serialization.
+  including operator package-option selection, package definition id,
+  idempotency key serialization, and active-package refresh after purchase.
 - Clients frontend tests now cover wallet top-up from the selected backend
   player card using operator-entered amount and reason through
   `/api/players/{playerAccountId}/wallet/top-ups`, including amount minor
