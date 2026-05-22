@@ -232,6 +232,12 @@ export interface CreateStaffUserRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
 
+export interface UpdateStaffUserProfileRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  userName: string;
+  displayName: string;
+}
+
 export interface UpdateStaffUserRolesRequest extends Record<string, unknown> {
   organizationId: Guid;
   roleNames: string[];
@@ -559,6 +565,9 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     createStaffUser(branchId: Guid, request: CreateStaffUserRequest): Promise<StaffUserDto> {
       return api.post<StaffUserDto, CreateStaffUserRequest>(`/api/branches/${branchId}/staff`, request);
+    },
+    updateStaffUserProfile(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserProfileRequest): Promise<StaffUserDto> {
+      return api.patch<StaffUserDto, UpdateStaffUserProfileRequest>(`/api/branches/${branchId}/staff/${staffUserId}/profile`, request);
     },
     updateStaffUserRoles(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserRolesRequest): Promise<StaffUserDto> {
       return api.patch<StaffUserDto, UpdateStaffUserRolesRequest>(`/api/branches/${branchId}/staff/${staffUserId}/roles`, request);

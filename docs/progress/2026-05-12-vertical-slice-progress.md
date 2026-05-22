@@ -167,7 +167,10 @@ implementation evidence are needed.
   existing branch staff API. It validates the form client-side, requires the
   existing branch-staff management permission, posts login/display name/
   temporary password/role names to `/api/branches/{branchId}/staff`. It can also
-  update an existing staff user's predefined branch role through
+  edit a selected staff user's login/display name through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/profile`, guarded by
+  `identity.branch_staff.manage`, update an existing staff user's predefined
+  branch role through
   `PATCH /api/branches/{branchId}/staff/{staffUserId}/roles`, guarded by
   `identity.roles.manage`, deactivate/reactivate selected staff users through
   `PATCH /api/branches/{branchId}/staff/{staffUserId}/state`, and reset a
@@ -351,8 +354,8 @@ first backend-backed parity wiring for the remaining operator workspaces,
 the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
-Booking permission/state hardening, Settings staff creation/role update/
-lifecycle controls, and branch profile read/update, Settings POS catalog create/update/deactivate,
+Booking permission/state hardening, Settings staff creation/profile update/
+role update/lifecycle controls, and branch profile read/update, Settings POS catalog create/update/deactivate,
 Settings stock movement creation, Settings stock movement history, Settings tariff/version create/update/deactivate, Settings package definition create/update/deactivate, Settings branch device inventory and selected-device command history, Clients
 wallet top-up/debt payment amount/reason forms, Clients package selector/price
 preview purchase, Clients new-player name/phone form, POS selected-sale refund, Payments
@@ -376,10 +379,14 @@ device inventory, and selected-device command history:
 
 Result:
 
-- frontend tests: 91 passed, 0 failed;
+- frontend tests: 92 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 812 passed, 0 failed;
+- full local .NET solution tests: 816 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
+- Browser smoke on `http://127.0.0.1:5173/` after Settings staff profile
+  editing rendered the WebView auth entry surface with title `AFK4 Operator`,
+  heading `Вход оператора`, sign-in button, no old backend placeholder copy,
+  and no horizontal or vertical body overflow.
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
@@ -404,6 +411,12 @@ Result:
 - Settings frontend tests now cover branch staff creation from the Personnel
   form, including request body serialization for login, display name, temporary
   password, and role names.
+- Settings backend/API/frontend tests now cover selected staff profile editing
+  through `PATCH /api/branches/{branchId}/staff/{staffUserId}/profile`,
+  including shared contract JSON round-trip, login/display-name validation,
+  duplicate-login conflict handling, `identity.branch_staff.manage`
+  authorization, audit records, sign-in with the renamed login, frontend
+  request serialization, and selected-row refresh in `Персонал`.
 - Settings backend/frontend tests now cover replacing a selected staff user's
   predefined branch role through
   `PATCH /api/branches/{branchId}/staff/{staffUserId}/roles`, including
@@ -1373,10 +1386,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   becomes available, PR merges must manually require a green
   `PR Verification Result` on the current head commit, as recorded in
   `AGENTS.md`.
-- General staff management now includes creation, predefined branch-role
-  reassignment, activation/deactivation, and password reset. Custom roles,
-  arbitrary permission-set editing, and richer staff profile management are
-  still not implemented.
+- General staff management now includes creation, login/display-name editing,
+  predefined branch-role reassignment, activation/deactivation, and password
+  reset. Custom roles and arbitrary permission-set editing are still not
+  implemented.
 - General Operator App layout management UI now supports Settings-based zone/
   seat creation, rename/reorder, and seat moves between zones. Visual drag/drop
   layout editing and archive/delete flows are still not implemented.

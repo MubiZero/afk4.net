@@ -345,9 +345,9 @@ Minimum bar:
   the selected device detail plus branch diagnostics before confirming.
   Booking now also disables mutation controls without `reservations.manage` or
   when selected reservation state/seat availability makes the action invalid.
-  Settings now supports general staff creation and predefined branch-role
-  reassignment through staff APIs, branch profile name/city save through a new
-  branch profile API,
+  Settings now supports general staff creation, login/display-name editing, and
+  predefined branch-role reassignment through staff APIs, branch profile
+  name/city save through a new branch profile API,
   POS category/product creation plus product update/deactivation through the
   existing POS catalog endpoints, and inventory stock movement creation through
   the existing stock-movement endpoint. The same Settings section now reads recent stock movement history
@@ -425,10 +425,10 @@ Minimum bar:
   `Нет backend ...` placeholders.
   The current WPF implementation remains a parity reference and temporary legacy
   source until the WebView2/React Operator App covers the pilot day flow.
-- Staff management now has general Operator App creation, predefined
-  branch-role reassignment, activation/deactivation, and password reset paths.
-- Custom roles, arbitrary permission-set editing, and richer staff profile
-  management are not implemented.
+- Staff management now has general Operator App creation, login/display-name
+  editing, predefined branch-role reassignment, activation/deactivation, and
+  password reset paths.
+- Custom roles and arbitrary permission-set editing are not implemented.
 - Branch layout management is implemented as a minimum API path on `main`;
   the Operator App now has Settings creation/update controls for zone and seat
   names, sort orders, and seat moves, but not visual drag/drop layout editing
@@ -467,7 +467,7 @@ Minimum bar:
    restored staff permissions. The map panel now also supports guest/prepaid/
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
-   hardening, Settings staff creation/role reassignment/lifecycle controls,
+   hardening, Settings staff creation/profile editing/role reassignment/lifecycle controls,
    branch profile save,
    Settings layout zone/seat creation/update, Settings POS
    category/product creation/update/deactivation, Settings stock movement creation/history,

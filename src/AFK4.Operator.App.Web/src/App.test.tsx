@@ -1344,6 +1344,35 @@ describe('App', () => {
     });
   });
 
+  it('updates the selected staff profile from Settings personnel', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Cashier One/ }));
+    fireEvent.change(screen.getByLabelText('Логин профиля'), { target: { value: 'cashier.renamed' } });
+    fireEvent.change(screen.getByLabelText('Имя профиля'), { target: { value: 'Cashier Renamed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить профиль' }));
+
+    expect(await screen.findByText('Обновить профиль сотрудника: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Cashier Renamed/ })).toBeInTheDocument();
+    const profileCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/profile') &&
+      init?.method === 'PATCH');
+    expect(profileCall).toBeDefined();
+    const body = JSON.parse(String(profileCall?.[1]?.body));
+    expect(body).toEqual({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      userName: 'cashier.renamed',
+      displayName: 'Cashier Renamed'
+    });
+  });
+
   it('deactivates the selected staff user from Settings personnel', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -2302,6 +2331,15 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   if (pathname.endsWith('/staff') && init?.method === 'POST') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createStaffUser(body));
+  }
+
+  if (pathname.includes('/staff/') && pathname.endsWith('/profile') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createStaffUser({
+      staffUserId: pathname.split('/').at(-2),
+      userName: body.userName,
+      displayName: body.displayName
+    }));
   }
 
   if (pathname.includes('/staff/') && pathname.endsWith('/state') && init?.method === 'PATCH') {

@@ -112,6 +112,104 @@ public sealed class PilotSetupEndpointTests
     }
 
     [Fact]
+    public async Task UpdateStaffProfile_WithBranchManagerRole_UpdatesLoginDisplayNameAndWritesAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff",
+            new CreateStaffUserRequest(
+                TestIds.OrganizationId,
+                "profile.one@afk4.test",
+                "Profile One",
+                "Passw0rd!Pilot",
+                [StaffRoleNames.CashierOperator]));
+        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.NotNull(createdStaffUser);
+
+        var updateResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/profile",
+            new UpdateStaffUserProfileRequest(
+                TestIds.OrganizationId,
+                "profile.renamed@afk4.test",
+                "Profile Renamed"));
+        var updatedStaffUser = await updateResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.NotNull(updatedStaffUser);
+        Assert.Equal(createdStaffUser.StaffUserId, updatedStaffUser.StaffUserId);
+        Assert.Equal("profile.renamed@afk4.test", updatedStaffUser.UserName);
+        Assert.Equal("Profile Renamed", updatedStaffUser.DisplayName);
+        Assert.Contains(StaffRoleNames.CashierOperator, updatedStaffUser.RoleNames);
+
+        using var signInClient = factory.CreateClient();
+        var oldLoginResponse = await signInClient.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "profile.one@afk4.test", "Passw0rd!Pilot"));
+        var newLoginResponse = await signInClient.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "profile.renamed@afk4.test", "Passw0rd!Pilot"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, oldLoginResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, newLoginResponse.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var persistedUser = await dbContext.StaffUsers.SingleAsync(staffUser => staffUser.StaffUserId == createdStaffUser.StaffUserId);
+        Assert.Equal("PROFILE.RENAMED@AFK4.TEST", persistedUser.NormalizedUserName);
+        Assert.Contains(await dbContext.AuditRecords.ToListAsync(), audit =>
+            audit.Action == AuditActionNames.UpdateStaffProfile &&
+            audit.TargetId == createdStaffUser.StaffUserId.ToString("D") &&
+            audit.Outcome == AuditOutcome.Succeeded);
+    }
+
+    [Fact]
+    public async Task UpdateStaffProfile_WithDuplicateLogin_ReturnsConflict()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff",
+            new CreateStaffUserRequest(
+                TestIds.OrganizationId,
+                "profile.duplicate@afk4.test",
+                "Profile Duplicate",
+                "Passw0rd!Pilot",
+                [StaffRoleNames.CashierOperator]));
+        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.NotNull(createdStaffUser);
+
+        var updateResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/profile",
+            new UpdateStaffUserProfileRequest(
+                TestIds.OrganizationId,
+                "tech@afk4.test",
+                "Duplicate Login"));
+
+        Assert.Equal(HttpStatusCode.Conflict, updateResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateStaffProfile_WithCashierRole_ReturnsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/profile",
+            new UpdateStaffUserProfileRequest(TestIds.OrganizationId, "cashier.renamed@afk4.test", "Cashier Renamed"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateStaffUser_WithOwnerTargetRole_ReturnsBadRequest()
     {
         await using var factory = new PlatformApiFactory();

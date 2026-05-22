@@ -116,6 +116,8 @@ public static class AuditActionNames
 
     public const string ViewStaffUsers = "identity.staff.view";
 
+    public const string UpdateStaffProfile = "identity.staff.profile.update";
+
     public const string UpdateStaffRoles = "identity.staff.roles.update";
 
     public const string UpdateStaffState = "identity.staff.state.update";

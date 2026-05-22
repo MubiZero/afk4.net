@@ -471,6 +471,120 @@ app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/roles", asy
     return Results.Ok(response);
 });
 
+app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/profile", async (
+    Guid branchId,
+    Guid staffUserId,
+    UpdateStaffUserProfileRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageBranchStaff,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdateStaffProfile,
+            "StaffUser",
+            staffUserId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.UserName, request.DisplayName, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateUpdateStaffUserProfileRequest(request);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var staffUser = await dbContext.StaffUsers
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.StaffUserId == staffUserId,
+            cancellationToken);
+
+    if (staffUser is null)
+    {
+        return Results.NotFound();
+    }
+
+    var roleNames = await dbContext.StaffRoleAssignments
+        .Where(roleAssignment =>
+            roleAssignment.OrganizationId == request.OrganizationId &&
+            roleAssignment.BranchId == branchId &&
+            roleAssignment.StaffUserId == staffUserId)
+        .Select(roleAssignment => roleAssignment.RoleName)
+        .OrderBy(roleName => roleName)
+        .ToListAsync(cancellationToken);
+
+    if (roleNames.Count == 0)
+    {
+        return Results.NotFound();
+    }
+
+    var userName = request.UserName.Trim();
+    var normalizedUserName = userName.ToUpperInvariant();
+    var displayName = request.DisplayName.Trim();
+    var duplicateUserNameExists = await dbContext.StaffUsers
+        .AnyAsync(
+            candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.StaffUserId != staffUserId &&
+                candidate.NormalizedUserName == normalizedUserName,
+            cancellationToken);
+
+    if (duplicateUserNameExists)
+    {
+        return Results.Conflict(new { Error = "Staff user name already exists in the organization." });
+    }
+
+    var previousUserName = staffUser.UserName;
+    var previousDisplayName = staffUser.DisplayName;
+    staffUser.UserName = userName;
+    staffUser.NormalizedUserName = normalizedUserName;
+    staffUser.DisplayName = displayName;
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    var response = ToStaffUserDto(staffUser, roleNames);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdateStaffProfile,
+        "StaffUser",
+        staffUserId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { PreviousUserName = previousUserName, PreviousDisplayName = previousDisplayName, response.UserName, response.DisplayName },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
 app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/state", async (
     Guid branchId,
     Guid staffUserId,
@@ -6819,6 +6933,33 @@ static string? ValidateCreateStaffUserRequest(CreateStaffUserRequest request)
     }
 
     return ValidateStaffRoleNames(request.RoleNames);
+}
+
+static string? ValidateUpdateStaffUserProfileRequest(UpdateStaffUserProfileRequest request)
+{
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return "OrganizationId is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.UserName))
+    {
+        return "UserName is required.";
+    }
+
+    if (request.UserName.Trim().Length > 256)
+    {
+        return "UserName must contain 256 characters or fewer.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.DisplayName))
+    {
+        return "DisplayName is required.";
+    }
+
+    return request.DisplayName.Trim().Length <= 160
+        ? null
+        : "DisplayName must contain 160 characters or fewer.";
 }
 
 static string? ValidateStaffPassword(string password)

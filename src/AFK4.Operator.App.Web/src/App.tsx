@@ -5948,6 +5948,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [resetPassword, setResetPassword] = useState('ChangeMe123!');
   const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
   const [selectedStaffUserId, setSelectedStaffUserId] = useState('');
+  const [staffProfileUserName, setStaffProfileUserName] = useState('');
+  const [staffProfileDisplayName, setStaffProfileDisplayName] = useState('');
   const [staffRoleName, setStaffRoleName] = useState('cashier_operator');
   const [productCategoryName, setProductCategoryName] = useState('POS category 1');
   const [productName, setProductName] = useState('POS item 1');
@@ -6026,6 +6028,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         .find((role) => staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]));
       setStaffUsers(staffRows);
       setSelectedStaffUserId(readString(selectedStaff, 'staffUserId'));
+      setStaffProfileUserName(readString(selectedStaff, 'userName'));
+      setStaffProfileDisplayName(readString(selectedStaff, 'displayName'));
       setStaffRoleName(selectedStaffRole ?? 'cashier_operator');
       const zoneRows = Array.isArray(layoutZones) ? layoutZones : [];
       setZones(zoneRows);
@@ -6174,6 +6178,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     ['Добавить ПК', 'новое рабочее место', MonitorCheck],
     ['Создать тариф', 'backend tariff/version', CircleDollarSign],
     ['Пригласить сотрудника', canManageBranchStaff ? 'создать staff user' : 'нет прав доступа', UserRoundPlus],
+    ['Обновить профиль сотрудника', canManageBranchStaff ? 'редактировать логин и имя' : 'нет прав доступа', Wrench],
     ['Проверить устройства', 'diagnostics refresh', Wifi]
   ];
 
@@ -6518,10 +6523,34 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         setStaffUsers((items) => [...items, staffUser]);
         setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
+        setStaffProfileUserName(readString(staffUser, 'userName'));
+        setStaffProfileDisplayName(readString(staffUser, 'displayName'));
         setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? 'cashier_operator');
         setInviteUserName(`operator${staffUsers.length + 2}`);
         setInviteDisplayName('Новый оператор');
         setInvitePassword('ChangeMe123!');
+      } else if (label === 'Обновить профиль сотрудника') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
+          throw new Error('Нет прав на управление сотрудниками.');
+        }
+
+        const staffUserId = selectedStaffUserId.trim();
+        const userName = staffProfileUserName.trim();
+        const displayName = staffProfileDisplayName.trim();
+        if (!isGuid(staffUserId) || !userName || !displayName) {
+          throw new Error('Выберите сотрудника и заполните логин и имя профиля.');
+        }
+
+        const staffUser = await apiClients.settings.updateStaffUserProfile(nextBackend.branchId, staffUserId, {
+          organizationId: nextBackend.session.organizationId,
+          userName,
+          displayName
+        });
+        setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
+        setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
+        setStaffProfileUserName(readString(staffUser, 'userName'));
+        setStaffProfileDisplayName(readString(staffUser, 'displayName'));
+        setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? staffRoleName);
       } else if (label === 'Обновить роль') {
         if (!hasPermission(nextBackend.session, permissionNames.manageRoles)) {
           throw new Error('Нет прав на изменение ролей сотрудников.');
@@ -7020,6 +7049,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                   onClick={() => {
                     const roleName = readArray<string>(user, 'roleNames').find((role) => staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]));
                     setSelectedStaffUserId(readString(user, 'staffUserId'));
+                    setStaffProfileUserName(readString(user, 'userName'));
+                    setStaffProfileDisplayName(readString(user, 'displayName'));
                     setStaffRoleName(roleName ?? 'cashier_operator');
                     triggerFeedback(setFeedback, readString(user, 'displayName', 'Staff'), 'confirmed');
                   }}
@@ -7038,6 +7069,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{roleName}</option>)}
                 </select>
               </label>
+              <label>Логин профиля<input value={staffProfileUserName} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setStaffProfileUserName(event.currentTarget.value)} /></label>
+              <label>Имя профиля<input value={staffProfileDisplayName} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setStaffProfileDisplayName(event.currentTarget.value)} /></label>
+              <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction('Обновить профиль сотрудника')}>Обновить профиль</button>
               <label>Роль сотрудника
                 <select value={staffRoleName} disabled={!canManageRoles || !selectedStaffUserId} onChange={(event) => setStaffRoleName(event.currentTarget.value)}>
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{roleName}</option>)}
