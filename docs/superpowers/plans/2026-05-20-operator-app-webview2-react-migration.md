@@ -141,8 +141,8 @@ create branch staff and reassign predefined branch roles through backend staff
 APIs, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product, and Settings `Тарифы` can
-create a backend tariff/version plus create/update/deactivate package
-definitions. Settings `POS и
+create/update/deactivate backend tariffs and tariff versions plus
+create/update/deactivate package definitions. Settings `POS и
 склад` can also record inventory stock movements for tracked products, read
 the latest stock movement history, and update/deactivate selected POS products.
 Payments open-shift now calls
@@ -381,10 +381,15 @@ missing-backend copy.
   `POST /api/branches/{branchId}/staff/{staffUserId}/password-reset` with
   `identity.branch_staff.manage` gating, audit records, and active staff token
   revocation on deactivation/password reset.
+  Tariff update/deactivation from `Тарифы` was implemented on 2026-05-22
+  through `PATCH /api/branches/{branchId}/tariffs/{tariffId}` and
+  `PATCH /api/branches/{branchId}/tariffs/{tariffId}/versions/{tariffVersionId}`
+  with `tariffs.manage` gating, audit records, active option removal after
+  deactivation, and material-change rejection when a tariff version is already
+  used by sessions.
   Remaining settings gaps include custom roles/arbitrary permission-set editing,
   staff profile detail, richer layout editing beyond create-only zones/seats,
-  richer device inventory/history
-  management, tariff version edit/deactivate, package purchase UX refinements,
+  richer device inventory/history management, package purchase UX refinements,
   advanced POS catalog management, advanced inventory
   controls and reconciliation, integrations/payment-provider
   settings, richer update rollout detail/status controls, diagnostics,

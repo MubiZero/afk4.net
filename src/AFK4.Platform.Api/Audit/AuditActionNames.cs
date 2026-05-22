@@ -38,6 +38,10 @@ public static class AuditActionNames
 
     public const string CreateTariffVersion = "tariffs.versions.create";
 
+    public const string UpdateTariff = "tariffs.update";
+
+    public const string UpdateTariffVersion = "tariffs.versions.update";
+
     public const string ViewTariffs = "tariffs.view";
 
     public const string CreatePackageDefinition = "packages.create";

@@ -192,8 +192,9 @@ Minimum bar:
    PostgreSQL edits. PR #41 added the minimum Operator App `Settings` ->
    `Pilot Setup` panel for staff, one zone/seats, one tariff/version, one POS
    category/product, and optional already-enrolled device assignment. The
-   WebView2/React Settings work has since added tariff/version creation and
-   package definition creation, layout zone/seat creation, device command
+   WebView2/React Settings work has since added tariff/version
+   creation/update/deactivation and package definition creation/update/
+   deactivation, layout zone/seat creation, device command
    dispatch, and device credential rotation/revocation through existing backend
    endpoints on `codex/operator-app-redesign`.
 
@@ -351,8 +352,8 @@ Minimum bar:
   existing POS catalog endpoints, and inventory stock movement creation through
   the existing stock-movement endpoint. The same Settings section now reads recent stock movement history
   through `GET /api/branches/{branchId}/inventory/stock-movements` with
-  `inventory.view` gating, plus tariff/version creation and package definition
-  creation plus package definition update/deactivation through the existing
+  `inventory.view` gating, plus tariff/version creation/update/deactivation
+  and package definition creation/update/deactivation through the existing
   tariff/package endpoints. Settings `Интеграции` now also
   registers update packages, creates update rollouts, and changes
   package/rollout states through the existing
@@ -459,7 +460,7 @@ Minimum bar:
    branch profile save,
    Settings layout zone/seat creation, Settings POS
    category/product creation/update/deactivation, Settings stock movement creation/history,
-   Settings package definition creation/update/deactivation, Settings update package/rollout controls, Settings
+   Settings tariff/package definition creation/update/deactivation, Settings update package/rollout controls, Settings
    device enrollment/seat assignment/credential lifecycle, Dashboard export download,
    Payments open/close-shift, cash-movement wiring, selected-operation detail,
    and report export downloads,

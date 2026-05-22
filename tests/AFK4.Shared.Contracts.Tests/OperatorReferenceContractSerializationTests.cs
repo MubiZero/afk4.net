@@ -38,7 +38,8 @@ public sealed class OperatorReferenceContractSerializationTests
             CurrencyCode: "TJS",
             PricePerMinuteMinorUnits: 50,
             MinimumBillableMinutes: 30,
-            RoundingIncrementMinutes: 15);
+            RoundingIncrementMinutes: 15,
+            EffectiveFromUtc: DateTimeOffset.Parse("2026-05-13T09:00:00Z"));
 
         var json = JsonSerializer.Serialize(option);
         var copy = JsonSerializer.Deserialize<TariffOptionDto>(json);
@@ -47,6 +48,7 @@ public sealed class OperatorReferenceContractSerializationTests
         Assert.Equal("Standard", copy.Name);
         Assert.Equal(option.TariffRuleVersionId, copy.TariffRuleVersionId);
         Assert.Equal(50, copy.PricePerMinuteMinorUnits);
+        Assert.Equal(option.EffectiveFromUtc, copy.EffectiveFromUtc);
     }
 
     [Fact]

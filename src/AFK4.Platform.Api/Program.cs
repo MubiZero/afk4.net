@@ -2890,6 +2890,150 @@ app.MapPost("/api/branches/{branchId:guid}/tariffs/{tariffId:guid}/versions", as
     return Results.Ok(result.Response);
 });
 
+app.MapPatch("/api/branches/{branchId:guid}/tariffs/{tariffId:guid}", async (
+    Guid branchId,
+    Guid tariffId,
+    UpdateTariffRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ITariffService tariffService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageTariffs,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdateTariff,
+            "Tariff",
+            tariffId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.Name, request.IsActive, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await tariffService.UpdateTariffAsync(
+        branchId,
+        tariffId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdateTariff,
+        "Tariff",
+        tariffId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { result.Response!.Name, result.Response.IsActive },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPatch("/api/branches/{branchId:guid}/tariffs/{tariffId:guid}/versions/{tariffVersionId:guid}", async (
+    Guid branchId,
+    Guid tariffId,
+    Guid tariffVersionId,
+    UpdateTariffVersionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ITariffService tariffService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageTariffs,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdateTariffVersion,
+            "TariffVersion",
+            tariffVersionId.ToString("D"),
+            AuditOutcome.Denied,
+            new { tariffId, request.IsActive, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var result = await tariffService.UpdateTariffVersionAsync(
+        branchId,
+        tariffId,
+        tariffVersionId,
+        authorization.StaffContext.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return ToHttpResult(result);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdateTariffVersion,
+        "TariffVersion",
+        tariffVersionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new
+        {
+            tariffId,
+            result.Response!.VersionNumber,
+            result.Response.PricePerMinuteMinorUnits,
+            result.Response.RetiredAtUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/tariffs/calculate", async (
     Guid branchId,
     CalculateTariffRequest request,

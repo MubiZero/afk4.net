@@ -268,6 +268,22 @@ export interface CreateTariffVersionRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
 
+export interface UpdateTariffRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  name: string;
+  isActive: boolean;
+}
+
+export interface UpdateTariffVersionRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: string;
+  isActive: boolean;
+}
+
 export interface CreatePackageDefinitionRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
@@ -544,6 +560,12 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     createTariffVersion(branchId: Guid, tariffId: Guid, request: CreateTariffVersionRequest): Promise<TariffVersionDto> {
       return api.post<TariffVersionDto, CreateTariffVersionRequest>(`/api/branches/${branchId}/tariffs/${tariffId}/versions`, request);
+    },
+    updateTariff(branchId: Guid, tariffId: Guid, request: UpdateTariffRequest): Promise<TariffDto> {
+      return api.patch<TariffDto, UpdateTariffRequest>(`/api/branches/${branchId}/tariffs/${tariffId}`, request);
+    },
+    updateTariffVersion(branchId: Guid, tariffId: Guid, tariffVersionId: Guid, request: UpdateTariffVersionRequest): Promise<TariffVersionDto> {
+      return api.patch<TariffVersionDto, UpdateTariffVersionRequest>(`/api/branches/${branchId}/tariffs/${tariffId}/versions/${tariffVersionId}`, request);
     },
     getTariffOptions(branchId: Guid): Promise<TariffOptionDto[]> {
       return api.get<TariffOptionDto[]>(`/api/branches/${branchId}/tariffs/options`);

@@ -9,4 +9,5 @@ public sealed record TariffOptionDto(
     string CurrencyCode,
     long PricePerMinuteMinorUnits,
     int MinimumBillableMinutes,
-    int RoundingIncrementMinutes);
+    int RoundingIncrementMinutes,
+    DateTimeOffset EffectiveFromUtc);

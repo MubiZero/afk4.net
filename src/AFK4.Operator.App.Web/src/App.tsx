@@ -5899,6 +5899,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [tariffPricePerHour, setTariffPricePerHour] = useState('90.00');
   const [tariffMinimumMinutes, setTariffMinimumMinutes] = useState('15');
   const [tariffRoundingMinutes, setTariffRoundingMinutes] = useState('5');
+  const [tariffEffectiveFromUtc, setTariffEffectiveFromUtc] = useState(() => new Date().toISOString());
+  const [selectedTariffVersionId, setSelectedTariffVersionId] = useState('');
   const [packageName, setPackageName] = useState('Night 5h');
   const [packagePrice, setPackagePrice] = useState('250.00');
   const [packageMinutes, setPackageMinutes] = useState('300');
@@ -5974,7 +5976,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setRolloutPackageId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updatePackageId'));
       setPackageStatePackageId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updatePackageId'));
       setRolloutStateRolloutId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updateRolloutId'));
-      setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
+      const tariffRows = Array.isArray(tariffOptions) ? tariffOptions : [];
+      setTariffs(tariffRows);
+      setSelectedTariffVersionId((current) => tariffRows.some((tariff) => readString(tariff, 'tariffVersionId') === current) ? current : '');
       const packageRows = Array.isArray(packageOptionRows) ? packageOptionRows : [];
       setPackageOptions(packageRows);
       setSelectedPackageDefinitionId((current) => packageRows.some((option) => readString(option, 'packageDefinitionId') === current) ? current : '');
@@ -6035,6 +6039,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setProductTrackStock(readBoolean(product, 'trackStock', true));
     setProductAllowNegativeStock(readBoolean(product, 'allowNegativeStock'));
     triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed');
+  };
+  const selectTariffOption = (option: TariffOptionDto) => {
+    setSelectedTariffVersionId(readString(option, 'tariffVersionId'));
+    setTariffName(readString(option, 'name', tariffName));
+    setTariffPricePerHour(formatMoneyInputMinorUnits(readNumber(option, 'pricePerMinuteMinorUnits', 0) * 60));
+    setTariffMinimumMinutes(String(readNumber(option, 'minimumBillableMinutes', Number(tariffMinimumMinutes))));
+    setTariffRoundingMinutes(String(readNumber(option, 'roundingIncrementMinutes', Number(tariffRoundingMinutes))));
+    setTariffEffectiveFromUtc(readString(option, 'effectiveFromUtc', new Date().toISOString()));
+    triggerFeedback(setFeedback, readString(option, 'name', 'Tariff'), 'confirmed');
   };
   const selectPackageOption = (option: PackageOptionDto) => {
     setSelectedPackageDefinitionId(readString(option, 'packageDefinitionId'));
@@ -6233,6 +6246,44 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           });
         }
         setTariffName(`Tariff ${tariffs.length + 2}`);
+        setTariffEffectiveFromUtc(new Date().toISOString());
+        await loadSettings(nextBackend);
+      } else if (label === 'Обновить тариф' || label === 'Снять тариф') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageTariffs)) {
+          throw new Error('Нет прав на управление тарифами.');
+        }
+
+        const tariffOption = tariffs.find((tariff) => readString(tariff, 'tariffVersionId') === selectedTariffVersionId);
+        const tariffId = readString(tariffOption, 'tariffId');
+        const tariffVersionId = readString(tariffOption, 'tariffVersionId');
+        const name = tariffName.trim();
+        const pricePerHourMinorUnits = parseMoneyInputMinorUnits(tariffPricePerHour);
+        const minimumBillableMinutes = Number(tariffMinimumMinutes);
+        const roundingIncrementMinutes = Number(tariffRoundingMinutes);
+        if (!isGuid(tariffId) || !isGuid(tariffVersionId) || !name || pricePerHourMinorUnits === null
+          || !Number.isInteger(minimumBillableMinutes) || minimumBillableMinutes <= 0
+          || !Number.isInteger(roundingIncrementMinutes) || roundingIncrementMinutes <= 0) {
+          throw new Error('Выберите тариф и заполните название, цену за час, минимум и округление.');
+        }
+
+        const isActive = label !== 'Снять тариф';
+        await apiClients.settings.updateTariff(nextBackend.branchId, tariffId, {
+          organizationId: nextBackend.session.organizationId,
+          name,
+          isActive
+        });
+        await apiClients.settings.updateTariffVersion(nextBackend.branchId, tariffId, tariffVersionId, {
+          organizationId: nextBackend.session.organizationId,
+          currencyCode,
+          pricePerMinuteMinorUnits: Math.max(1, Math.round(pricePerHourMinorUnits / 60)),
+          minimumBillableMinutes,
+          roundingIncrementMinutes,
+          effectiveFromUtc: tariffEffectiveFromUtc,
+          isActive
+        });
+        if (!isActive) {
+          setSelectedTariffVersionId('');
+        }
         await loadSettings(nextBackend);
       } else if (label === 'Создать пакет') {
         if (!hasPermission(nextBackend.session, permissionNames.managePackages)) {
@@ -6681,7 +6732,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         <>
           <div className="settings-section-title">
             <span>Тарифы</span>
-            <button type="button" disabled={!canManageTariffs} onClick={() => runSettingsAction('Создать тариф')}>Создать тариф</button>
+            <div className="settings-section-actions">
+              <button type="button" disabled={!canManageTariffs} onClick={() => runSettingsAction('Создать тариф')}>Создать тариф</button>
+              <button type="button" disabled={!canManageTariffs || !selectedTariffVersionId} onClick={() => runSettingsAction('Обновить тариф')}>Обновить тариф</button>
+              <button type="button" disabled={!canManageTariffs || !selectedTariffVersionId} onClick={() => runSettingsAction('Снять тариф')}>Снять тариф</button>
+            </div>
           </div>
           <div className="settings-form-grid settings-tariff-form">
             <label>Название тарифа<input value={tariffName} disabled={!canManageTariffs} onChange={(event) => setTariffName(event.currentTarget.value)} /></label>
@@ -6691,7 +6746,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
           <div className="settings-tariff-list">
             {tariffs.map((tariff) => (
-              <button key={readString(tariff, 'tariffVersionId')} type="button" className="settings-tariff-row" onClick={() => triggerFeedback(setFeedback, readString(tariff, 'name', 'Tariff'), 'confirmed')}>
+              <button key={readString(tariff, 'tariffVersionId')} type="button" className={`settings-tariff-row ${readString(tariff, 'tariffVersionId') === selectedTariffVersionId ? 'active' : ''}`} onClick={() => selectTariffOption(tariff)}>
                 <strong>{readString(tariff, 'name', 'Tariff')}</strong>
                 <b>{formatMinorUnits(readNumber(tariff, 'pricePerMinuteMinorUnits', 0) * 60, readString(tariff, 'currencyCode', currencyCode))} / час</b>
                 <span>v{readNumber(tariff, 'versionNumber', 0)} · {readString(tariff, 'tariffRuleVersionId', 'rule')}</span>

@@ -1818,6 +1818,60 @@ describe('App', () => {
     expect(versionBody.idempotencyKey).toMatch(/^tariff-version-create-/);
   });
 
+  it('updates and deactivates a selected tariff from Settings tariffs', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Standard/ }));
+    fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Standard Plus' } });
+    fireEvent.change(screen.getByLabelText('Цена/час'), { target: { value: '120.00' } });
+    fireEvent.change(screen.getByLabelText('Минимум мин'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('Округление мин'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить тариф' }));
+
+    expect(await screen.findByText('Обновить тариф: подтверждено')).toBeInTheDocument();
+    const tariffCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616') &&
+      !String(input).includes('/versions/') &&
+      init?.method === 'PATCH');
+    expect(tariffCall).toBeDefined();
+    const tariffBody = JSON.parse(String(tariffCall?.[1]?.body));
+    expect(tariffBody).toEqual({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      name: 'Standard Plus',
+      isActive: true
+    });
+
+    const versionCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616/versions/17171717-1717-1717-1717-171717171717') &&
+      init?.method === 'PATCH');
+    expect(versionCall).toBeDefined();
+    const versionBody = JSON.parse(String(versionCall?.[1]?.body));
+    expect(versionBody).toMatchObject({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      currencyCode: 'TJS',
+      pricePerMinuteMinorUnits: 200,
+      minimumBillableMinutes: 20,
+      roundingIncrementMinutes: 10,
+      isActive: true
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Снять тариф' }));
+    expect(await screen.findByText('Снять тариф: подтверждено')).toBeInTheDocument();
+    const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616/versions/17171717-1717-1717-1717-171717171717') &&
+      init?.method === 'PATCH').at(-1);
+    expect(deactivateCall).toBeDefined();
+    const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
+    expect(deactivateBody).toMatchObject({ isActive: false });
+  });
+
   it('registers update packages and creates rollouts from Settings integrations', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
@@ -2269,6 +2323,25 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createTariffVersion({
       ...body,
       tariffId: parts[parts.length - 2]
+    }));
+  }
+
+  if (pathname.includes('/tariffs/') && pathname.includes('/versions/') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    const parts = pathname.split('/');
+    return jsonResponse(createTariffVersion({
+      ...body,
+      tariffId: parts[parts.length - 3],
+      tariffVersionId: parts.at(-1),
+      retiredAtUtc: body.isActive === false ? '2026-05-22T10:00:00Z' : null
+    }));
+  }
+
+  if (pathname.includes('/tariffs/') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createTariff({
+      ...body,
+      tariffId: pathname.split('/').at(-1)
     }));
   }
 
@@ -3181,7 +3254,8 @@ function createTariffs() {
       currencyCode: 'TJS',
       pricePerMinuteMinorUnits: 50,
       minimumBillableMinutes: 15,
-      roundingIncrementMinutes: 5
+      roundingIncrementMinutes: 5,
+      effectiveFromUtc: '2026-05-21T12:20:00Z'
     }
   ];
 }
@@ -3192,6 +3266,7 @@ function createTariff(overrides: Record<string, unknown> = {}) {
     organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
     branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
     name: 'Morning Hour',
+    isActive: true,
     createdAtUtc: '2026-05-21T12:20:00Z',
     ...overrides
   };
