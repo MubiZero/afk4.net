@@ -139,10 +139,10 @@ implementation evidence are needed.
   confirmation, reload the authoritative floor map, and show failed backend
   responses as action feedback instead of confirming fixture-only clicks.
 - The React UI now has its first permission-aware state: the workspace rail
-  disables screens when the restored staff session lacks the backend
-  permissions those screens need, and selected-seat start/extend/transfer/end
-  actions are disabled and guarded by matching session permissions before any
-  API call is attempted.
+  opens a screen when the restored staff session has any permission relevant
+  to that workspace, disables screens with no matching permission, and keeps
+  selected-seat start/extend/transfer/end actions disabled and guarded by
+  matching session permissions before any API call is attempted.
 - The selected-seat map panel now supports real billing-mode selection for
   guest/no-ledger, prepaid wallet, player package, and postpaid debt starts and
   extensions. Billed modes require a backend player selection plus the relevant
@@ -393,6 +393,12 @@ Result:
   deletion rendered the WebView auth entry surface with title `AFK4 Operator`,
   heading `Вход оператора`, sign-in button, no old backend placeholder copy,
   and no horizontal or vertical body overflow.
+- Additional frontend-only verification on 2026-05-22 after fixing workspace
+  rail permission gating:
+  - `npm test`: 95 passed, 0 failed;
+  - `npm run build`: passed;
+  - native `AFK4.Operator.App.exe` was restarted and opened the `AFK4 Operator`
+    WebView2 window against the rebuilt React `dist`.
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
@@ -404,7 +410,9 @@ Result:
   player card.
 - Permission-aware frontend tests cover disabled workspace navigation and
   disabled selected-seat actions when the staff session only has
-  `floor_map.view`.
+  `floor_map.view`, plus rail navigation for partial role permissions so
+  cashier/technician workspaces open while their individual actions remain
+  permission-gated.
 - Map billing/action tests now cover fast guest start, prepaid-wallet start
   with backend player/tariff metadata, idempotency keys, and follow-up
   `/api/devices/{deviceId}/commands/{commandId}/status` reads for selected-seat

@@ -402,6 +402,11 @@ button {
   color: #ffffff;
 }
 
+.workspace-rail button:disabled {
+  color: #4d5968;
+  opacity: 0.62;
+}
+
 .floor-workspace {
   position: relative;
   min-width: 0;

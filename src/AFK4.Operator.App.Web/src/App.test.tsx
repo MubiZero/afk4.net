@@ -248,6 +248,37 @@ describe('App', () => {
     expect(screen.getByText('Нет прав на действия с сессией')).toBeInTheDocument();
   });
 
+  it('opens workspace rail entries with partial role permissions', async () => {
+    installSessionBridge(createSession({
+      permissions: [
+        'floor_map.view',
+        'pos.sales.create',
+        'pos.sales.pay',
+        'shifts.view',
+        'shifts.open',
+        'receipts.view',
+        'devices.detail.view'
+      ]
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    const posButton = screen.getByTitle('POS');
+    expect(posButton).toBeEnabled();
+
+    fireEvent.click(posButton);
+    expect(screen.getByRole('heading', { name: /POS/ })).toBeInTheDocument();
+
+    const workspaceButtons = within(screen.getByRole('navigation')).getAllByRole('button');
+    const settingsButton = workspaceButtons.at(-1);
+    expect(settingsButton).toBeDefined();
+    expect(settingsButton).toBeEnabled();
+
+    fireEvent.click(settingsButton!);
+    expect(settingsButton).toHaveClass('active');
+  });
+
   it('switches to SmartShell-like booking, POS, and logs workspaces', async () => {
     installSessionBridge();
 

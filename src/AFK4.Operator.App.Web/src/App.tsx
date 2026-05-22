@@ -945,8 +945,12 @@ function hasAllPermissions(session: OperatorAuthSession | null, permissions: rea
   return permissions.every((permission) => hasPermission(session, permission));
 }
 
+function hasAnyPermission(session: OperatorAuthSession | null, permissions: readonly string[]) {
+  return permissions.some((permission) => hasPermission(session, permission));
+}
+
 function canOpenWorkspace(session: OperatorAuthSession | null, workspaceId: WorkspaceId) {
-  return hasAllPermissions(session, workspacePermissionRules[workspaceId]);
+  return hasAnyPermission(session, workspacePermissionRules[workspaceId]);
 }
 
 function firstAllowedWorkspace(session: OperatorAuthSession | null) {
