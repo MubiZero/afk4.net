@@ -41,9 +41,26 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+const string OperatorWebCorsPolicyName = "operator-web";
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSignalR();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        OperatorWebCorsPolicyName,
+        policy => policy
+            .WithOrigins(
+                "https://operator.afk4.local",
+                "http://localhost:5174",
+                "http://127.0.0.1:5174",
+                "http://localhost:4174",
+                "http://127.0.0.1:4174")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
+});
 builder.Services.AddDbContext<PlatformDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("PlatformDatabase")
@@ -94,6 +111,7 @@ builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 
 var app = builder.Build();
 
+app.UseCors(OperatorWebCorsPolicyName);
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 
 app.MapGet("/api/health", () =>

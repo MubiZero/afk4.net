@@ -168,6 +168,7 @@ public sealed class OperatorWebHostBridge(
         string Type,
         string RequestId,
         bool Ok,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)]
         object? Payload,
         OperatorWebBridgeError? Error);
 

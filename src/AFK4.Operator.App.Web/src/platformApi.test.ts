@@ -23,6 +23,26 @@ describe('PlatformApiClient', () => {
     expect(headers.get('Authorization')).toBe('Bearer access-token');
   });
 
+  it('calls browser fetch through the global receiver when no override is provided', async () => {
+    const fetchImpl = vi.fn(function (this: unknown) {
+      expect(this).toBe(globalThis);
+      return Promise.resolve(jsonResponse({ ok: true }));
+    });
+    vi.stubGlobal('fetch', fetchImpl);
+
+    try {
+      const api = new PlatformApiClient({
+        baseUrl: 'http://localhost:5074',
+        getAccessToken: () => 'access-token'
+      });
+
+      await expect(api.get('/api/example')).resolves.toEqual({ ok: true });
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('serializes JSON POST bodies', async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {

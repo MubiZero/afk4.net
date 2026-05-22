@@ -99,6 +99,13 @@ implementation evidence are needed.
   storage; the React UI gates the operator console behind staff sign-in; and
   auth/error-projection tests cover that browser `localStorage` and
   `sessionStorage` are not used for token persistence.
+- WebView2 packaged React startup is hardened for empty protected-token state:
+  the native bridge now returns an explicit `payload: null` for
+  `auth:loadToken`, the web auth client normalizes missing token payloads to
+  `null`, the shared frontend API client calls browser `fetch` through the
+  global receiver, and the Platform API allows the fixed WebView2 origin
+  `https://operator.afk4.local` plus local Vite dev/preview origins for
+  authenticated API and SignalR calls.
 - The React frontend now also has typed API client boundaries beyond auth:
   shared authenticated HTTP/error handling plus route-tested clients for floor
   map, sessions, POS, players, shifts/reports/CSV, settings/pilot setup,
@@ -403,6 +410,24 @@ Result:
   - `npm run build`: passed;
   - native `AFK4.Operator.App.exe` was restarted and opened the `AFK4 Operator`
     WebView2 window against the rebuilt React `dist`.
+- Additional local WebView2/runtime verification on 2026-05-22 after fixing
+  empty-token startup, frontend `fetch` binding, and Platform API CORS for the
+  WebView2 origin:
+  - `npm test`: 97 passed, 0 failed;
+  - `npm run build`: passed;
+  - `dotnet test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj`:
+    193 passed, 0 failed;
+  - `dotnet build src/AFK4.Platform.Api/AFK4.Platform.Api.csproj`: passed;
+  - `dotnet build src/AFK4.Operator.App/AFK4.Operator.App.csproj`: passed;
+  - local PostgreSQL was healthy, latest EF migrations had already been applied,
+    Platform API restarted on `http://localhost:5074`, `/api/health` returned
+    `ok`, and a WebView2-origin SignalR preflight to `/hubs/devices/negotiate`
+    returned 204 with `Access-Control-Allow-Origin:
+    https://operator.afk4.local`;
+  - native `AFK4.Operator.App.exe` opened on the local backend, auto-loaded the
+    protected local staff session, rendered the primary map with backend data
+    for `AFK4 Dushanbe`, reported `Backend live` and `Realtime connected`, and
+    had no JavaScript runtime exceptions in WebView2 remote-debug inspection.
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and

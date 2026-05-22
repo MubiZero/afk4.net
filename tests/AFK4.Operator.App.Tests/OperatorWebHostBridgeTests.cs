@@ -82,6 +82,26 @@ public sealed class OperatorWebHostBridgeTests
     }
 
     [Fact]
+    public async Task HandleAsync_LoadTokenWithoutStoredSnapshot_ReturnsExplicitNullPayload()
+    {
+        var bridge = new OperatorWebHostBridge(
+            new RecordingOperatorAuthApiClient(),
+            new RecordingOperatorTokenStore());
+
+        var responseJson = await bridge.HandleAsync(
+            JsonSerializer.Serialize(new { type = "auth:loadToken", requestId = "request-empty" }),
+            CancellationToken.None);
+
+        Assert.NotNull(responseJson);
+        using var document = JsonDocument.Parse(responseJson);
+        var root = document.RootElement;
+
+        Assert.True(root.GetProperty("ok").GetBoolean());
+        Assert.True(root.TryGetProperty("payload", out var payload));
+        Assert.Equal(JsonValueKind.Null, payload.ValueKind);
+    }
+
+    [Fact]
     public async Task HandleAsync_SignOut_ClearsProtectedTokenStore()
     {
         var tokenStore = new RecordingOperatorTokenStore

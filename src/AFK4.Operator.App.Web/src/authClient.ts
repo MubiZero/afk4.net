@@ -19,7 +19,8 @@ export interface OperatorSignInRequest {
 }
 
 export function loadOperatorSession(): Promise<OperatorAuthSession | null> {
-  return postHostRequest<OperatorAuthSession | null>('auth:loadToken');
+  return postHostRequest<OperatorAuthSession | null | undefined>('auth:loadToken')
+    .then((session) => session ?? null);
 }
 
 export function signInOperator(request: OperatorSignInRequest): Promise<OperatorAuthSession> {

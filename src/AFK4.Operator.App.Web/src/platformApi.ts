@@ -30,7 +30,7 @@ export class PlatformApiClient {
   constructor(options: PlatformApiOptions) {
     this.baseUrl = new URL(options.baseUrl);
     this.getAccessToken = options.getAccessToken;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
   }
 
   get<TResponse>(path: string, query?: QueryParams): Promise<TResponse> {
