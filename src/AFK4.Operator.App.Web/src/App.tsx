@@ -38,6 +38,7 @@ import {
   type BranchProfileDto,
   type BranchDiagnosticsDto,
   type CashMovementDto,
+  type DeviceCommandStatusDto,
   type DeviceInventoryItemDto,
   type OperatorDashboardSummaryDto,
   type PackageOptionDto,
@@ -5928,6 +5929,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [enrollmentExpiresSeconds, setEnrollmentExpiresSeconds] = useState('900');
   const [enrollmentCode, setEnrollmentCode] = useState<Record<string, unknown> | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
+  const [deviceCommandHistory, setDeviceCommandHistory] = useState<DeviceCommandStatusDto[]>([]);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
   const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
   const [deviceCommandType, setDeviceCommandType] = useState('lock');
@@ -6101,7 +6103,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
   }))).filter((seat) => isGuid(seat.seatId));
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
-  const deviceRecentCommands = readArray<Record<string, unknown>>(deviceDetail, 'recentCommands');
+  const deviceRecentCommands = deviceCommandHistory.length > 0
+    ? deviceCommandHistory
+    : readArray<Record<string, unknown>>(deviceDetail, 'recentCommands');
   const selectedRollout = rollouts.find((rollout) => readString(rollout, 'updateRolloutId') === rolloutStateRolloutId) ?? rollouts[0] ?? null;
   const selectedRolloutDeviceStatuses = readArray<Record<string, unknown>>(selectedRollout, 'deviceStatuses');
   const selectLayoutZone = (zone: Record<string, unknown>) => {
@@ -6155,6 +6159,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     if (isGuid(seatId)) {
       setDeviceAssignmentSeatId(seatId);
     }
+    setDeviceDetail(null);
+    setDeviceCommandHistory([]);
     triggerFeedback(setFeedback, readString(device, 'machineName', 'Device'), 'confirmed');
   };
   const readiness = [
@@ -6206,7 +6212,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           seatId
         });
         if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
-          setDeviceDetail(await apiClients.devices.getDeviceDetail(deviceId));
+          const [detail, commands] = await Promise.all([
+            apiClients.devices.getDeviceDetail(deviceId),
+            hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)
+              ? apiClients.devices.listDeviceCommands(deviceId, { limit: 25 }).catch(() => [])
+              : Promise.resolve([])
+          ]);
+          setDeviceDetail(detail);
+          setDeviceCommandHistory(Array.isArray(commands) ? commands : []);
         }
         await loadSettings(nextBackend);
       } else if (label === 'Открыть карточку устройства') {
@@ -6219,7 +6232,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           throw new Error('Укажите корректный device id.');
         }
 
-        setDeviceDetail(await apiClients.devices.getDeviceDetail(deviceId));
+        const [detail, commands] = await Promise.all([
+          apiClients.devices.getDeviceDetail(deviceId),
+          hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)
+            ? apiClients.devices.listDeviceCommands(deviceId, { limit: 25 }).catch(() => [])
+            : Promise.resolve([])
+        ]);
+        setDeviceDetail(detail);
+        setDeviceCommandHistory(Array.isArray(commands) ? commands : []);
       } else if (label === 'Отправить команду') {
         if (!hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
           throw new Error('Нет прав на отправку команд устройствам.');
@@ -6242,6 +6262,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setLastDeviceCommand(command);
         if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
           setDeviceInventory(await apiClients.devices.listDevices(nextBackend.branchId).catch(() => deviceInventory));
+        }
+        if (hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)) {
+          setDeviceCommandHistory(await apiClients.devices.listDeviceCommands(deviceId, { limit: 25 }).catch(() => deviceCommandHistory));
         }
       } else if (label === 'Сменить credential') {
         if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {

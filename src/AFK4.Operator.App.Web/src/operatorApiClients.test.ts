@@ -325,6 +325,7 @@ describe('operator API clients', () => {
     await clients.devices.listDevices(branchId);
     await clients.devices.createEnrollmentCode(branchId, organizationId, 900);
     await clients.devices.dispatchDeviceCommand(deviceId, { type: 'lock', payload: { reason: 'operator' } });
+    await clients.devices.listDeviceCommands(deviceId, { limit: 25 });
     await clients.devices.getDeviceCommandStatus(deviceId, commandId);
     await clients.diagnostics.getDiagnostics(branchId);
     await clients.updates.getRolloutStatuses(branchId);
@@ -364,6 +365,7 @@ describe('operator API clients', () => {
       `GET /api/branches/${branchId}/devices`,
       `POST /api/branches/${branchId}/device-enrollment-codes`,
       `POST /api/devices/${deviceId}/commands`,
+      `GET /api/devices/${deviceId}/commands?limit=25`,
       `GET /api/devices/${deviceId}/commands/${commandId}/status`,
       `GET /api/branches/${branchId}/diagnostics`,
       `GET /api/branches/${branchId}/updates/rollouts`,

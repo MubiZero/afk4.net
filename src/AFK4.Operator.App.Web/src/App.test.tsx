@@ -1564,9 +1564,11 @@ describe('App', () => {
     expect(screen.getByDisplayValue('PC-02 · PC-01')).toBeInTheDocument();
     expect(screen.getByText('Agent')).toBeInTheDocument();
     expect(screen.getAllByText('0.1.14').length).toBeGreaterThan(0);
-    expect(screen.getByText('refresh-session-lease')).toBeInTheDocument();
-    expect(screen.getByText('acked')).toBeInTheDocument();
-    expect(screen.getByText('lease refreshed')).toBeInTheDocument();
+    expect(screen.getByText('Failed')).toBeInTheDocument();
+    expect(screen.getByText('Agent timeout')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands?limit=25') &&
+      init?.method === 'GET')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Сменить credential' }));
     expect(await screen.findByText('Сменить credential: подтверждено')).toBeInTheDocument();
@@ -1609,6 +1611,9 @@ describe('App', () => {
       init?.method === 'GET')).toBe(true);
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/devices/44444444-4444-4444-8444-444444444444') &&
+      init?.method === 'GET')).toBe(true);
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/devices/44444444-4444-4444-8444-444444444444/commands?limit=25') &&
       init?.method === 'GET')).toBe(true);
   });
 
@@ -2086,6 +2091,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createDeviceCommandStatus(isLock ? 'lock' : 'unlock', isLock
       ? 'Agent accepted lock'
       : 'Agent accepted unlock'));
+  }
+
+  if (pathname.endsWith('/commands') && init?.method !== 'POST') {
+    return jsonResponse(createDeviceCommandHistory());
   }
 
   if (pathname.endsWith('/commands') && init?.method === 'POST') {
@@ -2645,6 +2654,29 @@ function createDeviceCommand(type: string, payload: Record<string, string>) {
     payload,
     createdAtUtc: '2026-05-21T10:00:00Z'
   };
+}
+
+function createDeviceCommandHistory() {
+  return [
+    {
+      deviceId: '33333333-3333-3333-3333-333333333333',
+      commandId: '78787878-7878-7878-8787-787878787878',
+      type: 'lock',
+      status: 'Failed',
+      message: 'Agent timeout',
+      createdAtUtc: '2026-05-21T09:50:00Z',
+      updatedAtUtc: '2026-05-21T09:51:00Z'
+    },
+    {
+      deviceId: '33333333-3333-3333-3333-333333333333',
+      commandId: '79797979-7979-7979-8797-797979797979',
+      type: 'unlock',
+      status: 'Completed',
+      message: 'Unlocked by operator',
+      createdAtUtc: '2026-05-21T09:40:00Z',
+      updatedAtUtc: '2026-05-21T09:41:00Z'
+    }
+  ];
 }
 
 function createDashboardSummary() {

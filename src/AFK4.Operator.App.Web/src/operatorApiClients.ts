@@ -343,6 +343,10 @@ export interface DispatchDeviceCommandRequest {
   payload: Record<string, string>;
 }
 
+export interface DeviceCommandSearchQuery {
+  limit?: number | null;
+}
+
 export interface CreateUpdatePackageRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
@@ -644,6 +648,9 @@ export function createDeviceClient(api: PlatformApiClient) {
     dispatchDeviceCommand(deviceId: Guid, request: DispatchDeviceCommandRequest): Promise<DeviceCommandDto> {
       return api.post<DeviceCommandDto, DispatchDeviceCommandRequest>(`/api/devices/${deviceId}/commands`, request);
     },
+    listDeviceCommands(deviceId: Guid, query?: DeviceCommandSearchQuery): Promise<DeviceCommandStatusDto[]> {
+      return api.get<DeviceCommandStatusDto[]>(`/api/devices/${deviceId}/commands`, normalizeDeviceCommandQuery(query));
+    },
     getDeviceCommandStatus(deviceId: Guid, commandId: Guid): Promise<DeviceCommandStatusDto> {
       return api.get<DeviceCommandStatusDto>(`/api/devices/${deviceId}/commands/${commandId}/status`);
     },
@@ -697,6 +704,14 @@ export function createAuditClient(api: PlatformApiClient) {
 }
 
 type NormalizedQuery = ReportQuery | ReservationSearchQuery | StockMovementSearchQuery | Omit<AuditSearchRequest, 'branchId'>;
+
+function normalizeDeviceCommandQuery(query?: DeviceCommandSearchQuery): QueryParams | undefined {
+  if (!query) {
+    return undefined;
+  }
+
+  return { limit: query.limit };
+}
 
 function normalizeReportQuery(query?: NormalizedQuery): QueryParams | undefined {
   if (!query) {
