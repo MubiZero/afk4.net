@@ -5930,6 +5930,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [enrollmentCode, setEnrollmentCode] = useState<Record<string, unknown> | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
   const [deviceCommandHistory, setDeviceCommandHistory] = useState<DeviceCommandStatusDto[]>([]);
+  const [branchDeviceCommandHistory, setBranchDeviceCommandHistory] = useState<DeviceCommandStatusDto[]>([]);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
   const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
   const [deviceCommandType, setDeviceCommandType] = useState('lock');
@@ -6007,7 +6008,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setLoadStatus('loading');
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [branchProfile, staff, layoutZones, products, stockMovementRows, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows, deviceRows] = await Promise.all([
+      const [branchProfile, staff, layoutZones, products, stockMovementRows, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
         apiClients.settings.getBranchProfile(nextBackend.branchId),
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
@@ -6019,6 +6020,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => []),
         hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)
           ? apiClients.devices.listDevices(nextBackend.branchId).catch(() => [])
+          : Promise.resolve([]),
+        hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)
+          ? apiClients.devices.listBranchDeviceCommands(nextBackend.branchId, { limit: 50 }).catch(() => [])
           : Promise.resolve([])
       ]);
       const productRows = Array.isArray(products) ? products : [];
@@ -6059,6 +6063,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setSelectedPackageDefinitionId((current) => packageRows.some((option) => readString(option, 'packageDefinitionId') === current) ? current : '');
       const nextDeviceInventory = Array.isArray(deviceRows) ? deviceRows : [];
       setDeviceInventory(nextDeviceInventory);
+      setBranchDeviceCommandHistory(Array.isArray(branchDeviceCommands) ? branchDeviceCommands : []);
       setDeviceAssignmentDeviceId((current) => isGuid(current) ? current : readString(nextDeviceInventory[0], 'deviceId'));
       setClubName(readString(branchProfile, 'name', 'AFK4'));
       setCity(readString(branchProfile, 'city', 'Dushanbe'));
@@ -6097,6 +6102,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const canCreateDeviceEnrollmentCode = backend !== null && hasPermission(backend.session, permissionNames.createDeviceEnrollmentCode);
   const canAssignDeviceSeat = backend !== null && hasPermission(backend.session, permissionNames.assignDeviceSeat);
   const canViewDeviceDetail = backend !== null && hasPermission(backend.session, permissionNames.viewDeviceDetail);
+  const canViewDeviceCommandStatus = backend !== null && hasPermission(backend.session, permissionNames.viewDeviceCommandStatus);
   const canDispatchDeviceCommand = backend !== null && hasPermission(backend.session, permissionNames.dispatchDeviceCommand);
   const canRotateDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.rotateDeviceCredential);
   const canRevokeDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.revokeDeviceCredential);
@@ -6110,6 +6116,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const deviceRecentCommands = deviceCommandHistory.length > 0
     ? deviceCommandHistory
     : readArray<Record<string, unknown>>(deviceDetail, 'recentCommands');
+  const getDeviceInventoryName = (deviceId: string) =>
+    readString(deviceInventory.find((device) => readString(device, 'deviceId') === deviceId), 'machineName', deviceId.slice(0, 8));
   const selectedRollout = rollouts.find((rollout) => readString(rollout, 'updateRolloutId') === rolloutStateRolloutId) ?? rollouts[0] ?? null;
   const selectedRolloutDeviceStatuses = readArray<Record<string, unknown>>(selectedRollout, 'deviceStatuses');
   const selectLayoutZone = (zone: Record<string, unknown>) => {
@@ -6189,6 +6197,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       if (label === 'Проверить устройства') {
         setDiagnostics(await apiClients.diagnostics.getDiagnostics(nextBackend.branchId));
+      } else if (label === 'Обновить историю команд') {
+        if (!hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)) {
+          throw new Error('Нет прав на просмотр истории команд устройств.');
+        }
+
+        const commands = await apiClients.devices.listBranchDeviceCommands(nextBackend.branchId, { limit: 50 });
+        setBranchDeviceCommandHistory(Array.isArray(commands) ? commands : []);
       } else if (label === 'Создать код подключения') {
         if (!hasPermission(nextBackend.session, permissionNames.createDeviceEnrollmentCode)) {
           throw new Error('Нет прав на создание кода подключения устройства.');
@@ -6269,7 +6284,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           setDeviceInventory(await apiClients.devices.listDevices(nextBackend.branchId).catch(() => deviceInventory));
         }
         if (hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)) {
-          setDeviceCommandHistory(await apiClients.devices.listDeviceCommands(deviceId, { limit: 25 }).catch(() => deviceCommandHistory));
+          const [selectedCommands, branchCommands] = await Promise.all([
+            apiClients.devices.listDeviceCommands(deviceId, { limit: 25 }).catch(() => deviceCommandHistory),
+            apiClients.devices.listBranchDeviceCommands(nextBackend.branchId, { limit: 50 }).catch(() => branchDeviceCommandHistory)
+          ]);
+          setDeviceCommandHistory(Array.isArray(selectedCommands) ? selectedCommands : []);
+          setBranchDeviceCommandHistory(Array.isArray(branchCommands) ? branchCommands : []);
         }
       } else if (label === 'Сменить credential') {
         if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {
@@ -6891,6 +6911,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <span>Подключение устройств</span>
             <button type="button" disabled={!canCreateDeviceEnrollmentCode} onClick={() => runSettingsAction('Создать код подключения')}>Создать код подключения</button>
             <button type="button" disabled={!canAssignDeviceSeat || layoutSeatOptions.length === 0} onClick={() => runSettingsAction('Назначить устройство')}>Назначить устройство</button>
+            <button type="button" disabled={!canViewDeviceCommandStatus} onClick={() => runSettingsAction('Обновить историю команд')}>Обновить историю команд</button>
           </div>
           <div className="settings-form-grid settings-device-form">
             <label>Срок кода, сек<input inputMode="numeric" value={enrollmentExpiresSeconds} disabled={!canCreateDeviceEnrollmentCode} onChange={(event) => setEnrollmentExpiresSeconds(event.currentTarget.value)} /></label>
@@ -6967,6 +6988,26 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 </span>
               ))}
             </div>
+          )}
+          {branchDeviceCommandHistory.length > 0 && (
+            <>
+              <div className="settings-section-title">
+                <span>История команд филиала</span>
+                <strong>{branchDeviceCommandHistory.length} последних</strong>
+              </div>
+              <div className="settings-command-history" aria-label="История команд филиала">
+                {branchDeviceCommandHistory.map((command) => {
+                  const deviceId = readString(command, 'deviceId');
+                  return (
+                    <span key={`${deviceId}-${readString(command, 'commandId')}`}>
+                      <strong>{getDeviceInventoryName(deviceId)}</strong>
+                      <b>{readString(command, 'type', 'command')} · {readString(command, 'status', 'unknown')}</b>
+                      <em>{readString(command, 'message') || formatTime(readString(command, 'updatedAtUtc'))}</em>
+                    </span>
+                  );
+                })}
+              </div>
+            </>
           )}
         </>
       );

@@ -368,8 +368,8 @@ Minimum bar:
   Settings `Залы и ПК` now also
   creates device enrollment codes, assigns enrolled devices to seats, and
   opens device detail through existing device endpoints with status/version/
-  credential/app counts plus recent command history, including credential
-  rotation/revocation controls. The same Settings section now creates layout
+  credential/app counts plus selected-device and branch-wide command history,
+  including credential rotation/revocation controls. The same Settings section now creates layout
   zones and seats from operator-entered names/sort orders, then update selected
   zone/seat names, sort orders, and seat zones through layout endpoints with
   `layout.manage` gating.
@@ -435,8 +435,9 @@ Minimum bar:
   or archive/delete flows.
 - Device-seat assignment has a staff-authorized API path and staging smoke
   setup integration plus Settings inventory/assignment/detail/command/
-  command-history/credential controls. A broader branch-wide historical
-  device event browser is still missing.
+  command-history/credential controls and a branch-wide command-history
+  browser. Broader non-command device telemetry/event browsing is still
+  missing.
 - Pilot branch setup can now run through either the Operator App Pilot Setup
   panel or the Platform API script fallback. Commercial production still needs
   broader operator-safe configuration screens.
@@ -480,7 +481,7 @@ Minimum bar:
    export downloads, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
    POS selected-customer/new-customer checkout/wallet top-up/stock write-off, Clients wallet
-   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, Clients package purchase selector/confirmation, Settings branch device inventory, and selected-device command history. Next deliver staging smoke across these backend-backed workspaces
+   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, Clients package purchase selector/confirmation, Settings branch device inventory, selected-device command history, and branch-wide device command history. Next deliver staging smoke across these backend-backed workspaces
    and close gaps found with real staging data.
    Local builds must
    still target staging with

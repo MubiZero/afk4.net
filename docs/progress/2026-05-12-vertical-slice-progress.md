@@ -209,7 +209,10 @@ implementation evidence are needed.
   Settings device surface can now rotate and revoke device credentials through
   the existing credential lifecycle endpoints and dispatch lock/unlock device
   commands through `/api/devices/{deviceId}/commands`, guarded by
-  `devices.commands.dispatch`.
+  `devices.commands.dispatch`. It also reads selected-device command history
+  through `/api/devices/{deviceId}/commands` and branch-wide command history
+  through `/api/branches/{branchId}/device-commands`, guarded by
+  `devices.commands.status.view`.
 - The remaining React operator workspaces are now wired to existing backend
   reads/actions where contracts exist: POS loads catalog/current shift/sales
   reports, searches backend players for the cart customer, creates paid
@@ -368,7 +371,8 @@ refund quick action, Settings layout zone/seat creation/update, POS
 draft void quick action, POS sale detail/receipt lookup, POS selected-customer
 checkout, POS new-customer checkout, Clients package purchase, Clients
 reservation permission gating, Settings staff role editing, Settings branch
-device inventory, and selected-device command history:
+device inventory, selected-device command history, and branch-wide device
+command history:
 
 ```powershell
 & 'C:\Program Files\nodejs\npm.cmd' test
@@ -381,12 +385,13 @@ Result:
 
 - frontend tests: 92 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 816 passed, 0 failed;
+- full local .NET solution tests: 818 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Browser smoke on `http://127.0.0.1:5173/` after Settings staff profile
-  editing rendered the WebView auth entry surface with title `AFK4 Operator`,
-  heading `Вход оператора`, sign-in button, no old backend placeholder copy,
-  and no horizontal or vertical body overflow.
+  editing and branch-wide device command history rendered the WebView auth
+  entry surface with title `AFK4 Operator`, heading `Вход оператора`, sign-in
+  button, no old backend placeholder copy, and no horizontal or vertical body
+  overflow.
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
@@ -503,6 +508,11 @@ Result:
   `devices.commands.status.view` authorization, audit records, newest-first
   limit behavior, frontend route construction, and Settings command history
   refresh after opening a device card or dispatching a command.
+- Branch device command history backend/API/frontend tests now cover
+  `GET /api/branches/{branchId}/device-commands?limit=...` with
+  `devices.commands.status.view` authorization, branch device scoping,
+  newest-first limit behavior, audit records, frontend route construction, and
+  Settings `Залы и ПК` branch-wide command-history refresh.
 - Settings layout backend/API/frontend tests now cover creating and updating a
   layout zone and seat from `Залы и ПК`, including operator-entered zone
   name/sort order, selected seat zone id, seat name/sort order, organization
@@ -1396,8 +1406,8 @@ Operator App redesign branch-local verification on 2026-05-20:
 - Device-seat assignment now has an authorized Platform API path and staging
   setup integration, and Operator App Settings now has a branch device
   inventory list plus device-card/assignment/command-history/credential
-  controls. A branch-wide historical device event browser remains
-  unimplemented.
+  controls plus a branch-wide command-history browser. Broader non-command
+  device telemetry/event browsing remains unimplemented.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook. Physical Windows
   10/11 hardware execution remains recommended hardening before wider rollout,

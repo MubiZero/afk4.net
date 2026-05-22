@@ -660,6 +660,9 @@ export function createDeviceClient(api: PlatformApiClient) {
     listDeviceCommands(deviceId: Guid, query?: DeviceCommandSearchQuery): Promise<DeviceCommandStatusDto[]> {
       return api.get<DeviceCommandStatusDto[]>(`/api/devices/${deviceId}/commands`, normalizeDeviceCommandQuery(query));
     },
+    listBranchDeviceCommands(branchId: Guid, query?: DeviceCommandSearchQuery): Promise<DeviceCommandStatusDto[]> {
+      return api.get<DeviceCommandStatusDto[]>(`/api/branches/${branchId}/device-commands`, normalizeDeviceCommandQuery(query));
+    },
     getDeviceCommandStatus(deviceId: Guid, commandId: Guid): Promise<DeviceCommandStatusDto> {
       return api.get<DeviceCommandStatusDto>(`/api/devices/${deviceId}/commands/${commandId}/status`);
     },

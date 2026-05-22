@@ -2610,6 +2610,87 @@ app.MapGet("/api/devices/{deviceId:guid}/commands", async (
     return Results.Ok(commands);
 });
 
+app.MapGet("/api/branches/{branchId:guid}/device-commands", async (
+    Guid branchId,
+    int? limit,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewDeviceCommandStatus,
+        cancellationToken);
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: authorization.StaffContext!.OrganizationId,
+            BranchId: branchId,
+            ActorStaffUserId: authorization.StaffContext.StaffUserId,
+            Action: AuditActionNames.ViewDeviceCommandStatus,
+            TargetType: "Branch",
+            TargetId: branchId.ToString("D"),
+            Outcome: AuditOutcome.Denied,
+            SourceApp: "PlatformApi",
+            DetailsJson: JsonSerializer.Serialize(new
+            {
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var resultLimit = Math.Clamp(limit ?? 50, 1, 100);
+    var deviceIds = await dbContext.Devices
+        .AsNoTracking()
+        .Where(device => device.BranchId == branchId)
+        .Select(device => device.DeviceId)
+        .ToListAsync(cancellationToken);
+    IReadOnlyList<DeviceCommandStatusDto> commands = deviceIds.Count == 0
+        ? []
+        : await dbContext.DeviceCommands
+            .AsNoTracking()
+            .Where(command => deviceIds.Contains(command.DeviceId))
+            .OrderByDescending(command => command.CreatedAtUtc)
+            .Take(resultLimit)
+            .Select(command => new DeviceCommandStatusDto(
+                command.DeviceId,
+                command.CommandId,
+                command.Type,
+                command.Status,
+                command.Message,
+                command.CreatedAtUtc,
+                command.UpdatedAtUtc))
+            .ToListAsync(cancellationToken);
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: authorization.StaffContext!.OrganizationId,
+        BranchId: branchId,
+        ActorStaffUserId: authorization.StaffContext.StaffUserId,
+        Action: AuditActionNames.ViewDeviceCommandStatus,
+        TargetType: "Branch",
+        TargetId: branchId.ToString("D"),
+        Outcome: AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: JsonSerializer.Serialize(new
+        {
+            ResultCount = commands.Count,
+            Limit = resultLimit
+        })),
+        cancellationToken);
+
+    return Results.Ok(commands);
+});
+
 app.MapGet("/api/devices/{deviceId:guid}/commands/{commandId:guid}/status", async (
     Guid deviceId,
     Guid commandId,

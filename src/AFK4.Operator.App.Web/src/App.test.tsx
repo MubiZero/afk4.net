@@ -1594,7 +1594,7 @@ describe('App', () => {
     expect(screen.getByText('Agent')).toBeInTheDocument();
     expect(screen.getAllByText('0.1.14').length).toBeGreaterThan(0);
     expect(screen.getByText('Failed')).toBeInTheDocument();
-    expect(screen.getByText('Agent timeout')).toBeInTheDocument();
+    expect(screen.getAllByText('Agent timeout').length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands?limit=25') &&
       init?.method === 'GET')).toBe(true);
@@ -1624,6 +1624,16 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('Backend settings')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
+
+    const branchHistory = await screen.findByLabelText('История команд филиала');
+    expect(branchHistory).toBeInTheDocument();
+    expect(within(branchHistory).getByText('PC-03')).toBeInTheDocument();
+    expect(within(branchHistory).getByText(/refresh-session-lease/)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-commands?limit=50') &&
+      init?.method === 'GET')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить историю команд' }));
+    expect(await screen.findByText('Обновить историю команд: подтверждено')).toBeInTheDocument();
 
     expect(await screen.findByRole('button', { name: /PC-03/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /PC-03/ }));
@@ -2124,6 +2134,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/commands') && init?.method !== 'POST') {
     return jsonResponse(createDeviceCommandHistory());
+  }
+
+  if (pathname.endsWith('/device-commands') && pathname.includes('/api/branches/') && init?.method !== 'POST') {
+    return jsonResponse(createBranchDeviceCommandHistory());
   }
 
   if (pathname.endsWith('/commands') && init?.method === 'POST') {
@@ -2714,6 +2728,21 @@ function createDeviceCommandHistory() {
       createdAtUtc: '2026-05-21T09:40:00Z',
       updatedAtUtc: '2026-05-21T09:41:00Z'
     }
+  ];
+}
+
+function createBranchDeviceCommandHistory() {
+  return [
+    {
+      deviceId: '44444444-4444-4444-8444-444444444444',
+      commandId: '90909090-9090-9090-9090-909090909090',
+      type: 'refresh-session-lease',
+      status: 'Completed',
+      message: 'Branch lease refreshed',
+      createdAtUtc: '2026-05-21T09:55:00Z',
+      updatedAtUtc: '2026-05-21T09:56:00Z'
+    },
+    ...createDeviceCommandHistory()
   ];
 }
 
