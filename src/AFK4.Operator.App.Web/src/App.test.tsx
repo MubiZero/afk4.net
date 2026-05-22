@@ -241,8 +241,10 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(await screen.findByText('Backend live')).toBeInTheDocument();
-    expect(screen.getByTitle('POS')).toBeDisabled();
-    expect(screen.getByTitle('Брони')).toBeDisabled();
+    expect(screen.getByTitle('POS')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByTitle('Брони')).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByTitle('Брони'));
+    expect(await screen.findByText(/Нет прав на раздел/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /15 мин/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Стоп/ })).toBeDisabled();
     expect(screen.getByText('Нет прав на действия с сессией')).toBeInTheDocument();
@@ -277,6 +279,23 @@ describe('App', () => {
 
     fireEvent.click(settingsButton!);
     expect(settingsButton).toHaveClass('active');
+  });
+
+  it('refreshes restored native permissions before gating workspace rail entries', async () => {
+    installSessionBridge(
+      createSession({ permissions: ['floor_map.view'] }),
+      createSession({ permissions: ['floor_map.view', 'reservations.view'] }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    const workspaceButtons = within(screen.getByRole('navigation')).getAllByRole('button');
+    const bookingButton = workspaceButtons[2];
+    expect(bookingButton).toHaveAttribute('aria-disabled', 'false');
+    expect(bookingButton).toBeEnabled();
+
+    fireEvent.click(bookingButton);
+    expect(bookingButton).toHaveClass('active');
   });
 
   it('switches to SmartShell-like booking, POS, and logs workspaces', async () => {
@@ -2591,7 +2610,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   return jsonResponse({ ok: true });
 }
 
-function installSessionBridge(loadSession: ReturnType<typeof createSession> | null = createSession()) {
+function installSessionBridge(
+  loadSession: ReturnType<typeof createSession> | null = createSession(),
+  refreshSession: ReturnType<typeof createSession> | null = loadSession
+) {
   const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
   window.chrome = {
     webview: {
@@ -2601,6 +2623,10 @@ function installSessionBridge(loadSession: ReturnType<typeof createSession> | nu
 
         if (request.type === 'auth:signIn') {
           payload = createSession();
+        }
+
+        if (request.type === 'auth:refresh') {
+          payload = refreshSession;
         }
 
         if (request.type === 'auth:signOut') {

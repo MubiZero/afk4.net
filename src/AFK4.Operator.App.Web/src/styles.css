@@ -402,9 +402,16 @@ button {
   color: #ffffff;
 }
 
-.workspace-rail button:disabled {
+.workspace-rail button:disabled,
+.workspace-rail button.locked {
   color: #4d5968;
   opacity: 0.62;
+}
+
+.workspace-rail button.locked:hover,
+.workspace-rail button.locked:focus-visible {
+  background: #172232;
+  color: #718096;
 }
 
 .floor-workspace {
@@ -5287,4 +5294,8 @@ button {
   background: #111821;
   color: #9aa8ba;
   font-size: 11px;
+}
+
+.signals-strip .rail-feedback {
+  color: #fecaca;
 }

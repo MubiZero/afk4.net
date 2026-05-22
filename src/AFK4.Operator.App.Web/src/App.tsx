@@ -23,7 +23,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import { projectOperatorError } from './apiErrors';
-import { loadOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
+import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
 import {
   applyDeviceStatusToSeats,
   createFixtureFloorMapState,
@@ -7652,6 +7652,7 @@ export function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [authSession, setAuthSession] = useState<OperatorAuthSession | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
   const [realtimeState, setRealtimeState] = useState<OperatorRealtimeConnectionState>('disconnected');
   const [realtimeError, setRealtimeError] = useState<string | null>(null);
@@ -7667,6 +7668,17 @@ export function App() {
     let disposed = false;
 
     loadOperatorSession()
+      .then(async (session) => {
+        if (session === null) {
+          return null;
+        }
+
+        try {
+          return await refreshOperatorSession();
+        } catch {
+          return session;
+        }
+      })
       .then((session) => {
         if (disposed) {
           return;
@@ -7809,17 +7821,45 @@ export function App() {
     setAuthSession(session);
     setAuthStatus('signed-in');
     setAuthError(null);
+    setWorkspaceFeedback(null);
   };
 
   const handleSignOut = async () => {
     try {
       await signOutOperator();
       setAuthError(null);
+      setWorkspaceFeedback(null);
     } catch (error) {
       setAuthError(projectAuthHostError(error, config));
     } finally {
       setAuthSession(null);
       setAuthStatus('signed-out');
+    }
+  };
+
+  const handleWorkspaceNavigation = async (
+    workspaceId: WorkspaceId,
+    label: string,
+    isAllowed: boolean
+  ) => {
+    if (isAllowed) {
+      setWorkspaceFeedback(null);
+      setWorkspace(workspaceId);
+      return;
+    }
+
+    try {
+      const refreshedSession = await refreshOperatorSession();
+      setAuthSession(refreshedSession);
+      if (canOpenWorkspace(refreshedSession, workspaceId)) {
+        setWorkspaceFeedback(null);
+        setWorkspace(workspaceId);
+        return;
+      }
+
+      setWorkspaceFeedback(`Нет прав на раздел "${label}" для текущего оператора.`);
+    } catch (error) {
+      setWorkspaceFeedback(`Не удалось обновить права для "${label}": ${projectOperatorError(error).detail}`);
     }
   };
 
@@ -7978,14 +8018,10 @@ export function App() {
             <button
               key={item.label}
               type="button"
-              className={workspace === id ? 'active' : ''}
-              disabled={!isAllowed}
+              className={[workspace === id ? 'active' : '', !isAllowed ? 'locked' : ''].filter(Boolean).join(' ')}
+              aria-disabled={!isAllowed}
               title={item.label}
-              onClick={() => {
-                if (isAllowed) {
-                  setWorkspace(id);
-                }
-              }}
+              onClick={() => void handleWorkspaceNavigation(id, item.label, isAllowed)}
             >
               <Icon size={22} />
               <span>{item.label}</span>
@@ -8049,6 +8085,9 @@ export function App() {
         <span><MonitorCheck size={14} />Devices: {countByTone(floorMap.seats, 'offline')} offline, {countProblems(floorMap.seats)} attention</span>
         <span><CircleDollarSign size={14} />POS: 2 неоплаченных чека</span>
         <span><LockKeyhole size={14} />Критичные действия ждут подтверждения платформы</span>
+        {workspaceFeedback && (
+          <span className="rail-feedback"><LockKeyhole size={14} />{workspaceFeedback}</span>
+        )}
       </footer>
     </div>
   );

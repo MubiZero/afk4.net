@@ -140,9 +140,12 @@ implementation evidence are needed.
   responses as action feedback instead of confirming fixture-only clicks.
 - The React UI now has its first permission-aware state: the workspace rail
   opens a screen when the restored staff session has any permission relevant
-  to that workspace, disables screens with no matching permission, and keeps
-  selected-seat start/extend/transfer/end actions disabled and guarded by
-  matching session permissions before any API call is attempted.
+  to that workspace, marks screens with no matching permission as locked,
+  refreshes the restored native session before and during locked navigation
+  attempts, and shows explicit locked-section feedback instead of silently
+  ignoring clicks. Selected-seat start/extend/transfer/end actions remain
+  disabled and guarded by matching session permissions before any API call is
+  attempted.
 - The selected-seat map panel now supports real billing-mode selection for
   guest/no-ledger, prepaid wallet, player package, and postpaid debt starts and
   extensions. Billed modes require a backend player selection plus the relevant
@@ -394,8 +397,9 @@ Result:
   heading `Вход оператора`, sign-in button, no old backend placeholder copy,
   and no horizontal or vertical body overflow.
 - Additional frontend-only verification on 2026-05-22 after fixing workspace
-  rail permission gating:
-  - `npm test`: 95 passed, 0 failed;
+  rail permission gating, restored-session permission refresh, and locked
+  section click feedback:
+  - `npm test`: 96 passed, 0 failed;
   - `npm run build`: passed;
   - native `AFK4.Operator.App.exe` was restarted and opened the `AFK4 Operator`
     WebView2 window against the rebuilt React `dist`.
@@ -412,7 +416,9 @@ Result:
   disabled selected-seat actions when the staff session only has
   `floor_map.view`, plus rail navigation for partial role permissions so
   cashier/technician workspaces open while their individual actions remain
-  permission-gated.
+  permission-gated. They also cover restored-session permission refresh before
+  rail gating and explicit locked-section feedback when the refreshed session
+  still lacks the workspace permission.
 - Map billing/action tests now cover fast guest start, prepaid-wallet start
   with backend player/tariff metadata, idempotency keys, and follow-up
   `/api/devices/{deviceId}/commands/{commandId}/status` reads for selected-seat
