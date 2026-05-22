@@ -283,6 +283,52 @@ public sealed class EfInventoryServiceTests
         Assert.Equal(22, product.StockOnHand);
     }
 
+    [Fact]
+    public async Task GetStockMovementsAsync_ReturnsRecentMovementsFilteredByProduct()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+        var otherProduct = await CreateTrackedProductAsync(service);
+        var first = await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Purchase, 24, "stock-history-001"),
+            CancellationToken.None);
+        var latest = await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Adjustment, -2, "stock-history-002"),
+            CancellationToken.None);
+        await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(otherProduct.ProductId, StockMovementTypeNames.Purchase, 10, "stock-history-003"),
+            CancellationToken.None);
+        Assert.NotNull(first.Response);
+        Assert.NotNull(latest.Response);
+
+        var firstEntity = await db.StockMovements.SingleAsync(movement => movement.StockMovementId == first.Response.StockMovementId);
+        firstEntity.CreatedAtUtc = Now.AddMinutes(-10);
+        var latestEntity = await db.StockMovements.SingleAsync(movement => movement.StockMovementId == latest.Response.StockMovementId);
+        latestEntity.CreatedAtUtc = Now.AddMinutes(-1);
+        await db.SaveChangesAsync();
+
+        var result = await service.GetStockMovementsAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            product.ProductId,
+            limit: 1,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        var movement = Assert.Single(result.Response);
+        Assert.Equal(product.ProductId, movement.ProductId);
+        Assert.Equal(-2, movement.QuantityDelta);
+        Assert.Equal(StockMovementTypeNames.Adjustment, movement.MovementType);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -302,7 +348,7 @@ public sealed class EfInventoryServiceTests
         var result = await service.CreateCategoryAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-            new CreateProductCategoryRequest(TestIds.OrganizationId, "Drinks", $"category-{Guid.NewGuid():N}"),
+            new CreateProductCategoryRequest(TestIds.OrganizationId, $"Drinks {Guid.NewGuid():N}", $"category-{Guid.NewGuid():N}"),
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -317,7 +363,11 @@ public sealed class EfInventoryServiceTests
         var result = await service.CreateProductAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-            ProductRequest(category.CategoryId, $"product-{Guid.NewGuid():N}"),
+            ProductRequest(category.CategoryId, $"product-{Guid.NewGuid():N}") with
+            {
+                Name = $"Cola {Guid.NewGuid():N}",
+                Sku = $"SKU-{Guid.NewGuid():N}"
+            },
             CancellationToken.None);
 
         Assert.True(result.Succeeded);

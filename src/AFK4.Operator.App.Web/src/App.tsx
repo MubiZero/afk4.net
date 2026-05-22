@@ -49,6 +49,7 @@ import {
   type ReportResultDto,
   type ShiftDto,
   type StaffUserDto,
+  type StockMovementDto,
   type TariffOptionDto,
   type UpdateRolloutStatusDto,
   type WalletSummaryDto,
@@ -5855,6 +5856,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [staffUsers, setStaffUsers] = useState<StaffUserDto[]>([]);
   const [zones, setZones] = useState<ZoneDto[]>([]);
   const [catalog, setCatalog] = useState<PosProductDto[]>([]);
+  const [stockMovements, setStockMovements] = useState<StockMovementDto[]>([]);
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
@@ -5932,11 +5934,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setLoadStatus('loading');
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [branchProfile, staff, layoutZones, products, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows] = await Promise.all([
+      const [branchProfile, staff, layoutZones, products, stockMovementRows, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows] = await Promise.all([
         apiClients.settings.getBranchProfile(nextBackend.branchId),
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
         apiClients.pos.getCatalog(nextBackend.branchId),
+        apiClients.inventory.getStockMovements(nextBackend.branchId, { limit: 8 }).catch(() => []),
         apiClients.diagnostics.getDiagnostics(nextBackend.branchId),
         apiClients.updates.getRolloutStatuses(nextBackend.branchId),
         apiClients.settings.getTariffOptions(nextBackend.branchId),
@@ -5957,6 +5960,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       const firstSeatId = zoneRows.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats')).map((seat) => readString(seat, 'seatId')).find(Boolean) ?? '';
       setDeviceAssignmentSeatId((current) => isGuid(current) ? current : firstSeatId);
       setCatalog(productRows);
+      setStockMovements(Array.isArray(stockMovementRows) ? stockMovementRows : []);
       setStockProductId((current) => productRows.some((product) => readString(product, 'productId') === current && readBoolean(product, 'trackStock'))
         ? current
         : readString(productRows.find((product) => readBoolean(product, 'trackStock')), 'productId'));
@@ -6699,6 +6703,33 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <label>Кол-во<input inputMode="numeric" value={stockQuantityDelta} disabled={!canManageInventoryStock} onChange={(event) => setStockQuantityDelta(event.currentTarget.value)} /></label>
             <label>Себестоимость<input inputMode="decimal" value={stockUnitCost} disabled={!canManageInventoryStock} onChange={(event) => setStockUnitCost(event.currentTarget.value)} /></label>
             <label>Причина<input value={stockReason} disabled={!canManageInventoryStock} onChange={(event) => setStockReason(event.currentTarget.value)} /></label>
+          </div>
+          <div className="settings-section-title">
+            <span>История склада</span>
+            <strong>{stockMovements.length} последних</strong>
+          </div>
+          <div className="settings-config-grid settings-stock-history">
+            {stockMovements.length === 0 && (
+              <button type="button" disabled>
+                <strong>Нет движений</strong>
+                <span>backend вернул пустую историю</span>
+              </button>
+            )}
+            {stockMovements.map((movement) => {
+              const productId = readString(movement, 'productId');
+              const productName = readString(
+                catalog.find((product) => readString(product, 'productId') === productId),
+                'name',
+                productId.slice(0, 8) || 'Product');
+              const quantityDelta = readNumber(movement, 'quantityDelta', 0);
+              const reason = readString(movement, 'reason', 'movement');
+              return (
+                <button key={readString(movement, 'stockMovementId')} type="button" onClick={() => triggerFeedback(setFeedback, productName, 'confirmed')}>
+                  <strong>{productName} · {readString(movement, 'movementType', 'movement')}</strong>
+                  <span>{quantityDelta > 0 ? '+' : ''}{quantityDelta} · {formatMoney(readMoney(movement, 'unitCost'), currencyCode)} · {reason}</span>
+                </button>
+              );
+            })}
           </div>
         </>
       );

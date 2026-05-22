@@ -67,7 +67,8 @@ Current state:
   save backed by a new Platform API
   profile endpoint, POS category/product creation backed by the existing
   POS catalog endpoints, stock movement creation backed by the existing
-  inventory endpoint, tariff/version creation backed by the existing tariff
+  inventory endpoint, stock movement history backed by the existing inventory
+  read endpoint, tariff/version creation backed by the existing tariff
   endpoints, and package definition creation backed by the existing package
   endpoint. Payments can now open a shift through the existing
   open-shift endpoint, close the current shift through the existing close-shift
@@ -141,7 +142,8 @@ APIs, and profile save
 now updates branch name/city through the backend. Settings `POS и склад` can
 also create a backend POS category and product, and Settings `Тарифы` can
 create a backend tariff/version plus package definition. Settings `POS и
-склад` can also record inventory stock movements for tracked products.
+склад` can also record inventory stock movements for tracked products and read
+the latest stock movement history.
 Payments open-shift now calls
 the backend open-shift endpoint with starting cash and opening note fields.
 Payments close-shift now calls the backend close-shift endpoint with counted
@@ -352,7 +354,10 @@ missing-backend copy.
   gating, minute/bonus/expiry fields, and idempotency keys. Inventory stock
   movement creation from `POS и склад` was
   implemented on 2026-05-21 through the existing stock-movement endpoint with
-  `inventory.stock.manage` gating and idempotency keys. Update package
+  `inventory.stock.manage` gating and idempotency keys. Read-only stock
+  movement history from `POS и склад` was implemented on 2026-05-22 through
+  `GET /api/branches/{branchId}/inventory/stock-movements` with
+  `inventory.view` gating, product filtering, and a bounded limit. Update package
   registration, rollout creation, and package/rollout state changes from
   `Интеграции` were implemented on 2026-05-21 through the existing update
   endpoints with `updates.packages.manage` and `updates.rollouts.manage`
@@ -367,8 +372,8 @@ missing-backend copy.
   staff activation/deactivation/password reset/profile detail, richer layout
   editing beyond create-only zones/seats, richer device inventory/history
   management, tariff version edit/deactivate, package edit/deactivate and
-  purchase UX refinements, POS catalog edit/deactivate, stock history and
-  advanced inventory controls, integrations/payment-provider
+  purchase UX refinements, POS catalog edit/deactivate, advanced inventory
+  controls and reconciliation, integrations/payment-provider
   settings, richer update rollout detail/status controls, diagnostics,
   audit/security settings, and
   validation errors.
@@ -542,7 +547,8 @@ Screen roadmap:
   enough to preserve current operator capability. Implemented on 2026-05-21
   with branch profile, staff, layout, tariff/package, POS/inventory, updates,
   audit/diagnostics, enrollment, seat assignment, device detail, command
-  dispatch, and credential lifecycle wiring through existing backend endpoints.
+  dispatch, credential lifecycle, and stock movement history wiring through
+  existing backend endpoints.
 
 ## Task 6: Realtime State
 

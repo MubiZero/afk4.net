@@ -355,6 +355,44 @@ public sealed class EfInventoryService(
             stockOnHand));
     }
 
+    public async Task<BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>> GetStockMovementsAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid? productId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>.Invalid("Organization id is required.");
+        }
+
+        if (limit <= 0)
+        {
+            return BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>.Invalid("Limit must be positive.");
+        }
+
+        var query = dbContext.StockMovements
+            .AsNoTracking()
+            .Where(movement =>
+                movement.OrganizationId == organizationId &&
+                movement.BranchId == branchId);
+
+        if (productId is { } requestedProductId && requestedProductId != Guid.Empty)
+        {
+            query = query.Where(movement => movement.ProductId == requestedProductId);
+        }
+
+        var movements = await query
+            .OrderByDescending(movement => movement.CreatedAtUtc)
+            .ThenByDescending(movement => movement.StockMovementId)
+            .Take(Math.Min(limit, 200))
+            .ToListAsync(cancellationToken);
+
+        return BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>.Ok(
+            movements.Select(ToDto).ToList());
+    }
+
     private static string? ValidateCreateProductRequest(CreateProductRequest request)
     {
         if (request.OrganizationId == Guid.Empty)

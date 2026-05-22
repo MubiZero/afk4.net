@@ -1564,6 +1564,7 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('Backend settings')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^POS и склад/ }));
+    expect(await screen.findByText(/operator stock count correction/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'adjustment' } });
     fireEvent.change(screen.getByLabelText('Кол-во'), { target: { value: '-3' } });
     fireEvent.change(screen.getByLabelText('Себестоимость'), { target: { value: '0.00' } });
@@ -1585,6 +1586,9 @@ describe('App', () => {
       reason: 'operator stock count correction'
     });
     expect(body.idempotencyKey).toMatch(/^stock-movement-create-/);
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/inventory/stock-movements?limit=8') &&
+      init?.method !== 'POST')).toBe(true);
   });
 
   it('creates a package definition from Settings tariffs', async () => {
@@ -1858,6 +1862,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/pos/catalog')) {
     return jsonResponse(createPosCatalog());
+  }
+
+  if (pathname.endsWith('/inventory/stock-movements') && init?.method !== 'POST') {
+    return jsonResponse(createStockMovements());
   }
 
   if (pathname.endsWith('/inventory/stock-movements') && init?.method === 'POST') {
@@ -2485,6 +2493,12 @@ function createStockMovement(overrides: Record<string, unknown> = {}) {
     createdAtUtc: '2026-05-21T11:05:00Z',
     ...overrides
   };
+}
+
+function createStockMovements() {
+  return [
+    createStockMovement()
+  ];
 }
 
 function createPosSale(state: string) {

@@ -120,6 +120,10 @@ describe('operator API clients', () => {
 
     await clients.pos.getCatalog(branchId);
     await clients.inventory.createStockMovement(branchId, stockRequest);
+    await clients.inventory.getStockMovements(branchId, {
+      productId: stockRequest.productId,
+      limit: 8
+    });
     await clients.pos.createSale(branchId, saleRequest);
     await clients.pos.paySaleManual(saleId, paymentRequest);
     await clients.pos.refundSale(saleId, refundRequest);
@@ -143,6 +147,7 @@ describe('operator API clients', () => {
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
       `GET /api/branches/${branchId}/pos/catalog`,
       `POST /api/branches/${branchId}/inventory/stock-movements`,
+      `GET /api/branches/${branchId}/inventory/stock-movements?productId=77777777-7777-7777-7777-777777777777&limit=8`,
       `POST /api/branches/${branchId}/pos/sales`,
       `POST /api/pos/sales/${saleId}/payments/manual`,
       `POST /api/pos/sales/${saleId}/refunds`,
@@ -156,11 +161,11 @@ describe('operator API clients', () => {
       `GET /api/branches/${branchId}/reports/sales/export.csv?fromUtc=2026-05-21T01%3A02%3A03.000Z&toUtc=2026-05-21T02%3A03%3A04.000Z&limit=50`
     ]);
     expect(calls[1].body).toEqual(stockRequest);
-    expect(calls[2].body).toEqual(saleRequest);
-    expect(calls[3].body).toEqual(paymentRequest);
-    expect(calls[4].body).toEqual(refundRequest);
-    expect(calls[5].body).toEqual(voidRequest);
-    expect(calls[9].body).toEqual({
+    expect(calls[3].body).toEqual(saleRequest);
+    expect(calls[4].body).toEqual(paymentRequest);
+    expect(calls[5].body).toEqual(refundRequest);
+    expect(calls[6].body).toEqual(voidRequest);
+    expect(calls[10].body).toEqual({
       organizationId,
       packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
       idempotencyKey: 'idem-package'

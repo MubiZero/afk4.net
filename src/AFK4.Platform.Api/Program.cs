@@ -4418,6 +4418,39 @@ app.MapGet("/api/branches/{branchId:guid}/pos/catalog", async (
     return ToHttpResult(result);
 });
 
+app.MapGet("/api/branches/{branchId:guid}/inventory/stock-movements", async (
+    Guid branchId,
+    Guid? productId,
+    int? limit,
+    StaffAuthorizationService authorizationService,
+    IInventoryService inventoryService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewInventory,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await inventoryService.GetStockMovementsAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        productId,
+        Math.Clamp(limit ?? 50, 1, 200),
+        cancellationToken);
+
+    return ToHttpResult(result);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/inventory/stock-movements", async (
     Guid branchId,
     CreateStockMovementRequest request,

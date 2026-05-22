@@ -197,6 +197,10 @@ export interface ReportQuery {
 
 export type DashboardSummaryQuery = ReportQuery;
 
+export type StockMovementSearchQuery = ReportQuery & {
+  productId?: Guid | null;
+};
+
 export type ReservationSearchQuery = ReportQuery & {
   state?: string | null;
   source?: string | null;
@@ -540,6 +544,9 @@ export function createSettingsClient(api: PlatformApiClient) {
 
 export function createInventoryClient(api: PlatformApiClient) {
   return {
+    getStockMovements(branchId: Guid, query?: StockMovementSearchQuery): Promise<StockMovementDto[]> {
+      return api.get<StockMovementDto[]>(`/api/branches/${branchId}/inventory/stock-movements`, normalizeReportQuery(query));
+    },
     createStockMovement(branchId: Guid, request: CreateStockMovementRequest): Promise<StockMovementDto> {
       return api.post<StockMovementDto, CreateStockMovementRequest>(`/api/branches/${branchId}/inventory/stock-movements`, request);
     }
@@ -609,7 +616,9 @@ export function createAuditClient(api: PlatformApiClient) {
   };
 }
 
-function normalizeReportQuery(query?: ReportQuery | ReservationSearchQuery | Omit<AuditSearchRequest, 'branchId'>): QueryParams | undefined {
+type NormalizedQuery = ReportQuery | ReservationSearchQuery | StockMovementSearchQuery | Omit<AuditSearchRequest, 'branchId'>;
+
+function normalizeReportQuery(query?: NormalizedQuery): QueryParams | undefined {
   if (!query) {
     return undefined;
   }

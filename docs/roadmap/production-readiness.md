@@ -349,8 +349,10 @@ Minimum bar:
   branch profile API,
   POS category/product creation through the existing POS catalog endpoints, and
   inventory stock movement creation through the existing stock-movement
-  endpoint, plus tariff/version creation and package definition creation
-  through the existing tariff/package endpoints. Settings `Интеграции` now also
+  endpoint. The same Settings section now reads recent stock movement history
+  through `GET /api/branches/{branchId}/inventory/stock-movements` with
+  `inventory.view` gating, plus tariff/version creation and package definition
+  creation through the existing tariff/package endpoints. Settings `Интеграции` now also
   registers update packages, creates update rollouts, and changes
   package/rollout states through the existing
   update endpoints. Logs now applies backend audit search filters for exact
@@ -452,10 +454,10 @@ Minimum bar:
    restored staff permissions. The map panel now also supports guest/prepaid/
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
-  hardening, Settings staff creation/role reassignment, branch profile save,
-  Settings layout zone/seat creation, Settings POS
-  category/product creation, Settings stock movement creation, Settings package
-  definition creation, Settings update package/rollout controls, Settings
+   hardening, Settings staff creation/role reassignment, branch profile save,
+   Settings layout zone/seat creation, Settings POS
+   category/product creation, Settings stock movement creation/history,
+   Settings package definition creation, Settings update package/rollout controls, Settings
    device enrollment/seat assignment/credential lifecycle, Dashboard export download,
    Payments open/close-shift, cash-movement wiring, selected-operation detail,
    and report export downloads,

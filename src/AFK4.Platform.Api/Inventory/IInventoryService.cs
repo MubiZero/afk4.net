@@ -34,4 +34,11 @@ public interface IInventoryService
         Guid branchId,
         Guid productId,
         CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>> GetStockMovementsAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid? productId,
+        int limit,
+        CancellationToken cancellationToken);
 }

@@ -176,7 +176,9 @@ implementation evidence are needed.
   and `/api/branches/{branchId}/pos/products`, guarded by
   `pos.catalog.manage`, and can record stock movements through
   `/api/branches/{branchId}/inventory/stock-movements`, guarded by
-  `inventory.stock.manage`. Settings `Тарифы` can now create tariffs and their
+  `inventory.stock.manage`. The same Settings section now reads recent stock
+  movement history from `GET /api/branches/{branchId}/inventory/stock-movements`,
+  guarded by `inventory.view`. Settings `Тарифы` can now create tariffs and their
   first price-rule versions through `/api/branches/{branchId}/tariffs` and
   `/api/branches/{branchId}/tariffs/{tariffId}/versions`, guarded by
   `tariffs.manage`, and can create package definitions through
@@ -220,8 +222,9 @@ implementation evidence are needed.
   today, the last 24 hours, or the last 7 days; Logs export buttons now
   download backend operator-action/shift CSV files and local audit/error JSON
   bundles from loaded audit/diagnostics data;
-  Settings reads staff, layout, catalog, diagnostics, update rollout, tariff
-  option, and package option data, and can trigger limited backend setup actions
+  Settings reads staff, layout, catalog, stock movement history, diagnostics,
+  update rollout, tariff option, and package option data, and can trigger
+  limited backend setup actions
   including tariff/version creation, package definition creation, inventory
   stock movement creation, update package registration, rollout creation, and
   update state changes;
@@ -322,7 +325,7 @@ implementation evidence are needed.
 
 ## Latest Verification
 
-Current frontend verification on 2026-05-21 from `D:\projects\afk4.net` after
+Current frontend verification on 2026-05-22 from `D:\projects\afk4.net` after
 the WebView2/React auth/token, typed API client, SignalR realtime,
 backend-backed floor-map loading, backend-confirmed selected-seat actions,
 first backend-backed parity wiring for the remaining operator workspaces,
@@ -331,7 +334,7 @@ permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
 Booking permission/state hardening, Settings staff creation/role update, and
 branch profile read/update, Settings POS catalog create, Settings stock movement creation,
-Settings tariff/version create, Settings package definition create, Clients
+Settings stock movement history, Settings tariff/version create, Settings package definition create, Clients
 wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
 form, POS selected-sale refund, Payments
 close-shift wiring, Payments cash movement creation, Payments open-shift
@@ -355,7 +358,7 @@ Result:
 
 - frontend tests: 84 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 784 passed, 0 failed;
+- full local .NET solution tests: 785 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -396,6 +399,10 @@ Result:
 - Settings stock frontend tests now cover inventory stock movement POST
   serialization from the `POS и склад` form, including product id, movement
   type, quantity delta, unit cost, reason, organization id, and idempotency key.
+- Settings stock backend/API/frontend tests now cover recent inventory stock
+  movement history through `GET /api/branches/{branchId}/inventory/stock-movements`,
+  including `inventory.view` authorization, product filtering/limit behavior,
+  frontend query serialization, and display in the `POS и склад` section.
 - Settings package frontend tests now cover package definition POST
   serialization from the `Тарифы` form, including price minor units, included
   seconds, bonus seconds, expiry days, organization id, and idempotency key.
@@ -442,9 +449,10 @@ Result:
   reports panel, including backend sales and cash CSV export endpoints plus a
   local shift discrepancy JSON download.
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
-  source-card filtering, audit period presets, Logs export downloads, and
-  Payments/Dashboard report export downloads plus Clients reservation
-  permission gating plus Settings staff role editing: the React app rendered the
+  source-card filtering, audit period presets, Logs export downloads,
+  Payments/Dashboard report export downloads, Clients reservation permission
+  gating, Settings staff role editing, and Settings stock movement history:
+  the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
   and no old backend placeholder copy.
@@ -1406,6 +1414,12 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 ## Recent Integration Notes
 
+- On 2026-05-22, `codex/operator-app-redesign` added read-only stock movement
+  history for Settings `POS и склад`. The Platform API now exposes
+  `GET /api/branches/{branchId}/inventory/stock-movements` with
+  `inventory.view` authorization, optional `productId`, and a bounded `limit`;
+  the React Settings screen loads the latest rows and shows product, movement
+  type, quantity delta, unit cost, and reason next to the stock form.
 - On 2026-05-21, `codex/operator-app-redesign` added a backend-backed
   Settings `POS и склад` product creation form. It creates a POS category,
   then a POS product with price, SKU, stock flags, and idempotency keys through

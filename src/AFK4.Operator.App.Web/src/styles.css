@@ -4549,6 +4549,12 @@ button {
   font-weight: 900;
 }
 
+.settings-section-title strong {
+  color: #8fa0b6;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .settings-section-title button {
   height: 28px;
   border: 1px solid #2b3748;
@@ -4795,6 +4801,15 @@ button {
 .settings-config-grid button.active {
   border-color: #1f6feb;
   background: #132743;
+}
+
+.settings-config-grid button:disabled,
+.settings-config-grid button:disabled:hover,
+.settings-config-grid button:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: #263241;
+  background: #111923;
+  transform: none;
 }
 
 .settings-config-grid strong,

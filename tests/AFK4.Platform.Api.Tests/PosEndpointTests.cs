@@ -42,7 +42,9 @@ public sealed class PosEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
 
         foreach (var endpoint in CreateEndpointCases(UnknownShiftId, UnknownSaleId, UnknownReceiptId)
-                     .Where(endpoint => endpoint.Path != $"/api/branches/{TestIds.BranchId:D}/pos/catalog"))
+                     .Where(endpoint =>
+                         endpoint.Path != $"/api/branches/{TestIds.BranchId:D}/pos/catalog" &&
+                         endpoint.Path != $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements"))
         {
             using var response = await SendAsync(client, endpoint);
 
@@ -51,15 +53,17 @@ public sealed class PosEndpointTests
     }
 
     [Fact]
-    public async Task Catalog_WithCashierWithoutInventoryView_ReturnsForbidden()
+    public async Task InventoryReads_WithCashierWithoutInventoryView_ReturnForbidden()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/pos/catalog");
+        var catalogResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/pos/catalog");
+        var stockHistoryResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements");
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, catalogResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, stockHistoryResponse.StatusCode);
     }
 
     [Fact]
@@ -126,6 +130,13 @@ public sealed class PosEndpointTests
                 "initial stock",
                 "stock-001"));
         Assert.Equal(24, stock.QuantityDelta);
+
+        var stockHistory = await client.GetFromJsonAsync<IReadOnlyList<StockMovementDto>>(
+            $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements?productId={product.ProductId:D}&limit=10");
+        Assert.NotNull(stockHistory);
+        var stockHistoryRow = Assert.Single(stockHistory);
+        Assert.Equal(stock.StockMovementId, stockHistoryRow.StockMovementId);
+        Assert.Equal(24, stockHistoryRow.QuantityDelta);
 
         var player = await PostOkAsync<PlayerAccountDto>(
             client,
@@ -281,6 +292,10 @@ public sealed class PosEndpointTests
             new EndpointCase(
                 HttpMethod.Get,
                 $"/api/branches/{TestIds.BranchId:D}/pos/catalog",
+                null),
+            new EndpointCase(
+                HttpMethod.Get,
+                $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements",
                 null),
             new EndpointCase(
                 HttpMethod.Post,
