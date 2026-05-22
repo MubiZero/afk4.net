@@ -355,9 +355,9 @@ Minimum bar:
   `inventory.view` gating, plus tariff/version creation/update/deactivation
   and package definition creation/update/deactivation through the existing
   tariff/package endpoints. Settings `Интеграции` now also
-  registers update packages, creates update rollouts, and changes
-  package/rollout states through the existing
-  update endpoints. Logs now applies backend audit search filters for exact
+  registers update packages, creates update rollouts, shows selected rollout
+  status/device snapshots, and changes package/rollout states through the
+  existing update endpoints. Logs now applies backend audit search filters for exact
   action, outcome, target type, UTC date range, and limit, and selected Logs
   event detail now uses the already loaded audit/diagnostics backend rows.
   Logs source cards now filter the loaded event list by all/Agent/POS/
@@ -464,7 +464,7 @@ Minimum bar:
    branch profile save,
    Settings layout zone/seat creation/update, Settings POS
    category/product creation/update/deactivation, Settings stock movement creation/history,
-   Settings tariff/package definition creation/update/deactivation, Settings update package/rollout controls, Settings
+   Settings tariff/package definition creation/update/deactivation, Settings update package/rollout controls/detail, Settings
    device enrollment/seat assignment/credential lifecycle, Dashboard export download,
    Payments open/close-shift, cash-movement wiring, selected-operation detail,
    and report export downloads,

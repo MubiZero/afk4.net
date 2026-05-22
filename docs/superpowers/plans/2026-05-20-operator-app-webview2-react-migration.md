@@ -74,8 +74,9 @@ Current state:
   open-shift endpoint, close the current shift through the existing close-shift
   endpoint with counted cash and a closing note, and can record cash movements
   through the existing shift cash movement endpoint. Settings `Интеграции` now
-  registers update packages, creates rollouts, and changes package/rollout
-  state through the existing update endpoints. Logs now refreshes backend audit
+  registers update packages, creates rollouts, shows selected rollout status/
+  device snapshots, and changes package/rollout state through the existing
+  update endpoints. Logs now refreshes backend audit
   records through action/outcome/target type/date range/limit filters and shows
   selected audit/diagnostics event detail from the loaded backend rows; source
   cards now filter loaded events by all/Agent/POS/Operator/Platform; period
@@ -154,8 +155,8 @@ shift cash endpoint. Payments selected operation detail now uses already
 loaded backend sales/cash report rows for id, shift, source, and line/reason
 context. Payments report export buttons now download backend sales/cash/shift
 CSV files plus a local discrepancy JSON. Settings `Интеграции` now exposes
-backend-backed update package registration, rollout creation, and
-package/rollout state changes with
+backend-backed update package registration, rollout creation, selected rollout
+status/device snapshot display, and package/rollout state changes with
 the existing `updates.packages.manage` and `updates.rollouts.manage` guards.
 Logs now applies backend audit action/outcome/target type/date range/limit
 filters through the existing audit search endpoint and selected event detail
@@ -370,7 +371,8 @@ missing-backend copy.
   registration, rollout creation, and package/rollout state changes from
   `Интеграции` were implemented on 2026-05-21 through the existing update
   endpoints with `updates.packages.manage` and `updates.rollouts.manage`
-  gating. Device setup from `Залы и ПК` was implemented on 2026-05-21 through
+  gating; selected rollout status/device snapshot display was added on
+  2026-05-22. Device setup from `Залы и ПК` was implemented on 2026-05-21 through
   the existing enrollment-code, device-seat assignment, and device detail
   endpoints with existing device permission gating. The same section now has a
   general layout form for zone/seat creation and selected zone/seat update
@@ -396,13 +398,16 @@ missing-backend copy.
   Settings device detail display was expanded on 2026-05-22 to show online/
   locked state, seat/zone placement, heartbeat, Agent/Shell versions,
   credential/app counts, and recent command status/message rows.
+  Settings rollout detail display was expanded on 2026-05-22 to show selected
+  rollout state, target, batch, channel, package, timing, device count, and
+  device update status/message snapshots from `UpdateRolloutStatusDto`.
   Remaining settings gaps include custom roles/arbitrary permission-set editing,
   staff profile detail, richer visual/archive layout editing beyond name/sort/
   zone updates,
   fleet-level device inventory/history management, package purchase UX refinements,
   advanced POS catalog management, advanced inventory
   controls and reconciliation, integrations/payment-provider
-  settings, richer update rollout detail/status controls, diagnostics,
+  settings, richer rollout filtering/history controls, diagnostics,
   audit/security settings, and
   validation errors.
 - [x] Empty backend states: review `Нет backend операций`,

@@ -1990,6 +1990,9 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('Backend settings')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
+    expect(screen.getByText('target reached')).toBeInTheDocument();
+    expect(screen.getByText('installed')).toBeInTheDocument();
+    expect(screen.getByText('33333333')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Состояние пакета'), { target: { value: 'validated' } });
     fireEvent.change(screen.getByLabelText('Причина пакета'), { target: { value: 'Signature verified.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние пакета' }));
@@ -3272,7 +3275,19 @@ function createRollouts() {
       createdAtUtc: '2026-05-21T08:00:00Z',
       startsAtUtc: '2026-05-21T08:00:00Z',
       completedAtUtc: null,
-      deviceStatuses: []
+      deviceStatuses: [
+        {
+          deviceId: '33333333-3333-3333-3333-333333333333',
+          updateRolloutId: '14141414-1414-1414-1414-141414141414',
+          updatePackageId: '15151515-1515-1515-1515-151515151515',
+          component: 'agent-service',
+          installedVersion: '0.1.13',
+          targetVersion: '0.1.14',
+          status: 'installed',
+          message: 'target reached',
+          updatedAtUtc: '2026-05-21T08:30:00Z'
+        }
+      ]
     }
   ];
 }

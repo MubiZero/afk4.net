@@ -194,9 +194,10 @@ implementation evidence are needed.
   `/api/branches/{branchId}/packages`, then update/deactivate selected package
   definitions through `/api/branches/{branchId}/packages/{packageDefinitionId}`,
   guarded by `packages.manage`.
-  Settings `Интеграции` can now register update packages, create rollouts, and
-  change update package/rollout states through the existing update endpoints,
-  guarded by `updates.packages.manage` and `updates.rollouts.manage`. Settings
+  Settings `Интеграции` can now register update packages, create rollouts, show
+  selected rollout status/device snapshots, and change update package/rollout
+  states through the existing update endpoints, guarded by
+  `updates.packages.manage` and `updates.rollouts.manage`. Settings
   `Залы и ПК` can now create device enrollment codes, assign an enrolled
   device id to a selected seat, and open device detail through existing device
   endpoints, guarded by the existing device permissions. The same section now
@@ -239,7 +240,8 @@ implementation evidence are needed.
   including layout zone/seat creation/update, tariff/version
   creation/update/deactivation, package definition creation/update/deactivation,
   POS product update/deactivation, inventory stock movement creation, update
-  package registration, rollout creation, and update state changes;
+  package registration, rollout creation, rollout status/detail display, and
+  update state changes;
   Settings device setup can create enrollment codes, assign device seats, read
   device detail with status/version/credential/app/recent-command history,
   dispatch device commands, and rotate/revoke device credentials;
@@ -454,7 +456,8 @@ Result:
 - Settings update frontend tests now cover update package registration,
   rollout creation, package state changes, and rollout state changes from
   `Интеграции`, including package/rollout ids, channels, target kind, batch
-  percent, start time, reason, and organization id serialization.
+  percent, start time, reason, organization id serialization, and selected
+  rollout device status snapshot display.
 - Logs frontend tests now cover backend audit search filtering from `Логи`,
   including action, outcome, target type, UTC from/to, and limit query-string
   serialization to `/api/branches/{branchId}/audit`, plus the `Сегодня`
@@ -1504,6 +1507,11 @@ Operator App redesign branch-local verification on 2026-05-20:
   state, seat/zone placement, last heartbeat, Agent/Shell versions, active
   credential count, installed app count, and recent command status/message
   rows instead of only a single machine/seat summary field.
+- On 2026-05-22, `codex/operator-app-redesign` expanded Settings rollout
+  detail in `Интеграции`. The existing rollout status list now highlights the
+  selected rollout and renders state, target kind, batch, channel, package,
+  start/completion time, device count, and device update status/message
+  snapshots from `UpdateRolloutStatusDto`.
 - On 2026-05-21, `codex/operator-app-redesign` added a backend-backed
   Settings `POS и склад` product creation form. It creates a POS category,
   then a POS product with price, SKU, stock flags, and idempotency keys through

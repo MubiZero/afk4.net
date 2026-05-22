@@ -6034,6 +6034,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   }))).filter((seat) => isGuid(seat.seatId));
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
   const deviceRecentCommands = readArray<Record<string, unknown>>(deviceDetail, 'recentCommands');
+  const selectedRollout = rollouts.find((rollout) => readString(rollout, 'updateRolloutId') === rolloutStateRolloutId) ?? rollouts[0] ?? null;
+  const selectedRolloutDeviceStatuses = readArray<Record<string, unknown>>(selectedRollout, 'deviceStatuses');
   const selectLayoutZone = (zone: Record<string, unknown>) => {
     const zoneId = readString(zone, 'zoneId');
     setSelectedLayoutZoneId(zoneId);
@@ -7061,7 +7063,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <button
                 key={readString(rollout, 'updateRolloutId')}
                 type="button"
-                className="settings-tariff-row"
+                className={`settings-tariff-row ${readString(rollout, 'updateRolloutId') === readString(selectedRollout, 'updateRolloutId') ? 'active' : ''}`}
                 onClick={() => {
                   setRolloutStateRolloutId(readString(rollout, 'updateRolloutId'));
                   setRolloutPackageId(readString(rollout, 'updatePackageId'));
@@ -7074,6 +7076,29 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               </button>
             ))}
           </div>
+          {selectedRollout && (
+            <div className="settings-device-detail-grid">
+              <span><strong>Rollout</strong><b>{readString(selectedRollout, 'updateRolloutId').slice(0, 8)}</b></span>
+              <span><strong>State</strong><b>{readString(selectedRollout, 'state', 'state')}</b></span>
+              <span><strong>Target</strong><b>{readString(selectedRollout, 'targetKind', 'target')} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
+              <span><strong>Channel</strong><b>{readString(selectedRollout, 'channel', 'channel')}</b></span>
+              <span><strong>Package</strong><b>{readString(selectedRollout, 'updatePackageId').slice(0, 8)}</b></span>
+              <span><strong>Starts</strong><b>{formatTime(readString(selectedRollout, 'startsAtUtc'))}</b></span>
+              <span><strong>Completed</strong><b>{formatTime(readString(selectedRollout, 'completedAtUtc'))}</b></span>
+              <span><strong>Devices</strong><b>{selectedRolloutDeviceStatuses.length}</b></span>
+            </div>
+          )}
+          {selectedRolloutDeviceStatuses.length > 0 && (
+            <div className="settings-command-history">
+              {selectedRolloutDeviceStatuses.map((status) => (
+                <span key={`${readString(status, 'deviceId')}-${readString(status, 'updatedAtUtc')}`}>
+                  <strong>{readString(status, 'deviceId').slice(0, 8)}</strong>
+                  <b>{readString(status, 'status', 'unknown')}</b>
+                  <em>{readString(status, 'message') || `${readString(status, 'installedVersion')} -> ${readString(status, 'targetVersion')}`}</em>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="settings-form-grid settings-update-form">
             <label className="settings-form-wide">Rollout package<input value={rolloutPackageId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutPackageId(event.currentTarget.value)} /></label>
             <label>Канал
