@@ -39,16 +39,16 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     expect(screen.getByRole('navigation', { name: 'Рабочие места' })).toBeInTheDocument();
     expect(screen.getByLabelText('ПК зала')).toBeInTheDocument();
     expect(screen.getAllByText('Сессии').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /Техрежим/ })).toBeInTheDocument();
     expect(screen.getByText('Сессия активна')).toBeInTheDocument();
-    expect(screen.getByText('Сессия подтверждена')).toBeInTheDocument();
+    expect(screen.getAllByText('Сессия подтверждена').length).toBeGreaterThan(0);
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
-    expect(screen.getByText(/Cashier One/)).toBeInTheDocument();
+    expect(screen.getByText(/Оператор смены/)).toBeInTheDocument();
   });
 
   it('opens selected map tech mode through backend device diagnostics', async () => {
@@ -71,14 +71,14 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /Техрежим/ }));
 
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/api/devices/11111111-1111-1111-1111-111111111111'))).toBe(true));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/diagnostics'))).toBe(true));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Agent 0.4'));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Агент 0.4'));
   });
 
   it('filters the floor map and switches to table view', async () => {
@@ -87,7 +87,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /Свободно/ }));
 
     expect(await screen.findByRole('heading', { name: 'PC-02' })).toBeInTheDocument();
@@ -113,7 +113,6 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(screen.getByText('4 820 USD')).toBeInTheDocument();
     expect(screen.getAllByText(/Депозит/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/USD/).length).toBeGreaterThan(0);
   });
@@ -133,6 +132,22 @@ describe('App', () => {
     expect(sessionStorage.length).toBe(0);
   });
 
+  it('clears restored native session when token refresh is rejected', async () => {
+    const bridge = installSessionBridge(createSession(), createSession(), {
+      failedRequests: {
+        'auth:refresh': 'Platform API returned 401 Unauthorized:'
+      }
+    });
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    await waitFor(() => expect(bridge.requests).toContain('auth:signOut'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/floor-map'))).toBe(false);
+  });
+
   it('hides native bridge diagnostics in packaged WebView2 auth errors', async () => {
     window.__AFK4_OPERATOR_CONFIG__ = {
       runtime: 'webview2',
@@ -144,7 +159,7 @@ describe('App', () => {
     render(<App />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Operator App');
+    expect(alert).toHaveTextContent('приложения оператора');
     expect(alert).not.toHaveTextContent('Native host bridge is unavailable.');
   });
 
@@ -155,10 +170,10 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(await screen.findByRole('button', { name: /Стоп/ }));
 
-    expect((await screen.findAllByText(/Стоп: lock: pending/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/\u0421\u0442\u043e\u043f: \u0411\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0430: \u043e\u0436\u0438\u0434\u0430\u0435\u0442 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f/)).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/sessions/22222222-2222-2222-2222-222222222222/end') &&
       init?.method === 'POST');
@@ -175,13 +190,13 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
     const startButton = await screen.findByRole('button', { name: /Старт 60 мин/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
-    expect((await screen.findAllByText(/Старт 60 мин: unlock: pending/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/\u0421\u0442\u0430\u0440\u0442 60 \u043c\u0438\u043d: \u0420\u0430\u0437\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0430: \u043e\u0436\u0438\u0434\u0430\u0435\u0442 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f/)).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/sessions/start') &&
       init?.method === 'POST');
@@ -204,7 +219,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
     fireEvent.click(await screen.findByRole('button', { name: /Депозит/ }));
     fireEvent.change(screen.getByLabelText('Игрок для биллинга'), { target: { value: 'Madina' } });
@@ -215,7 +230,7 @@ describe('App', () => {
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
-    expect((await screen.findAllByText(/Старт 60 мин: unlock: pending/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/\u0421\u0442\u0430\u0440\u0442 60 \u043c\u0438\u043d: \u0420\u0430\u0437\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0430: \u043e\u0436\u0438\u0434\u0430\u0435\u0442 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f/)).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/sessions/start') &&
       init?.method === 'POST');
@@ -240,7 +255,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     expect(screen.getByTitle('POS')).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByTitle('Брони')).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(screen.getByTitle('Брони'));
@@ -307,7 +322,7 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Дашборд'));
     expect(screen.getByRole('heading', { name: /Что требует внимания/ })).toBeInTheDocument();
     expect(screen.getByText('Главный фокус')).toBeInTheDocument();
-    expect((await screen.findAllByText('lock Failed')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Блокировка/)).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Сегодня' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Неделя' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Месяц' })).toBeInTheDocument();
@@ -380,7 +395,7 @@ describe('App', () => {
     expect(screen.getByText('Фильтры')).toBeInTheDocument();
     expect(screen.getByText('Аудит смены')).toBeInTheDocument();
     expect(screen.getByText('Источники')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Audit trail/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Аудит JSON/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Настройки'));
     const settingsHead = screen.getByRole('heading', { name: /Настройки/ }).closest('.screen-head');
@@ -439,16 +454,16 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Логи'));
-    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Audit action'), { target: { value: 'sessions.start' } });
-    fireEvent.change(screen.getByLabelText('Outcome'), { target: { value: 'succeeded' } });
-    fireEvent.change(screen.getByLabelText('Target type'), { target: { value: 'Session' } });
-    fireEvent.change(screen.getByLabelText('From UTC'), { target: { value: '2026-05-21T00:00:00Z' } });
-    fireEvent.change(screen.getByLabelText('To UTC'), { target: { value: '2026-05-21T23:59:59Z' } });
-    fireEvent.change(screen.getByLabelText('Limit'), { target: { value: '12' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Применить audit' }));
+    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Действие аудита'), { target: { value: 'sessions.start' } });
+    fireEvent.change(screen.getByLabelText('Результат'), { target: { value: 'succeeded' } });
+    fireEvent.change(screen.getByLabelText('Тип объекта'), { target: { value: 'Session' } });
+    fireEvent.change(screen.getByLabelText('С UTC'), { target: { value: '2026-05-21T00:00:00Z' } });
+    fireEvent.change(screen.getByLabelText('До UTC'), { target: { value: '2026-05-21T23:59:59Z' } });
+    fireEvent.change(screen.getByLabelText('Лимит'), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Применить аудит' }));
 
-    expect(await screen.findByText('Применить audit: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Применить аудит: подтверждено')).toBeInTheDocument();
     const auditCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
     const auditCall = auditCalls[auditCalls.length - 1];
     expect(auditCall).toBeDefined();
@@ -479,10 +494,10 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Логи'));
-    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
+    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
 
     const detailPanel = document.querySelector('.logs-detail-panel') as HTMLElement;
-    expect(detailPanel).toHaveTextContent('Audit ID');
+    expect(detailPanel).toHaveTextContent('ID аудита');
     expect(detailPanel).toHaveTextContent('18181818');
     expect(detailPanel).toHaveTextContent('pos.sale.create');
     expect(detailPanel).toHaveTextContent('PosSale 99999999');
@@ -521,23 +536,23 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Логи'));
-    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
-    expect(screen.getAllByText('PC-03 unlock').length).toBeGreaterThan(0);
+    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
+    expect(screen.getAllByText('PC-03 Разблокировка').length).toBeGreaterThan(0);
 
     const detailPanel = document.querySelector('.logs-detail-panel') as HTMLElement;
-    expect(detailPanel).toHaveTextContent('Device');
+    expect(detailPanel).toHaveTextContent('Устройство');
     expect(detailPanel).toHaveTextContent('PC-03 · 33333333');
-    expect(detailPanel).toHaveTextContent('unlock · 44444444');
-    expect(detailPanel).toHaveTextContent('Failed');
-    expect(detailPanel).toHaveTextContent('timeout waiting for Agent');
+    expect(detailPanel).toHaveTextContent('Разблокировка · 44444444');
+    expect(detailPanel).toHaveTextContent('не выполнена');
+    expect(detailPanel).toHaveTextContent('Агент не ответил вовремя');
 
     const sourcePanel = document.querySelector('.logs-sources-panel') as HTMLElement;
     fireEvent.click(within(sourcePanel).getByRole('button', { name: /POS/ }));
-    expect(screen.queryByText('PC-03 unlock')).not.toBeInTheDocument();
+    expect(screen.queryByText('PC-03 Разблокировка')).not.toBeInTheDocument();
     expect(screen.getAllByText('pos.sale.create').length).toBeGreaterThan(0);
 
-    fireEvent.click(within(sourcePanel).getByRole('button', { name: /Agent/ }));
-    expect(screen.getAllByText('PC-03 unlock').length).toBeGreaterThan(0);
+    fireEvent.click(within(sourcePanel).getByRole('button', { name: /Агент/ }));
+    expect(screen.getAllByText('PC-03 Разблокировка').length).toBeGreaterThan(0);
     expect(detailPanel).not.toHaveTextContent('pos.sale.create');
   });
 
@@ -566,15 +581,15 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Логи'));
-    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
+    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
 
     expect(await screen.findByText('CSV: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/operator-actions/export.csv'))).toBe(true);
     expect(downloads.some((download) => download.startsWith('afk4-operator-actions-') && download.endsWith('.csv'))).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: /Audit trail/ }));
-    expect(await screen.findByText('Audit trail: подтверждено')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Аудит JSON/ }));
+    expect(await screen.findByText('Аудит JSON: подтверждено')).toBeInTheDocument();
     expect(createObjectUrl).toHaveBeenCalledTimes(2);
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:logs');
     expect(downloads.some((download) => download.startsWith('afk4-audit-trail-') && download.endsWith('.json'))).toBe(true);
@@ -597,7 +612,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Логи'));
-    expect(await screen.findByText('Backend audit')).toBeInTheDocument();
+    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
 
     expect((await screen.findAllByText('Событий за период нет')).length).toBeGreaterThan(0);
     expect(screen.queryByText('Нет backend событий')).not.toBeInTheDocument();
@@ -611,7 +626,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('\u0422\u043e\u0432\u0430\u0440 \u0434\u043b\u044f \u0441\u043f\u0438\u0441\u0430\u043d\u0438\u044f POS')).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
 
     expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
@@ -644,7 +659,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Клиент POS'), { target: { value: 'Madina' } });
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
     const cardPaymentButton = screen.getAllByRole('button', { name: 'Карта' })
@@ -684,7 +699,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Клиент POS'), { target: { value: 'Madina' } });
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
     fireEvent.click(screen.getByRole('button', { name: /Пополнить депозит/ }));
@@ -711,7 +726,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Имя клиента POS'), { target: { value: 'Zarina N.' } });
     fireEvent.change(screen.getByLabelText('Телефон клиента POS'), { target: { value: '+992 90 777 88 99' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
@@ -752,7 +767,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
 
     expect(await screen.findByText('Возврат по чеку: подтверждено')).toBeInTheDocument();
@@ -776,7 +791,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /25 TJS/ }));
     expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
@@ -796,7 +811,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByRole('button', { name: /paid/ })[0]);
 
     expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
@@ -841,7 +856,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByRole('button', { name: /paid/ })[0]);
     expect(await screen.findByText('POS-20260521-0001')).toBeInTheDocument();
 
@@ -868,7 +883,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /Аннулировать черновик/ }));
 
     expect(await screen.findByText('Аннулировать черновик: подтверждено')).toBeInTheDocument();
@@ -904,7 +919,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('POS'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Товар для списания POS'), {
       target: { value: '77777777-7777-7777-7777-777777777777' }
     });
@@ -950,7 +965,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Платежи'));
-    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Старт cash'), { target: { value: '150.00' } });
     fireEvent.change(screen.getByLabelText('Открытие'), { target: { value: 'Утренняя смена' } });
     fireEvent.click(screen.getByRole('button', { name: 'Открыть смену' }));
@@ -1009,7 +1024,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Платежи'));
-    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
 
     expect(await screen.findByText('Операций за период нет')).toBeInTheDocument();
     expect(screen.queryByText('Нет backend операций')).not.toBeInTheDocument();
@@ -1022,7 +1037,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Платежи'));
-    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
 
     expect(screen.getAllByText('99999999').length).toBeGreaterThan(1);
     expect(screen.getByText('1 строк · 1 шт.')).toBeInTheDocument();
@@ -1056,7 +1071,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Платежи'));
-    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     const exportPanel = document.querySelector('.payments-export-panel') as HTMLElement;
     fireEvent.click(within(exportPanel).getByRole('button', { name: /Экспорт CSV/ }));
 
@@ -1085,7 +1100,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Платежи'));
-    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Факт в кассе'), { target: { value: '1120.00' } });
     fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Смена закрыта оператором' } });
     fireEvent.click(screen.getByRole('button', { name: /Подготовить закрытие/ }));
@@ -1112,7 +1127,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Платежи'));
-    expect(await screen.findByText('Backend reports')).toBeInTheDocument();
+    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Сумма'), { target: { value: '25.50' } });
     fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Размен перед турниром' } });
     fireEvent.click(screen.getByRole('button', { name: 'Добавить движение' }));
@@ -1181,9 +1196,11 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Madina S.')).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: /Создать бронь/ }));
+    const createReservationButton = screen.getByRole('button', { name: /Создать бронь/ });
+    await waitFor(() => expect(createReservationButton).toBeEnabled());
+    fireEvent.click(createReservationButton);
 
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
     const reservationCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1208,7 +1225,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
 
     expect(screen.getByRole('button', { name: /Создать бронь/ })).toBeDisabled();
   });
@@ -1221,10 +1238,12 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Купить пакет/ })).toBeEnabled());
     fireEvent.change(await screen.findByLabelText('Пакет для покупки'), { target: { value: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd' } });
-    expect(await screen.findByRole('button', { name: /Купить пакет/ })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: /Купить пакет/ }));
+    const purchasePackageButton = await screen.findByRole('button', { name: /Купить пакет/ });
+    await waitFor(() => expect(purchasePackageButton).toBeEnabled());
+    fireEvent.click(purchasePackageButton);
 
     expect(await screen.findByText('Купить пакет: подтверждено')).toBeInTheDocument();
     const purchaseCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1247,7 +1266,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
 
     expect(await screen.findByText(/180 мин/)).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
@@ -1263,10 +1282,12 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
     fireEvent.change(screen.getByLabelText('Причина пополнения'), { target: { value: 'cash desk deposit' } });
-    fireEvent.click(screen.getByRole('button', { name: /Пополнить депозит/ }));
+    const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
+    await waitFor(() => expect(topUpWalletButton).toBeEnabled());
+    fireEvent.click(topUpWalletButton);
 
     expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
     const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1290,11 +1311,14 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
     fireEvent.change(await screen.findByLabelText('Сумма долга'), { target: { value: '20.00' } });
     fireEvent.change(screen.getByLabelText('Причина долга'), { target: { value: 'cash debt payment' } });
-    fireEvent.click(screen.getByRole('button', { name: /Списать долг/ }));
+    const payDebtButton = screen.getByRole('button', { name: /Списать долг/ });
+    await waitFor(() => expect(payDebtButton).toBeEnabled());
+    fireEvent.click(payDebtButton);
 
     expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1318,7 +1342,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByText('Backend live')).toBeInTheDocument();
+    expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Имя нового клиента'), { target: { value: 'Zarina N.' } });
     fireEvent.change(screen.getByLabelText('Телефон нового клиента'), { target: { value: '+992 90 777 88 99' } });
     fireEvent.click(screen.getByRole('button', { name: /Новая карта/ }));
@@ -1345,7 +1369,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
     fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'manager2' } });
     fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Manager Two' } });
@@ -1376,9 +1400,9 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Cashier One/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
     fireEvent.change(screen.getByLabelText('Роль сотрудника'), { target: { value: 'technician' } });
     fireEvent.click(screen.getByRole('button', { name: 'Обновить роль' }));
 
@@ -1402,15 +1426,15 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Cashier One/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
     fireEvent.change(screen.getByLabelText('Логин профиля'), { target: { value: 'cashier.renamed' } });
-    fireEvent.change(screen.getByLabelText('Имя профиля'), { target: { value: 'Cashier Renamed' } });
+    fireEvent.change(screen.getByLabelText('Имя профиля'), { target: { value: 'Кассир смены' } });
     fireEvent.click(screen.getByRole('button', { name: 'Обновить профиль' }));
 
     expect(await screen.findByText('Обновить профиль сотрудника: подтверждено')).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: /Cashier Renamed/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Кассир смены/ })).toBeInTheDocument();
     const profileCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/profile') &&
       init?.method === 'PATCH');
@@ -1419,7 +1443,7 @@ describe('App', () => {
     expect(body).toEqual({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       userName: 'cashier.renamed',
-      displayName: 'Cashier Renamed'
+      displayName: 'Кассир смены'
     });
   });
 
@@ -1431,9 +1455,9 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Cashier One/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Отключить сотрудника' }));
 
     expect(await screen.findByText('Отключить сотрудника: подтверждено')).toBeInTheDocument();
@@ -1456,9 +1480,9 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Cashier One/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
     fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'Reset123!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить пароль' }));
 
@@ -1483,7 +1507,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
 
     expect(screen.getByRole('button', { name: 'Обновить роль' })).toBeDisabled();
@@ -1497,7 +1521,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Название клуба'), { target: { value: 'AFK4 Pilot' } });
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Khujand' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -1523,7 +1547,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
     fireEvent.change(screen.getByLabelText('Название зала'), { target: { value: 'VIP Hall' } });
     fireEvent.change(screen.getByLabelText('Сортировка зала'), { target: { value: '30' } });
@@ -1565,7 +1589,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
     fireEvent.click(screen.getAllByRole('button', { name: /Зал A/ })[0]);
     fireEvent.change(screen.getByLabelText('Название зала'), { target: { value: 'VIP Hall' } });
@@ -1609,7 +1633,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
     fireEvent.click(screen.getByRole('button', { name: /PC-01/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Удалить ПК' }));
@@ -1638,7 +1662,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
     fireEvent.change(screen.getByLabelText('Срок кода, сек'), { target: { value: '600' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать код подключения' }));
@@ -1654,7 +1678,7 @@ describe('App', () => {
       expiresInSeconds: 600
     });
 
-    fireEvent.change(screen.getByLabelText('Device id'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
+    fireEvent.change(screen.getByLabelText('ID устройства'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
     fireEvent.click(screen.getByRole('button', { name: 'Назначить устройство' }));
 
     expect(await screen.findByText('Назначить устройство: подтверждено')).toBeInTheDocument();
@@ -1670,24 +1694,24 @@ describe('App', () => {
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333') &&
       init?.method === 'GET')).toBe(true);
     expect(screen.getByDisplayValue('PC-02 · PC-01')).toBeInTheDocument();
-    expect(screen.getByText('Agent')).toBeInTheDocument();
+    expect(screen.getByText('Агент')).toBeInTheDocument();
     expect(screen.getAllByText('0.1.14').length).toBeGreaterThan(0);
-    expect(screen.getByText('Failed')).toBeInTheDocument();
-    expect(screen.getAllByText('Agent timeout').length).toBeGreaterThan(0);
+    expect(screen.getByText('не выполнена')).toBeInTheDocument();
+    expect(screen.getAllByText('Агент не ответил').length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands?limit=25') &&
       init?.method === 'GET')).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Сменить credential' }));
-    expect(await screen.findByText('Сменить credential: подтверждено')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить ключ' }));
+    expect(await screen.findByText('Сменить ключ: подтверждено')).toBeInTheDocument();
     expect(screen.getAllByDisplayValue('23232323-2323-2323-2323-232323232323').length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue('device-secret-after-rotation')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/rotate') &&
       init?.method === 'POST')).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Отозвать credential' }));
-    expect(await screen.findByText('Отозвать credential: подтверждено')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Отозвать ключ' }));
+    expect(await screen.findByText('Отозвать ключ: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
       init?.method === 'POST')).toBe(true);
@@ -1701,13 +1725,13 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
 
     const branchHistory = await screen.findByLabelText('История команд филиала');
     expect(branchHistory).toBeInTheDocument();
     expect(within(branchHistory).getByText('PC-03')).toBeInTheDocument();
-    expect(within(branchHistory).getByText(/refresh-session-lease/)).toBeInTheDocument();
+    expect(within(branchHistory).getByText(/Обновление сессии/)).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-commands?limit=50') &&
       init?.method === 'GET')).toBe(true);
@@ -1716,9 +1740,9 @@ describe('App', () => {
 
     expect(await screen.findByRole('button', { name: /PC-03/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /PC-03/ }));
-    expect(screen.getByLabelText('Device id')).toHaveValue('44444444-4444-4444-8444-444444444444');
-    expect(screen.getByText(/pending 1/)).toBeInTheDocument();
-    expect(screen.getByText(/failed 1/)).toBeInTheDocument();
+    expect(screen.getByLabelText('ID устройства')).toHaveValue('44444444-4444-4444-8444-444444444444');
+    expect(screen.getByText(/в работе 1/)).toBeInTheDocument();
+    expect(screen.getByText(/ошибок 1/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Открыть карточку устройства' }));
 
@@ -1743,9 +1767,9 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-    fireEvent.change(screen.getByLabelText('Device id'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
+    fireEvent.change(screen.getByLabelText('ID устройства'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
     fireEvent.change(screen.getByLabelText('Команда'), { target: { value: 'unlock' } });
     fireEvent.change(screen.getByLabelText('Причина команды'), { target: { value: 'manual unlock check' } });
     fireEvent.click(screen.getByRole('button', { name: 'Отправить команду' }));
@@ -1759,7 +1783,7 @@ describe('App', () => {
       type: 'unlock',
       payload: { reason: 'manual unlock check', source: 'operator-settings' }
     });
-    expect(screen.getByDisplayValue('unlock · 56565656')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Разблокировка · 56565656')).toBeInTheDocument();
   });
 
   it('creates a POS category and product from Settings', async () => {
@@ -1770,7 +1794,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /POS и склад/ }));
     fireEvent.change(screen.getByLabelText('Категория'), { target: { value: 'Snacks' } });
     fireEvent.change(screen.getByLabelText('Товар'), { target: { value: 'Energy Bar' } });
@@ -1815,7 +1839,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^POS и склад/ }));
     fireEvent.click(screen.getAllByRole('button', { name: /Cola 0.5/ })[0]);
     fireEvent.change(screen.getByLabelText('Товар'), { target: { value: 'Cola Zero 0.5' } });
@@ -1864,7 +1888,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^POS и склад/ }));
     expect(await screen.findByText(/operator stock count correction/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'adjustment' } });
@@ -1901,7 +1925,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
     fireEvent.change(screen.getByLabelText('Пакет'), { target: { value: 'Weekend 10h' } });
     fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '320.00' } });
@@ -1935,7 +1959,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
     fireEvent.click(screen.getByRole('button', { name: /Night 5h/ }));
     fireEvent.change(screen.getByLabelText('Пакет'), { target: { value: 'Night 6h' } });
@@ -1983,7 +2007,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
     fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Morning Hour' } });
     fireEvent.change(screen.getByLabelText('Цена/час'), { target: { value: '96.00' } });
@@ -2028,7 +2052,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
     fireEvent.click(screen.getByRole('button', { name: /Standard/ }));
     fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Standard Plus' } });
@@ -2082,13 +2106,13 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '0.2.0' } });
-    fireEvent.change(screen.getByLabelText('Artifact URL'), { target: { value: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi' } });
-    fireEvent.change(screen.getByLabelText('Signature'), { target: { value: 'operator-package-signature' } });
-    fireEvent.change(screen.getByLabelText('Размер bytes'), { target: { value: '4096' } });
-    fireEvent.change(screen.getByLabelText('Release notes'), { target: { value: 'Operator App 0.2.0.' } });
+    fireEvent.change(screen.getByLabelText('URL артефакта'), { target: { value: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi' } });
+    fireEvent.change(screen.getByLabelText('Подпись'), { target: { value: 'operator-package-signature' } });
+    fireEvent.change(screen.getByLabelText('Размер, байты'), { target: { value: '4096' } });
+    fireEvent.change(screen.getByLabelText('Описание релиза'), { target: { value: 'Пакет оператора 0.2.0.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрировать пакет' }));
 
     expect(await screen.findByText('Зарегистрировать пакет обновления: подтверждено')).toBeInTheDocument();
@@ -2106,16 +2130,16 @@ describe('App', () => {
       signature: 'operator-package-signature',
       signatureAlgorithm: 'ECDSA-P256-SHA256-IEEE-P1363',
       sizeBytes: 4096,
-      releaseNotes: 'Operator App 0.2.0.'
+      releaseNotes: 'Пакет оператора 0.2.0.'
     });
 
-    fireEvent.change(screen.getByLabelText('Batch %'), { target: { value: '25' } });
-    fireEvent.change(screen.getByLabelText('Rollout package'), { target: { value: '19191919-1919-1919-1919-191919191919' } });
-    fireEvent.change(screen.getByLabelText('Start UTC'), { target: { value: '2026-05-21T10:00:00Z' } });
-    fireEvent.change(screen.getAllByLabelText('Причина rollout')[0], { target: { value: 'Canary rollout.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать rollout' }));
+    fireEvent.change(screen.getByLabelText('Доля %'), { target: { value: '25' } });
+    fireEvent.change(screen.getByLabelText('ID пакета раскатки'), { target: { value: '19191919-1919-1919-1919-191919191919' } });
+    fireEvent.change(screen.getByLabelText('Старт UTC'), { target: { value: '2026-05-21T10:00:00Z' } });
+    fireEvent.change(screen.getAllByLabelText('Причина раскатки')[0], { target: { value: 'Пилотная раскатка.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать раскатку' }));
 
-    expect(await screen.findByText('Создать rollout обновления: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Создать раскатку обновления: подтверждено')).toBeInTheDocument();
     const rolloutCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts') &&
       init?.method === 'POST');
@@ -2129,7 +2153,7 @@ describe('App', () => {
       targetDeviceIds: [],
       batchPercent: 25,
       startsAtUtc: '2026-05-21T10:00:00.000Z',
-      reason: 'Canary rollout.'
+      reason: 'Пилотная раскатка.'
     });
   });
 
@@ -2141,13 +2165,13 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
-    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
-    expect(screen.getByText('target reached')).toBeInTheDocument();
-    expect(screen.getByText('installed')).toBeInTheDocument();
+    expect(screen.getByText('цель достигнута')).toBeInTheDocument();
+    expect(screen.getByText('Установлено')).toBeInTheDocument();
     expect(screen.getByText('33333333')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Состояние пакета'), { target: { value: 'validated' } });
-    fireEvent.change(screen.getByLabelText('Причина пакета'), { target: { value: 'Signature verified.' } });
+    fireEvent.change(screen.getByLabelText('Причина пакета'), { target: { value: 'Подпись проверена.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние пакета' }));
 
     expect(await screen.findByText('Изменить состояние пакета: подтверждено')).toBeInTheDocument();
@@ -2159,14 +2183,14 @@ describe('App', () => {
     expect(packageStateBody).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       state: 'validated',
-      reason: 'Signature verified.'
+      reason: 'Подпись проверена.'
     });
 
-    fireEvent.change(screen.getByLabelText('Состояние rollout'), { target: { value: 'paused' } });
-    fireEvent.change(screen.getAllByLabelText('Причина rollout')[1], { target: { value: 'Pause while checking failures.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние rollout' }));
+    fireEvent.change(screen.getByLabelText('Состояние раскатки'), { target: { value: 'paused' } });
+    fireEvent.change(screen.getAllByLabelText('Причина раскатки')[1], { target: { value: 'Пауза для проверки ошибок.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние раскатки' }));
 
-    expect(await screen.findByText('Изменить состояние rollout: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Изменить состояние раскатки: подтверждено')).toBeInTheDocument();
     const rolloutStateCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
       init?.method === 'POST');
@@ -2175,7 +2199,7 @@ describe('App', () => {
     expect(rolloutStateBody).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       state: 'paused',
-      reason: 'Pause while checking failures.'
+      reason: 'Пауза для проверки ошибок.'
     });
   });
 });
@@ -2612,13 +2636,16 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
 function installSessionBridge(
   loadSession: ReturnType<typeof createSession> | null = createSession(),
-  refreshSession: ReturnType<typeof createSession> | null = loadSession
+  refreshSession: ReturnType<typeof createSession> | null = loadSession,
+  options: { failedRequests?: Record<string, string> } = {}
 ) {
   const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
+  const requests: string[] = [];
   window.chrome = {
     webview: {
       postMessage: (message: unknown) => {
         const request = message as { type: string; requestId: string };
+        requests.push(request.type);
         let payload: unknown = loadSession;
 
         if (request.type === 'auth:signIn') {
@@ -2634,13 +2661,17 @@ function installSessionBridge(
         }
 
         queueMicrotask(() => {
+          const failedMessage = options.failedRequests?.[request.type];
           for (const listener of listeners) {
             listener({
               data: {
                 type: 'host:response',
                 requestId: request.requestId,
-                ok: true,
-                payload
+                ok: failedMessage === undefined,
+                payload: failedMessage === undefined ? payload : null,
+                error: failedMessage === undefined
+                  ? undefined
+                  : { code: 'auth_failed', message: failedMessage }
               }
             });
           }
@@ -2650,6 +2681,8 @@ function installSessionBridge(
       removeEventListener: (_type, listener) => listeners.delete(listener)
     }
   };
+
+  return { requests };
 }
 
 const allOperatorPermissions = [

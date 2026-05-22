@@ -64,7 +64,7 @@ import {
   type OperatorRealtimeConnectionState
 } from './operatorRealtime';
 import { navItems, seats, type SeatSummary, type SeatTone } from './operatorData';
-import { PlatformApiClient } from './platformApi';
+import { PlatformApiClient, PlatformApiError } from './platformApi';
 
 type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'logs' | 'settings';
 type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
@@ -307,7 +307,7 @@ function triggerFeedback(
   setFeedback: (feedback: Feedback) => void,
   label: string,
   finalState: Exclude<FeedbackState, 'idle' | 'pending'> = 'failed',
-  detail = 'Для этого действия нет backend-контракта.'
+  detail = 'Для этого действия нет контракта платформы.'
 ) {
   if (finalState === 'failed') {
     setFeedback({ label, state: 'failed', detail });
@@ -404,6 +404,10 @@ function countProblems(nextSeats: SeatSummary[]): number {
   return nextSeats.filter((seat) => problemTones.has(seat.tone)).length;
 }
 
+function isPendingSeatCommand(seat: SeatSummary): boolean {
+  return seat.tone === 'pending' || seat.command.toLowerCase().includes('pending');
+}
+
 function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): boolean {
   if (filterId === 'all') {
     return true;
@@ -475,17 +479,17 @@ function SeatTile({
       <header className="seat-head">
         <div>
           <strong>{seat.name}</strong>
-          <span>{seat.zone}</span>
+          <span>{zoneLabel(seat.zone)}</span>
         </div>
         <span className="state-chip">{seat.stateLabel}</span>
       </header>
       <div className="seat-main">
         <span>{seat.player}</span>
-        <span>{seat.app}</span>
+        <span>{appVersionLabel(seat.app)}</span>
       </div>
       <footer>
         <strong>{seat.remaining}</strong>
-        <span>{seat.command}</span>
+        <span>{commandLabel(seat.command)}</span>
       </footer>
     </article>
   );
@@ -522,6 +526,157 @@ function billingLabel(value: string) {
   return 'Не задан';
 }
 
+function zoneLabel(zone: string): string {
+  return zone
+    .replace('Console Lounge', 'Консольная зона')
+    .replace('Main Hall', 'Основной зал')
+    .replace('VIP Room', 'VIP-зал')
+    .replace('Bootcamp', 'Буткемп');
+}
+
+function appVersionLabel(app: string): string {
+  return app
+    .replaceAll('Agent', 'Агент')
+    .replaceAll('Shell', 'Оболочка');
+}
+
+function operatorDisplayNameLabel(displayName: string | null | undefined): string {
+  const normalized = displayName?.trim();
+
+  if (!normalized) {
+    return 'Оператор смены';
+  }
+
+  if (/^cashier one$/i.test(normalized)) {
+    return 'Оператор смены';
+  }
+
+  if (/^demo owner$/i.test(normalized)) {
+    return 'Администратор демо';
+  }
+
+  if (/^local branch manager$/i.test(normalized)) {
+    return 'Менеджер филиала';
+  }
+
+  return normalized;
+}
+
+function staffRoleLabel(roleName: string): string {
+  switch (roleName) {
+    case 'cashier_operator':
+      return 'Оператор-кассир';
+    case 'shift_supervisor':
+      return 'Старший смены';
+    case 'branch_manager':
+      return 'Менеджер филиала';
+    case 'technician':
+      return 'Техник';
+    case 'accountant_auditor':
+      return 'Бухгалтер-аудитор';
+    default:
+      return roleName || 'Роль не задана';
+  }
+}
+
+function updateComponentLabel(component: string): string {
+  switch (component) {
+    case 'operator-app':
+      return 'Приложение оператора';
+    case 'agent-service':
+      return 'Сервис агента';
+    case 'player-shell':
+      return 'Оболочка игрока';
+    default:
+      return component || 'Компонент';
+  }
+}
+
+function updateChannelLabel(channel: string): string {
+  switch (channel) {
+    case 'internal':
+      return 'Внутренний';
+    case 'beta':
+      return 'Бета';
+    case 'stable':
+      return 'Стабильный';
+    default:
+      return channel || 'Канал';
+  }
+}
+
+function updateTargetKindLabel(kind: string): string {
+  switch (kind) {
+    case 'branch':
+      return 'Филиал';
+    case 'device':
+      return 'Отдельные ПК';
+    default:
+      return kind || 'Цель';
+  }
+}
+
+function updatePackageStateLabel(state: string): string {
+  switch (state) {
+    case 'registered':
+      return 'Зарегистрирован';
+    case 'validated':
+      return 'Проверен';
+    case 'rejected':
+      return 'Отклонён';
+    case 'retired':
+      return 'Выведен';
+    default:
+      return state || 'Состояние';
+  }
+}
+
+function updateRolloutStateLabel(state: string): string {
+  switch (state) {
+    case 'active':
+      return 'Активна';
+    case 'paused':
+      return 'Пауза';
+    case 'completed':
+      return 'Завершена';
+    case 'rollback_requested':
+      return 'Запрошен откат';
+    case 'rolled_back':
+      return 'Откат выполнен';
+    case 'cancelled':
+      return 'Отменена';
+    default:
+      return state || 'Состояние';
+  }
+}
+
+function updateDeviceStatusLabel(status: string): string {
+  switch (status) {
+    case 'installed':
+      return 'Установлено';
+    case 'target reached':
+      return 'Цель достигнута';
+    case 'pending':
+      return 'Ожидает';
+    case 'failed':
+      return 'Ошибка';
+    default:
+      return status || 'Неизвестно';
+  }
+}
+
+function updateDeviceMessageLabel(message: string): string {
+  if (message === 'target reached') {
+    return 'цель достигнута';
+  }
+
+  if (message === 'installed') {
+    return 'установлено';
+  }
+
+  return commandStatusMessageLabel(message);
+}
+
 function commandLabel(command: string) {
   if (command.includes('Lease fresh')) {
     return 'Сессия подтверждена';
@@ -529,6 +684,14 @@ function commandLabel(command: string) {
 
   if (command.includes('Unlock pending')) {
     return 'Разблокировка в процессе';
+  }
+
+  if (command.includes('Start pending')) {
+    return 'Запуск в процессе';
+  }
+
+  if (command.includes('Stop pending')) {
+    return 'Завершение в процессе';
   }
 
   if (command.includes('Payment check')) {
@@ -543,13 +706,28 @@ function commandLabel(command: string) {
     return 'Команд нет';
   }
 
+  if (command.includes('Command failed')) {
+    return 'Команда не выполнена';
+  }
+
+  if (command.includes('Technician')) {
+    return 'Техобслуживание';
+  }
+
+  if (command.includes('Low balance')) {
+    return 'Мало средств';
+  }
+
   return command;
 }
 
 function deviceStatusLabel(device: string) {
   return device
+    .replace('Device unassigned', 'Устройство не назначено')
     .replace('Online', 'Онлайн')
     .replace('Offline', 'Нет связи')
+    .replaceAll('Agent', 'Агент')
+    .replaceAll('Shell', 'Оболочка')
     .replace('unlocked', 'разблокирован')
     .replace('locked state unknown', 'статус блокировки неизвестен')
     .replace('locked', 'заблокирован');
@@ -603,10 +781,10 @@ function floorMapLoadLabel(status: FloorMapLoadStatus, source: OperatorFloorMapS
   }
 
   if (status === 'failed') {
-    return error ? `Backend error · ${error}` : 'Backend error · API unavailable';
+    return error ? `Ошибка платформы · ${error}` : 'Ошибка платформы · API недоступен';
   }
 
-  return source === 'backend' ? 'Backend live' : 'Dev demo';
+  return source === 'backend' ? 'Платформа подключена' : 'Демо-данные';
 }
 
 function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string): string {
@@ -615,18 +793,30 @@ function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string): str
   }
 
   if (status === 'loading') {
-    return 'Loading backend';
+    return 'Загружаем данные';
   }
 
   if (status === 'failed') {
-    return 'Backend error';
+    return 'Ошибка платформы';
   }
 
-  return 'Dev demo';
+  return 'Демо-данные';
 }
 
 function dataSourceLabel(source: string): string {
-  return source === 'backend' ? 'backend' : 'dev demo';
+  return source === 'backend' ? 'Платформа подключена' : 'Демо-режим';
+}
+
+function shellModeLabel(mode: string): string {
+  if (mode.includes('dev')) {
+    return 'режим разработки';
+  }
+
+  if (mode.includes('dist')) {
+    return 'собранная версия';
+  }
+
+  return mode;
 }
 
 function describeTechModeResult(
@@ -641,31 +831,69 @@ function describeTechModeResult(
   const pendingCommands = readNumber(commandSummary, 'pendingCommands', 0);
   const failedCommands = readNumber(commandSummary, 'failedCommands', 0);
 
-  return `${machineName} · Agent ${agentVersion} / Shell ${shellVersion} · ${pendingCommands} pending, ${failedCommands} failed commands`;
+  return `${machineName} · Агент ${agentVersion} / оболочка ${shellVersion} · команд в работе: ${pendingCommands}, ошибок: ${failedCommands}`;
 }
 
 function projectAuthHostError(error: unknown, config: OperatorConfig): string {
   if (isHostBridgeUnavailableError(error) && config.runtime !== 'browser-dev') {
-    return 'Нативный вход Operator App недоступен. Перезапустите приложение или проверьте WebView2 host.';
+    return 'Нативный вход приложения оператора недоступен. Перезапустите приложение или проверьте WebView2.';
   }
 
   return projectOperatorError(error).detail;
 }
 
+function projectOperatorFacingError(error: unknown): string {
+  const detail = projectOperatorError(error).detail;
+  const platformDetail = extractPlatformError(detail);
+
+  if (detail.includes('Only active or paused sessions can be ended') ||
+    platformDetail?.includes('Only active or paused sessions can be ended')) {
+    return 'Сеанс уже завершается или завершён. Дождитесь обновления карты.';
+  }
+
+  if (detail.includes('401 Unauthorized')) {
+    return 'Сессия оператора устарела. Войдите снова.';
+  }
+
+  if (platformDetail) {
+    return platformDetail;
+  }
+
+  return detail
+    .replace('Platform API returned 400 Bad Request:', 'Платформа отклонила запрос:')
+    .replace('Platform API returned 401 Unauthorized:', 'Сессия оператора устарела.')
+    .replace('Platform API returned 500 Internal Server Error:', 'Платформа временно недоступна:');
+}
+
+function extractPlatformError(detail: string): string | null {
+  const jsonStart = detail.indexOf('{');
+  if (jsonStart < 0) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(detail.slice(jsonStart)) as Record<string, unknown>;
+    const error = parsed.error;
+    return typeof error === 'string' && error.trim().length > 0 ? error : null;
+  } catch {
+    return null;
+  }
+}
+
 function realtimeLabel(state: OperatorRealtimeConnectionState, error: string | null): string {
   if (state === 'connected') {
-    return 'Realtime connected';
+    return 'Связь подключена';
   }
 
   if (state === 'connecting') {
-    return 'Realtime connecting';
+    return 'Связь устанавливается';
   }
 
   if (state === 'reconnecting') {
-    return 'Realtime reconnecting';
+    return 'Связь восстанавливается';
   }
 
-  return error ? 'Realtime offline' : 'Realtime disconnected';
+  return error ? 'Связь потеряна' : 'Связь отключена';
 }
 
 function resolveActiveBranchId(session: OperatorAuthSession, configBranchId?: string): string | null {
@@ -682,6 +910,22 @@ function createAuthenticatedOperatorClients(config: ReturnType<typeof getOperato
     baseUrl: config.platformBaseUrl,
     getAccessToken: () => session.accessToken
   }));
+}
+
+function isUnauthorizedPlatformError(error: unknown): boolean {
+  return error instanceof PlatformApiError && error.status === 401;
+}
+
+function isUnauthorizedAuthError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('401 Unauthorized');
+}
+
+async function clearStoredOperatorSession(): Promise<void> {
+  try {
+    await signOutOperator();
+  } catch {
+    // Best-effort cleanup; the original auth failure is the actionable error.
+  }
 }
 
 async function loadBackendFloorMapState(
@@ -931,7 +1175,7 @@ function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> 
 
 function requireBackend(backend: OperatorBackendContext | null): OperatorBackendContext {
   if (backend === null) {
-    throw new Error('Backend operator session is not available.');
+    throw new Error('Сессия оператора недоступна.');
   }
 
   return backend;
@@ -986,17 +1230,79 @@ function describeDeviceCommandStatus(status: Record<string, unknown>) {
   const type = readString(status, 'type', 'command');
   const state = readString(status, 'status', 'pending');
   const message = readString(status, 'message');
-  return message ? `${type}: ${state} · ${message}` : `${type}: ${state}`;
+  const typeLabel = commandTypeLabel(type);
+  const stateLabel = commandStatusLabel(state);
+  const messageLabel = commandStatusMessageLabel(message);
+  return messageLabel ? `${typeLabel}: ${stateLabel} · ${messageLabel}` : `${typeLabel}: ${stateLabel}`;
 }
 
 function describeSessionCommandFallback(response: unknown) {
   const commands = readArray<Record<string, unknown>>(response, 'deviceCommands');
   if (commands.length === 0) {
-    return 'backend подтвердил, команда Agent не нужна';
+    return 'Платформа подтвердила действие';
   }
 
   const command = commands[0];
-  return `${readString(command, 'type', 'command')}: создана, ждём Agent`;
+  return `${commandTypeLabel(readString(command, 'type', 'command'))}: отправлена на ПК`;
+}
+
+function commandTypeLabel(type: string): string {
+  switch (type.toLowerCase()) {
+    case 'lock':
+      return 'Блокировка';
+    case 'unlock':
+      return 'Разблокировка';
+    case 'transfer':
+      return 'Перенос';
+    case 'reboot':
+      return 'Перезагрузка';
+    case 'shutdown':
+      return 'Выключение';
+    case 'refresh-session-lease':
+      return 'Обновление сессии';
+    default:
+      return 'Команда';
+  }
+}
+
+function commandStatusLabel(status: string): string {
+  switch (status.toLowerCase()) {
+    case 'pending':
+      return 'ожидает выполнения';
+    case 'sent':
+    case 'accepted':
+    case 'in_progress':
+      return 'выполняется';
+    case 'completed':
+    case 'succeeded':
+      return 'выполнена';
+    case 'failed':
+      return 'не выполнена';
+    case 'cancelled':
+    case 'canceled':
+      return 'отменена';
+    default:
+      return status;
+  }
+}
+
+function commandStatusMessageLabel(message: string): string {
+  return message
+    .replace('Agent accepted lock', 'ПК принял команду блокировки')
+    .replace('Agent accepted unlock', 'ПК принял команду разблокировки')
+    .replace('Agent accepted transfer', 'ПК принял команду переноса')
+    .replace('Agent timeout', 'Агент не ответил')
+    .replace('timeout waiting for Agent', 'Агент не ответил вовремя')
+    .replace('Queued for Agent', 'Поставлено в очередь агента')
+    .replace('Agent did not confirm lock.', 'Агент не подтвердил блокировку.');
+}
+
+function dashboardFocusTextLabel(text: string): string {
+  return commandStatusMessageLabel(text)
+    .replace('lock Failed', 'Блокировка не выполнена')
+    .replace('unlock Failed', 'Разблокировка не выполнена')
+    .replace('Failed', 'не выполнена')
+    .replace('Agent', 'Агент');
 }
 
 async function describeSeatActionResult(
@@ -1026,14 +1332,12 @@ async function describeSeatActionResult(
 }
 
 function MapWorkspace({
-  currencyCode,
   floorMap,
   canUseTechMode,
   selectedSeatId,
   onSelectSeat,
   onTechMode
 }: {
-  currencyCode: string;
   floorMap: OperatorFloorMapState;
   canUseTechMode: boolean;
   selectedSeatId: string;
@@ -1043,12 +1347,6 @@ function MapWorkspace({
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [activeFilter, setActiveFilter] = useState<MapFilterId>('all');
   const [viewMode, setViewMode] = useState<MapViewMode>('grid');
-  const activeCount = countByTone(floorMap.seats, 'active');
-  const readyCount = countByTone(floorMap.seats, 'ready');
-  const pendingCount = countByTone(floorMap.seats, 'pending');
-  const offlineCount = countByTone(floorMap.seats, 'offline');
-  const problemCount = countProblems(floorMap.seats);
-  const loadLabel = floorMapLoadLabel(floorMap.loadStatus, floorMap.source, floorMap.error);
   const visibleSeats = useMemo(
     () => floorMap.seats.filter((seat) => matchesMapFilter(seat, activeFilter)),
     [activeFilter, floorMap.seats]
@@ -1086,7 +1384,6 @@ function MapWorkspace({
           <h1>{floorMap.branchName}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${floorMap.loadStatus}`}>{loadLabel}</span>
           <button
             type="button"
             className="map-tool-action"
@@ -1098,14 +1395,6 @@ function MapWorkspace({
         </div>
       </section>
 
-      <section className="state-strip" aria-label="Сводка">
-        <StateFlag label="Сессии" value={String(activeCount)} />
-        <StateFlag label="Свободно" value={String(readyCount)} />
-        <StateFlag label="Команды" value={String(pendingCount)} critical={pendingCount > 0} />
-        <StateFlag label="Нет связи" value={String(offlineCount)} critical={offlineCount > 0} />
-        <StateFlag label="Проблемы" value={String(problemCount)} critical={problemCount > 0} />
-        <StateFlag label="Касса" value={`4 820 ${currencyCode}`} />
-      </section>
       <section className="map-controls-row" aria-label="Фильтры и вид карты">
         <div className="filter-row map-filter-row" aria-label="Фильтр ПК">
           {mapFilterOptions.map((option) => (
@@ -1125,13 +1414,16 @@ function MapWorkspace({
           <button type="button" className={viewMode === 'table' ? 'active' : undefined} onClick={() => setViewMode('table')}>Таблица</button>
         </div>
       </section>
+      {floorMap.loadStatus === 'failed' && (
+        <FeedbackNotice feedback={{ label: 'Карта', state: 'failed', detail: floorMap.error ?? 'Не удалось загрузить карту.' }} />
+      )}
       <FeedbackNotice feedback={feedback} />
 
       <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label="ПК зала">
         {visibleSeats.length === 0 ? (
           <div className="map-empty-state">
             <strong>Нет ПК в выбранном фильтре</strong>
-            <span>Смените фильтр или проверьте backend карту.</span>
+            <span>Смените фильтр или проверьте карту платформы.</span>
           </div>
         ) : viewMode === 'grid' ? (
           <div className="seat-grid">
@@ -1163,7 +1455,7 @@ function MapWorkspace({
                   <tr key={seat.id} className={`state-${seat.tone}${seat.id === selectedSeatId ? ' selected' : ''}`}>
                     <td>
                       <button type="button" onClick={() => onSelectSeat(seat.id)}>{seat.name}</button>
-                      <span>{seat.zone}</span>
+                      <span>{zoneLabel(seat.zone)}</span>
                     </td>
                     <td><strong>{toneLabels[seat.tone]}</strong><span>{seat.stateLabel}</span></td>
                     <td>{seat.player}</td>
@@ -1229,7 +1521,7 @@ function DashboardWorkspace({
     if (backend === null) {
       setDashboardSummary(null);
       setDashboardLoadStatus('failed');
-      setDashboardLoadError('Active branch is not assigned.');
+      setDashboardLoadError('Активный филиал не назначен.');
       return undefined;
     }
 
@@ -1290,8 +1582,8 @@ function DashboardWorkspace({
     ? focusQueue.map((item) => [
       readString(item, 'tone', 'warning'),
       readString(item, 'target', '-'),
-      readString(item, 'title', 'Сигнал платформы'),
-      readString(item, 'detail', 'Проверьте состояние в рабочей карте.'),
+      dashboardFocusTextLabel(readString(item, 'title', 'Сигнал платформы')),
+      dashboardFocusTextLabel(readString(item, 'detail', 'Проверьте состояние в рабочей карте.')),
       readString(item, 'seatId')
     ] as const)
     : [[
@@ -1543,7 +1835,7 @@ function BookingWorkspace() {
   const bookings = [
     { time: '15:40', client: 'Aziz P.', seats: '2 ПК', zone: 'Зал C', duration: '90 мин', status: 'Подтверждена', tone: 'confirmed', note: 'прийти за 10 мин до старта' },
     { time: '16:00', client: 'Гость +998', seats: '1 ПК', zone: 'VIP', duration: '60 мин', status: 'Онлайн-заявка', tone: 'online', note: 'нужен звонок для подтверждения' },
-    { time: '16:30', client: 'Team CS2', seats: '5 ПК', zone: 'Bootcamp', duration: '120 мин', status: 'Строгая', tone: 'strict', note: 'держать места вместе' },
+    { time: '16:30', client: 'Команда CS2', seats: '5 ПК', zone: 'Буткемп', duration: '120 мин', status: 'Строгая', tone: 'strict', note: 'держать места вместе' },
     { time: '17:10', client: 'Madina S.', seats: '1 ПК', zone: 'Зал B', duration: '45 мин', status: 'Ожидает', tone: 'pending', note: 'нет депозита, уточнить оплату' }
   ];
 
@@ -2205,31 +2497,31 @@ function PaymentsWorkspace({ currencyCode }: { currencyCode: string }) {
 function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
   const [eventSearch, setEventSearch] = useState('');
   const [activeLogFilter, setActiveLogFilter] = useState('Все события');
-  const [selectedEventKey, setSelectedEventKey] = useState('15:04-PC-23 heartbeat missed');
-  const [selectedSource, setSelectedSource] = useState('Agent');
+  const [selectedEventKey, setSelectedEventKey] = useState('15:04-PC-23 не отвечает');
+  const [selectedSource, setSelectedSource] = useState('Агент');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const events = [
-    ['15:09', 'Настройки просмотрены', 'Настройки · technician', 'audit', 'audit'],
-    ['15:06', 'Пополнение депозита', `Madina S. · 200 ${currencyCode}`, 'cashier', 'money'],
-    ['15:04', 'PC-23 heartbeat missed', 'Agent · нет связи 2 мин', 'warning', 'device'],
-    ['15:01', 'PC-01 сессия продлена', 'operator · +15 мин', 'session', 'session'],
+    ['15:09', 'Настройки просмотрены', 'Настройки · техник', 'аудит', 'audit'],
+    ['15:06', 'Пополнение депозита', `Madina S. · 200 ${currencyCode}`, 'кассир', 'money'],
+    ['15:04', 'PC-23 не отвечает', 'Агент · нет связи 2 мин', 'warning', 'device'],
+    ['15:01', 'PC-01 сессия продлена', 'оператор · +15 мин', 'session', 'session'],
     ['14:55', 'Возврат по чеку', `Yusuf A. · -20 ${currencyCode}`, 'refund', 'money']
   ];
   const auditRows = [
-    ['15:09', 'technician', 'Settings read', 'разрешено'],
-    ['15:06', 'cashier', 'Deposit replenished', 'подтверждено'],
-    ['15:01', 'operator', 'Session extend', 'платформа OK']
+    ['15:09', 'техник', 'Просмотр настроек', 'разрешено'],
+    ['15:06', 'кассир', 'Пополнение депозита', 'подтверждено'],
+    ['15:01', 'оператор', 'Продление сессии', 'платформа OK']
   ];
   const sourceCards: Array<[string, string, LucideIcon]> = [
-    ['Agent', '23 онлайн · 1 офлайн', MonitorCheck],
+    ['Агент', '23 онлайн · 1 офлайн', MonitorCheck],
     ['POS', '9 чеков · 1 возврат', ReceiptText],
-    ['Operator', '14 действий смены', UserRoundPlus],
-    ['Platform', '3 предупреждения', ShieldAlert]
+    ['Оператор', '14 действий смены', UserRoundPlus],
+    ['Платформа', '3 предупреждения', ShieldAlert]
   ];
   const visibleEvents = events.filter(([time, title, detail, source, tone]) => {
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
-      || (activeLogFilter === 'ПК и Agent' && (source === 'warning' || detail.includes('Agent')))
+      || (activeLogFilter === 'ПК и агент' && (source === 'warning' || detail.includes('Агент')))
       || (activeLogFilter === 'Касса и POS' && tone === 'money')
       || (activeLogFilter === 'Оператор' && detail.includes('operator'))
       || (activeLogFilter === 'Системные' && source === 'audit');
@@ -2313,7 +2605,7 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
             <strong>сузить расследование</strong>
           </header>
           <div className="logs-filter-grid">
-            {['Все события', 'Только ошибки', 'ПК и Agent', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
+            {['Все события', 'Только ошибки', 'ПК и агент', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
               <button
                 key={filter}
                 type="button"
@@ -2373,7 +2665,7 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
             <button type="button" onClick={() => triggerFeedback(setFeedback, 'Журнал смены')}><ReceiptText size={16} />Журнал смены</button>
             <button type="button" onClick={() => triggerFeedback(setFeedback, 'Ошибки')}><AlertTriangle size={16} />Ошибки</button>
             <button type="button" onClick={() => triggerFeedback(setFeedback, 'CSV')}><ArrowRightLeft size={16} />CSV</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Audit trail')}><ShieldAlert size={16} />Audit trail</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Аудит JSON')}><ShieldAlert size={16} />Аудит JSON</button>
           </div>
         </section>
       </section>
@@ -2399,7 +2691,7 @@ function SettingsWorkspace() {
     ['Зал A', '10 ПК', 'основной зал'],
     ['Зал B', '8 ПК', 'тихий зал'],
     ['VIP', '2 ПК', 'повышенный тариф'],
-    ['Bootcamp', '4 ПК', 'командные места']
+    ['Буткемп', '4 ПК', 'командные места']
   ];
   const tariffs = [
     ['Стандарт', '25 TJS / час', 'для гостей и обычных клиентов'],
@@ -2418,7 +2710,7 @@ function SettingsWorkspace() {
     ['Добавить ПК', 'новое рабочее место на карте', MonitorCheck],
     ['Создать тариф', 'пакет или почасовая цена', CircleDollarSign],
     ['Пригласить сотрудника', 'оператор или техник', UserRoundPlus],
-    ['Проверить устройства', 'Agent и Shell', Wifi]
+    ['Проверить устройства', 'Агент и оболочка', Wifi]
   ];
   const selectedSectionDetail = sections.find(([name]) => name === selectedSection)?.[1] ?? '';
   const markDirty = () => setSettingsDirty(true);
@@ -2476,7 +2768,7 @@ function SettingsWorkspace() {
     if (selectedSection === 'Персонал') {
       return (
         <div className="settings-config-grid">
-          {['Owner · полный доступ', 'Manager · смены и отчёты', 'Operator · касса и карта', 'Technician · устройства'].map((role) => (
+          {['Владелец · полный доступ', 'Менеджер · смены и отчёты', 'Оператор · касса и карта', 'Техник · устройства'].map((role) => (
             <button key={role} type="button" onClick={() => triggerFeedback(setFeedback, role)}>
               <strong>{role.split(' · ')[0]}</strong>
               <span>{role.split(' · ')[1]}</span>
@@ -2641,8 +2933,10 @@ function MapSidePanel({
   const selectedPlayerPackage = playerPackages.find((playerPackage) => readString(playerPackage, 'playerPackageId') === selectedPlayerPackageId) ??
     playerPackages[0] ??
     null;
-  const hasActionableSession = Boolean(seat.activeSessionId);
-  const hasActiveSession = hasActionableSession || seat.hasActiveSession === true || seat.tone === 'active';
+  const hasStoredSession = Boolean(seat.activeSessionId);
+  const hasPendingSessionCommand = hasStoredSession && isPendingSeatCommand(seat);
+  const hasActionableSession = hasStoredSession && !hasPendingSessionCommand;
+  const hasActiveSession = hasStoredSession || seat.hasActiveSession === true || seat.tone === 'active';
   const isBusy = feedback.state === 'pending';
   const canStartPermission = hasPermission(session, permissionNames.startSession);
   const canExtendPermission = hasPermission(session, permissionNames.extendSession);
@@ -2688,21 +2982,23 @@ function MapSidePanel({
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
   const canTransferSession = actionsEnabled && canTransferPermission && hasActionableSession && targetSeatId.length > 0;
   const confirmationText = !actionsEnabled
-    ? 'Backend карта недоступна'
+    ? 'Карта платформы недоступна'
     : !hasAnySessionActionPermission
       ? 'Нет прав на действия с сессией'
       : !billingReady
         ? `Биллинг: ${billingMissing}`
+      : hasPendingSessionCommand
+        ? 'Команда уже отправлена. Дождитесь подтверждения ПК.'
       : feedback.state === 'idle'
         ? 'Ждём платформу'
         : feedbackText(feedback);
   const billingLoadText = billingStatus === 'backend'
-    ? 'данные backend'
+    ? 'данные платформы'
     : billingStatus === 'loading'
       ? 'загрузка'
       : billingStatus === 'failed'
         ? billingError ?? 'ошибка загрузки'
-        : 'ожидает backend';
+        : 'ожидает платформу';
 
   useEffect(() => {
     if (targetSeatId.length > 0 && transferCandidates.some((candidate) => candidate.id === targetSeatId)) {
@@ -2719,7 +3015,7 @@ function MapSidePanel({
       setTariffOptions([]);
       setSelectedTariffVersionId('');
       setBillingStatus(backend === null ? 'failed' : 'fixture');
-      setBillingError(backend === null ? 'Backend operator session is not available.' : null);
+      setBillingError(backend === null ? 'Сессия оператора платформы недоступна.' : null);
       return undefined;
     }
 
@@ -2832,7 +3128,7 @@ function MapSidePanel({
       setFeedback({
         label,
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorFacingError(error)
       });
     }
   };
@@ -2841,7 +3137,7 @@ function MapSidePanel({
     <aside className="context-panel">
       <header className="context-head">
         <div>
-          <span>{seat.zone}</span>
+          <span>{zoneLabel(seat.zone)}</span>
           <h2>{seat.name}</h2>
         </div>
         <span className={`state-chip state-${seat.tone}`}>{toneLabels[seat.tone]}</span>
@@ -2870,7 +3166,7 @@ function MapSidePanel({
       {hasActiveSession && (
         <label className="context-transfer-target">
           <span>Перенести на</span>
-          <select value={targetSeatId} disabled={!actionsEnabled || !canTransferPermission || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
+          <select value={targetSeatId} disabled={!actionsEnabled || !canTransferPermission || hasPendingSessionCommand || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
             {transferCandidates.length === 0 && <option value="">Нет свободных ПК</option>}
             {transferCandidates.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
@@ -3021,7 +3317,7 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
     pos: 'Корзина',
     players: 'Amir K.',
     payments: 'Платеж 14:30',
-    logs: 'Log event',
+    logs: 'Событие журнала',
     settings: 'Настройки'
   }[workspace];
 
@@ -3029,17 +3325,17 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
     <aside className="context-panel">
       <header className="context-head">
         <div>
-          <span>Details</span>
+          <span>Детали</span>
           <h2>{title}</h2>
         </div>
-        <span className="state-chip state-active">Active</span>
+        <span className="state-chip state-active">Активно</span>
       </header>
       <section className="context-section">
-        <div className="detail-row"><span>Revenue</span><strong>4 820 {currencyCode}</strong></div>
-        <div className="detail-row"><span>Pending</span><strong>2 actions</strong></div>
-        <div className="detail-row"><span>Source</span><strong>Dev demo</strong></div>
+        <div className="detail-row"><span>Выручка</span><strong>4 820 {currencyCode}</strong></div>
+        <div className="detail-row"><span>В работе</span><strong>2 действия</strong></div>
+        <div className="detail-row"><span>Источник</span><strong>Демо-данные</strong></div>
       </section>
-      <button type="button" className="primary-wide">Open action</button>
+      <button type="button" className="primary-wide">Открыть действие</button>
     </aside>
   );
 }
@@ -3059,10 +3355,10 @@ type PosCartItem = PosCatalogItem & {
 };
 
 const fixturePosProducts: PosCatalogItem[] = [
-  { name: 'Cola 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'dev demo', stockOnHand: 0, source: 'fixture' },
-  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'dev demo', stockOnHand: 0, source: 'fixture' },
-  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'dev demo', stockOnHand: 0, source: 'fixture' },
-  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'dev demo', stockOnHand: 0, source: 'fixture' }
+  { name: 'Кола 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'демо', stockOnHand: 0, source: 'fixture' },
+  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'демо', stockOnHand: 0, source: 'fixture' },
+  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'демо', stockOnHand: 0, source: 'fixture' },
+  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'демо', stockOnHand: 0, source: 'fixture' }
 ];
 
 function projectPosProduct(product: PosProductDto, currencyCode: string): PosCatalogItem {
@@ -3313,7 +3609,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       const quantity = Number(stockWriteOffQuantity);
       const reason = stockWriteOffReason.trim();
       if (!productId || !Number.isInteger(quantity) || quantity <= 0 || !reason) {
-        throw new Error('Выберите backend товар, целое количество больше нуля и причину списания.');
+        throw new Error('Выберите товар платформы, целое количество больше нуля и причину списания.');
       }
 
       await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).inventory.createStockMovement(nextBackend.branchId, {
@@ -3346,7 +3642,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (!selectedPosPlayerId) {
-        throw new Error('Выберите backend клиента для пополнения депозита.');
+        throw new Error('Выберите клиента платформы для пополнения депозита.');
       }
 
       if (cartTotalMinorUnits <= 0) {
@@ -3392,7 +3688,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
-        throw new Error('Backend POS catalog is not loaded for the current cart.');
+        throw new Error('POS-каталог платформы не загружен для текущей корзины.');
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -3412,7 +3708,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       });
       const saleId = readString(sale, 'posSaleId');
       if (!saleId) {
-        throw new Error('Platform API returned a POS sale without sale id.');
+        throw new Error('Платформа вернула POS-продажу без идентификатора чека.');
       }
 
       const paidSale = await clients.pos.paySaleManual(saleId, {
@@ -3448,7 +3744,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (!selectedRefundableSaleId) {
-        throw new Error('Нет backend POS продажи для возврата.');
+        throw new Error('Нет POS-продажи платформы для возврата.');
       }
 
       await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.refundSale(selectedRefundableSaleId, {
@@ -3477,7 +3773,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (!saleId) {
-        throw new Error('Backend POS sale id is required for receipt detail.');
+        throw new Error('Для деталей чека нужен идентификатор POS-продажи платформы.');
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -3503,7 +3799,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     setFeedback({ label: 'Печать чека', state: 'pending' });
     try {
       if (selectedSaleDetail === null) {
-        throw new Error('Откройте backend чек перед печатью.');
+        throw new Error('Откройте чек платформы перед печатью.');
       }
 
       const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
@@ -3530,7 +3826,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     setFeedback({ label: 'Экспорт чека', state: 'pending' });
     try {
       if (selectedSaleDetail === null) {
-        throw new Error('Откройте backend чек перед экспортом.');
+        throw new Error('Откройте чек платформы перед экспортом.');
       }
 
       const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
@@ -3559,7 +3855,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
-        throw new Error('Backend POS catalog is not loaded for the current cart.');
+        throw new Error('POS-каталог платформы не загружен для текущей корзины.');
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -3579,7 +3875,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       });
       const saleId = readString(draft, 'posSaleId');
       if (!saleId) {
-        throw new Error('Platform API returned a POS draft without sale id.');
+        throw new Error('Платформа вернула POS-черновик без идентификатора чека.');
       }
 
       const voidedSale = await clients.pos.voidSale(saleId, {
@@ -3609,7 +3905,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <h1>POS · продажа и кассовые операции</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend live')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Платформа подключена')}</span>
         </div>
       </section>
 
@@ -3625,7 +3921,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-catalog-panel">
           <header className="pos-panel-title">
             <span>Каталог</span>
-            <strong>backend catalog, stock and search</strong>
+            <strong>каталог, остатки и поиск платформы</strong>
           </header>
           <label className="pos-search">
             <Search size={14} />
@@ -3752,7 +4048,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <div className="pos-total-card">
             <span>Итого к оплате</span>
             <strong>{formatMinorUnits(cartTotalMinorUnits, currencyCode)}</strong>
-            <em>{lastSale ? `последний чек ${readString(lastSale, 'posSaleId').slice(0, 8)}` : 'чек создаётся только после ответа backend'}</em>
+            <em>{lastSale ? `последний чек ${readString(lastSale, 'posSaleId').slice(0, 8)}` : 'чек создаётся только после ответа платформы'}</em>
           </div>
           <FeedbackNotice feedback={feedback} />
         </section>
@@ -3760,7 +4056,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-payment-panel">
           <header className="pos-panel-title">
             <span>Оплата</span>
-            <strong>backend sale + manual provider</strong>
+            <strong>чек платформы и ручное подтверждение</strong>
           </header>
           <div className="pos-payment-methods">
             {['Наличные', 'Карта', 'Депозит'].map((method) => (
@@ -3769,7 +4065,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 type="button"
                 className={paymentMethod === method ? 'active' : undefined}
                 disabled={method === 'Депозит' || feedback.state === 'pending'}
-                title={method === 'Депозит' ? 'Оплата с депозита требует backend ledger-контракт.' : undefined}
+                title={method === 'Депозит' ? 'Оплата с депозита требует ledger-контракт платформы.' : undefined}
                 onClick={() => setPaymentMethod(method)}
               >
                 {method === 'Наличные' && <Banknote size={15} />}
@@ -3791,7 +4087,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-receipts-panel">
           <header className="pos-panel-title">
             <span>Последние чеки</span>
-            <strong>sales report from backend</strong>
+            <strong>отчёт продаж из платформы</strong>
           </header>
           <div className="pos-receipt-list">
             {salesRows.slice(0, 4).map((row) => (
@@ -3816,7 +4112,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               <article className="pos-receipt-row">
                 <span>—</span>
                 <strong>Чеков нет</strong>
-                <em>backend</em>
+                <em>платформа</em>
                 <b>0 {currencyCode}</b>
               </article>
             )}
@@ -3835,7 +4131,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               ))}
               {selectedReceiptDetail !== null && (
                 <div className="pos-receipt-detail">
-                  <span>Чек backend</span>
+                  <span>Чек платформы</span>
                   <strong>{readString(selectedReceiptDetail, 'receiptNumber', 'receipt')}</strong>
                   <b>{formatMoney(readMoney(selectedReceiptDetail, 'total'), currencyCode)}</b>
                   <p>{readString(selectedReceiptDetail, 'receiptType', 'sale')}</p>
@@ -3858,7 +4154,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-quick-panel">
           <header className="pos-panel-title">
             <span>Быстрые операции</span>
-            <strong>actions require backend confirmation</strong>
+            <strong>действия ждут подтверждения платформы</strong>
           </header>
           <div className="pos-stock-form">
             <label>
@@ -3869,7 +4165,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 disabled={backendCatalogProducts.length === 0 || feedback.state === 'pending'}
                 onChange={(event) => setStockWriteOffProductId(event.currentTarget.value)}
               >
-                {backendCatalogProducts.length === 0 && <option value="">Нет backend товара</option>}
+                {backendCatalogProducts.length === 0 && <option value="">Нет товара платформы</option>}
                 {backendCatalogProducts.map((product) => (
                   <option key={product.productId} value={product.productId}>
                     {product.name} · {product.stockOnHand} шт.
@@ -3904,7 +4200,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <div className="pos-quick-grid">
             {[
               ['Пополнить депозит', selectedPosPlayer ? `корзина ${formatMinorUnits(cartTotalMinorUnits, currencyCode)}` : 'выберите клиента', CircleDollarSign],
-              ['Возврат по чеку', 'требует выбранный backend sale', ReceiptText],
+              ['Возврат по чеку', 'требует выбранный чек', ReceiptText],
               ['Аннулировать черновик', 'создать и отменить draft', X],
               ['Списать склад', selectedStockProduct?.name ?? 'выберите товар', AlertTriangle],
               ['Новый клиент', newPlayerDisplayName || 'заполните имя', UserRoundPlus],
@@ -3979,7 +4275,7 @@ function BackendBookingWorkspace({
     if (backend === null) {
       setReservationResult(null);
       setLoadStatus('failed');
-      setLoadError('Active branch is not assigned.');
+      setLoadError('Активный филиал не назначен.');
       return undefined;
     }
 
@@ -4335,9 +4631,9 @@ type PlayerClientItem = {
 
 function fixturePlayers(currencyCode: string): PlayerClientItem[] {
   return [
-    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'dev demo', tone: 'vip', detail: 'dev demo client', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
-    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'dev demo', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
-    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'dev demo', tone: 'debt', detail: 'postpaid debt', phoneNumber: '', source: 'fixture' }
+    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'демо', tone: 'vip', detail: 'демо-клиент', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'демо', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
+    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'демо', tone: 'debt', detail: 'долг после сеанса', phoneNumber: '', source: 'fixture' }
   ];
 }
 
@@ -4347,11 +4643,11 @@ function projectPlayerClient(player: unknown): PlayerClientItem {
   const isActive = isRecord(player) && player.isActive !== false;
   return {
     playerAccountId: readString(player, 'playerAccountId') || undefined,
-    name: readString(player, 'displayName', 'Player'),
+    name: readString(player, 'displayName', 'Игрок'),
     status: debt > 0 ? 'Долг' : packages > 0 ? 'Пакет' : isActive ? 'Активен' : 'Неактивен',
     balanceMinorUnits: readNumber(player, 'walletBalanceMinorUnits', 0),
     debtMinorUnits: debt,
-    last: packages > 0 ? `${packages} пак.` : 'backend',
+    last: packages > 0 ? `${packages} пак.` : 'платформа',
     tone: debt > 0 ? 'debt' : packages > 0 ? 'vip' : isActive ? 'active' : 'regular',
     detail: `${readString(player, 'phoneNumber', 'без телефона')} · ${packages} пакетов`,
     phoneNumber: readString(player, 'phoneNumber', ''),
@@ -4371,9 +4667,9 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
   const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('100.00');
-  const [walletTopUpReason, setWalletTopUpReason] = useState('operator wallet top-up');
+  const [walletTopUpReason, setWalletTopUpReason] = useState('пополнение через кассу');
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
-  const [debtPaymentReason, setDebtPaymentReason] = useState('operator debt payment');
+  const [debtPaymentReason, setDebtPaymentReason] = useState('оплата долга через кассу');
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
 
@@ -4529,7 +4825,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         }
 
         if (!selectedClient.playerAccountId) {
-          throw new Error('Select a backend player before wallet top-up.');
+          throw new Error('Выберите игрока платформы перед пополнением депозита.');
         }
 
         const topUpMinorUnits = parseMoneyInputMinorUnits(walletTopUpAmount);
@@ -4551,7 +4847,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         }
 
         if (!selectedClient.playerAccountId) {
-          throw new Error('Select a backend player before debt payment.');
+          throw new Error('Выберите игрока платформы перед оплатой долга.');
         }
 
         const debtPaymentMinorUnits = parseMoneyInputMinorUnits(debtPaymentAmount);
@@ -4602,7 +4898,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         }
 
         if (!selectedClient.playerAccountId || selectedClient.source !== 'backend') {
-          throw new Error('Выберите backend игрока перед покупкой пакета.');
+          throw new Error('Выберите игрока платформы перед покупкой пакета.');
         }
 
         let packageOption: PackageOptionDto | null = selectedPackageOption;
@@ -4616,7 +4912,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
 
         const packageDefinitionId = readString(packageOption, 'packageDefinitionId');
         if (!packageDefinitionId) {
-          throw new Error('Нет доступного backend пакета для покупки.');
+          throw new Error('Нет доступного пакета платформы для покупки.');
         }
 
         const packagePriceMinorUnits = readNumber(packageOption, 'priceMinorUnits', 0);
@@ -4641,7 +4937,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         }
 
         if (!selectedClient.playerAccountId || selectedClient.source !== 'backend') {
-          throw new Error('Выберите backend игрока перед созданием брони.');
+          throw new Error('Выберите игрока платформы перед созданием брони.');
         }
 
         await apiClients.reservations.create(nextBackend.branchId, {
@@ -4656,7 +4952,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           note: 'Создано из карточки клиента'
         });
       } else {
-        throw new Error('Операция пока не подключена к backend.');
+        throw new Error('Операция пока не подключена к платформе.');
       }
 
       setFeedback({ label, state: 'confirmed' });
@@ -4673,13 +4969,13 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           <h1>Клиенты · поиск, депозит и долги</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend live')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Платформа подключена')}</span>
         </div>
       </section>
 
       <section className="state-strip clients-state-strip" aria-label="Сводка клиентов">
         <StateFlag label="Клиенты" value={String(clients.length)} />
-        <StateFlag label="Backend" value={String(clients.filter((client) => client.source === 'backend').length)} critical={loadStatus !== 'backend'} />
+        <StateFlag label="Платформа" value={String(clients.filter((client) => client.source === 'backend').length)} critical={loadStatus !== 'backend'} />
         <StateFlag label="Депозит" value={formatMinorUnits(balance, currencyCode)} />
         <StateFlag label="Долг" value={formatMinorUnits(debt, currencyCode)} critical={debt > 0} />
         <StateFlag label="Пакеты" value={String(selectedClientPackageCount)} />
@@ -4690,7 +4986,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         <section className="clients-panel clients-list-panel">
           <header className="clients-panel-title">
             <span>Список клиентов</span>
-            <strong>backend search by name, phone or card</strong>
+            <strong>поиск по имени, телефону или карте</strong>
           </header>
           <label className="clients-search">
             <Search size={14} />
@@ -4750,7 +5046,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             {selectedClientPackages.length === 0 && (
               <article className="client-package-row">
                 <strong>Нет активных пакетов</strong>
-                <span>backend</span>
+                <span>платформа</span>
                 <b>0</b>
               </article>
             )}
@@ -4760,7 +5056,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         <section className="clients-panel clients-actions-panel">
           <header className="clients-panel-title">
             <span>Операции</span>
-            <strong>money actions wait for backend</strong>
+            <strong>денежные операции выполняет платформа</strong>
           </header>
           <div className="clients-money-form">
             <label>Сумма пополнения<input inputMode="decimal" value={walletTopUpAmount} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpAmount(event.currentTarget.value)} /></label>
@@ -4825,7 +5121,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         <section className="clients-panel clients-segments-panel">
           <header className="clients-panel-title">
             <span>Сегменты</span>
-            <strong>filtered backend results</strong>
+            <strong>фильтр по клиентам платформы</strong>
           </header>
           <div className="clients-segment-grid">
             {[
@@ -4833,7 +5129,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
               ['VIP', `${clients.filter((client) => client.tone === 'vip').length} клиентов`],
               ['Есть долг', `${clients.filter((client) => client.debtMinorUnits > 0).length} клиентов`],
               ['Спящие', 'неактивные'],
-              ['Новые', 'из backend поиска']
+              ['Новые', 'из поиска платформы']
             ].map(([label, detail]) => (
               <button
                 key={label}
@@ -4851,7 +5147,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         <section className="clients-panel clients-history-panel">
           <header className="clients-panel-title">
             <span>История клиента</span>
-            <strong>recent ledger entries</strong>
+            <strong>последние операции</strong>
           </header>
           <div className="clients-history-list">
             {recentEntries.slice(0, 4).map((entry) => (
@@ -4888,18 +5184,18 @@ function paymentOperationPlaceholder(
   }
 
   if (loadStatus === 'loading') {
-    return ['—', 'Загружаем операции', 'ждём отчёты платформы', 'backend', `0 ${currencyCode}`, 'session', null];
+    return ['—', 'Загружаем операции', 'ждём отчёты платформы', 'платформа', `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'backend', `0 ${currencyCode}`, 'refund', null];
+    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'платформа', `0 ${currencyCode}`, 'refund', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', 'Операций за период нет', 'платформа вернула пустой отчёт', 'backend', `0 ${currencyCode}`, 'session', null];
+    return ['—', 'Операций за период нет', 'платформа вернула пустой отчёт', 'платформа', `0 ${currencyCode}`, 'session', null];
   }
 
-  return ['—', 'Dev demo: операций нет', 'локальный fallback без платформы', 'dev demo', `0 ${currencyCode}`, 'session', null];
+  return ['—', 'Демо: операций нет', 'локальные данные без платформы', 'демо', `0 ${currencyCode}`, 'session', null];
 }
 
 function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
@@ -5030,10 +5326,10 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
     && currentShiftState === 'open'
     && hasPermission(backend.session, permissionNames.manageShiftCash);
   const methods = [
-    ['Наличные', cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, 'cash report', `${cashRows.length} операций`],
-    ['Карта', netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, 'sales report', `${salesRows.length} чеков`],
-    ['Возвраты', refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, 'refunds', 'backend'],
-    ['Расхождения', difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, 'shift close', 'backend']
+    ['Наличные', cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, 'кассовый отчёт', `${cashRows.length} операций`],
+    ['Карта', netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, 'отчёт продаж', `${salesRows.length} чеков`],
+    ['Возвраты', refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, 'возвраты', 'платформа'],
+    ['Расхождения', difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, 'закрытие смены', 'платформа']
   ];
 
   const runReportAction = async (label: string) => {
@@ -5140,7 +5436,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
           <h1>Платежи · касса смены и сверка</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend reports')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Отчёты загружены')}</span>
         </div>
       </section>
 
@@ -5308,22 +5604,22 @@ type LogEventItem = [string, string, string, string, LogEventTone, LogEventKind,
 
 function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, hasSearchMiss: boolean): LogEventItem {
   if (hasSearchMiss) {
-    return ['—', 'Нет совпадений', 'измените поиск или фильтр', 'Operator', 'audit', 'placeholder', null];
+    return ['—', 'Нет совпадений', 'измените поиск или фильтр', 'Оператор', 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', 'Загружаем события', 'ждём audit и diagnostics', 'Platform', 'audit', 'placeholder', null];
+    return ['—', 'Загружаем события', 'ждём аудит и диагностику', 'Платформа', 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', 'События недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Platform', 'warning', 'placeholder', null];
+    return ['—', 'События недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Платформа', 'warning', 'placeholder', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', 'Событий за период нет', 'audit и diagnostics вернули пустой результат', 'Platform', 'audit', 'placeholder', null];
+    return ['—', 'Событий за период нет', 'аудит и диагностика вернули пустой результат', 'Платформа', 'audit', 'placeholder', null];
   }
 
-  return ['—', 'Dev demo: событий нет', 'локальный fallback без платформы', 'Platform', 'audit', 'placeholder', null];
+  return ['—', 'Демо: событий нет', 'локальные данные без платформы', 'Платформа', 'audit', 'placeholder', null];
 }
 
 function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[]): LogEventItem[] {
@@ -5348,27 +5644,27 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
   return [
     ...recentCommandFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
-      `${readString(failure, 'machineName', 'Device')} ${readString(failure, 'type', 'command')}`,
-      readString(failure, 'message', readString(failure, 'status', 'failed')),
-      'Agent',
+      `${readString(failure, 'machineName', 'Устройство')} ${commandTypeLabel(readString(failure, 'type', 'command'))}`,
+      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
+      'Агент',
       'device',
       'commandFailure',
       failure
     ]),
     ...recentUpdateFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
-      `${readString(failure, 'component', 'Update')} ${readString(failure, 'targetVersion', '')}`,
-      readString(failure, 'message', readString(failure, 'status', 'failed')),
-      'Updates',
+      `${readString(failure, 'component', 'Обновление')} ${readString(failure, 'targetVersion', '')}`,
+      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
+      'Обновления',
       'warning',
       'updateFailure',
       failure
     ]),
     ...staleDevices.map((device): LogEventItem => [
       formatTime(readString(device, 'lastHeartbeatAtUtc')),
-      `${readString(device, 'machineName', 'Device')} heartbeat`,
-      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} sec без heartbeat`,
-      'Agent',
+      `${readString(device, 'machineName', 'Устройство')} не отвечает`,
+      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} сек. без пульса`,
+      'Агент',
       'warning',
       'staleDevice',
       device
@@ -5427,51 +5723,51 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
     const targetId = readString(record, 'targetId');
 
     return [
-      ['Audit ID', shortLogValue(readString(record, 'auditRecordId'))],
-      ['Action', readString(record, 'action', 'audit')],
-      ['Outcome', readString(record, 'outcome', 'unknown')],
-      ['Target', targetId ? `${targetType} ${shortLogValue(targetId)}` : targetType],
-      ['Actor', shortLogValue(readString(record, 'actorStaffUserId'), 'system')],
-      ['Source app', readString(record, 'sourceApp', 'Audit')],
-      ['Details', compactAuditDetails(readString(record, 'detailsJson'))]
+      ['ID аудита', shortLogValue(readString(record, 'auditRecordId'))],
+      ['Действие', readString(record, 'action', 'audit')],
+      ['Результат', readString(record, 'outcome', 'unknown')],
+      ['Объект', targetId ? `${targetType} ${shortLogValue(targetId)}` : targetType],
+      ['Исполнитель', shortLogValue(readString(record, 'actorStaffUserId'), 'система')],
+      ['Источник', readString(record, 'sourceApp', 'Audit')],
+      ['Детали', compactAuditDetails(readString(record, 'detailsJson'))]
     ];
   }
 
   if (event[5] === 'commandFailure' && record !== null) {
     return [
-      ['Device', `${readString(record, 'machineName', 'Device')} · ${shortLogValue(readString(record, 'deviceId'))}`],
-      ['Command', `${readString(record, 'type', 'command')} · ${shortLogValue(readString(record, 'commandId'))}`],
-      ['Status', readString(record, 'status', 'failed')],
-      ['Message', readString(record, 'message', 'нет сообщения')],
-      ['Updated', readString(record, 'updatedAtUtc', event[0])]
+      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
+      ['Команда', `${commandTypeLabel(readString(record, 'type', 'command'))} · ${shortLogValue(readString(record, 'commandId'))}`],
+      ['Статус', commandStatusLabel(readString(record, 'status', 'failed'))],
+      ['Сообщение', commandStatusMessageLabel(readString(record, 'message')) || 'нет сообщения'],
+      ['Обновлено', readString(record, 'updatedAtUtc', event[0])]
     ];
   }
 
   if (event[5] === 'updateFailure' && record !== null) {
     return [
-      ['Device', `${readString(record, 'machineName', 'Device')} · ${shortLogValue(readString(record, 'deviceId'))}`],
+      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
       ['Rollout', shortLogValue(readString(record, 'updateRolloutId'))],
-      ['Component', `${readString(record, 'component', 'Update')} ${readString(record, 'targetVersion')}`.trim()],
-      ['Status', readString(record, 'status', 'failed')],
-      ['Message', readString(record, 'message', 'нет сообщения')]
+      ['Компонент', `${readString(record, 'component', 'Обновление')} ${readString(record, 'targetVersion')}`.trim()],
+      ['Статус', commandStatusLabel(readString(record, 'status', 'failed'))],
+      ['Сообщение', commandStatusMessageLabel(readString(record, 'message')) || 'нет сообщения']
     ];
   }
 
   if (event[5] === 'staleDevice' && record !== null) {
     return [
-      ['Device', `${readString(record, 'machineName', 'Device')} · ${shortLogValue(readString(record, 'deviceId'))}`],
-      ['Agent', readString(record, 'agentVersion', 'unknown')],
-      ['Shell', readString(record, 'shellVersion', 'unknown')],
-      ['Last heartbeat', readString(record, 'lastHeartbeatAtUtc', event[0])],
-      ['Age', `${readNumber(record, 'lastHeartbeatAgeSeconds', 0)} sec`]
+      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
+      ['Агент', readString(record, 'agentVersion', 'неизвестно')],
+      ['Оболочка', readString(record, 'shellVersion', 'неизвестно')],
+      ['Последний пульс', readString(record, 'lastHeartbeatAtUtc', event[0])],
+      ['Возраст', `${readNumber(record, 'lastHeartbeatAgeSeconds', 0)} сек.`]
     ];
   }
 
   return [
     ['Источник', event[3]],
     ['Объект', event[1].split(' ')[0]],
-    ['Оператор', backend?.session.displayName ?? 'system'],
-    ['Branch', backend?.branchId.slice(0, 8) ?? 'dev demo']
+    ['Оператор', operatorDisplayNameLabel(backend?.session.displayName ?? 'система')],
+    ['Филиал', backend?.branchId.slice(0, 8) ?? 'демо']
   ];
 }
 
@@ -5509,12 +5805,12 @@ function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
   const normalizedSource = source.toLowerCase();
   const action = readString(record, 'action').toLowerCase();
   const targetType = readString(record, 'targetType').toLowerCase();
-  const isAgent = source === 'Agent' || tone === 'device' || kind === 'commandFailure' || kind === 'staleDevice';
+  const isAgent = source === 'Агент' || tone === 'device' || kind === 'commandFailure' || kind === 'staleDevice';
   const isPos = normalizedTitle.includes('pos') || normalizedDetail.includes('pos') || action.includes('pos') || targetType.includes('pos');
-  const isOperator = normalizedSource.includes('operator') || normalizedTitle.includes('identity') || normalizedDetail.includes('staff') || action.includes('identity') || targetType.includes('staff');
-  const isPlatform = source === 'Updates' || kind === 'updateFailure' || (!isAgent && !isPos && !isOperator);
+  const isOperator = normalizedSource.includes('operator') || normalizedSource.includes('оператор') || normalizedTitle.includes('identity') || normalizedDetail.includes('staff') || action.includes('identity') || targetType.includes('staff');
+  const isPlatform = source === 'Обновления' || kind === 'updateFailure' || (!isAgent && !isPos && !isOperator);
 
-  if (sourceFilter === 'Agent') {
+  if (sourceFilter === 'Агент') {
     return isAgent;
   }
 
@@ -5522,11 +5818,11 @@ function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
     return isPos;
   }
 
-  if (sourceFilter === 'Operator') {
+  if (sourceFilter === 'Оператор') {
     return isOperator;
   }
 
-  if (sourceFilter === 'Platform') {
+  if (sourceFilter === 'Платформа') {
     return isPlatform;
   }
 
@@ -5640,10 +5936,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     const [time, title, detail, source, tone] = event;
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
-      || (activeLogFilter === 'ПК и Agent' && (source === 'Agent' || tone === 'device' || detail.toLowerCase().includes('device')))
+      || (activeLogFilter === 'ПК и агент' && (source === 'Агент' || tone === 'device' || detail.toLowerCase().includes('device')))
       || (activeLogFilter === 'Касса и POS' && (title.toLowerCase().includes('pos') || detail.toLowerCase().includes('cash')))
       || (activeLogFilter === 'Оператор' && (source.toLowerCase().includes('operator') || title.toLowerCase().includes('identity') || detail.toLowerCase().includes('staff')))
-      || (activeLogFilter === 'Системные' && (source !== 'Agent' || title.toLowerCase().includes('updates') || title.toLowerCase().includes('diagnostics')));
+      || (activeLogFilter === 'Системные' && (source !== 'Агент' || title.toLowerCase().includes('updates') || title.toLowerCase().includes('diagnostics')));
     const sourceMatches = matchesLogSource(event, selectedSource);
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
     return filterMatches && sourceMatches && searchMatches;
@@ -5657,10 +5953,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const selectedEventDetails = buildLogEventDetailRows(selectedEvent, backend);
   const sourceCards: Array<[string, string, LucideIcon]> = [
     ['Все', `${events.length} событий`, Search],
-    ['Agent', `${events.filter((event) => matchesLogSource(event, 'Agent')).length} событий · ${readNumber(deviceSummary, 'staleDevices', 0)} stale`, MonitorCheck],
-    ['POS', `${events.filter((event) => matchesLogSource(event, 'POS')).length} audit`, ReceiptText],
-    ['Operator', `${events.filter((event) => matchesLogSource(event, 'Operator')).length} действий`, UserRoundPlus],
-    ['Platform', `${events.filter((event) => matchesLogSource(event, 'Platform')).length} событий`, ShieldAlert]
+    ['Агент', `${events.filter((event) => matchesLogSource(event, 'Агент')).length} событий · зависших ${readNumber(deviceSummary, 'staleDevices', 0)}`, MonitorCheck],
+    ['POS', `${events.filter((event) => matchesLogSource(event, 'POS')).length} записей`, ReceiptText],
+    ['Оператор', `${events.filter((event) => matchesLogSource(event, 'Оператор')).length} действий`, UserRoundPlus],
+    ['Платформа', `${events.filter((event) => matchesLogSource(event, 'Платформа')).length} событий`, ShieldAlert]
   ];
 
   const applyAuditSearch = async (label: string, overrides: AuditSearchOverrides = {}) => {
@@ -5691,7 +5987,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     const presets: Record<string, AuditSearchOverrides> = {
       'Все события': { action: '', outcome: '', targetType: '', limit: 30 },
       'Только ошибки': { action: '', outcome: 'denied', targetType: '', limit: 50 },
-      'ПК и Agent': { action: '', outcome: '', targetType: 'Device', limit: 50 },
+      'ПК и агент': { action: '', outcome: '', targetType: 'Device', limit: 50 },
       'Касса и POS': { action: 'pos.sales.create', outcome: '', targetType: '', limit: 50 },
       'Оператор': { action: 'identity.staff.create', outcome: '', targetType: '', limit: 50 },
       'Системные': { action: 'updates.rollouts.view', outcome: '', targetType: '', limit: 50 }
@@ -5712,7 +6008,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      if (label === 'Audit trail') {
+      if (label === 'Аудит JSON') {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', fromUtc: '', toUtc: '', limit: 100 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
@@ -5753,7 +6049,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
           <h1>Логи · аудит и события смены</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend audit')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Журнал загружен')}</span>
         </div>
       </section>
 
@@ -5761,15 +6057,15 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <StateFlag label="События" value={String(events.length)} />
         <StateFlag label="Ошибки" value={String(events.filter((event) => event[4] === 'warning').length)} critical={events.some((event) => event[4] === 'warning')} />
         <StateFlag label="Команды" value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
-        <StateFlag label="Audit" value={String(auditRecords.length)} />
-        <StateFlag label="Источник" value={loadStatus} critical={loadStatus !== 'backend'} />
+        <StateFlag label="Аудит" value={String(auditRecords.length)} />
+        <StateFlag label="Источник" value={workspaceLoadStatusLabel(loadStatus, 'Платформа')} critical={loadStatus !== 'backend'} />
       </section>
 
       <section className="logs-layout">
         <section className="logs-panel logs-events-panel">
           <header className="logs-panel-title">
             <span>Журнал событий</span>
-            <strong>audit search + diagnostics</strong>
+            <strong>поиск аудита и диагностика</strong>
           </header>
           <label className="logs-search">
             <Search size={14} />
@@ -5826,7 +6122,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
             <strong>сузить расследование</strong>
           </header>
           <div className="logs-filter-grid">
-            {['Все события', 'Только ошибки', 'ПК и Agent', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
+            {['Все события', 'Только ошибки', 'ПК и агент', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
               <button
                 key={filter}
                 type="button"
@@ -5838,25 +6134,25 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
             ))}
           </div>
           <div className="logs-audit-filter-form">
-            <div className="logs-period-presets" aria-label="Период audit">
+            <div className="logs-period-presets" aria-label="Период аудита">
               {auditPeriodPresetOptions.map(([label, preset]) => (
                 <button key={preset} type="button" onClick={() => void applyAuditPeriodPreset(label, preset)}>{label}</button>
               ))}
             </div>
-            <label>Audit action<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="sessions.start" /></label>
-            <label>Outcome<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder="succeeded / denied" /></label>
-            <label>Target type<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="Session" /></label>
-            <label>From UTC<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T00:00:00Z" /></label>
-            <label>To UTC<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T23:59:59Z" /></label>
-            <label>Limit<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
-            <button type="button" onClick={() => applyAuditSearch('Применить audit')}>Применить audit</button>
+            <label>Действие аудита<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="sessions.start" /></label>
+            <label>Результат<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder="успешно / отказ" /></label>
+            <label>Тип объекта<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="Session" /></label>
+            <label>С UTC<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T00:00:00Z" /></label>
+            <label>До UTC<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T23:59:59Z" /></label>
+            <label>Лимит<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
+            <button type="button" onClick={() => applyAuditSearch('Применить аудит')}>Применить аудит</button>
           </div>
         </section>
 
         <section className="logs-panel logs-audit-panel">
           <header className="logs-panel-title">
             <span>Аудит смены</span>
-            <strong>последние записи backend</strong>
+            <strong>последние записи платформы</strong>
           </header>
           <div className="logs-audit-list">
             {auditRecords.slice(0, 4).map((record) => (
@@ -5901,7 +6197,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
               ['Журнал смены', ReceiptText],
               ['Ошибки', AlertTriangle],
               ['CSV', ArrowRightLeft],
-              ['Audit trail', ShieldAlert]
+              ['Аудит JSON', ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runLogAction(label as string)}><Icon size={16} />{label as string}</button>
             ))}
@@ -5940,7 +6236,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [deviceCommandType, setDeviceCommandType] = useState('lock');
   const [deviceCommandReason, setDeviceCommandReason] = useState('operator device tool');
   const [lastDeviceCommand, setLastDeviceCommand] = useState<Record<string, unknown> | null>(null);
-  const [layoutZoneName, setLayoutZoneName] = useState('Main Hall');
+  const [layoutZoneName, setLayoutZoneName] = useState('Основной зал');
   const [layoutZoneSortOrder, setLayoutZoneSortOrder] = useState('10');
   const [layoutSeatZoneId, setLayoutSeatZoneId] = useState('');
   const [layoutSeatName, setLayoutSeatName] = useState('PC-01');
@@ -5988,20 +6284,20 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [updateSignature, setUpdateSignature] = useState('signed-update-package');
   const [updateSignatureAlgorithm, setUpdateSignatureAlgorithm] = useState('ECDSA-P256-SHA256-IEEE-P1363');
   const [updateSizeBytes, setUpdateSizeBytes] = useState('1048576');
-  const [updateReleaseNotes, setUpdateReleaseNotes] = useState('Operator App update package.');
+  const [updateReleaseNotes, setUpdateReleaseNotes] = useState('Пакет обновления приложения оператора.');
   const [rolloutPackageId, setRolloutPackageId] = useState('');
   const [rolloutChannel, setRolloutChannel] = useState('internal');
   const [rolloutTargetKind, setRolloutTargetKind] = useState('branch');
   const [rolloutTargetDeviceIds, setRolloutTargetDeviceIds] = useState('');
   const [rolloutBatchPercent, setRolloutBatchPercent] = useState('100');
   const [rolloutStartsAtUtc, setRolloutStartsAtUtc] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString());
-  const [rolloutReason, setRolloutReason] = useState('Operator rollout.');
+  const [rolloutReason, setRolloutReason] = useState('Раскатка оператора.');
   const [packageStatePackageId, setPackageStatePackageId] = useState('');
   const [packageState, setPackageState] = useState('validated');
   const [packageStateReason, setPackageStateReason] = useState('Signature verified.');
   const [rolloutStateRolloutId, setRolloutStateRolloutId] = useState('');
   const [rolloutState, setRolloutState] = useState('paused');
-  const [rolloutStateReason, setRolloutStateReason] = useState('Operator state change.');
+  const [rolloutStateReason, setRolloutStateReason] = useState('Изменение состояния оператором.');
 
   const loadSettings = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -6037,7 +6333,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setStaffUsers(staffRows);
       setSelectedStaffUserId(readString(selectedStaff, 'staffUserId'));
       setStaffProfileUserName(readString(selectedStaff, 'userName'));
-      setStaffProfileDisplayName(readString(selectedStaff, 'displayName'));
+      setStaffProfileDisplayName(operatorDisplayNameLabel(readString(selectedStaff, 'displayName')));
       setStaffRoleName(selectedStaffRole ?? 'cashier_operator');
       const zoneRows = Array.isArray(layoutZones) ? layoutZones : [];
       setZones(zoneRows);
@@ -6183,15 +6479,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     ['Профиль клуба', `${clubName} · ${city}`],
     ['Залы и ПК', `${zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0)} рабочих мест`],
     ['Персонал', `${staffUsers.length} сотрудников`],
-    ['Касса', `${currencyCode} · backend reports`],
+    ['Касса', `${currencyCode} · отчёты платформы`],
     ['Устройства', `${readNumber(deviceSummary, 'onlineDevices', 0)} из ${readNumber(deviceSummary, 'totalDevices', 0)} онлайн`]
   ];
   const actions: Array<[string, string, LucideIcon]> = [
     ['Добавить ПК', 'новое рабочее место', MonitorCheck],
-    ['Создать тариф', 'backend tariff/version', CircleDollarSign],
-    ['Пригласить сотрудника', canManageBranchStaff ? 'создать staff user' : 'нет прав доступа', UserRoundPlus],
+    ['Создать тариф', 'тариф и версия платформы', CircleDollarSign],
+    ['Пригласить сотрудника', canManageBranchStaff ? 'создать учётную запись' : 'нет прав доступа', UserRoundPlus],
     ['Обновить профиль сотрудника', canManageBranchStaff ? 'редактировать логин и имя' : 'нет прав доступа', Wrench],
-    ['Проверить устройства', 'diagnostics refresh', Wifi]
+    ['Проверить устройства', 'обновить диагностику', Wifi]
   ];
 
   const runSettingsAction = async (label: string) => {
@@ -6228,7 +6524,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const deviceId = deviceAssignmentDeviceId.trim();
         const seatId = deviceAssignmentSeatId.trim();
         if (!isGuid(deviceId) || !isGuid(seatId)) {
-          throw new Error('Укажите корректные device id и seat id.');
+          throw new Error('Укажите корректные идентификаторы устройства и места.');
         }
 
         await apiClients.settings.assignDeviceSeat(nextBackend.branchId, deviceId, {
@@ -6253,7 +6549,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
         const deviceId = deviceAssignmentDeviceId.trim();
         if (!isGuid(deviceId)) {
-          throw new Error('Укажите корректный device id.');
+          throw new Error('Укажите корректный идентификатор устройства.');
         }
 
         const [detail, commands] = await Promise.all([
@@ -6273,7 +6569,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const type = deviceCommandType.trim();
         const reason = deviceCommandReason.trim();
         if (!isGuid(deviceId) || !type || !reason) {
-          throw new Error('Укажите device id, тип команды и причину.');
+          throw new Error('Укажите идентификатор устройства, тип команды и причину.');
         }
 
         const command = await apiClients.devices.dispatchDeviceCommand(deviceId, {
@@ -6295,9 +6591,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           setDeviceCommandHistory(Array.isArray(selectedCommands) ? selectedCommands : []);
           setBranchDeviceCommandHistory(Array.isArray(branchCommands) ? branchCommands : []);
         }
-      } else if (label === 'Сменить credential') {
+      } else if (label === 'Сменить ключ') {
         if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {
-          throw new Error('Нет прав на смену credential устройства.');
+          throw new Error('Нет прав на смену ключа устройства.');
         }
 
         const deviceId = deviceAssignmentDeviceId.trim();
@@ -6311,15 +6607,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
           setDeviceInventory(await apiClients.devices.listDevices(nextBackend.branchId).catch(() => deviceInventory));
         }
-      } else if (label === 'Отозвать credential') {
+      } else if (label === 'Отозвать ключ') {
         if (!hasPermission(nextBackend.session, permissionNames.revokeDeviceCredential)) {
-          throw new Error('Нет прав на отзыв credential устройства.');
+          throw new Error('Нет прав на отзыв ключа устройства.');
         }
 
         const deviceId = deviceAssignmentDeviceId.trim();
         const credentialId = credentialIdToRevoke.trim();
         if (!isGuid(deviceId) || !isGuid(credentialId)) {
-          throw new Error('Укажите корректные device id и credential id.');
+          throw new Error('Укажите корректные идентификаторы устройства и ключа.');
         }
 
         await apiClients.devices.revokeDeviceCredential(deviceId, credentialId);
@@ -6576,7 +6872,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setStaffUsers((items) => [...items, staffUser]);
         setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
         setStaffProfileUserName(readString(staffUser, 'userName'));
-        setStaffProfileDisplayName(readString(staffUser, 'displayName'));
+        setStaffProfileDisplayName(operatorDisplayNameLabel(readString(staffUser, 'displayName')));
         setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? 'cashier_operator');
         setInviteUserName(`operator${staffUsers.length + 2}`);
         setInviteDisplayName('Новый оператор');
@@ -6601,7 +6897,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
         setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
         setStaffProfileUserName(readString(staffUser, 'userName'));
-        setStaffProfileDisplayName(readString(staffUser, 'displayName'));
+        setStaffProfileDisplayName(operatorDisplayNameLabel(readString(staffUser, 'displayName')));
         setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? staffRoleName);
       } else if (label === 'Обновить роль') {
         if (!hasPermission(nextBackend.session, permissionNames.manageRoles)) {
@@ -6676,7 +6972,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         const categoryId = readString(category, 'categoryId');
         if (!categoryId) {
-          throw new Error('Platform API returned a POS category without category id.');
+          throw new Error('Платформа вернула POS-категорию без идентификатора.');
         }
 
         const product = await apiClients.settings.createProduct(nextBackend.branchId, {
@@ -6789,7 +7085,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           setRolloutPackageId(updatePackageId);
           setPackageStatePackageId(updatePackageId);
         }
-      } else if (label === 'Создать rollout обновления') {
+      } else if (label === 'Создать раскатку обновления') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
           throw new Error('Нет прав на управление rollout обновлений.');
         }
@@ -6842,7 +7138,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           state,
           reason
         });
-      } else if (label === 'Изменить состояние rollout') {
+      } else if (label === 'Изменить состояние раскатки') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
           throw new Error('Нет прав на управление rollout обновлений.');
         }
@@ -6861,7 +7157,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         setRollouts((items) => items.map((item) => readString(item, 'updateRolloutId') === updateRolloutId ? rollout : item));
       } else {
-        throw new Error('Backend endpoint for this settings action is not implemented yet.');
+        throw new Error('Действие настроек пока не подключено к платформе.');
       }
 
       setFeedback({ label, state: 'confirmed' });
@@ -6950,7 +7246,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-form-grid settings-device-form">
             <label>Срок кода, сек<input inputMode="numeric" value={enrollmentExpiresSeconds} disabled={!canCreateDeviceEnrollmentCode} onChange={(event) => setEnrollmentExpiresSeconds(event.currentTarget.value)} /></label>
             <label>Код подключения<input value={readString(enrollmentCode, 'code', '—')} readOnly /></label>
-            <label>Device id<input value={deviceAssignmentDeviceId} disabled={!canAssignDeviceSeat && !canViewDeviceDetail} onChange={(event) => setDeviceAssignmentDeviceId(event.currentTarget.value)} /></label>
+            <label>ID устройства<input value={deviceAssignmentDeviceId} disabled={!canAssignDeviceSeat && !canViewDeviceDetail} onChange={(event) => setDeviceAssignmentDeviceId(event.currentTarget.value)} /></label>
             <label>Рабочее место
               <select value={deviceAssignmentSeatId} disabled={!canAssignDeviceSeat || layoutSeatOptions.length === 0} onChange={(event) => setDeviceAssignmentSeatId(event.currentTarget.value)}>
                 {layoutSeatOptions.length === 0 && <option value="">нет рабочих мест</option>}
@@ -6963,18 +7259,18 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <button type="button" disabled={!canViewDeviceDetail || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Открыть карточку устройства')}>Открыть карточку устройства</button>
             <label>Команда
               <select value={deviceCommandType} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandType(event.currentTarget.value)}>
-                <option value="lock">lock</option>
-                <option value="unlock">unlock</option>
+                <option value="lock">блокировка</option>
+                <option value="unlock">разблокировка</option>
               </select>
             </label>
             <label>Причина команды<input value={deviceCommandReason} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandReason(event.currentTarget.value)} /></label>
-            <label>Последняя команда<input value={lastDeviceCommand ? `${readString(lastDeviceCommand, 'type', 'command')} · ${readString(lastDeviceCommand, 'commandId').slice(0, 8)}` : 'не отправлена'} readOnly /></label>
+            <label>Последняя команда<input value={lastDeviceCommand ? `${commandTypeLabel(readString(lastDeviceCommand, 'type', 'command'))} · ${readString(lastDeviceCommand, 'commandId').slice(0, 8)}` : 'не отправлена'} readOnly /></label>
             <button type="button" disabled={!canDispatchDeviceCommand || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Отправить команду')}>Отправить команду</button>
-            <label>Credential id<input value={credentialIdToRevoke} disabled={!canRevokeDeviceCredential} onChange={(event) => setCredentialIdToRevoke(event.currentTarget.value)} /></label>
-            <label>Новый credential<input value={readString(rotatedCredential, 'credentialId', '—')} readOnly /></label>
-            <label className="settings-form-wide">Секрет credential<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
-            <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Сменить credential')}>Сменить credential</button>
-            <button type="button" disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke)} onClick={() => runSettingsAction('Отозвать credential')}>Отозвать credential</button>
+            <label>Идентификатор ключа<input value={credentialIdToRevoke} disabled={!canRevokeDeviceCredential} onChange={(event) => setCredentialIdToRevoke(event.currentTarget.value)} /></label>
+            <label>Новый ключ<input value={readString(rotatedCredential, 'credentialId', '—')} readOnly /></label>
+            <label className="settings-form-wide">Секрет ключа<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
+            <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Сменить ключ')}>Сменить ключ</button>
+            <button type="button" disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke)} onClick={() => runSettingsAction('Отозвать ключ')}>Отозвать ключ</button>
           </div>
           <div className="settings-device-inventory" aria-label="Устройства филиала">
             {deviceInventory.map((device) => {
@@ -6984,15 +7280,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <button
                   key={readString(device, 'deviceId')}
                   type="button"
-                  aria-label={readString(device, 'machineName', 'Device')}
+                  aria-label={readString(device, 'machineName', 'Устройство')}
                   className={`settings-device-row ${readString(device, 'deviceId') === deviceAssignmentDeviceId ? 'active' : ''}${failedCommands > 0 ? ' attention' : ''}`}
                   disabled={!canViewDeviceDetail}
                   onClick={() => selectDeviceInventoryItem(device)}
                 >
-                  <strong>{readString(device, 'machineName', 'Device')}</strong>
-                  <b>{readBoolean(device, 'isOnline') ? 'online' : 'offline'} · {readBoolean(device, 'isLocked') ? 'locked' : 'unlocked'}</b>
+                  <strong>{readString(device, 'machineName', 'Устройство')}</strong>
+                  <b>{readBoolean(device, 'isOnline') ? 'онлайн' : 'офлайн'} · {readBoolean(device, 'isLocked') ? 'заблокирован' : 'разблокирован'}</b>
                   <span>{readString(device, 'zoneName', 'без зала')} · {readString(device, 'seatName', 'без места')}</span>
-                  <em>Agent {readString(device, 'agentVersion', '—')} · apps {readNumber(device, 'installedAppCount', 0)} · pending {pendingCommands} · failed {failedCommands} · {formatTime(readString(device, 'lastHeartbeatAtUtc'))}</em>
+                  <em>Агент {readString(device, 'agentVersion', '—')} · приложений {readNumber(device, 'installedAppCount', 0)} · в работе {pendingCommands} · ошибок {failedCommands} · {formatTime(readString(device, 'lastHeartbeatAtUtc'))}</em>
                 </button>
               );
             })}
@@ -7002,23 +7298,23 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
           {deviceDetail && (
             <div className="settings-device-detail-grid">
-              <span><strong>Устройство</strong><b>{readString(deviceDetail, 'machineName', 'Device')}</b></span>
-              <span><strong>Статус</strong><b>{readBoolean(deviceDetail, 'isOnline') ? 'online' : 'offline'} · {readBoolean(deviceDetail, 'isLocked') ? 'locked' : 'unlocked'}</b></span>
+              <span><strong>Устройство</strong><b>{readString(deviceDetail, 'machineName', 'Устройство')}</b></span>
+              <span><strong>Статус</strong><b>{readBoolean(deviceDetail, 'isOnline') ? 'онлайн' : 'офлайн'} · {readBoolean(deviceDetail, 'isLocked') ? 'заблокирован' : 'разблокирован'}</b></span>
               <span><strong>Место</strong><b>{readString(deviceDetail, 'zoneName', 'без зала')} · {readString(deviceDetail, 'seatName', 'без места')}</b></span>
-              <span><strong>Heartbeat</strong><b>{formatTime(readString(deviceDetail, 'lastHeartbeatAtUtc'))}</b></span>
-              <span><strong>Agent</strong><b>{readString(deviceDetail, 'agentVersion', '—')}</b></span>
-              <span><strong>Shell</strong><b>{readString(deviceDetail, 'shellVersion', '—')}</b></span>
-              <span><strong>Credentials</strong><b>{readNumber(deviceDetail, 'activeCredentialCount', 0)}</b></span>
-              <span><strong>Apps</strong><b>{readNumber(deviceDetail, 'installedAppCount', 0)}</b></span>
+              <span><strong>Пульс</strong><b>{formatTime(readString(deviceDetail, 'lastHeartbeatAtUtc'))}</b></span>
+              <span><strong>Агент</strong><b>{readString(deviceDetail, 'agentVersion', '—')}</b></span>
+              <span><strong>Оболочка</strong><b>{readString(deviceDetail, 'shellVersion', '—')}</b></span>
+              <span><strong>Ключи</strong><b>{readNumber(deviceDetail, 'activeCredentialCount', 0)}</b></span>
+              <span><strong>Приложения</strong><b>{readNumber(deviceDetail, 'installedAppCount', 0)}</b></span>
             </div>
           )}
           {deviceRecentCommands.length > 0 && (
             <div className="settings-command-history">
               {deviceRecentCommands.map((command) => (
                 <span key={readString(command, 'commandId')}>
-                  <strong>{readString(command, 'type', 'command')}</strong>
-                  <b>{readString(command, 'status', 'unknown')}</b>
-                  <em>{readString(command, 'message') || formatTime(readString(command, 'updatedAtUtc'))}</em>
+                  <strong>{commandTypeLabel(readString(command, 'type', 'command'))}</strong>
+                  <b>{commandStatusLabel(readString(command, 'status', 'unknown'))}</b>
+                  <em>{commandStatusMessageLabel(readString(command, 'message')) || formatTime(readString(command, 'updatedAtUtc'))}</em>
                 </span>
               ))}
             </div>
@@ -7035,8 +7331,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                   return (
                     <span key={`${deviceId}-${readString(command, 'commandId')}`}>
                       <strong>{getDeviceInventoryName(deviceId)}</strong>
-                      <b>{readString(command, 'type', 'command')} · {readString(command, 'status', 'unknown')}</b>
-                      <em>{readString(command, 'message') || formatTime(readString(command, 'updatedAtUtc'))}</em>
+                      <b>{commandTypeLabel(readString(command, 'type', 'command'))} · {commandStatusLabel(readString(command, 'status', 'unknown'))}</b>
+                      <em>{commandStatusMessageLabel(readString(command, 'message')) || formatTime(readString(command, 'updatedAtUtc'))}</em>
                     </span>
                   );
                 })}
@@ -7125,13 +7421,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                     const roleName = readArray<string>(user, 'roleNames').find((role) => staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]));
                     setSelectedStaffUserId(readString(user, 'staffUserId'));
                     setStaffProfileUserName(readString(user, 'userName'));
-                    setStaffProfileDisplayName(readString(user, 'displayName'));
+                    setStaffProfileDisplayName(operatorDisplayNameLabel(readString(user, 'displayName')));
                     setStaffRoleName(roleName ?? 'cashier_operator');
-                    triggerFeedback(setFeedback, readString(user, 'displayName', 'Staff'), 'confirmed');
+                    triggerFeedback(setFeedback, operatorDisplayNameLabel(readString(user, 'displayName', 'Сотрудник')), 'confirmed');
                   }}
                 >
-                  <strong>{readString(user, 'displayName', 'Staff')}</strong>
-                  <span>{readString(user, 'userName', 'user')} · {readArray<string>(user, 'roleNames').join(', ') || 'roles'} · {readBoolean(user, 'isActive', true) ? 'активен' : 'отключен'}</span>
+                  <strong>{operatorDisplayNameLabel(readString(user, 'displayName', 'Сотрудник'))}</strong>
+                  <span>{readString(user, 'userName', 'Пользователь')} · {readArray<string>(user, 'roleNames').map(staffRoleLabel).join(', ') || 'роль не задана'} · {readBoolean(user, 'isActive', true) ? 'активен' : 'отключен'}</span>
                 </button>
               ))}
             </div>
@@ -7141,7 +7437,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <label>Временный пароль<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
               <label>Роль
                 <select value={inviteRoleName} disabled={!canManageBranchStaff} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
-                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{roleName}</option>)}
+                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
                 </select>
               </label>
               <label>Логин профиля<input value={staffProfileUserName} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setStaffProfileUserName(event.currentTarget.value)} /></label>
@@ -7149,7 +7445,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction('Обновить профиль сотрудника')}>Обновить профиль</button>
               <label>Роль сотрудника
                 <select value={staffRoleName} disabled={!canManageRoles || !selectedStaffUserId} onChange={(event) => setStaffRoleName(event.currentTarget.value)}>
-                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{roleName}</option>)}
+                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
                 </select>
               </label>
               <label>Новый пароль<input type="password" value={resetPassword} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setResetPassword(event.currentTarget.value)} /></label>
@@ -7228,7 +7524,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             {stockMovements.length === 0 && (
               <button type="button" disabled>
                 <strong>Нет движений</strong>
-                <span>backend вернул пустую историю</span>
+                <span>платформа вернула пустую историю</span>
               </button>
             )}
             {stockMovements.map((movement) => {
@@ -7256,10 +7552,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         <>
           <div className="settings-config-grid">
             {[
-              ['Платежи', 'manual provider'],
-              ['Обновления', `${rollouts.length} rollout`],
-              ['Ошибки обновлений', `${readNumber(updateSummary, 'failedDevices', 0)} devices`],
-              ['API', backend?.config.platformBaseUrl ?? 'dev demo']
+              ['Платежи', 'ручная интеграция'],
+              ['Обновления', `раскаток: ${rollouts.length}`],
+              ['Ошибки обновлений', `ПК с ошибками: ${readNumber(updateSummary, 'failedDevices', 0)}`],
+              ['API', backend?.config.platformBaseUrl ?? 'демо']
             ].map(([name, detail]) => (
               <button key={name} type="button" onClick={() => triggerFeedback(setFeedback, name, 'confirmed')}>
                 <strong>{name}</strong>
@@ -7269,36 +7565,36 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
 
           <div className="settings-section-title">
-            <span>Update packages</span>
+            <span>Пакеты обновлений</span>
             <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Зарегистрировать пакет обновления')}>Зарегистрировать пакет</button>
           </div>
           <div className="settings-form-grid settings-update-form">
             <label>Компонент
               <select value={updateComponent} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateComponent(event.currentTarget.value)}>
-                <option value="operator-app">operator-app</option>
-                <option value="agent-service">agent-service</option>
-                <option value="player-shell">player-shell</option>
+                <option value="operator-app">{updateComponentLabel('operator-app')}</option>
+                <option value="agent-service">{updateComponentLabel('agent-service')}</option>
+                <option value="player-shell">{updateComponentLabel('player-shell')}</option>
               </select>
             </label>
             <label>Версия<input value={updateVersion} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateVersion(event.currentTarget.value)} /></label>
             <label>Канал
               <select value={updateChannel} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateChannel(event.currentTarget.value)}>
-                <option value="internal">internal</option>
-                <option value="beta">beta</option>
-                <option value="stable">stable</option>
+                <option value="internal">{updateChannelLabel('internal')}</option>
+                <option value="beta">{updateChannelLabel('beta')}</option>
+                <option value="stable">{updateChannelLabel('stable')}</option>
               </select>
             </label>
-            <label className="settings-form-wide">Artifact URL<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">URL артефакта<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
             <label className="settings-form-wide">SHA-256<input value={updateSha256} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSha256(event.currentTarget.value)} /></label>
-            <label>Signature<input value={updateSignature} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignature(event.currentTarget.value)} /></label>
+            <label>Подпись<input value={updateSignature} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignature(event.currentTarget.value)} /></label>
             <label>Алгоритм<input value={updateSignatureAlgorithm} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignatureAlgorithm(event.currentTarget.value)} /></label>
-            <label>Размер bytes<input inputMode="numeric" value={updateSizeBytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeBytes(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Release notes<input value={updateReleaseNotes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateReleaseNotes(event.currentTarget.value)} /></label>
+            <label>Размер, байты<input inputMode="numeric" value={updateSizeBytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeBytes(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Описание релиза<input value={updateReleaseNotes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateReleaseNotes(event.currentTarget.value)} /></label>
           </div>
 
           <div className="settings-section-title">
-            <span>Rollouts</span>
-            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Создать rollout обновления')}>Создать rollout</button>
+            <span>Раскатки обновлений</span>
+            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Создать раскатку обновления')}>Создать раскатку</button>
           </div>
           <div className="settings-tariff-list">
             {rollouts.map((rollout) => (
@@ -7312,22 +7608,22 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                   setPackageStatePackageId(readString(rollout, 'updatePackageId'));
                 }}
               >
-                <strong>{readString(rollout, 'component', 'component')} {readString(rollout, 'version', 'version')}</strong>
-                <b>{readString(rollout, 'state', 'state')}</b>
-                <span>{readString(rollout, 'targetKind', 'target')} · {readNumber(rollout, 'batchPercent', 0)}% · {readArray(rollout, 'deviceStatuses').length} devices</span>
+                <strong>{updateComponentLabel(readString(rollout, 'component', 'component'))} {readString(rollout, 'version', 'version')}</strong>
+                <b>{updateRolloutStateLabel(readString(rollout, 'state', 'state'))}</b>
+                <span>{updateTargetKindLabel(readString(rollout, 'targetKind', 'target'))} · {readNumber(rollout, 'batchPercent', 0)}% · ПК: {readArray(rollout, 'deviceStatuses').length}</span>
               </button>
             ))}
           </div>
           {selectedRollout && (
             <div className="settings-device-detail-grid">
-              <span><strong>Rollout</strong><b>{readString(selectedRollout, 'updateRolloutId').slice(0, 8)}</b></span>
-              <span><strong>State</strong><b>{readString(selectedRollout, 'state', 'state')}</b></span>
-              <span><strong>Target</strong><b>{readString(selectedRollout, 'targetKind', 'target')} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
-              <span><strong>Channel</strong><b>{readString(selectedRollout, 'channel', 'channel')}</b></span>
-              <span><strong>Package</strong><b>{readString(selectedRollout, 'updatePackageId').slice(0, 8)}</b></span>
-              <span><strong>Starts</strong><b>{formatTime(readString(selectedRollout, 'startsAtUtc'))}</b></span>
-              <span><strong>Completed</strong><b>{formatTime(readString(selectedRollout, 'completedAtUtc'))}</b></span>
-              <span><strong>Devices</strong><b>{selectedRolloutDeviceStatuses.length}</b></span>
+              <span><strong>Раскатка</strong><b>{readString(selectedRollout, 'updateRolloutId').slice(0, 8)}</b></span>
+              <span><strong>Состояние</strong><b>{updateRolloutStateLabel(readString(selectedRollout, 'state', 'state'))}</b></span>
+              <span><strong>Цель</strong><b>{updateTargetKindLabel(readString(selectedRollout, 'targetKind', 'target'))} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
+              <span><strong>Канал</strong><b>{updateChannelLabel(readString(selectedRollout, 'channel', 'channel'))}</b></span>
+              <span><strong>Пакет</strong><b>{readString(selectedRollout, 'updatePackageId').slice(0, 8)}</b></span>
+              <span><strong>Старт</strong><b>{formatTime(readString(selectedRollout, 'startsAtUtc'))}</b></span>
+              <span><strong>Завершено</strong><b>{formatTime(readString(selectedRollout, 'completedAtUtc'))}</b></span>
+              <span><strong>ПК</strong><b>{selectedRolloutDeviceStatuses.length}</b></span>
             </div>
           )}
           {selectedRolloutDeviceStatuses.length > 0 && (
@@ -7335,61 +7631,61 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               {selectedRolloutDeviceStatuses.map((status) => (
                 <span key={`${readString(status, 'deviceId')}-${readString(status, 'updatedAtUtc')}`}>
                   <strong>{readString(status, 'deviceId').slice(0, 8)}</strong>
-                  <b>{readString(status, 'status', 'unknown')}</b>
-                  <em>{readString(status, 'message') || `${readString(status, 'installedVersion')} -> ${readString(status, 'targetVersion')}`}</em>
+                  <b>{updateDeviceStatusLabel(readString(status, 'status', 'unknown'))}</b>
+                  <em>{updateDeviceMessageLabel(readString(status, 'message')) || `${readString(status, 'installedVersion')} → ${readString(status, 'targetVersion')}`}</em>
                 </span>
               ))}
             </div>
           )}
           <div className="settings-form-grid settings-update-form">
-            <label className="settings-form-wide">Rollout package<input value={rolloutPackageId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutPackageId(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">ID пакета раскатки<input value={rolloutPackageId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutPackageId(event.currentTarget.value)} /></label>
             <label>Канал
               <select value={rolloutChannel} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutChannel(event.currentTarget.value)}>
-                <option value="internal">internal</option>
-                <option value="beta">beta</option>
-                <option value="stable">stable</option>
+                <option value="internal">{updateChannelLabel('internal')}</option>
+                <option value="beta">{updateChannelLabel('beta')}</option>
+                <option value="stable">{updateChannelLabel('stable')}</option>
               </select>
             </label>
-            <label>Target
+            <label>Цель
               <select value={rolloutTargetKind} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutTargetKind(event.currentTarget.value)}>
-                <option value="branch">branch</option>
-                <option value="device">device</option>
+                <option value="branch">{updateTargetKindLabel('branch')}</option>
+                <option value="device">{updateTargetKindLabel('device')}</option>
               </select>
             </label>
-            <label>Batch %<input inputMode="numeric" value={rolloutBatchPercent} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutBatchPercent(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Target device ids<input value={rolloutTargetDeviceIds} disabled={!canManageUpdateRollouts || rolloutTargetKind !== 'device'} onChange={(event) => setRolloutTargetDeviceIds(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Start UTC<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Причина rollout<input value={rolloutReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutReason(event.currentTarget.value)} /></label>
+            <label>Доля %<input inputMode="numeric" value={rolloutBatchPercent} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutBatchPercent(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">ID целевых ПК<input value={rolloutTargetDeviceIds} disabled={!canManageUpdateRollouts || rolloutTargetKind !== 'device'} onChange={(event) => setRolloutTargetDeviceIds(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Старт UTC<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Причина раскатки<input value={rolloutReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutReason(event.currentTarget.value)} /></label>
           </div>
 
           <div className="settings-section-title">
             <span>Состояния обновлений</span>
             <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Изменить состояние пакета')}>Изменить состояние пакета</button>
-            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Изменить состояние rollout')}>Изменить состояние rollout</button>
+            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Изменить состояние раскатки')}>Изменить состояние раскатки</button>
           </div>
           <div className="settings-form-grid settings-update-form">
-            <label className="settings-form-wide">Package id<input value={packageStatePackageId} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStatePackageId(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">ID пакета<input value={packageStatePackageId} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStatePackageId(event.currentTarget.value)} /></label>
             <label>Состояние пакета
               <select value={packageState} disabled={!canManageUpdatePackages} onChange={(event) => setPackageState(event.currentTarget.value)}>
-                <option value="registered">registered</option>
-                <option value="validated">validated</option>
-                <option value="rejected">rejected</option>
-                <option value="retired">retired</option>
+                <option value="registered">{updatePackageStateLabel('registered')}</option>
+                <option value="validated">{updatePackageStateLabel('validated')}</option>
+                <option value="rejected">{updatePackageStateLabel('rejected')}</option>
+                <option value="retired">{updatePackageStateLabel('retired')}</option>
               </select>
             </label>
             <label>Причина пакета<input value={packageStateReason} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStateReason(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Rollout id<input value={rolloutStateRolloutId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateRolloutId(event.currentTarget.value)} /></label>
-            <label>Состояние rollout
+            <label className="settings-form-wide">ID раскатки<input value={rolloutStateRolloutId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateRolloutId(event.currentTarget.value)} /></label>
+            <label>Состояние раскатки
               <select value={rolloutState} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutState(event.currentTarget.value)}>
-                <option value="active">active</option>
-                <option value="paused">paused</option>
-                <option value="completed">completed</option>
-                <option value="rollback_requested">rollback_requested</option>
-                <option value="rolled_back">rolled_back</option>
-                <option value="cancelled">cancelled</option>
+                <option value="active">{updateRolloutStateLabel('active')}</option>
+                <option value="paused">{updateRolloutStateLabel('paused')}</option>
+                <option value="completed">{updateRolloutStateLabel('completed')}</option>
+                <option value="rollback_requested">{updateRolloutStateLabel('rollback_requested')}</option>
+                <option value="rolled_back">{updateRolloutStateLabel('rolled_back')}</option>
+                <option value="cancelled">{updateRolloutStateLabel('cancelled')}</option>
               </select>
             </label>
-            <label>Причина rollout<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
+            <label>Причина раскатки<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
           </div>
         </>
       );
@@ -7401,7 +7697,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <label>Название клуба<input value={clubName} onChange={(event) => { setClubName(event.currentTarget.value); setSettingsDirty(true); }} /></label>
           <label>Город<input value={city} onChange={(event) => { setCity(event.currentTarget.value); setSettingsDirty(true); }} /></label>
           <label>Валюта<input value={currencyCode} readOnly /></label>
-          <label>Филиал<input value={backend?.branchId ?? 'dev demo'} readOnly /></label>
+          <label>Филиал<input value={backend?.branchId ?? 'демо'} readOnly /></label>
         </div>
         <div className="settings-save-row">
           <span>{settingsDirty ? 'есть несохранённые изменения' : 'изменений нет'}</span>
@@ -7419,7 +7715,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <h1>Настройки · клуб и правила работы</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Backend settings')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Настройки загружены')}</span>
         </div>
       </section>
 
@@ -7452,7 +7748,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <section className="settings-card-panel">
             <header className="settings-panel-title">
               <span>Готовность клуба</span>
-              <strong>backend setup snapshot</strong>
+              <strong>срез настроек платформы</strong>
             </header>
             <div className="settings-readiness-list">
               {readiness.map(([name, detail]) => (
@@ -7532,7 +7828,7 @@ function SignInScreen({
     setError(null);
 
     if (!isGuid(organizationId)) {
-      setError('OrganizationId должен быть корректным GUID.');
+      setError('Идентификатор организации должен быть корректным GUID.');
       return;
     }
 
@@ -7566,12 +7862,12 @@ function SignInScreen({
       <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart}>
         <div className="brand-block">
           <strong>AFK4</strong>
-          <span>Operator</span>
+          <span>Оператор</span>
         </div>
         <div className="top-status">
           <span><Wifi size={14} />{isChecking ? 'Проверяем защищённый вход' : 'Защищённый вход'}</span>
           <span>{config.platformBaseUrl}</span>
-          <span>{config.shellMode}</span>
+          <span>{shellModeLabel(config.shellMode)}</span>
         </div>
         <WindowControls />
       </header>
@@ -7579,7 +7875,7 @@ function SignInScreen({
       <main className="auth-workspace">
         <section className="auth-panel">
           <header>
-            <span>AFK4 Operator</span>
+            <span>AFK4 Оператор</span>
             <h1>Вход оператора</h1>
             <p>Токены сохраняются только через нативное защищённое хранилище Windows.</p>
           </header>
@@ -7675,8 +7971,13 @@ export function App() {
 
         try {
           return await refreshOperatorSession();
-        } catch {
-          return session;
+        } catch (error) {
+          if (isUnauthorizedAuthError(error)) {
+            await clearStoredOperatorSession();
+            return null;
+          }
+
+          throw error;
         }
       })
       .then((session) => {
@@ -7727,7 +8028,7 @@ export function App() {
       setFloorMap((current) => ({
         ...current,
         loadStatus: 'failed',
-        error: 'Active branch is not assigned.'
+        error: 'Активный филиал не назначен.'
       }));
       return undefined;
     }
@@ -7741,16 +8042,48 @@ export function App() {
       error: null
     }));
 
-    loadBackendFloorMapState(config, authSession, branchId)
-      .then((nextState) => {
+    void (async () => {
+      try {
+        const nextState = await loadBackendFloorMapState(config, authSession, branchId);
         if (disposed) {
           return;
         }
 
         setFloorMap(nextState);
         setSelectedSeatId(nextState.seats[0]?.id ?? seats[0].id);
-      })
-      .catch((error) => {
+      } catch (error) {
+        if (isUnauthorizedPlatformError(error)) {
+          try {
+            const nextSession = await refreshOperatorSession();
+            const nextBranchId = resolveActiveBranchId(nextSession, config.branchId);
+            if (!nextBranchId) {
+              throw new Error('Активный филиал не назначен.');
+            }
+
+            const nextState = await loadBackendFloorMapState(config, nextSession, nextBranchId);
+            if (disposed) {
+              return;
+            }
+
+            setAuthSession(nextSession);
+            setFloorMap(nextState);
+            setSelectedSeatId(nextState.seats[0]?.id ?? seats[0].id);
+            return;
+          } catch (refreshError) {
+            await clearStoredOperatorSession();
+            if (disposed) {
+              return;
+            }
+
+            setAuthSession(null);
+            setAuthStatus('signed-out');
+            setAuthError(projectAuthHostError(refreshError, config));
+            setFloorMap(createFixtureFloorMapState());
+            setSelectedSeatId(seats[0].id);
+            return;
+          }
+        }
+
         if (disposed) {
           return;
         }
@@ -7761,7 +8094,8 @@ export function App() {
           loadStatus: 'failed',
           error: projectOperatorError(error).detail
         }));
-      });
+      }
+    })();
 
     return () => {
       disposed = true;
@@ -7866,27 +8200,31 @@ export function App() {
   const handleSeatAction = async (request: SeatActionRequest): Promise<SeatActionResult> => {
     const session = authSession;
     if (session === null) {
-      throw new Error('Operator is not signed in.');
+      throw new Error('Оператор не вошёл в систему.');
     }
 
     const branchId = resolveActiveBranchId(session, config.branchId);
     if (!branchId) {
-      throw new Error('Active branch is not assigned.');
+      throw new Error('Активный филиал не назначен.');
     }
 
     if (floorMap.source !== 'backend') {
-      throw new Error('Backend floor map is not loaded.');
+      throw new Error('Карта платформы не загружена.');
+    }
+
+    if (isPendingSeatCommand(request.seat)) {
+      throw new Error('Команда уже отправлена. Дождитесь подтверждения ПК.');
     }
 
     const clients = createAuthenticatedOperatorClients(config, session);
     let response: unknown;
     if (request.type === 'start') {
       if (!hasPermission(session, permissionNames.startSession)) {
-        throw new Error('Operator is not allowed to start sessions.');
+        throw new Error('Нет прав на запуск сессий.');
       }
 
       if (request.seat.tone !== 'ready' || request.seat.activeSessionId) {
-        throw new Error('Seat is not ready for session start.');
+        throw new Error('ПК не готов к запуску сессии.');
       }
 
       const billing = request.billing;
@@ -7903,11 +8241,11 @@ export function App() {
       });
     } else if (request.type === 'extend') {
       if (!hasPermission(session, permissionNames.extendSession)) {
-        throw new Error('Operator is not allowed to extend sessions.');
+        throw new Error('Нет прав на продление сессий.');
       }
 
       if (!request.seat.activeSessionId) {
-        throw new Error('Selected seat has no active session.');
+        throw new Error('На выбранном ПК нет активной сессии.');
       }
 
       const billing = request.billing;
@@ -7922,11 +8260,11 @@ export function App() {
       });
     } else if (request.type === 'transfer') {
       if (!hasPermission(session, permissionNames.transferSession)) {
-        throw new Error('Operator is not allowed to transfer sessions.');
+        throw new Error('Нет прав на перенос сессий.');
       }
 
       if (!request.seat.activeSessionId) {
-        throw new Error('Selected seat has no active session.');
+        throw new Error('На выбранном ПК нет активной сессии.');
       }
 
       response = await clients.sessions.transferSession(request.seat.activeSessionId, {
@@ -7935,11 +8273,11 @@ export function App() {
       });
     } else {
       if (!hasPermission(session, permissionNames.endSession)) {
-        throw new Error('Operator is not allowed to end sessions.');
+        throw new Error('Нет прав на завершение сессий.');
       }
 
       if (!request.seat.activeSessionId) {
-        throw new Error('Selected seat has no active session.');
+        throw new Error('На выбранном ПК нет активной сессии.');
       }
 
       response = await clients.sessions.endSession(request.seat.activeSessionId, {
@@ -7994,16 +8332,15 @@ export function App() {
       <header className="top-command" onMouseDown={handleWindowDragStart}>
         <div className="brand-block">
           <strong>AFK4</strong>
-          <span>Operator</span>
+          <span>Оператор</span>
         </div>
         <label className="command-search">
           <Search size={16} />
           <input placeholder="Игрок, ПК, команда" aria-label="Поиск" />
         </label>
         <div className="top-status">
-          <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)}</span>
           <span>Смена #24 · открыта</span>
-          <span>{authSession.displayName} · {config.shellMode}</span>
+          <span>{operatorDisplayNameLabel(authSession.displayName)} · {shellModeLabel(config.shellMode)}</span>
         </div>
         <button type="button" className="sign-out-button" onClick={handleSignOut}>Выйти</button>
         <WindowControls />
@@ -8032,7 +8369,6 @@ export function App() {
 
       {workspace === 'map' && (
         <MapWorkspace
-          currencyCode={config.currencyCode}
           floorMap={floorMap}
           canUseTechMode={canUseTechMode}
           selectedSeatId={selectedSeat?.id ?? ''}
@@ -8082,9 +8418,8 @@ export function App() {
 
       <footer className="signals-strip">
         <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)} · {dataSourceLabel(floorMap.source)}</span>
-        <span><MonitorCheck size={14} />Devices: {countByTone(floorMap.seats, 'offline')} offline, {countProblems(floorMap.seats)} attention</span>
+        <span><MonitorCheck size={14} />ПК без связи: {countByTone(floorMap.seats, 'offline')} · требуют внимания: {countProblems(floorMap.seats)}</span>
         <span><CircleDollarSign size={14} />POS: 2 неоплаченных чека</span>
-        <span><LockKeyhole size={14} />Критичные действия ждут подтверждения платформы</span>
         {workspaceFeedback && (
           <span className="rail-feedback"><LockKeyhole size={14} />{workspaceFeedback}</span>
         )}

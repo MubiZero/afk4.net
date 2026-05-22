@@ -221,6 +221,17 @@ public sealed class SessionEndpointTests
         Assert.Equal(SessionStateNames.Ending, body.Session.State);
         Assert.Single(body.DeviceCommands);
         Assert.Equal("lock", body.DeviceCommands[0].Type);
+
+        var repeatResponse = await client.PostAsJsonAsync(
+            $"/api/sessions/{started.Session.SessionId:D}/end",
+            new EndSessionRequest("operator-end", "end-session-2"));
+        var repeatBody = await repeatResponse.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, repeatResponse.StatusCode);
+        Assert.NotNull(repeatBody);
+        Assert.Equal(SessionStateNames.Ending, repeatBody.Session.State);
+        Assert.Single(repeatBody.DeviceCommands);
+        Assert.Equal(body.DeviceCommands[0].CommandId, repeatBody.DeviceCommands[0].CommandId);
     }
 
     private static async Task<SessionCommandResponse> StartSessionAsync(HttpClient client)

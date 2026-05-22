@@ -37,7 +37,10 @@ implementation evidence are needed.
 - Persisted zones, seats, staff-authorized device-seat assignment, floor-map
   reads, installed app reporting, and device detail projections.
 - Session start, extend, transfer, end, signed leases, reconciliation, and
-  heartbeat-driven lock/unlock/lease-refresh command planning.
+  heartbeat-driven lock/unlock/lease-refresh command planning. Repeated
+  session-end requests against an already `ending` session now return the
+  current pending lock command instead of surfacing a second-command 400 to the
+  operator.
 - Immutable ledger-backed wallet, debt, packages, refunds, manual corrections,
   tariffs, package definitions, and package consumption.
 - POS catalog, stock movements, player-attributed sales, manual payments,
@@ -342,6 +345,9 @@ implementation evidence are needed.
 ### Operations Docs
 
 - Local PostgreSQL smoke runbook.
+- Local dev reset/seed workflow via `scripts/reset-local-dev-data.ps1` and
+  `src/AFK4.Platform.DevSeed`, which can rebuild `afk4_dev`, apply migrations,
+  and seed a dense operator UI/UX dataset for the local WebView2 app.
 - Coolify staging deploy runbook for building the Platform API container from
   the repo, connecting Coolify-managed PostgreSQL, applying EF migrations,
   configuring GitHub repository variables/secrets for automated Coolify deploy,
@@ -428,6 +434,21 @@ Result:
     protected local staff session, rendered the primary map with backend data
     for `AFK4 Dushanbe`, reported `Backend live` and `Realtime connected`, and
     had no JavaScript runtime exceptions in WebView2 remote-debug inspection.
+- Additional local Operator App/backend UX cleanup verification on 2026-05-22:
+  - stale protected-token 401s are cleared through native sign-out instead of
+    leaving the operator on a raw Platform API 401;
+  - the top chrome no longer duplicates realtime/backend status or the map
+    summary strip, and footer status copy is operator-facing;
+  - visible operator labels for map commands, device/app state, logs, settings,
+    staff roles, and update rollout controls are Russian-first;
+  - repeat stop on a seeded `ending` session returned HTTP 200 with the existing
+    pending lock command, not the previous scary 400;
+  - `scripts/reset-local-dev-data.ps1` rebuilt local PostgreSQL and seeded
+    `AFK4 Душанбе` with 26 seats, active/ending/offline/service states, players,
+    POS stock/sale/receipt data, reservations, updates, audit rows, and login
+    `owner@afk4.test` / `Passw0rd!`;
+  - verification passed: `npm test` 98/98, `npm run build`, full
+    `AFK4.Platform.Api.Tests` 372/372, and `dotnet build AFK4.sln`.
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
