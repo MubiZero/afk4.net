@@ -5879,6 +5879,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
   const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
+  const [resetPassword, setResetPassword] = useState('ChangeMe123!');
   const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
   const [selectedStaffUserId, setSelectedStaffUserId] = useState('');
   const [staffRoleName, setStaffRoleName] = useState('cashier_operator');
@@ -6017,6 +6018,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const canDispatchDeviceCommand = backend !== null && hasPermission(backend.session, permissionNames.dispatchDeviceCommand);
   const canRotateDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.rotateDeviceCredential);
   const canRevokeDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.revokeDeviceCredential);
+  const selectedStaffUser = staffUsers.find((user) => readString(user, 'staffUserId') === selectedStaffUserId);
+  const selectedStaffIsActive = readBoolean(selectedStaffUser, 'isActive', true);
   const layoutSeatOptions = zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
     seatId: readString(seat, 'seatId'),
     label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
@@ -6329,6 +6332,41 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
         setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
         setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? roleName);
+      } else if (label === 'Отключить сотрудника' || label === 'Включить сотрудника') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
+          throw new Error('Нет прав на управление сотрудниками.');
+        }
+
+        const staffUserId = selectedStaffUserId.trim();
+        if (!isGuid(staffUserId)) {
+          throw new Error('Выберите сотрудника.');
+        }
+
+        const staffUser = await apiClients.settings.updateStaffUserState(nextBackend.branchId, staffUserId, {
+          organizationId: nextBackend.session.organizationId,
+          isActive: label === 'Включить сотрудника'
+        });
+        setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
+        setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
+        setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? staffRoleName);
+      } else if (label === 'Сбросить пароль') {
+        if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
+          throw new Error('Нет прав на управление сотрудниками.');
+        }
+
+        const staffUserId = selectedStaffUserId.trim();
+        const nextPassword = resetPassword.trim();
+        if (!isGuid(staffUserId) || nextPassword.length < 8) {
+          throw new Error('Выберите сотрудника и задайте пароль не короче 8 символов.');
+        }
+
+        const staffUser = await apiClients.settings.resetStaffUserPassword(nextBackend.branchId, staffUserId, {
+          organizationId: nextBackend.session.organizationId,
+          newPassword: nextPassword
+        });
+        setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
+        setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
+        setResetPassword('ChangeMe123!');
       } else if (label === 'Создать товар') {
         if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
           throw new Error('Нет прав на управление POS каталогом.');
@@ -6693,7 +6731,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         <>
           <div className="settings-section-title">
             <span>Сотрудники</span>
-            <button type="button" disabled={!canManageBranchStaff} onClick={() => runSettingsAction('Пригласить сотрудника')}>Создать сотрудника</button>
+            <div className="settings-section-actions">
+              <button type="button" disabled={!canManageBranchStaff} onClick={() => runSettingsAction('Пригласить сотрудника')}>Создать сотрудника</button>
+              <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction(selectedStaffIsActive ? 'Отключить сотрудника' : 'Включить сотрудника')}>
+                {selectedStaffIsActive ? 'Отключить сотрудника' : 'Включить сотрудника'}
+              </button>
+              <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction('Сбросить пароль')}>Сбросить пароль</button>
+            </div>
           </div>
           <div className="settings-staff-layout">
             <div className="settings-config-grid">
@@ -6710,7 +6754,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                   }}
                 >
                   <strong>{readString(user, 'displayName', 'Staff')}</strong>
-                  <span>{readString(user, 'userName', 'user')} · {readArray<string>(user, 'roleNames').join(', ') || 'roles'}</span>
+                  <span>{readString(user, 'userName', 'user')} · {readArray<string>(user, 'roleNames').join(', ') || 'roles'} · {readBoolean(user, 'isActive', true) ? 'активен' : 'отключен'}</span>
                 </button>
               ))}
             </div>
@@ -6728,6 +6772,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{roleName}</option>)}
                 </select>
               </label>
+              <label>Новый пароль<input type="password" value={resetPassword} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setResetPassword(event.currentTarget.value)} /></label>
               <button type="button" disabled={!canManageRoles || !selectedStaffUserId} onClick={() => runSettingsAction('Обновить роль')}>Обновить роль</button>
             </div>
           </div>

@@ -114,6 +114,10 @@ public static class AuditActionNames
 
     public const string UpdateStaffRoles = "identity.staff.roles.update";
 
+    public const string UpdateStaffState = "identity.staff.state.update";
+
+    public const string ResetStaffPassword = "identity.staff.password.reset";
+
     public const string CreateZone = "layout.zones.create";
 
     public const string CreateSeat = "layout.seats.create";

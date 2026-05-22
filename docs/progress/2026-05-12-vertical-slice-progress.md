@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Purpose
 
@@ -169,7 +169,12 @@ implementation evidence are needed.
   temporary password/role names to `/api/branches/{branchId}/staff`. It can also
   update an existing staff user's predefined branch role through
   `PATCH /api/branches/{branchId}/staff/{staffUserId}/roles`, guarded by
-  `identity.roles.manage`. Branch
+  `identity.roles.manage`, deactivate/reactivate selected staff users through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/state`, and reset a
+  selected staff password through
+  `POST /api/branches/{branchId}/staff/{staffUserId}/password-reset`. Staff
+  deactivation and password reset revoke the target user's active access and
+  refresh tokens. Branch
   profile saving now uses the new `/api/branches/{branchId}/profile` backend
   endpoint for club name and city. Settings `POS и склад` can now create a
   backend POS category and product through `/api/branches/{branchId}/pos/categories`
@@ -335,8 +340,8 @@ first backend-backed parity wiring for the remaining operator workspaces,
 the Operator Dashboard summary endpoint, Booking reservation contracts, and
 permission-aware React navigation/session action state, map billing-mode
 selection and device-command result feedback, map filters/table parity,
-Booking permission/state hardening, Settings staff creation/role update, and
-branch profile read/update, Settings POS catalog create/update/deactivate,
+Booking permission/state hardening, Settings staff creation/role update/
+lifecycle controls, and branch profile read/update, Settings POS catalog create/update/deactivate,
 Settings stock movement creation, Settings stock movement history, Settings tariff/version create, Settings package definition create/update/deactivate, Clients
 wallet top-up/debt payment amount/reason forms, Clients new-player name/phone
 form, POS selected-sale refund, Payments
@@ -359,9 +364,9 @@ reservation permission gating, and Settings staff role editing:
 
 Result:
 
-- frontend tests: 86 passed, 0 failed;
+- frontend tests: 88 passed, 0 failed;
 - frontend production build: passed;
-- full local .NET solution tests: 790 passed, 0 failed;
+- full local .NET solution tests: 795 passed, 0 failed;
 - `git diff --check`: clean apart from expected CRLF conversion warnings;
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
@@ -393,6 +398,15 @@ Result:
   `identity.roles.manage` authorization, role replacement persistence, audit,
   frontend request serialization, and disabled UI state without role-management
   permission.
+- Settings backend/API/frontend tests now cover selected staff
+  deactivate/reactivate through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/state` and selected staff
+  password reset through
+  `POST /api/branches/{branchId}/staff/{staffUserId}/password-reset`, including
+  shared contract JSON round-trips, `identity.branch_staff.manage`
+  authorization, audit records, old-password rejection after reset,
+  inactive-staff sign-in rejection, active token revocation, frontend
+  route/body serialization, and Operator App buttons in `Персонал`.
 - Branch profile backend tests cover owner/manager read/update and forbidden
   cashier updates. Frontend tests cover Settings profile PATCH body
   serialization for club name and city.
@@ -465,8 +479,8 @@ Result:
 - Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
   source-card filtering, audit period presets, Logs export downloads,
   Payments/Dashboard report export downloads, Clients reservation permission
-  gating, Settings staff role editing, Settings stock movement history,
-  Settings POS product update/deactivation, and Settings package
+  gating, Settings staff role editing/lifecycle controls, Settings stock
+  movement history, Settings POS product update/deactivation, and Settings package
   update/deactivation: the React app rendered the
   WebView auth entry surface with title `AFK4 Operator`, heading
   `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
@@ -1322,10 +1336,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   becomes available, PR merges must manually require a green
   `PR Verification Result` on the current head commit, as recorded in
   `AGENTS.md`.
-- General staff management now includes creation and predefined branch-role
-  reassignment. Custom roles, arbitrary permission-set editing, staff
-  activation/deactivation, password reset, and richer staff profile management
-  are still not implemented.
+- General staff management now includes creation, predefined branch-role
+  reassignment, activation/deactivation, and password reset. Custom roles,
+  arbitrary permission-set editing, and richer staff profile management are
+  still not implemented.
 - General Operator App layout management UI is not implemented beyond the
   minimum one-zone/seats Pilot Setup panel.
 - Device-seat assignment now has an authorized Platform API path and staging

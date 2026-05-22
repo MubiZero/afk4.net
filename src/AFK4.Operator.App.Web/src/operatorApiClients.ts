@@ -236,6 +236,16 @@ export interface UpdateStaffUserRolesRequest extends Record<string, unknown> {
   roleNames: string[];
 }
 
+export interface UpdateStaffUserStateRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  isActive: boolean;
+}
+
+export interface ResetStaffUserPasswordRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  newPassword: string;
+}
+
 export interface UpdateBranchProfileRequest extends Record<string, unknown> {
   organizationId: Guid;
   name: string;
@@ -513,6 +523,12 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     updateStaffUserRoles(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserRolesRequest): Promise<StaffUserDto> {
       return api.patch<StaffUserDto, UpdateStaffUserRolesRequest>(`/api/branches/${branchId}/staff/${staffUserId}/roles`, request);
+    },
+    updateStaffUserState(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserStateRequest): Promise<StaffUserDto> {
+      return api.patch<StaffUserDto, UpdateStaffUserStateRequest>(`/api/branches/${branchId}/staff/${staffUserId}/state`, request);
+    },
+    resetStaffUserPassword(branchId: Guid, staffUserId: Guid, request: ResetStaffUserPasswordRequest): Promise<StaffUserDto> {
+      return api.post<StaffUserDto, ResetStaffUserPasswordRequest>(`/api/branches/${branchId}/staff/${staffUserId}/password-reset`, request);
     },
     getLayoutZones(branchId: Guid): Promise<ZoneDto[]> {
       return api.get<ZoneDto[]>(`/api/branches/${branchId}/layout/zones`);

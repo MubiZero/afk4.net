@@ -375,9 +375,15 @@ missing-backend copy.
   endpoints with `layout.manage` gating. Credential rotation and revocation were
   added to the same section on 2026-05-21 through the existing credential
   lifecycle endpoints.
+  Staff activation/deactivation and password reset from `Персонал` were
+  implemented on 2026-05-22 through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/state` and
+  `POST /api/branches/{branchId}/staff/{staffUserId}/password-reset` with
+  `identity.branch_staff.manage` gating, audit records, and active staff token
+  revocation on deactivation/password reset.
   Remaining settings gaps include custom roles/arbitrary permission-set editing,
-  staff activation/deactivation/password reset/profile detail, richer layout
-  editing beyond create-only zones/seats, richer device inventory/history
+  staff profile detail, richer layout editing beyond create-only zones/seats,
+  richer device inventory/history
   management, tariff version edit/deactivate, package purchase UX refinements,
   advanced POS catalog management, advanced inventory
   controls and reconciliation, integrations/payment-provider

@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 ## Purpose
 
@@ -415,10 +415,10 @@ Minimum bar:
   `Нет backend ...` placeholders.
   The current WPF implementation remains a parity reference and temporary legacy
   source until the WebView2/React Operator App covers the pilot day flow.
-- Staff management now has general Operator App creation and predefined
-  branch-role reassignment paths.
-- Custom roles, arbitrary permission-set editing, staff activation/deactivation,
-  password reset, and richer staff profile management are not implemented.
+- Staff management now has general Operator App creation, predefined
+  branch-role reassignment, activation/deactivation, and password reset paths.
+- Custom roles, arbitrary permission-set editing, and richer staff profile
+  management are not implemented.
 - Branch layout management is implemented as a minimum API path on `main`;
   the Operator App has a minimum one-zone/seats Pilot Setup panel, but not a
   general layout editor.
@@ -455,7 +455,8 @@ Minimum bar:
    restored staff permissions. The map panel now also supports guest/prepaid/
    package/postpaid billing selection, selected-seat device command status
    feedback, real map filters/table view parity, Booking permission/state
-   hardening, Settings staff creation/role reassignment, branch profile save,
+   hardening, Settings staff creation/role reassignment/lifecycle controls,
+   branch profile save,
    Settings layout zone/seat creation, Settings POS
    category/product creation/update/deactivation, Settings stock movement creation/history,
    Settings package definition creation/update/deactivation, Settings update package/rollout controls, Settings

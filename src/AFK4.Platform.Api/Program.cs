@@ -471,6 +471,203 @@ app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/roles", asy
     return Results.Ok(response);
 });
 
+app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/state", async (
+    Guid branchId,
+    Guid staffUserId,
+    UpdateStaffUserStateRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageBranchStaff,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.UpdateStaffState,
+            "StaffUser",
+            staffUserId.ToString("D"),
+            AuditOutcome.Denied,
+            new { request.IsActive, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (!request.IsActive && staffUserId == authorization.StaffContext.StaffUserId)
+    {
+        return Results.BadRequest(new { Error = "Staff user cannot deactivate the current authenticated account." });
+    }
+
+    var staffUser = await dbContext.StaffUsers
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.StaffUserId == staffUserId,
+            cancellationToken);
+
+    if (staffUser is null)
+    {
+        return Results.NotFound();
+    }
+
+    var roleNames = await dbContext.StaffRoleAssignments
+        .Where(roleAssignment =>
+            roleAssignment.OrganizationId == request.OrganizationId &&
+            roleAssignment.BranchId == branchId &&
+            roleAssignment.StaffUserId == staffUserId)
+        .Select(roleAssignment => roleAssignment.RoleName)
+        .OrderBy(roleName => roleName)
+        .ToListAsync(cancellationToken);
+
+    if (roleNames.Count == 0)
+    {
+        return Results.NotFound();
+    }
+
+    var previousIsActive = staffUser.IsActive;
+    staffUser.IsActive = request.IsActive;
+
+    if (!request.IsActive)
+    {
+        await RevokeStaffTokensAsync(dbContext, request.OrganizationId, staffUserId, timeProvider.GetUtcNow(), cancellationToken);
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    var response = ToStaffUserDto(staffUser, roleNames);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.UpdateStaffState,
+        "StaffUser",
+        staffUserId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { staffUser.UserName, PreviousIsActive = previousIsActive, response.IsActive },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/password-reset", async (
+    Guid branchId,
+    Guid staffUserId,
+    ResetStaffUserPasswordRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageBranchStaff,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ResetStaffPassword,
+            "StaffUser",
+            staffUserId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateStaffPassword(request.NewPassword);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var staffUser = await dbContext.StaffUsers
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.StaffUserId == staffUserId,
+            cancellationToken);
+
+    if (staffUser is null)
+    {
+        return Results.NotFound();
+    }
+
+    var roleNames = await dbContext.StaffRoleAssignments
+        .Where(roleAssignment =>
+            roleAssignment.OrganizationId == request.OrganizationId &&
+            roleAssignment.BranchId == branchId &&
+            roleAssignment.StaffUserId == staffUserId)
+        .Select(roleAssignment => roleAssignment.RoleName)
+        .OrderBy(roleName => roleName)
+        .ToListAsync(cancellationToken);
+
+    if (roleNames.Count == 0)
+    {
+        return Results.NotFound();
+    }
+
+    var hasher = new PasswordHasher<StaffUserEntity>();
+    staffUser.PasswordHash = hasher.HashPassword(staffUser, request.NewPassword);
+    await RevokeStaffTokensAsync(dbContext, request.OrganizationId, staffUserId, timeProvider.GetUtcNow(), cancellationToken);
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    var response = ToStaffUserDto(staffUser, roleNames);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ResetStaffPassword,
+        "StaffUser",
+        staffUserId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { staffUser.UserName, TokensRevoked = true },
+        cancellationToken);
+
+    return Results.Ok(response);
+});
+
 app.MapGet("/api/branches/{branchId:guid}/profile", async (
     Guid branchId,
     StaffAuthorizationService authorizationService,
@@ -5970,6 +6167,36 @@ static StaffUserDto ToStaffUserDto(StaffUserEntity staffUser, IReadOnlyList<stri
         staffUser.CreatedAtUtc);
 }
 
+static async Task RevokeStaffTokensAsync(
+    PlatformDbContext dbContext,
+    Guid organizationId,
+    Guid staffUserId,
+    DateTimeOffset revokedAtUtc,
+    CancellationToken cancellationToken)
+{
+    var accessTokens = await dbContext.StaffAccessTokens
+        .Where(token =>
+            token.OrganizationId == organizationId &&
+            token.StaffUserId == staffUserId &&
+            token.RevokedAtUtc == null)
+        .ToListAsync(cancellationToken);
+    foreach (var token in accessTokens)
+    {
+        token.RevokedAtUtc = revokedAtUtc;
+    }
+
+    var refreshTokens = await dbContext.StaffRefreshTokens
+        .Where(token =>
+            token.OrganizationId == organizationId &&
+            token.StaffUserId == staffUserId &&
+            token.RevokedAtUtc == null)
+        .ToListAsync(cancellationToken);
+    foreach (var token in refreshTokens)
+    {
+        token.RevokedAtUtc = revokedAtUtc;
+    }
+}
+
 static BranchProfileDto ToBranchProfileDto(BranchEntity branch)
 {
     return new BranchProfileDto(
@@ -6021,12 +6248,20 @@ static string? ValidateCreateStaffUserRequest(CreateStaffUserRequest request)
         return "DisplayName is required.";
     }
 
-    if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+    var passwordValidation = ValidateStaffPassword(request.Password);
+    if (passwordValidation is not null)
     {
-        return "Password must contain at least 8 characters.";
+        return passwordValidation;
     }
 
     return ValidateStaffRoleNames(request.RoleNames);
+}
+
+static string? ValidateStaffPassword(string password)
+{
+    return string.IsNullOrWhiteSpace(password) || password.Length < 8
+        ? "Password must contain at least 8 characters."
+        : null;
 }
 
 static string? ValidateStaffRoleNames(IReadOnlyList<string> roleNames)

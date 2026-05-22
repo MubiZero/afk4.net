@@ -215,6 +215,155 @@ public sealed class PilotSetupEndpointTests
     }
 
     [Fact]
+    public async Task UpdateStaffState_WithBranchManagerRole_DeactivatesReactivatesAndRevokesTokens()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff",
+            new CreateStaffUserRequest(
+                TestIds.OrganizationId,
+                "state.one@afk4.test",
+                "State One",
+                "Passw0rd!Pilot",
+                [StaffRoleNames.CashierOperator]));
+        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.NotNull(createdStaffUser);
+
+        using var staffClient = factory.CreateClient();
+        var firstSignInResponse = await staffClient.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "state.one@afk4.test", "Passw0rd!Pilot"));
+        Assert.Equal(HttpStatusCode.OK, firstSignInResponse.StatusCode);
+
+        var deactivateResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/state",
+            new UpdateStaffUserStateRequest(TestIds.OrganizationId, false));
+        var deactivatedStaffUser = await deactivateResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, deactivateResponse.StatusCode);
+        Assert.NotNull(deactivatedStaffUser);
+        Assert.False(deactivatedStaffUser.IsActive);
+
+        var blockedSignInResponse = await staffClient.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "state.one@afk4.test", "Passw0rd!Pilot"));
+        Assert.Equal(HttpStatusCode.Unauthorized, blockedSignInResponse.StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.All(
+                await dbContext.StaffAccessTokens
+                    .Where(token => token.StaffUserId == createdStaffUser.StaffUserId)
+                    .ToListAsync(),
+                token => Assert.NotNull(token.RevokedAtUtc));
+            Assert.All(
+                await dbContext.StaffRefreshTokens
+                    .Where(token => token.StaffUserId == createdStaffUser.StaffUserId)
+                    .ToListAsync(),
+                token => Assert.NotNull(token.RevokedAtUtc));
+            Assert.Contains(await dbContext.AuditRecords.ToListAsync(), audit =>
+                audit.Action == AuditActionNames.UpdateStaffState &&
+                audit.TargetId == createdStaffUser.StaffUserId.ToString("D") &&
+                audit.Outcome == AuditOutcome.Succeeded);
+        }
+
+        var reactivateResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/state",
+            new UpdateStaffUserStateRequest(TestIds.OrganizationId, true));
+        var reactivatedStaffUser = await reactivateResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, reactivateResponse.StatusCode);
+        Assert.NotNull(reactivatedStaffUser);
+        Assert.True(reactivatedStaffUser.IsActive);
+
+        var restoredSignInResponse = await staffClient.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "state.one@afk4.test", "Passw0rd!Pilot"));
+        Assert.Equal(HttpStatusCode.OK, restoredSignInResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResetStaffPassword_WithBranchManagerRole_ChangesPasswordAndRevokesTokens()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff",
+            new CreateStaffUserRequest(
+                TestIds.OrganizationId,
+                "reset.one@afk4.test",
+                "Reset One",
+                "Passw0rd!Pilot",
+                [StaffRoleNames.CashierOperator]));
+        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
+        Assert.NotNull(createdStaffUser);
+
+        using var staffClient = factory.CreateClient();
+        var firstSignInResponse = await staffClient.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "reset.one@afk4.test", "Passw0rd!Pilot"));
+        Assert.Equal(HttpStatusCode.OK, firstSignInResponse.StatusCode);
+
+        var resetResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/password-reset",
+            new ResetStaffUserPasswordRequest(TestIds.OrganizationId, "Passw0rd!Reset"));
+        var resetStaffUser = await resetResponse.Content.ReadFromJsonAsync<StaffUserDto>();
+
+        Assert.Equal(HttpStatusCode.OK, resetResponse.StatusCode);
+        Assert.NotNull(resetStaffUser);
+        Assert.True(resetStaffUser.IsActive);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            Assert.All(
+                await dbContext.StaffAccessTokens
+                    .Where(token => token.StaffUserId == createdStaffUser.StaffUserId)
+                    .ToListAsync(),
+                token => Assert.NotNull(token.RevokedAtUtc));
+            Assert.All(
+                await dbContext.StaffRefreshTokens
+                    .Where(token => token.StaffUserId == createdStaffUser.StaffUserId)
+                    .ToListAsync(),
+                token => Assert.NotNull(token.RevokedAtUtc));
+            Assert.Contains(await dbContext.AuditRecords.ToListAsync(), audit =>
+                audit.Action == AuditActionNames.ResetStaffPassword &&
+                audit.TargetId == createdStaffUser.StaffUserId.ToString("D") &&
+                audit.Outcome == AuditOutcome.Succeeded);
+        }
+
+        var oldPasswordSignInResponse = await staffClient.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "reset.one@afk4.test", "Passw0rd!Pilot"));
+        var newPasswordSignInResponse = await staffClient.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "reset.one@afk4.test", "Passw0rd!Reset"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, oldPasswordSignInResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, newPasswordSignInResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateStaffState_WithCashierRole_ReturnsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/state",
+            new UpdateStaffUserStateRequest(TestIds.OrganizationId, false));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task LayoutSetup_WithBranchManagerRole_CreatesZoneSeatAndListsLayout()
     {
         await using var factory = new PlatformApiFactory();

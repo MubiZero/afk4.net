@@ -1343,6 +1343,57 @@ describe('App', () => {
     });
   });
 
+  it('deactivates the selected staff user from Settings personnel', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Cashier One/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отключить сотрудника' }));
+
+    expect(await screen.findByText('Отключить сотрудника: подтверждено')).toBeInTheDocument();
+    const stateCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/state') &&
+      init?.method === 'PATCH');
+    expect(stateCall).toBeDefined();
+    const body = JSON.parse(String(stateCall?.[1]?.body));
+    expect(body).toEqual({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      isActive: false
+    });
+  });
+
+  it('resets the selected staff password from Settings personnel', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Настройки'));
+    expect(await screen.findByText('Backend settings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Cashier One/ }));
+    fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'Reset123!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить пароль' }));
+
+    expect(await screen.findByText('Сбросить пароль: подтверждено')).toBeInTheDocument();
+    const resetCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/password-reset') &&
+      init?.method === 'POST');
+    expect(resetCall).toBeDefined();
+    const body = JSON.parse(String(resetCall?.[1]?.body));
+    expect(body).toEqual({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      newPassword: 'Reset123!'
+    });
+  });
+
   it('keeps staff role update disabled without role management permission', async () => {
     installSessionBridge(createSession({
       permissions: allOperatorPermissions.filter((permission) => permission !== 'identity.roles.manage')
@@ -2106,6 +2157,20 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   if (pathname.endsWith('/staff') && init?.method === 'POST') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createStaffUser(body));
+  }
+
+  if (pathname.includes('/staff/') && pathname.endsWith('/state') && init?.method === 'PATCH') {
+    const body = JSON.parse(String(init.body));
+    return jsonResponse(createStaffUser({
+      staffUserId: pathname.split('/').at(-2),
+      isActive: body.isActive
+    }));
+  }
+
+  if (pathname.includes('/staff/') && pathname.endsWith('/password-reset') && init?.method === 'POST') {
+    return jsonResponse(createStaffUser({
+      staffUserId: pathname.split('/').at(-2)
+    }));
   }
 
   if (pathname.includes('/staff/') && pathname.endsWith('/roles') && init?.method === 'PATCH') {
