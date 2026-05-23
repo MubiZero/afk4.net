@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -9,7 +8,7 @@ public sealed class HealthEndpointTests
     [Fact]
     public async Task Health_ReturnsOk()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/api/health");

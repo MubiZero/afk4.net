@@ -84,22 +84,42 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ReservationEntity> Reservations => Set<ReservationEntity>();
 
+    public DbSet<PlatformAdminUserEntity> PlatformAdminUsers => Set<PlatformAdminUserEntity>();
+
+    public DbSet<PlatformAdminAccessTokenEntity> PlatformAdminAccessTokens => Set<PlatformAdminAccessTokenEntity>();
+
+    public DbSet<PlatformAdminRefreshTokenEntity> PlatformAdminRefreshTokens => Set<PlatformAdminRefreshTokenEntity>();
+
+    public DbSet<OwnerInviteEntity> OwnerInvites => Set<OwnerInviteEntity>();
+
+    public DbSet<TenantSupportNoteEntity> TenantSupportNotes => Set<TenantSupportNoteEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
         {
             entity.ToTable("organizations");
             entity.HasKey(organization => organization.OrganizationId);
+            entity.Property(organization => organization.Slug).HasMaxLength(64).IsRequired();
             entity.Property(organization => organization.Name).HasMaxLength(160).IsRequired();
+            entity.Property(organization => organization.Status).HasMaxLength(32).IsRequired();
+            entity.Property(organization => organization.StatusReason).HasMaxLength(512);
+            entity.Property(organization => organization.PlanCode).HasMaxLength(64).IsRequired();
+            entity.Property(organization => organization.SubscriptionStatus).HasMaxLength(32).IsRequired();
+            entity.Property(organization => organization.LimitsJson).HasColumnType("jsonb").IsRequired();
+            entity.HasIndex(organization => organization.Slug).IsUnique();
+            entity.HasIndex(organization => organization.Status);
         });
 
         modelBuilder.Entity<BranchEntity>(entity =>
         {
             entity.ToTable("branches");
             entity.HasKey(branch => branch.BranchId);
+            entity.Property(branch => branch.Slug).HasMaxLength(64).IsRequired();
             entity.Property(branch => branch.Name).HasMaxLength(160).IsRequired();
             entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.BranchId }).IsUnique();
+            entity.HasIndex(branch => new { branch.OrganizationId, branch.Slug }).IsUnique();
         });
 
         modelBuilder.Entity<StaffUserEntity>(entity =>
@@ -623,6 +643,59 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 reservation.State,
                 reservation.StartsAtUtc
             });
+        });
+
+        modelBuilder.Entity<PlatformAdminUserEntity>(entity =>
+        {
+            entity.ToTable("platform_admin_users");
+            entity.HasKey(admin => admin.PlatformAdminUserId);
+            entity.Property(admin => admin.UserName).HasMaxLength(256).IsRequired();
+            entity.Property(admin => admin.NormalizedUserName).HasMaxLength(256).IsRequired();
+            entity.Property(admin => admin.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(admin => admin.PasswordHash).IsRequired();
+            entity.Property(admin => admin.RolesJson).HasColumnType("jsonb").IsRequired();
+            entity.HasIndex(admin => admin.NormalizedUserName).IsUnique();
+        });
+
+        modelBuilder.Entity<PlatformAdminAccessTokenEntity>(entity =>
+        {
+            entity.ToTable("platform_admin_access_tokens");
+            entity.HasKey(accessToken => accessToken.PlatformAdminAccessTokenId);
+            entity.Property(accessToken => accessToken.TokenHash).IsRequired();
+            entity.HasIndex(accessToken => accessToken.TokenHash);
+            entity.HasIndex(accessToken => new { accessToken.PlatformAdminUserId, accessToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformAdminRefreshTokenEntity>(entity =>
+        {
+            entity.ToTable("platform_admin_refresh_tokens");
+            entity.HasKey(refreshToken => refreshToken.PlatformAdminRefreshTokenId);
+            entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
+            entity.HasIndex(refreshToken => refreshToken.TokenHash);
+            entity.HasIndex(refreshToken => new { refreshToken.PlatformAdminUserId, refreshToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<OwnerInviteEntity>(entity =>
+        {
+            entity.ToTable("owner_invites");
+            entity.HasKey(invite => invite.OwnerInviteId);
+            entity.Property(invite => invite.Code).HasMaxLength(64).IsRequired();
+            entity.Property(invite => invite.NormalizedCode).HasMaxLength(64).IsRequired();
+            entity.Property(invite => invite.Status).HasMaxLength(32).IsRequired();
+            entity.Property(invite => invite.OwnerUserName).HasMaxLength(256);
+            entity.Property(invite => invite.OwnerDisplayName).HasMaxLength(160);
+            entity.Property(invite => invite.RevokedReason).HasMaxLength(512);
+            entity.HasIndex(invite => invite.NormalizedCode).IsUnique();
+            entity.HasIndex(invite => new { invite.OrganizationId, invite.BranchId, invite.Status });
+            entity.HasIndex(invite => invite.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<TenantSupportNoteEntity>(entity =>
+        {
+            entity.ToTable("tenant_support_notes");
+            entity.HasKey(note => note.TenantSupportNoteId);
+            entity.Property(note => note.Body).HasMaxLength(4000).IsRequired();
+            entity.HasIndex(note => new { note.OrganizationId, note.CreatedAtUtc });
         });
     }
 }

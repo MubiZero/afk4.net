@@ -10,6 +10,7 @@ using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Payments;
+using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Reports;
@@ -29,6 +30,7 @@ using AFK4.Shared.Contracts.Layout;
 using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
+using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Reports;
@@ -82,6 +84,13 @@ builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
 builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
 builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();
+builder.Services.AddScoped<IPlatformAdminTokenService, OpaquePlatformAdminTokenService>();
+builder.Services.AddScoped<IPlatformAdminCredentialService, PasswordHashingPlatformAdminCredentialService>();
+builder.Services.AddScoped<IPlatformAdminContextAccessor, PlatformAdminContextAccessor>();
+builder.Services.AddScoped<PlatformAdminAuthorizationService>();
+builder.Services.Configure<PlatformAdminBootstrapOptions>(
+    builder.Configuration.GetSection(PlatformAdminBootstrapOptions.ConfigurationSection));
+builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
@@ -113,6 +122,7 @@ var app = builder.Build();
 
 app.UseCors(OperatorWebCorsPolicyName);
 app.UseMiddleware<StaffAuthenticationMiddleware>();
+app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 
 app.MapGet("/api/health", () =>
 {
@@ -169,6 +179,86 @@ app.MapPost("/api/auth/staff/refresh", async (
     return response is null
         ? Results.Unauthorized()
         : Results.Ok(response);
+});
+
+app.MapPost("/api/platform/auth/sign-in", async (
+    PlatformAdminSignInRequest request,
+    IPlatformAdminCredentialService credentialService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var response = await credentialService.SignInAsync(request, cancellationToken);
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: Guid.Empty,
+        BranchId: null,
+        ActorStaffUserId: null,
+        Action: AuditActionNames.PlatformAdminSignIn,
+        TargetType: "PlatformAdminUser",
+        TargetId: response?.PlatformAdminId.ToString("D") ?? request.UserName,
+        Outcome: response is null ? AuditOutcome.Denied : AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: JsonSerializer.Serialize(new { request.UserName })),
+        cancellationToken);
+
+    return response is null
+        ? Results.Unauthorized()
+        : Results.Ok(response);
+});
+
+app.MapPost("/api/platform/auth/refresh", async (
+    PlatformAdminRefreshTokenRequest request,
+    IPlatformAdminTokenService tokenService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var response = await tokenService.RefreshAsync(request, cancellationToken);
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: Guid.Empty,
+        BranchId: null,
+        ActorStaffUserId: null,
+        Action: AuditActionNames.PlatformAdminRefresh,
+        TargetType: "PlatformAdminUser",
+        TargetId: response?.PlatformAdminId.ToString("D"),
+        Outcome: response is null ? AuditOutcome.Denied : AuditOutcome.Succeeded,
+        SourceApp: "PlatformApi",
+        DetailsJson: "{}"),
+        cancellationToken);
+
+    return response is null
+        ? Results.Unauthorized()
+        : Results.Ok(response);
+});
+
+app.MapPost("/api/platform/auth/sign-out", async (
+    PlatformAdminSignOutRequest request,
+    IPlatformAdminTokenService tokenService,
+    PlatformAdminAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequireAuthenticated();
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    var revoked = await tokenService.RevokeAsync(request, cancellationToken);
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        OrganizationId: Guid.Empty,
+        BranchId: null,
+        ActorStaffUserId: null,
+        Action: AuditActionNames.PlatformAdminSignOut,
+        TargetType: "PlatformAdminUser",
+        TargetId: authorization.PlatformAdminContext!.PlatformAdminUserId.ToString("D"),
+        Outcome: revoked ? AuditOutcome.Succeeded : AuditOutcome.Denied,
+        SourceApp: "PlatformApi",
+        DetailsJson: "{}"),
+        cancellationToken);
+
+    return revoked ? Results.NoContent() : Results.Unauthorized();
 });
 
 app.MapGet("/api/branches/{branchId:guid}/staff", async (

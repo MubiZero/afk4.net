@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Sessions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -43,6 +44,17 @@ internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
             services.Configure<SessionLeaseOptions>(options =>
             {
                 options.SigningPrivateKeyPem = signingPrivateKeyPem;
+            });
+
+            // Suppress configuration-driven platform admin bootstrap during tests so each test
+            // controls its own admin seeding. Tests that exercise bootstrap should call the
+            // hosted service directly with explicit options.
+            services.PostConfigure<PlatformAdminBootstrapOptions>(options =>
+            {
+                options.UserName = null;
+                options.Password = null;
+                options.DisplayName = null;
+                options.Roles = null;
             });
         });
     }

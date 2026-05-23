@@ -141,4 +141,32 @@ public static class AuditActionNames
     public const string ViewBranchProfile = "branches.profile.view";
 
     public const string UpdateBranchProfile = "branches.profile.update";
+
+    public const string PlatformAdminSignIn = "identity.platform_admin.sign_in";
+
+    public const string PlatformAdminRefresh = "identity.platform_admin.refresh";
+
+    public const string PlatformAdminSignOut = "identity.platform_admin.sign_out";
+
+    public const string PlatformAdminBootstrap = "identity.platform_admin.bootstrap";
+
+    public const string CreateTenant = "tenancy.tenant.create";
+
+    public const string UpdateTenantStatus = "tenancy.tenant.status.update";
+
+    public const string UpdateTenantPlan = "tenancy.tenant.plan.update";
+
+    public const string UpdateTenantLimits = "tenancy.tenant.limits.update";
+
+    public const string ViewTenant = "tenancy.tenant.view";
+
+    public const string CreateOwnerInvite = "tenancy.owner_invite.create";
+
+    public const string AcceptOwnerInvite = "tenancy.owner_invite.accept";
+
+    public const string RevokeOwnerInvite = "tenancy.owner_invite.revoke";
+
+    public const string CreateTenantSupportNote = "tenancy.support_note.create";
+
+    public const string ViewTenantHealth = "tenancy.tenant.health.view";
 }

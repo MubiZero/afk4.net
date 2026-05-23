@@ -219,3 +219,125 @@ Run this after backend and minimum connection path exist:
 - Staging smoke proves DB remains in safe network mode and the new tenant can
   execute read-only and core writable operator flows after activation.
 - Progress and roadmap docs record the verified state and remaining gaps.
+
+## Slice Status
+
+### Slice 1: Contracts, Data, And Platform-Admin Auth — completed 2026-05-23 on `codex/saas-control-plane-foundation`
+
+Deliverables:
+
+- Shared contracts under `src/AFK4.Shared.Contracts/Platform/` for platform-admin
+  auth (`PlatformAdminSignInRequest/Response`, refresh, sign-out, role/permission
+  name constants), tenant summary/detail, tenant create/update/status/plan/limits
+  requests, tenant status/plan/subscription/owner-invite-status name constants,
+  owner invite DTO, support note DTO, and tenant health DTO. Round-trip
+  serialization is covered by 14 new tests in `tests/AFK4.Shared.Contracts.Tests/Platform/`.
+- `OrganizationEntity` extended with `Slug`, `Status`, `StatusReason`,
+  `StatusChangedAtUtc`, `PlanCode`, `SubscriptionStatus`, `LimitsJson`,
+  `UpdatedAtUtc`. `BranchEntity` extended with `Slug`. New entities
+  `PlatformAdminUserEntity`, `PlatformAdminAccessTokenEntity`,
+  `PlatformAdminRefreshTokenEntity`, `OwnerInviteEntity`,
+  `TenantSupportNoteEntity` plus DbSets and EF model config in
+  `PlatformDbContext`. Unique indexes: organization slug (global), branch slug
+  (per organization), platform-admin normalized user name, owner invite
+  normalized code.
+- EF migration `20260523103547_AddSaasControlPlaneFoundation` adds the columns,
+  tables, and indexes. Existing rows are backfilled to deterministic globally
+  unique slugs (`org-<12 hex>` / `branch-<12 hex>`) and `UpdatedAtUtc` is set to
+  `CreatedAtUtc`. Transient backfill defaults on `Slug` and `UpdatedAtUtc` are
+  dropped after backfill so application code must set them on inserts. `LimitsJson`
+  uses `'{}'::jsonb` as default to satisfy the not-null jsonb constraint.
+- Platform-admin auth pipeline under `src/AFK4.Platform.Api/Platform/Identity/`:
+  `PlatformAdminContext`, `IPlatformAdminContextAccessor` /
+  `PlatformAdminContextAccessor`, `IPlatformAdminTokenService` /
+  `OpaquePlatformAdminTokenService` (8h access / 30d refresh opaque tokens,
+  SHA-256 hashed at rest, refresh rotation, sign-out revokes refresh + sibling
+  access tokens), `IPlatformAdminCredentialService` /
+  `PasswordHashingPlatformAdminCredentialService` (ASP.NET `PasswordHasher`),
+  `PlatformAdminAuthenticationMiddleware`, `PlatformAdminAuthorizationResult`,
+  `PlatformAdminAuthorizationService.RequirePermission(...)`, and
+  `PlatformAdminPermissionCatalog` mapping `platform_owner` /
+  `platform_support` roles to permission sets.
+- `PlatformAdminBootstrapHostedService` reads
+  `PlatformAdmin:Bootstrap:{UserName,DisplayName,Password,Roles}` from
+  configuration and creates the first platform admin if the
+  `platform_admin_users` table is empty. Empty/partial configuration is a no-op.
+  Unknown role names fall back to `platform_owner`. The seed writes an
+  `identity.platform_admin.bootstrap` audit record. `appsettings.Development.json`
+  ships a local-only `admin@afk4.local / ChangeMe!Local-1` admin; staging /
+  production must override the password through environment variables or a
+  secret manager — never commit real credentials.
+- Endpoints in `Program.cs`: `POST /api/platform/auth/sign-in`,
+  `/api/platform/auth/refresh`, and `/api/platform/auth/sign-out`. Each writes
+  `identity.platform_admin.*` audit records (Succeeded / Denied). Sign-out
+  requires an authenticated platform admin; the staff auth middleware and the
+  new platform-admin middleware run in parallel and populate independent
+  contexts so cross-token misuse is rejected at the endpoint authorization
+  layer rather than via path-based filters.
+- Audit action constants in `AuditActionNames`:
+  `identity.platform_admin.sign_in/refresh/sign_out/bootstrap` and
+  `tenancy.tenant.create/status.update/plan.update/limits.update/view`,
+  `tenancy.owner_invite.create/accept/revoke`,
+  `tenancy.support_note.create`, `tenancy.tenant.health.view` (the
+  `tenancy.*` actions are placeholders for Slice 2–4 endpoints).
+- API tests under `tests/AFK4.Platform.Api.Tests/Platform/`:
+  sign-in success / wrong password / unknown user / inactive admin / audit
+  outcomes; refresh rotation + replay rejection + expired-token rejection;
+  sign-out revokes and prevents subsequent refresh; staff refresh token rejected
+  at `/api/platform/auth/refresh`; platform-admin access token rejected at
+  `/api/branches/{branchId}/floor-map`. Bootstrap hosted-service tests cover
+  empty-config skip, empty-table seed + audit, populated-table skip, and
+  unknown-role fallback. `PlatformApiFactory` clears bootstrap configuration
+  via `PostConfigure` so tests control admin seeding explicitly.
+- `HealthEndpointTests` switched to `PlatformApiFactory` because the bootstrap
+  hosted service now requires a configured DbContext at startup. Raw
+  `WebApplicationFactory<Program>` would otherwise try to query Npgsql against
+  a non-existent local PostgreSQL.
+
+Verification (WSL Linux, `D:\projects\afk4.net` mounted at
+`/mnt/d/projects/afk4.net`):
+
+- `dotnet build src/AFK4.Platform.Api/AFK4.Platform.Api.csproj`: 3 projects,
+  0 errors, 0 warnings.
+- `dotnet build AFK4.sln -p:EnableWindowsTargeting=true`: 19 projects,
+  0 errors, 0 warnings.
+- `dotnet test tests/AFK4.Shared.Contracts.Tests/...`: 101 passed, 0 failed.
+- `dotnet test tests/AFK4.Platform.Api.Tests/...`: 386 passed, 0 failed.
+- `dotnet test AFK4.sln`: full Linux-runnable suites green
+  (`BuildingBlocks` 3/3, `GamingPc.Setup` 10/10, `Update.Publisher` 8/8,
+  `Shared.Contracts` 101/101, `Platform.Api` 386/386). Pre-existing Linux
+  environment limitations apply: 22 of 140 `Agent.Service.Tests` fail because
+  `ClientReleaseAutomationTests` shell out to `powershell.exe` (not present in
+  WSL), and `Operator.App.Tests` / `Player.Shell.Tests` target `net10.0-windows`
+  and require Windows tooling. These are not Slice 1 regressions and need
+  Windows verification before merge.
+
+Scope explicitly deferred to later slices:
+
+- Slice 2 — tenant provisioning APIs (`POST /api/platform/tenants`,
+  `GET .../tenants`, `GET .../tenants/{id}`, `POST .../owner-invites`),
+  organization/branch slug uniqueness enforcement at the service layer, owner
+  invite acceptance flow.
+- Slice 3 — tenant lifecycle endpoints (status update, suspension enforcement
+  across money / session / POS / device / update mutations, allowed read paths).
+- Slice 4 — tenant health endpoint and support notes CRUD.
+- Slice 5 — internal Control Plane web UI.
+- Slice 6 — Operator App slug / setup-code connection flow.
+
+Operational handoff for Slice 2:
+
+- Migrations include a Slug backfill for any existing organizations/branches.
+  Verify staging by applying the migration to the Coolify-managed PostgreSQL
+  with a backup window first, then confirm slugs look like `org-<hex>` /
+  `branch-<hex>` for the pre-existing tenant; the platform admin can rename
+  them through Slice 2 endpoints once they ship.
+- Bootstrap admin password in `appsettings.Development.json` is a known local
+  credential. Staging / production must override via
+  `PlatformAdmin__Bootstrap__Password` (and the rest of the section) through
+  Coolify environment variables and rotate it before the first non-developer
+  platform admin sign-in.
+- Local Linux WSL editors have been silently rewriting some text files with
+  CRLF line endings, producing a large background diff in unrelated files.
+  Slice 1 normalized only the files it actually edits; the repo should consider
+  adding a `.gitattributes` (`* text=auto eol=lf`) and running
+  `git add --renormalize .` as a separate cleanup commit before Slice 2.
