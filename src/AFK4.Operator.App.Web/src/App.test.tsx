@@ -3,6 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { HostBridgeMessageEvent } from './hostBridge';
 
+const realtimeMock = vi.hoisted(() => ({
+  clients: [] as Array<{
+    onConnectionStateChanged?: (state: string) => void;
+    onDeviceStatusChanged: (status: unknown) => void;
+    onDeviceCommandResult?: (result: unknown) => void;
+  }>
+}));
+
 vi.mock('./operatorRealtime', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./operatorRealtime')>();
   return {
@@ -10,8 +18,12 @@ vi.mock('./operatorRealtime', async (importOriginal) => {
     createOperatorRealtimeClient: vi.fn((options: {
       onConnectionStateChanged?: (state: string) => void;
       onDeviceStatusChanged: (status: unknown) => void;
+      onDeviceCommandResult?: (result: unknown) => void;
     }) => ({
-      start: vi.fn(async () => options.onConnectionStateChanged?.('connected')),
+      start: vi.fn(async () => {
+        realtimeMock.clients.push(options);
+        options.onConnectionStateChanged?.('connected');
+      }),
       stop: vi.fn(async () => options.onConnectionStateChanged?.('disconnected'))
     }))
   };
@@ -19,6 +31,7 @@ vi.mock('./operatorRealtime', async (importOriginal) => {
 
 describe('App', () => {
   beforeEach(() => {
+    realtimeMock.clients.length = 0;
     vi.stubGlobal('fetch', vi.fn(mockPlatformFetch));
   });
 
@@ -40,10 +53,17 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
+    expect(await screen.findByText(/Смена открыта/)).toBeInTheDocument();
+    expect(await screen.findByText('POS: 1 чек сегодня')).toBeInTheDocument();
+    expect(screen.queryByText(/Смена #24/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/неоплаченных чека/)).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Рабочие места' })).toBeInTheDocument();
     expect(screen.getByLabelText('ПК зала')).toBeInTheDocument();
     expect(screen.getAllByText('Сессии').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /Техрежим/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Управление ПК/ })).toHaveAttribute(
+      'title',
+      'Команды для выбранного ПК: статус, блокировка, питание и сервисный доступ'
+    );
     expect(screen.getByText('Сессия активна')).toBeInTheDocument();
     expect(screen.getAllByText('Сессия подтверждена').length).toBeGreaterThan(0);
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
@@ -51,7 +71,24 @@ describe('App', () => {
     expect(screen.getByText(/Оператор смены/)).toBeInTheDocument();
   });
 
-  it('opens selected map tech mode through backend device diagnostics', async () => {
+  it('exposes native window drag, maximize, and resize commands', async () => {
+    const bridge = installSessionBridge();
+    const { container } = render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+
+    const topCommand = container.querySelector('.top-command');
+    expect(topCommand).not.toBeNull();
+    fireEvent.doubleClick(topCommand!);
+    expect(bridge.requests).toContain('window:maximize');
+
+    const resizeHandle = container.querySelector('.window-resize-handle.bottom-right');
+    expect(resizeHandle).not.toBeNull();
+    fireEvent.mouseDown(resizeHandle!, { button: 0 });
+    expect(bridge.requests).toContain('window:resize');
+  });
+
+  it('opens selected PC control and runs backend device status/lock actions', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
@@ -72,13 +109,30 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: /Техрежим/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Управление ПК/ }));
+
+    expect(screen.getByRole('region', { name: 'Управление выбранным ПК' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Перезагрузить/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Админ-режим/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /Перезагрузить/ }));
+    expect(screen.getByRole('status')).toHaveTextContent('Нужен Agent-контракт reboot');
+
+    fireEvent.click(screen.getByRole('button', { name: /^Статус$/ }));
 
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/api/devices/11111111-1111-1111-1111-111111111111'))).toBe(true));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/diagnostics'))).toBe(true));
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Агент 0.4'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Блокировать/ }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).endsWith('/api/devices/11111111-1111-1111-1111-111111111111/commands') &&
+      init?.method === 'POST' &&
+      String(init.body).includes('"type":"lock"'))).toBe(true));
+
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('region', { name: 'Управление выбранным ПК' })).not.toBeInTheDocument();
   });
 
   it('filters the floor map and switches to table view', async () => {
@@ -171,7 +225,13 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
-    fireEvent.click(await screen.findByRole('button', { name: /Стоп/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Стоп$/ }));
+
+    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите остановку сессии' })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/sessions/22222222-2222-2222-2222-222222222222/end') &&
+      init?.method === 'POST')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить стоп' }));
 
     expect((await screen.findAllByText(/\u0421\u0442\u043e\u043f: \u0411\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0430: \u043e\u0436\u0438\u0434\u0430\u0435\u0442 \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044f/)).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -181,6 +241,62 @@ describe('App', () => {
     const body = JSON.parse(String(postCall?.[1]?.body));
     expect(body.reason).toBe('operator');
     expect(body.idempotencyKey).toMatch(/^session-end-/);
+  });
+
+  it('refreshes the selected seat when a session command result arrives over realtime', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    let commandResultReported = false;
+    let floorMapRequestCount = 0;
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/floor-map')) {
+        floorMapRequestCount += 1;
+        if (commandResultReported) {
+          return Promise.resolve(jsonResponse(createFloorMapWithPc01({
+            state: 'Locked',
+            isDeviceLocked: true,
+            activeSessionId: null,
+            remainingSeconds: null
+          })));
+        }
+
+        if (floorMapRequestCount > 1) {
+          return Promise.resolve(jsonResponse(createFloorMapWithPc01({
+            state: 'Ending',
+            isDeviceLocked: false,
+            activeSessionId: '22222222-2222-2222-2222-222222222222',
+            remainingSeconds: 3600
+          })));
+        }
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
+    fireEvent.click(await screen.findByRole('button', { name: /\u0421\u0442\u043e\u043f/ }));
+    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите остановку сессии' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить стоп' }));
+    await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(2));
+
+    commandResultReported = true;
+    realtimeMock.clients.at(-1)?.onDeviceCommandResult?.({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+      deviceId: '11111111-1111-1111-1111-111111111111',
+      commandId: '44444444-4444-4444-4444-444444444444',
+      status: 'accepted',
+      message: 'Agent accepted lock',
+      observedAtUtc: '2026-05-21T10:00:01Z'
+    });
+
+    await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(3));
+    expect(await screen.findByRole('button', { name: /\u0421\u0442\u0430\u0440\u0442 60 \u043c\u0438\u043d/ })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /\u0421\u0442\u043e\u043f/ })).not.toBeInTheDocument();
   });
 
   it('starts a ready seat as a fast guest session through the backend', async () => {
@@ -770,6 +886,13 @@ describe('App', () => {
     expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
 
+    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите возврат POS' })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/refunds') &&
+      init?.method === 'POST')).toBe(false);
+    fireEvent.change(screen.getByLabelText('Причина возврата'), { target: { value: 'Клиент вернул товар' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить возврат' }));
+
     expect(await screen.findByText('Возврат по чеку: подтверждено')).toBeInTheDocument();
     const refundCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/refunds') &&
@@ -778,7 +901,7 @@ describe('App', () => {
     const body = JSON.parse(String(refundCall?.[1]?.body));
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      reason: 'operator POS refund'
+      reason: 'Клиент вернул товар'
     });
     expect(body.idempotencyKey).toMatch(/^pos-refund-/);
   });
@@ -795,6 +918,8 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /25 TJS/ }));
     expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
+    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите возврат POS' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить возврат' }));
 
     expect(await screen.findByText('Возврат по чеку: подтверждено')).toBeInTheDocument();
     const refundCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -886,6 +1011,13 @@ describe('App', () => {
     expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /Аннулировать черновик/ }));
 
+    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите аннулирование' })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/void') &&
+      init?.method === 'POST')).toBe(false);
+    fireEvent.change(screen.getByLabelText('Причина аннулирования'), { target: { value: 'Ошибочная корзина' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить аннулирование' }));
+
     expect(await screen.findByText('Аннулировать черновик: подтверждено')).toBeInTheDocument();
     const saleCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
@@ -906,7 +1038,7 @@ describe('App', () => {
     const voidBody = JSON.parse(String(voidCall?.[1]?.body));
     expect(voidBody).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      reason: 'operator discarded draft cart'
+      reason: 'Ошибочная корзина'
     });
     expect(voidBody.idempotencyKey).toMatch(/^pos-void-/);
   });
@@ -1030,6 +1162,52 @@ describe('App', () => {
     expect(screen.queryByText('Нет backend операций')).not.toBeInTheDocument();
   });
 
+  it('does not replace an empty backend POS catalog with demo products', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/pos/catalog')) {
+        return Promise.resolve(jsonResponse([]));
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('POS'));
+
+    expect(await screen.findByText('Каталог POS пуст')).toBeInTheDocument();
+    expect(screen.getByText('Корзина пуста')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Кола 0\.5/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeDisabled();
+  });
+
+  it('does not select a demo client when backend player search is empty', async () => {
+    installSessionBridge();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/players') && init?.method !== 'POST') {
+        return Promise.resolve(jsonResponse([]));
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+
+    expect(await screen.findByText('Клиенты не найдены')).toBeInTheDocument();
+    expect(screen.getByText('Нет выбранного клиента')).toBeInTheDocument();
+    expect(screen.getByText('backend-данные не подменяются демо-карточкой')).toBeInTheDocument();
+    expect(screen.queryByText('Madina S.')).not.toBeInTheDocument();
+  });
+
   it('shows backend detail for the selected Payments operation', async () => {
     installSessionBridge();
 
@@ -1104,6 +1282,12 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Факт в кассе'), { target: { value: '1120.00' } });
     fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Смена закрыта оператором' } });
     fireEvent.click(screen.getByRole('button', { name: /Подготовить закрытие/ }));
+
+    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите закрытие смены' })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/close') &&
+      init?.method === 'POST')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть смену' }));
 
     expect(await screen.findByText('Подготовить закрытие: подтверждено')).toBeInTheDocument();
     const closeCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1638,6 +1822,12 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /PC-01/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Удалить ПК' }));
 
+    const seatDeleteDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите удаление ПК' });
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') &&
+      init?.method === 'DELETE')).toBe(false);
+    fireEvent.click(within(seatDeleteDialog).getByRole('button', { name: 'Подтвердить удаление ПК' }));
+
     expect(await screen.findByText('Удалить ПК: подтверждено')).toBeInTheDocument();
     const seatDeleteCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
@@ -1646,6 +1836,12 @@ describe('App', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: /Зал A/ })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Удалить зал' }));
+
+    const zoneDeleteDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите удаление зала' });
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') &&
+      init?.method === 'DELETE')).toBe(false);
+    fireEvent.click(within(zoneDeleteDialog).getByRole('button', { name: 'Подтвердить удаление зала' }));
 
     expect(await screen.findByText('Удалить зал: подтверждено')).toBeInTheDocument();
     const zoneDeleteCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1711,6 +1907,12 @@ describe('App', () => {
       init?.method === 'POST')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отозвать ключ' }));
+    const revokeDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите отзыв ключа' });
+    expect(revokeDialog).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
+      init?.method === 'POST')).toBe(false);
+    fireEvent.click(within(revokeDialog).getByRole('button', { name: 'Отозвать ключ' }));
     expect(await screen.findByText('Отозвать ключ: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
@@ -2174,6 +2376,12 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Причина пакета'), { target: { value: 'Подпись проверена.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние пакета' }));
 
+    const packageStateDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите состояние пакета' });
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
+      init?.method === 'POST')).toBe(false);
+    fireEvent.click(within(packageStateDialog).getByRole('button', { name: 'Подтвердить состояние пакета' }));
+
     expect(await screen.findByText('Изменить состояние пакета: подтверждено')).toBeInTheDocument();
     const packageStateCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
@@ -2189,6 +2397,12 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Состояние раскатки'), { target: { value: 'paused' } });
     fireEvent.change(screen.getAllByLabelText('Причина раскатки')[1], { target: { value: 'Пауза для проверки ошибок.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние раскатки' }));
+
+    const rolloutStateDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите состояние раскатки' });
+    expect(fetchMock.mock.calls.some(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
+      init?.method === 'POST')).toBe(false);
+    fireEvent.click(within(rolloutStateDialog).getByRole('button', { name: 'Подтвердить состояние раскатки' }));
 
     expect(await screen.findByText('Изменить состояние раскатки: подтверждено')).toBeInTheDocument();
     const rolloutStateCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -2787,6 +3001,20 @@ function createFloorMap() {
         activeSessionId: null,
         remainingSeconds: null
       }
+    ]
+  };
+}
+
+function createFloorMapWithPc01(overrides: Partial<ReturnType<typeof createFloorMap>['seats'][number]>) {
+  const floorMap = createFloorMap();
+  return {
+    ...floorMap,
+    seats: [
+      {
+        ...floorMap.seats[0],
+        ...overrides
+      },
+      ...floorMap.seats.slice(1)
     ]
   };
 }

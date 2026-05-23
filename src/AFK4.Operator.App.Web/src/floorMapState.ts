@@ -26,21 +26,40 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
   };
 }
 
-export function mapFloorMapDtoToState(floorMap: FloorMapDto): OperatorFloorMapState {
+export function mapFloorMapDtoToState(floorMap: FloorMapDto, loadedAtMs = Date.now()): OperatorFloorMapState {
   return {
     branchId: floorMap.branchId,
     branchName: floorMap.branchName,
-    seats: mapFloorMapSeats(floorMap.seats),
+    seats: mapFloorMapSeats(floorMap.seats, loadedAtMs),
     source: 'backend',
     loadStatus: 'ready',
     error: null
   };
 }
 
-export function mapFloorMapSeats(nextSeats: SeatStatusDto[]): SeatSummary[] {
+export function mapFloorMapSeats(nextSeats: SeatStatusDto[], loadedAtMs = Date.now()): SeatSummary[] {
   return [...nextSeats]
     .sort((left, right) => left.sortOrder - right.sortOrder || left.seatName.localeCompare(right.seatName))
-    .map(mapFloorMapSeat);
+    .map((seat) => mapFloorMapSeat(seat, loadedAtMs));
+}
+
+export function refreshFloorMapRemaining(
+  floorMap: OperatorFloorMapState,
+  nowMs = Date.now()
+): OperatorFloorMapState {
+  let changed = false;
+  const nextSeats = floorMap.seats.map((seat) => {
+    const nextSeat = refreshSeatRemaining(seat, nowMs);
+    if (nextSeat !== seat) {
+      changed = true;
+    }
+
+    return nextSeat;
+  });
+
+  return changed
+    ? { ...floorMap, seats: nextSeats }
+    : floorMap;
 }
 
 export function applyDeviceStatusToSeats(
@@ -60,13 +79,17 @@ export function applyDeviceStatusToSeats(
   return applied ? nextSeats : currentSeats;
 }
 
-function mapFloorMapSeat(dto: SeatStatusDto): SeatSummary {
+function mapFloorMapSeat(dto: SeatStatusDto, loadedAtMs: number): SeatSummary {
   const normalizedState = normalizeState(dto.state);
   const hasActiveSession = dto.activeSessionId !== null && dto.activeSessionId !== undefined;
   const hasDevice = dto.deviceId !== null && dto.deviceId !== undefined;
   const isDeviceOnline = dto.isDeviceOnline ?? false;
   const isDeviceLocked = dto.isDeviceLocked ?? true;
   const tone = resolveTone(normalizedState, hasDevice, isDeviceOnline, hasActiveSession);
+  const remainingSeconds = dto.remainingSeconds ?? null;
+  const remainingDeadlineMs = remainingSeconds === null
+    ? null
+    : loadedAtMs + remainingSeconds * 1000;
 
   return {
     id: dto.seatId,
@@ -75,7 +98,7 @@ function mapFloorMapSeat(dto: SeatStatusDto): SeatSummary {
     tone,
     stateLabel: displayState(dto.state),
     player: hasActiveSession ? 'Активный клиент' : tone === 'ready' ? 'Гость' : 'Нет игрока',
-    remaining: remainingText(dto.remainingSeconds, normalizedState, tone, hasActiveSession),
+    remaining: remainingText(remainingSeconds, normalizedState, tone, hasActiveSession),
     billing: hasActiveSession ? 'Wallet' : tone === 'ready' ? 'Fast guest' : 'N/A',
     device: formatDeviceSummary({
       deviceName: dto.deviceName,
@@ -93,6 +116,8 @@ function mapFloorMapSeat(dto: SeatStatusDto): SeatSummary {
     hasActiveSession,
     activeSessionId: dto.activeSessionId,
     rawState: dto.state,
+    remainingSeconds,
+    remainingDeadlineMs,
     sortOrder: dto.sortOrder
   };
 }
@@ -131,8 +156,27 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
     isDeviceLocked: status.isLocked,
     hasActiveSession,
     activeSessionId: seat.activeSessionId,
-    rawState: nextRawState
+    rawState: nextRawState,
+    remainingSeconds: hasActiveSession ? seat.remainingSeconds : null,
+    remainingDeadlineMs: hasActiveSession ? seat.remainingDeadlineMs : null
   };
+}
+
+function refreshSeatRemaining(seat: SeatSummary, nowMs: number): SeatSummary {
+  if (!seat.hasActiveSession || seat.remainingDeadlineMs === null || seat.remainingDeadlineMs === undefined) {
+    return seat;
+  }
+
+  const remainingSeconds = Math.max(0, Math.ceil((seat.remainingDeadlineMs - nowMs) / 1000));
+  const normalizedState = normalizeState(seat.rawState ?? '');
+  const nextRemaining = remainingText(remainingSeconds, normalizedState, seat.tone, true);
+  return nextRemaining === seat.remaining && remainingSeconds === seat.remainingSeconds
+    ? seat
+    : {
+        ...seat,
+        remaining: nextRemaining,
+        remainingSeconds
+      };
 }
 
 function matchesDeviceStatus(seat: SeatSummary, status: DeviceStatusChangedDto): boolean {

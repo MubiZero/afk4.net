@@ -28,6 +28,12 @@ public sealed class OperatorWebShellOptions
                 $"{DevServerUrlEnvironmentVariable} must be an absolute http or https URL.");
         }
 
+        if (!devServerUrl.IsLoopback)
+        {
+            throw new InvalidOperationException(
+                $"{DevServerUrlEnvironmentVariable} must point to localhost or a loopback address.");
+        }
+
         return new OperatorWebShellOptions
         {
             DevServerUrl = devServerUrl

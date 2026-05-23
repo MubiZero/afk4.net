@@ -1,4 +1,13 @@
 export type HostWindowCommand = 'drag' | 'minimize' | 'maximize' | 'close';
+export type HostWindowResizeEdge =
+  | 'left'
+  | 'right'
+  | 'top'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom'
+  | 'bottom-left'
+  | 'bottom-right';
 
 export interface HostBridgeError {
   code: string;
@@ -29,6 +38,10 @@ export function isHostBridgeUnavailableError(error: unknown): boolean {
 
 export function postHostWindowCommand(command: HostWindowCommand): void {
   window.chrome?.webview?.postMessage({ type: `window:${command}` });
+}
+
+export function postHostWindowResize(edge: HostWindowResizeEdge): void {
+  window.chrome?.webview?.postMessage({ type: 'window:resize', edge });
 }
 
 export function postHostRequest<TPayload>(

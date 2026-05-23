@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDeviceHubUrl,
   createOperatorRealtimeClient,
+  deviceCommandResultEventName,
   deviceStatusChangedEventName,
+  type DeviceCommandResultDto,
   type DeviceStatusChangedDto,
   type SignalRConnectionLike
 } from './operatorRealtime';
@@ -16,12 +18,14 @@ describe('operator realtime client', () => {
     const connection = new FakeSignalRConnection();
     const states: string[] = [];
     const statuses: DeviceStatusChangedDto[] = [];
+    const results: DeviceCommandResultDto[] = [];
     const client = createOperatorRealtimeClient({
       baseUrl: 'http://localhost:5074/',
       getAccessToken: () => 'access-token',
       connectionFactory: () => connection,
       onConnectionStateChanged: (state) => states.push(state),
-      onDeviceStatusChanged: (status) => statuses.push(status)
+      onDeviceStatusChanged: (status) => statuses.push(status),
+      onDeviceCommandResult: (result) => results.push(result)
     });
 
     await client.start();
@@ -34,6 +38,15 @@ describe('operator realtime client', () => {
       isLocked: false,
       observedAtUtc: '2026-05-21T10:00:00Z'
     });
+    connection.emit(deviceCommandResultEventName, {
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+      deviceId: '11111111-1111-1111-1111-111111111111',
+      commandId: '44444444-4444-4444-4444-444444444444',
+      status: 'accepted',
+      message: 'Agent accepted lock',
+      observedAtUtc: '2026-05-21T10:00:01Z'
+    });
     connection.reconnect();
     await client.stop();
 
@@ -42,6 +55,11 @@ describe('operator realtime client', () => {
     expect(statuses[0]).toMatchObject({
       machineName: 'PC-01',
       isLocked: false
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      commandId: '44444444-4444-4444-4444-444444444444',
+      status: 'accepted'
     });
   });
 });

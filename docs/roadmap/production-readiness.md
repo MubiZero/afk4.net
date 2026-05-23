@@ -411,8 +411,11 @@ Minimum bar:
   `/api/branches/{branchId}/devices`, lets operators select a device without
   typing a GUID, and then opens the existing device detail/command/credential
   tools plus selected-device command history from
-  `/api/devices/{deviceId}/commands`. Staging
-  smoke of these extra workspaces still remains before
+  `/api/devices/{deviceId}/commands`. A focused pilot-hardening plan now exists
+  at `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`. Its
+  first slice removes signed-in POS/Clients fixture leakage for authoritative
+  empty backend responses and restricts WebView2 dev-server URLs to loopback.
+  Staging smoke of these extra workspaces still remains before
   the WebView2/React app covers the full pilot day flow. Fixture-only/
   missing-contract commands should report backend failures rather than showing
   backend success, and signed-in workspace status copy now reserves fixture data
@@ -480,9 +483,23 @@ Minimum bar:
    filters, selected-event detail, source-card filtering, period presets, and
    export downloads, POS
    selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
-   POS selected-customer/new-customer checkout/wallet top-up/stock write-off, Clients wallet
-   top-up/debt-payment forms, Clients new-player form, Clients active-package profile detail, Clients package purchase selector/confirmation, Settings branch device inventory, selected-device command history, branch-wide device command history, and Settings safe layout deletion. Next deliver staging smoke across these backend-backed workspaces
-   and close gaps found with real staging data.
+   POS selected-customer/new-customer checkout/wallet top-up/stock write-off,
+   Clients wallet top-up/debt-payment forms, Clients new-player form, Clients
+   active-package profile detail, Clients package purchase selector/confirmation,
+   Settings branch device inventory, selected-device command history,
+   branch-wide device command history, and Settings safe layout deletion. The
+   first pilot-hardening slice now removes POS/Clients empty-backend fixture
+   leakage and loopback-locks the WebView2 dev-server URL. A follow-up slice now
+   adds two-step confirmation guards for session end, POS refund/void, shift
+   close, device credential revoke, layout deletion, and update package/rollout
+   state changes. Next continue from
+   `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`: staging
+   smoke across backend-backed workspaces, de-technicalized primary copy,
+   frontend module split, stronger typed contracts, React hotkeys, and follow-up
+   fixes found with real staging data. Before running branch-level staging
+   smoke, remember that the current Coolify staging app is configured to deploy
+   `main`; branch-only routes and migrations must be merged or intentionally
+   deployed with backup/migration handling first.
    Local builds must
    still target staging with
    `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw

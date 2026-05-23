@@ -10,28 +10,31 @@ import {
   Minus,
   MonitorCheck,
   Plus,
+  Power,
   ReceiptText,
   Search,
   ShieldAlert,
   Square,
   TimerReset,
+  UnlockKeyhole,
   UserRoundPlus,
   Wifi,
   Wrench,
   X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import { projectOperatorError } from './apiErrors';
 import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
 import {
   applyDeviceStatusToSeats,
   createFixtureFloorMapState,
   mapFloorMapDtoToState,
+  refreshFloorMapRemaining,
   type FloorMapLoadStatus,
   type OperatorFloorMapState
 } from './floorMapState';
-import { isHostBridgeUnavailableError, postHostWindowCommand } from './hostBridge';
+import { isHostBridgeUnavailableError, postHostWindowCommand, postHostWindowResize, type HostWindowResizeEdge } from './hostBridge';
 import {
   createOperatorApiClients,
   type AuditSearchResultDto,
@@ -60,6 +63,7 @@ import {
 import { getOperatorConfig } from './operatorConfig';
 import {
   createOperatorRealtimeClient,
+  type DeviceCommandResultDto,
   type DeviceStatusChangedDto,
   type OperatorRealtimeConnectionState
 } from './operatorRealtime';
@@ -71,6 +75,7 @@ type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
 type AuthStatus = 'checking' | 'signed-out' | 'signed-in';
 type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';
 type Feedback = { label: string; state: FeedbackState; detail?: string };
+type CriticalConfirmationTone = 'warning' | 'danger';
 type LoadStatus = 'fixture' | 'loading' | 'backend' | 'failed';
 type MapFilterId = 'all' | 'ready' | 'active' | 'attention' | 'offline';
 type MapViewMode = 'grid' | 'table';
@@ -96,11 +101,16 @@ type SeatActionRequest =
   | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
   | { type: 'end'; seat: SeatSummary };
+type PcControlActionId = 'status' | 'lock' | 'unlock' | 'reboot' | 'shutdown' | 'wake' | 'admin';
+type PcControlActionResult = {
+  detail: string;
+};
 
 const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'logs', 'settings'];
 const fallbackOrganizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const defaultSessionDurationMinutes = 60;
 const defaultTariffRuleVersionId = 'manual-v1';
+const shellOperationalRefreshMs = 30_000;
 const billingModeOptions: Array<{ id: SessionBillingModeId; label: string; detail: string }> = [
   { id: 'guest', label: 'Гость', detail: 'без ledger' },
   { id: 'prepaid_wallet', label: 'Депозит', detail: 'списать с баланса' },
@@ -221,6 +231,8 @@ const toneLabels: Record<SeatTone, string> = {
 
 const problemTones = new Set<SeatTone>(['pending', 'warning', 'blocking', 'offline', 'service']);
 const emptyFeedback: Feedback = { label: '', state: 'idle' };
+const pcControlLabel = 'Управление ПК';
+const pcControlTitle = 'Команды для выбранного ПК: статус, блокировка, питание и сервисный доступ';
 
 function handleWindowDragStart(event: MouseEvent<HTMLElement>) {
   if (event.button !== 0) {
@@ -228,11 +240,20 @@ function handleWindowDragStart(event: MouseEvent<HTMLElement>) {
   }
 
   const target = event.target as HTMLElement;
-  if (target.closest('button, input, .command-search')) {
+  if (event.detail > 1 || target.closest('button, input, select, textarea, .command-search, .window-resize-handle')) {
     return;
   }
 
   postHostWindowCommand('drag');
+}
+
+function handleWindowTitleDoubleClick(event: MouseEvent<HTMLElement>) {
+  const target = event.target as HTMLElement;
+  if (target.closest('button, input, select, textarea, .command-search, .window-resize-handle')) {
+    return;
+  }
+
+  postHostWindowCommand('maximize');
 }
 
 function toDateInputValue(date: Date) {
@@ -345,8 +366,47 @@ function FeedbackNotice({ feedback }: { feedback: Feedback }) {
 
   return (
     <div className={`feedback-notice ${feedback.state}`} role="status" aria-live="polite">
-      {feedbackText(feedback)}
+      <span>{feedbackText(feedback)}</span>
     </div>
+  );
+}
+
+function CriticalActionConfirmation({
+  title,
+  detail,
+  impact,
+  confirmLabel,
+  cancelLabel = 'Отмена',
+  tone = 'danger',
+  disabled = false,
+  children,
+  onConfirm,
+  onCancel
+}: {
+  title: string;
+  detail: string;
+  impact: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  tone?: CriticalConfirmationTone;
+  disabled?: boolean;
+  children?: ReactNode;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <section className={`critical-confirmation ${tone}`} role="alertdialog" aria-label={title}>
+      <div>
+        <strong>{title}</strong>
+        <span>{detail}</span>
+        <em>{impact}</em>
+      </div>
+      {children}
+      <div className="critical-confirmation-actions">
+        <button type="button" onClick={onCancel} disabled={disabled}>{cancelLabel}</button>
+        <button type="button" className="danger" onClick={onConfirm} disabled={disabled}>{confirmLabel}</button>
+      </div>
+    </section>
   );
 }
 
@@ -770,7 +830,7 @@ function mapSeatStatus(seat: SeatSummary) {
   }
 
   return {
-    label: 'Техрежим',
+    label: 'Сервис',
     value: commandLabel(seat.command)
   };
 }
@@ -807,6 +867,47 @@ function dataSourceLabel(source: string): string {
   return source === 'backend' ? 'Платформа подключена' : 'Демо-режим';
 }
 
+function shellShiftLabel(
+  shift: ShiftDto | null,
+  summary: OperatorDashboardSummaryDto | null,
+  status: LoadStatus,
+  error: string | null
+): string {
+  const shiftSource = shift ?? readRecord(summary, 'shift');
+  if (shiftSource !== null) {
+    const state = readString(shiftSource, 'state').toLowerCase();
+    if (state === 'open') {
+      return `Смена открыта · с ${formatTime(readString(shiftSource, 'openedAtUtc'))}`;
+    }
+
+    if (state === 'closed') {
+      return `Смена закрыта · ${formatTime(readString(shiftSource, 'closedAtUtc'))}`;
+    }
+
+    return `Смена · ${state || 'состояние неизвестно'}`;
+  }
+
+  if (status === 'loading') {
+    return 'Смена · загрузка';
+  }
+
+  if (status === 'failed') {
+    return error ? 'Смена · ошибка платформы' : 'Смена · нет доступа';
+  }
+
+  return 'Смена не открыта';
+}
+
+function shellPosLabel(summary: OperatorDashboardSummaryDto | null, status: LoadStatus): string {
+  if (summary !== null) {
+    const revenue = readRecord(summary, 'revenue');
+    const posChecks = readNumber(revenue, 'posCheckCount', 0);
+    return `POS: ${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])} сегодня`;
+  }
+
+  return status === 'loading' ? 'POS: загрузка' : 'POS: нет данных';
+}
+
 function shellModeLabel(mode: string): string {
   if (mode.includes('dev')) {
     return 'режим разработки';
@@ -831,7 +932,7 @@ function describeTechModeResult(
   const pendingCommands = readNumber(commandSummary, 'pendingCommands', 0);
   const failedCommands = readNumber(commandSummary, 'failedCommands', 0);
 
-  return `${machineName} · Агент ${agentVersion} / оболочка ${shellVersion} · команд в работе: ${pendingCommands}, ошибок: ${failedCommands}`;
+  return `${machineName}: связь есть, Агент ${agentVersion}, оболочка ${shellVersion}; команд в работе: ${pendingCommands}, ошибок: ${failedCommands}`;
 }
 
 function projectAuthHostError(error: unknown, config: OperatorConfig): string {
@@ -903,6 +1004,23 @@ function resolveActiveBranchId(session: OperatorAuthSession, configBranchId?: st
 function matchesRealtimeScope(status: DeviceStatusChangedDto, session: OperatorAuthSession, branchId: string): boolean {
   return status.organizationId.toLowerCase() === session.organizationId.toLowerCase()
     && status.branchId.toLowerCase() === branchId.toLowerCase();
+}
+
+function matchesCommandResultScope(result: DeviceCommandResultDto, session: OperatorAuthSession, branchId: string): boolean {
+  return result.organizationId.toLowerCase() === session.organizationId.toLowerCase()
+    && result.branchId.toLowerCase() === branchId.toLowerCase();
+}
+
+function findSeatForDeviceStatus(nextSeats: SeatSummary[], status: DeviceStatusChangedDto): SeatSummary | null {
+  const statusDeviceId = status.deviceId.toLowerCase();
+  const statusMachineName = status.machineName.toLowerCase();
+  return nextSeats.find((seat) =>
+    (seat.deviceId ?? '').toLowerCase() === statusDeviceId ||
+    seat.name.toLowerCase() === statusMachineName) ?? null;
+}
+
+function shouldReloadFloorMapAfterDeviceStatus(seat: SeatSummary, status: DeviceStatusChangedDto): boolean {
+  return status.isLocked && (Boolean(seat.activeSessionId) || seat.hasActiveSession === true || isPendingSeatCommand(seat));
 }
 
 function createAuthenticatedOperatorClients(config: ReturnType<typeof getOperatorConfig>, session: OperatorAuthSession) {
@@ -1331,42 +1449,98 @@ async function describeSeatActionResult(
   }
 }
 
+async function describeDispatchedDeviceCommand(
+  clients: ReturnType<typeof createAuthenticatedOperatorClients>,
+  session: OperatorAuthSession,
+  seat: SeatSummary,
+  command: Record<string, unknown>
+): Promise<string> {
+  const commandId = readString(command, 'commandId');
+  const deviceId = seat.deviceId || readString(command, 'deviceId');
+  const fallback = `${commandTypeLabel(readString(command, 'type', 'command'))}: отправлена на ПК`;
+  if (!commandId || !deviceId || !hasPermission(session, permissionNames.viewDeviceCommandStatus)) {
+    return fallback;
+  }
+
+  try {
+    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId));
+  } catch (error) {
+    return `${fallback} · статус недоступен: ${projectOperatorError(error).detail}`;
+  }
+}
+
 function MapWorkspace({
   floorMap,
-  canUseTechMode,
+  canUsePcControl,
   selectedSeatId,
   onSelectSeat,
-  onTechMode
+  onPcControlAction
 }: {
   floorMap: OperatorFloorMapState;
-  canUseTechMode: boolean;
+  canUsePcControl: boolean;
   selectedSeatId: string;
   onSelectSeat: (seatId: string) => void;
-  onTechMode: (seat: SeatSummary) => Promise<string>;
+  onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
 }) {
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [activeFilter, setActiveFilter] = useState<MapFilterId>('all');
   const [viewMode, setViewMode] = useState<MapViewMode>('grid');
+  const [isPcControlOpen, setIsPcControlOpen] = useState(false);
+  const pcControlButtonRef = useRef<HTMLButtonElement | null>(null);
+  const pcControlPanelRef = useRef<HTMLElement | null>(null);
   const visibleSeats = useMemo(
     () => floorMap.seats.filter((seat) => matchesMapFilter(seat, activeFilter)),
     [activeFilter, floorMap.seats]
   );
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
+  const selectedHasSession = selectedSeat !== null && (Boolean(selectedSeat.activeSessionId) || selectedSeat.hasActiveSession === true);
 
-  const runTechMode = async () => {
+  const runPcControlAction = async (action: PcControlActionId, label: string) => {
     if (selectedSeat === null) {
-      setFeedback({ label: 'Техрежим', state: 'failed', detail: 'Выберите ПК для диагностики.' });
+      setFeedback({ label, state: 'failed', detail: 'Выберите ПК.' });
       return;
     }
 
-    setFeedback({ label: 'Техрежим', state: 'pending' });
+    setFeedback({ label, state: 'pending' });
     try {
-      setFeedback({ label: 'Техрежим', state: 'confirmed', detail: await onTechMode(selectedSeat) });
+      const result = await onPcControlAction(selectedSeat, action);
+      setFeedback({ label, state: 'confirmed', detail: result.detail });
     } catch (error) {
-      setFeedback({ label: 'Техрежим', state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
     }
   };
+
+  const explainUnavailablePcControl = (label: string, detail: string) => {
+    setFeedback({ label, state: 'failed', detail });
+  };
+
+  useEffect(() => {
+    if (!isPcControlOpen) {
+      return undefined;
+    }
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target !== null && (pcControlPanelRef.current?.contains(target) || pcControlButtonRef.current?.contains(target))) {
+        return;
+      }
+
+      setIsPcControlOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsPcControlOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isPcControlOpen]);
 
   useEffect(() => {
     if (visibleSeats.length === 0 || selectedSeatVisible) {
@@ -1385,15 +1559,66 @@ function MapWorkspace({
         </div>
         <div className="screen-actions">
           <button
+            ref={pcControlButtonRef}
             type="button"
             className="map-tool-action"
-            disabled={!canUseTechMode || selectedSeat === null || feedback.state === 'pending'}
-            onClick={runTechMode}
+            aria-expanded={isPcControlOpen}
+            disabled={!canUsePcControl || selectedSeat === null}
+            onClick={() => setIsPcControlOpen((current) => !current)}
+            title={pcControlTitle}
           >
-            <Wrench size={14} />Техрежим
+            <Wrench size={14} />{pcControlLabel}
           </button>
         </div>
       </section>
+
+      {isPcControlOpen && selectedSeat !== null && (
+        <section ref={pcControlPanelRef} className="pc-control-panel" aria-label="Управление выбранным ПК">
+          <header>
+            <div>
+              <span>Выбранный ПК</span>
+              <strong>{selectedSeat.name}</strong>
+            </div>
+            <b className={`state-chip state-${selectedSeat.tone}`}>{toneLabels[selectedSeat.tone]}</b>
+          </header>
+          <div className="pc-control-summary">
+            <span>{selectedSeat.device}</span>
+            <span>{commandLabel(selectedSeat.command)}</span>
+          </div>
+          <span className="pc-control-section-title">Доступно сейчас</span>
+          <div className="pc-control-actions">
+            <button type="button" disabled={feedback.state === 'pending'} onClick={() => runPcControlAction('status', 'Статус ПК')}>
+              <MonitorCheck size={14} /><span>Статус</span>
+            </button>
+            <button type="button" disabled={feedback.state === 'pending' || !selectedSeat.deviceId} onClick={() => runPcControlAction('lock', 'Блокировка ПК')}>
+              <LockKeyhole size={14} /><span>Блокировать</span>
+            </button>
+            <button
+              type="button"
+              disabled={feedback.state === 'pending' || !selectedSeat.deviceId || !selectedHasSession}
+              onClick={() => runPcControlAction('unlock', 'Разблокировка ПК')}
+              title={selectedHasSession ? 'Повторно отправить unlock для активной сессии' : 'Разблокировка без сессии будет отдельным админ-режимом'}
+            >
+              <UnlockKeyhole size={14} /><span>Разблокировать</span>
+            </button>
+          </div>
+          <span className="pc-control-section-title">Следующий слой</span>
+          <div className="pc-control-actions future">
+            <button type="button" onClick={() => explainUnavailablePcControl('Перезагрузка ПК', 'Нужен Agent-контракт reboot и подтверждение выполнения от ПК.')}>
+              <TimerReset size={14} /><span><strong>Перезагрузить</strong><em>нужен Agent reboot</em></span>
+            </button>
+            <button type="button" onClick={() => explainUnavailablePcControl('Выключение ПК', 'Нужен Agent-контракт shutdown и правило запрета при активной сессии.')}>
+              <Power size={14} /><span><strong>Выключить</strong><em>нужен Agent shutdown</em></span>
+            </button>
+            <button type="button" onClick={() => explainUnavailablePcControl('Разбудить ПК', 'Нужен Wake-on-LAN relay через онлайн Agent в этой клубной сети.')}>
+              <Wifi size={14} /><span><strong>Разбудить</strong><em>нужен WoL relay</em></span>
+            </button>
+            <button type="button" onClick={() => explainUnavailablePcControl('Админ-режим', 'Нужен сервисный режим с таймером, audit и автоматическим возвратом защиты.')}>
+              <ShieldAlert size={14} /><span><strong>Админ-режим</strong><em>нужен сервисный контракт</em></span>
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="map-controls-row" aria-label="Фильтры и вид карты">
         <div className="filter-row map-filter-row" aria-label="Фильтр ПК">
@@ -1699,7 +1924,7 @@ function DashboardWorkspace({
           </div>
           <div className="dashboard-now-actions">
             <button type="button" onClick={() => openSelectedFocusSeat('Разобрать')}><AlertTriangle size={15} /> Разобрать</button>
-            <button type="button" onClick={() => openSelectedFocusSeat('Техрежим')}><Wrench size={15} /> Техрежим</button>
+            <button type="button" onClick={() => openSelectedFocusSeat(pcControlLabel)}><Wrench size={15} /> {pcControlLabel}</button>
           </div>
           {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: 'Dashboard', state: 'failed', detail: dashboardLoadError ?? 'Dashboard data is unavailable.' }} />}
           <FeedbackNotice feedback={feedback} />
@@ -2921,6 +3146,7 @@ function MapSidePanel({
   const [selectedPlayerPackageId, setSelectedPlayerPackageId] = useState('');
   const [billingStatus, setBillingStatus] = useState<LoadStatus>('fixture');
   const [billingError, setBillingError] = useState<string | null>(null);
+  const [criticalAction, setCriticalAction] = useState<'end-session' | null>(null);
   const transferCandidates = floorSeats.filter((candidate) =>
     candidate.id !== seat.id &&
     candidate.tone === 'ready' &&
@@ -3049,6 +3275,10 @@ function MapSidePanel({
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
   useEffect(() => {
+    setCriticalAction(null);
+  }, [seat.id, seat.activeSessionId]);
+
+  useEffect(() => {
     let disposed = false;
     const query = playerSearch.trim();
 
@@ -3119,6 +3349,7 @@ function MapSidePanel({
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedPlayerId]);
 
   const runSeatAction = async (label: string, request: SeatActionRequest) => {
+    setCriticalAction(null);
     setFeedback({ label, state: 'pending' });
 
     try {
@@ -3154,7 +3385,7 @@ function MapSidePanel({
             <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+15 мин', { type: 'extend', seat, minutes: 15, billing: billingSelection })}><Plus size={15} />15 мин</button>
             <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+30 мин', { type: 'extend', seat, minutes: 30, billing: billingSelection })}><TimerReset size={15} />30 мин</button>
             <button type="button" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction('Перенос', { type: 'transfer', seat, targetSeatId })}><ArrowRightLeft size={15} />Перенос</button>
-            <button type="button" className="danger" disabled={!canEndSession || isBusy} onClick={() => runSeatAction('Стоп', { type: 'end', seat })}><Square size={15} />Стоп</button>
+            <button type="button" className="danger" disabled={!canEndSession || isBusy} onClick={() => setCriticalAction('end-session')}><Square size={15} />Стоп</button>
           </>
         ) : (
           <>
@@ -3173,6 +3404,17 @@ function MapSidePanel({
             ))}
           </select>
         </label>
+      )}
+      {criticalAction === 'end-session' && (
+        <CriticalActionConfirmation
+          title="Подтвердите остановку сессии"
+          detail={`${seat.name} · ${seat.remaining} · ${activeBilling}`}
+          impact="Сессия будет завершена, backend отправит команду блокировки ПК."
+          confirmLabel="Подтвердить стоп"
+          disabled={isBusy}
+          onCancel={() => setCriticalAction(null)}
+          onConfirm={() => void runSeatAction('Стоп', { type: 'end', seat })}
+        />
       )}
       <FeedbackNotice feedback={feedback} />
 
@@ -3312,7 +3554,7 @@ function MapSidePanel({
 function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId; currencyCode: string }) {
   const title = {
     map: 'PC-01',
-    dashboard: 'Смена #24',
+    dashboard: 'Смена',
     booking: 'Бронь 16:00',
     pos: 'Корзина',
     players: 'Amir K.',
@@ -3379,9 +3621,9 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [productSearch, setProductSearch] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Наличные');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
   const [currentShift, setCurrentShift] = useState<ShiftDto | null>(null);
-  const [catalog, setCatalog] = useState<PosCatalogItem[]>(fixturePosProducts);
+  const [catalog, setCatalog] = useState<PosCatalogItem[]>(() => backend === null ? fixturePosProducts : []);
   const [salesReport, setSalesReport] = useState<ReportResultDto | null>(null);
   const [lastSale, setLastSale] = useState<PosSaleDto | null>(null);
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<PosSaleDto | null>(null);
@@ -3396,14 +3638,24 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [stockWriteOffProductId, setStockWriteOffProductId] = useState('');
   const [stockWriteOffQuantity, setStockWriteOffQuantity] = useState('1');
   const [stockWriteOffReason, setStockWriteOffReason] = useState('операторское списание POS');
-  const [cartItems, setCartItems] = useState<PosCartItem[]>([
-    { ...fixturePosProducts[0], quantity: 1 },
-    { ...fixturePosProducts[3], quantity: 1 }
-  ]);
+  const [criticalAction, setCriticalAction] = useState<'refund-sale' | 'void-draft' | null>(null);
+  const [refundReason, setRefundReason] = useState('Возврат по запросу клиента');
+  const [voidReason, setVoidReason] = useState('Ошибка в черновике POS');
+  const [cartItems, setCartItems] = useState<PosCartItem[]>(() => backend === null
+    ? [
+        { ...fixturePosProducts[0], quantity: 1 },
+        { ...fixturePosProducts[3], quantity: 1 }
+      ]
+    : []);
 
   const loadBackendPos = async (nextBackend = backend) => {
     if (nextBackend === null) {
       setLoadStatus('fixture');
+      setCatalog(fixturePosProducts);
+      setCartItems((items) => items.length > 0 ? items : [
+        { ...fixturePosProducts[0], quantity: 1 },
+        { ...fixturePosProducts[3], quantity: 1 }
+      ]);
       return;
     }
 
@@ -3421,7 +3673,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         : [];
 
       const backendProducts = products.filter((product) => product.source === 'backend' && product.productId);
-      setCatalog(products.length > 0 ? products : fixturePosProducts);
+      setCatalog(products);
       setStockWriteOffProductId((current) => backendProducts.some((product) => product.productId === current)
         ? current
         : backendProducts[0]?.productId ?? '');
@@ -3432,11 +3684,18 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         ? current
         : readString(nextSalesRows.find((row) => readString(row, 'state').toLowerCase() === 'paid'), 'posSaleId'));
       setCartItems((items) => {
-        if (products.length === 0 || items.some((item) => item.source === 'backend')) {
-          return items;
+        const productById = new Map(backendProducts.map((product) => [product.productId, product]));
+        const validBackendItems = items
+          .filter((item) => item.source === 'backend' && item.productId && productById.has(item.productId))
+          .map((item) => ({
+            ...productById.get(item.productId!)!,
+            quantity: item.quantity
+          }));
+        if (validBackendItems.length > 0) {
+          return validBackendItems;
         }
 
-        return [{ ...products[0], quantity: 1 }];
+        return backendProducts[0] ? [{ ...backendProducts[0], quantity: 1 }] : [];
       });
       setLoadStatus('backend');
     } catch (error) {
@@ -3533,6 +3792,12 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     && cartItems.every((item) => Boolean(item.productId) && item.source === 'backend')
     && hasPermission(backend.session, permissionNames.createPosSale)
     && hasPermission(backend.session, permissionNames.voidPosSale);
+  const canAcceptPayment = backend !== null
+    && shiftId.length > 0
+    && cartItems.length > 0
+    && cartItems.every((item) => Boolean(item.productId) && item.source === 'backend')
+    && hasPermission(backend.session, permissionNames.createPosSale)
+    && hasPermission(backend.session, permissionNames.payPosSale);
   const canCreatePosPlayer = backend !== null
     && hasPermission(backend.session, permissionNames.createPlayerAccount)
     && newPlayerDisplayName.length > 0;
@@ -3736,6 +4001,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   };
 
   const refundLatestSale = async () => {
+    setCriticalAction(null);
     setFeedback({ label: 'Возврат по чеку', state: 'pending' });
     try {
       const nextBackend = requireBackend(backend);
@@ -3747,9 +4013,14 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         throw new Error('Нет POS-продажи платформы для возврата.');
       }
 
+      const reason = refundReason.trim();
+      if (!reason) {
+        throw new Error('Введите причину возврата.');
+      }
+
       await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).pos.refundSale(selectedRefundableSaleId, {
         organizationId: nextBackend.session.organizationId,
-        reason: 'operator POS refund',
+        reason,
         idempotencyKey: createIdempotencyKey('pos-refund')
       });
       setFeedback({ label: 'Возврат по чеку', state: 'confirmed' });
@@ -3843,6 +4114,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   };
 
   const voidDraftCart = async () => {
+    setCriticalAction(null);
     setFeedback({ label: 'Аннулировать черновик', state: 'pending' });
     try {
       const nextBackend = requireBackend(backend);
@@ -3856,6 +4128,11 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
 
       if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
         throw new Error('POS-каталог платформы не загружен для текущей корзины.');
+      }
+
+      const reason = voidReason.trim();
+      if (!reason) {
+        throw new Error('Введите причину аннулирования.');
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -3880,7 +4157,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
 
       const voidedSale = await clients.pos.voidSale(saleId, {
         organizationId: nextBackend.session.organizationId,
-        reason: 'operator discarded draft cart',
+        reason,
         idempotencyKey: createIdempotencyKey('pos-void')
       });
 
@@ -3944,14 +4221,21 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             ))}
           </div>
           <div className="pos-catalog-grid">
-            {visibleProducts.map((product) => (
-              <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="pos-product-card" onClick={() => addProduct(product)}>
-                <strong>{product.name}</strong>
-                <span>{product.category}</span>
-                <b>{formatMinorUnits(product.priceMinorUnits, currencyCode)}</b>
-                <em>{product.note}</em>
-              </button>
-            ))}
+            {visibleProducts.length === 0 ? (
+              <div className="pos-empty-state">
+                <strong>Каталог POS пуст</strong>
+                <span>{loadStatus === 'backend' ? 'Платформа не вернула активные товары для этого филиала.' : 'Загрузите каталог платформы.'}</span>
+              </div>
+            ) : (
+              visibleProducts.map((product) => (
+                <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="pos-product-card" onClick={() => addProduct(product)}>
+                  <strong>{product.name}</strong>
+                  <span>{product.category}</span>
+                  <b>{formatMinorUnits(product.priceMinorUnits, currencyCode)}</b>
+                  <em>{product.note}</em>
+                </button>
+              ))
+            )}
           </div>
         </section>
 
@@ -4035,15 +4319,25 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             </button>
           </div>
           <div className="pos-cart-list">
-            {cartItems.map((item) => (
-              <article key={`${item.productId ?? item.name}-${item.name}`} className="pos-cart-row interactive-row">
+            {cartItems.length === 0 ? (
+              <article className="pos-cart-row empty">
                 <div>
-                  <strong>{item.name}</strong>
-                  <span>{item.quantity} шт.</span>
+                  <strong>Корзина пуста</strong>
+                  <span>Добавьте товар из backend-каталога.</span>
                 </div>
-                <b>{formatMinorUnits(item.priceMinorUnits * item.quantity, currencyCode)}</b>
+                <b>{formatMinorUnits(0, currencyCode)}</b>
               </article>
-            ))}
+            ) : (
+              cartItems.map((item) => (
+                <article key={`${item.productId ?? item.name}-${item.name}`} className="pos-cart-row interactive-row">
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.quantity} шт.</span>
+                  </div>
+                  <b>{formatMinorUnits(item.priceMinorUnits * item.quantity, currencyCode)}</b>
+                </article>
+              ))
+            )}
           </div>
           <div className="pos-total-card">
             <span>Итого к оплате</span>
@@ -4080,7 +4374,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <div><span>Сдача</span><strong>{formatMinorUnits(changeMinorUnits, currencyCode)}</strong></div>
             <div><span>Смена</span><strong>{shiftId ? 'Открыта' : 'Нет'}</strong></div>
           </div>
-          <button type="button" className="pos-primary-action" disabled={feedback.state === 'pending'} onClick={acceptPayment}>Принять оплату</button>
+          <button type="button" className="pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={acceptPayment}>Принять оплату</button>
           <button type="button" className="pos-secondary-action" onClick={() => setCartItems([])}>Очистить корзину</button>
         </section>
 
@@ -4219,9 +4513,11 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                   if ((label as string) === 'Пополнить депозит') {
                     void topUpSelectedPosPlayer();
                   } else if ((label as string) === 'Возврат по чеку') {
-                    void refundLatestSale();
+                    setFeedback(emptyFeedback);
+                    setCriticalAction('refund-sale');
                   } else if ((label as string) === 'Аннулировать черновик') {
-                    void voidDraftCart();
+                    setFeedback(emptyFeedback);
+                    setCriticalAction('void-draft');
                   } else if ((label as string) === 'Списать склад') {
                     void writeOffStock();
                   } else if ((label as string) === 'Новый клиент') {
@@ -4237,6 +4533,46 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               </button>
             ))}
           </div>
+          {criticalAction === 'refund-sale' && (
+            <CriticalActionConfirmation
+              title="Подтвердите возврат POS"
+              detail={`Чек ${selectedRefundableSaleId.slice(0, 8)} · ${formatMoney(readMoney(selectedRefundableSale, 'total'), currencyCode)}`}
+              impact="Платформа создаст возврат по выбранному чеку и запишет причину в аудит."
+              confirmLabel="Подтвердить возврат"
+              disabled={feedback.state === 'pending'}
+              onCancel={() => setCriticalAction(null)}
+              onConfirm={() => void refundLatestSale()}
+            >
+              <label className="critical-confirmation-field">
+                <span>Причина возврата</span>
+                <input
+                  value={refundReason}
+                  disabled={feedback.state === 'pending'}
+                  onChange={(event) => setRefundReason(event.currentTarget.value)}
+                />
+              </label>
+            </CriticalActionConfirmation>
+          )}
+          {criticalAction === 'void-draft' && (
+            <CriticalActionConfirmation
+              title="Подтвердите аннулирование"
+              detail={`Корзина · ${cartItems.length} поз. · ${formatMinorUnits(cartTotalMinorUnits, currencyCode)}`}
+              impact="Будет создан draft-чек и сразу отправлена команда void в backend."
+              confirmLabel="Подтвердить аннулирование"
+              disabled={feedback.state === 'pending'}
+              onCancel={() => setCriticalAction(null)}
+              onConfirm={() => void voidDraftCart()}
+            >
+              <label className="critical-confirmation-field">
+                <span>Причина аннулирования</span>
+                <input
+                  value={voidReason}
+                  disabled={feedback.state === 'pending'}
+                  onChange={(event) => setVoidReason(event.currentTarget.value)}
+                />
+              </label>
+            </CriticalActionConfirmation>
+          )}
         </section>
       </section>
     </main>
@@ -4660,8 +4996,8 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   const [activeSegment, setActiveSegment] = useState('Все');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
-  const [clients, setClients] = useState<PlayerClientItem[]>(() => fixturePlayers(currencyCode));
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
+  const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode) : []);
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
@@ -4676,6 +5012,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
   useEffect(() => {
     if (backend === null) {
       setLoadStatus('fixture');
+      setClients(fixturePlayers(currencyCode));
       setPackageOptions([]);
       setSelectedPackageDefinitionId('');
       return undefined;
@@ -4722,23 +5059,24 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
 
   const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId)
     ?? clients[0]
-    ?? fixturePlayers(currencyCode)[0];
+    ?? null;
 
   useEffect(() => {
-    if (backend === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
+    if (backend === null || selectedClient === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
       setWalletSummary(null);
       setSelectedClientPackages([]);
       return undefined;
     }
 
+    const client = selectedClient as PlayerClientItem & { playerAccountId: string; source: 'backend' };
     let disposed = false;
     const loadWallet = async () => {
       try {
         const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
         const [wallet, packages] = await Promise.all([
-          apiClients.players.getWalletSummary(selectedClient.playerAccountId!),
+          apiClients.players.getWalletSummary(client.playerAccountId),
           hasPermission(backend.session, permissionNames.viewPackages) || hasPermission(backend.session, permissionNames.purchasePackage)
-            ? apiClients.players.getPlayerPackages(selectedClient.playerAccountId!).catch(() => [])
+            ? apiClients.players.getPlayerPackages(client.playerAccountId).catch(() => [])
             : Promise.resolve([])
         ]);
         if (!disposed) {
@@ -4747,7 +5085,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
         }
       } catch (error) {
         if (!disposed) {
-          setFeedback({ label: selectedClient.name, state: 'failed', detail: projectOperatorError(error).detail });
+          setFeedback({ label: client.name, state: 'failed', detail: projectOperatorError(error).detail });
           setSelectedClientPackages([]);
         }
       }
@@ -4757,7 +5095,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
     return () => {
       disposed = true;
     };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient.playerAccountId, selectedClient.source]);
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient?.playerAccountId, selectedClient?.source]);
 
   const visibleClients = clients.filter((client) => {
     const segmentMatches = activeSegment === 'Все'
@@ -4768,10 +5106,10 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
     const searchMatches = `${client.name} ${client.status} ${client.detail} ${client.last}`.toLowerCase().includes(clientSearch.trim().toLowerCase());
     return segmentMatches && searchMatches;
   });
-  const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient.balanceMinorUnits;
-  const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient.debtMinorUnits;
+  const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient?.balanceMinorUnits ?? 0;
+  const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient?.debtMinorUnits ?? 0;
   const recentEntries = readArray(walletSummary, 'recentEntries');
-  const selectedClientPackageCount = selectedClientPackages.length || Number.parseInt(selectedClient.last, 10) || 0;
+  const selectedClientPackageCount = selectedClientPackages.length || Number.parseInt(selectedClient?.last ?? '', 10) || 0;
   const selectedPackageOption = packageOptions.find((option) => readString(option, 'packageDefinitionId') === selectedPackageDefinitionId)
     ?? packageOptions[0]
     ?? null;
@@ -4792,26 +5130,37 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
       const parsed = parseMoneyInputMinorUnits(current);
       return parsed !== null && parsed > 0 && parsed <= debt ? current : formatMoneyInputMinorUnits(debt);
     });
-  }, [debt, selectedClient.playerAccountId]);
+  }, [debt, selectedClient?.playerAccountId]);
 
   const canPurchasePackage = backend !== null
+    && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
     && hasPermission(backend.session, permissionNames.purchasePackage);
   const canTopUpWallet = backend !== null
+    && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
     && hasPermission(backend.session, permissionNames.topUpWallet);
   const canPayDebt = backend !== null
+    && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
     && debt > 0
     && hasPermission(backend.session, permissionNames.payDebt);
   const canCreatePlayer = backend !== null && hasPermission(backend.session, permissionNames.createPlayerAccount);
   const canCreateClientReservation = backend !== null
+    && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
     && hasPermission(backend.session, permissionNames.manageReservations);
+  const requireSelectedBackendClient = (): PlayerClientItem & { playerAccountId: string; source: 'backend' } => {
+    if (selectedClient === null || selectedClient.source !== 'backend' || !selectedClient.playerAccountId) {
+      throw new Error('Выберите игрока платформы перед операцией.');
+    }
+
+    return selectedClient as PlayerClientItem & { playerAccountId: string; source: 'backend' };
+  };
 
   const runClientAction = async (label: string) => {
     setFeedback({ label, state: 'pending' });
@@ -4824,9 +5173,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Нет прав на пополнение депозита.');
         }
 
-        if (!selectedClient.playerAccountId) {
-          throw new Error('Выберите игрока платформы перед пополнением депозита.');
-        }
+        const backendClient = requireSelectedBackendClient();
 
         const topUpMinorUnits = parseMoneyInputMinorUnits(walletTopUpAmount);
         const reason = walletTopUpReason.trim();
@@ -4834,7 +5181,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Заполните сумму и причину пополнения депозита.');
         }
 
-        const wallet = await apiClients.players.topUpWallet(selectedClient.playerAccountId, {
+        const wallet = await apiClients.players.topUpWallet(backendClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
           amount: { currencyCode, minorUnits: topUpMinorUnits },
           reason,
@@ -4846,9 +5193,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Нет прав на списание долга.');
         }
 
-        if (!selectedClient.playerAccountId) {
-          throw new Error('Выберите игрока платформы перед оплатой долга.');
-        }
+        const backendClient = requireSelectedBackendClient();
 
         const debtPaymentMinorUnits = parseMoneyInputMinorUnits(debtPaymentAmount);
         const reason = debtPaymentReason.trim();
@@ -4856,7 +5201,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Заполните сумму долга не больше текущего долга и причину оплаты.');
         }
 
-        const wallet = await apiClients.players.payDebt(selectedClient.playerAccountId, {
+        const wallet = await apiClients.players.payDebt(backendClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
           amount: { currencyCode, minorUnits: debtPaymentMinorUnits },
           reason,
@@ -4897,9 +5242,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Нет прав на покупку пакетов.');
         }
 
-        if (!selectedClient.playerAccountId || selectedClient.source !== 'backend') {
-          throw new Error('Выберите игрока платформы перед покупкой пакета.');
-        }
+        const backendClient = requireSelectedBackendClient();
 
         let packageOption: PackageOptionDto | null = selectedPackageOption;
         if (packageOption === null) {
@@ -4920,14 +5263,14 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Недостаточно депозита для выбранного пакета.');
         }
 
-        const purchasedPackage = await apiClients.players.purchasePackage(selectedClient.playerAccountId, {
+        const purchasedPackage = await apiClients.players.purchasePackage(backendClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
           packageDefinitionId,
           idempotencyKey: createIdempotencyKey('package-purchase')
         });
         const [wallet, packages] = await Promise.all([
-          apiClients.players.getWalletSummary(selectedClient.playerAccountId),
-          apiClients.players.getPlayerPackages(selectedClient.playerAccountId).catch(() => [purchasedPackage])
+          apiClients.players.getWalletSummary(backendClient.playerAccountId),
+          apiClients.players.getPlayerPackages(backendClient.playerAccountId).catch(() => [purchasedPackage])
         ]);
         setWalletSummary(wallet);
         setSelectedClientPackages(Array.isArray(packages) ? packages : [purchasedPackage]);
@@ -4936,16 +5279,14 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
           throw new Error('Нет прав на создание брони.');
         }
 
-        if (!selectedClient.playerAccountId || selectedClient.source !== 'backend') {
-          throw new Error('Выберите игрока платформы перед созданием брони.');
-        }
+        const backendClient = requireSelectedBackendClient();
 
         await apiClients.reservations.create(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
-          playerAccountId: selectedClient.playerAccountId,
+          playerAccountId: backendClient.playerAccountId,
           seatId: null,
-          customerName: selectedClient.name,
-          phoneNumber: selectedClient.phoneNumber || null,
+          customerName: backendClient.name,
+          phoneNumber: backendClient.phoneNumber || null,
           startsAtUtc: new Date(Date.now() + 30 * 60_000).toISOString(),
           durationMinutes: 60,
           source: 'operator',
@@ -4997,22 +5338,29 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             />
           </label>
           <div className="clients-list">
-            {visibleClients.map((client) => (
-              <button
-                key={client.playerAccountId ?? client.name}
-                type="button"
-                className={`client-row ${client.tone}${client.playerAccountId === selectedClient.playerAccountId ? ' selected' : ''}`}
-                onClick={() => setSelectedClientId(client.playerAccountId ?? null)}
-              >
-                <span>{client.status}</span>
-                <div>
-                  <strong>{client.name}</strong>
-                  <em>{client.detail}</em>
-                </div>
-                <b>{formatMinorUnits(client.balanceMinorUnits, currencyCode)}</b>
-                <small>{client.last}</small>
-              </button>
-            ))}
+            {visibleClients.length === 0 ? (
+              <div className="clients-empty-state">
+                <strong>Клиенты не найдены</strong>
+                <span>{loadStatus === 'backend' ? 'Платформа вернула пустой список для текущего поиска.' : 'Загрузите клиентов платформы.'}</span>
+              </div>
+            ) : (
+              visibleClients.map((client) => (
+                <button
+                  key={client.playerAccountId ?? client.name}
+                  type="button"
+                  className={`client-row ${client.tone}${client.playerAccountId === selectedClient?.playerAccountId ? ' selected' : ''}`}
+                  onClick={() => setSelectedClientId(client.playerAccountId ?? null)}
+                >
+                  <span>{client.status}</span>
+                  <div>
+                    <strong>{client.name}</strong>
+                    <em>{client.detail}</em>
+                  </div>
+                  <b>{formatMinorUnits(client.balanceMinorUnits, currencyCode)}</b>
+                  <small>{client.last}</small>
+                </button>
+              ))
+            )}
           </div>
         </section>
 
@@ -5021,19 +5369,30 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             <span>Карточка клиента</span>
             <strong>выбранный игрок</strong>
           </header>
-          <div className="client-profile-card">
-            <div className="client-avatar">{selectedClient.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</div>
-            <div>
-              <span>{selectedClient.status}</span>
-              <strong>{selectedClient.name}</strong>
-              <em>{selectedClient.phoneNumber || 'без телефона'} · {dataSourceLabel(selectedClient.source)}</em>
+          {selectedClient === null ? (
+            <div className="client-profile-card empty">
+              <div className="client-avatar">--</div>
+              <div>
+                <span>Нет выбранного клиента</span>
+                <strong>Выберите клиента из списка</strong>
+                <em>backend-данные не подменяются демо-карточкой</em>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="client-profile-card">
+              <div className="client-avatar">{selectedClient.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</div>
+              <div>
+                <span>{selectedClient.status}</span>
+                <strong>{selectedClient.name}</strong>
+                <em>{selectedClient.phoneNumber || 'без телефона'} · {dataSourceLabel(selectedClient.source)}</em>
+              </div>
+            </div>
+          )}
           <div className="client-metrics-grid">
             <div><span>Депозит</span><strong>{formatMinorUnits(balance, currencyCode)}</strong></div>
             <div><span>Долг</span><strong>{formatMinorUnits(debt, currencyCode)}</strong></div>
             <div><span>Пакеты</span><strong>{selectedClientPackageCount}</strong></div>
-            <div><span>Источник</span><strong>{dataSourceLabel(selectedClient.source)}</strong></div>
+            <div><span>Источник</span><strong>{selectedClient === null ? 'нет клиента' : dataSourceLabel(selectedClient.source)}</strong></div>
           </div>
           <div className="client-package-list" aria-label="Пакеты клиента">
             {selectedClientPackages.slice(0, 3).map((playerPackage) => (
@@ -5216,6 +5575,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [cashMovementType, setCashMovementType] = useState('cash_in');
   const [cashMovementAmount, setCashMovementAmount] = useState('10.00');
   const [cashMovementReason, setCashMovementReason] = useState('Размен кассы');
+  const [criticalAction, setCriticalAction] = useState<'close-shift' | null>(null);
 
   const loadPayments = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -5333,6 +5693,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   ];
 
   const runReportAction = async (label: string) => {
+    setCriticalAction(null);
     setFeedback({ label, state: 'pending' });
     try {
       const nextBackend = requireBackend(backend);
@@ -5525,7 +5886,28 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
             <label>Факт в кассе<input inputMode="decimal" value={closeCountedCash} disabled={!canCloseShift} onChange={(event) => setCloseCountedCash(event.currentTarget.value)} /></label>
             <label>Комментарий<input value={closingNote} disabled={!canCloseShift} onChange={(event) => setClosingNote(event.currentTarget.value)} /></label>
           </div>
-          <button type="button" className="payments-primary-action" disabled={!canCloseShift} onClick={() => runReportAction('Подготовить закрытие')}>Подготовить закрытие</button>
+          <button
+            type="button"
+            className="payments-primary-action"
+            disabled={!canCloseShift || feedback.state === 'pending'}
+            onClick={() => {
+              setFeedback(emptyFeedback);
+              setCriticalAction('close-shift');
+            }}
+          >
+            Подготовить закрытие
+          </button>
+          {criticalAction === 'close-shift' && (
+            <CriticalActionConfirmation
+              title="Подтвердите закрытие смены"
+              detail={`Факт ${closeCountedCash || '0'} ${currencyCode} · ожидается ${expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`}`}
+              impact="После подтверждения смена будет закрыта, новые продажи потребуют открытия следующей смены."
+              confirmLabel="Закрыть смену"
+              disabled={feedback.state === 'pending'}
+              onCancel={() => setCriticalAction(null)}
+              onConfirm={() => void runReportAction('Подготовить закрытие')}
+            />
+          )}
           <FeedbackNotice feedback={feedback} />
         </section>
 
@@ -6233,6 +6615,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [branchDeviceCommandHistory, setBranchDeviceCommandHistory] = useState<DeviceCommandStatusDto[]>([]);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
   const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
+  const [criticalAction, setCriticalAction] = useState<
+    'credential-revoke' |
+    'layout-zone-delete' |
+    'layout-seat-delete' |
+    'package-state-change' |
+    'rollout-state-change' |
+    null
+  >(null);
   const [deviceCommandType, setDeviceCommandType] = useState('lock');
   const [deviceCommandReason, setDeviceCommandReason] = useState('operator device tool');
   const [lastDeviceCommand, setLastDeviceCommand] = useState<Record<string, unknown> | null>(null);
@@ -6379,6 +6769,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     void loadSettings();
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
 
+  useEffect(() => {
+    setCriticalAction(null);
+  }, [deviceAssignmentDeviceId, credentialIdToRevoke]);
+
   const sections = [
     ['Профиль клуба', 'название, город, валюта'],
     ['Залы и ПК', 'зоны, рабочие места, статусы'],
@@ -6408,6 +6802,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const canRevokeDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.revokeDeviceCredential);
   const selectedStaffUser = staffUsers.find((user) => readString(user, 'staffUserId') === selectedStaffUserId);
   const selectedStaffIsActive = readBoolean(selectedStaffUser, 'isActive', true);
+  const selectedLayoutZone = zones.find((zone) => readString(zone, 'zoneId') === selectedLayoutZoneId) ?? null;
+  const selectedLayoutSeat = zones
+    .flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats'))
+    .find((seat) => readString(seat, 'seatId') === selectedLayoutSeatId) ?? null;
   const layoutSeatOptions = zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
     seatId: readString(seat, 'seatId'),
     label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
@@ -6491,6 +6889,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   ];
 
   const runSettingsAction = async (label: string) => {
+    setCriticalAction(null);
     setFeedback({ label, state: 'pending' });
     try {
       const nextBackend = requireBackend(backend);
@@ -7199,7 +7598,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <div className="settings-section-actions">
               <button type="button" disabled={!canManageLayout} onClick={() => runSettingsAction('Добавить зал')}>Создать зал</button>
               <button type="button" disabled={!canManageLayout || !selectedLayoutZoneId} onClick={() => runSettingsAction('Обновить зал')}>Обновить зал</button>
-              <button type="button" disabled={!canManageLayout || !selectedLayoutZoneId} onClick={() => runSettingsAction('Удалить зал')}>Удалить зал</button>
+              <button
+                type="button"
+                disabled={!canManageLayout || !selectedLayoutZoneId}
+                onClick={() => {
+                  setFeedback(emptyFeedback);
+                  setCriticalAction('layout-zone-delete');
+                }}
+              >
+                Удалить зал
+              </button>
             </div>
           </div>
           <div className="settings-form-grid settings-layout-form">
@@ -7217,8 +7625,39 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <label>Сортировка ПК<input inputMode="numeric" value={layoutSeatSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutSeatSortOrder(event.currentTarget.value)} /></label>
             <button type="button" disabled={!canManageLayout || !layoutSeatZoneId} onClick={() => runSettingsAction('Добавить ПК')}>Создать ПК</button>
             <button type="button" disabled={!canManageLayout || !selectedLayoutSeatId || !layoutSeatZoneId} onClick={() => runSettingsAction('Обновить ПК')}>Обновить ПК</button>
-            <button type="button" disabled={!canManageLayout || !selectedLayoutSeatId} onClick={() => runSettingsAction('Удалить ПК')}>Удалить ПК</button>
+            <button
+              type="button"
+              disabled={!canManageLayout || !selectedLayoutSeatId}
+              onClick={() => {
+                setFeedback(emptyFeedback);
+                setCriticalAction('layout-seat-delete');
+              }}
+            >
+              Удалить ПК
+            </button>
           </div>
+          {criticalAction === 'layout-zone-delete' && (
+            <CriticalActionConfirmation
+              title="Подтвердите удаление зала"
+              detail={`${readString(selectedLayoutZone, 'name', layoutZoneName || 'Зал')} · ${readArray(selectedLayoutZone, 'seats').length} ПК`}
+              impact="Зал будет удален из backend layout. Удаление доступно только для пустых залов."
+              confirmLabel="Подтвердить удаление зала"
+              disabled={feedback.state === 'pending'}
+              onCancel={() => setCriticalAction(null)}
+              onConfirm={() => void runSettingsAction('Удалить зал')}
+            />
+          )}
+          {criticalAction === 'layout-seat-delete' && (
+            <CriticalActionConfirmation
+              title="Подтвердите удаление ПК"
+              detail={`${readString(selectedLayoutSeat, 'name', layoutSeatName || 'ПК')} · ${selectedLayoutSeatId.slice(0, 8)}`}
+              impact="Рабочее место будет удалено из backend layout. Активные сессии и привязки устройств нужно проверять до удаления."
+              confirmLabel="Подтвердить удаление ПК"
+              disabled={feedback.state === 'pending'}
+              onCancel={() => setCriticalAction(null)}
+              onConfirm={() => void runSettingsAction('Удалить ПК')}
+            />
+          )}
           <div className="settings-room-grid">
             {zones.map((zone) => (
               <button key={readString(zone, 'zoneId')} type="button" className={`settings-room-card ${readString(zone, 'zoneId') === selectedLayoutZoneId ? 'active' : ''}`} onClick={() => selectLayoutZone(zone)}>
@@ -7270,8 +7709,28 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <label>Новый ключ<input value={readString(rotatedCredential, 'credentialId', '—')} readOnly /></label>
             <label className="settings-form-wide">Секрет ключа<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
             <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Сменить ключ')}>Сменить ключ</button>
-            <button type="button" disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke)} onClick={() => runSettingsAction('Отозвать ключ')}>Отозвать ключ</button>
+            <button
+              type="button"
+              disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke) || feedback.state === 'pending'}
+              onClick={() => {
+                setFeedback(emptyFeedback);
+                setCriticalAction('credential-revoke');
+              }}
+            >
+              Отозвать ключ
+            </button>
           </div>
+          {criticalAction === 'credential-revoke' && (
+            <CriticalActionConfirmation
+              title="Подтвердите отзыв ключа"
+              detail={`Устройство ${deviceAssignmentDeviceId.slice(0, 8)} · ключ ${credentialIdToRevoke.slice(0, 8)}`}
+              impact="После отзыва этот credential больше нельзя использовать для подключения Agent."
+              confirmLabel="Отозвать ключ"
+              disabled={feedback.state === 'pending'}
+              onCancel={() => setCriticalAction(null)}
+              onConfirm={() => void runSettingsAction('Отозвать ключ')}
+            />
+          )}
           <div className="settings-device-inventory" aria-label="Устройства филиала">
             {deviceInventory.map((device) => {
               const pendingCommands = readNumber(device, 'pendingCommandCount', 0);
@@ -7660,8 +8119,26 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
           <div className="settings-section-title">
             <span>Состояния обновлений</span>
-            <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Изменить состояние пакета')}>Изменить состояние пакета</button>
-            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Изменить состояние раскатки')}>Изменить состояние раскатки</button>
+            <button
+              type="button"
+              disabled={!canManageUpdatePackages}
+              onClick={() => {
+                setFeedback(emptyFeedback);
+                setCriticalAction('package-state-change');
+              }}
+            >
+              Изменить состояние пакета
+            </button>
+            <button
+              type="button"
+              disabled={!canManageUpdateRollouts}
+              onClick={() => {
+                setFeedback(emptyFeedback);
+                setCriticalAction('rollout-state-change');
+              }}
+            >
+              Изменить состояние раскатки
+            </button>
           </div>
           <div className="settings-form-grid settings-update-form">
             <label className="settings-form-wide">ID пакета<input value={packageStatePackageId} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStatePackageId(event.currentTarget.value)} /></label>
@@ -7687,6 +8164,28 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             </label>
             <label>Причина раскатки<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
           </div>
+          {criticalAction === 'package-state-change' && (
+            <CriticalActionConfirmation
+              title="Подтвердите состояние пакета"
+              detail={`Пакет ${packageStatePackageId.slice(0, 8)} · ${updatePackageStateLabel(packageState)}`}
+              impact={`Причина будет записана в audit: ${packageStateReason.trim() || 'не указана'}`}
+              confirmLabel="Подтвердить состояние пакета"
+              disabled={feedback.state === 'pending'}
+              onCancel={() => setCriticalAction(null)}
+              onConfirm={() => void runSettingsAction('Изменить состояние пакета')}
+            />
+          )}
+          {criticalAction === 'rollout-state-change' && (
+            <CriticalActionConfirmation
+              title="Подтвердите состояние раскатки"
+              detail={`Раскатка ${rolloutStateRolloutId.slice(0, 8)} · ${updateRolloutStateLabel(rolloutState)}`}
+              impact={`Изменение повлияет на выдачу обновлений устройствам. Причина: ${rolloutStateReason.trim() || 'не указана'}`}
+              confirmLabel="Подтвердить состояние раскатки"
+              disabled={feedback.state === 'pending'}
+              onCancel={() => setCriticalAction(null)}
+              onConfirm={() => void runSettingsAction('Изменить состояние раскатки')}
+            />
+          )}
         </>
       );
     }
@@ -7801,6 +8300,30 @@ function WindowControls() {
   );
 }
 
+function WindowResizeHandles() {
+  const edges: HostWindowResizeEdge[] = ['top', 'right', 'bottom', 'left', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+  return (
+    <div className="window-resize-handles" aria-hidden="true">
+      {edges.map((edge) => (
+        <div
+          key={edge}
+          className={`window-resize-handle ${edge}`}
+          onMouseDown={(event) => {
+            if (event.button !== 0) {
+              return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            postHostWindowResize(edge);
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function SignInScreen({
   config,
   authStatus,
@@ -7859,7 +8382,8 @@ function SignInScreen({
 
   return (
     <div className="operator-shell auth-shell">
-      <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart}>
+      <WindowResizeHandles />
+      <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
           <strong>AFK4</strong>
           <span>Оператор</span>
@@ -7950,15 +8474,117 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
+  const floorMapRef = useRef(floorMap);
+  const [remainingNowMs, setRemainingNowMs] = useState(() => Date.now());
   const [realtimeState, setRealtimeState] = useState<OperatorRealtimeConnectionState>('disconnected');
   const [realtimeError, setRealtimeError] = useState<string | null>(null);
-  const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? floorMap.seats[0] ?? null;
+  const [shellCurrentShift, setShellCurrentShift] = useState<ShiftDto | null>(null);
+  const [shellDashboardSummary, setShellDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
+  const [shellLoadStatus, setShellLoadStatus] = useState<LoadStatus>('loading');
+  const [shellLoadError, setShellLoadError] = useState<string | null>(null);
+  const displayedFloorMap = useMemo(
+    () => refreshFloorMapRemaining(floorMap, remainingNowMs),
+    [floorMap, remainingNowMs]
+  );
+  const selectedSeat = displayedFloorMap.seats.find((seat) => seat.id === selectedSeatId) ?? displayedFloorMap.seats[0] ?? null;
   const activeBranchId = authSession === null ? null : resolveActiveBranchId(authSession, config.branchId);
   const backendContext: OperatorBackendContext | null = authSession !== null && activeBranchId !== null
     ? { config, session: authSession, branchId: activeBranchId }
     : null;
-  const canUseTechMode = hasPermission(authSession, permissionNames.viewDiagnostics)
-    && hasPermission(authSession, permissionNames.viewDeviceDetail);
+  const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
+    && hasPermission(authSession, permissionNames.viewDeviceDetail))
+    || hasPermission(authSession, permissionNames.dispatchDeviceCommand);
+  const shellShiftText = shellShiftLabel(shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError);
+  const shellPosText = shellPosLabel(shellDashboardSummary, shellLoadStatus);
+
+  useEffect(() => {
+    floorMapRef.current = floorMap;
+  }, [floorMap]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setRemainingNowMs(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (authStatus !== 'signed-in' || authSession === null) {
+      setShellCurrentShift(null);
+      setShellDashboardSummary(null);
+      setShellLoadStatus('loading');
+      setShellLoadError(null);
+      return undefined;
+    }
+
+    const branchId = resolveActiveBranchId(authSession, config.branchId);
+    if (!branchId) {
+      setShellCurrentShift(null);
+      setShellDashboardSummary(null);
+      setShellLoadStatus('failed');
+      setShellLoadError('Активный филиал не назначен.');
+      return undefined;
+    }
+
+    const canLoadShift = hasPermission(authSession, permissionNames.viewShift);
+    const canLoadSummary = hasPermission(authSession, permissionNames.viewReports);
+    if (!canLoadShift && !canLoadSummary) {
+      setShellCurrentShift(null);
+      setShellDashboardSummary(null);
+      setShellLoadStatus('failed');
+      setShellLoadError(null);
+      return undefined;
+    }
+
+    let disposed = false;
+    const clients = createAuthenticatedOperatorClients(config, authSession);
+
+    const loadShellStatus = async () => {
+      setShellLoadStatus((current) => current === 'backend' ? current : 'loading');
+      setShellLoadError(null);
+
+      let nextShift: ShiftDto | null = null;
+      let nextSummary: OperatorDashboardSummaryDto | null = null;
+      const errors: string[] = [];
+      const today = toDateInputValue(new Date());
+
+      await Promise.all([
+        canLoadShift
+          ? clients.shifts.getCurrentShift(branchId)
+            .then((shift) => {
+              nextShift = shift;
+            })
+            .catch((error) => {
+              errors.push(projectOperatorError(error).detail);
+            })
+          : Promise.resolve(),
+        canLoadSummary
+          ? clients.dashboard.getSummary(branchId, dashboardRangeQuery(today, today))
+            .then((summary) => {
+              nextSummary = summary;
+            })
+            .catch((error) => {
+              errors.push(projectOperatorError(error).detail);
+            })
+          : Promise.resolve()
+      ]);
+
+      if (disposed) {
+        return;
+      }
+
+      setShellCurrentShift(nextShift);
+      setShellDashboardSummary(nextSummary);
+      setShellLoadStatus(errors.length > 0 && nextShift === null && nextSummary === null ? 'failed' : 'backend');
+      setShellLoadError(errors[0] ?? null);
+    };
+
+    void loadShellStatus();
+    const intervalId = window.setInterval(() => void loadShellStatus(), shellOperationalRefreshMs);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(intervalId);
+    };
+  }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
 
   useEffect(() => {
     let disposed = false;
@@ -8113,6 +8739,49 @@ export function App() {
     }
 
     let disposed = false;
+    let reloadTimeoutId: number | null = null;
+    let reloadInFlight = false;
+    let reloadQueued = false;
+    const scheduleAuthoritativeFloorMapReload = () => {
+      if (reloadTimeoutId !== null) {
+        window.clearTimeout(reloadTimeoutId);
+      }
+
+      reloadTimeoutId = window.setTimeout(() => {
+        reloadTimeoutId = null;
+        if (reloadInFlight) {
+          reloadQueued = true;
+          return;
+        }
+
+        reloadInFlight = true;
+        void loadBackendFloorMapState(config, authSession, branchId)
+          .then((nextState) => {
+            if (disposed) {
+              return;
+            }
+
+            floorMapRef.current = nextState;
+            setFloorMap(nextState);
+            setSelectedSeatId((currentSeatId) => nextState.seats.some((seat) => seat.id === currentSeatId)
+              ? currentSeatId
+              : nextState.seats[0]?.id ?? seats[0].id);
+          })
+          .catch((error) => {
+            if (!disposed) {
+              setRealtimeError(projectOperatorError(error).detail);
+            }
+          })
+          .finally(() => {
+            reloadInFlight = false;
+            if (!disposed && reloadQueued) {
+              reloadQueued = false;
+              scheduleAuthoritativeFloorMapReload();
+            }
+          });
+      }, 100);
+    };
+
     const realtimeClient = createOperatorRealtimeClient({
       baseUrl: config.platformBaseUrl,
       getAccessToken: () => authSession.accessToken,
@@ -8126,10 +8795,26 @@ export function App() {
           return;
         }
 
-        setFloorMap((current) => ({
-          ...current,
-          seats: applyDeviceStatusToSeats(current.seats, status)
-        }));
+        const matchingSeat = findSeatForDeviceStatus(floorMapRef.current.seats, status);
+        const shouldReload = matchingSeat !== null && shouldReloadFloorMapAfterDeviceStatus(matchingSeat, status);
+        setFloorMap((current) => {
+          const nextState = {
+            ...current,
+            seats: applyDeviceStatusToSeats(current.seats, status)
+          };
+          floorMapRef.current = nextState;
+          return nextState;
+        });
+        if (shouldReload) {
+          scheduleAuthoritativeFloorMapReload();
+        }
+      },
+      onDeviceCommandResult: (result) => {
+        if (disposed || !matchesCommandResultScope(result, authSession, branchId)) {
+          return;
+        }
+
+        scheduleAuthoritativeFloorMapReload();
       }
     });
 
@@ -8146,6 +8831,9 @@ export function App() {
 
     return () => {
       disposed = true;
+      if (reloadTimeoutId !== null) {
+        window.clearTimeout(reloadTimeoutId);
+      }
       void realtimeClient.stop();
     };
   }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
@@ -8296,24 +8984,44 @@ export function App() {
     return { detail };
   };
 
-  const handleTechMode = async (seat: SeatSummary): Promise<string> => {
+  const handlePcControlAction = async (seat: SeatSummary, action: PcControlActionId): Promise<PcControlActionResult> => {
     const nextBackend = requireBackend(backendContext);
-    if (!hasPermission(nextBackend.session, permissionNames.viewDiagnostics) ||
-      !hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
-      throw new Error('Нет прав на диагностику устройства.');
-    }
-
     if (!seat.deviceId) {
       throw new Error('У выбранного ПК нет привязанного устройства.');
     }
 
     const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-    const [device, diagnostics] = await Promise.all([
-      clients.devices.getDeviceDetail(seat.deviceId),
-      clients.diagnostics.getDiagnostics(nextBackend.branchId)
-    ]);
+    if (action === 'status') {
+      if (!hasPermission(nextBackend.session, permissionNames.viewDiagnostics) ||
+        !hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
+        throw new Error('Нет прав на просмотр диагностики устройства.');
+      }
 
-    return describeTechModeResult(seat, device, diagnostics);
+      const [device, diagnostics] = await Promise.all([
+        clients.devices.getDeviceDetail(seat.deviceId),
+        clients.diagnostics.getDiagnostics(nextBackend.branchId)
+      ]);
+
+      return { detail: describeTechModeResult(seat, device, diagnostics) };
+    }
+
+    if (action === 'lock' || action === 'unlock') {
+      if (!hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
+        throw new Error('Нет прав на отправку команд ПК.');
+      }
+
+      const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, {
+        type: action,
+        payload: {
+          reason: 'operator-pc-control',
+          source: 'operator-map',
+          seatId: seat.id
+        }
+      });
+      return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command) };
+    }
+
+    throw new Error('Эта команда требует отдельного контракта Agent/backend и пока не включена.');
   };
 
   if (authStatus !== 'signed-in' || authSession === null) {
@@ -8329,7 +9037,8 @@ export function App() {
 
   return (
     <div className="operator-shell">
-      <header className="top-command" onMouseDown={handleWindowDragStart}>
+      <WindowResizeHandles />
+      <header className="top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
           <strong>AFK4</strong>
           <span>Оператор</span>
@@ -8339,7 +9048,7 @@ export function App() {
           <input placeholder="Игрок, ПК, команда" aria-label="Поиск" />
         </label>
         <div className="top-status">
-          <span>Смена #24 · открыта</span>
+          <span>{shellShiftText}</span>
           <span>{operatorDisplayNameLabel(authSession.displayName)} · {shellModeLabel(config.shellMode)}</span>
         </div>
         <button type="button" className="sign-out-button" onClick={handleSignOut}>Выйти</button>
@@ -8369,11 +9078,11 @@ export function App() {
 
       {workspace === 'map' && (
         <MapWorkspace
-          floorMap={floorMap}
-          canUseTechMode={canUseTechMode}
+          floorMap={displayedFloorMap}
+          canUsePcControl={canUsePcControl}
           selectedSeatId={selectedSeat?.id ?? ''}
           onSelectSeat={setSelectedSeatId}
-          onTechMode={handleTechMode}
+          onPcControlAction={handlePcControlAction}
         />
       )}
       {workspace === 'dashboard' && (
@@ -8389,7 +9098,7 @@ export function App() {
       )}
       {workspace === 'booking' && (
         <BackendBookingWorkspace
-          floorMap={floorMap}
+          floorMap={displayedFloorMap}
           backend={backendContext}
           onOpenSeat={(seatId) => {
             setSelectedSeatId(seatId);
@@ -8406,7 +9115,7 @@ export function App() {
       {workspace === 'map' && selectedSeat !== null && (
         <MapSidePanel
           seat={selectedSeat}
-          seats={floorMap.seats}
+          seats={displayedFloorMap.seats}
           currencyCode={config.currencyCode}
           backend={backendContext}
           actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
@@ -8418,8 +9127,8 @@ export function App() {
 
       <footer className="signals-strip">
         <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)} · {dataSourceLabel(floorMap.source)}</span>
-        <span><MonitorCheck size={14} />ПК без связи: {countByTone(floorMap.seats, 'offline')} · требуют внимания: {countProblems(floorMap.seats)}</span>
-        <span><CircleDollarSign size={14} />POS: 2 неоплаченных чека</span>
+        <span><MonitorCheck size={14} />ПК без связи: {countByTone(displayedFloorMap.seats, 'offline')} · требуют внимания: {countProblems(displayedFloorMap.seats)}</span>
+        <span><CircleDollarSign size={14} />{shellPosText}</span>
         {workspaceFeedback && (
           <span className="rail-feedback"><LockKeyhole size={14} />{workspaceFeedback}</span>
         )}

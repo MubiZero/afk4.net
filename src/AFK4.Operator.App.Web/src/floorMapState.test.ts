@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   applyDeviceStatusToSeats,
   createFixtureFloorMapState,
-  mapFloorMapDtoToState
+  mapFloorMapDtoToState,
+  refreshFloorMapRemaining
 } from './floorMapState';
 import type { FloorMapDto } from './operatorApiClients';
 
@@ -106,6 +107,28 @@ describe('floor-map state', () => {
       stateLabel: 'В сессии',
       remaining: 'осталось 15 мин',
       command: 'No route'
+    });
+  });
+
+  it('ticks active session remaining time from the backend snapshot deadline', () => {
+    const loadedAtMs = 1000;
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [
+        createSeat({
+          state: 'Active',
+          activeSessionId: '33333333-3333-3333-3333-333333333333',
+          remainingSeconds: 3600
+        })
+      ]
+    }, loadedAtMs);
+
+    const nextState = refreshFloorMapRemaining(state, loadedAtMs + 121_000);
+
+    expect(nextState.seats[0]).toMatchObject({
+      remainingSeconds: 3479,
+      remaining: 'осталось 58 мин'
     });
   });
 });

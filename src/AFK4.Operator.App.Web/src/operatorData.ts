@@ -1,6 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Activity,
   CalendarClock,
   CircleDollarSign,
   LayoutDashboard,
@@ -32,6 +31,8 @@ export interface SeatSummary {
   hasActiveSession?: boolean;
   activeSessionId?: string | null;
   rawState?: string;
+  remainingSeconds?: number | null;
+  remainingDeadlineMs?: number | null;
   sortOrder?: number;
 }
 
@@ -51,7 +52,6 @@ export const navItems: NavItem[] = [
   { label: 'Логи', icon: ScrollText },
   { label: 'Настройки', icon: Settings }
 ];
-
 export const seats: SeatSummary[] = [
   {
     id: 'pc-01',
@@ -365,10 +365,4 @@ export const seats: SeatSummary[] = [
     command: 'Lease fresh',
     app: 'Valorant'
   }
-];
-
-export const signals = [
-  { icon: Activity, label: 'Realtime connected · 18 мс' },
-  { icon: CircleDollarSign, label: 'POS: 2 неоплаченных чека' },
-  { icon: Monitor, label: 'Devices: 1 offline, 2 command attention' }
 ];

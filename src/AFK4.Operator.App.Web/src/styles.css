@@ -13,15 +13,26 @@
 
 body {
   margin: 0;
-  min-width: 1200px;
-  min-height: 720px;
+  min-width: 960px;
+  min-height: 600px;
   overflow: hidden;
   background: #0b1118;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 button {
@@ -83,14 +94,91 @@ button {
 }
 
 .operator-shell {
+  position: relative;
   display: grid;
   width: 100vw;
   height: 100vh;
-  min-width: 1200px;
-  min-height: 720px;
-  grid-template-columns: 74px minmax(0, 1fr) 292px;
+  min-width: 960px;
+  min-height: 600px;
+  grid-template-columns: 74px minmax(0, 1fr) minmax(260px, 292px);
   grid-template-rows: 46px minmax(0, 1fr) 26px;
   background: #0b1118;
+}
+
+.window-resize-handles {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.window-resize-handle {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.window-resize-handle.top,
+.window-resize-handle.bottom {
+  left: 8px;
+  right: 8px;
+  height: 7px;
+  cursor: ns-resize;
+}
+
+.window-resize-handle.top {
+  top: 0;
+}
+
+.window-resize-handle.bottom {
+  bottom: 0;
+}
+
+.window-resize-handle.left,
+.window-resize-handle.right {
+  top: 8px;
+  bottom: 8px;
+  width: 7px;
+  cursor: ew-resize;
+}
+
+.window-resize-handle.left {
+  left: 0;
+}
+
+.window-resize-handle.right {
+  right: 0;
+}
+
+.window-resize-handle.top-left,
+.window-resize-handle.top-right,
+.window-resize-handle.bottom-left,
+.window-resize-handle.bottom-right {
+  width: 12px;
+  height: 12px;
+}
+
+.window-resize-handle.top-left {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.window-resize-handle.top-right {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.window-resize-handle.bottom-left {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.window-resize-handle.bottom-right {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
 }
 
 .top-command {
@@ -125,9 +213,11 @@ button {
 
 .command-search {
   display: flex;
+  flex: 0 1 min(460px, 36vw);
   align-items: center;
   gap: 7px;
   width: min(460px, 36vw);
+  min-width: 180px;
   height: 30px;
   padding: 0 10px;
   border: 1px solid #303b4e;
@@ -167,6 +257,8 @@ button {
 }
 
 .top-status span {
+  max-width: 240px;
+  overflow: hidden;
   height: 25px;
   padding: 0 9px;
   border: 1px solid #303b4e;
@@ -417,6 +509,7 @@ button {
 .floor-workspace {
   position: relative;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   padding: 10px;
   background: #0b1118;
@@ -424,6 +517,7 @@ button {
 
 .workspace-screen {
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   padding: 10px;
   background: #0b1118;
@@ -544,6 +638,7 @@ button {
 
 .filter-row button,
 .screen-actions button,
+.pc-control-actions button,
 .billing-mode button {
   display: inline-flex;
   align-items: center;
@@ -580,6 +675,7 @@ button {
 
 .filter-row button:focus-visible,
 .screen-actions button:focus-visible,
+.pc-control-actions button:focus-visible,
 .billing-mode button:focus-visible,
 .action-grid button:focus-visible,
 .dashboard-control-card:focus-visible {
@@ -598,6 +694,142 @@ button {
 .map-tool-action:focus-visible {
   border-color: #667993;
   background: #1d2b3d;
+}
+
+.pc-control-panel {
+  position: absolute;
+  top: 46px;
+  right: 10px;
+  z-index: 8;
+  display: grid;
+  width: min(410px, calc(100% - 20px));
+  gap: 10px;
+  border: 1px solid #2c3b51;
+  border-radius: 7px;
+  padding: 10px;
+  background: #101821;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36);
+}
+
+.pc-control-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pc-control-panel header div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pc-control-panel header span {
+  color: #8090a4;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pc-control-panel header strong {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-control-summary {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid #202a36;
+  padding-top: 8px;
+  color: #9fb0c8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pc-control-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-control-section-title {
+  color: #728197;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pc-control-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.pc-control-actions button {
+  justify-content: center;
+  min-width: 0;
+  min-height: 32px;
+  overflow: hidden;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-control-actions button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pc-control-actions.future button {
+  justify-content: start;
+  min-height: 44px;
+  border-color: #2b3748;
+  background: #121b27;
+  color: #aebbd0;
+  text-align: left;
+  white-space: normal;
+}
+
+.pc-control-actions.future button:hover,
+.pc-control-actions.future button:focus-visible {
+  border-color: #486179;
+  background: #172334;
+  color: #e5edf8;
+}
+
+.pc-control-actions.future button span {
+  display: grid;
+  gap: 2px;
+}
+
+.pc-control-actions.future button strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-control-actions.future button em {
+  overflow: hidden;
+  color: #7d8da3;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-control-actions button:disabled {
+  border-color: #263241;
+  background: #121a24;
+  color: #6f7f93;
+  opacity: 0.78;
 }
 
 .screen-actions {
@@ -691,8 +923,11 @@ button {
 }
 
 .feedback-notice {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   min-height: 24px;
   border: 1px solid #263241;
   border-left: 3px solid #2f81f7;
@@ -704,6 +939,12 @@ button {
   font-weight: 800;
   line-height: 1.15;
   animation: soft-enter 140ms ease-out;
+}
+
+.feedback-notice span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .feedback-notice.pending {
@@ -722,6 +963,106 @@ button {
   color: #fecaca;
 }
 
+.critical-confirmation {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid #46302c;
+  border-left: 3px solid #ef4444;
+  border-radius: 7px;
+  padding: 10px;
+  background: #18151a;
+  color: #f8fbff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  animation: soft-enter 140ms ease-out;
+}
+
+.critical-confirmation.warning {
+  border-color: #493b22;
+  border-left-color: #f59e0b;
+}
+
+.critical-confirmation > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.critical-confirmation strong {
+  font-size: 12px;
+}
+
+.critical-confirmation span,
+.critical-confirmation em {
+  min-width: 0;
+  color: #aebbd0;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.critical-confirmation em {
+  color: #fecaca;
+}
+
+.critical-confirmation-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.critical-confirmation-field input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #334154;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: #0e1621;
+  color: #f8fbff;
+}
+
+.critical-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.critical-confirmation-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid #334154;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #151f2b;
+  color: #dce7f7;
+  font-weight: 800;
+}
+
+.critical-confirmation-actions button.danger {
+  border-color: #7f1d1d;
+  background: #341d20;
+  color: #fecaca;
+}
+
+.critical-confirmation-actions button:hover,
+.critical-confirmation-actions button:focus-visible {
+  border-color: #607089;
+  background: #1c2938;
+}
+
+.critical-confirmation-actions button.danger:hover,
+.critical-confirmation-actions button.danger:focus-visible {
+  border-color: #ef4444;
+  background: #4a2025;
+}
+
+.critical-confirmation-actions button:disabled {
+  opacity: 0.6;
+}
+
 .floor-workspace > .feedback-notice {
   position: absolute;
   top: 84px;
@@ -733,7 +1074,7 @@ button {
 .map-board {
   position: relative;
   height: calc(100vh - 46px - 26px - 20px - 30px - 38px - 38px);
-  min-height: 548px;
+  min-height: 360px;
   overflow: hidden;
   border: 1px solid #202a36;
   border-radius: 7px;
@@ -1041,11 +1382,17 @@ button {
   align-content: start;
   gap: 12px;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   margin: 10px 10px 10px 0;
   padding: 12px;
   border: 1px solid #202a36;
   border-radius: 7px;
   background: #111821;
+}
+
+.context-panel > * {
+  min-width: 0;
 }
 
 .context-head h2 {
@@ -1056,10 +1403,11 @@ button {
 }
 
 .context-status-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  min-width: 0;
   border: 1px solid #2a3748;
   border-left: 3px solid #2f81f7;
   border-radius: 7px;
@@ -1068,6 +1416,7 @@ button {
 }
 
 .context-status-row span {
+  min-width: 0;
   overflow: hidden;
   color: #8fa0b6;
   font-size: 11px;
@@ -1077,13 +1426,14 @@ button {
 }
 
 .context-status-row strong {
+  min-width: 0;
   overflow: hidden;
   color: #f8fbff;
   font-size: 14px;
-  line-height: 1;
+  line-height: 1.15;
   text-align: right;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .context-status-row.state-warning,
@@ -2441,6 +2791,28 @@ button {
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
+.pos-empty-state {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 4px;
+  min-height: 76px;
+  border: 1px dashed #334154;
+  border-radius: 6px;
+  padding: 12px;
+  background: #101821;
+  color: #8fa0b6;
+}
+
+.pos-empty-state strong {
+  color: #f8fbff;
+  font-size: 13px;
+}
+
+.pos-empty-state span {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
 .pos-product-card:hover,
 .pos-product-card:focus-visible,
 .pos-quick-card:hover,
@@ -2677,6 +3049,10 @@ button {
 
 .pos-cart-row.interactive-row {
   animation: soft-enter 140ms ease-out;
+}
+
+.pos-cart-row.empty {
+  color: #8fa0b6;
 }
 
 .pos-cart-row div {
@@ -3091,6 +3467,27 @@ button {
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
+.clients-empty-state {
+  display: grid;
+  gap: 4px;
+  min-height: 56px;
+  border: 1px dashed #334154;
+  border-radius: 6px;
+  padding: 12px;
+  background: #101821;
+  color: #8fa0b6;
+}
+
+.clients-empty-state strong {
+  color: #f8fbff;
+  font-size: 13px;
+}
+
+.clients-empty-state span {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
 .client-row:hover,
 .client-row:focus-visible,
 .clients-action-card:hover,
@@ -3200,6 +3597,15 @@ button {
   border-radius: 7px;
   padding: 12px;
   background: #141d29;
+}
+
+.client-profile-card.empty {
+  border-style: dashed;
+  background: #101821;
+}
+
+.client-profile-card.empty .client-avatar {
+  background: #334154;
 }
 
 .client-avatar {

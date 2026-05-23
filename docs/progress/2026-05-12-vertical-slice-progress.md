@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
 
 ## Purpose
 
@@ -127,6 +127,21 @@ implementation evidence are needed.
   `Нет backend событий` as catch-all placeholders: successful empty backend
   responses, loading, backend failures, and search/filter misses now have
   separate operator-facing rows.
+- A focused Operator App pilot-hardening plan now exists at
+  `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`. The first
+  slice removes signed-in POS and Players demo-data leakage for authoritative
+  empty backend responses and restricts the WebView2 dev-server URL to
+  localhost/loopback origins. Deliberate fixture data remains only for
+  browser-dev/no-backend fallback.
+- The next pilot-hardening slice adds inline confirmation guards for session
+  end, POS refund/void, shift close, and device credential revoke. The first
+  click now opens an impact/reason confirmation, and backend dispatch happens
+  only from the explicit confirmation button. POS refund and draft void reasons
+  are visible inputs instead of hidden fixed audit text.
+- The planned critical-action confirmation set now also covers Settings layout
+  zone/seat deletion and update package/rollout state changes. Those paths show
+  the selected target, impact, and reason/state context before the backend
+  delete or state-change request is sent.
 - Operator App package builds now run the React frontend build before publishing
   the native shell, replace published `WebAssets` with the Vite `dist` output,
   feed those assets into the Operator App MSI, and assert the finished MSI File
@@ -142,6 +157,36 @@ implementation evidence are needed.
   reconnecting state, applies `deviceStatusChanged` updates by device id or
   machine name, preserves active sessions as warning/problem seats when the PC
   goes offline, and treats realtime as context only.
+- The React primary floor map now also listens for `deviceCommandResult` and
+  reloads the authoritative backend floor map after session/device command
+  completion, with a locked-heartbeat fallback for active or pending seats.
+  This prevents selected-seat actions such as stop/lock from staying in a
+  local pending state after the backend has finalized the session.
+- Active-session remaining time now renders from a backend snapshot deadline
+  and ticks locally every second, so floor tiles and the selected-seat panel do
+  not show stale rounded values such as `осталось 1 ч 00 мин` until the next
+  full floor-map reload.
+- The Operator App shell no longer hardcodes the top shift status or footer POS
+  signal. It loads current shift state from `/shifts/current`, POS check count
+  from `/dashboard/summary`, refreshes that operational shell state
+  periodically, and leaves unavailable values as explicit no-data/no-access
+  labels instead of fake shift/check numbers.
+- The selected-seat context panel now constrains and wraps intermediate
+  command/status feedback inside the panel, so pending session states do not
+  widen the right rail or break the operator layout.
+- The Operator App shell now disables accidental text selection across
+  operator chrome while preserving normal selection/editing inside text inputs.
+- The native WebView2 Operator App window now behaves more like a normal
+  Windows window: lower practical minimum size, edge/corner resize handles,
+  double-click maximize on the top command bar, and responsive shell CSS for
+  narrower window sizes.
+- The map toolbar no longer exposes the selected-device check as vague
+  `Техрежим`. It now opens `Управление ПК`: a selected-seat control panel with
+  status refresh and currently supported backend device commands. The panel
+  behaves like a popover, closing on outside click or Escape; reboot,
+  shutdown, Wake-on-LAN, and timed admin/service mode are visible as future
+  actions that explain their missing Agent/backend contracts instead of
+  appearing as broken disabled buttons.
 - The React primary floor map now sends selected-seat fast guest start,
   extend +15/+30, transfer, and end requests through typed authenticated
   session API clients. Those actions are enabled only for backend-loaded seats
@@ -449,6 +494,64 @@ Result:
     `owner@afk4.test` / `Passw0rd!`;
   - verification passed: `npm test` 98/98, `npm run build`, full
     `AFK4.Platform.Api.Tests` 372/372, and `dotnet build AFK4.sln`.
+- Additional local Operator App realtime command-result, live remaining-time,
+  shell operational-status, selected-seat overflow, and native window behavior
+  verification on 2026-05-23:
+  - focused frontend App tests for selected-seat stop, realtime
+    command-result reload, active-session countdown, shell shift/POS backend
+    labels, selected-seat panel markup, and native window command wiring
+    passed: `npm test -- App.test.tsx` 69/69;
+  - full frontend tests passed: `npm test` 101/101;
+  - frontend production build passed: `npm run build`;
+  - native Operator App shell build passed:
+    `dotnet build src/AFK4.Operator.App/AFK4.Operator.App.csproj`;
+  - local Platform API stayed running on `http://localhost:5074`, the four-PC
+    simulator for `PC-009` through `PC-012` reported all four devices online
+    and locked with no active sessions before the later PC-009 start smoke;
+    native `AFK4.Operator.App.exe` was relaunched against the rebuilt React
+    `dist` after the fixes, and local backend probes showed an open shift plus
+    dashboard `posCheckCount=1` feeding the shell labels.
+- Operator App pilot-hardening verification on 2026-05-23:
+  - focused App tests passed 71/71 after adding empty backend POS catalog and
+    empty backend player search coverage;
+  - full frontend tests passed 103/103;
+  - frontend production build passed: `npm run build`;
+  - focused WebView2 shell option tests passed 7/7 after closing the local
+    `AFK4.Operator.App.exe` process that had locked the output binary;
+  - full Operator App tests passed 196/196;
+  - `git diff --check` was clean apart from expected CRLF conversion warnings.
+- Operator App critical-action guard verification on 2026-05-23:
+  - focused App tests passed 71/71 after adding two-step confirmation coverage
+    for session end, POS refund, POS draft void, shift close, and device
+    credential revoke;
+  - full frontend tests passed 103/103;
+  - frontend production build passed: `npm run build`.
+- Operator App remaining critical-action guard verification on 2026-05-23:
+  - focused App tests passed 71/71 after adding two-step confirmation coverage
+    for Settings layout zone/seat deletion plus update package and rollout state
+    changes;
+  - full frontend tests passed 103/103;
+  - frontend production build passed: `npm run build`.
+- Staging inventory check on 2026-05-23:
+  - Coolify API `4.1.0` reported application `afk4-platform-api-staging`
+    (`d3fm17hl6kb7sossg1kj8buq`) as `running:healthy`, configured for
+    repository `MubiZero/afk4.net`, branch `main`, and
+    `https://afk4.staging.mubi.dev`;
+  - public `/api/health` returned HTTP 200 with `status=ok`;
+  - unauthenticated `floor-map`, `pos/catalog`, and `updates/rollouts` probes
+    returned HTTP 401, while branch-local routes currently only present on
+    `codex/operator-app-redesign` (`profile` and `reservations`) returned HTTP
+    404. This means staging is aligned with `origin/main`, not the current
+    feature branch; do not treat those 404s as database corruption;
+  - `origin/main` contains EF migrations only through
+    `20260514081906_AddUpdateRollouts`. The current feature branch adds
+    `20260521120621_AddReservations`,
+    `20260521142456_AddBranchProfileCity`, and
+    `20260521181408_AddPosSalePlayerAccount`; apply them only when that branch
+    is intentionally deployed/merged to staging after backup;
+  - generated ignored idempotent SQL locally at
+    `artifacts/ef-migrations/afk4-platform-staging-idempotent.sql` for review;
+    it was not committed.
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and

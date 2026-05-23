@@ -12,7 +12,17 @@ namespace AFK4.Operator.App.Web;
 public partial class WebViewOperatorWindow : Window
 {
     private const int WmNcLeftButtonDown = 0x00A1;
+    private const int WmSysCommand = 0x0112;
     private const int HtCaption = 2;
+    private const int ScSize = 0xF000;
+    private const int WmszLeft = 1;
+    private const int WmszRight = 2;
+    private const int WmszTop = 3;
+    private const int WmszTopLeft = 4;
+    private const int WmszTopRight = 5;
+    private const int WmszBottom = 6;
+    private const int WmszBottomLeft = 7;
+    private const int WmszBottomRight = 8;
 
     private readonly OperatorAppOptions appOptions;
     private readonly OperatorWebShellOptions shellOptions;
@@ -159,6 +169,12 @@ public partial class WebViewOperatorWindow : Window
                 case "window:drag":
                     StartNativeWindowDrag();
                     break;
+                case "window:resize":
+                    if (document.RootElement.TryGetProperty("edge", out var edgeProperty))
+                    {
+                        StartNativeWindowResize(edgeProperty.GetString());
+                    }
+                    break;
                 case "window:minimize":
                     WindowState = WindowState.Minimized;
                     break;
@@ -193,6 +209,40 @@ public partial class WebViewOperatorWindow : Window
 
         ReleaseCapture();
         SendMessage(handle, WmNcLeftButtonDown, HtCaption, 0);
+    }
+
+    private void StartNativeWindowResize(string? edge)
+    {
+        if (ResizeMode is ResizeMode.NoResize or ResizeMode.CanMinimize)
+        {
+            return;
+        }
+
+        var resizeDirection = edge switch
+        {
+            "left" => WmszLeft,
+            "right" => WmszRight,
+            "top" => WmszTop,
+            "top-left" => WmszTopLeft,
+            "top-right" => WmszTopRight,
+            "bottom" => WmszBottom,
+            "bottom-left" => WmszBottomLeft,
+            "bottom-right" => WmszBottomRight,
+            _ => 0
+        };
+        if (resizeDirection == 0)
+        {
+            return;
+        }
+
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        ReleaseCapture();
+        SendMessage(handle, WmSysCommand, ScSize + resizeDirection, 0);
     }
 
     private void ShowStartupFailure(string message)

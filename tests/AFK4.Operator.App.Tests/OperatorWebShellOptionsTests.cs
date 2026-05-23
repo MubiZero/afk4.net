@@ -24,8 +24,22 @@ public sealed class OperatorWebShellOptionsTests
     }
 
     [Theory]
+    [InlineData("http://localhost:5174")]
+    [InlineData("http://[::1]:5174")]
+    public void LoadFromEnvironment_AllowsLoopbackDevServerUrls(string value)
+    {
+        var options = OperatorWebShellOptions.LoadFromEnvironment(name =>
+            name == OperatorWebShellOptions.DevServerUrlEnvironmentVariable
+                ? value
+                : null);
+
+        Assert.Equal(new Uri(value), options.DevServerUrl);
+    }
+
+    [Theory]
     [InlineData("file:///tmp/afk4")]
     [InlineData("not-a-url")]
+    [InlineData("https://example.com/operator")]
     public void LoadFromEnvironment_RejectsInvalidDevServerUrl(string value)
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>

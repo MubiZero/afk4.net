@@ -12,6 +12,16 @@ export interface DeviceStatusChangedDto {
   observedAtUtc: string;
 }
 
+export interface DeviceCommandResultDto {
+  organizationId: string;
+  branchId: string;
+  deviceId: string;
+  commandId: string;
+  status: string;
+  message: string;
+  observedAtUtc: string;
+}
+
 export interface OperatorRealtimeClient {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -31,17 +41,22 @@ export interface OperatorRealtimeOptions {
   baseUrl: string;
   getAccessToken: () => string | null | Promise<string | null>;
   onDeviceStatusChanged: (status: DeviceStatusChangedDto) => void;
+  onDeviceCommandResult?: (result: DeviceCommandResultDto) => void;
   onConnectionStateChanged?: (state: OperatorRealtimeConnectionState) => void;
   connectionFactory?: () => SignalRConnectionLike;
 }
 
 export const deviceStatusChangedEventName = 'deviceStatusChanged';
+export const deviceCommandResultEventName = 'deviceCommandResult';
 
 export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): OperatorRealtimeClient {
   const connection = options.connectionFactory?.() ?? createSignalRConnection(options);
   const setState = (state: OperatorRealtimeConnectionState) => options.onConnectionStateChanged?.(state);
 
   connection.on<DeviceStatusChangedDto>(deviceStatusChangedEventName, options.onDeviceStatusChanged);
+  if (options.onDeviceCommandResult) {
+    connection.on<DeviceCommandResultDto>(deviceCommandResultEventName, options.onDeviceCommandResult);
+  }
   connection.onreconnecting(() => setState('reconnecting'));
   connection.onreconnected(() => setState('connected'));
   connection.onclose(() => setState('disconnected'));

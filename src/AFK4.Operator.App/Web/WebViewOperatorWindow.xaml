@@ -6,8 +6,8 @@
         Title="AFK4 Operator"
         Width="1440"
         Height="900"
-        MinWidth="1200"
-        MinHeight="720"
+        MinWidth="960"
+        MinHeight="600"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterScreen"
@@ -16,7 +16,7 @@
         <shell:WindowChrome CaptionHeight="0"
                             CornerRadius="0"
                             GlassFrameThickness="0"
-                            ResizeBorderThickness="6"
+                            ResizeBorderThickness="8"
                             UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
 
