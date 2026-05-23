@@ -1,9 +1,11 @@
 # Coolify Staging Deploy Runbook
 
 This runbook creates the first AFK4 staging backend on a Linux VPS managed by
-Coolify. It keeps the MVP product boundaries intact: only the cloud Platform
-API and server-side dependencies are containerized. The Windows Operator App,
-Agent Service, and Player Shell remain Windows client runtimes and are not
+Coolify. It keeps the MVP runtime boundaries intact: the cloud Platform API and
+server-side dependencies are containerized first. The internal SaaS Control
+Plane is an approved platform-owner surface, but its frontend deployment is a
+follow-up until the Control Plane implementation exists. The Windows Operator
+App, Agent Service, and Player Shell remain Windows client runtimes and are not
 deployed as Linux services.
 
 Do not commit secrets, filled environment files, database dumps, generated
@@ -23,7 +25,9 @@ Included:
 Not included:
 
 - local club server;
-- web admin panel;
+- Control Plane frontend deployment before the Control Plane slice is
+  implemented;
+- customer browser operational admin as the primary club UI;
 - Linux services for Operator App, Agent Service, or Player Shell;
 - production-grade backup retention, PITR, or monitoring automation.
 

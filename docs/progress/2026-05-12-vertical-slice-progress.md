@@ -16,6 +16,18 @@ the old long-form progress log, which is archived at:
 Use the archive only when historical verification details or phase-by-phase
 implementation evidence are needed.
 
+## Current Product Direction
+
+- Product and architecture scope changed on 2026-05-23: AFK4 MVP now includes
+  an internal browser-based SaaS Control Plane for platform-owner/support
+  tenant onboarding, owner invites, subscription/status controls, tenant
+  health, support notes, limits, and suspend/reactivate. The native Windows
+  Operator App remains the day-to-day operational UI for club staff.
+- The approved focused plan is
+  `docs/superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md`.
+  Older focused plans that say "no web admin" should be read as historical
+  scope for their slice, not as the current product decision.
+
 ## Implemented Capabilities
 
 ### Backend Platform
@@ -532,26 +544,66 @@ Result:
     changes;
   - full frontend tests passed 103/103;
   - frontend production build passed: `npm run build`.
-- Staging inventory check on 2026-05-23:
-  - Coolify API `4.1.0` reported application `afk4-platform-api-staging`
-    (`d3fm17hl6kb7sossg1kj8buq`) as `running:healthy`, configured for
-    repository `MubiZero/afk4.net`, branch `main`, and
+- Staging branch synchronization and external smoke check on 2026-05-23:
+  - staging handoff for this session recorded Coolify application
+    `afk4-platform-api-staging` (`d3fm17hl6kb7sossg1kj8buq`) as
+    `running:healthy` on branch `codex/operator-app-redesign` at
     `https://afk4.staging.mubi.dev`;
-  - public `/api/health` returned HTTP 200 with `status=ok`;
-  - unauthenticated `floor-map`, `pos/catalog`, and `updates/rollouts` probes
-    returned HTTP 401, while branch-local routes currently only present on
-    `codex/operator-app-redesign` (`profile` and `reservations`) returned HTTP
-    404. This means staging is aligned with `origin/main`, not the current
-    feature branch; do not treat those 404s as database corruption;
-  - `origin/main` contains EF migrations only through
-    `20260514081906_AddUpdateRollouts`. The current feature branch adds
-    `20260521120621_AddReservations`,
-    `20260521142456_AddBranchProfileCity`, and
-    `20260521181408_AddPosSalePlayerAccount`; apply them only when that branch
-    is intentionally deployed/merged to staging after backup;
-  - generated ignored idempotent SQL locally at
-    `artifacts/ef-migrations/afk4-platform-staging-idempotent.sql` for review;
-    it was not committed.
+  - staging database resource `foie51tkp2w68t6nwc5xks63` is intentionally in
+    safe network mode (`is_public=false`). Initial and final external TCP
+    probes to `afk4.staging.mubi.dev:55432` returned closed/refused;
+  - staging migrations are synchronized with the current
+    `codex/operator-app-redesign` branch. A temporary controlled public DB
+    window for smoke setup read `__EFMigrationsHistory` and confirmed latest
+    migration `20260521181408_AddPosSalePlayerAccount`; the database was then
+    returned to `is_public=false`;
+  - public `/api/health` returned HTTP 200 with `status=ok` and server time
+    `2026-05-23T08:44:49.8219233+00:00`;
+  - negative auth contour smoke passed: invalid staff sign-in and invalid
+    refresh returned HTTP 401;
+  - unauthenticated operator route guards returned HTTP 401 for floor map,
+    dashboard summary, POS catalog, current shift, sales report, players
+    search, devices list, diagnostics, update rollouts, audit search,
+    reservations search, and branch profile. The branch-only `profile` and
+    `reservations` routes now return 401 instead of the earlier 404, which is
+    consistent with the current feature branch being deployed;
+  - staging initially had schema but no pilot branch row for the expected
+    branch id. A temporary helper seeded the minimum organization, branch, and
+    deterministic smoke staff user `staging-smoke@afk4.test` with role
+    `owner`; no product code or committed files were changed for this helper;
+  - authenticated auth smoke then passed: smoke staff sign-in returned HTTP
+    200 with 48 permissions and one branch, and refresh-token rotation returned
+    HTTP 200 with a rotated access token and refresh token;
+  - authenticated read-only operator smoke passed for floor map (`200`,
+    `seats=0`), dashboard summary (`200`), POS catalog (`200`, empty array),
+    current shift (`404`, accepted no-open-shift state), sales report (`200`,
+    zero rows), players search (`200`, empty array), devices list (`200`, empty
+    array), branch device command history (`200`, empty array), diagnostics
+    (`200`), update rollouts (`200`, empty array), audit search (`200`),
+    reservations search (`200`), branch profile (`200`), tariff options
+    (`200`, empty array), package options (`200`, empty array), and stock
+    movements (`200`, empty array);
+  - PR #44 on `codex/operator-app-redesign` has green remote `PR Verification`
+    on head `def47f6a930a40dbe693a2769e59f4d13d9e2ccd` with build and tests
+    passing. A follow-up sanitized Coolify API check with a runtime-only token
+    confirmed the application resource is `running:healthy`, configured for
+    repository `MubiZero/afk4.net`, branch `codex/operator-app-redesign`,
+    Dockerfile build pack, exposed port `8080`, health path `/api/health`,
+    `server_status=true`, `restart_count=0`, and `last_online_at`
+    `2026-05-23 08:54:12`;
+  - the same Coolify API check confirmed PostgreSQL resource
+    `foie51tkp2w68t6nwc5xks63` is `running:healthy`,
+    `database_type=standalone-postgresql`, image `postgres:17-alpine`,
+    `server_status=true`, `is_public=false`, `public_port=55432`,
+    no public `ports_mappings`, `restart_count=0`, and `last_online_at`
+    `2026-05-23 08:55:11`;
+  - Coolify application logs endpoint returned the latest 300 log lines with
+    zero `error`/`fail`/`failed`/`exception`/`fatal`/`critical` matches after
+    the smoke probes. Coolify database logs endpoints returned 404 in this API
+    version, so DB log review was limited to resource health/status and the
+    API's successful database-backed route/auth behavior. `gh run view
+    --log-failed` returned no failed-log output for the current PR verification
+    run.
 - Operator Dashboard backend wiring tests cover shared DTO serialization,
   unauthorized/forbidden/success API behavior, denied/succeeded audit records,
   frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
@@ -1569,6 +1621,11 @@ Operator App redesign branch-local verification on 2026-05-20:
   predefined branch-role reassignment, activation/deactivation, and password
   reset. Custom roles and arbitrary permission-set editing are still not
   implemented.
+- Internal SaaS Control Plane/platform-admin UI and API are now in MVP scope
+  but are not implemented yet. Tenant provisioning still relies on script/
+  helper paths or direct staging support work; production must gain no-DB-edit
+  organization, branch, owner invite, plan/status, tenant health, support note,
+  and suspend/reactivate workflows.
 - General Operator App layout management UI now supports Settings-based zone/
   seat creation, rename/reorder, seat moves between zones, safe deletion of
   unused seats, and deletion of empty zones. Visual drag/drop layout editing and
@@ -1644,7 +1701,13 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Continue `codex/operator-app-redesign` from the backend-connected React
+2. Start the SaaS Control Plane and tenant onboarding slice from
+   `docs/superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md`:
+   platform-admin auth boundary, organization/branch slug provisioning, owner
+   invites, plan/status/limit metadata, tenant health, support notes,
+   suspend/reactivate enforcement, and staging smoke that proves tenant setup
+   no longer requires direct PostgreSQL edits.
+3. Continue `codex/operator-app-redesign` from the backend-connected React
    shell by working through the new "Backend Connectivity TODO From Current
    React UI Copy" checklist in
    `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
@@ -1658,23 +1721,27 @@ Operator App redesign branch-local verification on 2026-05-20:
    while replacing local state with backend-backed behavior. Treat any
    remaining raw GUID/form surfaces as usability bugs unless they are
    explicitly advanced technician tools.
-3. Choose production Authenticode certificate authority/storage, production
+4. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
    staging credentials that were exposed during manual smoke setup as
    operational hygiene before sensitive staging operations.
-4. Harden Agent production behavior outside the update epic: rotated credential
+5. Harden Agent production behavior outside the update epic: rotated credential
    consumption, reboot/lock recovery, and lease timing telemetry.
-5. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
+6. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
    role editing, layout management, device-seat management, tariff/POS
    management, and runtime/staging configuration as needed.
-6. Continue physical Windows PC validation for lock/unlock, reboot recovery,
+7. Continue physical Windows PC validation for lock/unlock, reboot recovery,
    and remote bootstrap/update behavior now that the VM duplicate-lock
    regression is closed. Treat findings as hardening unless they block the
    current Operator App staging test.
 
 ## Recent Integration Notes
 
+- On 2026-05-23, the source-of-truth product and architecture docs were updated
+  to include an internal SaaS Control Plane in MVP scope. The change is
+  recorded in the PRD, architecture spec, README, production-readiness roadmap,
+  AGENTS.md, and the focused tenant onboarding plan.
 - On 2026-05-22, `codex/operator-app-redesign` added read-only stock movement
   history for Settings `POS и склад`. The Platform API now exposes
   `GET /api/branches/{branchId}/inventory/stock-movements` with

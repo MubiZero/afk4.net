@@ -40,7 +40,9 @@ there.
 
 - AFK4 is a cloud-first SaaS platform for computer clubs.
 - The MVP has no local club server.
-- The MVP has no web admin panel.
+- The MVP includes an internal browser-based SaaS Control Plane for platform-owner
+  tenant onboarding, subscription/status controls, tenant health, and support.
+  Customer day-to-day club operations remain in the native Operator App.
 - Operator experience is a native Windows desktop app.
 - Gaming PCs are Windows 10/11 only in the MVP.
 - Operator App is a native .NET Windows desktop shell with WebView2 and a
@@ -55,9 +57,9 @@ there.
 - MVP is multi-tenant from the start.
 - POS, inventory, shifts, receipts, audit, reports, and centralized updates are
   part of the MVP.
-- Full event sourcing, kernel drivers, web admin, Linux/macOS agents, mobile
-  app, country-specific fiscal integrations, and local server are out of MVP
-  scope.
+- Full event sourcing, kernel drivers, customer browser operational admin as
+  the primary club UI, Linux/macOS agents, mobile app, country-specific fiscal
+  integrations, and local server are out of MVP scope.
 
 If a user asks to change one of these decisions, update the PRD and architecture
 spec first, then update or create an implementation plan.

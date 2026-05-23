@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
 
 ## Purpose
 
@@ -33,6 +33,8 @@ Minimum bar:
   clean Windows 11 VM is acceptable for the pilot gate; physical PC validation
   remains recommended hardening before wider rollout.
 - Operator App can perform the core day flow against the deployed backend.
+- One tenant and first branch can be provisioned without direct database edits
+  through a scripted or Control Plane path.
 - Backup and restore rehearsal completed once.
 - Client MSI installation and update rollout tested on a Windows endpoint.
 - Manual/mock payments are acceptable.
@@ -56,6 +58,9 @@ Minimum bar:
   rollout.
 - Staff, role assignment, layout, device, update, audit, and reporting
   workflows are usable by operators/managers.
+- Internal SaaS Control Plane exists for platform-owner tenant onboarding,
+  subscription/status controls, owner invites, tenant health, support notes,
+  and suspend/reactivate.
 - Operational monitoring and support diagnostics are actionable.
 
 ## Critical Path To Pilot Production
@@ -75,7 +80,16 @@ Minimum bar:
    deploys while keeping EF migration changes behind an explicit backup and
    migration confirmation.
 
-2. **CI Gate**
+2. **Tenant Onboarding And SaaS Control Plane**
+
+   The product decision changed on 2026-05-23: AFK4 MVP now includes an
+   internal browser-based SaaS Control Plane for the platform owner/support
+   role. The first pilot can still use a scripted provisioning fallback, but
+   commercial production must not require direct PostgreSQL edits to create
+   organizations, branches, owner invites, plan/status metadata, tenant limits,
+   support notes, or suspend/reactivate state.
+
+3. **CI Gate**
 
    Use cost-aware GitHub Actions workflows to build and test relevant pull
    requests, run package smoke for client MSI artifacts, and keep release
@@ -90,7 +104,7 @@ Minimum bar:
    merges must manually follow `AGENTS.md`: the current PR head commit needs a
    green remote `PR Verification Result` before merge.
 
-3. **Windows Endpoint Smoke**
+4. **Windows Endpoint Smoke**
 
    Enroll a Windows 10/11 test endpoint. Validate device credential auth,
    heartbeat, SignalR commands, session start/end, lease refresh, lock/unlock,
@@ -118,7 +132,7 @@ Minimum bar:
    reboot recovery, and update/rollback repeats remain hardening work before
    wider operational rollout, not blockers for the current pilot/dev cycle.
 
-4. **Backup And Restore Rehearsal**
+5. **Backup And Restore Rehearsal**
 
    Run `docs/operations/postgres-backup-restore.md` against staging data:
    backup, restore into a clean database, apply migrations, start the API, and
@@ -133,7 +147,7 @@ Minimum bar:
    rehearsal database, migration-checked, smoke-tested through the Platform API,
    cleaned up, and returned to non-public database access.
 
-5. **Signed Client Release Rehearsal**
+6. **Signed Client Release Rehearsal**
 
    Staging now has a temporary pilot update-hosting path using Coolify-hosted
    MinIO at `updates.afk4.staging.mubi.dev`. The package smoke workflow can
@@ -180,7 +194,7 @@ Minimum bar:
    `ccf938354d7cb86edf2349cf5696a7dd51332136`, and the VM recheck confirmed
    one fresh lock command for one session end before issue #36 was closed.
 
-6. **Pilot Setup Runbook**
+7. **Pilot Setup Runbook**
 
    Document exactly how to create the first organization, branch, staff users,
    roles, zones, seats, devices, tariffs, POS products, and update channels for
@@ -205,6 +219,9 @@ Minimum bar:
 - Production hosting provider and deployment topology are not selected for
   commercial production.
 - Production environments are not codified.
+- Internal SaaS Control Plane and no-DB-edit tenant provisioning are not
+  implemented yet. They are now production-readiness scope, not an optional
+  later admin convenience.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
@@ -306,8 +323,9 @@ Minimum bar:
   session start/end worked. After reviewing the WPF redesign branch, the
   go-forward Operator App runtime changed to a native .NET Windows desktop
   shell with WebView2 and React/TypeScript UI. This keeps the native Windows
-  app boundary and explicitly does not introduce a browser-delivered web admin
-  panel. `docs/product/operator-app-ui-target.md` remains the accepted UI/UX
+  app boundary and keeps day-to-day club operations out of the internal SaaS
+  Control Plane. `docs/product/operator-app-ui-target.md` remains the accepted
+  UI/UX
   target: dense floor-map-centered operator console, selected-seat action
   panel, operational signals, explicit pending/failed backend and device
   states, and no raw GUID/form surfaces in normal cashier/operator paths.
@@ -443,7 +461,9 @@ Minimum bar:
   missing.
 - Pilot branch setup can now run through either the Operator App Pilot Setup
   panel or the Platform API script fallback. Commercial production still needs
-  broader operator-safe configuration screens.
+  the internal SaaS Control Plane for platform-owner tenant onboarding/support
+  plus broader operator-safe configuration screens inside the native Operator
+  App.
 
 ### Observability And Support
 
@@ -528,9 +548,10 @@ Minimum bar:
 
 ## Decision Rules
 
-- Do not add web admin, local server, non-Windows agents, microservices, kernel
-  driver, fiscal integrations, or mobile app to solve production readiness
-  unless the PRD and architecture spec are updated first.
+- Do not add local server, non-Windows agents, microservices, kernel driver,
+  fiscal integrations, mobile app, or customer browser operational admin as the
+  primary club UI to solve production readiness unless the PRD and architecture
+  spec are updated first.
 - Prefer runbooks and explicit release gates before adding provider-specific
   SDKs.
 - Prefer one real-device smoke loop over more theoretical docs once staging is

@@ -3,15 +3,16 @@
 AFK4 is a cloud-first SaaS platform for managing Windows-based computer clubs.
 It is being built as operator-grade software in the same product category as
 Senet, Langame, and SmartShell: cloud backend, native Windows Operator App,
-Windows Agent Service, Player Shell, sessions, billing, POS, audit, reports,
-and centralized client updates.
+internal SaaS Control Plane, Windows Agent Service, Player Shell, sessions,
+billing, POS, audit, reports, and centralized client updates.
 
 The current codebase is no longer just a scaffold. It contains an implemented
 MVP-oriented vertical slice with tested backend modules, Windows client
 surfaces, Agent/Shell foundations, update packaging, and operational runbooks.
 The main remaining gap is production readiness: staging/prod infrastructure,
-secrets, real Windows device smoke tests, backup rehearsal, signing/CDN
-decisions, Operator App UI migration, and Agent hardening.
+SaaS tenant onboarding/control-plane UI, secrets, real Windows device smoke
+tests, backup rehearsal, signing/CDN decisions, Operator App UI migration, and
+Agent hardening.
 
 ## Source Of Truth
 
@@ -32,7 +33,8 @@ required reading for every new session.
 ## Fixed MVP Decisions
 
 - Cloud-first SaaS; no local club server in the MVP.
-- No web admin panel in the MVP.
+- Internal browser-based SaaS Control Plane is in the MVP for platform-owner
+  tenant onboarding, subscription/status controls, tenant health, and support.
 - Native Windows Operator App built as a .NET desktop shell with WebView2 and
   a React/TypeScript operator UI.
 - Gaming PCs are Windows 10/11 only in the MVP.
@@ -44,9 +46,9 @@ required reading for every new session.
 - Billing uses immutable ledger entries, not mutable balances.
 - MVP includes POS, inventory, shifts, receipts, audit, reports, and
   centralized signed updates.
-- MVP excludes web admin, local server, non-Windows agents, kernel driver,
-  country-specific fiscal integrations, mobile app, microservices, and full
-  event sourcing.
+- MVP excludes customer browser operational admin as the primary club UI, local
+  server, non-Windows agents, kernel driver, country-specific fiscal
+  integrations, mobile app, microservices, and full event sourcing.
 
 ## Runtime Parts
 
@@ -56,13 +58,21 @@ required reading for every new session.
 management, sessions, billing, POS, shifts, reports, audit, updates, and
 reconciliation. PostgreSQL persistence is implemented with EF Core migrations.
 
+### SaaS Control Plane
+
+The approved next platform-owner surface is an internal browser-based Control
+Plane for tenant provisioning, first branch setup, owner invites,
+subscription/status controls, tenant health, support notes, and
+suspend/reactivate actions. Its backend endpoints should live behind a
+separate platform-admin authorization boundary, not branch staff tokens.
+
 ### Operator App
 
 `src/AFK4.Operator.App` is the native Windows app for operators, cashiers,
 managers, technicians, accountants, and owners depending on permissions. The
 approved target is a .NET desktop host with WebView2 and a React/TypeScript
-operator UI, not a browser-delivered web admin panel. The main working screen
-is the floor map. The first WebView2/React increment now launches a local
+operator UI. It is distinct from the SaaS Control Plane; the main working
+screen is the floor map. The first WebView2/React increment now launches a local
 floor-map console; auth, floor map/session actions, players, POS, shifts,
 reports, settings, device tools, updates, audit search, diagnostics, and CSV
 exports still exist in the legacy WPF parity code and are being ported to the

@@ -2,7 +2,12 @@
 
 ## Purpose
 
-AFK4 is a cloud-first SaaS platform for managing computer clubs. The first product release is a serious operator-grade platform, not a web admin panel or a prototype. It targets Windows-based clubs, uses a native Windows Operator App, and controls gaming PCs through installed Windows agents.
+AFK4 is a cloud-first SaaS platform for managing computer clubs. The first
+product release is a serious operator-grade platform, not a local-only server
+or a prototype. It targets Windows-based clubs, includes an internal SaaS
+Control Plane for platform-owner tenant onboarding and support, uses a native
+Windows Operator App for club operations, and controls gaming PCs through
+installed Windows agents.
 
 The platform is designed to compete architecturally with systems such as Senet, Langame, and SmartShell while keeping the first implementation feasible through a modular monolith backend and strict domain boundaries.
 
@@ -10,7 +15,8 @@ The platform is designed to compete architecturally with systems such as Senet, 
 
 - The platform is cloud-first SaaS.
 - There is no local club server in the MVP.
-- There is no web admin panel in the MVP.
+- The MVP includes an internal browser-based SaaS Control Plane for platform
+  owner/support tenant lifecycle management.
 - The operator experience is a native Windows desktop application.
 - The first supported gaming PCs are Windows 10/11 only.
 - The backend is a .NET ASP.NET Core modular monolith.
@@ -28,13 +34,27 @@ The platform is designed to compete architecturally with systems such as Senet, 
 
 ## System Overview
 
-The platform has four main runtime parts.
+The platform has five main runtime parts.
 
 ### Cloud Backend
 
 The Cloud Backend is an ASP.NET Core modular monolith. It is deployed as one backend service at the start, backed by one PostgreSQL database. Internally it is split into strict business modules. Modules do not directly modify each other's tables. Cross-module behavior goes through application services, explicit contracts, and domain events.
 
 The backend owns all business decisions: sessions, billing, tariffs, POS, roles, audit, updates, device commands, and reconciliation. It is the authoritative source of state.
+
+### SaaS Control Plane
+
+The SaaS Control Plane is an internal browser-based administration surface for
+the AFK4 platform owner and support staff. It is not the cashier/operator UI
+for clubs. It manages tenants, first branches, owner invites, subscription or
+plan status, operational limits, tenant health, support notes, and
+suspend/reactivate actions.
+
+The first implementation should keep Control Plane API endpoints inside the
+same modular monolith under a separate platform-admin authorization boundary,
+for example `/api/platform/...`. The web frontend may be deployed separately or
+served as a distinct static frontend, but it must not share branch staff tokens
+or branch-scoped operator permissions.
 
 ### Operator App
 
@@ -48,7 +68,7 @@ The main screen is the club floor map. Operators can see PC states, start and st
 The Operator App connects directly to the Cloud Backend through typed APIs and
 realtime subscriptions. It does not require or depend on a local server. The
 WebView2 surface is packaged and launched by the native desktop host; AFK4 does
-not introduce a browser-delivered web admin panel in the MVP.
+not use the SaaS Control Plane as the day-to-day club operations surface.
 
 ### Windows Agent Service
 
@@ -66,9 +86,29 @@ The Shell is not trusted as an authority. It cannot start, extend, or authorize 
 
 ### Tenant And Branch
 
-`Organization` represents a platform tenant: a company, club owner, or network. `Branch` represents one physical club location. Every operational object belongs to an organization and usually to a branch.
+`Organization` represents a platform tenant: a company, club owner, or network.
+`Branch` represents one physical club location. Every operational object
+belongs to an organization and usually to a branch.
 
 The MVP is multi-tenant from the start. Tenant isolation is a core rule, not a later feature.
+
+Organizations and branches have stable slugs for onboarding and client
+connection. Tenant lifecycle state is explicit: active tenants can operate,
+suspended tenants keep read/support access but cannot perform new money,
+session, POS, device enrollment, or rollout mutations, and deletion-pending
+tenants are blocked from operational access. Plan code, subscription status,
+limits, and support notes are platform-owned metadata.
+
+### Platform Admins And Tenant Lifecycle
+
+`PlatformAdmin` represents an AFK4 operator or support account, not a club
+staff user. Platform admins can cross tenant boundaries only through explicit
+Control Plane permissions and audited actions.
+
+Tenant lifecycle operations include provisioning organization and first branch,
+issuing owner invites, changing plan/subscription status, updating limits,
+suspending/reactivating tenants, and reading tenant health. These operations
+must not require direct PostgreSQL edits in staging or production.
 
 ### Club Layout And Devices
 
@@ -132,15 +172,31 @@ Rollouts support stable, beta, and internal channels, staged rollout, status tra
 
 ### Identity And Access
 
-Owns staff users, authentication, access tokens, device credentials, roles, and permissions. MVP roles are owner, branch manager, shift supervisor, cashier/operator, technician, and accountant/auditor.
+Owns staff users, platform admin users, authentication, access tokens, device
+credentials, roles, and permissions. MVP staff roles are owner, branch manager,
+shift supervisor, cashier/operator, technician, and accountant/auditor.
 
-The access model is permission-based RBAC with predefined roles in the MVP. Custom roles can be added later without changing the authorization foundation.
+The access model is permission-based RBAC with predefined staff roles in the
+MVP. Platform-admin permissions are separate from branch staff permissions.
+Custom roles can be added later without changing the authorization foundation.
 
 ### Tenancy
 
-Owns organizations, branches, tenant isolation, tenant-aware middleware, and future tenant subscription state.
+Owns organizations, branches, stable slugs, tenant isolation, tenant-aware
+middleware, tenant lifecycle state, and tenant subscription/plan metadata.
 
-Every request must resolve tenant context explicitly. Cross-tenant access is forbidden unless an internal platform operator role is introduced later.
+Every branch/business request must resolve tenant context explicitly. Cross-
+tenant access is forbidden for staff/device credentials. Platform-admin
+cross-tenant access is allowed only through the Control Plane authorization
+boundary and must be audited.
+
+### Platform Control Plane
+
+Owns platform-admin tenant onboarding workflows, owner invites, plan/status/
+limit updates, tenant health projections, support notes, and suspend/reactivate
+commands. It orchestrates tenancy, identity, audit, diagnostics, and deployment
+status through explicit contracts rather than direct table mutation across
+modules.
 
 ### Club Operations
 
@@ -344,6 +400,17 @@ The backend starts as one ASP.NET Core deployment. Background workers can run in
 
 The backend must include structured logging, health checks, metrics-ready design, and externalized secrets.
 
+### Control Plane Web
+
+The internal Control Plane web frontend is a separate browser surface for AFK4
+platform admins. It may be served as static assets beside the backend or
+deployed as its own frontend, but it is logically separate from the Operator
+App web assets packaged into the Windows desktop host.
+
+Control Plane routes use platform-admin authentication, a separate token
+audience/storage policy, and cross-tenant audit. They must not accept branch
+staff tokens for platform-owner operations.
+
 ### Client Updates
 
 Operator App, Agent Service, and Player Shell updates are centrally managed.
@@ -387,12 +454,17 @@ Security is part of the MVP architecture, not a later hardening pass.
 
 Authentication and authorization:
 
+- platform admins authenticate separately from branch staff and device
+  credentials;
+- platform-admin permissions are separate from branch staff permissions;
 - staff users authenticate against the Cloud Backend;
 - predefined roles map to explicit permissions;
 - backend endpoints enforce tenant, branch, role, and permission checks;
 - Operator App stores tokens using Windows-protected storage;
 - refresh token rotation is required for long-lived operator sessions;
 - device credentials are separate from staff credentials.
+- support actions that cross tenant boundaries require explicit platform-admin
+  permission, reason context where applicable, and audit records.
 
 Device enrollment:
 
@@ -412,7 +484,8 @@ Operational security:
 
 ## API And Contract Strategy
 
-The platform uses explicit contracts between backend, Operator App, Agent Service, and Player Shell.
+The platform uses explicit contracts between backend, SaaS Control Plane,
+Operator App, Agent Service, and Player Shell.
 
 Rules:
 
@@ -420,6 +493,9 @@ Rules:
 - API contracts are versioned before production external integrations are introduced;
 - internal module models are not exposed directly as API responses;
 - device commands use stable command names and explicit payload schemas;
+- platform-admin endpoints live under a separate route and authorization
+  boundary, such as `/api/platform/...`, and must not reuse branch staff
+  permission checks as a shortcut;
 - breaking contract changes require a compatibility plan for older Operator App and Agent versions;
 - public integration APIs are deferred until the core product stabilizes.
 
@@ -479,6 +555,14 @@ Operator observability:
 - actionable errors for network, permission, payment, and device command failures;
 - support diagnostics screen in a later UI slice.
 
+Control Plane observability:
+
+- tenant health views must show tenant status, latest known migration version
+  where available, branch/device counts, recent operator sign-in activity, and
+  recent support-relevant backend errors;
+- suspend/reactivate, owner invite, plan/status/limit changes, and support note
+  edits must be queryable through audit.
+
 ## Data Protection And Recovery
 
 The MVP must be built assuming real clubs will depend on the data.
@@ -498,6 +582,8 @@ Requirements:
 The first full MVP includes:
 
 - multi-tenant organizations and branches
+- internal SaaS Control Plane for tenant onboarding, owner invites,
+  subscription/status controls, support notes, tenant health, and suspension
 - staff users, predefined roles, and permission-based access
 - native WebView2 + React/TypeScript Operator App with floor map
 - zones, seats, and Windows devices
@@ -520,7 +606,9 @@ The first full MVP includes:
 
 The MVP does not include:
 
-- web admin panel
+- customer browser operational admin as the primary club UI
+- full customer self-service billing portal beyond onboarding, subscription
+  status, and support controls
 - local club server
 - Linux or macOS agents
 - kernel-level anti-bypass driver
@@ -544,28 +632,33 @@ Recommended plan sequence:
 2. **Identity, Tenancy, And RBAC**
    Staff users, organizations, branches, predefined roles, permission checks, token storage, tenant-aware API pipeline, audit for privileged actions.
 
-3. **Club Layout And Device Management**
+3. **SaaS Control Plane And Tenant Onboarding**
+   platform-admin auth, tenant lifecycle/status, slugs, owner invites,
+   plan/subscription metadata, limits, tenant health, support notes, and
+   suspend/reactivate enforcement.
+
+4. **Club Layout And Device Management**
    zones, seats, device enrollment, device credentials, device state, command log, command status, installed apps, device detail screens.
 
-4. **Session Lifecycle And Grace Mode**
+5. **Session Lifecycle And Grace Mode**
    start, extend, transfer, end, session state machine, signed leases, Agent lease validation, reconnect reconciliation, session audit.
 
-5. **Billing, Ledger, Tariffs, And Packages**
+6. **Billing, Ledger, Tariffs, And Packages**
    immutable ledger, prepaid/postpaid flows, packages, bonuses, debts, refunds, manual corrections, tariff versioning, idempotency.
 
-6. **POS, Inventory, Shifts, And Receipts**
+7. **POS, Inventory, Shifts, And Receipts**
    products, categories, stock, sales, returns, shift open/close, cash reconciliation, receipt/payment provider abstraction with mock/manual providers.
 
-7. **Operator App Production UX**
+8. **Operator App Production UX**
    real floor map state, context panel actions, POS workflows, player search, shift workflows, settings, role-aware navigation, hotkeys.
 
-8. **Agent Enforcement And Player Shell**
+9. **Agent Enforcement And Player Shell**
    lock/unlock enforcement, watchdog, Windows policies, process allow/deny lists, reboot recovery, Shell session screen, basic launcher.
 
-9. **Updates And Installers**
+10. **Updates And Installers**
    signed packages, channels, rollout targeting, rollback, Operator installer, Agent/Shell installer, enrollment flow.
 
-10. **Reports, Audit Review, And Operations**
+11. **Reports, Audit Review, And Operations**
     shift reports, sales reports, gameplay reports, operator action reports, audit search, diagnostics, backup/restore runbooks.
 
 This split is deliberate. A single implementation plan for the whole MVP would be too large to execute safely and would mix unrelated risk areas.
@@ -603,3 +696,6 @@ The following decisions are intentionally deferred to focused implementation spe
 - Payment and receipt provider plugin contract.
 - First production hosting provider and deployment topology.
 - Optional future MSIX/App Installer distribution channel for Operator App.
+- Exact Control Plane hosting shape: static frontend served beside the backend
+  or separate frontend deployment.
+- Production subscription billing provider and plan catalog source.
