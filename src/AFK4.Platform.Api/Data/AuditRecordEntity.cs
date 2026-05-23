@@ -10,6 +10,8 @@ public sealed class AuditRecordEntity
 
     public Guid? ActorStaffUserId { get; set; }
 
+    public Guid? ActorPlatformAdminUserId { get; set; }
+
     public string Action { get; set; } = string.Empty;
 
     public string TargetType { get; set; } = string.Empty;

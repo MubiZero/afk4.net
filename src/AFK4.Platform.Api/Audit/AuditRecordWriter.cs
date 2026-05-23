@@ -14,6 +14,7 @@ public sealed class AuditRecordWriter(
             OrganizationId = request.OrganizationId,
             BranchId = request.BranchId,
             ActorStaffUserId = request.ActorStaffUserId,
+            ActorPlatformAdminUserId = request.ActorPlatformAdminUserId,
             Action = request.Action,
             TargetType = request.TargetType,
             TargetId = request.TargetId,

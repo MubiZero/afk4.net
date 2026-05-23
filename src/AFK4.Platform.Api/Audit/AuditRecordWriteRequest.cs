@@ -9,4 +9,7 @@ public sealed record AuditRecordWriteRequest(
     string? TargetId,
     string Outcome,
     string SourceApp,
-    string DetailsJson);
+    string DetailsJson)
+{
+    public Guid? ActorPlatformAdminUserId { get; init; }
+}

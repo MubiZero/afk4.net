@@ -181,6 +181,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 auditRecord.BranchId,
                 auditRecord.CreatedAtUtc
             });
+            entity.HasIndex(auditRecord => new
+            {
+                auditRecord.ActorPlatformAdminUserId,
+                auditRecord.CreatedAtUtc
+            });
         });
 
         modelBuilder.Entity<ZoneEntity>(entity =>

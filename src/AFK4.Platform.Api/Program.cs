@@ -7870,11 +7870,6 @@ static async Task WritePlatformAuditAsync(
     object details,
     CancellationToken cancellationToken)
 {
-    var detailsWithActor = new Dictionary<string, object?>
-    {
-        ["actorPlatformAdminUserId"] = actorPlatformAdminUserId,
-        ["payload"] = details
-    };
     await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
         organizationId,
         null,
@@ -7884,7 +7879,10 @@ static async Task WritePlatformAuditAsync(
         targetId,
         outcome,
         "PlatformApi",
-        JsonSerializer.Serialize(detailsWithActor)),
+        JsonSerializer.Serialize(details))
+    {
+        ActorPlatformAdminUserId = actorPlatformAdminUserId
+    },
         cancellationToken);
 }
 

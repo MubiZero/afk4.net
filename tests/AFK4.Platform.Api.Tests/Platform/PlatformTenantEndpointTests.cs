@@ -76,6 +76,8 @@ public sealed class PlatformTenantEndpointTests
         Assert.Equal("Succeeded", audit.Outcome);
         Assert.Equal(organization.OrganizationId, audit.OrganizationId);
         Assert.Equal(organization.OrganizationId.ToString("D"), audit.TargetId);
+        Assert.Equal(admin.PlatformAdminId, audit.ActorPlatformAdminUserId);
+        Assert.DoesNotContain("actorPlatformAdminUserId", audit.DetailsJson);
     }
 
     [Fact]
@@ -94,7 +96,7 @@ public sealed class PlatformTenantEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformSupport]);
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformSupport]);
 
         var response = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
 
@@ -105,6 +107,7 @@ public sealed class PlatformTenantEndpointTests
         Assert.Empty(await dbContext.Organizations.ToListAsync());
         var audit = await dbContext.AuditRecords.SingleAsync(record => record.Action == "tenancy.tenant.create");
         Assert.Equal("Denied", audit.Outcome);
+        Assert.Equal(admin.PlatformAdminId, audit.ActorPlatformAdminUserId);
     }
 
     [Fact]

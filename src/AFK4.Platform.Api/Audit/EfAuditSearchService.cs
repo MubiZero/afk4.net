@@ -66,7 +66,10 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
                 record.Outcome,
                 record.SourceApp,
                 record.DetailsJson,
-                record.CreatedAtUtc))
+                record.CreatedAtUtc)
+            {
+                ActorPlatformAdminUserId = record.ActorPlatformAdminUserId
+            })
             .ToListAsync(cancellationToken);
 
         return new AuditSearchResultDto(result, limit);

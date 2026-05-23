@@ -11,4 +11,7 @@ public sealed record AuditRecordDto(
     string Outcome,
     string SourceApp,
     string DetailsJson,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc)
+{
+    public Guid? ActorPlatformAdminUserId { get; init; }
+}
