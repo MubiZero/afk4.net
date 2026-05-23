@@ -162,3 +162,124 @@ export function writeStoredConnection(
 export function clearStoredConnection(storage: StorageLike | null = defaultStorage()): void {
   storage?.removeItem(STORAGE_KEY);
 }
+
+export interface OperatorConnectionStorage {
+  loadSync(): ResolvedOperatorConnection | null;
+  load(): Promise<ResolvedOperatorConnection | null>;
+  save(connection: ResolveOperatorConnectionResponse, now?: Date): Promise<ResolvedOperatorConnection>;
+  clear(): Promise<void>;
+}
+
+export class LocalStorageOperatorConnectionStorage implements OperatorConnectionStorage {
+  private readonly storage: StorageLike | null;
+
+  public constructor(storage: StorageLike | null = defaultStorage()) {
+    this.storage = storage;
+  }
+
+  public loadSync(): ResolvedOperatorConnection | null {
+    return readStoredConnection(this.storage);
+  }
+
+  public load(): Promise<ResolvedOperatorConnection | null> {
+    return Promise.resolve(readStoredConnection(this.storage));
+  }
+
+  public save(
+    connection: ResolveOperatorConnectionResponse,
+    now: Date = new Date()
+  ): Promise<ResolvedOperatorConnection> {
+    return Promise.resolve(writeStoredConnection(connection, this.storage, now));
+  }
+
+  public clear(): Promise<void> {
+    clearStoredConnection(this.storage);
+    return Promise.resolve();
+  }
+}
+
+export interface BridgeRequestSender {
+  <T>(type: string, payload?: unknown): Promise<T>;
+}
+
+interface BridgeStoredConnectionPayload {
+  organizationId: string;
+  organizationSlug: string;
+  organizationName: string;
+  branchId: string;
+  branchSlug: string;
+  branchName: string;
+  branchCity: string;
+  storedAtUtc: string;
+}
+
+export class BridgeOperatorConnectionStorage implements OperatorConnectionStorage {
+  private readonly sender: BridgeRequestSender;
+
+  public constructor(sender: BridgeRequestSender) {
+    this.sender = sender;
+  }
+
+  public loadSync(): ResolvedOperatorConnection | null {
+    return null;
+  }
+
+  public async load(): Promise<ResolvedOperatorConnection | null> {
+    const payload = await this.sender<BridgeStoredConnectionPayload | null>('connection:loadConnection');
+    return normalizeStoredConnection(payload);
+  }
+
+  public async save(
+    connection: ResolveOperatorConnectionResponse,
+    now: Date = new Date()
+  ): Promise<ResolvedOperatorConnection> {
+    const request: BridgeStoredConnectionPayload = {
+      organizationId: connection.organizationId,
+      organizationSlug: connection.organizationSlug,
+      organizationName: connection.organizationName,
+      branchId: connection.branchId,
+      branchSlug: connection.branchSlug,
+      branchName: connection.branchName,
+      branchCity: connection.branchCity,
+      storedAtUtc: now.toISOString()
+    };
+
+    const response = await this.sender<BridgeStoredConnectionPayload>('connection:saveConnection', request);
+    return normalizeStoredConnection(response) ?? {
+      organizationId: request.organizationId,
+      organizationSlug: request.organizationSlug,
+      organizationName: request.organizationName,
+      branchId: request.branchId,
+      branchSlug: request.branchSlug,
+      branchName: request.branchName,
+      branchCity: request.branchCity,
+      storedAtUtc: request.storedAtUtc
+    };
+  }
+
+  public async clear(): Promise<void> {
+    await this.sender('connection:clearConnection');
+  }
+}
+
+function normalizeStoredConnection(payload: BridgeStoredConnectionPayload | null | undefined): ResolvedOperatorConnection | null {
+  if (payload === null || payload === undefined) {
+    return null;
+  }
+  if (typeof payload.organizationId !== 'string' || payload.organizationId.length === 0) {
+    return null;
+  }
+  if (typeof payload.branchId !== 'string' || payload.branchId.length === 0) {
+    return null;
+  }
+  return {
+    organizationId: payload.organizationId,
+    organizationSlug: payload.organizationSlug,
+    organizationName: payload.organizationName,
+    branchId: payload.branchId,
+    branchSlug: payload.branchSlug,
+    branchName: payload.branchName,
+    branchCity: payload.branchCity,
+    storedAtUtc: payload.storedAtUtc
+  };
+}

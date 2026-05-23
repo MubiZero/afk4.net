@@ -195,11 +195,11 @@ describe('App', () => {
   });
 
   it('clears restored native session when token refresh is rejected', async () => {
-    seedStoredOperatorConnection();
     const bridge = installSessionBridge(createSession(), createSession(), {
       failedRequests: {
         'auth:refresh': 'Platform API returned 401 Unauthorized:'
-      }
+      },
+      loadConnection: buildStoredConnection()
     });
     const fetchMock = vi.mocked(fetch);
 
@@ -236,9 +236,8 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: 'Вход оператора' })).not.toBeInTheDocument();
   });
 
-  it('skips the connection resolution screen when a stored connection is present', async () => {
-    seedStoredOperatorConnection();
-    installSessionBridge(null);
+  it('skips the connection resolution screen when the native bridge returns a stored connection', async () => {
+    installSessionBridge(null, null, { loadConnection: buildStoredConnection() });
 
     render(<App />);
 
@@ -246,8 +245,8 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: 'Connect to your club' })).not.toBeInTheDocument();
   });
 
-  it('persists the resolved active connection and proceeds to the sign-in screen', async () => {
-    installSessionBridge(null);
+  it('persists the resolved active connection via the native bridge and proceeds to the sign-in screen', async () => {
+    const bridge = installSessionBridge(null);
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input));
@@ -276,16 +275,15 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
-    const stored = localStorage.getItem('afk4.operator.connection');
-    expect(stored).not.toBeNull();
-    const parsed = JSON.parse(stored ?? 'null');
-    expect(parsed.organizationId).toBe('0c04d6c0-bfa8-4e26-9263-fc0d307d0f08');
-    expect(parsed.branchId).toBe('acfc0212-967f-4d84-94be-9003387b09c2');
-    expect(parsed.branchSlug).toBe('central');
+    expect(localStorage.getItem('afk4.operator.connection')).toBeNull();
+    expect(bridge.connectionSaves.length).toBe(1);
+    expect(bridge.connectionSaves[0].organizationId).toBe('0c04d6c0-bfa8-4e26-9263-fc0d307d0f08');
+    expect(bridge.connectionSaves[0].branchId).toBe('acfc0212-967f-4d84-94be-9003387b09c2');
+    expect(bridge.connectionSaves[0].branchSlug).toBe('central');
   });
 
   it('shows blocked-state copy and does not persist the connection when the resolved tenant is suspended', async () => {
-    installSessionBridge(null);
+    const bridge = installSessionBridge(null);
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input));
@@ -316,9 +314,12 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Подписка приостановлена' })).toBeInTheDocument();
     expect(screen.getByText('Не оплачена подписка за май.')).toBeInTheDocument();
     expect(localStorage.getItem('afk4.operator.connection')).toBeNull();
+    expect(bridge.connectionSaves.length).toBe(0);
+    expect(bridge.requests).toContain('connection:clearConnection');
 
     fireEvent.click(screen.getByRole('button', { name: 'Сменить подключение' }));
     expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
+    expect(bridge.requests.filter((type) => type === 'connection:clearConnection').length).toBeGreaterThanOrEqual(2);
   });
 
   it('ends the selected active session through the backend before confirming the UI action', async () => {
@@ -2972,14 +2973,19 @@ function seedStoredOperatorConnection(overrides: Record<string, unknown> = {}) {
 function installSessionBridge(
   loadSession: ReturnType<typeof createSession> | null = createSession(),
   refreshSession: ReturnType<typeof createSession> | null = loadSession,
-  options: { failedRequests?: Record<string, string> } = {}
+  options: {
+    failedRequests?: Record<string, string>;
+    loadConnection?: Record<string, unknown> | null;
+  } = {}
 ) {
   const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
   const requests: string[] = [];
+  const connectionSaves: Array<Record<string, unknown>> = [];
+  let connectionState: Record<string, unknown> | null = options.loadConnection ?? null;
   window.chrome = {
     webview: {
       postMessage: (message: unknown) => {
-        const request = message as { type: string; requestId: string };
+        const request = message as { type: string; requestId: string; payload?: unknown };
         requests.push(request.type);
         let payload: unknown = loadSession;
 
@@ -2993,6 +2999,22 @@ function installSessionBridge(
 
         if (request.type === 'auth:signOut') {
           payload = { signedOut: true };
+        }
+
+        if (request.type === 'connection:loadConnection') {
+          payload = connectionState;
+        }
+
+        if (request.type === 'connection:saveConnection') {
+          const incoming = (request.payload ?? {}) as Record<string, unknown>;
+          connectionSaves.push(incoming);
+          connectionState = incoming;
+          payload = incoming;
+        }
+
+        if (request.type === 'connection:clearConnection') {
+          connectionState = null;
+          payload = { cleared: true };
         }
 
         queueMicrotask(() => {
@@ -3017,7 +3039,21 @@ function installSessionBridge(
     }
   };
 
-  return { requests };
+  return { requests, connectionSaves };
+}
+
+function buildStoredConnection(overrides: Record<string, unknown> = {}) {
+  return {
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    organizationSlug: 'afk4-dushanbe',
+    organizationName: 'AFK4 Dushanbe',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    branchSlug: 'central',
+    branchName: 'Central',
+    branchCity: 'Dushanbe',
+    storedAtUtc: '2026-05-23T10:00:00Z',
+    ...overrides
+  };
 }
 
 const allOperatorPermissions = [

@@ -34,14 +34,14 @@ import {
   type FloorMapLoadStatus,
   type OperatorFloorMapState
 } from './floorMapState';
-import { isHostBridgeUnavailableError, postHostWindowCommand, postHostWindowResize, type HostWindowResizeEdge } from './hostBridge';
+import { isHostBridgeUnavailableError, postHostRequest, postHostWindowCommand, postHostWindowResize, type HostWindowResizeEdge } from './hostBridge';
 import { ConnectionResolutionScreen, isOperatorTenantBlocked } from './ConnectionResolutionScreen';
 import {
+  BridgeOperatorConnectionStorage,
   ConnectionResolver,
+  LocalStorageOperatorConnectionStorage,
   OperatorTenantStatus,
-  clearStoredConnection,
-  readStoredConnection,
-  writeStoredConnection,
+  type OperatorConnectionStorage,
   type ResolvedOperatorConnection,
   type ResolveOperatorConnectionResponse
 } from './connectionResolver';
@@ -8530,9 +8530,22 @@ function BlockedTenantScreen({
   );
 }
 
+function createOperatorConnectionStorage(): OperatorConnectionStorage {
+  if (typeof window !== 'undefined' && window.chrome?.webview) {
+    return new BridgeOperatorConnectionStorage(postHostRequest);
+  }
+  return new LocalStorageOperatorConnectionStorage();
+}
+
 export function App() {
   const baseConfig = getOperatorConfig();
-  const [resolvedConnection, setResolvedConnection] = useState<ResolvedOperatorConnection | null>(() => readStoredConnection());
+  const connectionStorage = useMemo(() => createOperatorConnectionStorage(), []);
+  const [resolvedConnection, setResolvedConnection] = useState<ResolvedOperatorConnection | null>(
+    () => connectionStorage.loadSync()
+  );
+  const [isConnectionLoading, setIsConnectionLoading] = useState<boolean>(
+    () => connectionStorage.loadSync() === null
+  );
   const [blockedResolution, setBlockedResolution] = useState<ResolveOperatorConnectionResponse | null>(null);
   const config = useMemo<OperatorConfig>(() => {
     if (resolvedConnection === null) {
@@ -8667,6 +8680,31 @@ export function App() {
       window.clearInterval(intervalId);
     };
   }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    connectionStorage.load()
+      .then((connection) => {
+        if (disposed) {
+          return;
+        }
+        if (connection !== null) {
+          setResolvedConnection(connection);
+        }
+        setIsConnectionLoading(false);
+      })
+      .catch(() => {
+        if (disposed) {
+          return;
+        }
+        setIsConnectionLoading(false);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [connectionStorage]);
 
   useEffect(() => {
     let disposed = false;
@@ -8928,21 +8966,21 @@ export function App() {
     setWorkspaceFeedback(null);
   };
 
-  const handleConnectionResolved = (resolution: ResolveOperatorConnectionResponse) => {
+  const handleConnectionResolved = async (resolution: ResolveOperatorConnectionResponse) => {
     if (isOperatorTenantBlocked(resolution)) {
-      clearStoredConnection();
+      await connectionStorage.clear();
       setResolvedConnection(null);
       setBlockedResolution(resolution);
       return;
     }
 
-    const stored = writeStoredConnection(resolution);
+    const stored = await connectionStorage.save(resolution);
     setResolvedConnection(stored);
     setBlockedResolution(null);
   };
 
-  const handleChangeConnection = () => {
-    clearStoredConnection();
+  const handleChangeConnection = async () => {
+    await connectionStorage.clear();
     setResolvedConnection(null);
     setBlockedResolution(null);
   };
@@ -9134,7 +9172,7 @@ export function App() {
     );
   }
 
-  if (authStatus === 'signed-out' && needsConnectionResolution) {
+  if (authStatus === 'signed-out' && needsConnectionResolution && !isConnectionLoading) {
     return (
       <ConnectionResolutionScreen
         resolver={connectionResolver}
