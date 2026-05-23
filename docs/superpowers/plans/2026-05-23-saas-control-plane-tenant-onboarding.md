@@ -972,6 +972,88 @@ Scope explicitly deferred to Windows-machine follow-up:
   still wired through `OperatorAppOptions` / `operatorConfig`; no
   changes needed there. Slice 6 does NOT remove that fallback.
 
+### Slice 6 Windows-handoff follow-up — completed 2026-05-23 on `main`
+
+Deliverables:
+
+- `ConnectionResolutionScreen` wired into `App()` in
+  `src/AFK4.Operator.App.Web/src/App.tsx`:
+  - `App()` now derives an effective `OperatorConfig` by merging
+    `getOperatorConfig()` with the result of `readStoredConnection()`
+    (host-side `__AFK4_OPERATOR_CONFIG__` overrides win over the
+    stored connection when both are present).
+  - New render gate fires when `authStatus === 'signed-out'` and the
+    effective config still has no `organizationId` / `branchId` — in
+    that case the connection screen renders instead of the sign-in
+    screen. During `authStatus === 'checking'` the existing
+    `SignInScreen` "checking" state still renders, so successful
+    native session restore via the WebView2 bridge skips the gate
+    entirely.
+  - On `onResolved`: active resolutions are persisted via
+    `writeStoredConnection` and unblock the sign-in screen; blocked
+    resolutions (suspended / deletion-pending) are NOT persisted,
+    surface a new in-file `BlockedTenantScreen` with status copy +
+    reason, and offer a "Сменить подключение" button that calls
+    `clearStoredConnection()` and returns to the connection screen.
+- 4 new vitest cases in `src/AFK4.Operator.App.Web/src/App.test.tsx`:
+  shows the connection screen when no config / storage; skips the
+  connection screen when storage seeded; persists active resolution
+  and proceeds to sign-in (asserts `localStorage` write + key fields);
+  surfaces blocked-state copy without persisting when the resolved
+  tenant is `suspended`, and returns to the connection screen on
+  "Сменить подключение".
+- 3 existing auth tests updated so they bypass the new connection
+  gate without changing their original concern: the bridge-only test
+  now uses `__AFK4_OPERATOR_CONFIG__` for organisation / branch (so
+  `localStorage` stays empty); the refresh-rejected and WebView2
+  bridge-diagnostics tests seed a stored connection via the new
+  `seedStoredOperatorConnection()` helper.
+- WPF DPAPI store mirroring `ProtectedDataOperatorTokenStore` under
+  `src/AFK4.Operator.App/Connection/`:
+  - `OperatorConnectionSnapshot` (record) — fields match the React
+    `ResolvedOperatorConnection` shape: organisation + branch ids /
+    slugs / names + branch city + `StoredAtUtc`.
+  - `IOperatorConnectionStore` + `ProtectedDataOperatorConnectionStore`
+    persist a JSON-serialised snapshot under
+    `%LocalAppData%/AFK4/Operator/connection.bin`, encrypted with
+    `ProtectedData.Protect` (`DataProtectionScope.CurrentUser`),
+    identical pattern to the existing token store.
+- 3 new xUnit cases in
+  `tests/AFK4.Operator.App.Tests/OperatorConnectionStoreTests.cs`:
+  save → load round-trip (asserts every field plus that the
+  organisation name and branch slug never appear in the on-disk
+  ciphertext, then ClearAsync zeroes the file); `LoadAsync` returns
+  null when the file is missing; `ClearAsync` is idempotent.
+
+Verification (Windows 11):
+
+- `dotnet build AFK4.sln -p:EnableWindowsTargeting=true`: 0 errors,
+  0 warnings.
+- `dotnet test`: Shared.Contracts 108/108, Platform.Api 480/480,
+  Operator.App 199/199 (+3 new), Player.Shell 11/11,
+  Agent.Service 140/140 (all pass on Windows — the 22
+  `powershell.exe` failures only happen on WSL),
+  GamingPc.Setup 10/10, Update.Publisher 8/8.
+- `npm test` in `src/AFK4.Operator.App.Web/`: 116/116 (+4 new).
+- `npm test` in `src/AFK4.Platform.Web/`: 12/12 (unchanged).
+
+Scope still deferred (not part of this follow-up):
+
+- React-side `StorageLike` adapter that proxies to the new WPF
+  `ProtectedDataOperatorConnectionStore` through a new
+  `connection:loadConnection` / `connection:saveConnection` /
+  `connection:clearConnection` family on `OperatorWebHostBridge.cs`.
+  The WPF store is built and unit-tested, but it has no callers yet;
+  React still persists via `localStorage` in both browser-dev and
+  packaged WebView2 modes. The bridge wiring is the next operator-app
+  hardening step before commercial rollout (the connection persistence
+  inherits the WSL-side caveat about localStorage being browser-dev-
+  grade until the bridge is in place).
+- E2E run through the connection screen inside the packaged WebView2
+  shell (this verification was scoped to vitest + xUnit). Needs a
+  staging Platform API with the Slice 6 resolver endpoint live before
+  it makes sense to drive.
+
 Operational handoff for staging smoke (from the original plan):
 
 - The full staging smoke is now executable:
