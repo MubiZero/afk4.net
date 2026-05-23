@@ -33,6 +33,7 @@ using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Platform.SupportNotes;
 using AFK4.Shared.Contracts.Platform.Tenants;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
@@ -98,6 +99,8 @@ builder.Services.Configure<PlatformTenantOptions>(
     builder.Configuration.GetSection(PlatformTenantOptions.ConfigurationSection));
 builder.Services.AddSingleton<IOwnerInviteCodeGenerator, RandomOwnerInviteCodeGenerator>();
 builder.Services.AddScoped<IPlatformTenantService, EfPlatformTenantService>();
+builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
+builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthService>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
@@ -810,6 +813,275 @@ app.MapPatch("/api/platform/tenants/{organizationId:guid}/limits", async (
         cancellationToken);
 
     return Results.Ok(detail);
+});
+
+app.MapGet("/api/platform/tenants/{organizationId:guid}/health", async (
+    Guid organizationId,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantHealthService healthService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewTenantHealth);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewTenantHealth,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var health = await healthService.GetAsync(organizationId, cancellationToken);
+    if (health is null)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewTenantHealth,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { Error = "Tenant was not found." },
+            cancellationToken);
+        return Results.NotFound(new { Error = "Tenant was not found." });
+    }
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.ViewTenantHealth,
+        targetType: "Tenant",
+        targetId: organizationId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new
+        {
+            health.BranchCount,
+            health.DeviceCount,
+            health.ActiveStaffUserCount,
+            health.RecentErrorCount
+        },
+        cancellationToken);
+
+    return Results.Ok(health);
+});
+
+app.MapGet("/api/platform/tenants/{organizationId:guid}/support-notes", async (
+    Guid organizationId,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformSupportNoteService supportNoteService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewTenantSupportNotes);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewTenantSupportNotes,
+            targetType: "TenantSupportNote",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await supportNoteService.ListAsync(organizationId, cancellationToken);
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewTenantSupportNotes,
+            targetType: "TenantSupportNote",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { Error = result.Error },
+            cancellationToken);
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var notes = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.ViewTenantSupportNotes,
+        targetType: "TenantSupportNote",
+        targetId: null,
+        outcome: AuditOutcome.Succeeded,
+        details: new { Count = notes.Count },
+        cancellationToken);
+
+    return Results.Ok(notes);
+});
+
+app.MapPost("/api/platform/tenants/{organizationId:guid}/support-notes", async (
+    Guid organizationId,
+    CreateTenantSupportNoteRequest request,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformSupportNoteService supportNoteService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageTenantSupportNotes);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.CreateTenantSupportNote,
+            targetType: "TenantSupportNote",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await supportNoteService.CreateAsync(
+        organizationId,
+        request,
+        authorization.PlatformAdminContext!.PlatformAdminUserId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            action: AuditActionNames.CreateTenantSupportNote,
+            targetType: "TenantSupportNote",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { Error = result.Error },
+            cancellationToken);
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var note = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+        action: AuditActionNames.CreateTenantSupportNote,
+        targetType: "TenantSupportNote",
+        targetId: note.TenantSupportNoteId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { note.TenantSupportNoteId, BodyLength = note.Body.Length },
+        cancellationToken);
+
+    return Results.Ok(note);
+});
+
+app.MapPatch("/api/platform/tenants/{organizationId:guid}/support-notes/{tenantSupportNoteId:guid}", async (
+    Guid organizationId,
+    Guid tenantSupportNoteId,
+    UpdateTenantSupportNoteRequest request,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformSupportNoteService supportNoteService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageTenantSupportNotes);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.UpdateTenantSupportNote,
+            targetType: "TenantSupportNote",
+            targetId: tenantSupportNoteId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await supportNoteService.UpdateAsync(
+        organizationId,
+        tenantSupportNoteId,
+        request,
+        authorization.PlatformAdminContext!.PlatformAdminUserId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            action: AuditActionNames.UpdateTenantSupportNote,
+            targetType: "TenantSupportNote",
+            targetId: tenantSupportNoteId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { Error = result.Error },
+            cancellationToken);
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var note = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+        action: AuditActionNames.UpdateTenantSupportNote,
+        targetType: "TenantSupportNote",
+        targetId: note.TenantSupportNoteId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { note.TenantSupportNoteId, BodyLength = note.Body.Length },
+        cancellationToken);
+
+    return Results.Ok(note);
 });
 
 app.MapGet("/api/branches/{branchId:guid}/staff", async (

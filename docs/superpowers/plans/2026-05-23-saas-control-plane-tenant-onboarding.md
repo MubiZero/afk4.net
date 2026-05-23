@@ -575,3 +575,128 @@ Operational handoff for Slice 4:
   succeeded). If Slice 4 needs a strict "audit only on real change"
   guarantee, it can compare the previous/new pair in the endpoint
   details before writing.
+
+### Slice 4: Tenant Health And Support Notes — completed 2026-05-23 on `codex/saas-control-plane-slice-4`
+
+Deliverables:
+
+- New shared contract `UpdateTenantSupportNoteRequest(Body)` lets the
+  Control Plane UI edit existing notes; round-trip serialization is
+  covered alongside the existing `TenantSupportNoteDto` /
+  `CreateTenantSupportNoteRequest` tests.
+- New audit action constants
+  `tenancy.support_note.update` and `tenancy.support_note.view` in
+  `AuditActionNames` (the existing `tenancy.support_note.create` and
+  `tenancy.tenant.health.view` were already reserved in Slice 1).
+- `IPlatformSupportNoteService` / `EfPlatformSupportNoteService` under
+  `src/AFK4.Platform.Api/Platform/Tenancy/` implements:
+  - `ListAsync(organizationId)` — returns
+    `IReadOnlyList<TenantSupportNoteDto>` ordered by `CreatedAtUtc`
+    descending, joined with platform admin display names; 404 when the
+    tenant doesn't exist.
+  - `CreateAsync(organizationId, request, platformAdminUserId)` —
+    validates non-empty body and a 4000-char cap, verifies tenant
+    exists, persists the note authored by the calling platform admin.
+  - `UpdateAsync(organizationId, tenantSupportNoteId, request,
+    platformAdminUserId)` — validates body, requires the note to
+    belong to the requested tenant (cross-tenant edits return 404),
+    rewrites the body. The original author is preserved; the editing
+    admin is captured in the endpoint-layer audit instead of mutating
+    the row.
+- `IPlatformTenantHealthService` /
+  `EfPlatformTenantHealthService` under the same namespace projects:
+  - Tenant status (from `OrganizationEntity.Status`).
+  - Branch / device / active-staff counts (each scoped by
+    `OrganizationId`).
+  - Latest staff sign-in via the most recent
+    `StaffAccessTokenEntity.CreatedAtUtc` for the tenant.
+  - Latest applied migration via
+    `dbContext.Database.GetAppliedMigrationsAsync(...)` (returns the
+    lexically last migration name, which matches the timestamp prefix;
+    the call is wrapped in a try/catch so the EF in-memory provider
+    returns `null` instead of throwing).
+  - Recent error window: count + top 10 of `AuditRecords` with
+    `Outcome == Denied` in the last 7 days, mapped to
+    `TenantHealthErrorDto`. Each error's `Message` is a truncated
+    (240-char) preview of `DetailsJson` so the support UI gets enough
+    context to triage without joining other tables.
+- Endpoints in `Program.cs`:
+  - `GET /api/platform/tenants/{organizationId:guid}/health` —
+    `platform.tenants.health.view` permission. Writes succeeded /
+    denied `tenancy.tenant.health.view` audit records with counts in
+    the succeeded payload.
+  - `GET /api/platform/tenants/{organizationId:guid}/support-notes` —
+    `platform.tenants.support_notes.view` permission. Writes
+    `tenancy.support_note.view` audit records (succeeded / denied);
+    the succeeded payload includes the note count.
+  - `POST /api/platform/tenants/{organizationId:guid}/support-notes` —
+    `platform.tenants.support_notes.manage` permission. Writes
+    `tenancy.support_note.create` audit records keyed by the new
+    note id.
+  - `PATCH /api/platform/tenants/{organizationId:guid}/support-notes/{tenantSupportNoteId:guid}` —
+    same manage permission. Writes
+    `tenancy.support_note.update` audit records keyed by the note id;
+    cross-tenant edit attempts return 404 (the audit reflects that).
+- Tests under `tests/AFK4.Platform.Api.Tests/Platform/`:
+  - `PlatformTenantHealthEndpointTests` (7 cases) — happy path (counts
+    + status + non-null latest sign-in), recent denied audit shows up,
+    audit outside the 7-day window is excluded, unknown tenant 404,
+    no auth 401, no permission 403 + denied audit, succeeded audit
+    summary fields.
+  - `PlatformSupportNoteEndpointTests` (11 cases) — create persists +
+    audits, create with empty body 400, create on unknown tenant 404,
+    create no auth 401, create no permission 403, list returns notes
+    in descending `CreatedAtUtc`, list on unknown tenant 404, update
+    rewrites body + audits, update on unknown note 404, update
+    rejects cross-tenant id 404, update with whitespace body 400.
+
+Verification (WSL Linux):
+
+- `dotnet build AFK4.sln -p:EnableWindowsTargeting=true`: 20 projects,
+  0 errors, 0 warnings.
+- `dotnet test tests/AFK4.Shared.Contracts.Tests/...`: 104 passed
+  (Slice 3: 103 + Slice 4: +1 = 104 — only one new contract).
+- `dotnet test tests/AFK4.Platform.Api.Tests/...`: 464 passed
+  (Slice 3: 446 + Slice 4: +18 = 464). 18 new tests = 7 health + 11
+  support note cases.
+- Pre-existing Linux env limits unchanged: 22/140
+  `Agent.Service.Tests` still fail on `powershell.exe`,
+  `Operator.App.Tests` / `Player.Shell.Tests` still need Windows.
+
+Scope still deferred to later slices:
+
+- Slice 5 — internal Control Plane web UI consuming Slice 2–4
+  endpoints (tenant list, detail, create, status controls, owner
+  invite controls, support note editor, tenant health view).
+- Slice 6 — Operator App slug / setup-code connection flow that
+  resolves tenant/branch from the new slugs without raw GUID copy.
+
+Operational handoff for Slice 5:
+
+- The health endpoint returns a snapshot — there's no caching layer in
+  front of it yet. Each call hits PostgreSQL for several scoped counts
+  and a top-10 audit pull. That's fine while the tenant count is small;
+  if Slice 5 starts polling health every few seconds in the UI, add a
+  short (10–30 s) per-tenant cache before commercial production.
+- `TenantHealthDto.Message` is a 240-char preview of the raw
+  `DetailsJson`. The Control Plane UI should render it as a
+  truncatable / expandable string and offer a link to the full
+  `audit_records` row by `(OrganizationId, CreatedAtUtc, Action)`. If
+  Slice 4 / 5 introduce a dedicated structured error log table later,
+  swap the audit source for that table — the `TenantHealthErrorDto`
+  shape already matches.
+- Support notes are intentionally NOT exposed to staff/operator
+  endpoints; only `/api/platform/...` reads them. Keep that boundary
+  if Slice 5 introduces shared DTOs — the operator app should never
+  serialize `TenantSupportNoteDto`.
+- The accept-invite + sign-in flow remains writable for tenants in the
+  `suspended` state for sign-in (so existing owners see the blocked-state
+  UI) and blocks invite-accept (so no new owners materialize). Slice 5
+  needs to render the right copy for these two states; reuse the
+  `TenantSuspended` envelope's `status` field already returned by the
+  middleware.
+- Adding a dedicated `ActorPlatformAdminUserId` column to
+  `audit_records` is still the cleanest follow-up if support-action
+  reporting needs to join platform admins efficiently; Slice 4 still
+  encodes that field inside `DetailsJson` via
+  `WritePlatformAuditAsync`.

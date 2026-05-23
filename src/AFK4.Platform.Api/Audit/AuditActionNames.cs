@@ -168,5 +168,9 @@ public static class AuditActionNames
 
     public const string CreateTenantSupportNote = "tenancy.support_note.create";
 
+    public const string UpdateTenantSupportNote = "tenancy.support_note.update";
+
+    public const string ViewTenantSupportNotes = "tenancy.support_note.view";
+
     public const string ViewTenantHealth = "tenancy.tenant.health.view";
 }

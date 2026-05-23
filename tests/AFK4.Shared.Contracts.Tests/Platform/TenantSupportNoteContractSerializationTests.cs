@@ -37,4 +37,16 @@ public sealed class TenantSupportNoteContractSerializationTests
         Assert.NotNull(copy);
         Assert.Equal(request.Body, copy.Body);
     }
+
+    [Fact]
+    public void UpdateTenantSupportNoteRequest_RoundTripsThroughJson()
+    {
+        var request = new UpdateTenantSupportNoteRequest("Edited note text");
+
+        var json = JsonSerializer.Serialize(request);
+        var copy = JsonSerializer.Deserialize<UpdateTenantSupportNoteRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(request.Body, copy.Body);
+    }
 }
