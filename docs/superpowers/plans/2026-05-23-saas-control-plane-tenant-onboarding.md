@@ -341,3 +341,121 @@ Operational handoff for Slice 2:
   Slice 1 normalized only the files it actually edits; the repo should consider
   adding a `.gitattributes` (`* text=auto eol=lf`) and running
   `git add --renormalize .` as a separate cleanup commit before Slice 2.
+
+### Slice 2: Tenant Provisioning API — completed 2026-05-23 on `codex/saas-control-plane-slice-2`
+
+Deliverables:
+
+- Two new shared contracts: `CreateTenantResponse(Tenant, OwnerInvite)`
+  bundles the freshly created tenant detail with its first owner invite;
+  `AcceptOwnerInviteRequest(Code, UserName, DisplayName, Password)` is the
+  public payload owners submit when claiming their invite. Round-trip tests
+  added to the existing tenant + invite contract test files.
+- New tenancy module under `src/AFK4.Platform.Api/Platform/Tenancy/`:
+  `SlugValidator` (lowercase a-z 0-9, 3-64 chars, hyphen between alphanumeric
+  segments, no leading/trailing hyphen), `IOwnerInviteCodeGenerator` +
+  `RandomOwnerInviteCodeGenerator` (16 bytes → 32 lowercase hex chars / 128
+  bits of entropy), `PlatformTenantOptions` (default 7-day invite lifetime,
+  30-day cap), and the result envelope
+  `PlatformTenantOperationResult<T>` (Succeeded / BadRequest / Conflict /
+  NotFound).
+- `EfPlatformTenantService` implements:
+  - `CreateAsync` — validates slugs/name/city/plan/subscription/limits/
+    owner-name/owner-display/lifetime, checks organization slug isn't taken,
+    inserts organization + first branch + owner invite atomically (single
+    `SaveChangesAsync`), and returns `CreateTenantResponse`.
+  - `ListAsync` — projects `TenantSummaryDto` ordered by organization name
+    with per-org branch count.
+  - `GetAsync` — returns `TenantDetailDto` with parsed limits + branches.
+  - `CreateOrRotateOwnerInviteAsync` — verifies tenant + branch belong
+    together, revokes any pending invites for that branch
+    (`status=revoked, reason="Rotated by platform admin."`), and issues a
+    fresh pending invite.
+  - `AcceptOwnerInviteAsync` — validates request, looks up invite by
+    normalized code, marks expired invites and rejects them, rejects
+    non-pending invites, rejects duplicate user-name within the organization,
+    creates the staff user with hashed password + `owner` role assignment
+    for the invite's branch, marks the invite accepted, and finally issues a
+    `StaffSignInResponse` via `IStaffTokenService.IssueAsync` so the owner
+    is signed in immediately.
+- Endpoints in `Program.cs`, all under `/api/platform/...`:
+  - `POST /api/platform/tenants` — `platform.tenants.create` permission.
+  - `GET /api/platform/tenants` — `platform.tenants.view` permission.
+  - `GET /api/platform/tenants/{organizationId:guid}` — same view permission,
+    404 if unknown.
+  - `POST /api/platform/tenants/{organizationId:guid}/owner-invites` —
+    `platform.tenants.invites.manage` permission.
+  - `POST /api/platform/owner-invites/accept` — public (the invite code is
+    the credential).
+- New `WritePlatformAuditAsync(...)` helper writes audit records with
+  `ActorStaffUserId = null` and a `{ actorPlatformAdminUserId, payload }`
+  details envelope. Each endpoint writes succeeded/denied records under
+  `tenancy.tenant.create`, `tenancy.tenant.view`, `tenancy.owner_invite.create`,
+  or `tenancy.owner_invite.accept` (action constants reserved in Slice 1).
+- `IPlatformTenantService`, `IOwnerInviteCodeGenerator`, and
+  `PlatformTenantOptions` registered in DI; tenant options bind from
+  `PlatformTenant:` configuration section.
+- `PlatformAdminTestHelper` gained `AuthorizeAsAsync` which seeds the admin,
+  signs in, and attaches the Bearer header to a test client — mirrors the
+  staff helper.
+- Tests added under `tests/AFK4.Platform.Api.Tests/Platform/`:
+  - `SlugValidatorTests` — normalization, accept list (`demo-org`, `dem`,
+    `a-b-c-d`, `abc123def`, `ru1-club`, `123`), reject list (empty, too
+    short, leading/trailing hyphen, uppercase, underscore, double hyphen,
+    whitespace), and explicit min/max length boundaries.
+  - `PlatformTenantEndpointTests` (18 cases):
+    create happy path persists tenant + branch + invite + succeeded audit;
+    no-auth → 401; support role only → 403 + denied audit; invalid slug →
+    400; duplicate organization slug → 409 with no second row; unknown
+    subscription status → 400; list ordered alphabetically with branch
+    counts; detail returns parsed limits + branches; unknown id → 404;
+    invite rotation revokes prior pending and returns fresh invite with new
+    code + lifetime; unknown branch on rotation → 404; accept creates owner
+    staff with `owner` role + sign-in token + accepted invite; unknown code
+    → 404; expired invite marks expired and returns 400; revoked invite →
+    400; duplicate user-name → 409; short password → 400; staff bearer
+    rejected at `/api/platform/tenants` (401).
+- Idempotency for tenant creation is slug-based for Slice 2: same
+  `OrganizationSlug` returns 409 to prevent silent duplicates. Header-based
+  `Idempotency-Key` support (cached responses, retried writes) is deferred
+  to a follow-up hardening pass; the current `BillingCommandIdempotency` /
+  `SessionCommandIdempotency` tables remain the template if/when we want to
+  generalize.
+
+Verification (WSL Linux):
+
+- `dotnet build AFK4.sln -p:EnableWindowsTargeting=true`: 20 projects,
+  0 errors, 0 warnings.
+- `dotnet test tests/AFK4.Shared.Contracts.Tests/...`: 103 passed
+  (Slice 1: 101 + Slice 2: +2 = 103).
+- `dotnet test tests/AFK4.Platform.Api.Tests/...`: 425 passed
+  (Slice 1: 386 + Slice 2: +39 = 425). 39 new tests = SlugValidatorTests
+  (21 cases across theories/facts) + PlatformTenantEndpointTests (18).
+- Pre-existing Linux env limits unchanged: 22/140 `Agent.Service.Tests`
+  still fail on `powershell.exe`, `Operator.App.Tests` /
+  `Player.Shell.Tests` still need Windows.
+
+Scope still deferred to later slices:
+
+- Slice 3 — tenant lifecycle endpoints (`PATCH .../status`,
+  `PATCH .../plan`, `PATCH .../limits`) and enforcement that suspended
+  tenants block money / session / POS / device / update mutations while
+  preserving read-only support paths.
+- Slice 4 — tenant health projection endpoint and support notes CRUD.
+- Slice 5 — internal Control Plane web UI consuming Slice 2–4 endpoints.
+- Slice 6 — Operator App slug / setup-code connection flow that resolves
+  tenant/branch from the new slugs without raw GUID copy.
+
+Operational handoff for Slice 3:
+
+- The accept endpoint is intentionally public. Brute force is impractical
+  (128 bits of entropy per invite code) but rate-limiting at the ingress
+  is still recommended before commercial production.
+- `WritePlatformAuditAsync` puts the platform admin id inside details JSON
+  rather than its own column. If platform-admin actor reporting becomes
+  important, a `ActorPlatformAdminUserId` column on `audit_records` is the
+  cleanest follow-up; mention it in Slice 3 or 4 when those endpoints also
+  write platform-scoped audits.
+- Suspended tenants currently still allow invite acceptance and owner
+  sign-in. Slice 3 must decide whether suspending a tenant should also
+  block new owner sign-ins (likely yes, with explicit support override).

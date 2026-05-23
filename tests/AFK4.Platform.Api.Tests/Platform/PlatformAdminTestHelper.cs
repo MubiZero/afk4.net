@@ -1,3 +1,5 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Identity;
@@ -42,5 +44,26 @@ internal static class PlatformAdminTestHelper
         dbContext.PlatformAdminUsers.Add(admin);
         await dbContext.SaveChangesAsync();
         return admin;
+    }
+
+    public static async Task<PlatformAdminSignInResponse> AuthorizeAsAsync(
+        PlatformApiFactory factory,
+        HttpClient client,
+        string userName = DefaultUserName,
+        string password = DefaultPassword,
+        IEnumerable<string>? roles = null)
+    {
+        await SeedPlatformAdminAsync(factory, userName: userName, password: password, roles: roles);
+
+        var signIn = await client.PostAsJsonAsync(
+            "/api/platform/auth/sign-in",
+            new PlatformAdminSignInRequest(userName, password));
+        var body = await signIn.Content.ReadFromJsonAsync<PlatformAdminSignInResponse>();
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, signIn.StatusCode);
+        Assert.NotNull(body);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body.AccessToken);
+        return body;
     }
 }

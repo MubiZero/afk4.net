@@ -11,6 +11,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Identity;
+using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Reports;
@@ -31,6 +32,8 @@ using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Platform.Auth;
+using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Platform.Tenants;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Reports;
@@ -91,6 +94,10 @@ builder.Services.AddScoped<PlatformAdminAuthorizationService>();
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
     builder.Configuration.GetSection(PlatformAdminBootstrapOptions.ConfigurationSection));
 builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
+builder.Services.Configure<PlatformTenantOptions>(
+    builder.Configuration.GetSection(PlatformTenantOptions.ConfigurationSection));
+builder.Services.AddSingleton<IOwnerInviteCodeGenerator, RandomOwnerInviteCodeGenerator>();
+builder.Services.AddScoped<IPlatformTenantService, EfPlatformTenantService>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
@@ -259,6 +266,303 @@ app.MapPost("/api/platform/auth/sign-out", async (
         cancellationToken);
 
     return revoked ? Results.NoContent() : Results.Unauthorized();
+});
+
+app.MapPost("/api/platform/tenants", async (
+    CreateTenantRequest request,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.CreateTenant);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.CreateTenant,
+            targetType: "Tenant",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { request.OrganizationSlug, request.BranchSlug, authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await tenantService.CreateAsync(
+        request,
+        authorization.PlatformAdminContext!.PlatformAdminUserId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            action: AuditActionNames.CreateTenant,
+            targetType: "Tenant",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { request.OrganizationSlug, request.BranchSlug, Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var created = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: created.Tenant.OrganizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+        action: AuditActionNames.CreateTenant,
+        targetType: "Tenant",
+        targetId: created.Tenant.OrganizationId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new
+        {
+            created.Tenant.Slug,
+            BranchSlug = created.Tenant.Branches.First().Slug,
+            created.Tenant.PlanCode,
+            created.Tenant.SubscriptionStatus,
+            OwnerInviteId = created.OwnerInvite.OwnerInviteId
+        },
+        cancellationToken);
+
+    return Results.Ok(created);
+});
+
+app.MapGet("/api/platform/tenants", async (
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewTenants);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewTenant,
+            targetType: "Tenant",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var summaries = await tenantService.ListAsync(cancellationToken);
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: Guid.Empty,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.ViewTenant,
+        targetType: "Tenant",
+        targetId: null,
+        outcome: AuditOutcome.Succeeded,
+        details: new { Count = summaries.Count },
+        cancellationToken);
+
+    return Results.Ok(summaries);
+});
+
+app.MapGet("/api/platform/tenants/{organizationId:guid}", async (
+    Guid organizationId,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewTenants);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewTenant,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var detail = await tenantService.GetAsync(organizationId, cancellationToken);
+    if (detail is null)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewTenant,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { Error = "Tenant was not found." },
+            cancellationToken);
+        return Results.NotFound(new { Error = "Tenant was not found." });
+    }
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.ViewTenant,
+        targetType: "Tenant",
+        targetId: organizationId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { detail.Slug, BranchCount = detail.Branches.Count },
+        cancellationToken);
+
+    return Results.Ok(detail);
+});
+
+app.MapPost("/api/platform/tenants/{organizationId:guid}/owner-invites", async (
+    Guid organizationId,
+    CreateOwnerInviteRequest request,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOwnerInvites);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.CreateOwnerInvite,
+            targetType: "OwnerInvite",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { request.BranchId, authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await tenantService.CreateOrRotateOwnerInviteAsync(
+        organizationId,
+        request,
+        authorization.PlatformAdminContext!.PlatformAdminUserId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            action: AuditActionNames.CreateOwnerInvite,
+            targetType: "OwnerInvite",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { request.BranchId, Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var invite = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+        action: AuditActionNames.CreateOwnerInvite,
+        targetType: "OwnerInvite",
+        targetId: invite.OwnerInviteId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new
+        {
+            invite.BranchId,
+            invite.OwnerUserName,
+            invite.ExpiresAtUtc
+        },
+        cancellationToken);
+
+    return Results.Ok(invite);
+});
+
+app.MapPost("/api/platform/owner-invites/accept", async (
+    AcceptOwnerInviteRequest request,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var result = await tenantService.AcceptOwnerInviteAsync(request, cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: null,
+            action: AuditActionNames.AcceptOwnerInvite,
+            targetType: "OwnerInvite",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { request.UserName, Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var signIn = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: signIn.OrganizationId,
+        actorPlatformAdminUserId: null,
+        action: AuditActionNames.AcceptOwnerInvite,
+        targetType: "StaffUser",
+        targetId: signIn.StaffUserId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { signIn.DisplayName, request.UserName },
+        cancellationToken);
+
+    return Results.Ok(signIn);
 });
 
 app.MapGet("/api/branches/{branchId:guid}/staff", async (
@@ -6834,6 +7138,35 @@ static async Task WriteAuditAsync(
         outcome,
         "PlatformApi",
         JsonSerializer.Serialize(details)),
+        cancellationToken);
+}
+
+static async Task WritePlatformAuditAsync(
+    IAuditRecordWriter auditRecordWriter,
+    Guid organizationId,
+    Guid? actorPlatformAdminUserId,
+    string action,
+    string targetType,
+    string? targetId,
+    string outcome,
+    object details,
+    CancellationToken cancellationToken)
+{
+    var detailsWithActor = new Dictionary<string, object?>
+    {
+        ["actorPlatformAdminUserId"] = actorPlatformAdminUserId,
+        ["payload"] = details
+    };
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        organizationId,
+        null,
+        null,
+        action,
+        targetType,
+        targetId,
+        outcome,
+        "PlatformApi",
+        JsonSerializer.Serialize(detailsWithActor)),
         cancellationToken);
 }
 

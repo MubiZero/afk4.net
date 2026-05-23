@@ -66,4 +66,23 @@ public sealed class OwnerInviteContractSerializationTests
         Assert.NotNull(copy);
         Assert.Equal(request.Reason, copy.Reason);
     }
+
+    [Fact]
+    public void AcceptOwnerInviteRequest_RoundTripsThroughJson()
+    {
+        var request = new AcceptOwnerInviteRequest(
+            Code: "demo-invite-abc123",
+            UserName: "demo.owner",
+            DisplayName: "Demo Owner",
+            Password: "Passw0rd!Real");
+
+        var json = JsonSerializer.Serialize(request);
+        var copy = JsonSerializer.Deserialize<AcceptOwnerInviteRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(request.Code, copy.Code);
+        Assert.Equal(request.UserName, copy.UserName);
+        Assert.Equal(request.DisplayName, copy.DisplayName);
+        Assert.Equal(request.Password, copy.Password);
+    }
 }
