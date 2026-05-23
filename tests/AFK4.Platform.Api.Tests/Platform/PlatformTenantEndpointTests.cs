@@ -549,6 +549,67 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
+    public async Task GetOwnerInvites_ReturnsAllInvitesForTenantWithMaskedCodes()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var createResponse = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
+        var created = await createResponse.Content.ReadFromJsonAsync<CreateTenantResponse>();
+        Assert.NotNull(created);
+
+        var rotateResponse = await client.PostAsJsonAsync(
+            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/owner-invites",
+            new CreateOwnerInviteRequest(created.Tenant.Branches[0].BranchId, OwnerUserName: "owner-2@demo-club.test", OwnerDisplayName: "Owner Two", Lifetime: TimeSpan.FromDays(7)));
+        var rotated = await rotateResponse.Content.ReadFromJsonAsync<OwnerInviteDto>();
+        Assert.NotNull(rotated);
+
+        var listResponse = await client.GetAsync($"/api/platform/tenants/{created.Tenant.OrganizationId:D}/owner-invites");
+        var invites = await listResponse.Content.ReadFromJsonAsync<List<OwnerInviteSummaryDto>>();
+
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        Assert.NotNull(invites);
+        Assert.Equal(2, invites.Count);
+
+        var rotatedSummary = invites.Single(invite => invite.OwnerInviteId == rotated.OwnerInviteId);
+        Assert.Equal(4, rotatedSummary.CodeSuffix.Length);
+        Assert.EndsWith(rotatedSummary.CodeSuffix, rotated.Code, StringComparison.Ordinal);
+        Assert.DoesNotContain(rotated.Code, await listResponse.Content.ReadAsStringAsync());
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords
+            .Where(record => record.Action == "tenancy.owner_invite.view" && record.Outcome == "Succeeded")
+            .SingleAsync();
+        Assert.Equal(created.Tenant.OrganizationId, audit.OrganizationId);
+        Assert.Equal(admin.PlatformAdminId, audit.ActorPlatformAdminUserId);
+    }
+
+    [Fact]
+    public async Task GetOwnerInvites_WithoutAuth_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/platform/tenants/{Guid.NewGuid():D}/owner-invites");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetOwnerInvites_WhenTenantMissing_Returns404()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var response = await client.GetAsync($"/api/platform/tenants/{Guid.NewGuid():D}/owner-invites");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task StaffAccessToken_CannotReachPlatformTenantEndpoints()
     {
         await using var factory = new PlatformApiFactory();

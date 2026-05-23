@@ -9,6 +9,7 @@ import type {
   CreateTenantRequest,
   CreateTenantResponse,
   OwnerInvite,
+  OwnerInviteSummary,
   PlatformAdminSignInResponse,
   TenantDetail,
   TenantHealth,
@@ -137,6 +138,13 @@ export class PlatformApiClient {
       'POST',
       `/api/platform/tenants/${organizationId}/owner-invites`,
       { branchId, ownerUserName, ownerDisplayName, lifetime }
+    );
+  }
+
+  public listOwnerInvites(organizationId: string): Promise<OwnerInviteSummary[]> {
+    return this.send<OwnerInviteSummary[]>(
+      'GET',
+      `/api/platform/tenants/${organizationId}/owner-invites`
     );
   }
 

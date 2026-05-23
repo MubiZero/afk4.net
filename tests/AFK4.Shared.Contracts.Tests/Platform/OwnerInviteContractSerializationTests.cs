@@ -68,6 +68,32 @@ public sealed class OwnerInviteContractSerializationTests
     }
 
     [Fact]
+    public void OwnerInviteSummaryDto_RoundTripsWithCodeSuffix()
+    {
+        var summary = new OwnerInviteSummaryDto(
+            OwnerInviteId: Guid.Parse("99999999-1111-2222-3333-444444444444"),
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            CodeSuffix: "c123",
+            Status: OwnerInviteStatusNames.Pending,
+            OwnerUserName: "owner@demo.test",
+            OwnerDisplayName: "Demo Owner",
+            ExpiresAtUtc: DateTimeOffset.Parse("2026-05-30T08:00:00Z"),
+            AcceptedAtUtc: null,
+            RevokedAtUtc: null,
+            RevokedReason: null,
+            CreatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"));
+
+        var json = JsonSerializer.Serialize(summary);
+        var copy = JsonSerializer.Deserialize<OwnerInviteSummaryDto>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(summary.OwnerInviteId, copy.OwnerInviteId);
+        Assert.Equal("c123", copy.CodeSuffix);
+        Assert.DoesNotContain("demo-invite", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AcceptOwnerInviteRequest_RoundTripsThroughJson()
     {
         var request = new AcceptOwnerInviteRequest(

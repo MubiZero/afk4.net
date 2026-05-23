@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { PlatformApiClient, PlatformApiError } from '../api/platformApi';
-import type { OwnerInvite, TenantBranch } from '../api/types';
+import type { OwnerInvite, OwnerInviteSummary, TenantBranch } from '../api/types';
 import { EmptyState, ErrorBanner, Field, Loading, formatDate } from './ui';
 
 export interface OwnerInvitesSectionProps {
@@ -11,26 +11,30 @@ export interface OwnerInvitesSectionProps {
 }
 
 export function OwnerInvitesSection({ client, organizationId, branches, initialInvite }: OwnerInvitesSectionProps) {
-  const [invites, setInvites] = useState<OwnerInvite[] | null>(
-    initialInvite !== undefined && initialInvite !== null ? [initialInvite] : null
-  );
+  const [invites, setInvites] = useState<OwnerInviteSummary[] | null>(null);
+  const [revealedCodes, setRevealedCodes] = useState<Map<string, string>>(() => {
+    const seed = new Map<string, string>();
+    if (initialInvite) {
+      seed.set(initialInvite.ownerInviteId, initialInvite.code);
+    }
+    return seed;
+  });
   const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branchId, setBranchId] = useState(branches[0]?.branchId ?? '');
   const [ownerUserName, setOwnerUserName] = useState('');
   const [ownerDisplayName, setOwnerDisplayName] = useState('');
   const [isCreating, setCreating] = useState(false);
+  const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
+  const [revokeReason, setRevokeReason] = useState('');
+  const [isRevoking, setIsRevoking] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const detail = await client.getTenant(organizationId);
-      // The tenant detail endpoint doesn't include invites today; pull pending invites by
-      // fetching the rotation result for each branch is also unsafe (it would create new
-      // pending invites). For Slice 5 MVP, we keep the in-memory list returned by the
-      // create/rotate/revoke calls and just re-show whatever was returned last.
-      void detail;
+      const list = await client.listOwnerInvites(organizationId);
+      setInvites(list);
     } catch (cause) {
       setError(toMessage(cause, 'Failed to load owner invites.'));
     } finally {
@@ -39,10 +43,8 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
   }, [client, organizationId]);
 
   useEffect(() => {
-    if (invites === null) {
-      void refresh();
-    }
-  }, [invites, refresh]);
+    void refresh();
+  }, [refresh]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,9 +62,14 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
         ownerDisplayName.trim() === '' ? null : ownerDisplayName.trim(),
         null
       );
-      setInvites(current => [created, ...((current ?? []).filter(inv => inv.status !== 'pending' || inv.branchId !== branchId))]);
+      setRevealedCodes((current) => {
+        const next = new Map(current);
+        next.set(created.ownerInviteId, created.code);
+        return next;
+      });
       setOwnerUserName('');
       setOwnerDisplayName('');
+      await refresh();
     } catch (cause) {
       setError(toMessage(cause, 'Failed to create owner invite.'));
     } finally {
@@ -70,17 +77,45 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
     }
   }
 
-  async function handleRevoke(ownerInviteId: string) {
-    const reason = window.prompt('Revoke reason?', 'Owner asked to cancel');
-    if (reason === null || reason.trim().length === 0) {
+  function openRevoke(ownerInviteId: string) {
+    setRevokingInviteId(ownerInviteId);
+    setRevokeReason('');
+  }
+
+  function cancelRevoke() {
+    setRevokingInviteId(null);
+    setRevokeReason('');
+  }
+
+  async function handleRevoke(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (revokingInviteId === null) {
       return;
     }
+    const trimmed = revokeReason.trim();
+    if (trimmed.length === 0) {
+      setError('Provide a revoke reason.');
+      return;
+    }
+    setIsRevoking(true);
     setError(null);
     try {
-      const revoked = await client.revokeOwnerInvite(ownerInviteId, reason);
-      setInvites(current => (current ?? []).map(inv => (inv.ownerInviteId === revoked.ownerInviteId ? revoked : inv)));
+      await client.revokeOwnerInvite(revokingInviteId, trimmed);
+      setRevealedCodes((current) => {
+        if (!current.has(revokingInviteId)) {
+          return current;
+        }
+        const next = new Map(current);
+        next.delete(revokingInviteId);
+        return next;
+      });
+      setRevokingInviteId(null);
+      setRevokeReason('');
+      await refresh();
     } catch (cause) {
       setError(toMessage(cause, 'Failed to revoke invite.'));
+    } finally {
+      setIsRevoking(false);
     }
   }
 
@@ -108,7 +143,7 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
           {isCreating ? 'Creating…' : 'Create invite'}
         </button>
       </form>
-      {isLoading && <Loading label="Loading invites…" />}
+      {isLoading && invites === null && <Loading label="Loading invites…" />}
       {invites !== null && invites.length === 0 && (
         <EmptyState>No invites yet. Use the form above to send the first one.</EmptyState>
       )}
@@ -124,21 +159,46 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
             </tr>
           </thead>
           <tbody>
-            {invites.map(invite => (
-              <tr key={invite.ownerInviteId}>
-                <td>{invite.status}</td>
-                <td><code className="code-block">{invite.code}</code></td>
-                <td>{invite.ownerUserName ?? '—'}</td>
-                <td>{formatDate(invite.expiresAtUtc)}</td>
-                <td>
-                  {invite.status === 'pending' && (
-                    <button type="button" className="link" onClick={() => void handleRevoke(invite.ownerInviteId)}>
-                      Revoke
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {invites.map(invite => {
+              const revealed = revealedCodes.get(invite.ownerInviteId);
+              return (
+                <tr key={invite.ownerInviteId}>
+                  <td>{invite.status}</td>
+                  <td>
+                    <code className="code-block">
+                      {revealed !== undefined ? revealed : `•••• ${invite.codeSuffix}`}
+                    </code>
+                  </td>
+                  <td>{invite.ownerUserName ?? '—'}</td>
+                  <td>{formatDate(invite.expiresAtUtc)}</td>
+                  <td>
+                    {invite.status === 'pending' && revokingInviteId !== invite.ownerInviteId && (
+                      <button type="button" className="link" onClick={() => openRevoke(invite.ownerInviteId)}>
+                        Revoke
+                      </button>
+                    )}
+                    {revokingInviteId === invite.ownerInviteId && (
+                      <form className="form-inline form-revoke" onSubmit={handleRevoke}>
+                        <input
+                          aria-label="Revoke reason"
+                          placeholder="Reason"
+                          value={revokeReason}
+                          onChange={(e) => setRevokeReason(e.target.value)}
+                          autoFocus
+                          disabled={isRevoking}
+                        />
+                        <button type="submit" className="link" disabled={isRevoking}>
+                          {isRevoking ? 'Revoking…' : 'Confirm'}
+                        </button>
+                        <button type="button" className="link" onClick={cancelRevoke} disabled={isRevoking}>
+                          Cancel
+                        </button>
+                      </form>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

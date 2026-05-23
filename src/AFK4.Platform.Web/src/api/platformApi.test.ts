@@ -134,6 +134,40 @@ describe('PlatformApiClient', () => {
     expect(onSessionChanged).toHaveBeenCalledWith(null);
   });
 
+  it('lists owner invites for a tenant and returns the masked summary payload', async () => {
+    const listBody = [
+      {
+        ownerInviteId: '11111111-1111-1111-1111-111111111111',
+        organizationId: '22222222-2222-2222-2222-222222222222',
+        branchId: '33333333-3333-3333-3333-333333333333',
+        codeSuffix: 'ka9p',
+        status: 'pending',
+        ownerUserName: 'owner@demo.test',
+        ownerDisplayName: 'Demo Owner',
+        expiresAtUtc: '2026-06-01T00:00:00Z',
+        acceptedAtUtc: null,
+        revokedAtUtc: null,
+        revokedReason: null,
+        createdAtUtc: '2026-05-23T00:00:00Z'
+      }
+    ];
+    const fetchImpl = vi.fn(async () => jsonResponse(200, listBody));
+    const client = new PlatformApiClient({
+      baseUrl: 'http://localhost',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      session: buildSession(),
+      onSessionChanged: () => {}
+    });
+
+    const invites = await client.listOwnerInvites('22222222-2222-2222-2222-222222222222');
+
+    expect(invites).toHaveLength(1);
+    expect(invites[0].codeSuffix).toBe('ka9p');
+    const lastCall = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(lastCall[0]).toBe('http://localhost/api/platform/tenants/22222222-2222-2222-2222-222222222222/owner-invites');
+    expect(lastCall[1].method).toBe('GET');
+  });
+
   it('attaches Bearer token on calls that have a session', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(200, []));
     const client = new PlatformApiClient({

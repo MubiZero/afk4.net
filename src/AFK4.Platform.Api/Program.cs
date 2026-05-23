@@ -466,6 +466,71 @@ app.MapGet("/api/platform/tenants/{organizationId:guid}", async (
     return Results.Ok(detail);
 });
 
+app.MapGet("/api/platform/tenants/{organizationId:guid}/owner-invites", async (
+    Guid organizationId,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOwnerInvites);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewOwnerInvites,
+            targetType: "OwnerInvite",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await tenantService.ListOwnerInvitesAsync(organizationId, cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewOwnerInvites,
+            targetType: "OwnerInvite",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var invites = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.ViewOwnerInvites,
+        targetType: "OwnerInvite",
+        targetId: null,
+        outcome: AuditOutcome.Succeeded,
+        details: new { Count = invites.Count },
+        cancellationToken);
+
+    return Results.Ok(invites);
+});
+
 app.MapPost("/api/platform/tenants/{organizationId:guid}/owner-invites", async (
     Guid organizationId,
     CreateOwnerInviteRequest request,

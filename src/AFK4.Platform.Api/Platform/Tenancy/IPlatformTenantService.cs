@@ -21,6 +21,10 @@ public interface IPlatformTenantService
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 
+    Task<PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>> ListOwnerInvitesAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken);
+
     Task<PlatformTenantOperationResult<StaffSignInResponse>> AcceptOwnerInviteAsync(
         AcceptOwnerInviteRequest request,
         CancellationToken cancellationToken);

@@ -81,6 +81,21 @@ export interface OwnerInvite {
   createdAtUtc: string;
 }
 
+export interface OwnerInviteSummary {
+  ownerInviteId: string;
+  organizationId: string;
+  branchId: string;
+  codeSuffix: string;
+  status: string;
+  ownerUserName: string | null;
+  ownerDisplayName: string | null;
+  expiresAtUtc: string;
+  acceptedAtUtc: string | null;
+  revokedAtUtc: string | null;
+  revokedReason: string | null;
+  createdAtUtc: string;
+}
+
 export interface CreateTenantResponse {
   tenant: TenantDetail;
   ownerInvite: OwnerInvite;

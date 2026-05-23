@@ -162,6 +162,8 @@ public static class AuditActionNames
 
     public const string CreateOwnerInvite = "tenancy.owner_invite.create";
 
+    public const string ViewOwnerInvites = "tenancy.owner_invite.view";
+
     public const string AcceptOwnerInvite = "tenancy.owner_invite.accept";
 
     public const string RevokeOwnerInvite = "tenancy.owner_invite.revoke";

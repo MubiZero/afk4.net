@@ -679,6 +679,35 @@ public sealed class EfPlatformTenantService(
 
     internal static string NormalizeInviteCode(string code) => code.Trim().ToLowerInvariant();
 
+    public async Task<PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>> ListOwnerInvitesAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>.BadRequest(
+                "OrganizationId is required.");
+        }
+
+        var tenantExists = await dbContext.Organizations
+            .AsNoTracking()
+            .AnyAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (!tenantExists)
+        {
+            return PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>.NotFound(
+                "Tenant was not found.");
+        }
+
+        var invites = await dbContext.OwnerInvites
+            .AsNoTracking()
+            .Where(invite => invite.OrganizationId == organizationId)
+            .OrderByDescending(invite => invite.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        IReadOnlyList<OwnerInviteSummaryDto> summaries = invites.Select(ToInviteSummaryDto).ToList();
+        return PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>.Success(summaries);
+    }
+
     private static OwnerInviteDto ToInviteDto(OwnerInviteEntity entity) =>
         new(
             OwnerInviteId: entity.OwnerInviteId,
@@ -693,6 +722,30 @@ public sealed class EfPlatformTenantService(
             RevokedAtUtc: entity.RevokedAtUtc,
             RevokedReason: entity.RevokedReason,
             CreatedAtUtc: entity.CreatedAtUtc);
+
+    private static OwnerInviteSummaryDto ToInviteSummaryDto(OwnerInviteEntity entity) =>
+        new(
+            OwnerInviteId: entity.OwnerInviteId,
+            OrganizationId: entity.OrganizationId,
+            BranchId: entity.BranchId,
+            CodeSuffix: SuffixCode(entity.Code),
+            Status: entity.Status,
+            OwnerUserName: entity.OwnerUserName,
+            OwnerDisplayName: entity.OwnerDisplayName,
+            ExpiresAtUtc: entity.ExpiresAtUtc,
+            AcceptedAtUtc: entity.AcceptedAtUtc,
+            RevokedAtUtc: entity.RevokedAtUtc,
+            RevokedReason: entity.RevokedReason,
+            CreatedAtUtc: entity.CreatedAtUtc);
+
+    private static string SuffixCode(string code)
+    {
+        if (string.IsNullOrEmpty(code))
+        {
+            return string.Empty;
+        }
+        return code.Length <= 4 ? code : code[^4..];
+    }
 
     private static string SerializeLimits(TenantLimitsDto? limits)
     {
