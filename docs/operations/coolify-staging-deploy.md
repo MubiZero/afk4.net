@@ -261,6 +261,32 @@ Minimum first-deploy evidence:
 - the API container logs do not show database connection failures;
 - Coolify reports the deployment healthy on the current commit.
 
+## Slice 5 SaaS Control Plane SPA + Public-Endpoint Rate-Limiting
+
+The internal Slice 5 SaaS Control Plane SPA (`src/AFK4.Platform.Web`) is built
+and served as a separate Coolify application alongside the Platform API:
+
+1. Add a second Coolify application from this repository pointing at
+   `deploy/coolify/platform-web.Dockerfile` (build context = repository root,
+   exposed port `8080`, health path `/healthz`).
+2. Set the `VITE_PLATFORM_API_BASE_URL` build argument to the Platform API's
+   public URL on this Coolify (e.g.
+   `https://api.afk4.staging.mubi.dev`). The value is baked into the bundle
+   at build time so the SPA can call the API across the public origin.
+3. Wire the dedicated host (e.g. `platform.afk4.staging.mubi.dev`) via the
+   Traefik labels in [`deploy/coolify/ingress.md`](../../deploy/coolify/ingress.md#1-platformweb-spa-platformafk4stagingmubidev).
+   Don't forget the DNS A/AAAA record before redeploying.
+
+Same file documents how to attach a per-source-IP rate-limit middleware to the
+two public Platform API endpoints that accept bearer-style credentials with no
+auth handshake in front of them
+(`POST /api/operator-connections/resolve` and
+`POST /api/platform/owner-invites/accept`). The labels go on the existing
+Platform API Coolify application and create two extra Traefik routers with a
+higher priority than the catch-all, so the rest of the API surface stays
+unchanged. Verify after deploying using the curl recipes at the bottom of the
+ingress doc.
+
 ## Rollback
 
 Rollback the app container through Coolify by redeploying the previous
