@@ -1039,20 +1039,95 @@ Verification (Windows 11):
 
 Scope still deferred (not part of this follow-up):
 
-- React-side `StorageLike` adapter that proxies to the new WPF
-  `ProtectedDataOperatorConnectionStore` through a new
-  `connection:loadConnection` / `connection:saveConnection` /
-  `connection:clearConnection` family on `OperatorWebHostBridge.cs`.
-  The WPF store is built and unit-tested, but it has no callers yet;
-  React still persists via `localStorage` in both browser-dev and
-  packaged WebView2 modes. The bridge wiring is the next operator-app
-  hardening step before commercial rollout (the connection persistence
-  inherits the WSL-side caveat about localStorage being browser-dev-
-  grade until the bridge is in place).
 - E2E run through the connection screen inside the packaged WebView2
   shell (this verification was scoped to vitest + xUnit). Needs a
   staging Platform API with the Slice 6 resolver endpoint live before
   it makes sense to drive.
+
+### Slice 6 host-bridge wiring — completed 2026-05-23 on `main`
+
+Closes the gap flagged in the previous follow-up: React connection
+storage now actually flows through the WPF DPAPI store when running
+in packaged WebView2.
+
+Deliverables:
+
+- New host-bridge family on `OperatorWebHostBridge.cs`:
+  - `connection:loadConnection` returns the persisted snapshot (or
+    explicit JSON `null`).
+  - `connection:saveConnection` accepts the
+    `ResolvedOperatorConnection` shape, validates that the org / branch
+    GUIDs parse and slugs / names are present, trims the strings, then
+    persists via `IOperatorConnectionStore.SaveAsync`.
+  - `connection:clearConnection` deletes the protected snapshot.
+  - The bridge ctor takes an `IOperatorConnectionStore` (third
+    dependency). `WebViewOperatorWindow.CreateDefaultHostBridge`
+    instantiates `ProtectedDataOperatorConnectionStore` next to the
+    existing token store and passes it in.
+  - Bridge errors for `connection:*` requests surface a
+    `connection_failed` error code (vs the existing `auth_failed`) so
+    the React side can distinguish host-bridge problems from auth.
+- React storage abstraction in `connectionResolver.ts`:
+  - `OperatorConnectionStorage` interface with `loadSync` / `load` /
+    `save` / `clear`.
+  - `LocalStorageOperatorConnectionStorage` wraps the existing sync
+    helpers (browser-dev path); `BridgeOperatorConnectionStorage`
+    proxies through a generic `BridgeRequestSender` (= `postHostRequest`
+    in production) and normalises the bridge payload back into
+    `ResolvedOperatorConnection`.
+  - `App.tsx` auto-selects the bridge storage when
+    `window.chrome?.webview` is present and falls back to localStorage
+    in browser-dev. A new `isConnectionLoading` flag suppresses the
+    `ConnectionResolutionScreen` during the bridge round-trip so
+    packaged WebView2 boots don't flash the connection screen when a
+    snapshot is persisted on disk. `handleConnectionResolved` /
+    "Сменить подключение" / blocked-state clear all go through the
+    async storage.
+- Tests:
+  - 5 new xUnit cases in `OperatorWebHostBridgeTests.cs` covering the
+    new handlers (load with stored snapshot, load empty, save success
+    with trimming, save with invalid GUID returning `connection_failed`,
+    clear) + a `RecordingOperatorConnectionStore` fake. Existing bridge
+    tests updated to pass the new dependency.
+  - 6 new vitest cases in `connectionResolver.test.ts` covering the
+    `LocalStorageOperatorConnectionStorage` round-trip and the
+    `BridgeOperatorConnectionStorage` load / load-empty / save / clear
+    flows against a recording sender.
+  - Existing App.test.tsx tests updated to the bridge contract:
+    `installSessionBridge` now handles `connection:*` messages with an
+    optional `loadConnection` override, captures `connectionSaves`, and
+    echoes / clears state; the "skips the connection resolution screen
+    when a stored connection is present" test moved to
+    `installSessionBridge(null, null, { loadConnection })`; the
+    "persists ... and proceeds to sign-in" test asserts against
+    `bridge.connectionSaves` instead of localStorage; the
+    blocked-state test additionally asserts that
+    `connection:clearConnection` was sent both on suspended resolution
+    and on "Сменить подключение".
+
+Verification (Windows 11):
+
+- `dotnet build AFK4.sln -p:EnableWindowsTargeting=true`: 0 errors,
+  0 warnings.
+- `dotnet test`: Shared.Contracts 108/108, Platform.Api 480/480,
+  Operator.App 204/204 (+5 new bridge tests), Player.Shell 11/11,
+  Agent.Service 140/140, GamingPc.Setup 10/10,
+  Update.Publisher 8/8.
+- `npm test` in `src/AFK4.Operator.App.Web/`: 122/122 (+6 new
+  storage-abstraction tests).
+- `npm test` in `src/AFK4.Platform.Web/`: 12/12.
+
+Scope still deferred (not part of this follow-up):
+
+- E2E run through the connection screen inside the packaged WebView2
+  shell with a live Platform API. The WPF-side bridge contract is
+  unit-tested end-to-end and the React-side adapter has its own
+  recording-sender coverage; the integration verification still needs
+  staging.
+- Optional UX polish: a "checking persisted connection…" splash during
+  the bridge load round-trip (current behaviour leaves the existing
+  `SignInScreen` "Проверяем защищённый вход" copy in place during the
+  combined auth + connection boot, which is fine but generic).
 
 Operational handoff for staging smoke (from the original plan):
 
