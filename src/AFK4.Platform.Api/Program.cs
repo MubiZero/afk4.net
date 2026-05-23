@@ -10,6 +10,7 @@ using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Payments;
+using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Platform.Api.Pos;
@@ -114,6 +115,7 @@ builder.Services.Configure<PlatformTenantOptions>(
 builder.Services.AddSingleton<IOwnerInviteCodeGenerator, RandomOwnerInviteCodeGenerator>();
 builder.Services.AddScoped<IPlatformTenantService, EfPlatformTenantService>();
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
+builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore>();
 builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
@@ -291,8 +293,10 @@ app.MapPost("/api/platform/auth/sign-out", async (
 
 app.MapPost("/api/platform/tenants", async (
     CreateTenantRequest request,
+    HttpContext httpContext,
     PlatformAdminAuthorizationService authorizationService,
     IPlatformTenantService tenantService,
+    IPlatformIdempotencyStore idempotencyStore,
     IAuditRecordWriter auditRecordWriter,
     CancellationToken cancellationToken) =>
 {
@@ -315,6 +319,33 @@ app.MapPost("/api/platform/tenants", async (
             details: new { request.OrganizationSlug, request.BranchSlug, authorization.DenialReason },
             cancellationToken);
         return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault();
+    var requestHash = IdempotencyKeyHelper.HashRequest(request);
+    if (!string.IsNullOrWhiteSpace(idempotencyKey))
+    {
+        if (idempotencyKey.Length > 128)
+        {
+            return Results.BadRequest(new { Error = "Idempotency-Key must be at most 128 characters." });
+        }
+
+        var prior = await idempotencyStore.TryReadAsync(
+            scope: "platform.tenants.create",
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash,
+            cancellationToken);
+        if (prior.RequestHashMismatch)
+        {
+            return Results.Json(
+                new { Error = "Idempotency-Key was reused with a different request body." },
+                statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+        if (prior.Stored is not null)
+        {
+            httpContext.Response.Headers["Idempotency-Replayed"] = "true";
+            return Results.Content(prior.Stored.ResponseBody, "application/json", statusCode: prior.Stored.StatusCode);
+        }
     }
 
     var result = await tenantService.CreateAsync(
@@ -361,6 +392,20 @@ app.MapPost("/api/platform/tenants", async (
             OwnerInviteId = created.OwnerInvite.OwnerInviteId
         },
         cancellationToken);
+
+    if (!string.IsNullOrWhiteSpace(idempotencyKey))
+    {
+        var responseBody = JsonSerializer.Serialize(created, IdempotencyKeyHelper.JsonOptions);
+        await idempotencyStore.WriteAsync(
+            scope: "platform.tenants.create",
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash,
+            platformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            statusCode: StatusCodes.Status200OK,
+            responseBody: responseBody,
+            retention: TimeSpan.FromHours(24),
+            cancellationToken);
+    }
 
     return Results.Ok(created);
 });

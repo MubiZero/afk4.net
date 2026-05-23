@@ -94,6 +94,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<TenantSupportNoteEntity> TenantSupportNotes => Set<TenantSupportNoteEntity>();
 
+    public DbSet<PlatformIdempotencyRecordEntity> PlatformIdempotencyRecords => Set<PlatformIdempotencyRecordEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -701,6 +703,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(note => note.TenantSupportNoteId);
             entity.Property(note => note.Body).HasMaxLength(4000).IsRequired();
             entity.HasIndex(note => new { note.OrganizationId, note.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformIdempotencyRecordEntity>(entity =>
+        {
+            entity.ToTable("platform_idempotency_records");
+            entity.HasKey(record => record.PlatformIdempotencyRecordId);
+            entity.Property(record => record.IdempotencyKey).HasMaxLength(128).IsRequired();
+            entity.Property(record => record.Scope).HasMaxLength(64).IsRequired();
+            entity.Property(record => record.RequestHash).HasMaxLength(128).IsRequired();
+            entity.Property(record => record.ResponseBody).HasColumnType("jsonb").IsRequired();
+            entity.HasIndex(record => new { record.Scope, record.IdempotencyKey }).IsUnique();
+            entity.HasIndex(record => record.ExpiresAtUtc);
         });
     }
 }

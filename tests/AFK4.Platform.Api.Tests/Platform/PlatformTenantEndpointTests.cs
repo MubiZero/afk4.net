@@ -549,6 +549,96 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
+    public async Task PostTenants_WithIdempotencyKey_StoresAndReplaysOnRetry()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        const string idempotencyKey = "tenant-create-attempt-001";
+        using var first = new HttpRequestMessage(HttpMethod.Post, "/api/platform/tenants")
+        {
+            Content = JsonContent.Create(BuildCreateTenantRequest())
+        };
+        first.Headers.Add("Idempotency-Key", idempotencyKey);
+        var firstResponse = await client.SendAsync(first);
+        var firstBody = await firstResponse.Content.ReadFromJsonAsync<CreateTenantResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.NotNull(firstBody);
+        Assert.False(firstResponse.Headers.Contains("Idempotency-Replayed"));
+
+        using var retry = new HttpRequestMessage(HttpMethod.Post, "/api/platform/tenants")
+        {
+            Content = JsonContent.Create(BuildCreateTenantRequest())
+        };
+        retry.Headers.Add("Idempotency-Key", idempotencyKey);
+        var retryResponse = await client.SendAsync(retry);
+        var retryBody = await retryResponse.Content.ReadFromJsonAsync<CreateTenantResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, retryResponse.StatusCode);
+        Assert.True(retryResponse.Headers.Contains("Idempotency-Replayed"));
+        Assert.Equal("true", retryResponse.Headers.GetValues("Idempotency-Replayed").Single());
+        Assert.NotNull(retryBody);
+        Assert.Equal(firstBody.Tenant.OrganizationId, retryBody.Tenant.OrganizationId);
+        Assert.Equal(firstBody.OwnerInvite.Code, retryBody.OwnerInvite.Code);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(await dbContext.Organizations.ToListAsync());
+        Assert.Single(await dbContext.PlatformIdempotencyRecords.ToListAsync());
+    }
+
+    [Fact]
+    public async Task PostTenants_WithIdempotencyKeyReusedForDifferentBody_Returns422()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        const string idempotencyKey = "tenant-create-attempt-002";
+        using var first = new HttpRequestMessage(HttpMethod.Post, "/api/platform/tenants")
+        {
+            Content = JsonContent.Create(BuildCreateTenantRequest(orgSlug: "club-one"))
+        };
+        first.Headers.Add("Idempotency-Key", idempotencyKey);
+        var firstResponse = await client.SendAsync(first);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+
+        using var second = new HttpRequestMessage(HttpMethod.Post, "/api/platform/tenants")
+        {
+            Content = JsonContent.Create(BuildCreateTenantRequest(orgSlug: "club-two"))
+        };
+        second.Headers.Add("Idempotency-Key", idempotencyKey);
+        var secondResponse = await client.SendAsync(second);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, secondResponse.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(await dbContext.Organizations.ToListAsync());
+    }
+
+    [Fact]
+    public async Task PostTenants_WithoutIdempotencyKey_KeepsSlugBased409()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var first = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        var second = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Single(await dbContext.Organizations.ToListAsync());
+        Assert.Empty(await dbContext.PlatformIdempotencyRecords.ToListAsync());
+    }
+
+    [Fact]
     public async Task GetOwnerInvites_ReturnsAllInvitesForTenantWithMaskedCodes()
     {
         await using var factory = new PlatformApiFactory();
