@@ -445,6 +445,107 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
+    public async Task RevokeOwnerInvite_WithValidPendingInvite_MarksRevokedAndAudits()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var createResponse = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
+        var created = await createResponse.Content.ReadFromJsonAsync<CreateTenantResponse>();
+        Assert.NotNull(created);
+
+        var revoke = await client.PostAsJsonAsync(
+            $"/api/platform/owner-invites/{created.OwnerInvite.OwnerInviteId:D}/revoke",
+            new RevokeOwnerInviteRequest("Owner asked to cancel"));
+        var revoked = await revoke.Content.ReadFromJsonAsync<OwnerInviteDto>();
+
+        Assert.Equal(HttpStatusCode.OK, revoke.StatusCode);
+        Assert.NotNull(revoked);
+        Assert.Equal(OwnerInviteStatusNames.Revoked, revoked.Status);
+        Assert.Equal("Owner asked to cancel", revoked.RevokedReason);
+        Assert.NotNull(revoked.RevokedAtUtc);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var invite = await dbContext.OwnerInvites.SingleAsync(i => i.OwnerInviteId == created.OwnerInvite.OwnerInviteId);
+        Assert.Equal(OwnerInviteStatusNames.Revoked, invite.Status);
+        var audit = await dbContext.AuditRecords
+            .Where(record => record.Action == "tenancy.owner_invite.revoke" && record.Outcome == "Succeeded")
+            .SingleAsync();
+        Assert.Equal(created.Tenant.OrganizationId, audit.OrganizationId);
+        Assert.Equal(created.OwnerInvite.OwnerInviteId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
+    public async Task RevokeOwnerInvite_WithUnknownInvite_Returns404()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/platform/owner-invites/{Guid.NewGuid():D}/revoke",
+            new RevokeOwnerInviteRequest("anyway"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RevokeOwnerInvite_OnAlreadyRevokedInvite_Returns400()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var createResponse = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
+        var created = await createResponse.Content.ReadFromJsonAsync<CreateTenantResponse>();
+        Assert.NotNull(created);
+
+        var first = await client.PostAsJsonAsync(
+            $"/api/platform/owner-invites/{created.OwnerInvite.OwnerInviteId:D}/revoke",
+            new RevokeOwnerInviteRequest("First"));
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        var second = await client.PostAsJsonAsync(
+            $"/api/platform/owner-invites/{created.OwnerInvite.OwnerInviteId:D}/revoke",
+            new RevokeOwnerInviteRequest("Again"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
+    }
+
+    [Fact]
+    public async Task RevokeOwnerInvite_WithoutReason_Returns400()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var createResponse = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
+        var created = await createResponse.Content.ReadFromJsonAsync<CreateTenantResponse>();
+        Assert.NotNull(created);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/platform/owner-invites/{created.OwnerInvite.OwnerInviteId:D}/revoke",
+            new RevokeOwnerInviteRequest(""));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RevokeOwnerInvite_WithoutAuth_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/platform/owner-invites/{Guid.NewGuid():D}/revoke",
+            new RevokeOwnerInviteRequest("test"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task StaffAccessToken_CannotReachPlatformTenantEndpoints()
     {
         await using var factory = new PlatformApiFactory();

@@ -42,4 +42,10 @@ public interface IPlatformTenantService
         UpdateTenantLimitsRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
+
+    Task<PlatformTenantOperationResult<OwnerInviteDto>> RevokeOwnerInviteAsync(
+        Guid ownerInviteId,
+        RevokeOwnerInviteRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken);
 }

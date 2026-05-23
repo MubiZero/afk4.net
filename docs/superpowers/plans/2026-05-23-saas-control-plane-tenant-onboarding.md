@@ -700,3 +700,162 @@ Operational handoff for Slice 5:
   reporting needs to join platform admins efficiently; Slice 4 still
   encodes that field inside `DetailsJson` via
   `WritePlatformAuditAsync`.
+
+### Slice 5: Internal Control Plane Web — completed 2026-05-23 on `codex/saas-control-plane-slice-5`
+
+Deliverables:
+
+- New `POST /api/platform/owner-invites/{ownerInviteId:guid}/revoke`
+  backend endpoint with the `platform.tenants.invites.manage`
+  permission. `EfPlatformTenantService.RevokeOwnerInviteAsync`
+  validates the reason (required, ≤ 500 chars), rejects non-pending
+  invites (400), and stamps the existing
+  `OwnerInviteEntity.Revoked{AtUtc, ByPlatformAdminUserId, Reason}`
+  columns shipped in Slice 1. The endpoint writes succeeded / denied
+  `tenancy.owner_invite.revoke` audit records with the reason in the
+  payload. 5 new endpoint tests cover happy path + audit, unknown id
+  404, already-revoked 400, missing reason 400, and no-auth 401.
+- New CORS policy `platform-web` allowing
+  `https://platform.afk4.local`, `http://localhost:5175`,
+  `http://127.0.0.1:5175`, `http://localhost:4175`,
+  `http://127.0.0.1:4175` (Vite dev + preview ports). Existing
+  `operator-web` policy is unchanged. Both policies are registered;
+  `UseCors` is called once per policy so the SPA can request the API
+  during local development.
+- New Vite + React 19 + TypeScript SPA at `src/AFK4.Platform.Web/`
+  (separate from the Operator App WebView2 assets). Stack mirrors
+  `src/AFK4.Operator.App.Web/` (Vite 8, React 19, vitest 4, jsdom 29,
+  `@testing-library/react`, `@testing-library/jest-dom`,
+  `@vitejs/plugin-react`, TypeScript 6). Scripts: `dev` (port 5175),
+  `build` (`tsc -b && vite build`), `test` (vitest run),
+  `preview` (port 4175).
+- `src/api/types.ts` mirrors the shared C# contracts in TypeScript:
+  `TenantSummary`, `TenantDetail`, `TenantBranch`, `TenantLimits`,
+  `CreateTenantRequest/Response`, `OwnerInvite`, `TenantSupportNote`,
+  `TenantHealth`, `TenantHealthError`, plus `TenantStatus`,
+  `TenantPlanCode`, `SubscriptionStatus` constants.
+- `src/auth/tokenStore.ts` persists the platform-admin session in
+  `sessionStorage` under the `afk4.platform.session` key (tab-scope,
+  cleared on tab close — safer than `localStorage` for a support tool).
+  Helpers: `readSession`, `writeSession`, `clearSession`,
+  `sessionFromSignInResponse`, `isAccessTokenExpired`.
+- `src/api/platformApi.ts` exposes `PlatformApiClient` with methods
+  for sign-in / sign-out, list/get tenants, create tenant, PATCH
+  status / plan / limits, owner invite create + revoke, support note
+  list / create / update, and tenant health. The client transparently
+  refreshes the access token once on 401 (then retries the original
+  call) and clears the session if the refresh attempt fails. Errors
+  bubble up as `PlatformApiError(status, message, code)` with the
+  backend's `{ error }` envelope.
+- React components under `src/components/`:
+  - `SignIn` — username + password form, surfaces 401 as
+    "Wrong user name or password" copy.
+  - `TenantList` — sortable table of tenants (name, slug, status,
+    plan, subscription, branch count, updated), "Refresh" + "New
+    tenant" actions, empty + loading + error states.
+  - `NewTenant` — full create-tenant form with limits + owner
+    invite fields. On success, navigates to the new tenant's detail
+    view and shows the just-issued owner invite code prominently.
+  - `TenantDetail` — overview + status/plan/limits controls + owner
+    invites + support notes + health. Each child section owns its
+    own loading / error state.
+  - `StatusControl` — drop-down + required reason textarea
+    (validates that suspended / deletion_pending must have a reason);
+    submits PATCH status.
+  - `PlanControl` — plan + subscription drop-downs; submits PATCH
+    plan.
+  - `LimitsControl` — numeric inputs for the four caps; submits
+    PATCH limits.
+  - `OwnerInvitesSection` — create form per branch, table of issued
+    invites (status, code, owner, expires), revoke action that
+    prompts for a reason then calls the new revoke endpoint.
+  - `SupportNotesSection` — list (newest first), create new, inline
+    edit existing notes via PATCH.
+  - `HealthSection` — counts, latest staff sign-in, latest applied
+    migration, recent denied audit preview with the truncated
+    `message` column.
+  - `ui.tsx` — `Loading`, `ErrorBanner` (dismissable), `EmptyState`,
+    `Field` (label + hint + input wrapper), `StatusBadge`,
+    `formatDate`.
+- `src/App.tsx` is the top-level shell with sign-in / sign-out
+  header, a simple `View = 'list' | 'new' | 'detail'` switch (no
+  router dependency), and re-creates `PlatformApiClient` per
+  base-URL change with a session callback that mirrors the in-memory
+  client state back to React state + `sessionStorage`.
+- `src/styles.css` ships a minimal responsive layout with system
+  colour scheme (light + dark), badges per tenant status, mobile
+  fallback at ≤ 700 px.
+- Tests under `src/auth/tokenStore.test.ts` (7 cases) and
+  `src/api/platformApi.test.ts` (5 cases) cover round-trip,
+  malformed JSON, expired-token detection, and the client's sign-in,
+  error projection, 401-refresh-retry, sign-out-on-refresh-failure,
+  and Bearer-token-on-call paths. Total: 12 vitest cases.
+
+Verification (WSL Linux):
+
+- `dotnet build AFK4.sln -p:EnableWindowsTargeting=true`: 20
+  projects, 0 errors, 0 warnings.
+- `dotnet test tests/AFK4.Shared.Contracts.Tests/...`: 104 passed
+  (unchanged; no new contracts in this slice — Slice 1's
+  `RevokeOwnerInviteRequest` already had a round-trip test).
+- `dotnet test tests/AFK4.Platform.Api.Tests/...`: 469 passed
+  (Slice 4: 464 + Slice 5: +5 = 469). 5 new tests = revoke endpoint
+  happy path + audit, unknown id, already-revoked, missing reason,
+  no auth.
+- `npm run build` in `src/AFK4.Platform.Web/`: tsc + vite build,
+  ~221 kB JS bundle / ~66 kB gzip.
+- `npm test` in `src/AFK4.Platform.Web/`: 12 passed, 0 failed
+  (7 `tokenStore.test.ts` + 5 `platformApi.test.ts`).
+- Pre-existing Linux env limits unchanged: 22/140
+  `Agent.Service.Tests` still fail on `powershell.exe`,
+  `Operator.App.Tests` / `Player.Shell.Tests` still need Windows.
+- The Vite project is not added to `AFK4.sln` (the solution is a
+  .NET-only sln; the SPA is built via `npm run build` and deployed
+  as static assets, like the existing Operator App Web project).
+
+Scope still deferred to later slices:
+
+- Slice 6 — Operator App slug / setup-code connection flow that
+  resolves tenant/branch from the new slugs without raw GUID copy.
+
+Operational handoff for Slice 6:
+
+- The SPA assumes the platform API is reachable at
+  `window.location.origin` by default. Override with the
+  `VITE_PLATFORM_API_BASE_URL` env var at build time (or via
+  `vite dev` `--mode`) when serving the SPA from a different origin
+  than the API.
+- The SPA stores the session in `sessionStorage`, so closing the
+  tab signs the admin out. If we move to `localStorage` later for
+  comfort, audit reviewers should be told — right now the audit log
+  shows one platform admin id per browser tab.
+- The owner invite section keeps revoked / accepted invites in its
+  local view-model only between page mounts. There is no
+  `GET .../tenants/{id}/owner-invites` endpoint yet — Slice 6 (or a
+  Slice 5.1 hardening pass) should add one so the list survives a
+  page refresh. The SPA is structured to consume that endpoint
+  without other changes (`OwnerInvitesSection` already calls
+  `client.getTenant` on mount; switching it to a dedicated invites
+  fetch is a one-liner once the endpoint exists).
+- The `revoke owner invite` endpoint requires a non-empty reason;
+  the SPA collects it via `window.prompt`. Slice 5.1 / 6 should
+  replace the prompt with an inline form so the input flow matches
+  the rest of the UI.
+- `OwnerInviteDto.Code` is shown verbatim in the table. That is the
+  bearer credential. The Control Plane is internal-only (platform
+  admin auth in front of the page), so this is acceptable for MVP;
+  for commercial rollout, mask the code after first display and
+  surface it again only via an explicit "reveal" action.
+- Suspended / deletion-pending tenants surface in the tenant list
+  with a coloured badge driven by `StatusBadge`. The status update
+  control + plan control + limits control will all return 403 with
+  `TenantSuspended` when blocked by the Slice 3 middleware — but
+  these endpoints are platform-admin-scoped (no `StaffContext`), so
+  they always go through and the SPA never has to render the
+  `TenantSuspended` envelope itself; the staff-side blocked UI is
+  Slice 6 / Operator App work.
+- The SPA is deployed by serving the contents of
+  `src/AFK4.Platform.Web/dist/` from any static host (S3, Coolify,
+  nginx, etc.). For Coolify staging, a follow-up commit can add a
+  Caddyfile / nginx config snippet under `deploy/coolify/` to wire
+  it to `platform.afk4.local`.

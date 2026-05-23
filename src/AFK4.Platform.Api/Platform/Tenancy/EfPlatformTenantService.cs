@@ -499,6 +499,52 @@ public sealed class EfPlatformTenantService(
         return PlatformTenantOperationResult<TenantDetailDto>.Success(detail!);
     }
 
+    public async Task<PlatformTenantOperationResult<OwnerInviteDto>> RevokeOwnerInviteAsync(
+        Guid ownerInviteId,
+        RevokeOwnerInviteRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        if (ownerInviteId == Guid.Empty)
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("OwnerInviteId is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("Reason is required.");
+        }
+
+        var trimmedReason = request.Reason.Trim();
+        if (trimmedReason.Length > MaxStatusReasonLength)
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest(
+                $"Reason must contain {MaxStatusReasonLength} characters or fewer.");
+        }
+
+        var invite = await dbContext.OwnerInvites
+            .SingleOrDefaultAsync(candidate => candidate.OwnerInviteId == ownerInviteId, cancellationToken);
+        if (invite is null)
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.NotFound("Owner invite was not found.");
+        }
+
+        if (invite.Status != OwnerInviteStatusNames.Pending)
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest(
+                $"Owner invite is not pending (status = {invite.Status}).");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        invite.Status = OwnerInviteStatusNames.Revoked;
+        invite.RevokedAtUtc = now;
+        invite.RevokedByPlatformAdminUserId = platformAdminUserId;
+        invite.RevokedReason = trimmedReason;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return PlatformTenantOperationResult<OwnerInviteDto>.Success(ToInviteDto(invite));
+    }
+
     public async Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateLimitsAsync(
         Guid organizationId,
         UpdateTenantLimitsRequest request,

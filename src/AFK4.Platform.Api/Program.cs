@@ -48,6 +48,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 const string OperatorWebCorsPolicyName = "operator-web";
+const string PlatformWebCorsPolicyName = "platform-web";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +64,18 @@ builder.Services.AddCors(options =>
                 "http://127.0.0.1:5174",
                 "http://localhost:4174",
                 "http://127.0.0.1:4174")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
+    options.AddPolicy(
+        PlatformWebCorsPolicyName,
+        policy => policy
+            .WithOrigins(
+                "https://platform.afk4.local",
+                "http://localhost:5175",
+                "http://127.0.0.1:5175",
+                "http://localhost:4175",
+                "http://127.0.0.1:4175")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -132,6 +145,7 @@ builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 var app = builder.Build();
 
 app.UseCors(OperatorWebCorsPolicyName);
+app.UseCors(PlatformWebCorsPolicyName);
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<TenantSuspensionMiddleware>();
@@ -521,6 +535,84 @@ app.MapPost("/api/platform/tenants/{organizationId:guid}/owner-invites", async (
             invite.OwnerUserName,
             invite.ExpiresAtUtc
         },
+        cancellationToken);
+
+    return Results.Ok(invite);
+});
+
+app.MapPost("/api/platform/owner-invites/{ownerInviteId:guid}/revoke", async (
+    Guid ownerInviteId,
+    RevokeOwnerInviteRequest request,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOwnerInvites);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    var orgIdForAudit = await dbContext.OwnerInvites
+        .AsNoTracking()
+        .Where(invite => invite.OwnerInviteId == ownerInviteId)
+        .Select(invite => (Guid?)invite.OrganizationId)
+        .SingleOrDefaultAsync(cancellationToken) ?? Guid.Empty;
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: orgIdForAudit,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.RevokeOwnerInvite,
+            targetType: "OwnerInvite",
+            targetId: ownerInviteId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await tenantService.RevokeOwnerInviteAsync(
+        ownerInviteId,
+        request,
+        authorization.PlatformAdminContext!.PlatformAdminUserId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: orgIdForAudit,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            action: AuditActionNames.RevokeOwnerInvite,
+            targetType: "OwnerInvite",
+            targetId: ownerInviteId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var invite = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: invite.OrganizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+        action: AuditActionNames.RevokeOwnerInvite,
+        targetType: "OwnerInvite",
+        targetId: invite.OwnerInviteId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { invite.OwnerInviteId, Reason = request.Reason },
         cancellationToken);
 
     return Results.Ok(invite);
