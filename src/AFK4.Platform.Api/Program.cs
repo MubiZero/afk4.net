@@ -98,6 +98,7 @@ builder.Services.Configure<PlatformTenantOptions>(
     builder.Configuration.GetSection(PlatformTenantOptions.ConfigurationSection));
 builder.Services.AddSingleton<IOwnerInviteCodeGenerator, RandomOwnerInviteCodeGenerator>();
 builder.Services.AddScoped<IPlatformTenantService, EfPlatformTenantService>();
+builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
@@ -130,6 +131,7 @@ var app = builder.Build();
 app.UseCors(OperatorWebCorsPolicyName);
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
+app.UseMiddleware<TenantSuspensionMiddleware>();
 
 app.MapGet("/api/health", () =>
 {
@@ -563,6 +565,251 @@ app.MapPost("/api/platform/owner-invites/accept", async (
         cancellationToken);
 
     return Results.Ok(signIn);
+});
+
+app.MapPatch("/api/platform/tenants/{organizationId:guid}/status", async (
+    Guid organizationId,
+    UpdateTenantStatusRequest request,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateTenantStatus);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.UpdateTenantStatus,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { request.Status, authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var previousStatus = await dbContext.Organizations
+        .AsNoTracking()
+        .Where(org => org.OrganizationId == organizationId)
+        .Select(org => new { org.Status, org.StatusReason })
+        .SingleOrDefaultAsync(cancellationToken);
+
+    var result = await tenantService.UpdateStatusAsync(
+        organizationId,
+        request,
+        authorization.PlatformAdminContext!.PlatformAdminUserId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            action: AuditActionNames.UpdateTenantStatus,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { request.Status, Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var detail = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+        action: AuditActionNames.UpdateTenantStatus,
+        targetType: "Tenant",
+        targetId: organizationId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new
+        {
+            PreviousStatus = previousStatus?.Status,
+            PreviousReason = previousStatus?.StatusReason,
+            NewStatus = detail.Status,
+            NewReason = detail.StatusReason
+        },
+        cancellationToken);
+
+    return Results.Ok(detail);
+});
+
+app.MapPatch("/api/platform/tenants/{organizationId:guid}/plan", async (
+    Guid organizationId,
+    UpdateTenantPlanRequest request,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateTenantPlan);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.UpdateTenantPlan,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { request.PlanCode, request.SubscriptionStatus, authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var previousPlan = await dbContext.Organizations
+        .AsNoTracking()
+        .Where(org => org.OrganizationId == organizationId)
+        .Select(org => new { org.PlanCode, org.SubscriptionStatus })
+        .SingleOrDefaultAsync(cancellationToken);
+
+    var result = await tenantService.UpdatePlanAsync(
+        organizationId,
+        request,
+        authorization.PlatformAdminContext!.PlatformAdminUserId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            action: AuditActionNames.UpdateTenantPlan,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { request.PlanCode, request.SubscriptionStatus, Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var detail = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+        action: AuditActionNames.UpdateTenantPlan,
+        targetType: "Tenant",
+        targetId: organizationId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new
+        {
+            PreviousPlanCode = previousPlan?.PlanCode,
+            PreviousSubscriptionStatus = previousPlan?.SubscriptionStatus,
+            NewPlanCode = detail.PlanCode,
+            NewSubscriptionStatus = detail.SubscriptionStatus
+        },
+        cancellationToken);
+
+    return Results.Ok(detail);
+});
+
+app.MapPatch("/api/platform/tenants/{organizationId:guid}/limits", async (
+    Guid organizationId,
+    UpdateTenantLimitsRequest request,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateTenantLimits);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.UpdateTenantLimits,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await tenantService.UpdateLimitsAsync(
+        organizationId,
+        request,
+        authorization.PlatformAdminContext!.PlatformAdminUserId,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            action: AuditActionNames.UpdateTenantLimits,
+            targetType: "Tenant",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var detail = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+        action: AuditActionNames.UpdateTenantLimits,
+        targetType: "Tenant",
+        targetId: organizationId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new
+        {
+            detail.Limits.MaxBranches,
+            detail.Limits.MaxDevicesPerBranch,
+            detail.Limits.MaxConcurrentSessions,
+            detail.Limits.MaxStaffUsersPerBranch
+        },
+        cancellationToken);
+
+    return Results.Ok(detail);
 });
 
 app.MapGet("/api/branches/{branchId:guid}/staff", async (

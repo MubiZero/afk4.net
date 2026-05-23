@@ -459,3 +459,119 @@ Operational handoff for Slice 3:
 - Suspended tenants currently still allow invite acceptance and owner
   sign-in. Slice 3 must decide whether suspending a tenant should also
   block new owner sign-ins (likely yes, with explicit support override).
+
+### Slice 3: Lifecycle, Limits, And Enforcement — completed 2026-05-23 on `codex/saas-control-plane-slice-3`
+
+Deliverables:
+
+- `IPlatformTenantService` gained `UpdateStatusAsync`,
+  `UpdatePlanAsync`, and `UpdateLimitsAsync`. Each method validates input,
+  loads the organization, applies the change with a fresh `UpdatedAtUtc`,
+  and returns a `TenantDetailDto`. `UpdateStatusAsync` enforces the allowed
+  set `{active, suspended, deletion_pending}`, requires a non-empty reason
+  when transitioning to `suspended` or `deletion_pending`, caps the reason
+  at 500 characters, and updates `StatusChangedAtUtc` only when the status
+  or reason actually changes. `UpdatePlanAsync` reuses the existing plan
+  and subscription validators. `UpdateLimitsAsync` reuses the limits
+  validator and rejects negative values.
+- New endpoints in `Program.cs` under `/api/platform/tenants/{organizationId:guid}`:
+  - `PATCH .../status` — `platform.tenants.status.update` permission.
+  - `PATCH .../plan` — `platform.tenants.plan.update` permission.
+  - `PATCH .../limits` — `platform.tenants.limits.update` permission.
+  Each endpoint reads the previous status/plan into memory before mutating
+  so the succeeded audit record captures the old → new transition. Each
+  endpoint writes succeeded/denied records under
+  `tenancy.tenant.status.update`, `tenancy.tenant.plan.update`, or
+  `tenancy.tenant.limits.update` (action constants reserved in Slice 1).
+- New `ITenantStatusGuard` / `EfTenantStatusGuard` in
+  `src/AFK4.Platform.Api/Platform/Tenancy/` projects an
+  `OrganizationEntity` row to a `TenantStatusSnapshot(Status, Reason)`
+  read-only record with `IsActive` / `IsSuspended` / `IsDeletionPending`
+  helpers.
+- New `TenantSuspensionMiddleware` in `src/AFK4.Platform.Api/Identity/`
+  runs after the staff and platform-admin auth middlewares. When the
+  current request carries a `StaffContext` AND the HTTP method is
+  `POST/PUT/PATCH/DELETE`, the middleware looks up the tenant status via
+  `ITenantStatusGuard` and, if the tenant is not active, short-circuits
+  the request with `HTTP 403` and a JSON envelope
+  `{ "error": "TenantSuspended", "status": "...", "reason": "..." }`.
+  Read requests (GET/HEAD/OPTIONS) and platform-admin or
+  device-credentialed requests (no `StaffContext`) pass through
+  unchanged, so suspended tenants can still browse data, sign in to see
+  the blocked-state UI, and the platform admin can still reactivate them.
+- `EfPlatformTenantService.AcceptOwnerInviteAsync` now rejects acceptance
+  with a `BadRequest` when the tenant's status is not `active`. The
+  invite itself is left untouched (pending) so it can be replayed once
+  the tenant is reactivated — no need to rotate. This matches the
+  decision the Slice 2 handoff flagged: suspended tenants block new
+  owner sign-ups, while existing owners can still sign in.
+- Tests under `tests/AFK4.Platform.Api.Tests/Platform/`:
+  - `PlatformTenantLifecycleEndpointTests` (14 cases) — suspend with
+    reason (+ audit verification), reactivate without reason, missing
+    reason 400, unknown status 400, unknown tenant 404, no auth 401,
+    deletion-pending success, plan update success, plan update with
+    unknown subscription 400, plan update with support-only role 403,
+    limits update success, limits update with negative value 400,
+    limits update on unknown tenant 404, accept-invite on suspended
+    tenant 400.
+  - `TenantSuspensionEnforcementTests` (7 cases) — staff POST on
+    suspended tenant returns 403 with `TenantSuspended` envelope; staff
+    GET on suspended tenant returns 200; staff sign-in on suspended
+    tenant still succeeds; staff POST on `deletion_pending` tenant also
+    returns 403; staff POST on active tenant still succeeds; platform
+    admin PATCH on suspended tenant still works; staff POST regains
+    success after reactivation.
+
+Verification (WSL Linux):
+
+- `dotnet build AFK4.sln -p:EnableWindowsTargeting=true`: 20 projects,
+  0 errors, 0 warnings.
+- `dotnet test tests/AFK4.Shared.Contracts.Tests/...`: 103 passed
+  (unchanged — the `UpdateTenantStatusRequest` / `Plan` / `Limits`
+  round-trip tests added in Slice 1 cover the contracts touched here).
+- `dotnet test tests/AFK4.Platform.Api.Tests/...`: 446 passed
+  (Slice 2: 425 + Slice 3: +21 = 446). 21 new tests = 15
+  `PlatformTenantLifecycleEndpointTests` cases (status/plan/limits +
+  accept-invite-on-suspended) + 6 `TenantSuspensionEnforcementTests`.
+- Pre-existing Linux env limits unchanged: 22/140 `Agent.Service.Tests`
+  still fail on `powershell.exe`, `Operator.App.Tests` /
+  `Player.Shell.Tests` still need Windows.
+
+Scope still deferred to later slices:
+
+- Slice 4 — tenant health projection endpoint and support notes CRUD.
+- Slice 5 — internal Control Plane web UI consuming Slice 2–4 endpoints.
+- Slice 6 — Operator App slug / setup-code connection flow that resolves
+  tenant/branch from the new slugs without raw GUID copy.
+
+Operational handoff for Slice 4:
+
+- The `TenantSuspensionMiddleware` only enforces the block for requests
+  that carry a `StaffContext`. Device-credentialed endpoints
+  (`POST /api/devices/{deviceId}/heartbeat`,
+  `POST /api/devices/{deviceId}/session-reconciliation`,
+  `POST /api/devices/{deviceId}/updates/{check|status}`,
+  `POST /api/devices/enroll`, etc.) are NOT yet gated by suspension —
+  staff endpoints that create enrollment codes / publish rollouts /
+  start sessions are already blocked, so a suspended tenant cannot
+  introduce new devices, sessions, or update rings, but the existing
+  fleet keeps polling and reporting telemetry. If Slice 4 (or a later
+  hardening pass) needs full device-side shutoff, add a
+  `ITenantStatusGuard.GetAsync(...)` call inside `IDeviceCredentialValidator`
+  (or in each device-credentialed handler) and return 403 with the
+  same `TenantSuspended` envelope.
+- Status change audit (Succeeded) records both `PreviousStatus` /
+  `PreviousReason` and `NewStatus` / `NewReason` inside the details
+  payload, which gives Slice 4 / 5 a ready-made audit trail to render
+  in the Control Plane UI without joining old/new history tables.
+- The suspended-tenant response shape is intentionally simple
+  (`error`, `status`, `reason`); when Slice 5 builds the operator
+  blocked-state UI it can use the `status` field to choose copy
+  (`Suspended` vs `Tenant is being deleted`).
+- `UpdateStatusAsync` is idempotent: re-applying the same `Status` +
+  `Reason` does not update `StatusChangedAtUtc` and does not write a
+  new "the value actually changed" audit, but the succeeded audit
+  record is still written from the endpoint (the request itself
+  succeeded). If Slice 4 needs a strict "audit only on real change"
+  guarantee, it can compare the previous/new pair in the endpoint
+  details before writing.

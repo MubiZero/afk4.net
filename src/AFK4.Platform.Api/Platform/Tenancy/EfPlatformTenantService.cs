@@ -25,12 +25,21 @@ public sealed class EfPlatformTenantService(
     private const int MaxBranchNameLength = 160;
     private const int MaxPlanCodeLength = 64;
 
+    private const int MaxStatusReasonLength = 500;
+
     private static readonly HashSet<string> AllowedSubscriptionStatuses = new(StringComparer.Ordinal)
     {
         SubscriptionStatusNames.Trial,
         SubscriptionStatusNames.Active,
         SubscriptionStatusNames.PastDue,
         SubscriptionStatusNames.Cancelled
+    };
+
+    private static readonly HashSet<string> AllowedTenantStatuses = new(StringComparer.Ordinal)
+    {
+        TenantStatusNames.Active,
+        TenantStatusNames.Suspended,
+        TenantStatusNames.DeletionPending
     };
 
     private readonly PasswordHasher<StaffUserEntity> staffPasswordHasher = new();
@@ -339,6 +348,12 @@ public sealed class EfPlatformTenantService(
             return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest("Tenant no longer exists.");
         }
 
+        if (organization.Status != TenantStatusNames.Active)
+        {
+            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest(
+                $"Tenant is not active (status = {organization.Status}).");
+        }
+
         var branch = await dbContext.Branches
             .SingleOrDefaultAsync(
                 candidate => candidate.OrganizationId == invite.OrganizationId && candidate.BranchId == invite.BranchId,
@@ -391,6 +406,167 @@ public sealed class EfPlatformTenantService(
 
         var signInResponse = await staffTokenService.IssueAsync(staffUser, cancellationToken);
         return PlatformTenantOperationResult<StaffSignInResponse>.Success(signInResponse);
+    }
+
+    public async Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateStatusAsync(
+        Guid organizationId,
+        UpdateTenantStatusRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest("OrganizationId is required.");
+        }
+
+        var statusError = ValidateTenantStatus(request.Status);
+        if (statusError is not null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest(statusError);
+        }
+
+        var normalizedStatus = request.Status.Trim();
+        var reasonError = ValidateStatusReason(normalizedStatus, request.Reason);
+        if (reasonError is not null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest(reasonError);
+        }
+
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (organization is null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.NotFound("Tenant was not found.");
+        }
+
+        var trimmedReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        var now = timeProvider.GetUtcNow();
+        if (organization.Status != normalizedStatus || organization.StatusReason != trimmedReason)
+        {
+            organization.Status = normalizedStatus;
+            organization.StatusReason = trimmedReason;
+            organization.StatusChangedAtUtc = now;
+            organization.UpdatedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var detail = await BuildTenantDetailAsync(organizationId, cancellationToken);
+        return PlatformTenantOperationResult<TenantDetailDto>.Success(detail!);
+    }
+
+    public async Task<PlatformTenantOperationResult<TenantDetailDto>> UpdatePlanAsync(
+        Guid organizationId,
+        UpdateTenantPlanRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest("OrganizationId is required.");
+        }
+
+        var planError = ValidatePlanCode(request.PlanCode);
+        if (planError is not null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest(planError);
+        }
+
+        var subscriptionError = ValidateSubscriptionStatus(request.SubscriptionStatus);
+        if (subscriptionError is not null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest(subscriptionError);
+        }
+
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (organization is null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.NotFound("Tenant was not found.");
+        }
+
+        var trimmedPlan = request.PlanCode.Trim();
+        var trimmedSubscription = request.SubscriptionStatus.Trim();
+        var now = timeProvider.GetUtcNow();
+        if (organization.PlanCode != trimmedPlan || organization.SubscriptionStatus != trimmedSubscription)
+        {
+            organization.PlanCode = trimmedPlan;
+            organization.SubscriptionStatus = trimmedSubscription;
+            organization.UpdatedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var detail = await BuildTenantDetailAsync(organizationId, cancellationToken);
+        return PlatformTenantOperationResult<TenantDetailDto>.Success(detail!);
+    }
+
+    public async Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateLimitsAsync(
+        Guid organizationId,
+        UpdateTenantLimitsRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest("OrganizationId is required.");
+        }
+
+        if (request.Limits is null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest("Limits payload is required.");
+        }
+
+        var limitsError = ValidateLimits(request.Limits);
+        if (limitsError is not null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.BadRequest(limitsError);
+        }
+
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (organization is null)
+        {
+            return PlatformTenantOperationResult<TenantDetailDto>.NotFound("Tenant was not found.");
+        }
+
+        var serializedLimits = SerializeLimits(request.Limits);
+        var now = timeProvider.GetUtcNow();
+        if (organization.LimitsJson != serializedLimits)
+        {
+            organization.LimitsJson = serializedLimits;
+            organization.UpdatedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var detail = await BuildTenantDetailAsync(organizationId, cancellationToken);
+        return PlatformTenantOperationResult<TenantDetailDto>.Success(detail!);
+    }
+
+    private static string? ValidateTenantStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return "Status is required.";
+        }
+
+        return AllowedTenantStatuses.Contains(status.Trim())
+            ? null
+            : $"Status must be one of: {string.Join(", ", AllowedTenantStatuses)}.";
+    }
+
+    private static string? ValidateStatusReason(string normalizedStatus, string? reason)
+    {
+        var requiresReason = normalizedStatus is TenantStatusNames.Suspended or TenantStatusNames.DeletionPending;
+        if (requiresReason && string.IsNullOrWhiteSpace(reason))
+        {
+            return $"Reason is required when transitioning to '{normalizedStatus}'.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(reason) && reason.Trim().Length > MaxStatusReasonLength)
+        {
+            return $"Reason must contain {MaxStatusReasonLength} characters or fewer.";
+        }
+
+        return null;
     }
 
     private OwnerInviteEntity BuildOwnerInvite(

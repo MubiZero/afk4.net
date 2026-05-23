@@ -24,4 +24,22 @@ public interface IPlatformTenantService
     Task<PlatformTenantOperationResult<StaffSignInResponse>> AcceptOwnerInviteAsync(
         AcceptOwnerInviteRequest request,
         CancellationToken cancellationToken);
+
+    Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateStatusAsync(
+        Guid organizationId,
+        UpdateTenantStatusRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken);
+
+    Task<PlatformTenantOperationResult<TenantDetailDto>> UpdatePlanAsync(
+        Guid organizationId,
+        UpdateTenantPlanRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken);
+
+    Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateLimitsAsync(
+        Guid organizationId,
+        UpdateTenantLimitsRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken);
 }
