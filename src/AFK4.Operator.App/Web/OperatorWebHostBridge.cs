@@ -2,13 +2,15 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.Operator.App.Auth;
+using AFK4.Operator.App.Connection;
 using AFK4.Shared.Contracts.Identity;
 
 namespace AFK4.Operator.App.Web;
 
 public sealed class OperatorWebHostBridge(
     IOperatorAuthApiClient authApiClient,
-    IOperatorTokenStore tokenStore)
+    IOperatorTokenStore tokenStore,
+    IOperatorConnectionStore connectionStore)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -30,10 +32,15 @@ public sealed class OperatorWebHostBridge(
         if (request is null ||
             string.IsNullOrWhiteSpace(request.Type) ||
             string.IsNullOrWhiteSpace(request.RequestId) ||
-            !request.Type.StartsWith("auth:", StringComparison.Ordinal))
+            !(request.Type.StartsWith("auth:", StringComparison.Ordinal)
+              || request.Type.StartsWith("connection:", StringComparison.Ordinal)))
         {
             return null;
         }
+
+        var errorCode = request.Type.StartsWith("connection:", StringComparison.Ordinal)
+            ? "connection_failed"
+            : "auth_failed";
 
         try
         {
@@ -43,6 +50,9 @@ public sealed class OperatorWebHostBridge(
                 "auth:signIn" => await SignInAsync(request.Payload, cancellationToken),
                 "auth:refresh" => await RefreshAsync(cancellationToken),
                 "auth:signOut" => await SignOutAsync(cancellationToken),
+                "connection:loadConnection" => await LoadConnectionAsync(cancellationToken),
+                "connection:saveConnection" => await SaveConnectionAsync(request.Payload, cancellationToken),
+                "connection:clearConnection" => await ClearConnectionAsync(cancellationToken),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
             };
 
@@ -54,7 +64,7 @@ public sealed class OperatorWebHostBridge(
                 request.RequestId,
                 ok: false,
                 payload: null,
-                new OperatorWebBridgeError("auth_failed", exception.Message));
+                new OperatorWebBridgeError(errorCode, exception.Message));
         }
     }
 
@@ -107,6 +117,68 @@ public sealed class OperatorWebHostBridge(
     {
         await tokenStore.ClearAsync(cancellationToken);
         return new { signedOut = true };
+    }
+
+    private async Task<OperatorWebStoredConnection?> LoadConnectionAsync(CancellationToken cancellationToken)
+    {
+        var snapshot = await connectionStore.LoadAsync(cancellationToken);
+        return snapshot is null ? null : CreateStoredConnection(snapshot);
+    }
+
+    private async Task<OperatorWebStoredConnection> SaveConnectionAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<OperatorWebStoredConnectionPayload>(payload);
+        if (!Guid.TryParse(request.OrganizationId, out var organizationId) || organizationId == Guid.Empty)
+        {
+            throw new InvalidOperationException("OrganizationId must be a valid GUID.");
+        }
+
+        if (!Guid.TryParse(request.BranchId, out var branchId) || branchId == Guid.Empty)
+        {
+            throw new InvalidOperationException("BranchId must be a valid GUID.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.OrganizationSlug)
+            || string.IsNullOrWhiteSpace(request.OrganizationName)
+            || string.IsNullOrWhiteSpace(request.BranchSlug)
+            || string.IsNullOrWhiteSpace(request.BranchName))
+        {
+            throw new InvalidOperationException("OrganizationSlug, OrganizationName, BranchSlug, and BranchName are required.");
+        }
+
+        var storedAtUtc = request.StoredAtUtc ?? DateTimeOffset.UtcNow;
+
+        var snapshot = new OperatorConnectionSnapshot(
+            organizationId,
+            request.OrganizationSlug.Trim(),
+            request.OrganizationName.Trim(),
+            branchId,
+            request.BranchSlug.Trim(),
+            request.BranchName.Trim(),
+            (request.BranchCity ?? string.Empty).Trim(),
+            storedAtUtc);
+
+        await connectionStore.SaveAsync(snapshot, cancellationToken);
+        return CreateStoredConnection(snapshot);
+    }
+
+    private async Task<object> ClearConnectionAsync(CancellationToken cancellationToken)
+    {
+        await connectionStore.ClearAsync(cancellationToken);
+        return new { cleared = true };
+    }
+
+    private static OperatorWebStoredConnection CreateStoredConnection(OperatorConnectionSnapshot snapshot)
+    {
+        return new OperatorWebStoredConnection(
+            snapshot.OrganizationId,
+            snapshot.OrganizationSlug,
+            snapshot.OrganizationName,
+            snapshot.BranchId,
+            snapshot.BranchSlug,
+            snapshot.BranchName,
+            snapshot.BranchCity,
+            snapshot.StoredAtUtc);
     }
 
     private static T DeserializePayload<T>(JsonElement payload)
@@ -191,4 +263,24 @@ public sealed class OperatorWebHostBridge(
         IReadOnlyList<Guid> BranchIds,
         Guid? ActiveBranchId,
         IReadOnlyList<string> Permissions);
+
+    private sealed record OperatorWebStoredConnectionPayload(
+        string? OrganizationId,
+        string? OrganizationSlug,
+        string? OrganizationName,
+        string? BranchId,
+        string? BranchSlug,
+        string? BranchName,
+        string? BranchCity,
+        DateTimeOffset? StoredAtUtc);
+
+    private sealed record OperatorWebStoredConnection(
+        Guid OrganizationId,
+        string OrganizationSlug,
+        string OrganizationName,
+        Guid BranchId,
+        string BranchSlug,
+        string BranchName,
+        string BranchCity,
+        DateTimeOffset StoredAtUtc);
 }

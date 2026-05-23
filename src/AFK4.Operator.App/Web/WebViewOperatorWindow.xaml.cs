@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Interop;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Configuration;
+using AFK4.Operator.App.Connection;
 using Microsoft.Web.WebView2.Core;
 
 namespace AFK4.Operator.App.Web;
@@ -257,6 +258,7 @@ public partial class WebViewOperatorWindow : Window
         ArgumentNullException.ThrowIfNull(appOptions);
 
         var tokenStore = new ProtectedDataOperatorTokenStore();
+        var connectionStore = new ProtectedDataOperatorConnectionStore();
         var httpClient = new HttpClient
         {
             BaseAddress = appOptions.PlatformBaseUrl
@@ -264,7 +266,8 @@ public partial class WebViewOperatorWindow : Window
 
         return new OperatorWebHostBridge(
             new HttpOperatorAuthApiClient(httpClient, tokenStore),
-            tokenStore);
+            tokenStore,
+            connectionStore);
     }
 
     [DllImport("user32.dll")]
