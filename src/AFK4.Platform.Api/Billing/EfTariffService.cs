@@ -225,6 +225,168 @@ public sealed class EfTariffService(
             cancellationToken);
     }
 
+    public async Task<BillingCommandServiceResult<TariffDto>> UpdateTariffAsync(
+        Guid branchId,
+        Guid tariffId,
+        Guid actorStaffUserId,
+        UpdateTariffRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.OrganizationId == Guid.Empty)
+        {
+            return BillingCommandServiceResult<TariffDto>.Invalid("Organization id is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name is required.");
+        }
+
+        var tariff = await dbContext.Tariffs
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.OrganizationId == request.OrganizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.TariffId == tariffId,
+                cancellationToken);
+
+        if (tariff is null)
+        {
+            return BillingCommandServiceResult<TariffDto>.Missing("Tariff was not found.");
+        }
+
+        var trimmedName = request.Name.Trim();
+        var existingNames = await dbContext.Tariffs
+            .AsNoTracking()
+            .Where(candidate =>
+                candidate.OrganizationId == request.OrganizationId &&
+                candidate.BranchId == branchId &&
+                candidate.TariffId != tariffId)
+            .Select(candidate => candidate.Name)
+            .ToListAsync(cancellationToken);
+
+        if (existingNames.Contains(trimmedName, StringComparer.OrdinalIgnoreCase))
+        {
+            return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.");
+        }
+
+        tariff.Name = trimmedName;
+        tariff.IsActive = request.IsActive;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BillingCommandServiceResult<TariffDto>.Ok(ToDto(tariff));
+    }
+
+    public async Task<BillingCommandServiceResult<TariffVersionDto>> UpdateTariffVersionAsync(
+        Guid branchId,
+        Guid tariffId,
+        Guid tariffVersionId,
+        Guid actorStaffUserId,
+        UpdateTariffVersionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.OrganizationId == Guid.Empty)
+        {
+            return BillingCommandServiceResult<TariffVersionDto>.Invalid("Organization id is required.");
+        }
+
+        if (request.PricePerMinuteMinorUnits <= 0)
+        {
+            return BillingCommandServiceResult<TariffVersionDto>.Invalid("Price per minute must be positive.");
+        }
+
+        if (request.MinimumBillableMinutes <= 0)
+        {
+            return BillingCommandServiceResult<TariffVersionDto>.Invalid("Minimum billable minutes must be positive.");
+        }
+
+        if (request.RoundingIncrementMinutes <= 0)
+        {
+            return BillingCommandServiceResult<TariffVersionDto>.Invalid("Rounding increment minutes must be positive.");
+        }
+
+        if (!IsValidCurrencyCode(request.CurrencyCode))
+        {
+            return BillingCommandServiceResult<TariffVersionDto>.Invalid("Currency code must be exactly 3 alphabetic letters.");
+        }
+
+        var version = await dbContext.TariffVersions
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.OrganizationId == request.OrganizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.TariffId == tariffId &&
+                    candidate.TariffVersionId == tariffVersionId,
+                cancellationToken);
+
+        if (version is null)
+        {
+            return BillingCommandServiceResult<TariffVersionDto>.Missing("Tariff version was not found.");
+        }
+
+        if (!request.IsActive)
+        {
+            version.RetiredAtUtc = timeProvider.GetUtcNow();
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return BillingCommandServiceResult<TariffVersionDto>.Ok(ToDto(version));
+        }
+
+        var normalizedCurrencyCode = request.CurrencyCode.Trim().ToUpperInvariant();
+        var materialChange =
+            !string.Equals(version.CurrencyCode, normalizedCurrencyCode, StringComparison.Ordinal) ||
+            version.PricePerMinuteMinorUnits != request.PricePerMinuteMinorUnits ||
+            version.MinimumBillableMinutes != request.MinimumBillableMinutes ||
+            version.RoundingIncrementMinutes != request.RoundingIncrementMinutes ||
+            version.EffectiveFromUtc != request.EffectiveFromUtc;
+
+        if (materialChange)
+        {
+            var hasHistoricalSessionUse = await dbContext.Sessions
+                .AsNoTracking()
+                .AnyAsync(
+                    session =>
+                        session.OrganizationId == request.OrganizationId &&
+                        session.BranchId == branchId &&
+                        session.TariffRuleVersionId == tariffVersionId.ToString("D"),
+                    cancellationToken);
+
+            if (hasHistoricalSessionUse)
+            {
+                return BillingCommandServiceResult<TariffVersionDto>.Invalid(
+                    "Tariff version is already used by sessions; create a new version instead.");
+            }
+        }
+
+        if (request.IsActive)
+        {
+            var activeVersions = await dbContext.TariffVersions
+                .Where(candidate =>
+                    candidate.OrganizationId == request.OrganizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.TariffId == tariffId &&
+                    candidate.TariffVersionId != tariffVersionId &&
+                    candidate.RetiredAtUtc == null)
+                .ToListAsync(cancellationToken);
+
+            foreach (var activeVersion in activeVersions)
+            {
+                activeVersion.RetiredAtUtc = request.EffectiveFromUtc;
+            }
+        }
+
+        version.CurrencyCode = normalizedCurrencyCode;
+        version.PricePerMinuteMinorUnits = request.PricePerMinuteMinorUnits;
+        version.MinimumBillableMinutes = request.MinimumBillableMinutes;
+        version.RoundingIncrementMinutes = request.RoundingIncrementMinutes;
+        version.EffectiveFromUtc = request.EffectiveFromUtc;
+        version.RetiredAtUtc = null;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BillingCommandServiceResult<TariffVersionDto>.Ok(ToDto(version));
+    }
+
     public async Task<TariffCalculationResult?> CalculateAsync(
         Guid branchId,
         CalculateTariffRequest request,

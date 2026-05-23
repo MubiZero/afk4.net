@@ -41,6 +41,7 @@ public sealed class OperatorShellViewModelTests
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Shifts);
         Assert.DoesNotContain(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
         Assert.Equal(OperatorWorkspaceKind.FloorMap, shell.SelectedWorkspace);
+        Assert.True(shell.NavigationItems.Single(item => item.Kind == OperatorWorkspaceKind.FloorMap).IsSelected);
     }
 
     [Fact]
@@ -146,6 +147,8 @@ public sealed class OperatorShellViewModelTests
         shell.NavigateCommand.Execute(OperatorWorkspaceKind.Settings);
 
         Assert.Equal(OperatorWorkspaceKind.Pos, shell.SelectedWorkspace);
+        Assert.True(shell.NavigationItems.Single(item => item.Kind == OperatorWorkspaceKind.Pos).IsSelected);
+        Assert.False(shell.NavigationItems.Single(item => item.Kind == OperatorWorkspaceKind.FloorMap).IsSelected);
     }
 
     [Fact]

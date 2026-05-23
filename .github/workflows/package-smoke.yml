@@ -19,6 +19,7 @@ on:
       - "src/AFK4.Shared.Contracts/**"
       - "src/AFK4.BuildingBlocks/**"
       - "src/AFK4.Operator.App/**"
+      - "src/AFK4.Operator.App.Web/**"
       - "src/AFK4.Agent.Service/**"
       - "src/AFK4.Player.Shell/**"
       - "src/AFK4.GamingPc.Setup/**"
@@ -53,6 +54,13 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/AFK4.Operator.App.Web/package-lock.json
 
       - name: Restore tools
         run: dotnet tool restore

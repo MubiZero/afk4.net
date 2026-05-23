@@ -156,6 +156,43 @@ public sealed class EfSessionCommandServiceTests
     }
 
     [Fact]
+    public async Task EndSessionAsync_WhenSessionAlreadyEnding_ReturnsCurrentEndingStateWithoutDispatchingAgain()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var dispatcher = new RecordingCommandDispatchService();
+        var service = CreateService(db, dispatcher);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+
+        var firstEnd = await service.EndSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new EndSessionRequest("operator-end", "end-session-1"),
+            CancellationToken.None);
+        Assert.True(firstEnd.Succeeded);
+        dispatcher.Clear();
+
+        var secondEnd = await service.EndSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new EndSessionRequest("operator-end", "end-session-2"),
+            CancellationToken.None);
+
+        Assert.True(secondEnd.Succeeded);
+        Assert.NotNull(secondEnd.Response);
+        Assert.Equal(SessionStateNames.Ending, secondEnd.Response.Session.State);
+        Assert.Empty(secondEnd.Response.DeviceCommands);
+        Assert.Empty(dispatcher.Calls);
+        Assert.Empty(dispatcher.Enqueued);
+        Assert.Empty(dispatcher.DispatchCalls);
+    }
+
+    [Fact]
     public async Task TransferSessionAsync_DispatchesLockToOldDeviceAndUnlockToNewDevice()
     {
         await using var db = CreateDbContext();

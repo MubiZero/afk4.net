@@ -584,7 +584,11 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \".config/dotnet-tools.json\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.Shared.Contracts/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.BuildingBlocks/**\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"src/AFK4.Operator.App.Web/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/setup-node@v4", workflow, StringComparison.Ordinal);
+        Assert.Contains("node-version: 24", workflow, StringComparison.Ordinal);
+        Assert.Contains("cache-dependency-path: src/AFK4.Operator.App.Web/package-lock.json", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_PACKAGE_VERSION=$version", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"scripts/publish-client-msi-updates.ps1\"", workflow, StringComparison.Ordinal);
@@ -684,6 +688,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Contains("timeout-minutes: 90", workflow, StringComparison.Ordinal);
         Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: actions/setup-node@v4", workflow, StringComparison.Ordinal);
+        Assert.Contains("node-version: 24", workflow, StringComparison.Ordinal);
+        Assert.Contains("cache-dependency-path: src/AFK4.Operator.App.Web/package-lock.json", workflow, StringComparison.Ordinal);
         Assert.Contains("if-no-files-found: error", workflow, StringComparison.Ordinal);
         Assert.Equal(2, CountOccurrences(workflow, "retention-days: 3"));
     }

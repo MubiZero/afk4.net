@@ -37,7 +37,7 @@ public sealed class PlayerSearchViewModelTests
 
         Assert.Single(viewModel.Results);
         Assert.Equal("Alex Player", viewModel.Results[0].DisplayName);
-        Assert.Equal("Wallet 120.00 USD / debt 0.00 USD", viewModel.Results[0].BalanceSummary);
+        Assert.Equal("Кошелек 120.00 TJS / долг 0.00 TJS", viewModel.Results[0].BalanceSummary);
         Assert.Equal(BranchId, apiClient.LastSearchBranchId);
         Assert.Equal("Al", apiClient.LastSearchQuery);
     }
@@ -53,8 +53,9 @@ public sealed class PlayerSearchViewModelTests
         await viewModel.SearchAsync(CancellationToken.None);
 
         Assert.Empty(viewModel.Results);
+        Assert.False(viewModel.HasSearchResults);
         Assert.Equal(0, apiClient.SearchCallCount);
-        Assert.Equal("Enter at least two characters to search.", viewModel.ErrorMessage);
+        Assert.Equal("Введите минимум два символа для поиска.", viewModel.ErrorMessage);
     }
 
     [Fact]
@@ -83,6 +84,7 @@ public sealed class PlayerSearchViewModelTests
         Assert.Equal(OrganizationId, apiClient.LastCreateRequest?.OrganizationId);
         Assert.Equal(BranchId, apiClient.LastCreateBranchId);
         Assert.Equal("Alex Player", viewModel.SelectedPlayer?.DisplayName);
+        Assert.True(viewModel.HasSearchResults);
         Assert.Equal(0, viewModel.WalletBalanceMinorUnits);
         Assert.Null(viewModel.ErrorMessage);
     }
@@ -126,12 +128,13 @@ public sealed class PlayerSearchViewModelTests
         var operation = viewModel.TopUpWalletAsync(CancellationToken.None);
 
         Assert.True(viewModel.IsBusy);
-        Assert.Equal("Waiting for backend confirmation", viewModel.PendingOperation);
+        Assert.Equal("Ожидаем подтверждение сервера", viewModel.PendingOperation);
 
         apiClient.HoldTopUp.SetResult(CreateWalletSummary(walletMinorUnits: 15000, debtMinorUnits: 0));
         await operation;
 
         Assert.Equal("wallet-top-up-001", apiClient.LastTopUpRequest?.IdempotencyKey);
+        Assert.Equal("TJS", apiClient.LastTopUpRequest?.Amount.CurrencyCode);
         Assert.Equal(3000, apiClient.LastTopUpRequest?.Amount.MinorUnits);
         Assert.Equal(15000, viewModel.WalletBalanceMinorUnits);
         Assert.Equal(0, viewModel.DebtBalanceMinorUnits);
@@ -163,9 +166,10 @@ public sealed class PlayerSearchViewModelTests
         await viewModel.PayDebtAsync(CancellationToken.None);
 
         Assert.Equal("debt-pay-001", apiClient.LastPayDebtRequest?.IdempotencyKey);
+        Assert.Equal("TJS", apiClient.LastPayDebtRequest?.Amount.CurrencyCode);
         Assert.Equal(5000, apiClient.LastPayDebtRequest?.Amount.MinorUnits);
         Assert.Equal(0, viewModel.DebtBalanceMinorUnits);
-        Assert.Equal("Player debt payment confirmed.", viewModel.StatusMessage);
+        Assert.Equal("Погашение долга подтверждено.", viewModel.StatusMessage);
     }
 
     private static WalletSummaryDto CreateWalletSummary(long walletMinorUnits, long debtMinorUnits)

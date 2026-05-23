@@ -1,7 +1,7 @@
 # AFK4 MVP Product Requirements Document
 
 Status: Draft for product review  
-Last updated: 2026-05-12
+Last updated: 2026-05-23
 
 ## 1. Product Summary
 
@@ -10,11 +10,13 @@ It is designed for real club operations: session control, PC state visibility,
 operator workflows, payments, POS, shifts, audit, updates, and Windows endpoint
 control.
 
-AFK4 is not a lightweight admin panel and not a local-only club server. The MVP
-uses a native Windows Operator App, an ASP.NET Core cloud backend, a Windows
-Agent Service on gaming PCs, and a Player Shell UI. The product should feel like
-serious platform software in the same category as Senet, Langame, and
-SmartShell, while keeping the first release focused enough to ship safely.
+AFK4 is not a local-only club server or a generic CRUD admin. The MVP uses an
+ASP.NET Core cloud backend, an internal SaaS Control Plane for platform-owner
+tenant onboarding and support, a native Windows Operator App for club
+operations, a Windows Agent Service on gaming PCs, and a Player Shell UI. The
+product should feel like serious platform software in the same category as
+Senet, Langame, and SmartShell, while keeping the first release focused enough
+to ship safely.
 
 The first MVP must prove that a club can run day-to-day operations through AFK4:
 open a shift, see the floor map, start and end sessions, accept payments, sell
@@ -43,6 +45,21 @@ authority, keeping the Operator App fast and native, and making every critical
 money, session, POS, device, and configuration action explicit and auditable.
 
 ## 3. Target Users And Roles
+
+### Platform Owner / Support Admin
+
+Operates AFK4 as a SaaS business. Needs to onboard clubs, manage tenant status,
+plans, limits, owner invites, and support visibility without direct database
+edits.
+
+Primary needs:
+
+- create organizations and first branches;
+- issue owner/admin invites;
+- set plan, subscription status, and operational limits;
+- suspend or reactivate tenants safely;
+- inspect tenant health, deployment state, and recent support-relevant errors;
+- perform and review audited support actions.
 
 ### Owner
 
@@ -144,8 +161,11 @@ operations through AFK4:
 
 - manage organizations, branches, staff users, predefined roles, and
   permissions;
+- provide an internal SaaS Control Plane for tenant provisioning, owner
+  onboarding, subscription/status controls, tenant health, and support actions;
 - manage zones, seats, and Windows devices;
-- show a usable WPF Operator App floor map;
+- show a usable native Windows Operator App floor map implemented through a
+  WebView2 desktop shell and React/TypeScript UI;
 - run Agent Service and Player Shell on gaming PCs;
 - report device status and receive cloud-approved commands through realtime
   infrastructure;
@@ -171,7 +191,10 @@ operations through AFK4:
 
 The first MVP intentionally excludes:
 
-- web admin panel;
+- customer-facing browser operations admin as the primary day-to-day club
+  operations UI;
+- full self-service customer billing portal beyond onboarding, subscription
+  status, and support controls;
 - local club server;
 - Linux or macOS agents;
 - kernel-level anti-bypass driver;
@@ -185,7 +208,56 @@ The first MVP intentionally excludes:
 
 ## 5. Core User Journeys
 
-### Journey 1: Open A Shift
+### Journey 1: Provision A New Tenant
+
+1. Platform owner signs in to the internal SaaS Control Plane.
+2. Platform owner creates an organization and first branch with stable slugs.
+3. Platform owner selects plan/subscription status and initial operational
+   limits.
+4. System creates the tenant boundary, default branch roles, and owner invite.
+5. Owner receives an invite or setup code and signs in to continue branch setup.
+
+Success criteria:
+
+- no direct PostgreSQL edit is needed to onboard a club;
+- organization and branch slugs are unique and stable;
+- owner invite is short-lived, auditable, and revocable;
+- tenant lifecycle status is visible to platform support.
+
+### Journey 2: Connect Operator App To SaaS
+
+1. Owner or branch manager installs the native Operator App.
+2. Operator App asks for organization/branch slug or invite/setup code instead
+   of raw GUIDs.
+3. Backend resolves the tenant and branch and then authenticates the staff user.
+4. Operator App stores only approved connection/session state in protected
+   Windows storage.
+5. Operator lands on the branch floor map after authorization succeeds.
+
+Success criteria:
+
+- a normal club user does not copy organization or branch GUIDs;
+- connection state is scoped to one approved tenant/branch;
+- invalid, suspended, or revoked tenants cannot continue to operational flows;
+- support can identify which tenant and branch the app is trying to reach.
+
+### Journey 3: Suspend Or Reactivate A Tenant
+
+1. Platform owner opens a tenant in the SaaS Control Plane.
+2. Platform owner changes tenant status with a required reason.
+3. Backend records an audit entry and applies status enforcement.
+4. Suspended tenants cannot create new sessions, POS sales, payments, device
+   enrollments, or update rollouts.
+5. Platform owner can reactivate the tenant after the issue is resolved.
+
+Success criteria:
+
+- suspension is explicit, auditable, and reversible;
+- historical reports and audit remain readable for support;
+- new revenue/session/device mutations are blocked while suspended;
+- Operator App shows actionable blocked-tenant errors.
+
+### Journey 4: Open A Shift
 
 1. Operator signs in to the native Operator App.
 2. Backend resolves organization, branch, role, and permissions.
@@ -199,7 +271,7 @@ Success criteria:
 - all money and POS operations are linked to the open shift;
 - opening a shift is auditable.
 
-### Journey 2: Start A Guest Session
+### Journey 5: Start A Guest Session
 
 1. Operator selects a free seat from the floor map.
 2. Operator chooses guest session and tariff/package/payment mode.
@@ -216,7 +288,7 @@ Success criteria:
 - device state becomes visible to the operator;
 - duplicate requests do not create duplicate sessions or charges.
 
-### Journey 3: Start A Registered Player Session
+### Journey 6: Start A Registered Player Session
 
 1. Operator searches for or creates a player account.
 2. Operator selects player wallet, package, bonus, or postpaid mode where
@@ -232,7 +304,7 @@ Success criteria:
 - player history remains traceable;
 - tariff version is preserved for the session.
 
-### Journey 4: Extend, Transfer, Or End Session
+### Journey 7: Extend, Transfer, Or End Session
 
 1. Operator selects an active session.
 2. Operator chooses extend, transfer, pause where supported, end, or force-end.
@@ -247,7 +319,7 @@ Success criteria:
 - device commands are idempotent;
 - session history remains complete.
 
-### Journey 5: Sell POS Items
+### Journey 8: Sell POS Items
 
 1. Operator opens POS workflow during an active shift.
 2. Operator adds products to cart.
@@ -261,7 +333,7 @@ Success criteria:
 - sale states are explicit;
 - returns and voids do not delete history.
 
-### Journey 6: Refund Or Manual Correction
+### Journey 9: Refund Or Manual Correction
 
 1. Authorized staff member opens a session, ledger entry, POS sale, or shift
    item.
@@ -276,7 +348,7 @@ Success criteria:
 - correction is traceable and reportable;
 - unauthorized staff cannot perform sensitive changes.
 
-### Journey 7: Device Goes Offline During Active Session
+### Journey 10: Device Goes Offline During Active Session
 
 1. Agent loses cloud connectivity.
 2. Existing active session continues only within last valid signed lease.
@@ -291,7 +363,7 @@ Success criteria:
 - existing active session does not immediately fail due to short outage;
 - backend remains the authority after reconnect.
 
-### Journey 8: Close A Shift
+### Journey 11: Close A Shift
 
 1. Operator or supervisor initiates shift close.
 2. System summarizes gameplay charges, POS sales, refunds, cash movements,
@@ -307,7 +379,7 @@ Success criteria:
 - report data is stable after close;
 - corrections after close remain explicit.
 
-### Journey 9: Roll Out Client Update
+### Journey 12: Roll Out Client Update
 
 1. Authorized user uploads or selects a signed package.
 2. User chooses channel and rollout target.
@@ -334,6 +406,28 @@ Success criteria:
 - Every business request must resolve tenant and branch context.
 - Cross-tenant access must be rejected by default.
 - Critical privileged actions must write audit records.
+
+### SaaS Control Plane
+
+- The system must provide an internal browser-based Control Plane for AFK4
+  platform-owner and support administration.
+- Platform-admin authentication must be separate from staff and device
+  authentication.
+- Control Plane actions must provision organizations, first branches, stable
+  slugs, default role mappings, and owner invites without direct database
+  edits.
+- Tenant lifecycle states must include at least active, suspended, and
+  deletion-pending states.
+- Tenant plan code, subscription status, basic limits, and support notes must
+  be visible and mutable by authorized platform admins.
+- Control Plane must expose tenant health signals: app/database state where
+  available, last operator sign-in, latest migration version, branch/device
+  counts, and recent support-relevant errors.
+- Suspend/reactivate operations must require a reason, be idempotent where
+  practical, and write audit records.
+- Suspended tenants must be blocked from new money, POS, session, device
+  enrollment, and rollout mutations while preserving support/report reads.
+- Customer day-to-day operational work remains in the native Operator App.
 
 ### Club Layout And Device Management
 
@@ -408,7 +502,13 @@ Success criteria:
 
 ### Operator App
 
-- Operator App must be native Windows WPF with MVVM.
+- Operator App must remain the native Windows desktop application for
+  day-to-day club operations; it must not become the SaaS Control Plane.
+- Operator App must use a .NET desktop shell with WebView2 hosting a
+  React/TypeScript UI for the operator experience.
+- The WebView2 shell owns Windows integration such as process lifetime,
+  protected token storage, environment configuration, native packaging, and
+  safe host-to-web bridges. Business state remains backend-authoritative.
 - Floor map must be the default working screen.
 - Operator App must show pending and failed states explicitly.
 - Critical actions must wait for backend confirmation.
@@ -436,6 +536,8 @@ Success criteria:
 
 ### Security
 
+- Platform-admin authentication and authorization must be separate from branch
+  staff authentication and device authentication.
 - Staff authentication and device authentication must be separate.
 - Operator tokens must be stored using Windows-protected storage.
 - Refresh token rotation is required for long-lived operator sessions.
@@ -443,6 +545,8 @@ Success criteria:
 - Device credentials must be revocable.
 - Backend must reject requests where route identity, credential identity, and
   payload identity conflict.
+- Platform-admin support actions that cross tenant boundaries must be explicit,
+  permission-checked, reasoned, and audited.
 - Secrets must not be stored in repository config files.
 
 ### Reliability
@@ -494,37 +598,43 @@ Shell skeleton.
 Organizations, branches, staff authentication, predefined roles, permissions,
 tenant-aware pipeline, token storage, and audit for privileged actions.
 
-### Phase 3: Club Layout And Device Management
+### Phase 3: SaaS Control Plane And Tenant Onboarding
+
+Internal platform-admin authentication, tenant lifecycle/status, organization
+and branch slug provisioning, owner invite flow, plan metadata, basic limits,
+support notes, tenant health views, and suspend/reactivate enforcement.
+
+### Phase 4: Club Layout And Device Management
 
 Zones, seats, device enrollment, device credentials, device state, command log,
 command status, installed apps, and device detail workflows.
 
-### Phase 4: Session Lifecycle And Grace Mode
+### Phase 5: Session Lifecycle And Grace Mode
 
 Start, extend, transfer, end, session state machine, signed leases, Agent lease
 validation, reconnect reconciliation, session audit.
 
-### Phase 5: Billing, Ledger, Tariffs, And Packages
+### Phase 6: Billing, Ledger, Tariffs, And Packages
 
 Immutable ledger, prepaid and postpaid flows, wallet, packages, bonuses, debts,
 refunds, manual corrections, tariff versioning, and idempotency.
 
-### Phase 6: POS, Inventory, Shifts, And Receipts
+### Phase 7: POS, Inventory, Shifts, And Receipts
 
 Product catalog, stock, sales, returns, shift open/close, cash reconciliation,
 receipt/payment provider abstraction, and mock/manual providers.
 
-### Phase 7: Operator App Production UX
+### Phase 8: Operator App Production UX
 
 Realtime floor map state, context panel actions, POS workflow, player search,
 shift workflow, settings, role-aware navigation, and hotkeys.
 
-### Phase 8: Agent Enforcement And Player Shell
+### Phase 9: Agent Enforcement And Player Shell
 
 Lock/unlock enforcement, watchdog, Windows policies, process allow/deny lists,
 reboot recovery, Player Shell session screen, and basic launcher.
 
-### Phase 9: Updates, Reports, And Operations
+### Phase 10: Updates, Reports, And Operations
 
 Signed packages, channels, rollout targeting, rollback, installers, audit
 search, reports, diagnostics, backup/restore runbooks.
@@ -537,6 +647,10 @@ feature count.
 Product success indicators:
 
 - operator can start a normal session from floor map with minimal steps;
+- platform owner can provision a new tenant, first branch, and owner invite
+  without a database edit;
+- Operator App can connect to a tenant/branch using slug or setup code rather
+  than copied GUIDs;
 - operator can extend and end sessions without state ambiguity;
 - device lock state is visible and reconciles with backend session state;
 - shift close report matches gameplay, POS, refunds, and cash movements;
@@ -551,6 +665,8 @@ Product success indicators:
 Candidate measurable targets for later validation:
 
 - start guest session in under 15 seconds for a trained operator;
+- provision tenant, first branch, and owner invite in under 5 minutes for a
+  platform admin;
 - floor map state update visible within 2 seconds under normal connectivity;
 - 100 percent of money-changing operations represented by ledger entries;
 - 100 percent of critical admin actions represented by audit records;
@@ -580,6 +696,13 @@ expectations.
 Tenant isolation is required from the start. Mistakes here are high impact and
 must be covered by architecture, tests, and review.
 
+### SaaS Control Plane Security
+
+Platform-admin capability crosses tenant boundaries by design. The Control
+Plane must keep platform-admin identity, staff identity, support actions,
+tenant status changes, and support notes separated and audited so AFK4 can
+manage customers without creating hidden database-side operations.
+
 ### Update Safety
 
 Agent updates must not leave a PC unmanaged, unlocked, or half-updated. Rollback
@@ -591,6 +714,14 @@ The Operator App must stay fast and dense without becoming confusing. Complex
 flows such as refunds, transfer, postpaid debt, package consumption, and shift
 close need focused UX design.
 
+### Operator App UI Runtime Migration
+
+The MVP Operator App runtime is changing from WPF-rendered screens to a .NET
+desktop WebView2 shell with React/TypeScript UI. The migration must preserve the
+native Windows app boundary, protected token storage, packaging/update model,
+backend-authoritative critical actions, and staging smoke capability while
+removing WPF as the primary operator UI technology.
+
 ### Realtime Agent Protocol
 
 The vertical slice includes HTTP heartbeat plus backend SignalR broadcast. The
@@ -601,5 +732,7 @@ state flow. This needs a dedicated follow-up plan.
 
 - [Project README](../../README.md)
 - [Architecture spec](../superpowers/specs/2026-05-12-afk4-platform-architecture-design.md)
+- [SaaS Control Plane and tenant onboarding plan](../superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md)
+- [Operator App WebView2 React migration plan](../superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md)
 - [Vertical slice implementation plan](../superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md)
 - [Agent instructions](../../AGENTS.md)

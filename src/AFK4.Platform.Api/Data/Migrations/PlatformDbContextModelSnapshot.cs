@@ -126,6 +126,11 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -893,6 +898,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("PaidAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("RefundReason")
                         .IsRequired()
                         .HasMaxLength(512)
@@ -921,6 +929,8 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("PosSaleId");
+
+                    b.HasIndex("PlayerAccountId");
 
                     b.HasIndex("State");
 
@@ -1017,6 +1027,88 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("receipts", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.ReservationEntity", b =>
+                {
+                    b.Property<Guid>("ReservationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancelReason")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTimeOffset>("EndsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SeatId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("SeatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ReservationId");
+
+                    b.HasIndex("OrganizationId", "BranchId", "StartsAtUtc");
+
+                    b.HasIndex("OrganizationId", "BranchId", "State", "StartsAtUtc");
+
+                    b.HasIndex("OrganizationId", "BranchId", "SeatId", "StartsAtUtc", "EndsAtUtc");
+
+                    b.ToTable("reservations", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.SeatEntity", b =>

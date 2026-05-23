@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Pos;
@@ -34,6 +35,7 @@ public sealed class PosCartLineViewModel : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(LineTotalMinorUnits));
                 OnPropertyChanged(nameof(LineTotal));
+                OnPropertyChanged(nameof(LineTotalText));
             }
         }
     }
@@ -41,6 +43,8 @@ public sealed class PosCartLineViewModel : INotifyPropertyChanged
     public long LineTotalMinorUnits => Product.Price.MinorUnits * Quantity;
 
     public MoneyDto LineTotal => new(Product.Price.CurrencyCode, LineTotalMinorUnits);
+
+    public string LineTotalText => $"{(LineTotalMinorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture)} {Product.Price.CurrencyCode}";
 
     public void Increment()
     {

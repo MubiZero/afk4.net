@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-20
+Last updated: 2026-05-23
 
 ## Purpose
 
@@ -33,6 +33,8 @@ Minimum bar:
   clean Windows 11 VM is acceptable for the pilot gate; physical PC validation
   remains recommended hardening before wider rollout.
 - Operator App can perform the core day flow against the deployed backend.
+- One tenant and first branch can be provisioned without direct database edits
+  through a scripted or Control Plane path.
 - Backup and restore rehearsal completed once.
 - Client MSI installation and update rollout tested on a Windows endpoint.
 - Manual/mock payments are acceptable.
@@ -56,6 +58,9 @@ Minimum bar:
   rollout.
 - Staff, role assignment, layout, device, update, audit, and reporting
   workflows are usable by operators/managers.
+- Internal SaaS Control Plane exists for platform-owner tenant onboarding,
+  subscription/status controls, owner invites, tenant health, support notes,
+  and suspend/reactivate.
 - Operational monitoring and support diagnostics are actionable.
 
 ## Critical Path To Pilot Production
@@ -75,7 +80,16 @@ Minimum bar:
    deploys while keeping EF migration changes behind an explicit backup and
    migration confirmation.
 
-2. **CI Gate**
+2. **Tenant Onboarding And SaaS Control Plane**
+
+   The product decision changed on 2026-05-23: AFK4 MVP now includes an
+   internal browser-based SaaS Control Plane for the platform owner/support
+   role. The first pilot can still use a scripted provisioning fallback, but
+   commercial production must not require direct PostgreSQL edits to create
+   organizations, branches, owner invites, plan/status metadata, tenant limits,
+   support notes, or suspend/reactivate state.
+
+3. **CI Gate**
 
    Use cost-aware GitHub Actions workflows to build and test relevant pull
    requests, run package smoke for client MSI artifacts, and keep release
@@ -90,7 +104,7 @@ Minimum bar:
    merges must manually follow `AGENTS.md`: the current PR head commit needs a
    green remote `PR Verification Result` before merge.
 
-3. **Windows Endpoint Smoke**
+4. **Windows Endpoint Smoke**
 
    Enroll a Windows 10/11 test endpoint. Validate device credential auth,
    heartbeat, SignalR commands, session start/end, lease refresh, lock/unlock,
@@ -118,7 +132,7 @@ Minimum bar:
    reboot recovery, and update/rollback repeats remain hardening work before
    wider operational rollout, not blockers for the current pilot/dev cycle.
 
-4. **Backup And Restore Rehearsal**
+5. **Backup And Restore Rehearsal**
 
    Run `docs/operations/postgres-backup-restore.md` against staging data:
    backup, restore into a clean database, apply migrations, start the API, and
@@ -133,13 +147,21 @@ Minimum bar:
    rehearsal database, migration-checked, smoke-tested through the Platform API,
    cleaned up, and returned to non-public database access.
 
-5. **Signed Client Release Rehearsal**
+6. **Signed Client Release Rehearsal**
 
    Staging now has a temporary pilot update-hosting path using Coolify-hosted
    MinIO at `updates.afk4.staging.mubi.dev`. The package smoke workflow can
    build MSI artifacts, publish signed update metadata to staging MinIO,
    register packages with the staging Platform API, and create an internal
-   device rollout. On 2026-05-18, an already enrolled Windows 11 VM installed
+   device rollout. Client package workflows now set up Node 24 and the package
+   script builds `src/AFK4.Operator.App.Web`, then copies the fresh Vite `dist`
+   output into the Operator App publish `WebAssets` before WiX builds the
+   Operator App MSI; the script also asserts the finished MSI contains the
+   frontend `index.html`, JavaScript, and CSS files. The Operator App MSI now
+   also has a WebView2 Evergreen Runtime launch condition using the documented
+   EdgeUpdate `pv` registry values, so unsupported machines fail closed with a
+   clear prerequisite message.
+   On 2026-05-18, an already enrolled Windows 11 VM installed
    Agent/Shell `0.1.3` through the Agent update pipeline and reported
    `installed` to the backend. Follow-up staging rollouts brought that VM to
    `0.1.7`, verified atomic artifact download/recovery behavior, and fixed the
@@ -172,7 +194,7 @@ Minimum bar:
    `ccf938354d7cb86edf2349cf5696a7dd51332136`, and the VM recheck confirmed
    one fresh lock command for one session end before issue #36 was closed.
 
-6. **Pilot Setup Runbook**
+7. **Pilot Setup Runbook**
 
    Document exactly how to create the first organization, branch, staff users,
    roles, zones, seats, devices, tariffs, POS products, and update channels for
@@ -183,7 +205,12 @@ Minimum bar:
    against staging on 2026-05-19 using a branch manager account and no direct
    PostgreSQL edits. PR #41 added the minimum Operator App `Settings` ->
    `Pilot Setup` panel for staff, one zone/seats, one tariff/version, one POS
-   category/product, and optional already-enrolled device assignment.
+   category/product, and optional already-enrolled device assignment. The
+   WebView2/React Settings work has since added tariff/version
+   creation/update/deactivation and package definition creation/update/
+   deactivation, layout zone/seat creation/update, device command
+   dispatch, and device credential rotation/revocation through existing backend
+   endpoints on `codex/operator-app-redesign`.
 
 ## Commercial Production Blockers
 
@@ -192,6 +219,9 @@ Minimum bar:
 - Production hosting provider and deployment topology are not selected for
   commercial production.
 - Production environments are not codified.
+- Internal SaaS Control Plane and no-DB-edit tenant provisioning are not
+  implemented yet. They are now production-readiness scope, not an optional
+  later admin convenience.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
@@ -289,19 +319,151 @@ Minimum bar:
 
 ### Operator Workflows
 
-- Staff management workflow is implemented as a minimum API path on `main`;
-  the Operator App has a minimum one-shot Pilot Setup panel, but not a general
-  staff management UI.
-- Custom roles and role editing UI are not implemented.
+- Staging smoke proved the old Operator App layout was not viable even though
+  session start/end worked. After reviewing the WPF redesign branch, the
+  go-forward Operator App runtime changed to a native .NET Windows desktop
+  shell with WebView2 and React/TypeScript UI. This keeps the native Windows
+  app boundary and keeps day-to-day club operations out of the internal SaaS
+  Control Plane. `docs/product/operator-app-ui-target.md` remains the accepted
+  UI/UX
+  target: dense floor-map-centered operator console, selected-seat action
+  panel, operational signals, explicit pending/failed backend and device
+  states, and no raw GUID/form surfaces in normal cashier/operator paths.
+  `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`
+  is the focused migration plan. The first implementation increment now starts
+  a WebView2 host shell and a local React/TypeScript console with host config
+  injection, local asset resolution, the floor map, and SmartShell-inspired
+  fixture workspaces for dashboard, booking, POS/shop, clients, payments,
+  logs, and ops/settings. The native host can be pointed at staging with
+  platform URL, organization id, branch id, and currency environment variables.
+  The first native auth/token boundary now exists:
+  staff sign-in, token load/refresh/sign-out bridge messages, protected token
+  storage, and React auth gating are test-covered. Typed frontend API client
+  boundaries now also exist for floor map, sessions, POS, players,
+  shifts/reports, settings/pilot setup, devices, diagnostics, updates, and
+  audit. The primary floor map now also loads backend `FloorMapDto` data after
+  native staff auth and applies SignalR `deviceStatusChanged` updates from
+  `/hubs/devices` as contextual live state. Selected-seat fast guest start,
+  extend +15/+30, transfer, and end actions now call backend session APIs,
+  wait for confirmation, use idempotency keys, and reload the authoritative
+  floor map. POS, Clients, Payments, Logs, and Settings now consume existing
+  backend endpoints for their first React parity pass; POS checkout creates a
+  backend sale and manual payment before confirming UI success. Dashboard now
+  has a backend summary endpoint and React wiring for active shift,
+  revenue/utilization, alert pressure, focus queue, recent payments, and export
+  CSV download. Booking now consumes reservation API contracts for
+  search/create/update/confirm/seat/cancel actions, with floor-map availability
+  as a supporting view. React now also has first-pass permission-aware state:
+  the workspace rail and selected-seat session actions disable themselves when
+  the restored staff session lacks the required backend permissions. Billing-mode
+  selection beyond fast guest and selected-seat device command result feedback
+  now have a first React implementation for the map panel, and the primary map
+  now has real problem/offline/free/active filters plus table view parity.
+  Map `Техрежим` now requires diagnostics/device-detail permissions and reads
+  the selected device detail plus branch diagnostics before confirming.
+  Booking now also disables mutation controls without `reservations.manage` or
+  when selected reservation state/seat availability makes the action invalid.
+  Settings now supports general staff creation, login/display-name editing, and
+  predefined branch-role reassignment through staff APIs, branch profile
+  name/city save through a new branch profile API,
+  POS category/product creation plus product update/deactivation through the
+  existing POS catalog endpoints, and inventory stock movement creation through
+  the existing stock-movement endpoint. The same Settings section now reads recent stock movement history
+  through `GET /api/branches/{branchId}/inventory/stock-movements` with
+  `inventory.view` gating, plus tariff/version creation/update/deactivation
+  and package definition creation/update/deactivation through the existing
+  tariff/package endpoints. Settings `Интеграции` now also
+  registers update packages, creates update rollouts, shows selected rollout
+  status/device snapshots, and changes package/rollout states through the
+  existing update endpoints. Logs now applies backend audit search filters for exact
+  action, outcome, target type, UTC date range, and limit, and selected Logs
+  event detail now uses the already loaded audit/diagnostics backend rows.
+  Logs source cards now filter the loaded event list by all/Agent/POS/
+  Operator/Platform, and operator period presets execute audit searches for
+  today, the last 24 hours, or the last 7 days. Logs export buttons now
+  download backend operator-action/shift CSV files and local audit/error JSON
+  bundles from loaded audit/diagnostics data.
+  Settings `Залы и ПК` now also
+  creates device enrollment codes, assigns enrolled devices to seats, and
+  opens device detail through existing device endpoints with status/version/
+  credential/app counts plus selected-device and branch-wide command history,
+  including credential rotation/revocation controls. The same Settings section now creates layout
+  zones and seats from operator-entered names/sort orders, updates selected
+  zone/seat names, sort orders, and seat zones, and safely deletes unused seats
+  plus empty zones through layout endpoints with `layout.manage` gating.
+  Payments now opens shifts through the existing open-shift API, closes the
+  current shift through the existing close-shift API with counted cash and a
+  closing note, and records cash movements through the existing shift cash
+  movement API. Payments selected operation detail now uses already loaded
+  backend sales/cash report rows for id, shift, source, and line/reason
+  context, and Payments report export buttons now download backend sales/cash/
+  shift CSV files plus a local discrepancy JSON. POS quick refund now calls the
+  existing
+  refund endpoint for the selected backend sale, and POS draft void creates a
+  backend draft from the current cart before calling the existing void endpoint.
+  POS recent receipt rows now open backend sale details through the existing
+  sale lookup endpoint and then read the linked receipt projection through the
+  existing receipt endpoint for receipt number/type/total display; the loaded
+  receipt can now be printed or exported locally from the POS detail panel. POS
+  cart customer lookup now searches backend players and attaches the selected
+  nullable `playerAccountId` to checkout and draft sale creation through the
+  shared POS sale contract and EF-backed Platform API persistence. POS cart
+  new-customer creation now posts to the existing branch player API and selects
+  the created player for checkout. POS quick deposit top-up now posts the
+  selected cart client's current cart total to the existing wallet top-up
+  endpoint with `billing.wallet.top_up` gating. POS quick stock write-off now
+  records an inventory stock movement through the existing stock-movement
+  endpoint with `inventory.stock.manage` gating. Clients profile now reads
+  active player packages through the existing player packages endpoint. Clients
+  package purchase now calls the existing package option and purchase endpoints
+  for the selected backend player with an explicit package selector, price/
+  minute preview, deposit guard, and active-package refresh after confirmation,
+  and Clients wallet top-up sends
+  operator-entered amount/reason to the existing top-up endpoint. Clients debt
+  payment sends operator-entered amount/reason to the
+  existing debt payment endpoint. Clients player creation sends
+  operator-entered name/phone to the existing player creation endpoint. Clients
+  reservation creation from the selected backend player now stays disabled
+  unless the restored staff session includes `reservations.manage`. Settings
+  device setup now reads branch device inventory through
+  `/api/branches/{branchId}/devices`, lets operators select a device without
+  typing a GUID, and then opens the existing device detail/command/credential
+  tools plus selected-device command history from
+  `/api/devices/{deviceId}/commands`. A focused pilot-hardening plan now exists
+  at `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`. Its
+  first slice removes signed-in POS/Clients fixture leakage for authoritative
+  empty backend responses and restricts WebView2 dev-server URLs to loopback.
+  Staging smoke of these extra workspaces still remains before
+  the WebView2/React app covers the full pilot day flow. Fixture-only/
+  missing-contract commands should report backend failures rather than showing
+  backend success, and signed-in workspace status copy now reserves fixture data
+  for explicit `Dev demo` browser-dev/no-backend fallback states instead of
+  normal operator-facing labels. Packaged `webview2` auth failures also project
+  host-bridge availability problems into operator-facing restart/check-host copy
+  while browser-dev keeps the raw bridge diagnostic for local smoke. Payments
+  and Logs now distinguish successful empty backend responses from loading,
+  failed, and search/filter-miss states instead of using generic
+  `Нет backend ...` placeholders.
+  The current WPF implementation remains a parity reference and temporary legacy
+  source until the WebView2/React Operator App covers the pilot day flow.
+- Staff management now has general Operator App creation, login/display-name
+  editing, predefined branch-role reassignment, activation/deactivation, and
+  password reset paths.
+- Custom roles and arbitrary permission-set editing are not implemented.
 - Branch layout management is implemented as a minimum API path on `main`;
-  the Operator App has a minimum one-zone/seats Pilot Setup panel, but not a
-  general layout editor.
+  the Operator App now has Settings creation/update controls for zone and seat
+  names, sort orders, seat moves, unused-seat deletion, and empty-zone deletion,
+  but not visual drag/drop layout editing or soft archive flows.
 - Device-seat assignment has a staff-authorized API path and staging smoke
-  setup integration plus optional assignment in the Pilot Setup panel, but no
-  general device/seat management UI yet.
+  setup integration plus Settings inventory/assignment/detail/command/
+  command-history/credential controls and a branch-wide command-history
+  browser. Broader non-command device telemetry/event browsing is still
+  missing.
 - Pilot branch setup can now run through either the Operator App Pilot Setup
   panel or the Platform API script fallback. Commercial production still needs
-  broader operator-safe configuration screens.
+  the internal SaaS Control Plane for platform-owner tenant onboarding/support
+  plus broader operator-safe configuration screens inside the native Operator
+  App.
 
 ### Observability And Support
 
@@ -312,15 +474,57 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. Operator App deployed-backend smoke
+1. Operator App WebView2/React migration
 
-   Use the Operator App against the deployed staging backend to verify the
-   practical pilot day flow: sign-in, floor map, Pilot Setup panel, shift/POS
-   basics, session actions against the current staging device/seat state, and
-   actionable errors. Local builds can target staging with
-   `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Deploy the
-   2026-05-20 session-start usability fix before retesting the fast
-   guest/no-ledger session start path on staging.
+   Continue
+   `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
+   The native WebView2 host, React/TypeScript app foundation, typed config
+   bootstrap, native auth/token bridge, protected staff sign-in, typed
+   frontend API client boundary, local floor-map concept UI, backend-backed
+   primary floor-map loading, SignalR device-status state, and
+   backend-confirmed selected-seat start/extend/transfer/end actions now exist.
+   POS, clients, payments, logs, and settings now have first-pass backend data
+   and action wiring where current backend contracts exist; Booking now also has
+   backend reservation contract wiring for search/create/update/confirm/seat/cancel
+   flows. Dashboard now has first-pass backend metrics, and the React shell now
+   disables workspace navigation plus selected-seat session actions based on
+   restored staff permissions. The map panel now also supports guest/prepaid/
+   package/postpaid billing selection, selected-seat device command status
+   feedback, real map filters/table view parity, Booking permission/state
+   hardening, Settings staff creation/profile editing/role reassignment/lifecycle controls,
+   branch profile save,
+   Settings layout zone/seat creation/update/delete, Settings POS
+   category/product creation/update/deactivation, Settings stock movement creation/history,
+   Settings tariff/package definition creation/update/deactivation, Settings update package/rollout controls/detail, Settings
+   device enrollment/seat assignment/credential lifecycle, Dashboard export download,
+   Payments open/close-shift, cash-movement wiring, selected-operation detail,
+   and report export downloads,
+   Logs backend audit/date
+   filters, selected-event detail, source-card filtering, period presets, and
+   export downloads, POS
+   selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
+   POS selected-customer/new-customer checkout/wallet top-up/stock write-off,
+   Clients wallet top-up/debt-payment forms, Clients new-player form, Clients
+   active-package profile detail, Clients package purchase selector/confirmation,
+   Settings branch device inventory, selected-device command history,
+   branch-wide device command history, and Settings safe layout deletion. The
+   first pilot-hardening slice now removes POS/Clients empty-backend fixture
+   leakage and loopback-locks the WebView2 dev-server URL. A follow-up slice now
+   adds two-step confirmation guards for session end, POS refund/void, shift
+   close, device credential revoke, layout deletion, and update package/rollout
+   state changes. Next continue from
+   `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`: staging
+   smoke across backend-backed workspaces, de-technicalized primary copy,
+   frontend module split, stronger typed contracts, React hotkeys, and follow-up
+   fixes found with real staging data. Before running branch-level staging
+   smoke, remember that the current Coolify staging app is configured to deploy
+   `main`; branch-only routes and migrations must be merged or intentionally
+   deployed with backup/migration handling first.
+   Local builds must
+   still target staging with
+   `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
+   GUID/form surfaces in the main operator path as usability defects unless
+   they are explicitly advanced technician tools.
 
 2. Operator-facing management expansion
 
@@ -344,9 +548,10 @@ Minimum bar:
 
 ## Decision Rules
 
-- Do not add web admin, local server, non-Windows agents, microservices, kernel
-  driver, fiscal integrations, or mobile app to solve production readiness
-  unless the PRD and architecture spec are updated first.
+- Do not add local server, non-Windows agents, microservices, kernel driver,
+  fiscal integrations, mobile app, or customer browser operational admin as the
+  primary club UI to solve production readiness unless the PRD and architecture
+  spec are updated first.
 - Prefer runbooks and explicit release gates before adding provider-specific
   SDKs.
 - Prefer one real-device smoke loop over more theoretical docs once staging is

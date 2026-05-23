@@ -82,6 +82,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<DeviceUpdateStatusEntity> DeviceUpdateStatuses => Set<DeviceUpdateStatusEntity>();
 
+    public DbSet<ReservationEntity> Reservations => Set<ReservationEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -96,6 +98,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.ToTable("branches");
             entity.HasKey(branch => branch.BranchId);
             entity.Property(branch => branch.Name).HasMaxLength(160).IsRequired();
+            entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.BranchId }).IsUnique();
         });
 
@@ -469,6 +472,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 sale.ShiftId,
                 sale.CreatedAtUtc
             });
+            entity.HasIndex(sale => sale.PlayerAccountId);
             entity.HasIndex(sale => sale.State);
         });
 
@@ -585,6 +589,39 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 status.BranchId,
                 status.Status,
                 status.UpdatedAtUtc
+            });
+        });
+
+        modelBuilder.Entity<ReservationEntity>(entity =>
+        {
+            entity.ToTable("reservations");
+            entity.HasKey(reservation => reservation.ReservationId);
+            entity.Property(reservation => reservation.CustomerName).HasMaxLength(160).IsRequired();
+            entity.Property(reservation => reservation.PhoneNumber).HasMaxLength(64);
+            entity.Property(reservation => reservation.State).HasMaxLength(32).IsRequired();
+            entity.Property(reservation => reservation.Source).HasMaxLength(32).IsRequired();
+            entity.Property(reservation => reservation.Note).HasMaxLength(512).IsRequired();
+            entity.Property(reservation => reservation.CancelReason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(reservation => new
+            {
+                reservation.OrganizationId,
+                reservation.BranchId,
+                reservation.StartsAtUtc
+            });
+            entity.HasIndex(reservation => new
+            {
+                reservation.OrganizationId,
+                reservation.BranchId,
+                reservation.SeatId,
+                reservation.StartsAtUtc,
+                reservation.EndsAtUtc
+            });
+            entity.HasIndex(reservation => new
+            {
+                reservation.OrganizationId,
+                reservation.BranchId,
+                reservation.State,
+                reservation.StartsAtUtc
             });
         });
     }

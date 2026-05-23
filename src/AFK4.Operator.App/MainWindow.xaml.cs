@@ -72,16 +72,18 @@ public partial class MainWindow : Window
         floorMapViewModel = new FloorMapWorkspaceViewModel(
             floorMapApiClient,
             sessionApiClient,
-            new GuidIdempotencyKeyFactory());
-        posViewModel = new PosWorkspaceViewModel(posApiClient, new GuidIdempotencyKeyFactory());
+            new GuidIdempotencyKeyFactory(),
+            options.CurrencyCode);
+        posViewModel = new PosWorkspaceViewModel(posApiClient, new GuidIdempotencyKeyFactory(), options.CurrencyCode);
         shiftViewModel = new ShiftWorkspaceViewModel(
             shiftApiClient,
             new GuidIdempotencyKeyFactory(),
-            new SaveFileReportCsvFileWriter());
+            new SaveFileReportCsvFileWriter(),
+            options.CurrencyCode);
         shellViewModel = new OperatorShellViewModel(
             new SignInViewModel(authApiClient),
             floorMapViewModel,
-            new PlayerSearchViewModel(playerApiClient, new GuidIdempotencyKeyFactory()),
+            new PlayerSearchViewModel(playerApiClient, new GuidIdempotencyKeyFactory(), options.CurrencyCode),
             posViewModel,
             shiftViewModel,
             settingsViewModel);

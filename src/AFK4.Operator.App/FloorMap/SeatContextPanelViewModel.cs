@@ -5,19 +5,25 @@ using System.Windows.Input;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Operator.App.Sessions;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Operator.App.FloorMap;
 
 public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
 {
-    private const string WaitingForBackendConfirmation = "Waiting for backend confirmation";
+    private const string WaitingForBackendConfirmation = "Ожидаем подтверждение сервера";
+    private const string DefaultCurrencyCode = "TJS";
+    private const string ServerReady = "Ожидает действия оператора";
+    private const string ServerNotSent = "Команда не отправлена";
+    private const string DeviceNoCommand = "Команд нет";
+    private const string DeviceNotSent = "Команда не отправлена";
     private static readonly IReadOnlyList<BillingModeOptionViewModel> BillingModes =
     [
-        new("Guest / no ledger", "", "Fast smoke start; no player account or ledger entry."),
-        new("Postpaid debt", BillingModeNames.PostpaidDebt, "Requires player account and tariff version."),
-        new("Prepaid wallet", BillingModeNames.PrepaidWallet, "Requires player account, tariff version, and wallet balance."),
-        new("Package", BillingModeNames.Package, "Requires player account and player package.")
+        new("Гость без учета", "", "Быстрый старт без аккаунта игрока и записи в ledger."),
+        new("Постоплата в долг", BillingModeNames.PostpaidDebt, "Нужны аккаунт игрока и версия тарифа."),
+        new("Предоплата кошельком", BillingModeNames.PrepaidWallet, "Нужны аккаунт игрока, версия тарифа и баланс."),
+        new("Пакет", BillingModeNames.Package, "Нужны аккаунт игрока и пакет игрока.")
     ];
 
     private readonly IOperatorSessionApiClient apiClient;
@@ -25,8 +31,12 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     private readonly Func<CancellationToken, Task>? refreshAfterSuccess;
     private readonly AsyncRelayCommand startGuestSessionCommand;
     private readonly AsyncRelayCommand extendSessionCommand;
+    private readonly AsyncRelayCommand extendBy15Command;
+    private readonly AsyncRelayCommand extendBy30Command;
     private readonly AsyncRelayCommand transferSessionCommand;
     private readonly AsyncRelayCommand endSessionCommand;
+    private readonly RelayCommand selectBillingModeCommand;
+    private readonly string currencyCode;
     private Guid? organizationId;
     private Guid? branchId;
     private FloorMapSeatViewModel? selectedSeat;
@@ -38,25 +48,38 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     private string tariffVersionIdText = "";
     private string playerPackageIdText = "";
     private string targetSeatIdText = "";
-    private string reason = "operator request";
+    private string reason = "запрос оператора";
     private string? errorMessage;
     private string? pendingOperation;
     private string? statusMessage;
+    private string serverConfirmationStatus = "Выберите место";
+    private string deviceCommandStatus = "Выберите место";
     private bool isBusy;
 
     public SeatContextPanelViewModel(
         IOperatorSessionApiClient apiClient,
         IIdempotencyKeyFactory idempotencyKeyFactory,
-        Func<CancellationToken, Task>? refreshAfterSuccess = null)
+        Func<CancellationToken, Task>? refreshAfterSuccess = null,
+        string currencyCode = DefaultCurrencyCode)
     {
         this.apiClient = apiClient;
         this.idempotencyKeyFactory = idempotencyKeyFactory;
         this.refreshAfterSuccess = refreshAfterSuccess;
+        this.currencyCode = string.IsNullOrWhiteSpace(currencyCode) ? DefaultCurrencyCode : currencyCode.Trim().ToUpperInvariant();
 
         startGuestSessionCommand = new AsyncRelayCommand(StartGuestSessionAsync, () => !IsBusy && CanStartGuestSession);
         extendSessionCommand = new AsyncRelayCommand(ExtendSessionAsync, () => !IsBusy && HasActiveSession);
+        extendBy15Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(15, token), () => !IsBusy && HasActiveSession);
+        extendBy30Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(30, token), () => !IsBusy && HasActiveSession);
         transferSessionCommand = new AsyncRelayCommand(TransferSessionAsync, () => !IsBusy && HasActiveSession);
         endSessionCommand = new AsyncRelayCommand(EndSessionAsync, () => !IsBusy && HasActiveSession);
+        selectBillingModeCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is BillingModeOptionViewModel option)
+            {
+                BillingMode = option.Value;
+            }
+        });
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -66,27 +89,103 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         get => selectedSeat;
         private set
         {
-            if (SetField(ref selectedSeat, value))
+            if (ReferenceEquals(selectedSeat, value))
             {
-                OnPropertyChanged(nameof(HasActiveSession));
-                OnPropertyChanged(nameof(CanStartGuestSession));
-                OnPropertyChanged(nameof(SelectedSeatSummary));
-                NotifyCommandStates();
+                return;
             }
+
+            if (selectedSeat is not null)
+            {
+                selectedSeat.PropertyChanged -= OnSelectedSeatPropertyChanged;
+            }
+
+            selectedSeat = value;
+
+            if (selectedSeat is not null)
+            {
+                selectedSeat.PropertyChanged += OnSelectedSeatPropertyChanged;
+            }
+
+            OnPropertyChanged();
+            NotifySelectedSeatState();
         }
     }
 
+    public bool HasSelectedSeat => SelectedSeat is not null;
+
     public bool HasActiveSession => SelectedSeat?.ActiveSessionId is not null;
 
-    public bool CanStartGuestSession => SelectedSeat is not null && !HasActiveSession;
+    public bool CanStartGuestSession => SelectedSeat?.CanStartSession == true;
 
     public string SelectedSeatSummary => SelectedSeat is null
-        ? "Select a seat from the floor."
-        : $"{SelectedSeat.Name} - {SelectedSeat.State}";
+        ? "ПК не выбран"
+        : $"{SelectedSeat.Name} - {SelectedSeat.DisplayState}";
+
+    public string SelectedSeatDetails => SelectedSeat is null
+        ? "Выберите ПК на карте зала, чтобы запустить или управлять сессией."
+        : $"{SelectedSeat.Zone} · {SelectedSeat.DeviceSummary}";
+
+    public string SeatActionTitle => SelectedSeat is null
+        ? "Выберите ПК"
+        : HasActiveSession ? "Управление активной сессией" : "Запуск сессии";
+
+    public string SeatActionHint => SelectedSeat is null
+        ? "Карта зала - основной экран оператора. Выберите место, чтобы увидеть действия."
+        : HasActiveSession
+            ? "Сессия активна. Завершите ее при уходе игрока или продлите время."
+            : "Быстрый гостевой старт не пишет ledger. Платные режимы используйте только с аккаунтом игрока.";
+
+    public string ActiveSessionSummary => HasActiveSession
+        ? (SelectedSeat?.RemainingTimeText is { Length: > 0 } remaining ? remaining : "Сессия активна")
+        : "Активной сессии нет";
+
+    public string SelectedSeatName => SelectedSeat?.Name ?? "Место не выбрано";
+
+    public string SelectedSeatStatusText => SelectedSeat?.DisplayState ?? "нет выбора";
+
+    public string SelectedSeatStatusForeground => SelectedSeat?.StateForeground ?? "#475467";
+
+    public string SelectedSeatMetaLine => SelectedSeat is null
+        ? "Выберите ПК на карте зала"
+        : $"{SelectedSeat.Zone} · {SelectedSeat.DeviceVersionSummary}";
+
+    public string ActiveSessionTimerText => HasActiveSession
+        ? FormatTimer(SelectedSeat?.RemainingSeconds)
+        : "--:--";
+
+    public string ActiveSessionLeaseText => HasActiveSession
+        ? "lease ok"
+        : "lease none";
+
+    public double ActiveSessionProgressValue
+    {
+        get
+        {
+            if (!HasActiveSession || SelectedSeat?.RemainingSeconds is not { } remainingSeconds)
+            {
+                return 0;
+            }
+
+            return Math.Clamp(remainingSeconds / 3600d * 100d, 0d, 100d);
+        }
+    }
+
+    public string MoneyImpactText => $"0.00 {currencyCode}";
+
+    public string LedgerImpactText => string.IsNullOrWhiteSpace(BillingMode)
+        ? "ledger не пишется"
+        : "ledger будет записан";
+
+    public string DeviceConnectivityLine => SelectedSeat is null
+        ? "нет выбранного устройства"
+        : $"{(SelectedSeat.IsOnline ? "online" : "offline")} · locked={SelectedSeat.IsLocked.ToString().ToLowerInvariant()} · commands {(DeviceCommandStatus == DeviceNoCommand ? "ok" : DeviceCommandStatus)}";
 
     public IReadOnlyList<BillingModeOptionViewModel> BillingModeOptions => BillingModes;
 
     public bool IsPlayerBillingRequired => !string.IsNullOrWhiteSpace(BillingMode);
+
+    public string BillingModeDescription =>
+        BillingModes.FirstOrDefault(mode => mode.Value == BillingMode)?.Description ?? BillingModes[0].Description;
 
     public string PlayerAccountIdText
     {
@@ -114,6 +213,8 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             if (SetField(ref billingMode, value))
             {
                 OnPropertyChanged(nameof(IsPlayerBillingRequired));
+                OnPropertyChanged(nameof(BillingModeDescription));
+                OnPropertyChanged(nameof(LedgerImpactText));
             }
         }
     }
@@ -182,9 +283,15 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
 
     public ICommand ExtendSessionCommand => extendSessionCommand;
 
+    public ICommand ExtendBy15Command => extendBy15Command;
+
+    public ICommand ExtendBy30Command => extendBy30Command;
+
     public ICommand TransferSessionCommand => transferSessionCommand;
 
     public ICommand EndSessionCommand => endSessionCommand;
+
+    public ICommand SelectBillingModeCommand => selectBillingModeCommand;
 
     public void ApplyContext(Guid organizationId, Guid branchId)
     {
@@ -198,30 +305,78 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         ErrorMessage = null;
         PendingOperation = null;
         StatusMessage = null;
+        ServerConfirmationStatus = seat is null ? "Выберите место" : ServerReady;
+        DeviceCommandStatus = seat is null
+            ? "Выберите место"
+            : seat.HasDevice ? DeviceNoCommand : "Устройство не назначено";
+    }
+
+    private void OnSelectedSeatPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is null
+            or nameof(FloorMapSeatViewModel.CanStartSession)
+            or nameof(FloorMapSeatViewModel.DisplayState)
+            or nameof(FloorMapSeatViewModel.StateForeground)
+            or nameof(FloorMapSeatViewModel.DeviceSummary)
+            or nameof(FloorMapSeatViewModel.DeviceVersionSummary)
+            or nameof(FloorMapSeatViewModel.RemainingTimeText)
+            or nameof(FloorMapSeatViewModel.IsOnline)
+            or nameof(FloorMapSeatViewModel.IsLocked)
+            or nameof(FloorMapSeatViewModel.RemainingSeconds))
+        {
+            NotifySelectedSeatState();
+        }
+    }
+
+    private void NotifySelectedSeatState()
+    {
+        OnPropertyChanged(nameof(HasActiveSession));
+        OnPropertyChanged(nameof(HasSelectedSeat));
+        OnPropertyChanged(nameof(CanStartGuestSession));
+        OnPropertyChanged(nameof(SelectedSeatSummary));
+        OnPropertyChanged(nameof(SelectedSeatDetails));
+        OnPropertyChanged(nameof(SeatActionTitle));
+        OnPropertyChanged(nameof(SeatActionHint));
+        OnPropertyChanged(nameof(ActiveSessionSummary));
+        OnPropertyChanged(nameof(SelectedSeatName));
+        OnPropertyChanged(nameof(SelectedSeatStatusText));
+        OnPropertyChanged(nameof(SelectedSeatStatusForeground));
+        OnPropertyChanged(nameof(SelectedSeatMetaLine));
+        OnPropertyChanged(nameof(ActiveSessionTimerText));
+        OnPropertyChanged(nameof(ActiveSessionLeaseText));
+        OnPropertyChanged(nameof(ActiveSessionProgressValue));
+        OnPropertyChanged(nameof(DeviceConnectivityLine));
+        NotifyCommandStates();
     }
 
     public async Task StartGuestSessionAsync(CancellationToken cancellationToken)
     {
         if (!TryGetSelectedSeat(out var seat) ||
             !TryGetOperatorContext(out var organizationIdValue, out var branchIdValue) ||
-            !TryValidatePositive(DurationMinutes, "Duration must be greater than zero.") ||
+            !TryValidatePositive(DurationMinutes, "Длительность должна быть больше нуля.") ||
             !TryValidateTariffRuleVersion() ||
-            !TryParseOptionalGuid(PlayerAccountIdText, "Player account id", out var playerAccountId) ||
-            !TryParseOptionalGuid(TariffVersionIdText, "Tariff version id", out var tariffVersionId) ||
-            !TryParseOptionalGuid(PlayerPackageIdText, "Player package id", out var playerPackageId))
+            !TryParseOptionalGuid(PlayerAccountIdText, "ID аккаунта игрока", out var playerAccountId) ||
+            !TryParseOptionalGuid(TariffVersionIdText, "ID версии тарифа", out var tariffVersionId) ||
+            !TryParseOptionalGuid(PlayerPackageIdText, "ID пакета игрока", out var playerPackageId))
         {
             return;
         }
 
         if (seat.ActiveSessionId is not null)
         {
-            SetValidationError("Selected seat already has an active session.");
+            SetValidationError("На выбранном месте уже есть активная сессия.");
+            return;
+        }
+
+        if (!seat.CanStartSession)
+        {
+            SetValidationError("Место не готово к запуску сессии.");
             return;
         }
 
         if (IsPlayerBillingRequired && playerAccountId is null)
         {
-            SetValidationError("Choose Guest / no ledger for a fast guest start, or enter a player account id for billed modes.");
+            SetValidationError("Для быстрого старта выберите гостя без учета или укажите аккаунт игрока для платного режима.");
             return;
         }
 
@@ -232,7 +387,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             TariffRuleVersionId.Trim(),
             idempotencyKeyFactory.Create("session-start"),
             playerAccountId,
-                BillingMode.Trim(),
+            BillingMode.Trim(),
             tariffVersionId,
             playerPackageId);
 
@@ -244,11 +399,11 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     public async Task ExtendSessionAsync(CancellationToken cancellationToken)
     {
         if (!TryGetActiveSession(out var sessionId) ||
-            !TryValidatePositive(AdditionalMinutes, "Additional minutes must be greater than zero.") ||
+            !TryValidatePositive(AdditionalMinutes, "Дополнительные минуты должны быть больше нуля.") ||
             !TryValidateTariffRuleVersion() ||
-            !TryParseOptionalGuid(PlayerAccountIdText, "Player account id", out var playerAccountId) ||
-            !TryParseOptionalGuid(TariffVersionIdText, "Tariff version id", out var tariffVersionId) ||
-            !TryParseOptionalGuid(PlayerPackageIdText, "Player package id", out var playerPackageId))
+            !TryParseOptionalGuid(PlayerAccountIdText, "ID аккаунта игрока", out var playerAccountId) ||
+            !TryParseOptionalGuid(TariffVersionIdText, "ID версии тарифа", out var tariffVersionId) ||
+            !TryParseOptionalGuid(PlayerPackageIdText, "ID пакета игрока", out var playerPackageId))
         {
             return;
         }
@@ -267,6 +422,12 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             cancellationToken);
     }
 
+    public Task ExtendByMinutesAsync(int minutes, CancellationToken cancellationToken)
+    {
+        AdditionalMinutes = minutes;
+        return ExtendSessionAsync(cancellationToken);
+    }
+
     public async Task TransferSessionAsync(CancellationToken cancellationToken)
     {
         if (!TryGetActiveSession(out var sessionId))
@@ -276,7 +437,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
 
         if (!Guid.TryParse(TargetSeatIdText, out var targetSeatId))
         {
-            SetValidationError("Target seat id is required.");
+            SetValidationError("Укажите ID места для переноса.");
             return;
         }
 
@@ -297,7 +458,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         }
 
         var request = new EndSessionRequest(
-            string.IsNullOrWhiteSpace(Reason) ? "operator request" : Reason.Trim(),
+            string.IsNullOrWhiteSpace(Reason) ? "запрос оператора" : Reason.Trim(),
             idempotencyKeyFactory.Create("session-end"));
 
         await ExecuteBackendCommandAsync(
@@ -312,24 +473,30 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         ErrorMessage = null;
         StatusMessage = null;
         PendingOperation = WaitingForBackendConfirmation;
+        ServerConfirmationStatus = "Ожидаем подтверждение сервера";
+        DeviceCommandStatus = "Команда еще не отправлена";
         IsBusy = true;
 
         try
         {
-            await execute(cancellationToken);
+            var response = await execute(cancellationToken);
 
             if (refreshAfterSuccess is not null)
             {
                 await refreshAfterSuccess(cancellationToken);
             }
 
-            PendingOperation = WaitingForBackendConfirmation;
-            StatusMessage = "Session command accepted.";
+            PendingOperation = null;
+            ServerConfirmationStatus = "Подтверждено сервером";
+            DeviceCommandStatus = FormatDeviceCommandStatus(response.DeviceCommands);
+            StatusMessage = "Команда сессии принята.";
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
             ErrorMessage = exception.Message;
             PendingOperation = null;
+            ServerConfirmationStatus = "Ошибка сервера";
+            DeviceCommandStatus = DeviceNotSent;
         }
         finally
         {
@@ -341,7 +508,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (SelectedSeat is null)
         {
-            SetValidationError("Select a seat first.");
+            SetValidationError("Сначала выберите место.");
             seat = null!;
             return false;
         }
@@ -354,7 +521,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (SelectedSeat?.ActiveSessionId is null)
         {
-            SetValidationError("Selected seat has no active session.");
+            SetValidationError("На выбранном месте нет активной сессии.");
             sessionId = Guid.Empty;
             return false;
         }
@@ -367,7 +534,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (organizationId is null || branchId is null)
         {
-            SetValidationError("Operator context is not loaded.");
+            SetValidationError("Контекст оператора не загружен.");
             organizationIdValue = Guid.Empty;
             branchIdValue = Guid.Empty;
             return false;
@@ -393,7 +560,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     {
         if (string.IsNullOrWhiteSpace(TariffRuleVersionId))
         {
-            SetValidationError("Tariff rule version is required.");
+            SetValidationError("Версия тарифного правила обязательна.");
             return false;
         }
 
@@ -414,7 +581,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             return true;
         }
 
-        SetValidationError($"{fieldName} must be a valid GUID.");
+        SetValidationError($"{fieldName} должен быть корректным GUID.");
         value = null;
         return false;
     }
@@ -424,12 +591,73 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         ErrorMessage = message;
         StatusMessage = null;
         PendingOperation = null;
+        ServerConfirmationStatus = ServerNotSent;
+        DeviceCommandStatus = DeviceNotSent;
+    }
+
+    public string ServerConfirmationStatus
+    {
+        get => serverConfirmationStatus;
+        private set => SetField(ref serverConfirmationStatus, value);
+    }
+
+    public string DeviceCommandStatus
+    {
+        get => deviceCommandStatus;
+        private set
+        {
+            if (SetField(ref deviceCommandStatus, value))
+            {
+                OnPropertyChanged(nameof(DeviceConnectivityLine));
+            }
+        }
+    }
+
+    private static string FormatTimer(int? seconds)
+    {
+        if (seconds is null)
+        {
+            return "∞";
+        }
+
+        var safeSeconds = Math.Max(0, seconds.Value);
+        var totalMinutes = safeSeconds / 60;
+        return $"{totalMinutes / 60:00}:{totalMinutes % 60:00}";
+    }
+
+    private static string FormatDeviceCommandStatus(IReadOnlyList<DeviceCommandDto> commands)
+    {
+        if (commands.Count == 0)
+        {
+            return "Команда не требуется";
+        }
+
+        if (commands.Count == 1)
+        {
+            return $"{ToDisplayCommandType(commands[0].Type)} отправлена Agent";
+        }
+
+        return $"Отправлено команд Agent: {commands.Count}";
+    }
+
+    private static string ToDisplayCommandType(string commandType)
+    {
+        return commandType.Trim().ToLowerInvariant() switch
+        {
+            "lock" => "lock",
+            "unlock" => "unlock",
+            "lease_refresh" => "lease refresh",
+            "restart_shell" => "restart Shell",
+            _ => commandType.Trim()
+        };
     }
 
     private void NotifyCommandStates()
     {
         startGuestSessionCommand.NotifyCanExecuteChanged();
         extendSessionCommand.NotifyCanExecuteChanged();
+        extendBy15Command.NotifyCanExecuteChanged();
+        extendBy30Command.NotifyCanExecuteChanged();
         transferSessionCommand.NotifyCanExecuteChanged();
         endSessionCommand.NotifyCanExecuteChanged();
     }

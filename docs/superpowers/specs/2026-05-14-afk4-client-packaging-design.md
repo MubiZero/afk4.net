@@ -1,7 +1,7 @@
 # AFK4 Client Packaging Design
 
 Status: approved Phase 13 design
-Last updated: 2026-05-14
+Last updated: 2026-05-20
 
 ## Purpose
 
@@ -33,11 +33,17 @@ AFK4 uses WiX-authored MSI packages as the MVP baseline for Windows clients.
 ### Operator App Installer
 
 The Operator App installer packages `AFK4.Operator.App` as a Windows desktop
-application for cashier, manager, technician, and owner workstations.
+application for cashier, manager, technician, and owner workstations. The
+approved UI runtime is a .NET desktop host with WebView2 and built
+React/TypeScript assets.
 
 Rules:
 
 - install with a predictable product identity and upgrade code;
+- install or bootstrap the required WebView2 Runtime according to Microsoft
+  supported redistribution guidance;
+- install the built frontend assets alongside the desktop host without
+  requiring a separate local web server;
 - install without embedding tenant, branch, staff, device, or signing secrets;
 - support silent install for managed club workstations;
 - support repair, uninstall, and major upgrades through standard MSI behavior;
@@ -123,6 +129,7 @@ developers use.
 Initial CI responsibilities:
 
 - restore .NET and WiX tools;
+- restore and build the Operator App frontend toolchain;
 - build and test the solution;
 - publish Windows client outputs;
 - build Operator App MSI and gaming-PC MSI artifacts;
@@ -165,4 +172,3 @@ This decision does not introduce:
 - provider-specific object-store/CDN SDKs;
 - committed signing keys, certificates, package artifacts, or generated
   release JSON.
-

@@ -155,6 +155,125 @@ public sealed class EfTariffServiceTests
     }
 
     [Fact]
+    public async Task UpdateTariffAsync_RenamesAndDeactivatesTariff()
+    {
+        await using var db = CreateDbContext();
+        var tariff = await SeedTariffAsync(db);
+        var service = CreateService(db);
+
+        var result = await service.UpdateTariffAsync(
+            TestIds.BranchId,
+            tariff.TariffId,
+            ActorStaffUserId,
+            new UpdateTariffRequest(TestIds.OrganizationId, " Standard Plus ", false),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal("Standard Plus", result.Response.Name);
+        Assert.False(result.Response.IsActive);
+
+        var persisted = await db.Tariffs.SingleAsync(candidate => candidate.TariffId == tariff.TariffId);
+        Assert.Equal("Standard Plus", persisted.Name);
+        Assert.False(persisted.IsActive);
+    }
+
+    [Fact]
+    public async Task UpdateTariffVersionAsync_UpdatesUnusedVersionAndCanRetire()
+    {
+        await using var db = CreateDbContext();
+        var tariff = await SeedTariffAsync(db);
+        var version = await SeedTariffVersionAsync(db, tariff.TariffId, effectiveFromUtc: Now);
+        var service = CreateService(db);
+
+        var update = await service.UpdateTariffVersionAsync(
+            TestIds.BranchId,
+            tariff.TariffId,
+            version.TariffVersionId,
+            ActorStaffUserId,
+            new UpdateTariffVersionRequest(
+                TestIds.OrganizationId,
+                "usd",
+                75,
+                20,
+                10,
+                DateTimeOffset.Parse("2026-05-13T09:30:00Z"),
+                true),
+            CancellationToken.None);
+
+        Assert.True(update.Succeeded);
+        Assert.NotNull(update.Response);
+        Assert.Equal("USD", update.Response.CurrencyCode);
+        Assert.Equal(75, update.Response.PricePerMinuteMinorUnits);
+        Assert.Equal(20, update.Response.MinimumBillableMinutes);
+        Assert.Equal(10, update.Response.RoundingIncrementMinutes);
+        Assert.Null(update.Response.RetiredAtUtc);
+
+        var retire = await service.UpdateTariffVersionAsync(
+            TestIds.BranchId,
+            tariff.TariffId,
+            version.TariffVersionId,
+            ActorStaffUserId,
+            new UpdateTariffVersionRequest(
+                TestIds.OrganizationId,
+                "USD",
+                75,
+                20,
+                10,
+                DateTimeOffset.Parse("2026-05-13T09:30:00Z"),
+                false),
+            CancellationToken.None);
+
+        Assert.True(retire.Succeeded);
+        Assert.NotNull(retire.Response);
+        Assert.Equal(Now, retire.Response.RetiredAtUtc);
+    }
+
+    [Fact]
+    public async Task UpdateTariffVersionAsync_RejectsMaterialChangeWhenVersionHasSessionUse()
+    {
+        await using var db = CreateDbContext();
+        var tariff = await SeedTariffAsync(db);
+        var version = await SeedTariffVersionAsync(db, tariff.TariffId, effectiveFromUtc: Now);
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = Guid.NewGuid(),
+            DeviceId = Guid.NewGuid(),
+            CreatedByStaffUserId = ActorStaffUserId,
+            PlayerKind = "guest",
+            TariffRuleVersionId = version.TariffVersionId.ToString("D"),
+            State = "ended",
+            RequestedAtUtc = Now,
+            UpdatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+
+        var result = await service.UpdateTariffVersionAsync(
+            TestIds.BranchId,
+            tariff.TariffId,
+            version.TariffVersionId,
+            ActorStaffUserId,
+            new UpdateTariffVersionRequest(
+                TestIds.OrganizationId,
+                "TJS",
+                99,
+                30,
+                15,
+                Now,
+                true),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.NotFound);
+        var persisted = await db.TariffVersions.SingleAsync(candidate => candidate.TariffVersionId == version.TariffVersionId);
+        Assert.Equal(50, persisted.PricePerMinuteMinorUnits);
+    }
+
+    [Fact]
     public async Task CalculateAsync_PreservesVersionAndRoundsBillableMinutes()
     {
         await using var db = CreateDbContext();

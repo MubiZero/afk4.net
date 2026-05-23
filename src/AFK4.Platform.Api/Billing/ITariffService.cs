@@ -16,6 +16,21 @@ public interface ITariffService
         CreateTariffVersionRequest request,
         CancellationToken cancellationToken);
 
+    Task<BillingCommandServiceResult<TariffDto>> UpdateTariffAsync(
+        Guid branchId,
+        Guid tariffId,
+        Guid actorStaffUserId,
+        UpdateTariffRequest request,
+        CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<TariffVersionDto>> UpdateTariffVersionAsync(
+        Guid branchId,
+        Guid tariffId,
+        Guid tariffVersionId,
+        Guid actorStaffUserId,
+        UpdateTariffVersionRequest request,
+        CancellationToken cancellationToken);
+
     Task<TariffCalculationResult?> CalculateAsync(
         Guid branchId,
         CalculateTariffRequest request,

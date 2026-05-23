@@ -15,14 +15,15 @@ namespace AFK4.Operator.App.Shifts;
 
 public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
 {
-    private const string WaitingForBackendConfirmation = "Waiting for backend confirmation";
-    private const string LoadingReports = "Loading reports";
-    private const string ExportingReportCsv = "Exporting report CSV";
-    private const string DefaultCurrencyCode = "USD";
+    private const string WaitingForBackendConfirmation = "Ожидаем подтверждение сервера";
+    private const string LoadingReports = "Загружаем отчеты";
+    private const string ExportingReportCsv = "Экспортируем CSV отчета";
+    private const string DefaultCurrencyCode = "TJS";
 
     private readonly IOperatorShiftApiClient apiClient;
     private readonly IIdempotencyKeyFactory idempotencyKeyFactory;
     private readonly IReportCsvFileWriter reportCsvFileWriter;
+    private readonly string currencyCode;
     private readonly AsyncRelayCommand loadCurrentShiftCommand;
     private readonly AsyncRelayCommand openShiftCommand;
     private readonly AsyncRelayCommand recordCashMovementCommand;
@@ -46,11 +47,11 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     private string reportFromUtcText = string.Empty;
     private string reportToUtcText = string.Empty;
     private string reportLimitText = "50";
-    private string shiftReportSummary = "No shift report loaded.";
-    private string salesReportSummary = "No sales report loaded.";
-    private string gameplayTimeReportSummary = "No gameplay time report loaded.";
-    private string cashOperationReportSummary = "No cash operation report loaded.";
-    private string operatorActionReportSummary = "No operator action report loaded.";
+    private string shiftReportSummary = "Отчет по сменам не загружен.";
+    private string salesReportSummary = "Отчет по продажам не загружен.";
+    private string gameplayTimeReportSummary = "Отчет по игровому времени не загружен.";
+    private string cashOperationReportSummary = "Отчет по кассовым операциям не загружен.";
+    private string operatorActionReportSummary = "Отчет по действиям операторов не загружен.";
     private bool isBusy;
     private string? pendingOperation;
     private string? statusMessage;
@@ -71,11 +72,13 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     public ShiftWorkspaceViewModel(
         IOperatorShiftApiClient apiClient,
         IIdempotencyKeyFactory idempotencyKeyFactory,
-        IReportCsvFileWriter reportCsvFileWriter)
+        IReportCsvFileWriter reportCsvFileWriter,
+        string currencyCode = DefaultCurrencyCode)
     {
         this.apiClient = apiClient;
         this.idempotencyKeyFactory = idempotencyKeyFactory;
         this.reportCsvFileWriter = reportCsvFileWriter;
+        this.currencyCode = NormalizeCurrencyCode(currencyCode);
 
         loadCurrentShiftCommand = new AsyncRelayCommand(LoadCurrentShiftAsync, () => !IsBusy);
         openShiftCommand = new AsyncRelayCommand(OpenShiftAsync, () => !IsBusy && !CanRunMoneyWorkflows);
@@ -104,6 +107,9 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(ExpectedCashMinorUnits));
                 OnPropertyChanged(nameof(CountedCashResultMinorUnits));
                 OnPropertyChanged(nameof(DifferenceMinorUnits));
+                OnPropertyChanged(nameof(CurrentShiftSummary));
+                OnPropertyChanged(nameof(ExpectedCashText));
+                OnPropertyChanged(nameof(DifferenceText));
                 NotifyCommandStates();
             }
         }
@@ -120,6 +126,22 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     public long? CountedCashResultMinorUnits => CurrentShift?.CountedCash?.MinorUnits;
 
     public long? DifferenceMinorUnits => CurrentShift?.Difference?.MinorUnits;
+
+    public string CurrencyCode => currencyCode;
+
+    public string MinorUnitLabel => $"Сумма, {CurrencyCode} (в минорных единицах)";
+
+    public string CurrentShiftSummary => CurrentShift is null
+        ? "Открытой смены нет"
+        : $"Смена: {ToDisplayState(CurrentShift.State)}";
+
+    public string ExpectedCashText => CurrentShift?.ExpectedCash is null
+        ? "Ожидаемая касса не загружена"
+        : FormatMoney(CurrentShift.ExpectedCash);
+
+    public string DifferenceText => CurrentShift?.Difference is null
+        ? "Расхождения по кассе нет"
+        : FormatMoney(CurrentShift.Difference);
 
     public ObservableCollection<ShiftReportRowViewModel> ShiftReportRows { get; } = [];
 
@@ -296,7 +318,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         try
         {
             CurrentShift = await apiClient.GetCurrentShiftAsync(branchIdValue, cancellationToken);
-            StatusMessage = CurrentShift is null ? "No open shift." : "Open shift loaded.";
+            StatusMessage = CurrentShift is null ? "Открытой смены нет." : "Открытая смена загружена.";
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
@@ -312,14 +334,14 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     {
         if (!TryGetOrganizationContext(out var organizationIdValue) ||
             !TryGetBranchContext(out var branchIdValue) ||
-            !TryValidateNonNegative(StartingCashMinorUnits, "Starting cash amount cannot be negative."))
+            !TryValidateNonNegative(StartingCashMinorUnits, "Стартовая касса не может быть отрицательной."))
         {
             return;
         }
 
         var request = new OpenShiftRequest(
             organizationIdValue,
-            new MoneyDto(DefaultCurrencyCode, StartingCashMinorUnits),
+            new MoneyDto(CurrencyCode, StartingCashMinorUnits),
             OpeningNote.Trim(),
             idempotencyKeyFactory.Create("shift-open"));
 
@@ -327,7 +349,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
             async token =>
             {
                 CurrentShift = await apiClient.OpenShiftAsync(branchIdValue, request, token);
-                StatusMessage = "Shift opened.";
+                StatusMessage = "Смена открыта.";
             },
             cancellationToken);
     }
@@ -337,9 +359,9 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         if (!TryGetOrganizationContext(out var organizationIdValue) ||
             !TryGetBranchContext(out var branchIdValue) ||
             !TryGetOpenShift(out var shiftId) ||
-            !TryValidatePositive(CashMovementAmountMinorUnits, "Cash movement amount must be greater than zero.") ||
+            !TryValidatePositive(CashMovementAmountMinorUnits, "Сумма движения кассы должна быть больше нуля.") ||
             !TryValidateCashMovementType() ||
-            !TryValidateReason(CashMovementReason, "Cash movement reason is required."))
+            !TryValidateReason(CashMovementReason, "Укажите причину движения кассы."))
         {
             return;
         }
@@ -347,7 +369,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         var request = new RecordCashMovementRequest(
             organizationIdValue,
             CashMovementType.Trim(),
-            new MoneyDto(CurrentShift?.StartingCash.CurrencyCode ?? DefaultCurrencyCode, CashMovementAmountMinorUnits),
+            new MoneyDto(CurrentShift?.StartingCash.CurrencyCode ?? CurrencyCode, CashMovementAmountMinorUnits),
             CashMovementReason.Trim(),
             idempotencyKeyFactory.Create("shift-cash-movement"));
 
@@ -356,7 +378,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
             {
                 await apiClient.RecordCashMovementAsync(shiftId, request, token);
                 CurrentShift = await apiClient.GetCurrentShiftAsync(branchIdValue, token) ?? CurrentShift;
-                StatusMessage = "Cash movement recorded.";
+                StatusMessage = "Движение кассы записано.";
             },
             cancellationToken);
     }
@@ -365,14 +387,14 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     {
         if (!TryGetOrganizationContext(out var organizationIdValue) ||
             !TryGetOpenShift(out var shiftId) ||
-            !TryValidateNonNegative(CountedCashMinorUnits, "Counted cash amount cannot be negative."))
+            !TryValidateNonNegative(CountedCashMinorUnits, "Посчитанная касса не может быть отрицательной."))
         {
             return;
         }
 
         var request = new CloseShiftRequest(
             organizationIdValue,
-            new MoneyDto(CurrentShift?.StartingCash.CurrencyCode ?? DefaultCurrencyCode, CountedCashMinorUnits),
+            new MoneyDto(CurrentShift?.StartingCash.CurrencyCode ?? CurrencyCode, CountedCashMinorUnits),
             ClosingNote.Trim(),
             idempotencyKeyFactory.Create("shift-close"));
 
@@ -380,7 +402,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
             async token =>
             {
                 CurrentShift = await apiClient.CloseShiftAsync(shiftId, request, token);
-                StatusMessage = "Shift closed.";
+                StatusMessage = "Смена закрыта.";
             },
             cancellationToken);
     }
@@ -436,12 +458,12 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
                 OperatorActionReportRows.Add(new OperatorActionReportRowViewModel(row));
             }
 
-            ShiftReportSummary = $"{shiftReport.Rows.Count} shifts loaded.";
-            SalesReportSummary = $"Gross {FormatMoney(salesReport.GrossSalesTotal)}, refunds {FormatMoney(salesReport.RefundsTotal)}, net {FormatMoney(salesReport.NetSalesTotal)}.";
-            GameplayTimeReportSummary = $"Gameplay {gameplayTimeReport.TotalDurationSeconds} seconds, package {gameplayTimeReport.TotalPackageSeconds}, bonus {gameplayTimeReport.TotalBonusSeconds}, revenue {FormatMoney(gameplayTimeReport.GameplayRevenueTotal)}.";
-            CashOperationReportSummary = $"Cash in {FormatMoney(cashOperationReport.CashInTotal)}, cash out {FormatMoney(cashOperationReport.CashOutTotal)}, net {FormatMoney(cashOperationReport.NetCashTotal)}.";
-            OperatorActionReportSummary = $"{operatorActionReport.TotalActionCount} operator actions across {operatorActionReport.Rows.Count} groups.";
-            StatusMessage = "Reports loaded.";
+            ShiftReportSummary = $"Загружено смен: {shiftReport.Rows.Count}.";
+            SalesReportSummary = $"Валовые продажи {FormatMoney(salesReport.GrossSalesTotal)}, возвраты {FormatMoney(salesReport.RefundsTotal)}, нетто {FormatMoney(salesReport.NetSalesTotal)}.";
+            GameplayTimeReportSummary = $"Игровое время {gameplayTimeReport.TotalDurationSeconds} сек., пакет {gameplayTimeReport.TotalPackageSeconds}, бонус {gameplayTimeReport.TotalBonusSeconds}, выручка {FormatMoney(gameplayTimeReport.GameplayRevenueTotal)}.";
+            CashOperationReportSummary = $"Приход {FormatMoney(cashOperationReport.CashInTotal)}, расход {FormatMoney(cashOperationReport.CashOutTotal)}, нетто {FormatMoney(cashOperationReport.NetCashTotal)}.";
+            OperatorActionReportSummary = $"Действий операторов: {operatorActionReport.TotalActionCount}, групп: {operatorActionReport.Rows.Count}.";
+            StatusMessage = "Отчеты загружены.";
             PendingOperation = null;
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
@@ -516,8 +538,8 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
             var csv = await exportAsync(branchIdValue, fromUtc, toUtc, limit, cancellationToken);
             var savedPath = await reportCsvFileWriter.SaveAsync(suggestedFileName, csv, cancellationToken);
             StatusMessage = savedPath is null
-                ? "CSV export cancelled."
-                : $"CSV exported to {savedPath}.";
+                ? "Экспорт CSV отменен."
+                : $"CSV экспортирован: {savedPath}.";
             PendingOperation = null;
         }
         catch (Exception exception) when (
@@ -564,7 +586,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     {
         if (organizationId == Guid.Empty)
         {
-            SetValidationError("Operator context is not loaded.");
+            SetValidationError("Контекст оператора не загружен.");
             organizationIdValue = Guid.Empty;
             return false;
         }
@@ -577,7 +599,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     {
         if (branchId == Guid.Empty)
         {
-            SetValidationError("Operator context is not loaded.");
+            SetValidationError("Контекст оператора не загружен.");
             branchIdValue = Guid.Empty;
             return false;
         }
@@ -590,7 +612,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     {
         if (!CanRunMoneyWorkflows || CurrentShift is null)
         {
-            SetValidationError("Open shift is required before money operations.");
+            SetValidationError("Откройте смену перед денежными операциями.");
             shiftId = Guid.Empty;
             return false;
         }
@@ -628,7 +650,7 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
             return true;
         }
 
-        SetValidationError("Unsupported cash movement type.");
+        SetValidationError("Неподдерживаемый тип движения кассы.");
         return false;
     }
 
@@ -652,9 +674,9 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         toUtc = null;
         limit = null;
 
-        if (!TryParseOptionalDateTime(ReportFromUtcText, "Report from date/time is invalid.", out fromUtc) ||
-            !TryParseOptionalDateTime(ReportToUtcText, "Report to date/time is invalid.", out toUtc) ||
-            !TryParseOptionalPositiveInteger(ReportLimitText, "Report limit must be a positive whole number.", out limit))
+        if (!TryParseOptionalDateTime(ReportFromUtcText, "Дата/время начала отчета некорректны.", out fromUtc) ||
+            !TryParseOptionalDateTime(ReportToUtcText, "Дата/время конца отчета некорректны.", out toUtc) ||
+            !TryParseOptionalPositiveInteger(ReportLimitText, "Лимит отчета должен быть положительным целым числом.", out limit))
         {
             return false;
         }
@@ -720,8 +742,8 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
         if (exception is HttpRequestException httpException)
         {
             return httpException.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized
-                ? $"Permission denied: {httpException.Message}"
-                : $"Network or API error: {httpException.Message}";
+                ? $"Нет прав: {httpException.Message}"
+                : $"Ошибка сети или API: {httpException.Message}";
         }
 
         return exception.Message;
@@ -761,6 +783,26 @@ public sealed class ShiftWorkspaceViewModel : INotifyPropertyChanged
     private static string FormatMoney(MoneyDto money)
     {
         return $"{money.CurrencyCode} {money.MinorUnits}";
+    }
+
+    private static string ToDisplayState(string state)
+    {
+        return state switch
+        {
+            ShiftStateNames.Open => "открыта",
+            ShiftStateNames.Closed => "закрыта",
+            _ => state
+        };
+    }
+
+    private static string NormalizeCurrencyCode(string value)
+    {
+        var normalized = string.IsNullOrWhiteSpace(value)
+            ? DefaultCurrencyCode
+            : value.Trim().ToUpperInvariant();
+        return normalized.Length == 3 && normalized.All(character => character is >= 'A' and <= 'Z')
+            ? normalized
+            : DefaultCurrencyCode;
     }
 }
 

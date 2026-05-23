@@ -11,6 +11,10 @@ param(
 
     [string] $DotnetPath = 'C:\Program Files\dotnet\dotnet.exe',
 
+    [string] $NpmPath = 'C:\Program Files\nodejs\npm.cmd',
+
+    [switch] $SkipOperatorWebRestore,
+
     [string] $StagingLeasePublicKeyPath = '',
 
     [string] $StagingUpdateSigningPublicKeyPath = ''
@@ -35,8 +39,56 @@ function ConvertTo-MsiVersion {
     return $match.Groups['version'].Value
 }
 
+function Get-MsiFileNames {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $MsiPath
+    )
+
+    $installer = New-Object -ComObject WindowsInstaller.Installer
+    $database = $installer.OpenDatabase($MsiPath, 0)
+    $view = $database.OpenView('SELECT `FileName` FROM `File`')
+    $fileNames = @()
+
+    try {
+        $view.Execute()
+        while ($record = $view.Fetch()) {
+            $fileNames += $record.StringData(1)
+        }
+    }
+    finally {
+        $view.Close()
+    }
+
+    return $fileNames
+}
+
+function Assert-OperatorMsiContainsFrontendAssets {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $MsiPath
+    )
+
+    $fileNames = Get-MsiFileNames -MsiPath $MsiPath
+    $requiredAssets = @(
+        @{ Label = 'frontend index.html'; Pattern = '*index.html*' },
+        @{ Label = 'frontend JavaScript bundle'; Pattern = '*.js*' },
+        @{ Label = 'frontend stylesheet'; Pattern = '*.css*' }
+    )
+
+    foreach ($asset in $requiredAssets) {
+        if (-not ($fileNames | Where-Object { $_ -like $asset.Pattern } | Select-Object -First 1)) {
+            throw "Operator App MSI does not contain $($asset.Label). Build the React frontend and copy dist into WebAssets before WiX packaging."
+        }
+    }
+}
+
 if (-not (Test-Path -LiteralPath $DotnetPath)) {
     throw "dotnet executable was not found at '$DotnetPath'."
+}
+
+if (-not (Test-Path -LiteralPath $NpmPath)) {
+    throw "npm executable was not found at '$NpmPath'."
 }
 
 if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -and -not (Test-Path -LiteralPath $StagingLeasePublicKeyPath)) {
@@ -65,6 +117,9 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $artifactRoot = Join-Path $repoRoot 'artifacts/client-packages'
 $publishRoot = Join-Path $artifactRoot 'publish'
 $wixInputRoot = Join-Path $artifactRoot 'wix-inputs'
+$operatorWebRoot = Join-Path $repoRoot 'src/AFK4.Operator.App.Web'
+$operatorWebDist = Join-Path $operatorWebRoot 'dist'
+$operatorWebDistIndex = Join-Path $operatorWebDist 'index.html'
 $msiVersion = ConvertTo-MsiVersion $Version
 $publishRootFullPath = [System.IO.Path]::GetFullPath($publishRoot)
 $artifactRootFullPath = [System.IO.Path]::GetFullPath($artifactRoot)
@@ -84,6 +139,33 @@ if (Test-Path -LiteralPath $wixInputRoot) {
 }
 
 New-Item -ItemType Directory -Force -Path $wixInputRoot | Out-Null
+
+Push-Location $operatorWebRoot
+try {
+    if ($SkipOperatorWebRestore) {
+        Write-Host "Skipping Operator App frontend npm restore because SkipOperatorWebRestore was set."
+    }
+    else {
+        & $NpmPath ci
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "npm ci failed for Operator App frontend with exit code $LASTEXITCODE."
+        }
+    }
+
+    & $NpmPath run build
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "npm run build failed for Operator App frontend with exit code $LASTEXITCODE."
+    }
+}
+finally {
+    Pop-Location
+}
+
+if (-not (Test-Path -LiteralPath $operatorWebDistIndex)) {
+    throw "Operator App frontend build did not produce '$operatorWebDistIndex'."
+}
 
 $projects = @(
     @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
@@ -115,6 +197,23 @@ foreach ($project in $projects) {
         throw "dotnet publish failed for '$($project.Name)' with exit code $LASTEXITCODE."
     }
 }
+
+$operatorAppPublishDir = Join-Path $publishRoot "operator-app-$Version-$Channel"
+$operatorWebAssetsPublishDir = Join-Path $operatorAppPublishDir 'WebAssets'
+$operatorAppPublishDirFullPath = [System.IO.Path]::GetFullPath($operatorAppPublishDir)
+$operatorWebAssetsPublishDirFullPath = [System.IO.Path]::GetFullPath($operatorWebAssetsPublishDir)
+
+if (-not $operatorWebAssetsPublishDirFullPath.StartsWith($operatorAppPublishDirFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Computed Operator App WebAssets directory must stay under '$operatorAppPublishDirFullPath'."
+}
+
+if (Test-Path -LiteralPath $operatorWebAssetsPublishDir) {
+    Remove-Item -LiteralPath $operatorWebAssetsPublishDir -Recurse -Force
+}
+
+New-Item -ItemType Directory -Force -Path $operatorWebAssetsPublishDir | Out-Null
+Get-ChildItem -LiteralPath $operatorWebDist -Force |
+    Copy-Item -Destination $operatorWebAssetsPublishDir -Recurse -Force
 
 $agentServicePublishDir = Join-Path $publishRoot "agent-service-$Version-$Channel"
 $agentServiceSupportDir = Join-Path $wixInputRoot 'agent-service-support'
@@ -148,6 +247,8 @@ $gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi
 if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for Operator App MSI with exit code $LASTEXITCODE."
 }
+
+Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
     -arch x64 `

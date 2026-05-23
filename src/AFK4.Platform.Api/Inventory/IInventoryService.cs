@@ -18,6 +18,13 @@ public interface IInventoryService
         CreateProductRequest request,
         CancellationToken cancellationToken);
 
+    Task<BillingCommandServiceResult<PosProductDto>> UpdateProductAsync(
+        Guid branchId,
+        Guid productId,
+        Guid actorStaffUserId,
+        UpdateProductRequest request,
+        CancellationToken cancellationToken);
+
     Task<BillingCommandServiceResult<StockMovementDto>> CreateStockMovementAsync(
         Guid branchId,
         Guid actorStaffUserId,
@@ -33,5 +40,12 @@ public interface IInventoryService
         Guid organizationId,
         Guid branchId,
         Guid productId,
+        CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>> GetStockMovementsAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid? productId,
+        int limit,
         CancellationToken cancellationToken);
 }

@@ -45,4 +45,51 @@ public sealed class StaffAuthContractSerializationTests
         Assert.Equal(request.OrganizationId, copy.OrganizationId);
         Assert.Equal(request.RefreshToken, copy.RefreshToken);
     }
+
+    [Fact]
+    public void UpdateStaffUserStateRequest_RoundTripsThroughJson()
+    {
+        var request = new UpdateStaffUserStateRequest(
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            IsActive: false);
+
+        var json = JsonSerializer.Serialize(request);
+        var copy = JsonSerializer.Deserialize<UpdateStaffUserStateRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(request.OrganizationId, copy.OrganizationId);
+        Assert.Equal(request.IsActive, copy.IsActive);
+    }
+
+    [Fact]
+    public void UpdateStaffUserProfileRequest_RoundTripsThroughJson()
+    {
+        var request = new UpdateStaffUserProfileRequest(
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            UserName: "cashier.renamed",
+            DisplayName: "Cashier Renamed");
+
+        var json = JsonSerializer.Serialize(request);
+        var copy = JsonSerializer.Deserialize<UpdateStaffUserProfileRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(request.OrganizationId, copy.OrganizationId);
+        Assert.Equal(request.UserName, copy.UserName);
+        Assert.Equal(request.DisplayName, copy.DisplayName);
+    }
+
+    [Fact]
+    public void ResetStaffUserPasswordRequest_RoundTripsThroughJson()
+    {
+        var request = new ResetStaffUserPasswordRequest(
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            NewPassword: "ChangeMe456!");
+
+        var json = JsonSerializer.Serialize(request);
+        var copy = JsonSerializer.Deserialize<ResetStaffUserPasswordRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(request.OrganizationId, copy.OrganizationId);
+        Assert.Equal(request.NewPassword, copy.NewPassword);
+    }
 }

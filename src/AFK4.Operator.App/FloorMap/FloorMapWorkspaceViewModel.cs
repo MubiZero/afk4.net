@@ -14,9 +14,11 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
     private readonly IOperatorFloorMapApiClient apiClient;
     private readonly DeviceStatusStore deviceStatusStore;
     private readonly RelayCommand selectSeatCommand;
+    private readonly RelayCommand selectFilterCommand;
     private Guid? lastBranchId;
-    private string branchName = "Floor map";
+    private string branchName = "Филиал";
     private FloorMapSeatViewModel? selectedSeat;
+    private string selectedFilterKey = FloorMapFilterKeys.All;
     private bool isLoading;
     private string? errorMessage;
 
@@ -39,14 +41,23 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
     public FloorMapWorkspaceViewModel(
         IOperatorFloorMapApiClient apiClient,
         IOperatorSessionApiClient sessionApiClient,
-        IIdempotencyKeyFactory idempotencyKeyFactory)
+        IIdempotencyKeyFactory idempotencyKeyFactory,
+        string currencyCode = "TJS")
     {
         this.apiClient = apiClient;
         Seats = [];
         deviceStatusStore = new DeviceStatusStore(Seats);
-        SeatContext = new SeatContextPanelViewModel(sessionApiClient, idempotencyKeyFactory, RefreshAsync);
+        SeatContext = new SeatContextPanelViewModel(sessionApiClient, idempotencyKeyFactory, RefreshAsync, currencyCode);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => lastBranchId is not null && !IsLoading);
         selectSeatCommand = new RelayCommand(parameter => SelectedSeat = parameter as FloorMapSeatViewModel);
+        selectFilterCommand = new RelayCommand(parameter => SelectFilter(parameter as FloorMapFilterOptionViewModel));
+        FilterOptions =
+        [
+            new(FloorMapFilterKeys.All, "Все", isSelected: true),
+            new(FloorMapFilterKeys.Ready, "Свободные"),
+            new(FloorMapFilterKeys.Active, "Активные"),
+            new(FloorMapFilterKeys.Problems, "Проблемы")
+        ];
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -58,6 +69,68 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
     }
 
     public ObservableCollection<FloorMapSeatViewModel> Seats { get; }
+
+    public ObservableCollection<FloorMapFilterOptionViewModel> FilterOptions { get; }
+
+    public IEnumerable<FloorMapSeatViewModel> FilteredSeats => selectedFilterKey switch
+    {
+        FloorMapFilterKeys.Ready => Seats.Where(seat => !seat.HasActiveSession && seat.StateTone == "Ready"),
+        FloorMapFilterKeys.Active => Seats.Where(seat => seat.HasActiveSession || seat.StateTone == "Active"),
+        FloorMapFilterKeys.Problems => Seats.Where(seat => seat.IsProblem),
+        _ => Seats
+    };
+
+    public int AvailableSeatCount => Seats.Count(seat => !seat.HasActiveSession && seat.StateTone == "Ready");
+
+    public int ActiveSeatCount => Seats.Count(seat => seat.HasActiveSession || seat.State == "Active");
+
+    public int PendingSeatCount => Seats.Count(seat => seat.IsPending);
+
+    public int ProblemSeatCount => Seats.Count(seat => seat.IsProblem);
+
+    public int OfflineSeatCount => Seats.Count(seat => seat.State == "Offline" || !seat.IsOnline);
+
+    public string FloorSummary =>
+        $"готово {AvailableSeatCount} / активно {ActiveSeatCount} / ожидают {PendingSeatCount} / офлайн {OfflineSeatCount}";
+
+    public string HeaderSummary => $"{BranchName} · {FloorSummary}";
+
+    public string ZoneSummary => Seats.Count == 0
+        ? "online 0 · lock ok 0 · update n/a"
+        : $"online {Seats.Count(seat => seat.IsOnline)} · lock ok {Seats.Count(seat => seat.IsLocked)} · update {LatestAgentVersion}";
+
+    public IReadOnlyList<FloorMapFilterOptionViewModel> ZoneOptions => Seats
+        .Select(seat => seat.Zone)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(3)
+        .Select((zone, index) => new FloorMapFilterOptionViewModel($"zone-{index}", zone, index == 0))
+        .ToList();
+
+    public string LatestAgentVersion => Seats
+        .Select(seat => seat.AgentVersion)
+        .FirstOrDefault(version => !string.IsNullOrWhiteSpace(version)) ?? "n/a";
+
+    public IReadOnlyList<OperationalSignalViewModel> OperationalSignals
+    {
+        get
+        {
+            var signals = Seats
+                .Where(seat => seat.IsProblem)
+                .Take(4)
+                .Select(seat => new OperationalSignalViewModel(
+                    seat.Name,
+                    seat.OperatorActionText.Length == 0 ? seat.DisplayState : seat.OperatorActionText,
+                    seat.StateTone))
+                .ToList();
+
+            if (signals.Count == 0)
+            {
+                signals.Add(new OperationalSignalViewModel("Зал", "критичных сигналов нет", "Active"));
+            }
+
+            return signals;
+        }
+    }
 
     public SeatContextPanelViewModel SeatContext { get; }
 
@@ -107,6 +180,8 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
 
     public ICommand SelectSeatCommand => selectSeatCommand;
 
+    public ICommand SelectFilterCommand => selectFilterCommand;
+
     public void ApplyContext(Guid organizationId, Guid branchId)
     {
         SeatContext.ApplyContext(organizationId, branchId);
@@ -130,6 +205,8 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
             }
 
             SelectedSeat = null;
+            OnFloorSummaryChanged();
+            OnPropertyChanged(nameof(FilteredSeats));
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
@@ -144,7 +221,45 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
 
     public bool ApplyDeviceStatus(DeviceStatusChangedDto status)
     {
-        return deviceStatusStore.Apply(status);
+        var applied = deviceStatusStore.Apply(status);
+        if (applied)
+        {
+            OnFloorSummaryChanged();
+            OnPropertyChanged(nameof(FilteredSeats));
+        }
+
+        return applied;
+    }
+
+    private void OnFloorSummaryChanged()
+    {
+        OnPropertyChanged(nameof(AvailableSeatCount));
+        OnPropertyChanged(nameof(ActiveSeatCount));
+        OnPropertyChanged(nameof(PendingSeatCount));
+        OnPropertyChanged(nameof(ProblemSeatCount));
+        OnPropertyChanged(nameof(OfflineSeatCount));
+        OnPropertyChanged(nameof(FloorSummary));
+        OnPropertyChanged(nameof(HeaderSummary));
+        OnPropertyChanged(nameof(ZoneSummary));
+        OnPropertyChanged(nameof(ZoneOptions));
+        OnPropertyChanged(nameof(LatestAgentVersion));
+        OnPropertyChanged(nameof(OperationalSignals));
+    }
+
+    private void SelectFilter(FloorMapFilterOptionViewModel? option)
+    {
+        if (option is null || selectedFilterKey == option.Key)
+        {
+            return;
+        }
+
+        selectedFilterKey = option.Key;
+        foreach (var filter in FilterOptions)
+        {
+            filter.IsSelected = filter.Key == selectedFilterKey;
+        }
+
+        OnPropertyChanged(nameof(FilteredSeats));
     }
 
     private Task RefreshAsync(CancellationToken cancellationToken)
@@ -162,7 +277,48 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
         }
 
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        OnPropertyChanged(propertyName);
         return true;
     }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+public sealed class FloorMapFilterOptionViewModel(string key, string label, bool isSelected = false) : INotifyPropertyChanged
+{
+    private bool isSelected = isSelected;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public string Key { get; } = key;
+
+    public string Label { get; } = label;
+
+    public bool IsSelected
+    {
+        get => isSelected;
+        set
+        {
+            if (isSelected == value)
+            {
+                return;
+            }
+
+            isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+}
+
+public sealed record OperationalSignalViewModel(string Title, string Detail, string Tone);
+
+public static class FloorMapFilterKeys
+{
+    public const string All = "all";
+    public const string Ready = "ready";
+    public const string Active = "active";
+    public const string Problems = "problems";
 }

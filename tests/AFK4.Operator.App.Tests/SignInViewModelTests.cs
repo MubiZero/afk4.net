@@ -30,7 +30,7 @@ public sealed class SignInViewModelTests
         Assert.NotNull(signedInContext);
         Assert.Equal(BranchId, signedInContext.BranchId);
         Assert.Contains(StaffPermissionNames.ViewFloorMap, signedInContext.Permissions);
-        Assert.Equal("Signed in as Cashier One.", viewModel.StatusMessage);
+        Assert.Equal("Вход выполнен: Cashier One.", viewModel.StatusMessage);
         Assert.Null(viewModel.ErrorMessage);
     }
 
@@ -48,7 +48,7 @@ public sealed class SignInViewModelTests
         await viewModel.SignInAsync(CancellationToken.None);
 
         Assert.Equal(0, authClient.SignInCallCount);
-        Assert.Equal("OrganizationId must be a valid GUID.", viewModel.ErrorMessage);
+        Assert.Equal("OrganizationId должен быть корректным GUID.", viewModel.ErrorMessage);
     }
 
     private sealed class RecordingOperatorAuthApiClient : IOperatorAuthApiClient

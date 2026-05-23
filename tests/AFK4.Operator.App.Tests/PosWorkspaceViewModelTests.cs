@@ -30,9 +30,27 @@ public sealed class PosWorkspaceViewModelTests
 
         Assert.Equal("pos-sale-001", apiClient.LastCreateSaleRequest?.IdempotencyKey);
         Assert.Equal(PaymentMethodNames.Cash, apiClient.LastManualPaymentRequest?.PaymentMethod);
-        Assert.Equal("Paid", viewModel.LastSaleState);
+        Assert.Equal("Оплачена", viewModel.LastSaleState);
         Assert.Equal(SaleId, viewModel.LastSaleId);
         Assert.Null(viewModel.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task LoadCatalogAsync_ExposesOperatorFriendlyCatalogSummary()
+    {
+        var apiClient = new RecordingPosApiClient();
+        var viewModel = new PosWorkspaceViewModel(apiClient, new FixedIdempotencyKeyFactory("pos-sale-001"));
+        viewModel.ApplyContext(OrganizationId, BranchId);
+
+        await viewModel.LoadCatalogAsync(CancellationToken.None);
+
+        Assert.Equal("Товаров готово: 1", viewModel.CatalogSummary);
+        Assert.True(viewModel.HasCatalog);
+        var group = Assert.Single(viewModel.CatalogGroups);
+        Assert.Equal("Товары", group.Label);
+        Assert.Equal("12.00 USD", Assert.Single(group.Products).PriceText);
+        Assert.Equal("Корзина пуста", viewModel.CartSummary);
+        Assert.Equal("Откройте смену перед оплатой POS.", viewModel.CheckoutHint);
     }
 
     [Fact]
@@ -47,7 +65,7 @@ public sealed class PosWorkspaceViewModelTests
         Assert.Single(viewModel.CartLines);
         Assert.Equal(2, viewModel.CartLines[0].Quantity);
         Assert.Equal(2400, viewModel.CartTotalMinorUnits);
-        Assert.Equal("2 item(s) / 24.00 USD", viewModel.CartSummary);
+        Assert.Equal("2 товар(ов) / 24.00 USD", viewModel.CartSummary);
     }
 
     [Fact]
@@ -61,7 +79,7 @@ public sealed class PosWorkspaceViewModelTests
         await viewModel.PayCashAsync(CancellationToken.None);
 
         Assert.Equal(0, apiClient.CreateSaleCallCount);
-        Assert.Equal("Open shift is required before POS payment.", viewModel.ErrorMessage);
+        Assert.Equal("Откройте смену перед оплатой POS.", viewModel.ErrorMessage);
     }
 
     [Fact]
@@ -76,7 +94,7 @@ public sealed class PosWorkspaceViewModelTests
         await viewModel.PayCardManualAsync(CancellationToken.None);
 
         Assert.Equal(PaymentMethodNames.CardManual, apiClient.LastManualPaymentRequest?.PaymentMethod);
-        Assert.Equal("Paid", viewModel.LastSaleState);
+        Assert.Equal("Оплачена", viewModel.LastSaleState);
     }
 
     [Fact]
@@ -93,7 +111,7 @@ public sealed class PosWorkspaceViewModelTests
         await viewModel.RefundLastSaleAsync(CancellationToken.None);
 
         Assert.Equal("customer returned unopened item", apiClient.LastRefundRequest?.Reason);
-        Assert.Equal("Refunded", viewModel.LastSaleState);
+        Assert.Equal("Возврат", viewModel.LastSaleState);
     }
 
     [Fact]
@@ -109,7 +127,7 @@ public sealed class PosWorkspaceViewModelTests
         await viewModel.VoidDraftSaleAsync(CancellationToken.None);
 
         Assert.Equal("mistaken draft", apiClient.LastVoidRequest?.Reason);
-        Assert.Equal("Voided", viewModel.LastSaleState);
+        Assert.Equal("Отменена", viewModel.LastSaleState);
     }
 
     [Fact]

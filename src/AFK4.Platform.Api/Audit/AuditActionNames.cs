@@ -38,9 +38,15 @@ public static class AuditActionNames
 
     public const string CreateTariffVersion = "tariffs.versions.create";
 
+    public const string UpdateTariff = "tariffs.update";
+
+    public const string UpdateTariffVersion = "tariffs.versions.update";
+
     public const string ViewTariffs = "tariffs.view";
 
     public const string CreatePackageDefinition = "packages.create";
+
+    public const string UpdatePackageDefinition = "packages.update";
 
     public const string ViewPackages = "packages.view";
 
@@ -62,9 +68,25 @@ public static class AuditActionNames
 
     public const string ViewOperatorActionReport = "reports.operator_actions.view";
 
+    public const string ViewDashboardSummary = "dashboard.summary.view";
+
+    public const string ViewReservations = "reservations.view";
+
+    public const string CreateReservation = "reservations.create";
+
+    public const string UpdateReservation = "reservations.update";
+
+    public const string ConfirmReservation = "reservations.confirm";
+
+    public const string SeatReservation = "reservations.seat";
+
+    public const string CancelReservation = "reservations.cancel";
+
     public const string CreateProductCategory = "pos.categories.create";
 
     public const string CreateProduct = "pos.products.create";
+
+    public const string UpdateProduct = "pos.products.update";
 
     public const string CreateStockMovement = "inventory.stock.create";
 
@@ -94,9 +116,29 @@ public static class AuditActionNames
 
     public const string ViewStaffUsers = "identity.staff.view";
 
+    public const string UpdateStaffProfile = "identity.staff.profile.update";
+
+    public const string UpdateStaffRoles = "identity.staff.roles.update";
+
+    public const string UpdateStaffState = "identity.staff.state.update";
+
+    public const string ResetStaffPassword = "identity.staff.password.reset";
+
     public const string CreateZone = "layout.zones.create";
+
+    public const string UpdateZone = "layout.zones.update";
+
+    public const string DeleteZone = "layout.zones.delete";
 
     public const string CreateSeat = "layout.seats.create";
 
+    public const string UpdateSeat = "layout.seats.update";
+
+    public const string DeleteSeat = "layout.seats.delete";
+
     public const string ViewLayout = "layout.view";
+
+    public const string ViewBranchProfile = "branches.profile.view";
+
+    public const string UpdateBranchProfile = "branches.profile.update";
 }

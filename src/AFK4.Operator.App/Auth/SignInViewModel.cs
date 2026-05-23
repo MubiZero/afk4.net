@@ -76,19 +76,19 @@ public sealed class SignInViewModel : INotifyPropertyChanged
 
         if (!Guid.TryParse(OrganizationIdText, out var organizationId))
         {
-            ErrorMessage = "OrganizationId must be a valid GUID.";
+            ErrorMessage = "OrganizationId должен быть корректным GUID.";
             return Task.CompletedTask;
         }
 
         if (string.IsNullOrWhiteSpace(UserName))
         {
-            ErrorMessage = "User name is required.";
+            ErrorMessage = "Укажите имя пользователя.";
             return Task.CompletedTask;
         }
 
         if (string.IsNullOrWhiteSpace(Password))
         {
-            ErrorMessage = "Password is required.";
+            ErrorMessage = "Укажите пароль.";
             return Task.CompletedTask;
         }
 
@@ -110,7 +110,7 @@ public sealed class SignInViewModel : INotifyPropertyChanged
             var branchId = response.BranchIds.FirstOrDefault();
             if (branchId == Guid.Empty)
             {
-                ErrorMessage = "Staff user has no assigned branch.";
+            ErrorMessage = "У сотрудника нет назначенного филиала.";
                 return;
             }
 
@@ -122,7 +122,7 @@ public sealed class SignInViewModel : INotifyPropertyChanged
                 response.DisplayName,
                 permissions);
 
-            StatusMessage = $"Signed in as {response.DisplayName}.";
+            StatusMessage = $"Вход выполнен: {response.DisplayName}.";
             SignedIn?.Invoke(context);
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)

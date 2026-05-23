@@ -123,6 +123,66 @@ public sealed class EfPackageService(
         }, () => RecoverPackageCreateRaceAsync(branchId, request, cancellationToken), cancellationToken);
     }
 
+    public async Task<BillingCommandServiceResult<PackageDefinitionDto>> UpdatePackageDefinitionAsync(
+        Guid branchId,
+        Guid packageDefinitionId,
+        Guid actorStaffUserId,
+        UpdatePackageDefinitionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (packageDefinitionId == Guid.Empty)
+        {
+            return BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package definition id is required.");
+        }
+
+        var validation = ValidateUpdatePackageDefinitionRequest(request);
+        if (validation is not null)
+        {
+            return BillingCommandServiceResult<PackageDefinitionDto>.Invalid(validation);
+        }
+
+        var package = await dbContext.PackageDefinitions
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.OrganizationId == request.OrganizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.PackageDefinitionId == packageDefinitionId,
+                cancellationToken);
+
+        if (package is null)
+        {
+            return BillingCommandServiceResult<PackageDefinitionDto>.Missing("Package definition was not found.");
+        }
+
+        var normalizedName = NormalizePackageName(request.Name);
+        var nameExists = await dbContext.PackageDefinitions
+            .AsNoTracking()
+            .AnyAsync(
+                candidate =>
+                    candidate.OrganizationId == request.OrganizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.PackageDefinitionId != packageDefinitionId &&
+                    candidate.Name == normalizedName,
+                cancellationToken);
+
+        if (nameExists)
+        {
+            return BillingCommandServiceResult<PackageDefinitionDto>.Invalid("Package name already exists.");
+        }
+
+        package.Name = normalizedName;
+        package.CurrencyCode = request.Price.CurrencyCode.Trim().ToUpperInvariant();
+        package.PriceMinorUnits = request.Price.MinorUnits;
+        package.IncludedSeconds = request.IncludedSeconds;
+        package.BonusSeconds = request.BonusSeconds;
+        package.ExpiresAfterDays = request.ExpiresAfterDays;
+        package.IsActive = request.IsActive;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BillingCommandServiceResult<PackageDefinitionDto>.Ok(ToDto(package));
+    }
+
     public async Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageAsync(
         Guid playerAccountId,
         Guid branchId,
@@ -710,6 +770,46 @@ public sealed class EfPackageService(
             package.ExpiresAfterDays,
             package.IsActive,
             package.CreatedAtUtc);
+    }
+
+    private static string? ValidateUpdatePackageDefinitionRequest(UpdatePackageDefinitionRequest request)
+    {
+        if (request.OrganizationId == Guid.Empty)
+        {
+            return "Organization id is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return "Package name is required.";
+        }
+
+        if (request.Price.MinorUnits <= 0)
+        {
+            return "Package price must be positive.";
+        }
+
+        if (request.IncludedSeconds <= 0)
+        {
+            return "Included seconds must be positive.";
+        }
+
+        if (request.BonusSeconds < 0)
+        {
+            return "Bonus seconds cannot be negative.";
+        }
+
+        if (request.ExpiresAfterDays <= 0)
+        {
+            return "Package expiry days must be positive.";
+        }
+
+        if (!IsValidCurrencyCode(request.Price.CurrencyCode))
+        {
+            return "Currency code must be exactly 3 alphabetic letters.";
+        }
+
+        return null;
     }
 
     private static bool IsValidCurrencyCode(string? currencyCode)

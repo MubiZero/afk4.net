@@ -197,6 +197,90 @@ public sealed class EfInventoryService(
             cancellationToken), cancellationToken);
     }
 
+    public async Task<BillingCommandServiceResult<PosProductDto>> UpdateProductAsync(
+        Guid branchId,
+        Guid productId,
+        Guid actorStaffUserId,
+        UpdateProductRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (productId == Guid.Empty)
+        {
+            return BillingCommandServiceResult<PosProductDto>.Invalid("Product id is required.");
+        }
+
+        var validation = ValidateUpdateProductRequest(request);
+        if (validation is not null)
+        {
+            return BillingCommandServiceResult<PosProductDto>.Invalid(validation);
+        }
+
+        var product = await dbContext.PosProducts
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.OrganizationId == request.OrganizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.ProductId == productId,
+                cancellationToken);
+
+        if (product is null)
+        {
+            return BillingCommandServiceResult<PosProductDto>.Missing("Product was not found.");
+        }
+
+        var categoryExists = await dbContext.PosProductCategories
+            .AsNoTracking()
+            .AnyAsync(
+                category =>
+                    category.OrganizationId == request.OrganizationId &&
+                    category.BranchId == branchId &&
+                    category.CategoryId == request.CategoryId &&
+                    category.IsActive,
+                cancellationToken);
+
+        if (!categoryExists)
+        {
+            return BillingCommandServiceResult<PosProductDto>.Missing("Product category was not found.");
+        }
+
+        var normalizedSku = NormalizeSku(request.Sku);
+        var skuExists = await dbContext.PosProducts
+            .AsNoTracking()
+            .AnyAsync(
+                candidate =>
+                    candidate.OrganizationId == request.OrganizationId &&
+                    candidate.BranchId == branchId &&
+                    candidate.ProductId != productId &&
+                    candidate.Sku == normalizedSku,
+                cancellationToken);
+
+        if (skuExists)
+        {
+            return BillingCommandServiceResult<PosProductDto>.Invalid("Product SKU already exists.");
+        }
+
+        product.CategoryId = request.CategoryId;
+        product.Name = request.Name.Trim();
+        product.Sku = normalizedSku;
+        product.CurrencyCode = request.Price.CurrencyCode.Trim().ToUpperInvariant();
+        product.PriceMinorUnits = request.Price.MinorUnits;
+        product.TrackStock = request.TrackStock;
+        product.AllowNegativeStock = request.AllowNegativeStock;
+        product.IsActive = request.IsActive;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var stockOnHand = await dbContext.StockMovements
+            .AsNoTracking()
+            .Where(movement =>
+                movement.OrganizationId == request.OrganizationId &&
+                movement.BranchId == branchId &&
+                movement.ProductId == productId)
+            .SumAsync(movement => (int?)movement.QuantityDelta, cancellationToken) ?? 0;
+
+        return BillingCommandServiceResult<PosProductDto>.Ok(ToDto(product, stockOnHand));
+    }
+
     public async Task<BillingCommandServiceResult<StockMovementDto>> CreateStockMovementAsync(
         Guid branchId,
         Guid actorStaffUserId,
@@ -355,7 +439,75 @@ public sealed class EfInventoryService(
             stockOnHand));
     }
 
+    public async Task<BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>> GetStockMovementsAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid? productId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>.Invalid("Organization id is required.");
+        }
+
+        if (limit <= 0)
+        {
+            return BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>.Invalid("Limit must be positive.");
+        }
+
+        var query = dbContext.StockMovements
+            .AsNoTracking()
+            .Where(movement =>
+                movement.OrganizationId == organizationId &&
+                movement.BranchId == branchId);
+
+        if (productId is { } requestedProductId && requestedProductId != Guid.Empty)
+        {
+            query = query.Where(movement => movement.ProductId == requestedProductId);
+        }
+
+        var movements = await query
+            .OrderByDescending(movement => movement.CreatedAtUtc)
+            .ThenByDescending(movement => movement.StockMovementId)
+            .Take(Math.Min(limit, 200))
+            .ToListAsync(cancellationToken);
+
+        return BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>.Ok(
+            movements.Select(ToDto).ToList());
+    }
+
     private static string? ValidateCreateProductRequest(CreateProductRequest request)
+    {
+        if (request.OrganizationId == Guid.Empty)
+        {
+            return "Organization id is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return "Product name is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Sku))
+        {
+            return "Product SKU is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Price.CurrencyCode))
+        {
+            return "Currency code is required.";
+        }
+
+        if (request.Price.MinorUnits < 0)
+        {
+            return "Product price cannot be negative.";
+        }
+
+        return null;
+    }
+
+    private static string? ValidateUpdateProductRequest(UpdateProductRequest request)
     {
         if (request.OrganizationId == Guid.Empty)
         {

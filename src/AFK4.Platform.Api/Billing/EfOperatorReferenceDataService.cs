@@ -144,7 +144,8 @@ public sealed class EfOperatorReferenceDataService(
                 row.Version.CurrencyCode,
                 row.Version.PricePerMinuteMinorUnits,
                 row.Version.MinimumBillableMinutes,
-                row.Version.RoundingIncrementMinutes))
+                row.Version.RoundingIncrementMinutes,
+                row.Version.EffectiveFromUtc))
             .ToList();
     }
 

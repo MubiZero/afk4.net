@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using AFK4.Shared.Contracts.FloorMap;
 
@@ -89,6 +90,123 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
 
     public Guid? ActiveSessionId { get; }
 
+    public bool HasActiveSession => ActiveSessionId is not null;
+
+    public bool HasDevice => DeviceId is not null;
+
+    public bool CanStartSession => !HasActiveSession && StateTone == "Ready";
+
+    public string DisplayState => NormalizeState(State) switch
+    {
+        "active" => "В сессии",
+        "free" => "Свободно",
+        "locked" => "Готов",
+        "requested" => "Ожидание",
+        "ending" => "Команда",
+        "paused" => "Пауза",
+        "failed" => "Ошибка",
+        "offline" => "Офлайн",
+        "maintenance" or "service" => "Сервис",
+        _ => CultureInfo.InvariantCulture.TextInfo.ToTitleCase(State.Replace('_', ' '))
+    };
+
+    public string StateTone
+    {
+        get
+        {
+            var normalized = NormalizeState(State);
+            if (HasDevice && !IsOnline && normalized is "active" or "paused" or "ending")
+            {
+                return "Warning";
+            }
+
+            if (HasDevice && !IsOnline)
+            {
+                return "Offline";
+            }
+
+            return normalized switch
+            {
+                "active" => "Active",
+                "free" or "locked" => "Ready",
+                "requested" or "ending" => "Pending",
+                "paused" => "Warning",
+                "failed" => "Blocking",
+                "offline" => "Offline",
+                "maintenance" or "service" => "Service",
+                _ => "Neutral"
+            };
+        }
+    }
+
+    public bool IsPending => StateTone == "Pending";
+
+    public bool IsProblem => StateTone is "Pending" or "Warning" or "Blocking" or "Offline" or "Service";
+
+    public string StateForeground => StateTone switch
+    {
+        "Active" => "#027A48",
+        "Ready" => "#175CD3",
+        "Pending" => "#7A2E0E",
+        "Warning" => "#B54708",
+        "Blocking" => "#B42318",
+        "Offline" => "#475467",
+        "Service" => "#B54708",
+        _ => "#344054"
+    };
+
+    public string StateAccentBrush => StateTone switch
+    {
+        "Active" => "#039855",
+        "Ready" => "#2563EB",
+        "Pending" => "#7C3AED",
+        "Warning" => "#DC6803",
+        "Blocking" => "#D92D20",
+        "Offline" => "#98A2B3",
+        "Service" => "#F59E0B",
+        _ => "#667085"
+    };
+
+    public string DeviceSummary => DeviceName is null
+        ? "Устройство не назначено"
+        : $"{DeviceName}: {(IsOnline ? "online" : "offline")} · {(IsLocked ? "locked" : "unlocked")}";
+
+    public string DeviceVersionSummary
+    {
+        get
+        {
+            if (DeviceName is null)
+            {
+                return "Agent/Shell не назначены";
+            }
+
+            var agent = string.IsNullOrWhiteSpace(AgentVersion) ? "Agent ?" : $"Agent {AgentVersion}";
+            var shell = string.IsNullOrWhiteSpace(ShellVersion) ? "Shell ?" : $"Shell {ShellVersion}";
+            return $"{agent} · {shell}";
+        }
+    }
+
+    public string HeartbeatSummary => LastHeartbeatAtUtc is null
+        ? "heartbeat нет"
+        : $"heartbeat {LastHeartbeatAtUtc.Value.UtcDateTime:HH:mm}";
+
+    public string OperatorActionText => StateTone switch
+    {
+        "Active" => RemainingTimeText.Length == 0 ? "играет сейчас" : RemainingTimeText,
+        "Ready" => "ожидает",
+        "Pending" => NormalizeState(State) == "ending" ? "команда в пути" : "ждет сервер",
+        "Warning" when HasActiveSession && !IsOnline => "играет, ПК офлайн",
+        "Warning" => "проверить",
+        "Blocking" => "нужна проверка",
+        "Offline" => "проверить",
+        "Service" => "закрыто",
+        _ => string.Empty
+    };
+
+    public string RemainingTimeText => RemainingSeconds is null
+        ? ""
+        : FormatDuration(RemainingSeconds.Value);
+
     public string State
     {
         get => state;
@@ -150,9 +268,36 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
         IsOnline = isOnline;
         IsLocked = isLocked;
         LastHeartbeatAtUtc = observedAtUtc;
-        State = isOnline
-            ? isLocked ? "Locked" : "Free"
-            : "Offline";
+
+        if (!HasActiveSession)
+        {
+            State = isOnline
+                ? isLocked ? "Locked" : "Free"
+                : "Offline";
+        }
+
+        OnDisplayStateChanged();
+    }
+
+    private static string NormalizeState(string value)
+    {
+        return value.Trim().ToLowerInvariant();
+    }
+
+    private static string FormatDuration(int seconds)
+    {
+        if (seconds < 60)
+        {
+            return $"осталось {seconds} с";
+        }
+
+        var totalMinutes = (int)Math.Ceiling(seconds / 60m);
+        var hours = totalMinutes / 60;
+        var minutes = totalMinutes % 60;
+
+        return hours == 0
+            ? $"осталось {minutes} мин"
+            : $"осталось {hours} ч {minutes:00} мин";
     }
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
@@ -164,5 +309,21 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
 
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private void OnDisplayStateChanged()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DisplayState)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StateTone)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StateForeground)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StateAccentBrush)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsPending)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsProblem)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DeviceSummary)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DeviceVersionSummary)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HeartbeatSummary)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RemainingTimeText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(OperatorActionText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanStartSession)));
     }
 }

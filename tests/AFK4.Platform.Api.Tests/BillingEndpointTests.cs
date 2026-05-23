@@ -339,6 +339,78 @@ public sealed class BillingEndpointTests
     }
 
     [Fact]
+    public async Task UpdateTariff_WithBranchManager_UpdatesTariffAndWritesAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var tariff = await SeedTariffAsync(factory);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}",
+            new UpdateTariffRequest(TestIds.OrganizationId, "Standard Plus", false));
+        var body = await response.Content.ReadFromJsonAsync<TariffDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal("Standard Plus", body.Name);
+        Assert.False(body.IsActive);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.UpdateTariff, audit.Action);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+    }
+
+    [Fact]
+    public async Task UpdateTariffVersion_WithBranchManager_UpdatesVersionAndCanRetire()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var tariff = await SeedTariffAsync(factory);
+        var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
+
+        var updateResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}/versions/{version.TariffVersionId:D}",
+            new UpdateTariffVersionRequest(
+                TestIds.OrganizationId,
+                "TJS",
+                75,
+                20,
+                10,
+                Now,
+                true));
+        var updated = await updateResponse.Content.ReadFromJsonAsync<TariffVersionDto>();
+
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.NotNull(updated);
+        Assert.Equal(75, updated.PricePerMinuteMinorUnits);
+        Assert.Null(updated.RetiredAtUtc);
+
+        var retireResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}/versions/{version.TariffVersionId:D}",
+            new UpdateTariffVersionRequest(
+                TestIds.OrganizationId,
+                "TJS",
+                75,
+                20,
+                10,
+                Now,
+                false));
+        var retired = await retireResponse.Content.ReadFromJsonAsync<TariffVersionDto>();
+
+        Assert.Equal(HttpStatusCode.OK, retireResponse.StatusCode);
+        Assert.NotNull(retired);
+        Assert.NotNull(retired.RetiredAtUtc);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(2, await dbContext.AuditRecords.CountAsync(audit => audit.Action == AuditActionNames.UpdateTariffVersion));
+    }
+
+    [Fact]
     public async Task CalculateTariff_WithAuthorizedStaff_ReturnsCalculation()
     {
         await using var factory = new PlatformApiFactory();
@@ -408,6 +480,38 @@ public sealed class BillingEndpointTests
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var audit = await dbContext.AuditRecords.SingleAsync();
         Assert.Equal(AuditActionNames.CreatePackageDefinition, audit.Action);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+    }
+
+    [Fact]
+    public async Task UpdatePackage_WithBranchManager_UpdatesPackageDefinition()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var package = await SeedPackageDefinitionAsync(factory);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/packages/{package.PackageDefinitionId:D}",
+            new UpdatePackageDefinitionRequest(
+                TestIds.OrganizationId,
+                "Night 6h",
+                new MoneyDto("TJS", 4500),
+                IncludedSeconds: 21600,
+                BonusSeconds: 2400,
+                ExpiresAfterDays: 45,
+                IsActive: false));
+        var body = await response.Content.ReadFromJsonAsync<PackageDefinitionDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal("NIGHT 6H", body.Name);
+        Assert.False(body.IsActive);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.UpdatePackageDefinition, audit.Action);
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
     }
 

@@ -3,12 +3,15 @@
 .vscode/
 bin/
 obj/
+node_modules/
 TestResults/
 *.user
 *.suo
 *.nupkg
 *.snupkg
+*.tsbuildinfo
 artifacts/
+src/AFK4.Operator.App.Web/dist/
 .superpowers/
 .worktrees/
 .env

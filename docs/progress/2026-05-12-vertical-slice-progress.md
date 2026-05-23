@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-20
+Last updated: 2026-05-23
 
 ## Purpose
 
@@ -16,6 +16,18 @@ the old long-form progress log, which is archived at:
 Use the archive only when historical verification details or phase-by-phase
 implementation evidence are needed.
 
+## Current Product Direction
+
+- Product and architecture scope changed on 2026-05-23: AFK4 MVP now includes
+  an internal browser-based SaaS Control Plane for platform-owner/support
+  tenant onboarding, owner invites, subscription/status controls, tenant
+  health, support notes, limits, and suspend/reactivate. The native Windows
+  Operator App remains the day-to-day operational UI for club staff.
+- The approved focused plan is
+  `docs/superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md`.
+  Older focused plans that say "no web admin" should be read as historical
+  scope for their slice, not as the current product decision.
+
 ## Implemented Capabilities
 
 ### Backend Platform
@@ -24,43 +36,309 @@ implementation evidence are needed.
 - EF Core/Npgsql persistence and migrations for identity, tenancy, devices,
   layout, sessions, billing, POS, shifts, updates, audit, diagnostics, and
   reports.
+- Reservations module with branch-scoped reservation search/create/update,
+  confirm/seat/cancel actions, overlap checks, and reservation audit entries.
 - Staff sign-in and refresh-token rotation.
 - Predefined MVP role-to-permission mapping.
 - Branch-scoped authorization for implemented operator-facing endpoints.
+- Branch profile read/update endpoint for owner/manager setup, with branch name
+  and city stored on the branch record, `layout.manage` authorization, and
+  audit records.
 - Device enrollment, credential issuance, heartbeat validation, command
   dispatch/status, command result fallback, credential rotation, and revocation.
 - Persisted zones, seats, staff-authorized device-seat assignment, floor-map
   reads, installed app reporting, and device detail projections.
 - Session start, extend, transfer, end, signed leases, reconciliation, and
-  heartbeat-driven lock/unlock/lease-refresh command planning.
+  heartbeat-driven lock/unlock/lease-refresh command planning. Repeated
+  session-end requests against an already `ending` session now return the
+  current pending lock command instead of surfacing a second-command 400 to the
+  operator.
 - Immutable ledger-backed wallet, debt, packages, refunds, manual corrections,
   tariffs, package definitions, and package consumption.
-- POS catalog, stock movements, sales, manual payments, refunds, voids,
-  receipts, shifts, cash movements, and shift close reconciliation.
+- POS catalog, stock movements, player-attributed sales, manual payments,
+  refunds, voids, receipts, shifts, cash movements, and shift close
+  reconciliation.
 - Update package registration, package/rollout state changes, rollout status
   reads, device update check/status endpoints, and Agent update status tracking.
 - Audit search endpoint.
 - Branch diagnostics endpoint.
 - Operational reports and CSV exports for shifts, sales, gameplay time, cash
   operations, and operator actions.
+- Operator Dashboard summary endpoint for active shift, revenue/utilization,
+  alert pressure, focus queue, floor-map-derived availability, and recent
+  payments.
 
 ### Operator App
 
-- WPF + MVVM production-oriented shell.
+- The Operator App target runtime is now a native .NET Windows desktop shell
+  with WebView2 hosting a React/TypeScript operator UI. The existing WPF/MVVM
+  implementation is legacy migration source, not the go-forward UI runtime.
 - Protected token storage abstraction.
 - Permission-filtered navigation.
 - Realtime floor map loading and selected-seat session actions.
 - Player search, wallet/package summaries, POS, shifts, reports, CSV exports,
   settings, technician device tools, update package/rollout management, audit
   search, diagnostics, and production hotkeys.
+- A first operator-console redesign pass is in progress on
+  `codex/operator-app-redesign`: the shell, floor map, POS, players, shifts,
+  and settings surfaces now prioritize selected-seat context, readable state,
+  cart/checkout clarity, and operator-safe summaries instead of raw GUIDs and
+  backend-shaped forms.
 - Settings includes a minimum Pilot Setup panel for branch staff users, one
   layout zone with seats, one tariff/version, one POS category/product, and
   optional already-enrolled device-to-seat assignment.
 - Local Operator App builds can target staging by setting
-  `AFK4_OPERATOR_PLATFORM_BASE_URL` before launch.
+  `AFK4_OPERATOR_PLATFORM_BASE_URL`, `AFK4_OPERATOR_ORGANIZATION_ID`,
+  `AFK4_OPERATOR_BRANCH_ID`, and optional `AFK4_OPERATOR_CURRENCY_CODE` before
+  launch.
 - Floor-map seat context no longer defaults to a raw `postpaid_debt` request.
   It has a fast guest/no-ledger billing option for staging smoke, explicit
   billed modes, and validation that billed modes require a player account.
+- The Operator App redesign branch now makes the primary operator day flow
+  Russian-first for sign-in, floor map/seat actions, POS, players, and shifts.
+  Operator money commands use configurable UI currency from
+  `AFK4_OPERATOR_CURRENCY_CODE`, defaulting to `TJS`.
+- The target state for continued Operator App UI/UX work is now documented in
+  `docs/product/operator-app-ui-target.md`. Future redesign work should
+  converge to that dense operator-console target: dark top/left chrome, floor
+  map as the main workspace, selected-seat action panel, operational signals,
+  explicit pending/failed backend and device states, Russian-first primary copy,
+  and no raw GUID/form surfaces in normal cashier/operator paths.
+- The approved migration plan is
+  `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
+  It keeps the native Windows desktop app boundary and MSI/update component,
+  but moves operator UI implementation from WPF to WebView2 + React/TypeScript.
+- The WebView2/React Operator App now has the first real auth/token boundary:
+  the native host handles `auth:loadToken`, `auth:signIn`, `auth:refresh`, and
+  `auth:signOut` bridge messages; tokens are saved through Windows protected
+  storage; the React UI gates the operator console behind staff sign-in; and
+  auth/error-projection tests cover that browser `localStorage` and
+  `sessionStorage` are not used for token persistence.
+- WebView2 packaged React startup is hardened for empty protected-token state:
+  the native bridge now returns an explicit `payload: null` for
+  `auth:loadToken`, the web auth client normalizes missing token payloads to
+  `null`, the shared frontend API client calls browser `fetch` through the
+  global receiver, and the Platform API allows the fixed WebView2 origin
+  `https://operator.afk4.local` plus local Vite dev/preview origins for
+  authenticated API and SignalR calls.
+- The React frontend now also has typed API client boundaries beyond auth:
+  shared authenticated HTTP/error handling plus route-tested clients for floor
+  map, sessions, POS, players, shifts/reports/CSV, settings/pilot setup,
+  devices, diagnostics, updates, and audit. The primary map now uses those
+  clients to load backend floor-map data after native staff auth, while keeping
+  fixture fallback for browser-dev/no-backend runs. Signed-in React workspace
+  status labels no longer present `Fixture`, `Fixture fallback`, or
+  `SmartShell-like fixture` as operator-facing states; backend loading/failure
+  and deliberate browser-dev/no-backend fallback now read as backend status or
+  `Dev demo`.
+  Packaged `webview2` auth failures also no longer expose the technical
+  `Native host bridge is unavailable.` diagnostic to operators; browser-dev
+  smoke keeps that exact diagnostic so host-bridge wiring failures remain
+  obvious during local validation.
+  Payments and Logs no longer reuse `Нет backend операций` /
+  `Нет backend событий` as catch-all placeholders: successful empty backend
+  responses, loading, backend failures, and search/filter misses now have
+  separate operator-facing rows.
+- A focused Operator App pilot-hardening plan now exists at
+  `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`. The first
+  slice removes signed-in POS and Players demo-data leakage for authoritative
+  empty backend responses and restricts the WebView2 dev-server URL to
+  localhost/loopback origins. Deliberate fixture data remains only for
+  browser-dev/no-backend fallback.
+- The next pilot-hardening slice adds inline confirmation guards for session
+  end, POS refund/void, shift close, and device credential revoke. The first
+  click now opens an impact/reason confirmation, and backend dispatch happens
+  only from the explicit confirmation button. POS refund and draft void reasons
+  are visible inputs instead of hidden fixed audit text.
+- The planned critical-action confirmation set now also covers Settings layout
+  zone/seat deletion and update package/rollout state changes. Those paths show
+  the selected target, impact, and reason/state context before the backend
+  delete or state-change request is sent.
+- Operator App package builds now run the React frontend build before publishing
+  the native shell, replace published `WebAssets` with the Vite `dist` output,
+  feed those assets into the Operator App MSI, and assert the finished MSI File
+  table contains `index.html`, JavaScript, and CSS frontend assets. The client
+  package workflows set up Node 24 and npm cache for
+  `src/AFK4.Operator.App.Web/package-lock.json`.
+  The Operator App MSI now has a WebView2 Evergreen Runtime launch condition
+  based on the documented EdgeUpdate `pv` registry values, so first install
+  fails closed with an explicit prerequisite message instead of installing a
+  shell that cannot initialize WebView2.
+- The React primary floor map now has a SignalR JavaScript client for the
+  existing `/hubs/devices` hub. It tracks disconnected/connecting/connected/
+  reconnecting state, applies `deviceStatusChanged` updates by device id or
+  machine name, preserves active sessions as warning/problem seats when the PC
+  goes offline, and treats realtime as context only.
+- The React primary floor map now also listens for `deviceCommandResult` and
+  reloads the authoritative backend floor map after session/device command
+  completion, with a locked-heartbeat fallback for active or pending seats.
+  This prevents selected-seat actions such as stop/lock from staying in a
+  local pending state after the backend has finalized the session.
+- Active-session remaining time now renders from a backend snapshot deadline
+  and ticks locally every second, so floor tiles and the selected-seat panel do
+  not show stale rounded values such as `осталось 1 ч 00 мин` until the next
+  full floor-map reload.
+- The Operator App shell no longer hardcodes the top shift status or footer POS
+  signal. It loads current shift state from `/shifts/current`, POS check count
+  from `/dashboard/summary`, refreshes that operational shell state
+  periodically, and leaves unavailable values as explicit no-data/no-access
+  labels instead of fake shift/check numbers.
+- The selected-seat context panel now constrains and wraps intermediate
+  command/status feedback inside the panel, so pending session states do not
+  widen the right rail or break the operator layout.
+- The Operator App shell now disables accidental text selection across
+  operator chrome while preserving normal selection/editing inside text inputs.
+- The native WebView2 Operator App window now behaves more like a normal
+  Windows window: lower practical minimum size, edge/corner resize handles,
+  double-click maximize on the top command bar, and responsive shell CSS for
+  narrower window sizes.
+- The map toolbar no longer exposes the selected-device check as vague
+  `Техрежим`. It now opens `Управление ПК`: a selected-seat control panel with
+  status refresh and currently supported backend device commands. The panel
+  behaves like a popover, closing on outside click or Escape; reboot,
+  shutdown, Wake-on-LAN, and timed admin/service mode are visible as future
+  actions that explain their missing Agent/backend contracts instead of
+  appearing as broken disabled buttons.
+- The React primary floor map now sends selected-seat fast guest start,
+  extend +15/+30, transfer, and end requests through typed authenticated
+  session API clients. Those actions are enabled only for backend-loaded seats
+  with the required session/seat ids, use idempotency keys, wait for backend
+  confirmation, reload the authoritative floor map, and show failed backend
+  responses as action feedback instead of confirming fixture-only clicks.
+- The React UI now has its first permission-aware state: the workspace rail
+  opens a screen when the restored staff session has any permission relevant
+  to that workspace, marks screens with no matching permission as locked,
+  refreshes the restored native session before and during locked navigation
+  attempts, and shows explicit locked-section feedback instead of silently
+  ignoring clicks. Selected-seat start/extend/transfer/end actions remain
+  disabled and guarded by matching session permissions before any API call is
+  attempted.
+- The selected-seat map panel now supports real billing-mode selection for
+  guest/no-ledger, prepaid wallet, player package, and postpaid debt starts and
+  extensions. Billed modes require a backend player selection plus the relevant
+  tariff or active player package before the session command is enabled, and
+  session command feedback now reads backend device-command status when the
+  staff session has `devices.commands.status.view`.
+- The primary map now has real operator filters for all seats, free seats,
+  active sessions, attention states, and offline seats, plus a table view that
+  uses the same backend-loaded `SeatSummary` state as the map tiles. Changing a
+  filter also keeps the selected-seat context on a visible seat. The map
+  `Техрежим` toolbar action is now backend-confirmed for the selected seat: it
+  requires diagnostics and device-detail permissions, reads the selected device
+  detail plus branch diagnostics, and reports a technician summary only after
+  those backend calls complete.
+- Booking now has first-pass edge hardening for the React operator flow:
+  create/confirm/seat/move/cancel actions require `reservations.manage`,
+  mutation buttons disable for view-only staff or terminal reservation states,
+  the selected reservation index is reset after backend reloads when needed,
+  and new reservations validate free-seat availability plus start time before
+  sending the backend request.
+- Settings `Персонал` now has a general staff creation form backed by the
+  existing branch staff API. It validates the form client-side, requires the
+  existing branch-staff management permission, posts login/display name/
+  temporary password/role names to `/api/branches/{branchId}/staff`. It can also
+  edit a selected staff user's login/display name through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/profile`, guarded by
+  `identity.branch_staff.manage`, update an existing staff user's predefined
+  branch role through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/roles`, guarded by
+  `identity.roles.manage`, deactivate/reactivate selected staff users through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/state`, and reset a
+  selected staff password through
+  `POST /api/branches/{branchId}/staff/{staffUserId}/password-reset`. Staff
+  deactivation and password reset revoke the target user's active access and
+  refresh tokens. Branch
+  profile saving now uses the new `/api/branches/{branchId}/profile` backend
+  endpoint for club name and city. Settings `POS и склад` can now create a
+  backend POS category and product through `/api/branches/{branchId}/pos/categories`
+  and `/api/branches/{branchId}/pos/products`, guarded by
+  `pos.catalog.manage`, update/deactivate selected POS products through
+  `PATCH /api/branches/{branchId}/pos/products/{productId}`, and can record stock movements through
+  `/api/branches/{branchId}/inventory/stock-movements`, guarded by
+  `inventory.stock.manage`. The same Settings section now reads recent stock
+  movement history from `GET /api/branches/{branchId}/inventory/stock-movements`,
+  guarded by `inventory.view`. Settings `Тарифы` can now create tariffs and their
+  first price-rule versions through `/api/branches/{branchId}/tariffs` and
+  `/api/branches/{branchId}/tariffs/{tariffId}/versions`, guarded by
+  `tariffs.manage`, update/deactivate selected tariffs through
+  `PATCH /api/branches/{branchId}/tariffs/{tariffId}` and
+  `PATCH /api/branches/{branchId}/tariffs/{tariffId}/versions/{tariffVersionId}`,
+  and can create package definitions through
+  `/api/branches/{branchId}/packages`, then update/deactivate selected package
+  definitions through `/api/branches/{branchId}/packages/{packageDefinitionId}`,
+  guarded by `packages.manage`.
+  Settings `Интеграции` can now register update packages, create rollouts, show
+  selected rollout status/device snapshots, and change update package/rollout
+  states through the existing update endpoints, guarded by
+  `updates.packages.manage` and `updates.rollouts.manage`. Settings
+  `Залы и ПК` can now create device enrollment codes, assign an enrolled
+  device id to a selected seat, and open device detail through existing device
+  endpoints, guarded by the existing device permissions. The same section now
+  creates and updates layout zones/seats from operator-entered names/sort
+  orders and can delete unused seats plus empty zones through the existing
+  layout endpoints, guarded by `layout.manage`. The same
+  Settings device surface can now rotate and revoke device credentials through
+  the existing credential lifecycle endpoints and dispatch lock/unlock device
+  commands through `/api/devices/{deviceId}/commands`, guarded by
+  `devices.commands.dispatch`. It also reads selected-device command history
+  through `/api/devices/{deviceId}/commands` and branch-wide command history
+  through `/api/branches/{branchId}/device-commands`, guarded by
+  `devices.commands.status.view`.
+- The remaining React operator workspaces are now wired to existing backend
+  reads/actions where contracts exist: POS loads catalog/current shift/sales
+  reports, searches backend players for the cart customer, creates paid
+  manual-provider sales with an optional backend `playerAccountId`, can create
+  a new backend player card from the POS cart and immediately use it for
+  checkout, can top up the selected cart client's wallet from the current cart
+  total through the existing wallet top-up endpoint, can record POS stock
+  write-offs through the existing inventory stock-movement endpoint, can refund
+  the selected backend sale from the quick-operation panel, and can void a
+  backend draft sale created from the current cart, and opens backend sale
+  details from the recent receipt list plus the linked backend receipt
+  projection, and can print/export the loaded receipt locally; Clients searches
+  backend players, loads active packages for the selected player profile,
+  and performs wallet top-up and debt payment with operator-entered
+  amount/reason, package purchase with explicit package selection, price/minute
+  preview, deposit guard, and active-package refresh, player creation with
+  operator-entered name/phone, and reservation creation from a selected backend player guarded by
+  `reservations.manage`; Payments
+  reads shift, sales, cash, and CSV report endpoints and shows selected
+  operation detail from backend report rows, with report export buttons now
+  downloading sales/cash/shift CSV files and a local discrepancy JSON; Logs
+  reads audit and diagnostics
+  and shows selected audit/diagnostics event detail from the loaded backend
+  rows, while source cards filter the loaded event list by all/Agent/POS/
+  Operator/Platform, and operator period presets execute audit searches for
+  today, the last 24 hours, or the last 7 days; Logs export buttons now
+  download backend operator-action/shift CSV files and local audit/error JSON
+  bundles from loaded audit/diagnostics data;
+  Settings reads staff, layout, catalog, stock movement history, diagnostics,
+  update rollout, tariff option, and package option data, and can trigger
+  limited backend setup actions
+  including layout zone/seat creation/update, tariff/version
+  creation/update/deactivation, package definition creation/update/deactivation,
+  POS product update/deactivation, inventory stock movement creation, update
+  package registration, rollout creation, rollout status/detail display, and
+  update state changes;
+  Settings device setup can list branch device inventory through
+  `/api/branches/{branchId}/devices`, select a device without manual GUID
+  entry, create enrollment codes, assign device seats, read device detail with
+  status/version/credential/app data, read selected-device command history
+  through `/api/devices/{deviceId}/commands`, dispatch device commands, and
+  rotate/revoke device credentials;
+  Logs now applies backend
+  audit search filters for action/outcome/target type, UTC date range, and
+  limit through `/api/branches/{branchId}/audit`; Dashboard reads the backend
+  dashboard summary and uses existing report exports
+  for export download; Booking uses backend reservation
+  search/create/update/confirm/seat/cancel endpoints with floor-map-backed
+  availability and action fallback; Payments can now open a shift through
+  `/api/branches/{branchId}/shifts/open`, close the current shift through
+  `/api/shifts/{shiftId}/close` with counted cash, closing note, and
+  `shifts.close` permission gating, and records cash in/out movements through
+  `/api/shifts/{shiftId}/cash-movements` with `shifts.cash.manage` gating.
+  Remaining fixture-only or missing-contract actions still fail explicitly
+  instead of showing fixture success.
 
 ### Agent Service
 
@@ -124,6 +402,9 @@ implementation evidence are needed.
 ### Operations Docs
 
 - Local PostgreSQL smoke runbook.
+- Local dev reset/seed workflow via `scripts/reset-local-dev-data.ps1` and
+  `src/AFK4.Platform.DevSeed`, which can rebuild `afk4_dev`, apply migrations,
+  and seed a dense operator UI/UX dataset for the local WebView2 app.
 - Coolify staging deploy runbook for building the Platform API container from
   the repo, connecting Coolify-managed PostgreSQL, applying EF migrations,
   configuring GitHub repository variables/secrets for automated Coolify deploy,
@@ -143,7 +424,423 @@ implementation evidence are needed.
 
 ## Latest Verification
 
-Final verification after merging PR #9 on 2026-05-16 from `D:\afk4.net`:
+Current frontend verification on 2026-05-22 from `D:\projects\afk4.net` after
+the WebView2/React auth/token, typed API client, SignalR realtime,
+backend-backed floor-map loading, backend-confirmed selected-seat actions,
+first backend-backed parity wiring for the remaining operator workspaces,
+the Operator Dashboard summary endpoint, Booking reservation contracts, and
+permission-aware React navigation/session action state, map billing-mode
+selection and device-command result feedback, map filters/table parity,
+Booking permission/state hardening, Settings staff creation/profile update/
+role update/lifecycle controls, and branch profile read/update, Settings POS catalog create/update/deactivate,
+Settings stock movement creation, Settings stock movement history, Settings tariff/version create/update/deactivate, Settings package definition create/update/deactivate, Settings branch device inventory and selected-device command history, Clients
+wallet top-up/debt payment amount/reason forms, Clients package selector/price
+preview purchase, Clients new-player name/phone form, POS selected-sale refund, Payments
+close-shift wiring, Payments cash movement creation, Payments open-shift
+wiring, Settings update package/rollout controls, Settings device enrollment,
+seat assignment, and credential lifecycle, Logs backend audit/date filters and
+selected audit/diagnostics event detail plus source-card filtering and period
+presets plus export downloads, POS
+refund quick action, Settings layout zone/seat creation/update, POS
+draft void quick action, POS sale detail/receipt lookup, POS selected-customer
+checkout, POS new-customer checkout, Clients package purchase, Clients
+reservation permission gating, Settings staff role editing, Settings branch
+device inventory, selected-device command history, and branch-wide device
+command history, and Settings safe layout deletion:
+
+```powershell
+& 'C:\Program Files\nodejs\npm.cmd' test
+& 'C:\Program Files\nodejs\npm.cmd' run build
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+& 'C:\Program Files\Git\cmd\git.exe' diff --check
+```
+
+Result:
+
+- frontend tests: 94 passed, 0 failed;
+- frontend production build: passed;
+- full local .NET solution tests: 820 passed, 0 failed;
+- `git diff --check`: clean apart from expected CRLF conversion warnings;
+- Browser smoke on `http://127.0.0.1:5173/` after Settings staff profile
+  editing, branch-wide device command history, and Settings safe layout
+  deletion rendered the WebView auth entry surface with title `AFK4 Operator`,
+  heading `Вход оператора`, sign-in button, no old backend placeholder copy,
+  and no horizontal or vertical body overflow.
+- Additional frontend-only verification on 2026-05-22 after fixing workspace
+  rail permission gating, restored-session permission refresh, and locked
+  section click feedback:
+  - `npm test`: 96 passed, 0 failed;
+  - `npm run build`: passed;
+  - native `AFK4.Operator.App.exe` was restarted and opened the `AFK4 Operator`
+    WebView2 window against the rebuilt React `dist`.
+- Additional local WebView2/runtime verification on 2026-05-22 after fixing
+  empty-token startup, frontend `fetch` binding, and Platform API CORS for the
+  WebView2 origin:
+  - `npm test`: 97 passed, 0 failed;
+  - `npm run build`: passed;
+  - `dotnet test tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj`:
+    193 passed, 0 failed;
+  - `dotnet build src/AFK4.Platform.Api/AFK4.Platform.Api.csproj`: passed;
+  - `dotnet build src/AFK4.Operator.App/AFK4.Operator.App.csproj`: passed;
+  - local PostgreSQL was healthy, latest EF migrations had already been applied,
+    Platform API restarted on `http://localhost:5074`, `/api/health` returned
+    `ok`, and a WebView2-origin SignalR preflight to `/hubs/devices/negotiate`
+    returned 204 with `Access-Control-Allow-Origin:
+    https://operator.afk4.local`;
+  - native `AFK4.Operator.App.exe` opened on the local backend, auto-loaded the
+    protected local staff session, rendered the primary map with backend data
+    for `AFK4 Dushanbe`, reported `Backend live` and `Realtime connected`, and
+    had no JavaScript runtime exceptions in WebView2 remote-debug inspection.
+- Additional local Operator App/backend UX cleanup verification on 2026-05-22:
+  - stale protected-token 401s are cleared through native sign-out instead of
+    leaving the operator on a raw Platform API 401;
+  - the top chrome no longer duplicates realtime/backend status or the map
+    summary strip, and footer status copy is operator-facing;
+  - visible operator labels for map commands, device/app state, logs, settings,
+    staff roles, and update rollout controls are Russian-first;
+  - repeat stop on a seeded `ending` session returned HTTP 200 with the existing
+    pending lock command, not the previous scary 400;
+  - `scripts/reset-local-dev-data.ps1` rebuilt local PostgreSQL and seeded
+    `AFK4 Душанбе` with 26 seats, active/ending/offline/service states, players,
+    POS stock/sale/receipt data, reservations, updates, audit rows, and login
+    `owner@afk4.test` / `Passw0rd!`;
+  - verification passed: `npm test` 98/98, `npm run build`, full
+    `AFK4.Platform.Api.Tests` 372/372, and `dotnet build AFK4.sln`.
+- Additional local Operator App realtime command-result, live remaining-time,
+  shell operational-status, selected-seat overflow, and native window behavior
+  verification on 2026-05-23:
+  - focused frontend App tests for selected-seat stop, realtime
+    command-result reload, active-session countdown, shell shift/POS backend
+    labels, selected-seat panel markup, and native window command wiring
+    passed: `npm test -- App.test.tsx` 69/69;
+  - full frontend tests passed: `npm test` 101/101;
+  - frontend production build passed: `npm run build`;
+  - native Operator App shell build passed:
+    `dotnet build src/AFK4.Operator.App/AFK4.Operator.App.csproj`;
+  - local Platform API stayed running on `http://localhost:5074`, the four-PC
+    simulator for `PC-009` through `PC-012` reported all four devices online
+    and locked with no active sessions before the later PC-009 start smoke;
+    native `AFK4.Operator.App.exe` was relaunched against the rebuilt React
+    `dist` after the fixes, and local backend probes showed an open shift plus
+    dashboard `posCheckCount=1` feeding the shell labels.
+- Operator App pilot-hardening verification on 2026-05-23:
+  - focused App tests passed 71/71 after adding empty backend POS catalog and
+    empty backend player search coverage;
+  - full frontend tests passed 103/103;
+  - frontend production build passed: `npm run build`;
+  - focused WebView2 shell option tests passed 7/7 after closing the local
+    `AFK4.Operator.App.exe` process that had locked the output binary;
+  - full Operator App tests passed 196/196;
+  - `git diff --check` was clean apart from expected CRLF conversion warnings.
+- Operator App critical-action guard verification on 2026-05-23:
+  - focused App tests passed 71/71 after adding two-step confirmation coverage
+    for session end, POS refund, POS draft void, shift close, and device
+    credential revoke;
+  - full frontend tests passed 103/103;
+  - frontend production build passed: `npm run build`.
+- Operator App remaining critical-action guard verification on 2026-05-23:
+  - focused App tests passed 71/71 after adding two-step confirmation coverage
+    for Settings layout zone/seat deletion plus update package and rollout state
+    changes;
+  - full frontend tests passed 103/103;
+  - frontend production build passed: `npm run build`.
+- Staging branch synchronization and external smoke check on 2026-05-23:
+  - staging handoff for this session recorded Coolify application
+    `afk4-platform-api-staging` (`d3fm17hl6kb7sossg1kj8buq`) as
+    `running:healthy` on branch `codex/operator-app-redesign` at
+    `https://afk4.staging.mubi.dev`;
+  - staging database resource `foie51tkp2w68t6nwc5xks63` is intentionally in
+    safe network mode (`is_public=false`). Initial and final external TCP
+    probes to `afk4.staging.mubi.dev:55432` returned closed/refused;
+  - staging migrations are synchronized with the current
+    `codex/operator-app-redesign` branch. A temporary controlled public DB
+    window for smoke setup read `__EFMigrationsHistory` and confirmed latest
+    migration `20260521181408_AddPosSalePlayerAccount`; the database was then
+    returned to `is_public=false`;
+  - public `/api/health` returned HTTP 200 with `status=ok` and server time
+    `2026-05-23T08:44:49.8219233+00:00`;
+  - negative auth contour smoke passed: invalid staff sign-in and invalid
+    refresh returned HTTP 401;
+  - unauthenticated operator route guards returned HTTP 401 for floor map,
+    dashboard summary, POS catalog, current shift, sales report, players
+    search, devices list, diagnostics, update rollouts, audit search,
+    reservations search, and branch profile. The branch-only `profile` and
+    `reservations` routes now return 401 instead of the earlier 404, which is
+    consistent with the current feature branch being deployed;
+  - staging initially had schema but no pilot branch row for the expected
+    branch id. A temporary helper seeded the minimum organization, branch, and
+    deterministic smoke staff user `staging-smoke@afk4.test` with role
+    `owner`; no product code or committed files were changed for this helper;
+  - authenticated auth smoke then passed: smoke staff sign-in returned HTTP
+    200 with 48 permissions and one branch, and refresh-token rotation returned
+    HTTP 200 with a rotated access token and refresh token;
+  - authenticated read-only operator smoke passed for floor map (`200`,
+    `seats=0`), dashboard summary (`200`), POS catalog (`200`, empty array),
+    current shift (`404`, accepted no-open-shift state), sales report (`200`,
+    zero rows), players search (`200`, empty array), devices list (`200`, empty
+    array), branch device command history (`200`, empty array), diagnostics
+    (`200`), update rollouts (`200`, empty array), audit search (`200`),
+    reservations search (`200`), branch profile (`200`), tariff options
+    (`200`, empty array), package options (`200`, empty array), and stock
+    movements (`200`, empty array);
+  - PR #44 on `codex/operator-app-redesign` has green remote `PR Verification`
+    on head `def47f6a930a40dbe693a2769e59f4d13d9e2ccd` with build and tests
+    passing. A follow-up sanitized Coolify API check with a runtime-only token
+    confirmed the application resource is `running:healthy`, configured for
+    repository `MubiZero/afk4.net`, branch `codex/operator-app-redesign`,
+    Dockerfile build pack, exposed port `8080`, health path `/api/health`,
+    `server_status=true`, `restart_count=0`, and `last_online_at`
+    `2026-05-23 08:54:12`;
+  - the same Coolify API check confirmed PostgreSQL resource
+    `foie51tkp2w68t6nwc5xks63` is `running:healthy`,
+    `database_type=standalone-postgresql`, image `postgres:17-alpine`,
+    `server_status=true`, `is_public=false`, `public_port=55432`,
+    no public `ports_mappings`, `restart_count=0`, and `last_online_at`
+    `2026-05-23 08:55:11`;
+  - Coolify application logs endpoint returned the latest 300 log lines with
+    zero `error`/`fail`/`failed`/`exception`/`fatal`/`critical` matches after
+    the smoke probes. Coolify database logs endpoints returned 404 in this API
+    version, so DB log review was limited to resource health/status and the
+    API's successful database-backed route/auth behavior. `gh run view
+    --log-failed` returned no failed-log output for the current PR verification
+    run.
+- Operator Dashboard backend wiring tests cover shared DTO serialization,
+  unauthorized/forbidden/success API behavior, denied/succeeded audit records,
+  frontend route construction, backend-loaded Dashboard KPIs/focus queue, and
+  export feedback that waits for backend reads and downloads the sales CSV.
+- Booking reservation tests cover shared DTO serialization, unauthorized and
+  forbidden reads, create/confirm/update/search/seat/cancel API behavior,
+  overlap conflict handling, audit records, frontend route construction,
+  Booking create/cancel confirmation, and reservation creation from a backend
+  player card.
+- Permission-aware frontend tests cover disabled workspace navigation and
+  disabled selected-seat actions when the staff session only has
+  `floor_map.view`, plus rail navigation for partial role permissions so
+  cashier/technician workspaces open while their individual actions remain
+  permission-gated. They also cover restored-session permission refresh before
+  rail gating and explicit locked-section feedback when the refreshed session
+  still lacks the workspace permission.
+- Map billing/action tests now cover fast guest start, prepaid-wallet start
+  with backend player/tariff metadata, idempotency keys, and follow-up
+  `/api/devices/{deviceId}/commands/{commandId}/status` reads for selected-seat
+  command feedback.
+- Map filter/table tests cover the free-seat filter, selected-seat handoff when
+  the active filter hides the previous PC, and the table view's operator
+  columns.
+- Booking frontend tests now cover disabled mutation controls for a staff
+  session with `reservations.view` but without `reservations.manage`.
+- Settings frontend tests now cover branch staff creation from the Personnel
+  form, including request body serialization for login, display name, temporary
+  password, and role names.
+- Settings backend/API/frontend tests now cover selected staff profile editing
+  through `PATCH /api/branches/{branchId}/staff/{staffUserId}/profile`,
+  including shared contract JSON round-trip, login/display-name validation,
+  duplicate-login conflict handling, `identity.branch_staff.manage`
+  authorization, audit records, sign-in with the renamed login, frontend
+  request serialization, and selected-row refresh in `Персонал`.
+- Settings backend/frontend tests now cover replacing a selected staff user's
+  predefined branch role through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/roles`, including
+  `identity.roles.manage` authorization, role replacement persistence, audit,
+  frontend request serialization, and disabled UI state without role-management
+  permission.
+- Settings backend/API/frontend tests now cover selected staff
+  deactivate/reactivate through
+  `PATCH /api/branches/{branchId}/staff/{staffUserId}/state` and selected staff
+  password reset through
+  `POST /api/branches/{branchId}/staff/{staffUserId}/password-reset`, including
+  shared contract JSON round-trips, `identity.branch_staff.manage`
+  authorization, audit records, old-password rejection after reset,
+  inactive-staff sign-in rejection, active token revocation, frontend
+  route/body serialization, and Operator App buttons in `Персонал`.
+- Branch profile backend tests cover owner/manager read/update and forbidden
+  cashier updates. Frontend tests cover Settings profile PATCH body
+  serialization for club name and city.
+- Settings POS catalog frontend tests now cover backend category/product POST
+  serialization from the `POS и склад` form, including price minor units,
+  stock flags, and idempotency keys.
+- Settings POS catalog backend/API/frontend tests now cover selected product
+  update and deactivation through
+  `PATCH /api/branches/{branchId}/pos/products/{productId}`, including
+  `pos.catalog.manage` authorization, SKU uniqueness, derived stock-on-hand in
+  update responses, frontend request serialization, and active-catalog removal
+  after deactivation.
+- Settings stock frontend tests now cover inventory stock movement POST
+  serialization from the `POS и склад` form, including product id, movement
+  type, quantity delta, unit cost, reason, organization id, and idempotency key.
+- Settings stock backend/API/frontend tests now cover recent inventory stock
+  movement history through `GET /api/branches/{branchId}/inventory/stock-movements`,
+  including `inventory.view` authorization, product filtering/limit behavior,
+  frontend query serialization, and display in the `POS и склад` section.
+- Settings package frontend tests now cover package definition POST
+  serialization from the `Тарифы` form, including price minor units, included
+  seconds, bonus seconds, expiry days, organization id, and idempotency key.
+- Settings package backend/API/frontend tests now cover selected package
+  update and deactivation through
+  `PATCH /api/branches/{branchId}/packages/{packageDefinitionId}`, including
+  `packages.manage` authorization, duplicate-name validation, frontend request
+  serialization, and removal from active package options after deactivation.
+- Settings tariff frontend tests now cover creating a tariff plus first rule
+  version from the `Тарифы` form, including tariff name, hourly price converted
+  to per-minute minor units, minimum billable minutes, rounding increment,
+  effective UTC timestamp, organization id, and idempotency keys.
+- Settings tariff backend/API/frontend tests now cover selected tariff
+  update/deactivation through
+  `PATCH /api/branches/{branchId}/tariffs/{tariffId}` and
+  `PATCH /api/branches/{branchId}/tariffs/{tariffId}/versions/{tariffVersionId}`,
+  including shared contract JSON round-trips, `tariffs.manage` authorization,
+  audit records, duplicate tariff-name validation, material-change rejection
+  when a tariff version is already used by sessions, frontend route/body
+  serialization, and active option removal after deactivation.
+- Settings update frontend tests now cover update package registration,
+  rollout creation, package state changes, and rollout state changes from
+  `Интеграции`, including package/rollout ids, channels, target kind, batch
+  percent, start time, reason, organization id serialization, and selected
+  rollout device status snapshot display.
+- Logs frontend tests now cover backend audit search filtering from `Логи`,
+  including action, outcome, target type, UTC from/to, and limit query-string
+  serialization to `/api/branches/{branchId}/audit`, plus the `Сегодня`
+  period preset's generated UTC from/to range and default limit.
+- Logs frontend tests now cover selected event detail from backend audit rows
+  and diagnostics command-failure rows, including ids, target/source data,
+  command status, diagnostic messages, and source-card filtering between POS
+  and Agent events.
+- Logs frontend tests now cover CSV and audit-trail downloads from the Logs
+  export panel, including the backend operator-action CSV endpoint and local
+  audit JSON filename generation.
+- Settings device frontend tests now cover creating device enrollment codes,
+  assigning a device id to a selected seat, and reading device detail through
+  the existing device endpoints from `Залы и ПК`, including displayed online/
+  locked state, Agent/Shell versions, credential/app counts, and recent command
+  history. The same test now covers rotating and revoking device credentials
+  through the existing credential lifecycle endpoints.
+- Device inventory backend/API/frontend tests now cover
+  `GET /api/branches/{branchId}/devices` with `devices.detail.view`
+  authorization, branch scoping, seat/zone projection, credential/app counts,
+  pending/failed command counts, frontend route construction, Settings device
+  inventory display, and opening a selected device card without typing a GUID.
+- Device command history backend/API/frontend tests now cover
+  `GET /api/devices/{deviceId}/commands?limit=...` with
+  `devices.commands.status.view` authorization, audit records, newest-first
+  limit behavior, frontend route construction, and Settings command history
+  refresh after opening a device card or dispatching a command.
+- Branch device command history backend/API/frontend tests now cover
+  `GET /api/branches/{branchId}/device-commands?limit=...` with
+  `devices.commands.status.view` authorization, branch device scoping,
+  newest-first limit behavior, audit records, frontend route construction, and
+  Settings `Залы и ПК` branch-wide command-history refresh.
+- Settings layout backend/API/frontend tests now cover creating and updating a
+  layout zone and seat from `Залы и ПК`, including operator-entered zone
+  name/sort order, selected seat zone id, seat name/sort order, organization
+  id, `layout.manage` authorization, audit records, shared contract JSON
+  round-trips, and the `/api/branches/{branchId}/layout/zones`,
+  `/api/branches/{branchId}/layout/zones/{zoneId}`,
+  `/api/branches/{branchId}/layout/seats`, and
+  `/api/branches/{branchId}/layout/seats/{seatId}` endpoints.
+- Settings layout backend/API/frontend tests now cover deleting an unused seat
+  and then deleting an empty zone through the layout DELETE endpoints,
+  including organization scoping, audit records, active-device-assignment
+  conflict handling, frontend route construction, and Operator App buttons in
+  `Залы и ПК`.
+- Payments frontend tests now cover closing the current shift from the
+  reconciliation panel through `/api/shifts/{shiftId}/close`, including
+  counted cash, closing note, organization id, and idempotency key
+  serialization.
+- Payments frontend tests now also cover recording cash movements through
+  `/api/shifts/{shiftId}/cash-movements`, including movement type, amount,
+  reason, organization id, and idempotency key serialization.
+- Payments frontend tests now cover opening a shift when no current shift
+  exists through `/api/branches/{branchId}/shifts/open`, including starting
+  cash, opening note, organization id, and idempotency key serialization.
+- Payments frontend tests now cover report export downloads from the Payments
+  reports panel, including backend sales and cash CSV export endpoints plus a
+  local shift discrepancy JSON download.
+- Browser smoke on `http://127.0.0.1:5173/` after Logs selected-event detail
+  source-card filtering, audit period presets, Logs export downloads,
+  Payments/Dashboard report export downloads, Clients reservation permission
+  gating, Settings staff role editing/lifecycle controls, Settings stock
+  movement history, Settings POS product update/deactivation, Settings layout
+  zone/seat update, Settings tariff update/deactivation, and Settings package
+  update/deactivation: the React app rendered the
+  WebView auth entry surface with title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no horizontal or vertical body overflow,
+  and no old backend placeholder copy.
+- Previous browser smoke on `http://127.0.0.1:4174/`: WebView auth entry screen
+  rendered with title `AFK4 Operator`, heading `Вход оператора`, password
+  field, sign-in button, custom window controls, platform URL, no console
+  errors, and no horizontal or vertical page overflow. Because the smoke runs
+  outside WebView2, the page correctly reported the native host bridge as
+  unavailable.
+- SignalR/floor-map frontend tests cover the `/hubs/devices` URL, realtime
+  connection-state transitions, backend `FloorMapDto` sorting/state mapping,
+  and `deviceStatusChanged` overlays for free and active-session seats.
+- Selected-seat action frontend tests cover backend-confirmed session end and
+  fast guest start calls, including route selection, request body serialization,
+  idempotency keys, and UI confirmation only after the API resolves.
+- POS frontend tests now cover backend-confirmed catalog/current-shift loading,
+  POS sale creation, manual payment, and UI confirmation only after both API
+  calls resolve.
+- POS frontend/API/backend tests now cover selected backend customer lookup for
+  the cart, `playerAccountId` serialization on create-sale requests, nullable
+  POS sale persistence/projection through EF and the Platform API, and manual
+  card payment mapping to the backend `card_manual` payment method.
+- POS frontend tests now cover creating a new backend player card from the POS
+  cart through `/api/branches/{branchId}/players`, selecting that new player in
+  the cart, and sending the created `playerAccountId` with the next checkout
+  sale.
+- POS frontend tests now cover the `Возврат по чеку` quick operation calling
+  `/api/pos/sales/{saleId}/refunds` for the latest backend sale with
+  organization id, reason, and idempotency key serialization before UI
+  confirmation. They also cover choosing a receipt row first and refunding that
+  selected backend sale instead of the default report row.
+- POS frontend tests now cover the `Аннулировать черновик` quick operation
+  creating a backend draft sale from the current cart and then calling
+  `/api/pos/sales/{saleId}/void` with organization id, reason, and idempotency
+  key serialization before UI confirmation.
+- POS frontend tests now cover opening backend sale details from the recent
+  receipt list through `GET /api/pos/sales/{saleId}`, reading the sale's
+  `latestReceipt`, then calling `GET /api/receipts/{receiptId}` before
+  rendering line detail and receipt number/total.
+- POS contract/backend tests now cover `PosSaleDto.LatestReceipt` serialization
+  plus sale/manual-payment/refund responses and sale reads carrying the latest
+  receipt projection for the Operator App.
+- Clients frontend tests now cover package purchase from the selected backend
+  player card through `/api/players/{playerAccountId}/packages/purchases`,
+  including operator package-option selection, package definition id,
+  idempotency key serialization, and active-package refresh after purchase.
+- Clients frontend tests now cover wallet top-up from the selected backend
+  player card using operator-entered amount and reason through
+  `/api/players/{playerAccountId}/wallet/top-ups`, including amount minor
+  units, organization id, reason, and idempotency key serialization.
+- Clients frontend tests now cover debt payment from the selected backend
+  player card using operator-entered amount and reason through
+  `/api/players/{playerAccountId}/debts/payments`, including the no-overpayment
+  client guard, amount minor units, organization id, reason, and idempotency
+  key serialization.
+- Clients frontend tests now cover player creation from the Clients new-card
+  form through `/api/branches/{branchId}/players`, including display name,
+  phone number, organization id, and idempotency key serialization.
+- Clients frontend tests now cover disabling client-card reservation creation
+  when the restored staff session lacks `reservations.manage`.
+- Booking is now backed by real reservation API contracts and is no longer blocked
+  by missing booking contract support. The app now exercises reservation
+  search/create/update/confirm/seat/cancel endpoints. Remaining work is UX
+  polish for edge cases and staging smoke, not absence of API.
+- Typed frontend API client boundary verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: frontend tests passed 25/25 and Vite production build passed. New
+  route tests cover authenticated headers, JSON body serialization, optional
+  404/204 handling, CSV text reads, API error projection, and operator clients
+  for floor map, sessions, POS, players, shifts/reports, settings/pilot setup,
+  devices, diagnostics, updates, and audit.
+
+Earlier final verification after merging PR #9 on 2026-05-16 from
+`D:\afk4.net`:
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
@@ -872,6 +1569,42 @@ Operator App session-start usability fix on 2026-05-20:
   branch to be deployed before the fast guest/no-ledger start path can work
   against `afk4.staging.mubi.dev`.
 
+Operator App redesign branch-local verification on 2026-05-20:
+
+- branch `codex/operator-app-redesign` replaces the previous dense/raw WPF
+  shell with an operator-console layout. The floor map now surfaces counts,
+  selected-seat state, device summary, and remaining time. POS separates
+  catalog and checkout, hides category/product GUIDs from the primary path, and
+  formats cart/stock/price text for operators. Player, shift, and settings
+  workspaces expose higher-level summaries instead of empty panels and
+  backend-shaped inputs.
+- a second visual pass after launching the WPF app against staging added POS and
+  player empty states, explicit labels for player/money fields, a cash movement
+  type selector instead of raw `cash_in` text, shorter branch display in
+  Operations, and ellipsis/tooltips for long floor-card names.
+- the seat context command flow no longer leaves a successful start/end action
+  stuck at `Waiting for backend confirmation`; after the backend accepts the
+  command, the pending state is cleared and the existing realtime/floor refresh
+  path remains responsible for final seat state.
+- local verification passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' build src\AFK4.Operator.App\AFK4.Operator.App.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: Operator App build succeeded, Operator App tests passed 169/169,
+  full solution tests passed 743/743, and `git diff --check` returned clean
+  aside from expected CRLF normalization warnings.
+
+- runtime visual smoke against the staging Windows VM is still required before
+  treating the redesign as accepted. The redesign intentionally moves raw
+  update package registration and other advanced settings controls out of the
+  default first-screen path; those operations may need a follow-up advanced
+  tools screen if they must remain operator-accessible.
+
 ## Known Gaps
 
 - Real Coolify staging now exists and passes backend health/auth smoke on the
@@ -884,14 +1617,24 @@ Operator App session-start usability fix on 2026-05-20:
   becomes available, PR merges must manually require a green
   `PR Verification Result` on the current head commit, as recorded in
   `AGENTS.md`.
-- General staff management workflows, custom roles, and role editing UI are not
-  implemented beyond the minimum Pilot Setup panel.
-- General Operator App layout management UI is not implemented beyond the
-  minimum one-zone/seats Pilot Setup panel.
+- General staff management now includes creation, login/display-name editing,
+  predefined branch-role reassignment, activation/deactivation, and password
+  reset. Custom roles and arbitrary permission-set editing are still not
+  implemented.
+- Internal SaaS Control Plane/platform-admin UI and API are now in MVP scope
+  but are not implemented yet. Tenant provisioning still relies on script/
+  helper paths or direct staging support work; production must gain no-DB-edit
+  organization, branch, owner invite, plan/status, tenant health, support note,
+  and suspend/reactivate workflows.
+- General Operator App layout management UI now supports Settings-based zone/
+  seat creation, rename/reorder, seat moves between zones, safe deletion of
+  unused seats, and deletion of empty zones. Visual drag/drop layout editing and
+  soft archive flows are still not implemented.
 - Device-seat assignment now has an authorized Platform API path and staging
-  setup integration; general Operator App device/seat management UI is not
-  implemented beyond optional already-enrolled device assignment in the Pilot
-  Setup panel.
+  setup integration, and Operator App Settings now has a branch device
+  inventory list plus device-card/assignment/command-history/credential
+  controls plus a branch-wide command-history browser. Broader non-command
+  device telemetry/event browsing remains unimplemented.
 - Automatic Agent-side consumption of rotated credentials is not implemented.
 - Real Windows PC smoke has a repeatable staging runbook. Physical Windows
   10/11 hardware execution remains recommended hardening before wider rollout,
@@ -934,6 +1677,9 @@ Operator App session-start usability fix on 2026-05-20:
 - Operator App staging observation can now use
   `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`; the app
   still defaults to `http://localhost:5074` when the variable is not set.
+- The previous Operator App layout was found unusable during staging smoke even
+  though start/end session worked. The active follow-up is a full operator
+  console redesign branch; do not continue polishing the old raw-form layout.
 - Production Authenticode certificate authority/storage is undecided.
 - Staging update artifacts are hosted from Coolify MinIO. Production
   object-store/CDN provider, public-read policy, retention, and presigned URL
@@ -955,28 +1701,169 @@ Operator App session-start usability fix on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Test the Operator App against deployed staging: sign-in, floor map, the
-   `Settings` -> `Pilot Setup` panel, shift/POS basics, session actions against
-   current staging device/seat state, and actionable error handling. Deploy the
-   2026-05-20 session-start usability fix first if testing the fast
-   guest/no-ledger start path.
-3. Choose production Authenticode certificate authority/storage, production
+2. Start the SaaS Control Plane and tenant onboarding slice from
+   `docs/superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md`:
+   platform-admin auth boundary, organization/branch slug provisioning, owner
+   invites, plan/status/limit metadata, tenant health, support notes,
+   suspend/reactivate enforcement, and staging smoke that proves tenant setup
+   no longer requires direct PostgreSQL edits.
+3. Continue `codex/operator-app-redesign` from the backend-connected React
+   shell by working through the new "Backend Connectivity TODO From Current
+   React UI Copy" checklist in
+   `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
+   Every production-visible `Fixture`, `not implemented`, `нет backend`,
+   missing-contract, or local-only action state should either be wired to an
+   existing Platform API contract or backed by a new backend contract before
+   the copy is removed. Then test the WebView2 Operator App against deployed
+   staging: sign-in, floor map, booking, POS, clients, payments/shifts, logs,
+   settings, session actions against current staging device/seat state, and
+   actionable error handling. Preserve the accepted fixture design baseline
+   while replacing local state with backend-backed behavior. Treat any
+   remaining raw GUID/form surfaces as usability bugs unless they are
+   explicitly advanced technician tools.
+4. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
    staging credentials that were exposed during manual smoke setup as
    operational hygiene before sensitive staging operations.
-4. Harden Agent production behavior outside the update epic: rotated credential
+5. Harden Agent production behavior outside the update epic: rotated credential
    consumption, reboot/lock recovery, and lease timing telemetry.
-5. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
+6. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
    role editing, layout management, device-seat management, tariff/POS
    management, and runtime/staging configuration as needed.
-6. Continue physical Windows PC validation for lock/unlock, reboot recovery,
+7. Continue physical Windows PC validation for lock/unlock, reboot recovery,
    and remote bootstrap/update behavior now that the VM duplicate-lock
    regression is closed. Treat findings as hardening unless they block the
    current Operator App staging test.
 
 ## Recent Integration Notes
 
+- On 2026-05-23, the source-of-truth product and architecture docs were updated
+  to include an internal SaaS Control Plane in MVP scope. The change is
+  recorded in the PRD, architecture spec, README, production-readiness roadmap,
+  AGENTS.md, and the focused tenant onboarding plan.
+- On 2026-05-22, `codex/operator-app-redesign` added read-only stock movement
+  history for Settings `POS и склад`. The Platform API now exposes
+  `GET /api/branches/{branchId}/inventory/stock-movements` with
+  `inventory.view` authorization, optional `productId`, and a bounded `limit`;
+  the React Settings screen loads the latest rows and shows product, movement
+  type, quantity delta, unit cost, and reason next to the stock form.
+- On 2026-05-22, `codex/operator-app-redesign` added Settings POS product
+  update/deactivation. The Platform API now exposes
+  `PATCH /api/branches/{branchId}/pos/products/{productId}` with
+  `pos.catalog.manage` authorization, SKU uniqueness checks, active category
+  validation, audit action `pos.products.update`, and stock-on-hand projection
+  in the response. The React `POS и склад` section lets operators select a
+  catalog item, edit name/SKU/price/stock flags, or mark it inactive.
+- On 2026-05-22, `codex/operator-app-redesign` added Settings package
+  definition update/deactivation. The Platform API now exposes
+  `PATCH /api/branches/{branchId}/packages/{packageDefinitionId}` with
+  `packages.manage` authorization, duplicate-name validation, audit action
+  `packages.update`, and active package option removal after deactivation. The
+  React `Тарифы` section lets operators select a package, edit price/minutes/
+  bonus/expiry, or mark it inactive.
+- On 2026-05-22, `codex/operator-app-redesign` added Settings tariff
+  update/deactivation. The Platform API now exposes
+  `PATCH /api/branches/{branchId}/tariffs/{tariffId}` and
+  `PATCH /api/branches/{branchId}/tariffs/{tariffId}/versions/{tariffVersionId}`
+  with `tariffs.manage` authorization, audit actions `tariffs.update` and
+  `tariffs.versions.update`, and material-change rejection when an existing
+  tariff version is already used by sessions. The React `Тарифы` section lets
+  operators select a tariff, edit name/price/minimum/rounding, or mark it
+  inactive.
+- On 2026-05-22, `codex/operator-app-redesign` added Settings layout
+  update/reorder. The Platform API now exposes
+  `PATCH /api/branches/{branchId}/layout/zones/{zoneId}` and
+  `PATCH /api/branches/{branchId}/layout/seats/{seatId}` with `layout.manage`
+  authorization, audit actions `layout.zones.update` and
+  `layout.seats.update`, duplicate-name checks, and seat moves between zones.
+  The React `Залы и ПК` section lets operators select a zone or PC, edit its
+  name/sort order, and move a PC to another zone.
+- On 2026-05-22, `codex/operator-app-redesign` expanded Settings device detail
+  in `Залы и ПК`. The existing device detail response now renders online/locked
+  state, seat/zone placement, last heartbeat, Agent/Shell versions, active
+  credential count, installed app count, and recent command status/message
+  rows instead of only a single machine/seat summary field.
+- On 2026-05-22, `codex/operator-app-redesign` expanded Settings rollout
+  detail in `Интеграции`. The existing rollout status list now highlights the
+  selected rollout and renders state, target kind, batch, channel, package,
+  start/completion time, device count, and device update status/message
+  snapshots from `UpdateRolloutStatusDto`.
+- On 2026-05-21, `codex/operator-app-redesign` added a backend-backed
+  Settings `POS и склад` product creation form. It creates a POS category,
+  then a POS product with price, SKU, stock flags, and idempotency keys through
+  the existing Platform API catalog-management endpoints, and is covered by
+  frontend route/UI tests plus the full local solution test suite.
+- On 2026-05-21, `codex/operator-app-redesign` added Settings inventory stock
+  movement creation from `POS и склад`. Operators with `inventory.stock.manage`
+  can select a tracked backend product, movement type, quantity delta, unit
+  cost, and reason, and the UI calls
+  `/api/branches/{branchId}/inventory/stock-movements` before reloading the
+  catalog.
+- On 2026-05-21, `codex/operator-app-redesign` wired the Payments
+  reconciliation action to the existing close-shift API. Operators with
+  `shifts.close` can enter counted cash and a closing note, and the UI waits
+  for backend confirmation before showing close-shift success.
+- On 2026-05-21, `codex/operator-app-redesign` added Payments shift opening
+  against the existing open-shift API. Operators with `shifts.open` can enter
+  starting cash and an opening note when no current shift exists, and the UI
+  confirms only after `/api/branches/{branchId}/shifts/open` succeeds.
+- On 2026-05-21, `codex/operator-app-redesign` added Payments cash movement
+  creation against the existing shift cash movement API. Operators with
+  `shifts.cash.manage` can enter cash in/out amount and reason, and the UI
+  confirms only after the backend accepts the movement.
+- On 2026-05-21, `codex/operator-app-redesign` added a general Settings
+  layout form in `Залы и ПК`. Operators with `layout.manage` can enter zone
+  name/sort order and seat zone/name/sort order, then create zones and seats
+  through the existing layout endpoints instead of the previous generic
+  `Zone N`/`PC-N` payloads.
+- On 2026-05-21, `codex/operator-app-redesign` wired the POS quick
+  `Возврат по чеку` action to the existing refund endpoint for the latest
+  backend sale, guarded by `pos.sales.refund` and idempotency.
+- On 2026-05-21, `codex/operator-app-redesign` wired the POS quick
+  `Аннулировать черновик` action to the existing draft-sale void endpoint. The
+  React UI creates a backend draft from the current cart, calls
+  `/api/pos/sales/{saleId}/void`, and confirms only after the backend accepts
+  the void.
+- On 2026-05-21, `codex/operator-app-redesign` made the POS recent receipt list
+  open backend sale details through `GET /api/pos/sales/{saleId}` with
+  `receipts.view` gating, replacing another static receipt surface with
+  backend-confirmed line detail.
+- On 2026-05-21, `codex/operator-app-redesign` extended `PosSaleDto` with
+  nullable `LatestReceipt`, has POS service responses and sale reads carry the
+  latest sale/refund receipt projection, and has the React POS detail panel use
+  that receipt id to call `GET /api/receipts/{receiptId}` before showing the
+  receipt number/type/total.
+- On 2026-05-21, `codex/operator-app-redesign` wired Clients `Купить пакет`
+  to existing package option and package purchase endpoints, guarded by
+  `packages.purchase` and idempotency.
+- On 2026-05-21, `codex/operator-app-redesign` added Settings package
+  definition creation. Operators with `packages.manage` can create a package
+  name, price, included minutes, bonus minutes, and expiry through
+  `/api/branches/{branchId}/packages`; the UI reloads backend package options
+  after confirmation.
+- On 2026-05-21, `codex/operator-app-redesign` added Settings update controls
+  in `Интеграции`. Operators with `updates.packages.manage` and
+  `updates.rollouts.manage` can register signed update metadata, create branch
+  or device rollout requests, and change package/rollout states through the
+  existing Platform API update endpoints.
+- On 2026-05-21, `codex/operator-app-redesign` added backend audit filtering
+  to `Логи`. Operators can apply exact audit action, outcome, target type, UTC
+  date range, and limit filters, and the UI refreshes event rows from the
+  existing audit search endpoint instead of relying only on local filtering.
+- On 2026-05-21, `codex/operator-app-redesign` added Settings device setup in
+  `Залы и ПК`. Operators with device permissions can create enrollment codes,
+  assign an enrolled device id to an existing seat, and open device detail from
+  the current Settings surface.
+- On 2026-05-21, `codex/operator-app-redesign` added device credential
+  rotation and revocation to Settings `Залы и ПК`, guarded by the existing
+  credential lifecycle permissions and confirmed only after backend acceptance.
+- On 2026-05-20, `codex/operator-app-redesign` gained the first WebView2/React
+  Operator App implementation: WebView2 startup shell, local asset resolution,
+  typed host config injection, Vite/React frontend foundation, first visual
+  floor-map console, host/frontend tests, local browser smoke, and desktop app
+  launch. WPF remains only as legacy/parity code until WebView2 reaches pilot
+  day-flow parity.
 - On 2026-05-20, roadmap/progress status was clarified after the Operator
   Pilot Setup UI merge: physical Windows PC smoke and exposed staging Coolify
   token rotation are tracked as hardening/ops hygiene, not blockers for the
@@ -1000,6 +1887,11 @@ Operator App session-start usability fix on 2026-05-20:
   `0cc1163ab847bf242bea5bcd125786990b48f8acc28121e621ffbaac135f0bae`, MSI
   SHA-256 `7c7320cc5755fdbe9ff5c85b980cedfbf867c43321069cca513a3d8a6b9c3e70`,
   and publish time `2026-05-20T05:23:14.0936296Z`.
+- On 2026-05-20, staging Operator App smoke confirmed session start/end works
+  but the surrounding UI is not viable for pilot operators. The follow-up branch
+  `codex/operator-app-redesign` starts a full shell/workspace redesign and
+  should be reviewed visually before more feature work depends on the old
+  layout.
 - PR #41, `Add operator pilot setup ui`, merged into `main` on 2026-05-20 with
   squash merge commit `129fa76fa8354a3f3f693def866e0ed02feedf20`. The PR head
   was `02f7dfcf166150f506b2ba918c3cfbaea86c4625`, and remote
@@ -1343,6 +2235,657 @@ Coolify staging deploy automation branch verification on 2026-05-20:
   workflow run `26144123936`. It queued Coolify deployment
   `ixeoc17m6hsyimfb3zop0ca2`, observed status `finished`, and verified
   `https://afk4.staging.mubi.dev/api/health` with `status = ok`.
+
+Operator App redesign branch verification on 2026-05-20:
+
+- branch `codex/operator-app-redesign` continues PR #44 and adds a
+  Russian-first primary operator UI for sign-in, floor map seat actions, POS,
+  players, and shifts;
+- the accepted Operator App visual/workflow target was recorded in
+  `docs/product/operator-app-ui-target.md` so future UI work has a durable
+  reference beyond chat or local design artifacts;
+- Operator App currency is configurable through
+  `AFK4_OPERATOR_CURRENCY_CODE`, defaults to `TJS`, and is passed into POS,
+  player wallet/debt, and shift money commands;
+- the WPF floor-map shell now has a visual alignment pass toward the accepted
+  `afk4-operator-ui-concept.png` direction: fixed dark top command bar,
+  selected-state left rail, rounded button/chip chrome, metrics and filter
+  chips above the dense seat map, real zone chips, tone-colored seat badges,
+  tone-colored operational signals, and a right selected-seat action panel;
+- the floor map now maps seat states to the documented operator status tones:
+  ready, active, pending, warning, blocking, offline, and service. The floor
+  summary includes pending and problem counts, active sessions stay active when
+  realtime device status changes arrive, and offline active PCs are surfaced as
+  warning/problem seats instead of being collapsed into free/offline. The
+  selected-seat quick start action is available only for ready seats, not
+  offline/service/problem seats;
+- the selected-seat panel now separates authoritative backend confirmation
+  from Agent/device command status so operators can distinguish "backend
+  accepted" from "device command sent / not required / not sent". The active
+  session progress bar now binds to session remaining time instead of a static
+  placeholder value;
+- local Operator App tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 177 passed, 0 failed, 0 skipped.
+- full local solution tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 751 passed, 0 failed, 0 skipped.
+
+Operator App runtime decision update on 2026-05-20:
+
+- after launching and reviewing the WPF redesign branch, the Operator App UI
+  runtime decision changed from WPF + MVVM to a native .NET Windows desktop
+  shell with WebView2 and React/TypeScript UI;
+- PRD, platform architecture, client packaging design, UI target, roadmap, and
+  this progress snapshot were updated to record the new source of truth;
+- the migration plan is
+  `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`;
+- at the runtime decision point, no implementation cutover had been completed
+  yet. The current WPF code should be treated as parity reference and
+  temporary legacy code until the WebView2 React app can cover the pilot
+  operator day flow;
+- full local solution tests were re-run after the decision documentation and
+  WPF progress-binding crash fix:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 751 passed, 0 failed, 0 skipped.
+
+Operator App WebView2/React first implementation on 2026-05-20:
+
+- `src/AFK4.Operator.App` now starts `Web/WebViewOperatorWindow.xaml` instead
+  of the legacy WPF `MainWindow.xaml`. The new startup window initializes
+  WebView2, maps local frontend assets through a virtual host, injects typed
+  operator config into `window.__AFK4_OPERATOR_CONFIG__`, and preserves the app
+  title/minimum desktop size/runtime environment behavior.
+- `src/AFK4.Operator.App.Web` was added with Vite, React, TypeScript,
+  `lucide-react`, Vitest, Testing Library, and production `dist` build output.
+  The WebView2 host prefers the built Vite `dist` during local repo runs and
+  falls back to copied `WebAssets/index.html` when packaged assets are the only
+  available frontend surface.
+- The React first screen implements the accepted operator-console direction
+  with dark top command bar, dark left rail, dense floor map, status metrics,
+  filters, operational signals, and right selected-seat panel. It maps ready,
+  active, pending, warning, blocking, offline, and service tones in the UI, but
+  still uses local fixture state. Auth, protected token bridge, backend API
+  clients, SignalR, POS, players, shifts, Pilot Setup, diagnostics, updates,
+  audit, and reports still need to be ported before WPF legacy code can be
+  removed.
+- The first visual refinement removed the native Windows title bar, added
+  React-rendered window controls backed by a narrow WebView2 host message
+  bridge, and made the floor-map screen smaller/denser. A later same-day
+  pass aligned the fixture screen more closely to public SmartShell map
+  references: dark map canvas, 74 px left rail, larger readable host tiles,
+  color accents, critical-state pills instead of bright metric cards, dark
+  selected-PC detail panel, and 24 local fixture hosts for density review.
+- The React fixture app now also includes SmartShell-inspired secondary
+  workspaces for Dashboard, Booking, POS/Shop, Clients, Payments, Logs, and
+  Settings. These screens are visual/workflow fixtures only; backend auth,
+  protected token bridge, typed API clients, SignalR, permissions, and
+  backend-confirmed critical actions still need to be wired before this can
+  replace WPF parity for pilot operations.
+- On 2026-05-21, the Dashboard fixture received a focused design pass so it
+  matches the dense floor-map direction more closely without trying to show the
+  whole product at once. The current Dashboard uses a four-column/four-panel
+  grid: the primary operator focus and secondary signal queue span the first
+  three columns, while `Управление` and `Пульс смены` are separate top-right and
+  bottom-right panels. The management panel has four big-number quick
+  transitions, and the shift pulse panel uses circular donut charts for cash
+  against daily target, active PCs out of total PCs, attention items out of
+  monitored PCs, and bookings out of available slots. The Dashboard period
+  control now uses common `Сегодня`, `Неделя`, and `Месяц` presets plus a
+  manual date range; the same active range drives the fixture KPI values and
+  the export action label. A final polish pass separated export from the period
+  presets, added a compact range-duration label, fixed Russian KPI plural
+  forms, and added hover/focus states for quick transition cards. Dashboard
+  headings and subtitles now use
+  operator-facing Russian copy instead of raw backend/device strings such as
+  `Lock command failed`. The separate Dashboard side panel was removed so the
+  screen can breathe and fit the 1280x720 minimum viewport without horizontal or
+  vertical page overflow. This note records the design baseline; the Dashboard
+  was later wired to backend summary data in the same branch.
+- The floor-map fixture received a matching polish pass on 2026-05-21 without
+  changing its role as the primary live workspace. It now uses Russian
+  operator-facing state-strip labels, separates `Техрежим` from map/table/booking
+  view switches, makes host tiles keyboard-focusable with hover/focus feedback,
+  and keeps the selected-PC side panel production-dense with a compact status
+  row before fast actions and session/device/billing details. The selected-PC panel now maps fixture
+  values such as `Wallet`, `Lease fresh`, and `Online · unlocked` into operator
+  copy such as `Депозит`, `Сессия подтверждена`, and
+  `Онлайн · разблокирован`; critical-action copy references platform
+  confirmation instead of raw backend wording.
+- The booking fixture received its first operator-flow design pass on
+  2026-05-21. The screen is now full-width, without the generic right summary
+  panel, and uses a four-column grid split into `Лента броней`,
+  `Выбранная бронь`, `Онлайн-заявки`, and `Новая бронь`. The fixture copy now
+  targets real operator work: today's landing list, selected booking actions
+  (`Открыть карту`, `Посадить`, `Перенести`, `Отменить`), online request
+  handling, and quick booking creation. This is still fixture-backed design
+  work; backend booking contracts, conflict validation, permissions, and
+  realtime updates remain to be wired.
+- The POS fixture received its first operator-flow design pass on 2026-05-21.
+  The screen is now full-width, without the generic right summary panel, and
+  uses a four-column cashier layout: product/service catalog, current cart,
+  payment confirmation, recent receipts, and quick cashier operations. The copy
+  is now operator-facing Russian for sale, refund, stock, receipt, cash,
+  deposit, customer, and shift surfaces. This remains fixture-backed design
+  work; backend POS contracts, inventory writes, refund/void rules, payment
+  idempotency, receipt state, permissions, and realtime shift totals remain to
+  be wired.
+- The Clients fixture received its first operator-flow design pass on
+  2026-05-21. The screen is now full-width, without the generic right summary
+  panel, and uses a four-column customer-service layout: searchable client
+  list, selected client card, deposit/debt/discount/visit metrics, quick client
+  operations, segments, and recent client history. The copy is now
+  operator-facing Russian for client search, online clients, deposits, debts,
+  VIP state, booking context, and client-card actions. This remains
+  fixture-backed design work; backend client search, account details, wallet
+  ledger, debt settlement, discount rules, privacy/audit constraints, and
+  realtime session linkage remain to be wired.
+- The Payments fixture received its first operator-flow design pass on
+  2026-05-21. The screen is now full-width, without the generic right summary
+  panel, and uses a four-column cashier-settlement layout: shift operation
+  ledger, shift totals, cash reconciliation, payment method breakdown, cash
+  movement log, and report/export actions. The copy is now operator-facing
+  Russian for revenue, cash, card, deposits, refunds, reconciliation, shift
+  journal, cash report, CSV export, and discrepancies. This remains
+  fixture-backed design work; backend immutable ledger reads, cash drawer
+  movements, refund/void policy, reconciliation workflow, report exports,
+  permissions, audit trail, and shift-close confirmation remain to be wired.
+- The Logs fixture received its first operator-flow design pass on 2026-05-21.
+  The screen is now full-width, without the generic right summary panel, and
+  uses a four-column investigation layout: event journal, selected event
+  details, filters, shift audit, event sources, and export actions. The copy is
+  now operator-facing Russian for shift events, errors, commands, cash events,
+  audit, source filtering, selected event context, and support exports. This
+  remains fixture-backed design work; backend audit/event search, retention
+  policy, permission filtering, correlation IDs, export generation, and support
+  handoff flows remain to be wired.
+- The Settings fixture was revised on 2026-05-21 from a technician-oriented
+  `Ops` screen into an owner/admin-facing settings screen. The rail label is now
+  `Настройки`; the screen remains full-width, without the generic right summary
+  panel, but no longer follows the dense operations grid. It now uses a simpler
+  settings layout with section navigation, club profile fields, room/workstation
+  setup, tariffs, club readiness, and common admin actions such as adding a PC,
+  creating a tariff, inviting staff, and checking devices. A same-day polish pass
+  removed the shared top status strip and period-style tabs from Settings because
+  they duplicated the left settings navigation and did not fit this screen's
+  configuration task. This remains fixture-backed design work; backend club settings, room/workstation
+  management, tariff rules, staff/role management, device setup, and validation
+  flows remain to be wired.
+- A same-day header-control audit removed unwired top pseudo-tabs from Map,
+  Booking, POS, Clients, Payments, Logs, and Settings. Summary strips remain on
+  the operational screens where they provide quick context. The only remaining
+  segmented top control is the Dashboard period/date range because it changes
+  the displayed fixture metrics and export label; Map and Booking keep only
+  direct header actions (`Техрежим` and `Создать`).
+- A same-day fixture interaction and motion pass added local stateful behavior
+  across the React Operator UI: selected floor-map seat state, Dashboard
+  period/focus/card interactions, Booking selection/action feedback, POS
+  category/search/cart/payment behavior, Clients segment/client/action
+  behavior, Payments ledger/method/export behavior, Logs filter/source/export
+  behavior, and Settings section/profile-save behavior. The visual layer now
+  includes restrained enter/hover/focus transitions, attention pulse,
+  animated numeric counters, donut-chart value transitions, global feedback
+  notices, and `prefers-reduced-motion` handling. This remains fixture-backed
+  UI polish; critical actions still need real backend confirmation after API
+  clients and SignalR are wired.
+- The WebView2/React Operator App design phase is closed for the current
+  branch as of 2026-05-21. Map, Dashboard, Booking, POS, Clients, Payments,
+  Logs, and Settings should now be treated as the accepted fixture design
+  baseline. Continue with backend API/SignalR and parity wiring; reopen
+  visual design only for concrete defects found during real-data or staging
+  smoke, not for another broad fixture-only polish pass.
+- The next-session engineering kickoff started on 2026-05-21 with the
+  auth/token boundary. The WebView2 host now routes `auth:*` messages to a
+  test-covered native bridge backed by the existing staff auth API client and
+  protected token store. React has an auth client, common error projection,
+  staff sign-in gate, sign-out action, and no browser token persistence. The
+  accepted fixture screens remain behind a restored or newly signed-in session;
+  typed API clients beyond auth, SignalR realtime state, and backend-confirmed
+  floor-map actions remained the next implementation work at that checkpoint.
+- The next engineering step in the same 2026-05-21 session added typed
+  frontend API client boundaries beyond auth: `PlatformApiClient` handles
+  bearer-token requests, JSON bodies, optional 404/204 responses, CSV text
+  reads, and Platform API error projection; `operatorApiClients` maps current
+  backend routes for floor map, sessions, POS, players, shifts/reports,
+  settings/pilot setup, devices, diagnostics, updates, and audit. These clients
+  are route-tested but not yet wired into screen state.
+- The following 2026-05-21 engineering step wired the primary React floor map
+  to backend data and SignalR context: `floorMapState` maps backend
+  `FloorMapDto` seats into the accepted `SeatSummary` tones, `PlatformApiClient`
+  loads `/api/branches/{branchId}/floor-map` after native staff session
+  restore/sign-in, `operatorRealtime` connects to `/hubs/devices` with the
+  native access token, and `deviceStatusChanged` updates are applied by
+  `deviceId` or machine name. The screen keeps the existing fixture state as a
+  browser-dev/no-backend fallback and does not treat realtime as command
+  success.
+- local frontend tests passed:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  ```
+
+  Result: 31 passed, 0 failed, 0 skipped.
+- local frontend production build passed:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: Vite built `dist/index.html`, CSS, and JS assets.
+- full local solution tests passed:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: 763 passed, 0 failed, 0 skipped.
+- local UI smoke passed through the in-app browser against the Vite preview on
+  `http://127.0.0.1:4174/`: title `AFK4 Operator`, the WebView auth entry
+  screen rendered with heading `Вход оператора`, password field, sign-in
+  button, platform URL, custom window controls, no browser console errors, and
+  no horizontal or vertical page overflow. Because this smoke runs outside
+  WebView2, the page correctly reported the native host bridge as unavailable.
+- Dashboard design-pass verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: frontend tests passed 7/7, Vite production build passed, and Browser
+  smoke against `http://127.0.0.1:4174/` confirmed the simplified Dashboard
+  heading, four-column Dashboard grid, four separate panels, content-sized
+  primary focus card, stable secondary queue header, four big-number
+  management cards, four 90 px donut-chart pulse cards, readable
+  numerator/denominator labels, operator-facing section subtitles, the
+  `Сегодня`/`Неделя`/`Месяц` period controls, manual date range handoff to
+  fixture KPI values/export label, compact range-duration label, Russian KPI
+  plural forms, quick transition hover/focus states, removal of the Dashboard
+  side panel, and no
+  horizontal or vertical page overflow at 1280x720. The desktop
+  `AFK4.Operator.App.exe` was relaunched locally against the new React build.
+- Map polish verification on 2026-05-21 reused the same frontend test and Vite
+  build commands. Browser smoke against `http://127.0.0.1:4174/` confirmed the
+  Russian state-strip labels, separated `Техрежим` action, compact selected-PC
+  status row, translated billing/device/command labels, hover/focus-capable
+  host tiles and quick actions, no visible raw `backend` copy on the map screen,
+  and no horizontal or vertical page overflow.
+- Booking design-pass verification on 2026-05-21 reused the same frontend test
+  and Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width booking screen, four-panel booking grid, no generic
+  summary side panel, expected booking filters and actions, four timeline
+  booking cards, two online request cards, and no horizontal or vertical page
+  overflow at 1280x720.
+- POS design-pass verification on 2026-05-21 reused the same frontend test and
+  Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width POS screen, five POS panels, eight product cards,
+  four quick operation cards, three recent receipts, no generic summary side
+  panel, readable quick operations, fitting cart/catalog content, and no
+  horizontal or vertical page overflow at 1280x720.
+- Clients design-pass verification on 2026-05-21 reused the same frontend test
+  and Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width Clients screen, five clients panels, five client
+  rows, four quick operation cards, four segment cards, three history rows, no
+  generic summary side panel, fitting list/actions/segments/history content,
+  and no horizontal or vertical page overflow at 1280x720.
+- Payments design-pass verification on 2026-05-21 reused the same frontend test
+  and Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width Payments screen, six payment panels, five operation
+  rows, four payment method cards, three cash movement rows, four report/export
+  actions, no generic summary side panel, fitting ledger/summary/reconcile/
+  methods/cash/export content, and no horizontal or vertical page overflow at
+  1280x720.
+- Logs design-pass verification on 2026-05-21 reused the same frontend test and
+  Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the full-width Logs screen, six log panels, five event rows, three
+  audit rows, four source cards, six filter actions, four export actions, no
+  generic summary side panel, fitting journal/detail/filter/audit/source/export
+  content, and no horizontal or vertical page overflow at 1280x720.
+- Settings design-pass verification on 2026-05-21 reused the same frontend test and
+  Vite build commands. Browser smoke against `http://127.0.0.1:4174/`
+  confirmed the `Настройки` rail label, full-width Settings screen, section
+  navigation, four profile fields, four room cards, four tariff rows, five
+  readiness rows, four admin action cards, no visible `Ops` heading, no generic
+  summary side panel, no Settings top status strip or period-style tabs, fitting
+  navigation/main/side content, and no horizontal or vertical page overflow at
+  1280x720.
+- Header-control verification on 2026-05-21 reused the frontend test and Vite
+  build commands. Browser smoke across Map, Dashboard, Booking, POS, Clients,
+  Payments, Logs, and Settings confirmed no top pseudo-tabs outside Dashboard's
+  functional period/date range control; Map and Booking headers now expose only
+  `Техрежим` and `Создать`, respectively, and POS/Clients/Payments/Logs/Settings
+  have no header tab rows. Operational summary strips remain present on Map,
+  Booking, POS, Clients, Payments, and Logs.
+- Fixture interaction/motion verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: frontend tests passed 7/7, Vite production build passed, and
+  whitespace check was clean apart from expected CRLF conversion warnings.
+  Browser smoke against `http://127.0.0.1:4174/` confirmed stateful selected
+  seat/action feedback on Map; Dashboard period/focus/donut behavior; Booking
+  selection/action feedback; POS add-to-cart, payment-method selection, and
+  payment feedback; Clients segment filtering, client selection, and action
+  feedback; Payments operation/method/export behavior; Logs filter/detail/
+  source/export behavior; Settings section switching and profile-save
+  feedback. A follow-up layout check across Map, Dashboard, Booking, POS,
+  Clients, Payments, Logs, and Settings reported zero horizontal overflow for
+  document, body, shell, and main workspaces.
+- Auth/token boundary verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: frontend tests passed 15/15, Vite production build passed, focused
+  Operator App tests passed 189/189, full solution tests passed 763/763, and
+  whitespace check was clean apart from expected CRLF conversion warnings.
+  Browser smoke against `http://127.0.0.1:4174/` confirmed the WebView auth
+  entry screen rendered with title `AFK4 Operator`, heading `Вход оператора`,
+  password field, sign-in button, custom window controls, and no horizontal or
+  vertical page overflow. The browser smoke runs outside WebView2, so it
+  correctly reported the native host bridge as unavailable rather than
+  persisting tokens in browser storage.
+- Selected-seat action verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: frontend tests passed 34/34, Vite production build passed, and full
+  solution tests passed 763/763. Browser smoke against
+  `http://127.0.0.1:4175/` confirmed the WebView auth entry screen rendered
+  with no console errors outside WebView2. The desktop `AFK4.Operator.App.exe`
+  was relaunched locally with `AFK4_OPERATOR_PLATFORM_BASE_URL` pointing at
+  `https://afk4.staging.mubi.dev` and `AFK4_OPERATOR_CURRENCY_CODE=TJS`.
+  Whitespace check was clean apart from expected CRLF conversion warnings.
+- Remaining workspace backend-wiring verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: frontend tests passed 34/34, Vite production build passed, full
+  solution tests passed 763/763, and whitespace check was clean apart from
+  expected CRLF conversion warnings. The route-level frontend tests now include
+  tariff/package option reads, and the App tests verify POS sale/manual payment
+  confirmation through backend calls.
+- Settings device-command verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: App tests passed 36/36, full frontend tests passed 64/64, and Vite
+  production build passed. Browser smoke against `http://127.0.0.1:5173/`
+  confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button,
+  no horizontal overflow, and no new browser console errors; four older Vite
+  HMR console errors were already present in the browser log before the smoke.
+- Operator App package-asset verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' tool restore
+  powershell -ExecutionPolicy Bypass -File scripts\build-client-packages.ps1 -Version 0.1.999 -Channel internal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  ```
+
+  Result: package build passed after stopping the local Vite dev/preview
+  processes that had locked `node_modules`; it produced
+  `afk4-operator-app-0.1.999-internal.msi` and
+  `afk4-gaming-pc-0.1.999-internal.msi`. The Operator publish directory
+  contained `WebAssets/index.html` referencing fresh Vite
+  `assets/index-*.js/css`, Agent Service release automation tests passed
+  139/139, and frontend tests passed 64/64. A new
+  `-SkipOperatorWebRestore` switch exists only for local package rebuilds when
+  dependencies are already installed and a developer does not want `npm ci` to
+  remove a live `node_modules`; CI keeps the default `npm ci` path.
+- Operator App WebView2-prerequisite verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  powershell -ExecutionPolicy Bypass -File scripts\build-client-packages.ps1 -Version 0.1.1000 -Channel internal
+  ```
+
+  Result: Agent Service release automation tests passed 140/140, and the
+  package build passed with the Operator App WiX package containing HKLM/HKCU
+  WebView2 Runtime `pv` registry searches plus a first-install launch condition.
+  It produced `afk4-operator-app-0.1.1000-internal.msi` and
+  `afk4-gaming-pc-0.1.1000-internal.msi`.
+- Operator App MSI frontend-content assertion verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  powershell -ExecutionPolicy Bypass -File scripts\build-client-packages.ps1 -Version 0.1.1001 -Channel internal
+  ```
+
+  Result: Agent Service release automation tests passed 140/140, and the
+  package build passed with a post-WiX Windows Installer File-table assertion
+  that the Operator App MSI contains built frontend `index.html`, JavaScript,
+  and CSS assets. It produced `afk4-operator-app-0.1.1001-internal.msi` and
+  `afk4-gaming-pc-0.1.1001-internal.msi`.
+- Operator App staging-target configuration verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  curl.exe -i --max-time 30 https://afk4.staging.mubi.dev/api/health
+  ```
+
+  Result: focused Operator App tests passed 192/192 after adding native host
+  env parsing for `AFK4_OPERATOR_ORGANIZATION_ID` and
+  `AFK4_OPERATOR_BRANCH_ID`. Staging health returned HTTP 200 with
+  `{"status":"ok",...}` at `2026-05-21T17:44:06Z`. Full signed-in staging
+  workflow evidence still requires staff credentials and remains tracked under
+  the cutover/staging smoke item.
+- Operator App fallback-copy verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: App tests passed 36/36, full frontend tests passed 64/64, and Vite
+  production build passed. Browser smoke against `http://127.0.0.1:5173/`
+  confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button, no
+  horizontal overflow, no production-visible `Fixture` copy on the auth entry
+  page, and no new browser console errors; four older Vite HMR console errors
+  were already present in the browser log before the smoke.
+- Operator App dev-only host-state verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx hostBridge.test.ts
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App/hostBridge tests passed 43/43, full frontend tests passed
+  66/66, and Vite production build passed. Browser smoke against
+  `http://127.0.0.1:5173/` confirmed the browser-dev auth entry still reports
+  `Native host bridge is unavailable.` as a local diagnostic, with title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no production
+  fixture labels, no horizontal or vertical overflow, and no new browser console
+  errors. App tests also cover that packaged `webview2` config projects the same
+  bridge failure into operator-facing restart/check-host copy instead of the
+  raw diagnostic.
+- Operator App empty-state verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 39/39, full frontend tests passed 68/68, and
+  Vite production build passed. Browser smoke against `http://127.0.0.1:5173/`
+  confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button, no
+  old `Нет backend операций` / `Нет backend событий` copy on the auth entry, no
+  production fixture labels, no horizontal or vertical overflow, and no new
+  browser console errors.
+- Operator App map tech-mode verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 40/40, full frontend tests passed 69/69, and
+  Vite production build passed after wiring the map `Техрежим` button to the
+  selected device-detail and branch diagnostics endpoints. Browser smoke against
+  `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no production fixture labels, no horizontal
+  or vertical overflow, and no new browser console errors.
+- Operator App POS selected-customer checkout verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test 'tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj' --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "FullyQualifiedName~EfPosServiceTests|FullyQualifiedName~PosEndpointTests" -v minimal
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx operatorApiClients.test.ts
+  & 'C:\Program Files\dotnet\dotnet.exe' test 'tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj' --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused POS API tests passed 16/16, focused frontend App/API-client
+  tests passed 46/46, full Platform API tests passed 341/341, full frontend
+  tests passed 70/70, Vite production build passed, full solution tests passed
+  782/782, and whitespace check was clean apart from expected CRLF conversion
+  warnings. Browser smoke against `http://127.0.0.1:5173/` confirmed title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no production
+  fixture labels, no old backend-empty placeholder copy, and no horizontal or
+  vertical overflow; older Vite HMR errors from before the current reload
+  remained in the browser log buffer.
+- Operator App POS new-customer checkout verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx operatorApiClients.test.ts
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused frontend App/API-client tests passed 47/47, full frontend
+  tests passed 71/71, Vite production build passed, and whitespace check was
+  clean apart from expected CRLF conversion warnings. The new App test covers
+  creating a backend player from the POS cart, selecting the created player,
+  and attaching its `playerAccountId` to the next POS sale request. Browser
+  smoke against `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`,
+  heading `Вход оператора`, sign-in button, no old backend-empty placeholder
+  copy, and no horizontal or vertical overflow outside WebView2.
+- Operator App POS stock write-off verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused App tests passed 43/43, full frontend tests passed 72/72,
+  Vite production build passed, and whitespace check was clean apart from
+  expected CRLF conversion warnings. The new App test covers POS quick-panel
+  stock write-off posting `movementType=adjustment`, a negative quantity delta,
+  zero unit cost, operator reason, and `stock-write-off-*` idempotency key to
+  `/api/branches/{branchId}/inventory/stock-movements`. Browser smoke against
+  `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no old backend-empty placeholder copy, and
+  no horizontal or vertical overflow outside WebView2.
+- Operator App POS wallet top-up verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 44/44, full frontend tests passed 73/73,
+  and Vite production build passed. The new App test covers selecting a
+  backend POS client and posting the current cart total to
+  `/api/players/{playerAccountId}/wallet/top-ups` with
+  `operator POS wallet top-up` reason and `wallet-top-up-*` idempotency key.
+  Browser smoke against `http://127.0.0.1:5173/` confirmed title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no old
+  backend-empty placeholder copy, and no horizontal or vertical overflow
+  outside WebView2.
+- Operator App POS receipt print/export verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 45/45, full frontend tests passed 74/74,
+  and Vite production build passed. The new App test covers loading backend
+  sale detail and receipt projection, rendering print/export actions,
+  preparing receipt text with receipt number and line items, opening the print
+  window, and creating/revoking the export blob. Browser smoke against
+  `http://127.0.0.1:5173/` confirmed title `AFK4 Operator`, heading
+  `Вход оператора`, sign-in button, no old backend-empty placeholder copy, and
+  no horizontal or vertical overflow outside WebView2.
+- Operator App Clients active-package detail verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  ```
+
+  Result: focused App tests passed 46/46, full frontend tests passed 75/75,
+  and Vite production build passed. The new App test covers loading
+  `/api/players/{playerAccountId}/packages` for the selected backend client
+  and rendering the active package name/minutes/state in the client profile.
+  Browser smoke against `http://127.0.0.1:5173/` confirmed title
+  `AFK4 Operator`, heading `Вход оператора`, sign-in button, no old
+  backend-empty placeholder copy, and no horizontal or vertical overflow
+  outside WebView2.
+- Operator App Payments selected-operation detail verification on 2026-05-21:
+
+  ```powershell
+  & 'C:\Program Files\nodejs\npm.cmd' test -- App.test.tsx
+  & 'C:\Program Files\nodejs\npm.cmd' test
+  & 'C:\Program Files\nodejs\npm.cmd' run build
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused App tests passed 47/47, full frontend tests passed 76/76,
+  Vite production build passed, and whitespace check was clean apart from
+  expected CRLF conversion warnings. The new App test covers selected Payments
+  operation detail for POS sales and cash movements using already loaded
+  backend report rows. Browser smoke against `http://127.0.0.1:5173/`
+  confirmed title `AFK4 Operator`, heading `Вход оператора`, sign-in button,
+  no old backend-empty placeholder copy, and no horizontal or vertical overflow
+  outside WebView2.
 
 ## Historical Reference
 

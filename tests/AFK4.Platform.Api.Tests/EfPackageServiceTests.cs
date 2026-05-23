@@ -109,6 +109,77 @@ public sealed class EfPackageServiceTests
         Assert.Single(await db.PackageDefinitions.ToListAsync());
     }
 
+    [Fact]
+    public async Task UpdatePackageDefinitionAsync_UpdatesFieldsAndCanDeactivate()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var created = await service.CreatePackageDefinitionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            CreatePackageRequest("package-create-001"),
+            CancellationToken.None);
+        Assert.NotNull(created.Response);
+
+        var result = await service.UpdatePackageDefinitionAsync(
+            TestIds.BranchId,
+            created.Response.PackageDefinitionId,
+            ActorStaffUserId,
+            new UpdatePackageDefinitionRequest(
+                TestIds.OrganizationId,
+                "Night 6h",
+                new MoneyDto("tjs", 4500),
+                IncludedSeconds: 21600,
+                BonusSeconds: 2400,
+                ExpiresAfterDays: 45,
+                IsActive: false),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal("NIGHT 6H", result.Response.Name);
+        Assert.Equal(new MoneyDto("TJS", 4500), result.Response.Price);
+        Assert.Equal(21600, result.Response.IncludedSeconds);
+        Assert.Equal(2400, result.Response.BonusSeconds);
+        Assert.Equal(45, result.Response.ExpiresAfterDays);
+        Assert.False(result.Response.IsActive);
+    }
+
+    [Fact]
+    public async Task UpdatePackageDefinitionAsync_RejectsDuplicateName()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        await service.CreatePackageDefinitionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            CreatePackageRequest("package-create-001"),
+            CancellationToken.None);
+        var second = await service.CreatePackageDefinitionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            CreatePackageRequest("package-create-002") with { Name = "Morning 3h" },
+            CancellationToken.None);
+        Assert.NotNull(second.Response);
+
+        var result = await service.UpdatePackageDefinitionAsync(
+            TestIds.BranchId,
+            second.Response.PackageDefinitionId,
+            ActorStaffUserId,
+            new UpdatePackageDefinitionRequest(
+                TestIds.OrganizationId,
+                "night 5h",
+                new MoneyDto("TJS", 3000),
+                IncludedSeconds: 10800,
+                BonusSeconds: 0,
+                ExpiresAfterDays: 15,
+                IsActive: true),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+    }
+
     [Theory]
     [InlineData("", 4000, 18000, 1800, 30, "TJS")]
     [InlineData("   ", 4000, 18000, 1800, 30, "TJS")]

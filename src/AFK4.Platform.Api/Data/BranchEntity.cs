@@ -8,5 +8,7 @@ public sealed class BranchEntity
 
     public string Name { get; set; } = string.Empty;
 
+    public string City { get; set; } = string.Empty;
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

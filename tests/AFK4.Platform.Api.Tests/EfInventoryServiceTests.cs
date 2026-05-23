@@ -101,6 +101,89 @@ public sealed class EfInventoryServiceTests
     }
 
     [Fact]
+    public async Task UpdateProductAsync_UpdatesFieldsAndCanDeactivate()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var category = await CreateCategoryAsync(service);
+        var product = await service.CreateProductAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            ProductRequest(category.CategoryId, "product-001"),
+            CancellationToken.None);
+        Assert.NotNull(product.Response);
+        await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.Response.ProductId, StockMovementTypeNames.Purchase, 12, "stock-001"),
+            CancellationToken.None);
+
+        var result = await service.UpdateProductAsync(
+            TestIds.BranchId,
+            product.Response.ProductId,
+            ActorStaffUserId,
+            new UpdateProductRequest(
+                TestIds.OrganizationId,
+                category.CategoryId,
+                "Cola Zero",
+                " cola-zero ",
+                new MoneyDto("tjs", 1300),
+                TrackStock: true,
+                AllowNegativeStock: true,
+                IsActive: false),
+            CancellationToken.None);
+        var catalog = await service.GetCatalogAsync(TestIds.OrganizationId, TestIds.BranchId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal("Cola Zero", result.Response.Name);
+        Assert.Equal("COLA-ZERO", result.Response.Sku);
+        Assert.Equal(new MoneyDto("TJS", 1300), result.Response.Price);
+        Assert.True(result.Response.AllowNegativeStock);
+        Assert.False(result.Response.IsActive);
+        Assert.Equal(12, result.Response.StockOnHand);
+        Assert.True(catalog.Succeeded);
+        Assert.Empty(catalog.Response!);
+    }
+
+    [Fact]
+    public async Task UpdateProductAsync_RejectsDuplicateSku()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var category = await CreateCategoryAsync(service);
+        await service.CreateProductAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            ProductRequest(category.CategoryId, "product-001"),
+            CancellationToken.None);
+        var second = await service.CreateProductAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            ProductRequest(category.CategoryId, "product-002") with { Name = "Water 0.5", Sku = "WATER-05" },
+            CancellationToken.None);
+        Assert.NotNull(second.Response);
+
+        var result = await service.UpdateProductAsync(
+            TestIds.BranchId,
+            second.Response.ProductId,
+            ActorStaffUserId,
+            new UpdateProductRequest(
+                TestIds.OrganizationId,
+                category.CategoryId,
+                "Water 0.5",
+                "cola-05",
+                new MoneyDto("TJS", 600),
+                TrackStock: true,
+                AllowNegativeStock: false,
+                IsActive: true),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+    }
+
+    [Fact]
     public async Task CreateStockMovementAsync_PurchaseIncreasesDerivedStock()
     {
         await using var db = CreateDbContext();
@@ -283,6 +366,52 @@ public sealed class EfInventoryServiceTests
         Assert.Equal(22, product.StockOnHand);
     }
 
+    [Fact]
+    public async Task GetStockMovementsAsync_ReturnsRecentMovementsFilteredByProduct()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+        var otherProduct = await CreateTrackedProductAsync(service);
+        var first = await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Purchase, 24, "stock-history-001"),
+            CancellationToken.None);
+        var latest = await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Adjustment, -2, "stock-history-002"),
+            CancellationToken.None);
+        await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(otherProduct.ProductId, StockMovementTypeNames.Purchase, 10, "stock-history-003"),
+            CancellationToken.None);
+        Assert.NotNull(first.Response);
+        Assert.NotNull(latest.Response);
+
+        var firstEntity = await db.StockMovements.SingleAsync(movement => movement.StockMovementId == first.Response.StockMovementId);
+        firstEntity.CreatedAtUtc = Now.AddMinutes(-10);
+        var latestEntity = await db.StockMovements.SingleAsync(movement => movement.StockMovementId == latest.Response.StockMovementId);
+        latestEntity.CreatedAtUtc = Now.AddMinutes(-1);
+        await db.SaveChangesAsync();
+
+        var result = await service.GetStockMovementsAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            product.ProductId,
+            limit: 1,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        var movement = Assert.Single(result.Response);
+        Assert.Equal(product.ProductId, movement.ProductId);
+        Assert.Equal(-2, movement.QuantityDelta);
+        Assert.Equal(StockMovementTypeNames.Adjustment, movement.MovementType);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -302,7 +431,7 @@ public sealed class EfInventoryServiceTests
         var result = await service.CreateCategoryAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-            new CreateProductCategoryRequest(TestIds.OrganizationId, "Drinks", $"category-{Guid.NewGuid():N}"),
+            new CreateProductCategoryRequest(TestIds.OrganizationId, $"Drinks {Guid.NewGuid():N}", $"category-{Guid.NewGuid():N}"),
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -317,7 +446,11 @@ public sealed class EfInventoryServiceTests
         var result = await service.CreateProductAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-            ProductRequest(category.CategoryId, $"product-{Guid.NewGuid():N}"),
+            ProductRequest(category.CategoryId, $"product-{Guid.NewGuid():N}") with
+            {
+                Name = $"Cola {Guid.NewGuid():N}",
+                Sku = $"SKU-{Guid.NewGuid():N}"
+            },
             CancellationToken.None);
 
         Assert.True(result.Succeeded);

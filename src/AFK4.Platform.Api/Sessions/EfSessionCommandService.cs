@@ -443,6 +443,24 @@ public sealed class EfSessionCommandService(
             return idempotency;
         }
 
+        if (session.State == SessionStateNames.Ending)
+        {
+            var now = timeProvider.GetUtcNow();
+            var commands = await GetPendingEndCommandsAsync(session, cancellationToken);
+            var response = CreateResponse(request.IdempotencyKey, session, CurrentLease: null, commands, now);
+            AddIdempotencyRecord(
+                session.OrganizationId,
+                session.BranchId,
+                "end",
+                request.IdempotencyKey,
+                request,
+                response,
+                now);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return SessionCommandServiceResult.Ok(response);
+        }
+
         if (session.State is not SessionStateNames.Active and not SessionStateNames.Paused)
         {
             return SessionCommandServiceResult.Invalid("Only active or paused sessions can be ended.");
@@ -491,6 +509,25 @@ public sealed class EfSessionCommandService(
         }
 
         return result;
+    }
+
+    private async Task<IReadOnlyList<DeviceCommandDto>> GetPendingEndCommandsAsync(
+        SessionEntity session,
+        CancellationToken cancellationToken)
+    {
+        var commands = await dbContext.DeviceCommands
+            .AsNoTracking()
+            .Where(command => command.DeviceId == session.DeviceId && command.Type == DeviceCommandTypeNames.Lock)
+            .OrderByDescending(command => command.CreatedAtUtc)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+
+        return commands
+            .Where(command => string.Equals(command.Status, "pending", StringComparison.OrdinalIgnoreCase))
+            .Select(ToDeviceCommandDto)
+            .Where(command => command.Payload.TryGetValue("sessionId", out var sessionId) &&
+                string.Equals(sessionId, session.SessionId.ToString("D"), StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
     private async Task<SessionCommandServiceResult?> GetExistingIdempotencyAsync<TRequest>(
@@ -685,6 +722,28 @@ public sealed class EfSessionCommandService(
                     : Math.Max(0, (int)(session.EndsAtUtc.Value - now).TotalSeconds),
                 CurrentLease: CurrentLease),
             DeviceCommands: commands);
+    }
+
+    private static DeviceCommandDto ToDeviceCommandDto(DeviceCommandEntity command)
+    {
+        return new DeviceCommandDto(
+            CommandId: command.CommandId,
+            Type: command.Type,
+            CreatedAtUtc: command.CreatedAtUtc,
+            Payload: ParseCommandPayload(command.PayloadJson));
+    }
+
+    private static IReadOnlyDictionary<string, string> ParseCommandPayload(string payloadJson)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(payloadJson, JsonOptions)
+                ?? new Dictionary<string, string>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>();
+        }
     }
 
     private static Dictionary<string, string> LeasePayload(Guid sessionId, SessionLeaseDto lease, string reason)

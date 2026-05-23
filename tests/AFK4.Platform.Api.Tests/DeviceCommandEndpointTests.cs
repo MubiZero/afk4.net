@@ -291,6 +291,121 @@ public sealed class DeviceCommandEndpointTests
     }
 
     [Fact]
+    public async Task GetDeviceCommands_WithoutStaffToken_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetDeviceCommands_WithTechnicianPermission_ReturnsLimitedHistoryAndWritesAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await SeedDeviceAsync(factory);
+        await SeedDeviceCommandAsync(factory, Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Pending", DateTimeOffset.Parse("2026-05-12T00:01:00Z"));
+        await SeedDeviceCommandAsync(factory, Guid.Parse("73d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Completed", DateTimeOffset.Parse("2026-05-12T00:02:00Z"));
+        await SeedDeviceCommandAsync(factory, Guid.Parse("83d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Failed", DateTimeOffset.Parse("2026-05-12T00:03:00Z"));
+
+        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands?limit=2");
+        var commands = await response.Content.ReadFromJsonAsync<IReadOnlyList<DeviceCommandStatusDto>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(commands);
+        Assert.Equal(2, commands.Count);
+        Assert.Equal("Failed", commands[0].Status);
+        Assert.Equal("Completed", commands[1].Status);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.ViewDeviceCommandStatus, audit.Action);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+        Assert.Equal("Device", audit.TargetType);
+        Assert.Equal(TestIds.DeviceId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
+    public async Task GetBranchDeviceCommands_WithTechnicianPermission_ReturnsLimitedBranchHistoryAndWritesAudit()
+    {
+        var secondDeviceId = Guid.Parse("9c6f544b-44ee-455b-861e-f519f4e620b8");
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await SeedDeviceAsync(factory);
+        await SeedDeviceAsync(factory, secondDeviceId, "PC-002");
+        await SeedDeviceCommandAsync(factory, Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Pending", DateTimeOffset.Parse("2026-05-12T00:01:00Z"));
+        await SeedDeviceCommandAsync(factory, Guid.Parse("73d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Completed", DateTimeOffset.Parse("2026-05-12T00:03:00Z"), secondDeviceId);
+        await SeedDeviceCommandAsync(factory, Guid.Parse("83d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Failed", DateTimeOffset.Parse("2026-05-12T00:04:00Z"), Guid.Parse("5d4b9d5d-60d5-49fe-a285-049ae4a40280"));
+
+        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/device-commands?limit=2");
+        var commands = await response.Content.ReadFromJsonAsync<IReadOnlyList<DeviceCommandStatusDto>>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(commands);
+        Assert.Equal(2, commands.Count);
+        Assert.Equal(secondDeviceId, commands[0].DeviceId);
+        Assert.Equal("Completed", commands[0].Status);
+        Assert.Equal(TestIds.DeviceId, commands[1].DeviceId);
+        Assert.Equal("Pending", commands[1].Status);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.ViewDeviceCommandStatus, audit.Action);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+        Assert.Equal("Branch", audit.TargetType);
+        Assert.Equal(TestIds.BranchId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
+    public async Task GetBranchDeviceCommands_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedDeviceAsync(factory);
+
+        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/device-commands");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.ViewDeviceCommandStatus, audit.Action);
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
+        Assert.Equal("Branch", audit.TargetType);
+        Assert.Equal(TestIds.BranchId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
+    public async Task GetDeviceCommands_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedDeviceAsync(factory);
+
+        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.ViewDeviceCommandStatus, audit.Action);
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
+        Assert.Equal("Device", audit.TargetType);
+        Assert.Equal(TestIds.DeviceId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
     public async Task GetDeviceCommandStatus_WithTechnicianPermission_ReturnsStatusAndWritesAudit()
     {
         await using var factory = new PlatformApiFactory();
@@ -397,16 +512,19 @@ public sealed class DeviceCommandEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    private static async Task SeedDeviceAsync(PlatformApiFactory factory)
+    private static async Task SeedDeviceAsync(
+        PlatformApiFactory factory,
+        Guid? deviceId = null,
+        string machineName = "PC-001")
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         dbContext.Devices.Add(new DeviceEntity
         {
-            DeviceId = TestIds.DeviceId,
+            DeviceId = deviceId ?? TestIds.DeviceId,
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            MachineName = "PC-001",
+            MachineName = machineName,
             AgentVersion = "0.1.0",
             ShellVersion = "0.1.0",
             EnrolledAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
@@ -552,16 +670,25 @@ public sealed class DeviceCommandEndpointTests
         Guid commandId,
         Guid? deviceId = null)
     {
+        await SeedDeviceCommandAsync(factory, commandId, "Pending", DateTimeOffset.Parse("2026-05-12T00:01:00Z"), deviceId);
+    }
+
+    private static async Task SeedDeviceCommandAsync(
+        PlatformApiFactory factory,
+        Guid commandId,
+        string status,
+        DateTimeOffset createdAt,
+        Guid? deviceId = null)
+    {
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var createdAt = DateTimeOffset.Parse("2026-05-12T00:01:00Z");
         dbContext.DeviceCommands.Add(new DeviceCommandEntity
         {
             DeviceId = deviceId ?? TestIds.DeviceId,
             CommandId = commandId,
             Type = "lock",
             PayloadJson = """{"reason":"operator-request"}""",
-            Status = "Pending",
+            Status = status,
             CreatedAtUtc = createdAt,
             UpdatedAtUtc = createdAt
         });
