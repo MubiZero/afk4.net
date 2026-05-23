@@ -33,6 +33,7 @@ using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
 using AFK4.Shared.Contracts.Platform.Tenants;
 using AFK4.Shared.Contracts.Pos;
@@ -114,6 +115,7 @@ builder.Services.AddSingleton<IOwnerInviteCodeGenerator, RandomOwnerInviteCodeGe
 builder.Services.AddScoped<IPlatformTenantService, EfPlatformTenantService>();
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
 builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthService>();
+builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
@@ -660,6 +662,62 @@ app.MapPost("/api/platform/owner-invites/accept", async (
         cancellationToken);
 
     return Results.Ok(signIn);
+});
+
+app.MapPost("/api/operator-connections/resolve", async (
+    ResolveOperatorConnectionRequest request,
+    IOperatorConnectionResolver resolver,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var result = await resolver.ResolveAsync(request, cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: null,
+            action: AuditActionNames.ResolveOperatorConnection,
+            targetType: "OperatorConnection",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new
+            {
+                HasSlugPair = !string.IsNullOrWhiteSpace(request.OrganizationSlug)
+                    || !string.IsNullOrWhiteSpace(request.BranchSlug),
+                HasSetupCode = !string.IsNullOrWhiteSpace(request.SetupCode),
+                Error = result.Error
+            },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var resolution = result.Value!;
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: resolution.OrganizationId,
+        actorPlatformAdminUserId: null,
+        action: AuditActionNames.ResolveOperatorConnection,
+        targetType: "OperatorConnection",
+        targetId: resolution.BranchId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new
+        {
+            resolution.Source,
+            resolution.OrganizationSlug,
+            resolution.BranchSlug,
+            resolution.OrganizationStatus
+        },
+        cancellationToken);
+
+    return Results.Ok(resolution);
 });
 
 app.MapPatch("/api/platform/tenants/{organizationId:guid}/status", async (

@@ -173,4 +173,6 @@ public static class AuditActionNames
     public const string ViewTenantSupportNotes = "tenancy.support_note.view";
 
     public const string ViewTenantHealth = "tenancy.tenant.health.view";
+
+    public const string ResolveOperatorConnection = "tenancy.operator_connection.resolve";
 }

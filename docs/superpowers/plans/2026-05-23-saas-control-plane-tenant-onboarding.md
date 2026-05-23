@@ -859,3 +859,142 @@ Operational handoff for Slice 6:
   nginx, etc.). For Coolify staging, a follow-up commit can add a
   Caddyfile / nginx config snippet under `deploy/coolify/` to wire
   it to `platform.afk4.local`.
+
+### Slice 6: Operator App Connection Without GUIDs — completed 2026-05-23 on `codex/saas-control-plane-slice-6`
+
+Deliverables:
+
+- New shared contracts in `src/AFK4.Shared.Contracts/Platform/Operator/`:
+  - `ResolveOperatorConnectionRequest(OrganizationSlug?, BranchSlug?, SetupCode?)` —
+    discriminated payload (either slug pair OR setup code, never both).
+  - `ResolveOperatorConnectionResponse(OrganizationId, OrganizationSlug,
+    OrganizationName, OrganizationStatus, OrganizationStatusReason,
+    BranchId, BranchSlug, BranchName, BranchCity, Source)` —
+    Source is `"slug"` or `"setup_code"` via the new
+    `OperatorConnectionResolutionSources` constants class. Round-trip
+    serialization is covered by 4 new tests under
+    `tests/AFK4.Shared.Contracts.Tests/Platform/OperatorConnectionContractSerializationTests.cs`.
+- New audit action constant
+  `tenancy.operator_connection.resolve` in `AuditActionNames` (the
+  endpoint writes succeeded + denied records under this action so
+  support can see failed resolutions during onboarding).
+- New `IOperatorConnectionResolver` /
+  `EfOperatorConnectionResolver` under
+  `src/AFK4.Platform.Api/Platform/Tenancy/`:
+  - Slug-pair path: validates both slugs via the existing
+    `SlugValidator`, looks up the tenant by normalized
+    `OrganizationEntity.Slug`, then the branch by
+    `(OrganizationId, Slug)`; returns 404 with a clear error string
+    when either misses; returns the metadata for any tenant status
+    (active, suspended, deletion_pending) so the operator app can
+    show blocked-state copy.
+  - Setup-code path: looks up `OwnerInviteEntity` by
+    `NormalizedCode`, returns 400 when the invite is not pending
+    (revoked / accepted / expired), 404 when the invite or its
+    tenant / branch no longer exists.
+  - Mutual-exclusion: rejects requests that provide both slug pair
+    and setup code with `400 Provide either ... not both.`, and
+    rejects requests with neither field with `400 Provide either ...`.
+- New endpoint `POST /api/operator-connections/resolve` in
+  `Program.cs`. Public (the slug pair or setup code is the
+  credential). Writes succeeded / denied
+  `tenancy.operator_connection.resolve` audit records; the denied
+  payload encodes `{ HasSlugPair, HasSetupCode, Error }` so support
+  can spot brute-force / typo patterns without leaking raw slugs.
+- React resolver client in
+  `src/AFK4.Operator.App.Web/src/connectionResolver.ts`:
+  - `ConnectionResolver` with `resolveBySlugPair(orgSlug, branchSlug)`
+    and `resolveBySetupCode(code)` methods, plus
+    `ConnectionResolutionError(status, message)` that mirrors the
+    backend's `{ error }` envelope.
+  - `OperatorTenantStatus` constants
+    (`active` / `suspended` / `deletion_pending`).
+  - `readStoredConnection`, `writeStoredConnection`,
+    `clearStoredConnection` persist the resolved tenant + branch in
+    `localStorage` under the `afk4.operator.connection` key so the
+    Operator App skips the connection screen on subsequent launches.
+    `writeStoredConnection` stamps `storedAtUtc` so the WPF host can
+    decide when to invalidate.
+- `ConnectionResolutionScreen` React component in
+  `src/AFK4.Operator.App.Web/src/ConnectionResolutionScreen.tsx`:
+  - Mode toggle (slug pair vs setup code).
+  - Renders error copy specialised for HTTP 404 (`No tenant matched
+    the slugs / setup code`), HTTP 400 (passes through backend
+    message), and generic fallback.
+  - Exposes `isOperatorTenantBlocked(resolution)` helper so the
+    caller can short-circuit straight to a blocked-state UI when a
+    suspended / deletion-pending tenant is resolved.
+- Tests:
+  - Backend `OperatorConnectionResolutionEndpointTests` (11 cases):
+    slug pair happy path + succeeded audit; setup-code happy path;
+    suspended tenant resolves with `status="suspended"` + reason;
+    revoked invite 400; expired invite 400; unknown slug 404 + denied
+    audit; known org but unknown branch 404; both fields 400; no
+    fields 400; invalid slug format 400; case-insensitive setup
+    code accepted.
+  - Frontend `connectionResolver.test.ts` (10 cases): slug-pair
+    resolve, setup-code resolve, error projection from JSON body,
+    fallback when body isn't JSON, write/read/clear stored
+    connection round-trip, malformed payload returns null, empty
+    organizationId returns null.
+
+Verification (WSL Linux):
+
+- `dotnet build AFK4.sln -p:EnableWindowsTargeting=true`: 20
+  projects, 0 errors, 0 warnings.
+- `dotnet test tests/AFK4.Shared.Contracts.Tests/...`: 108 passed
+  (Slice 5: 104 + Slice 6: +4 new = 108).
+- `dotnet test tests/AFK4.Platform.Api.Tests/...`: 480 passed
+  (Slice 5: 469 + Slice 6: +11 = 480).
+- `npm test` in `src/AFK4.Operator.App.Web/`: 112 passed
+  (Slice 5: 102 + Slice 6: +10 = 112).
+- `npm run build` in `src/AFK4.Operator.App.Web/`: typecheck +
+  vite build green (~489 kB JS / ~131 kB gzip).
+- `npm test` in `src/AFK4.Platform.Web/`: 12 passed (unchanged).
+- Pre-existing Linux env limits unchanged: 22/140
+  `Agent.Service.Tests` still fail on `powershell.exe`,
+  `Operator.App.Tests` / `Player.Shell.Tests` still need Windows.
+
+Scope explicitly deferred to Windows-machine follow-up:
+
+- Wiring `ConnectionResolutionScreen` into `Operator.App.Web/App.tsx`
+  as the pre-sign-in step when no `organizationId` / `branchId` is
+  present in `operatorConfig`. The component + resolver client are
+  ready to be slotted in; this is a small App.tsx edit that needs
+  Windows + WebView2 to test end-to-end.
+- WPF-side persistence via DPAPI in the existing
+  `OperatorTokenStore` pattern. The React side already persists via
+  `localStorage`, which is good enough for browser dev but should be
+  backed by the WPF protected-storage bridge for production. Mirror
+  the `OperatorTokenStore` pattern under
+  `src/AFK4.Operator.App/Connection/` once on a Windows machine.
+- Environment-variable fallback for developer / staging override is
+  still wired through `OperatorAppOptions` / `operatorConfig`; no
+  changes needed there. Slice 6 does NOT remove that fallback.
+
+Operational handoff for staging smoke (from the original plan):
+
+- The full staging smoke is now executable:
+  1. Apply Slice 1 migration to staging PostgreSQL via the backup +
+     restore runbook.
+  2. Sign in as platform admin (Slice 1 bootstrap) — via the Slice 5
+     Control Plane SPA.
+  3. Create a tenant + first branch (Slice 2 / Slice 5 form).
+  4. Resolve the new branch from the Operator App using the
+     organisation slug + branch slug (Slice 6 endpoint).
+  5. Accept the owner invite via the Slice 2 endpoint (Slice 5
+     surfaces the code; the operator pastes it into the Operator App
+     sign-in flow).
+  6. Suspend tenant via the Slice 3 PATCH endpoint; verify the
+     Operator App's slug resolution still works but returns
+     `status="suspended"`, and that staff sign-in still works while
+     mutations are blocked by the Slice 3 middleware.
+  7. Inspect tenant health via the Slice 4 / Slice 5 health view.
+  8. Reactivate tenant; verify writes resume.
+- Open follow-up before commercial rollout: replace the localStorage
+  setup-code persistence with the WPF DPAPI-backed protected store
+  (see "Scope explicitly deferred" above) and add ingress-level
+  rate-limiting to `/api/operator-connections/resolve` and
+  `/api/platform/owner-invites/accept` (128 bits of invite entropy
+  makes brute force impractical, but rate-limiting is still a
+  sensible defence-in-depth measure).
