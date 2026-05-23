@@ -3086,8 +3086,15 @@ app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
 app.MapPost("/api/devices/enroll", async (
     DeviceEnrollmentRequest request,
     IDeviceEnrollmentService enrollmentService,
+    ITenantStatusGuard tenantStatusGuard,
     CancellationToken cancellationToken) =>
 {
+    var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+    if (suspendedCheck is not null)
+    {
+        return suspendedCheck;
+    }
+
     var result = await enrollmentService.EnrollAsync(request, cancellationToken);
 
     if (!result.Succeeded)
@@ -3104,6 +3111,7 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
     HttpContext httpContext,
     IDeviceCredentialValidator credentialValidator,
     IDeviceHeartbeatService heartbeatService,
+    ITenantStatusGuard tenantStatusGuard,
     CancellationToken cancellationToken) =>
 {
     if (deviceId != request.DeviceId)
@@ -3115,6 +3123,12 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
     if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
+    }
+
+    var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+    if (suspendedCheck is not null)
+    {
+        return suspendedCheck;
     }
 
     var response = await heartbeatService.RecordHeartbeatAsync(deviceId, request, cancellationToken);
@@ -3131,6 +3145,7 @@ app.MapPost("/api/devices/{deviceId:guid}/commands/{commandId:guid}/result", asy
     IDeviceCommandStore commandStore,
     ISessionCommandResultProcessor sessionCommandResultProcessor,
     IHubContext<DeviceHub> hubContext,
+    ITenantStatusGuard tenantStatusGuard,
     CancellationToken cancellationToken) =>
 {
     if (deviceId != result.DeviceId)
@@ -3149,6 +3164,12 @@ app.MapPost("/api/devices/{deviceId:guid}/commands/{commandId:guid}/result", asy
         return Results.Unauthorized();
     }
 
+    var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(result.OrganizationId, cancellationToken);
+    if (suspendedCheck is not null)
+    {
+        return suspendedCheck;
+    }
+
     await commandStore.ApplyResultAsync(result, cancellationToken);
     await sessionCommandResultProcessor.ProcessAsync(result, cancellationToken);
     await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceCommandResult, result, cancellationToken);
@@ -3163,6 +3184,7 @@ app.MapPost("/api/devices/{deviceId:guid}/session-reconciliation", async (
     PlatformDbContext dbContext,
     IDeviceCredentialValidator credentialValidator,
     IDeviceCommandDispatchService commandDispatchService,
+    ITenantStatusGuard tenantStatusGuard,
     TimeProvider timeProvider,
     CancellationToken cancellationToken) =>
 {
@@ -3180,6 +3202,12 @@ app.MapPost("/api/devices/{deviceId:guid}/session-reconciliation", async (
     if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
+    }
+
+    var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+    if (suspendedCheck is not null)
+    {
+        return suspendedCheck;
     }
 
     var now = timeProvider.GetUtcNow();
@@ -3277,6 +3305,7 @@ app.MapPost("/api/devices/{deviceId:guid}/installed-apps/report", async (
     HttpContext httpContext,
     PlatformDbContext dbContext,
     IDeviceCredentialValidator credentialValidator,
+    ITenantStatusGuard tenantStatusGuard,
     CancellationToken cancellationToken) =>
 {
     if (deviceId != request.DeviceId)
@@ -3303,6 +3332,12 @@ app.MapPost("/api/devices/{deviceId:guid}/installed-apps/report", async (
     if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
+    }
+
+    var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+    if (suspendedCheck is not null)
+    {
+        return suspendedCheck;
     }
 
     var existingApps = await dbContext.DeviceInstalledApps
@@ -7679,6 +7714,7 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/check", async (
     HttpContext httpContext,
     IDeviceCredentialValidator credentialValidator,
     IUpdateService updateService,
+    ITenantStatusGuard tenantStatusGuard,
     CancellationToken cancellationToken) =>
 {
     if (deviceId != request.DeviceId)
@@ -7690,6 +7726,12 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/check", async (
     if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
+    }
+
+    var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+    if (suspendedCheck is not null)
+    {
+        return suspendedCheck;
     }
 
     var result = await updateService.CheckForUpdatesAsync(request, cancellationToken);
@@ -7703,6 +7745,7 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/status", async (
     HttpContext httpContext,
     IDeviceCredentialValidator credentialValidator,
     IUpdateService updateService,
+    ITenantStatusGuard tenantStatusGuard,
     CancellationToken cancellationToken) =>
 {
     if (deviceId != request.DeviceId)
@@ -7714,6 +7757,12 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/status", async (
     if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
+    }
+
+    var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+    if (suspendedCheck is not null)
+    {
+        return suspendedCheck;
     }
 
     var result = await updateService.ReportStatusAsync(request, cancellationToken);
