@@ -1742,6 +1742,22 @@ Operator App redesign branch-local verification on 2026-05-20:
   to include an internal SaaS Control Plane in MVP scope. The change is
   recorded in the PRD, architecture spec, README, production-readiness roadmap,
   AGENTS.md, and the focused tenant onboarding plan.
+- On 2026-05-23, PR #44 (`codex/operator-app-redesign`) was marked ready and
+  merged to `main` after green `PR Verification Result` on head
+  `3539684084e636747e105b28258c0175c6532e14`; merge commit is
+  `67b58cb1fd218d6d26a46decf313736049cccaa1`. The automatic `Coolify Staging
+  Deploy` push workflow failed closed at the EF migration guard because the PR
+  contained migration files. Because the staging database had already been
+  backed up/migrated/smoked and returned to non-public mode earlier on
+  2026-05-23, the workflow was rerun manually with
+  `confirm_migrations_applied=true` and passed, including Coolify deploy wait
+  and staging `/api/health`. The post-merge `Package Smoke` workflow built and
+  verified unsigned MSI packages and published staging update metadata/
+  bootstrapper to MinIO, but failed during "Register staging update packages
+  and create rollout" because staging update staff sign-in returned HTTP 401.
+  A rerun after the successful staging deploy failed at the same sign-in step,
+  so the remaining follow-up is staging update registration credential/data
+  synchronization, not package build output.
 - On 2026-05-22, `codex/operator-app-redesign` added read-only stock movement
   history for Settings `POS и склад`. The Platform API now exposes
   `GET /api/branches/{branchId}/inventory/stock-movements` with
