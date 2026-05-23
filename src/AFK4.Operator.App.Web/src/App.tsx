@@ -35,6 +35,16 @@ import {
   type OperatorFloorMapState
 } from './floorMapState';
 import { isHostBridgeUnavailableError, postHostWindowCommand, postHostWindowResize, type HostWindowResizeEdge } from './hostBridge';
+import { ConnectionResolutionScreen, isOperatorTenantBlocked } from './ConnectionResolutionScreen';
+import {
+  ConnectionResolver,
+  OperatorTenantStatus,
+  clearStoredConnection,
+  readStoredConnection,
+  writeStoredConnection,
+  type ResolvedOperatorConnection,
+  type ResolveOperatorConnectionResponse
+} from './connectionResolver';
 import {
   createOperatorApiClients,
   type AuditSearchResultDto,
@@ -8465,8 +8475,80 @@ function SignInScreen({
   );
 }
 
+function BlockedTenantScreen({
+  resolution,
+  onChangeConnection
+}: {
+  resolution: ResolveOperatorConnectionResponse;
+  onChangeConnection: () => void;
+}) {
+  const isDeletionPending = resolution.organizationStatus === OperatorTenantStatus.DeletionPending;
+  const headline = isDeletionPending ? 'Готовится удаление клуба' : 'Подписка приостановлена';
+  const reason = resolution.organizationStatusReason?.trim();
+  return (
+    <div className="operator-shell auth-shell">
+      <WindowResizeHandles />
+      <header
+        className="top-command auth-top-command"
+        onMouseDown={handleWindowDragStart}
+        onDoubleClick={handleWindowTitleDoubleClick}
+      >
+        <div className="brand-block">
+          <strong>AFK4</strong>
+          <span>Оператор</span>
+        </div>
+        <WindowControls />
+      </header>
+
+      <main className="auth-workspace">
+        <section className="auth-panel">
+          <header>
+            <span>{resolution.organizationName}</span>
+            <h1>{headline}</h1>
+            <p>
+              {reason !== undefined && reason.length > 0
+                ? reason
+                : 'Свяжитесь с владельцем клуба или поддержкой AFK4 для возобновления работы.'}
+            </p>
+          </header>
+
+          <div className="auth-error" role="alert">
+            <AlertTriangle size={16} />
+            <span>
+              {isDeletionPending
+                ? 'Этот клуб помечен на удаление. Вход через AFK4 Operator недоступен.'
+                : 'Клуб приостановлен. Кассовые операции и приём сессий заблокированы платформой.'}
+            </span>
+          </div>
+
+          <button type="button" className="primary-wide" onClick={onChangeConnection}>
+            Сменить подключение
+          </button>
+        </section>
+      </main>
+    </div>
+  );
+}
+
 export function App() {
-  const config = getOperatorConfig();
+  const baseConfig = getOperatorConfig();
+  const [resolvedConnection, setResolvedConnection] = useState<ResolvedOperatorConnection | null>(() => readStoredConnection());
+  const [blockedResolution, setBlockedResolution] = useState<ResolveOperatorConnectionResponse | null>(null);
+  const config = useMemo<OperatorConfig>(() => {
+    if (resolvedConnection === null) {
+      return baseConfig;
+    }
+    return {
+      ...baseConfig,
+      organizationId: baseConfig.organizationId ?? resolvedConnection.organizationId,
+      branchId: baseConfig.branchId ?? resolvedConnection.branchId
+    };
+  }, [baseConfig, resolvedConnection]);
+  const connectionResolver = useMemo(
+    () => new ConnectionResolver({ baseUrl: baseConfig.platformBaseUrl }),
+    [baseConfig.platformBaseUrl]
+  );
+  const needsConnectionResolution = !config.organizationId || !config.branchId;
   const [workspace, setWorkspace] = useState<WorkspaceId>('map');
   const [selectedSeatId, setSelectedSeatId] = useState(seats[0].id);
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
@@ -8846,6 +8928,25 @@ export function App() {
     setWorkspaceFeedback(null);
   };
 
+  const handleConnectionResolved = (resolution: ResolveOperatorConnectionResponse) => {
+    if (isOperatorTenantBlocked(resolution)) {
+      clearStoredConnection();
+      setResolvedConnection(null);
+      setBlockedResolution(resolution);
+      return;
+    }
+
+    const stored = writeStoredConnection(resolution);
+    setResolvedConnection(stored);
+    setBlockedResolution(null);
+  };
+
+  const handleChangeConnection = () => {
+    clearStoredConnection();
+    setResolvedConnection(null);
+    setBlockedResolution(null);
+  };
+
   const handleSignOut = async () => {
     try {
       await signOutOperator();
@@ -9023,6 +9124,24 @@ export function App() {
 
     throw new Error('Эта команда требует отдельного контракта Agent/backend и пока не включена.');
   };
+
+  if (blockedResolution !== null) {
+    return (
+      <BlockedTenantScreen
+        resolution={blockedResolution}
+        onChangeConnection={handleChangeConnection}
+      />
+    );
+  }
+
+  if (authStatus === 'signed-out' && needsConnectionResolution) {
+    return (
+      <ConnectionResolutionScreen
+        resolver={connectionResolver}
+        onResolved={handleConnectionResolved}
+      />
+    );
+  }
 
   if (authStatus !== 'signed-in' || authSession === null) {
     return (

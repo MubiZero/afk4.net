@@ -172,6 +172,14 @@ describe('App', () => {
   });
 
   it('signs in through the native bridge before showing operator workspaces', async () => {
+    window.__AFK4_OPERATOR_CONFIG__ = {
+      runtime: 'browser-dev',
+      shellMode: 'vite-dev',
+      platformBaseUrl: 'http://localhost:5074/',
+      currencyCode: 'TJS',
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2'
+    };
     installSessionBridge(null);
 
     render(<App />);
@@ -187,6 +195,7 @@ describe('App', () => {
   });
 
   it('clears restored native session when token refresh is rejected', async () => {
+    seedStoredOperatorConnection();
     const bridge = installSessionBridge(createSession(), createSession(), {
       failedRequests: {
         'auth:refresh': 'Platform API returned 401 Unauthorized:'
@@ -203,6 +212,7 @@ describe('App', () => {
   });
 
   it('hides native bridge diagnostics in packaged WebView2 auth errors', async () => {
+    seedStoredOperatorConnection();
     window.__AFK4_OPERATOR_CONFIG__ = {
       runtime: 'webview2',
       shellMode: 'vite-dist',
@@ -215,6 +225,100 @@ describe('App', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('приложения оператора');
     expect(alert).not.toHaveTextContent('Native host bridge is unavailable.');
+  });
+
+  it('shows the connection resolution screen when operator config has no organisation and no stored connection', async () => {
+    installSessionBridge(null);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Вход оператора' })).not.toBeInTheDocument();
+  });
+
+  it('skips the connection resolution screen when a stored connection is present', async () => {
+    seedStoredOperatorConnection();
+    installSessionBridge(null);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Connect to your club' })).not.toBeInTheDocument();
+  });
+
+  it('persists the resolved active connection and proceeds to the sign-in screen', async () => {
+    installSessionBridge(null);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/api/operator-connections/resolve') && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse({
+          organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+          organizationSlug: 'afk4-dushanbe',
+          organizationName: 'AFK4 Dushanbe',
+          organizationStatus: 'active',
+          organizationStatusReason: null,
+          branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+          branchSlug: 'central',
+          branchName: 'Central',
+          branchCity: 'Dushanbe',
+          source: 'slug'
+        }));
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Organisation slug'), { target: { value: 'afk4-dushanbe' } });
+    fireEvent.change(screen.getByLabelText('Branch slug'), { target: { value: 'central' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    const stored = localStorage.getItem('afk4.operator.connection');
+    expect(stored).not.toBeNull();
+    const parsed = JSON.parse(stored ?? 'null');
+    expect(parsed.organizationId).toBe('0c04d6c0-bfa8-4e26-9263-fc0d307d0f08');
+    expect(parsed.branchId).toBe('acfc0212-967f-4d84-94be-9003387b09c2');
+    expect(parsed.branchSlug).toBe('central');
+  });
+
+  it('shows blocked-state copy and does not persist the connection when the resolved tenant is suspended', async () => {
+    installSessionBridge(null);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/api/operator-connections/resolve') && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse({
+          organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+          organizationSlug: 'afk4-dushanbe',
+          organizationName: 'AFK4 Dushanbe',
+          organizationStatus: 'suspended',
+          organizationStatusReason: 'Не оплачена подписка за май.',
+          branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+          branchSlug: 'central',
+          branchName: 'Central',
+          branchCity: 'Dushanbe',
+          source: 'slug'
+        }));
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Organisation slug'), { target: { value: 'afk4-dushanbe' } });
+    fireEvent.change(screen.getByLabelText('Branch slug'), { target: { value: 'central' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('heading', { name: 'Подписка приостановлена' })).toBeInTheDocument();
+    expect(screen.getByText('Не оплачена подписка за май.')).toBeInTheDocument();
+    expect(localStorage.getItem('afk4.operator.connection')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сменить подключение' }));
+    expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
   });
 
   it('ends the selected active session through the backend before confirming the UI action', async () => {
@@ -2846,6 +2950,23 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   }
 
   return jsonResponse({ ok: true });
+}
+
+function seedStoredOperatorConnection(overrides: Record<string, unknown> = {}) {
+  localStorage.setItem(
+    'afk4.operator.connection',
+    JSON.stringify({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      organizationSlug: 'afk4-dushanbe',
+      organizationName: 'AFK4 Dushanbe',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+      branchSlug: 'central',
+      branchName: 'Central',
+      branchCity: 'Dushanbe',
+      storedAtUtc: '2026-05-23T10:00:00Z',
+      ...overrides
+    })
+  );
 }
 
 function installSessionBridge(
