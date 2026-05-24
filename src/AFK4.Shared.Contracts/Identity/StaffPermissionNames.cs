@@ -97,4 +97,6 @@ public static class StaffPermissionNames
     public const string ManageRoles = "identity.roles.manage";
 
     public const string ViewAudit = "audit.view";
+
+    public const string ManageOwnerCode = "identity.owner_code.manage";
 }

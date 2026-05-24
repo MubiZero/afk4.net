@@ -37,4 +37,21 @@ public sealed class StaffAuthorizationService(
 
         return StaffAuthorizationResult.Allowed(staffContext);
     }
+
+    public StaffAuthorizationResult RequireOrganizationPermission(string permission)
+    {
+        var staffContext = staffContextAccessor.Current;
+
+        if (staffContext is null)
+        {
+            return StaffAuthorizationResult.Unauthenticated();
+        }
+
+        if (!staffContext.Permissions.Contains(permission))
+        {
+            return StaffAuthorizationResult.Denied(staffContext, "Staff user does not have the required permission.");
+        }
+
+        return StaffAuthorizationResult.Allowed(staffContext);
+    }
 }

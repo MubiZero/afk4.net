@@ -92,6 +92,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<OwnerInviteEntity> OwnerInvites => Set<OwnerInviteEntity>();
 
+    public DbSet<OwnerCodeEntity> OwnerCodes => Set<OwnerCodeEntity>();
+
     public DbSet<TenantSupportNoteEntity> TenantSupportNotes => Set<TenantSupportNoteEntity>();
 
     public DbSet<PlatformIdempotencyRecordEntity> PlatformIdempotencyRecords => Set<PlatformIdempotencyRecordEntity>();
@@ -695,6 +697,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(invite => invite.NormalizedCode).IsUnique();
             entity.HasIndex(invite => new { invite.OrganizationId, invite.BranchId, invite.Status });
             entity.HasIndex(invite => invite.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<OwnerCodeEntity>(entity =>
+        {
+            entity.ToTable("owner_codes");
+            entity.HasKey(code => code.OwnerCodeId);
+            entity.Property(code => code.CodeHash).HasMaxLength(64).IsRequired();
+            entity.Property(code => code.CodeSuffix).HasMaxLength(4).IsRequired();
+            entity.Property(code => code.RevokedReason).HasMaxLength(512);
+            entity.HasIndex(code => code.CodeHash);
+            entity.HasIndex(code => code.StaffUserId)
+                .HasFilter("\"RevokedAtUtc\" IS NULL");
+            entity.HasIndex(code => code.ExpiresAtUtc);
         });
 
         modelBuilder.Entity<TenantSupportNoteEntity>(entity =>

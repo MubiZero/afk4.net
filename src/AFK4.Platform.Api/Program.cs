@@ -8,6 +8,7 @@ using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Idempotency;
@@ -155,6 +156,11 @@ builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
 builder.Services.Configure<PlatformTenantOptions>(
     builder.Configuration.GetSection(PlatformTenantOptions.ConfigurationSection));
 builder.Services.AddSingleton<IOwnerInviteCodeGenerator, RandomOwnerInviteCodeGenerator>();
+builder.Services.Configure<OwnerCodeOptions>(
+    builder.Configuration.GetSection(OwnerCodeOptions.SectionName));
+builder.Services.AddSingleton<IOwnerCodeGenerator, RandomOwnerCodeGenerator>();
+builder.Services.AddSingleton<IOwnerCodeHasher, Sha256OwnerCodeHasher>();
+builder.Services.AddScoped<IOwnerCodeService, OwnerCodeService>();
 builder.Services.AddScoped<IPlatformTenantService, EfPlatformTenantService>();
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
 builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore>();
@@ -255,6 +261,174 @@ app.MapPost("/api/auth/staff/refresh", async (
     return response is null
         ? Results.Unauthorized()
         : Results.Ok(response);
+});
+
+app.MapGet("/api/staff/me/owner-code", async (
+    StaffAuthorizationService authorizationService,
+    IOwnerCodeService ownerCodeService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageOwnerCode);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var summary = await ownerCodeService.GetActiveSummaryAsync(
+        authorization.StaffContext!.StaffUserId,
+        cancellationToken);
+
+    if (summary is null)
+    {
+        return Results.NoContent();
+    }
+
+    return Results.Ok(new OwnerCodeSummaryResponse(
+        summary.CodeSuffix,
+        summary.ExpiresAtUtc,
+        summary.LastUsedAtUtc,
+        summary.FailedAttemptCount));
+});
+
+app.MapPost("/api/staff/me/owner-code/generate", async (
+    StaffAuthorizationService authorizationService,
+    IOwnerCodeService ownerCodeService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageOwnerCode);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteOwnerCodeAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext?.OrganizationId,
+            authorization.StaffContext?.StaffUserId,
+            AuditActionNames.GenerateOwnerCode,
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    var result = await ownerCodeService.GenerateAsync(staffContext.StaffUserId, cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WriteOwnerCodeAuditAsync(
+            auditRecordWriter,
+            staffContext.OrganizationId,
+            staffContext.StaffUserId,
+            AuditActionNames.GenerateOwnerCode,
+            null,
+            AuditOutcome.Denied,
+            new { Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            OwnerCodeOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            OwnerCodeOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var issued = result.Value!;
+    await WriteOwnerCodeAuditAsync(
+        auditRecordWriter,
+        staffContext.OrganizationId,
+        staffContext.StaffUserId,
+        AuditActionNames.GenerateOwnerCode,
+        issued.CodeSuffix,
+        AuditOutcome.Succeeded,
+        new { issued.CodeSuffix, issued.ExpiresAtUtc },
+        cancellationToken);
+
+    return Results.Ok(new OwnerCodeIssuedResponse(
+        issued.PlaintextCode,
+        issued.CodeSuffix,
+        issued.ExpiresAtUtc));
+});
+
+app.MapPost("/api/staff/me/owner-code/rotate", async (
+    RotateOwnerCodeRequest request,
+    StaffAuthorizationService authorizationService,
+    IOwnerCodeService ownerCodeService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageOwnerCode);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteOwnerCodeAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext?.OrganizationId,
+            authorization.StaffContext?.StaffUserId,
+            AuditActionNames.RotateOwnerCode,
+            null,
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    var result = await ownerCodeService.RotateAsync(
+        staffContext.StaffUserId,
+        request.Reason,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WriteOwnerCodeAuditAsync(
+            auditRecordWriter,
+            staffContext.OrganizationId,
+            staffContext.StaffUserId,
+            AuditActionNames.RotateOwnerCode,
+            null,
+            AuditOutcome.Denied,
+            new { Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            OwnerCodeOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            OwnerCodeOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    var issued = result.Value!;
+    await WriteOwnerCodeAuditAsync(
+        auditRecordWriter,
+        staffContext.OrganizationId,
+        staffContext.StaffUserId,
+        AuditActionNames.RotateOwnerCode,
+        issued.CodeSuffix,
+        AuditOutcome.Succeeded,
+        new { issued.CodeSuffix, issued.ExpiresAtUtc, request.Reason },
+        cancellationToken);
+
+    return Results.Ok(new OwnerCodeIssuedResponse(
+        issued.PlaintextCode,
+        issued.CodeSuffix,
+        issued.ExpiresAtUtc));
 });
 
 app.MapPost("/api/platform/auth/sign-in", async (
@@ -7988,6 +8162,29 @@ static IResult ToReservationHttpResult<TResponse>(ReservationServiceResult<TResp
     }
 
     return Results.Ok(result.Response);
+}
+
+static async Task WriteOwnerCodeAuditAsync(
+    IAuditRecordWriter auditRecordWriter,
+    Guid? organizationId,
+    Guid? actorStaffUserId,
+    string action,
+    string? targetId,
+    string outcome,
+    object details,
+    CancellationToken cancellationToken)
+{
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        organizationId ?? Guid.Empty,
+        null,
+        actorStaffUserId,
+        action,
+        "OwnerCode",
+        targetId,
+        outcome,
+        "PlatformApi",
+        JsonSerializer.Serialize(details)),
+        cancellationToken);
 }
 
 static async Task WriteAuditAsync(
