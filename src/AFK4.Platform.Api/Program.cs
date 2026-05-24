@@ -55,29 +55,58 @@ const string PlatformWebCorsPolicyName = "platform-web";
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSignalR();
+
+string[] ResolveCorsOrigins(string configurationKey, string[] defaults)
+{
+    var configured = builder.Configuration
+        .GetSection(configurationKey)
+        .Get<string[]>();
+    if (configured is null || configured.Length == 0)
+    {
+        return defaults;
+    }
+
+    return defaults
+        .Concat(configured)
+        .Where(origin => !string.IsNullOrWhiteSpace(origin))
+        .Select(origin => origin.Trim().TrimEnd('/'))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+}
+
+var operatorWebOrigins = ResolveCorsOrigins(
+    "Cors:OperatorWebOrigins",
+    [
+        "https://operator.afk4.local",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:4174",
+        "http://127.0.0.1:4174"
+    ]);
+
+var platformWebOrigins = ResolveCorsOrigins(
+    "Cors:PlatformWebOrigins",
+    [
+        "https://platform.afk4.local",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+        "http://localhost:4175",
+        "http://127.0.0.1:4175"
+    ]);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
         OperatorWebCorsPolicyName,
         policy => policy
-            .WithOrigins(
-                "https://operator.afk4.local",
-                "http://localhost:5174",
-                "http://127.0.0.1:5174",
-                "http://localhost:4174",
-                "http://127.0.0.1:4174")
+            .WithOrigins(operatorWebOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
     options.AddPolicy(
         PlatformWebCorsPolicyName,
         policy => policy
-            .WithOrigins(
-                "https://platform.afk4.local",
-                "http://localhost:5175",
-                "http://127.0.0.1:5175",
-                "http://localhost:4175",
-                "http://127.0.0.1:4175")
+            .WithOrigins(platformWebOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
