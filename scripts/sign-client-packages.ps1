@@ -195,7 +195,7 @@ function Invoke-SigntoolSigning {
     $usingCertificateStore = -not [string]::IsNullOrWhiteSpace($CertificateSha1)
 
     if ($usingPfx -eq $usingCertificateStore) {
-        throw "Specify exactly one signtool source: CertificatePath or CertificateSha1."
+        throw "Specify exactly one Authenticode signing source: CertificatePath or CertificateSha1."
     }
 
     if ([string]::IsNullOrWhiteSpace($TimestampUrl)) {
