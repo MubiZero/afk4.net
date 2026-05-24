@@ -186,3 +186,26 @@ belongs in [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.m
 Production launch gaps belong in
 [Production Readiness Roadmap](docs/roadmap/production-readiness.md). Old
 evidence can be archived under `docs/archive/`.
+
+## License
+
+`SPDX-License-Identifier: AGPL-3.0-or-later`
+
+AFK4 is distributed under the [GNU Affero General Public License v3.0 or
+later](LICENSE). The full license text lives in the [`LICENSE`](LICENSE) file
+in the repository root.
+
+What this means in practice:
+
+- Anyone may read, modify, and self-host AFK4. Modifications and combined
+  works that touch AGPL-covered code must be released under the same license.
+- Operators who expose a modified AFK4 over a network (the SaaS scenario the
+  AGPL was written for) must offer the corresponding source code to the
+  network users of that service.
+- The AFK4 maintainers retain copyright on their contributions. External
+  contributions are accepted under the same AGPL-3.0-or-later terms unless a
+  separate contributor agreement is signed.
+
+If you need AFK4 under different terms (for example to ship a derivative
+inside a closed-source product), contact the maintainers about a commercial
+license.
