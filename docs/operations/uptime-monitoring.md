@@ -7,187 +7,200 @@ Last updated: 2026-05-24
 
 This runbook records the agreed external uptime monitoring setup for AFK4
 staging and (eventually) production. The goal is to find out about an
-outage from a monitoring email, push, or Telegram alert - not from a club
-operator on a Saturday night.
+outage from a monitoring alert, not from a club operator on a Saturday
+night.
 
-## Service Choice
+## Setup Decision
 
-AFK4 uses **UptimeRobot** for external uptime monitoring.
+AFK4 uses a **Cloudflare Worker on a Cron Trigger** as the external
+uptime probe. The Worker source lives at
+[`deploy/cloudflare/staging-uptime-monitor/worker.js`](../../deploy/cloudflare/staging-uptime-monitor/worker.js)
+and the deploy helper at
+[`scripts/deploy-staging-uptime-monitor.sh`](../../scripts/deploy-staging-uptime-monitor.sh).
 
-Reasons:
+Reasons over off-the-shelf SaaS (UptimeRobot, Better Stack, etc.):
 
-- Free tier covers what the pilot needs (50 HTTP/HTTPS monitors,
-  5-minute interval, unlimited email/web-push, two free integrations like
-  Telegram or Slack, free public status page).
-- HTTP keyword monitors support both "must contain" and "must not contain"
-  assertions, which lets us monitor more than a 200 response.
-- Mature service: no surprise free-tier deprecations in the last few years.
+- AFK4 already has a Cloudflare account; no new third-party signup or
+  monitor-count free-tier ceiling.
+- Cloudflare's edge POP network is denser in Central Asia than the
+  free-tier probe networks of US-headquartered SaaS monitors, which
+  matters once Tajikistan or Uzbekistan pilots come online.
+- Workers Cron Triggers and Workers KV are both inside the Cloudflare
+  free tier (100k requests/day, 1k KV writes/day) with massive headroom
+  for the 288 invocations / 2304 KV ops the worker actually performs
+  per day.
+- Alert logic lives in code under version control rather than in a SaaS
+  console. Adding a "do not alert during deploy" window, swapping the
+  Telegram channel, or extending the monitor list is a worker.js diff +
+  redeploy, not a console click.
 
-Better Stack (formerly Better Uptime) is the planned upgrade path when
-incident management, on-call rotations, or sub-minute checks are needed.
-UptimeRobot Pro is the cheaper upgrade path if all that is needed is
-shorter intervals (30 s) and SMS.
+The known trade-off is no out-of-the-box public status page. If pilot
+clubs need a shareable status URL, add a static page hosted on
+Cloudflare Pages that reads the same KV namespace as the worker, or
+upgrade to a SaaS that provides one.
 
-## What To Monitor
+## What Is Monitored
 
-Four monitors cover the staging surface that a real outage would break.
-All probes run from the UptimeRobot probe network.
+Four probes cover the staging surface that a real outage would break.
+They run from Cloudflare's network on a 5-minute cron schedule.
 
-### 1. Platform API health endpoint
+| # | Endpoint | Method | Expected status | Expected body keyword |
+|---|---|---|---|---|
+| 1 | `https://afk4.staging.mubi.dev/api/health` | GET | 200 | `"status":"ok"` |
+| 2 | `https://afk4.staging.mubi.dev/api/platform/auth/sign-in` (POST body `{}`) | POST | **401** | - |
+| 3 | `https://platform.afk4.staging.mubi.dev/healthz` | GET | 200 | `ok` |
+| 4 | `https://platform.afk4.staging.mubi.dev/` | GET | 200 | `AFK4 Platform Control Plane` |
 
-- URL: `https://afk4.staging.mubi.dev/api/health`
-- Type: HTTPS keyword
-- Method: GET
-- Interval: 5 minutes
-- Keyword to find: `"status":"ok"`
-- Alert when: keyword is not found OR response is non-2xx
+Monitor 2 deliberately submits an empty body to the platform-admin
+sign-in endpoint. The endpoint MUST answer 401. A 5xx means the auth
+pipeline or DB is broken even though `/api/health` may still look
+healthy. A 200/204 means the platform-admin guard regressed and must
+be investigated immediately.
 
-This catches API container down, DB connection lost, ASP.NET host
-unhealthy, Coolify ingress misroute, Let's Encrypt cert expiry.
+## Alert Behaviour
 
-### 2. Platform API auth pipeline
+- The worker tracks consecutive failures per monitor in a KV namespace
+  keyed `fail-streak:<monitor-name>`.
+- A Telegram alert fires only when:
+  - the failure streak crosses `FAIL_CONSEC_THRESHOLD = 2` (i.e. the
+    second consecutive failed probe), or
+  - a previously-down monitor returns to OK.
+- All other runs are silent. This avoids the noisy "alert every 5
+  minutes while the outage drags on" pattern.
+- If the Telegram secrets are unset the worker still probes, logs to
+  the Workers `tail` stream, and silently no-ops on alert sends. That
+  means it is safe to deploy the worker before the Telegram bot is
+  provisioned.
 
-- URL: `https://afk4.staging.mubi.dev/api/platform/auth/sign-in`
-- Type: HTTPS keyword
-- Method: POST
-- POST body: `{}`
-- POST headers: `Content-Type: application/json`
-- Interval: 5 minutes
-- Expected status code: 401
-- Alert when: status code is anything other than 401
+## First-Time Setup
 
-The empty body deliberately fails platform-admin authentication and
-the endpoint must answer 401. Status code 5xx means the auth pipeline
-or DB is broken even though `/api/health` may still look healthy.
-200/204 means the platform-admin guard regressed and must be
-investigated immediately.
+### 1. Cloudflare API token
 
-### 3. Control Plane SPA healthz
+Create an account-scoped token at
+[https://dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens)
+with the following policies. Both scoped to the AFK4 Cloudflare
+account.
 
-- URL: `https://platform.afk4.staging.mubi.dev/healthz`
-- Type: HTTPS keyword
-- Method: GET
-- Interval: 5 minutes
-- Keyword to find: `ok`
-- Alert when: keyword is not found OR response is non-2xx
+- `Workers Scripts: Read + Edit`
+- `Account Settings: Read`
 
-This is the lightweight nginx-served health probe baked into
-`deploy/coolify/platform-web.nginx.conf`. It catches SPA container down
-and ingress misroute without paying the React shell render cost.
+Token expiration: 90 days is fine; rotate from the same screen.
 
-### 4. Control Plane SPA shell
+Treat the token like an SSH key: never commit it, never paste it into
+chat, write it to your password manager.
 
-- URL: `https://platform.afk4.staging.mubi.dev/`
-- Type: HTTPS keyword
-- Method: GET
-- Interval: 5 minutes
-- Keyword to find: `AFK4 Platform Control Plane`
-- Alert when: keyword is not found OR response is non-2xx
+### 2. Telegram bot for alert delivery
 
-This catches a deploy that left an empty `index.html`, a broken Vite
-build, or a regression that stripped the document title.
+1. DM `@BotFather` on Telegram, run `/newbot`, follow prompts, save the
+   bot token (`123456789:AAxxx...`).
+2. DM the new bot once with `/start` so it can message you.
+3. Get your chat id:
+   ```bash
+   curl -sS "https://api.telegram.org/bot<bot-token>/getUpdates" |
+     python3 -c "import sys,json; print(json.load(sys.stdin)['result'][-1]['message']['chat']['id'])"
+   ```
+   The chat id for a private DM is your numeric Telegram user id.
+4. Test the bot:
+   ```bash
+   curl -sS -X POST "https://api.telegram.org/bot<bot-token>/sendMessage" \
+     -H 'Content-Type: application/json' \
+     -d '{"chat_id": <chat-id>, "text": "AFK4 monitor test"}'
+   ```
+   The bot should send "AFK4 monitor test" to your private chat.
 
-## Alert Channels
+### 3. Deploy the Worker
 
-Configure two notification channels at minimum:
+```bash
+export CF_API_TOKEN=<token from step 1>
+export CF_ACCOUNT_ID=66e13dcd6a4dbd2cde1e9929e51dd126
+export TELEGRAM_BOT_TOKEN=<bot token from step 2>
+export TELEGRAM_CHAT_ID=<chat id from step 2>
 
-1. **Email** to the operations owner address (free tier).
-2. **Telegram bot** to the operations owner private chat. This is the
-   fastest channel that does not require a phone plan with SMS.
+./scripts/deploy-staging-uptime-monitor.sh
+```
 
-Optional third channel for the pilot:
+Expected output ends with a "Deployment complete" summary listing the
+worker name, KV namespace id, and cron schedule.
 
-3. **Web push** on the operations owner's primary browser, to catch the
-   case where mail is silenced and the phone is off.
+### 4. Verify
 
-Set "Down" alerts to fire after **two consecutive failed checks** rather
-than one. UptimeRobot's free probe network can produce single-probe
-false positives on cold starts (the SPA `/healthz` cold start has been
-observed at 7-8 seconds).
-
-## Setup Steps
-
-1. Create an UptimeRobot account at https://uptimerobot.com with the
-   operations owner email.
-2. **My Settings -> Alert Contacts**: add the alert channels above.
-   Verify each (email link, Telegram `/start` flow on the
-   `UptimeRobotBot` chat).
-3. For each of the four monitors above, **+ New Monitor -> HTTP(s) (Keyword)**:
-   - Friendly name: `AFK4 Staging - <endpoint short name>`.
-   - URL, method, body, headers, keyword as listed.
-   - Interval: 5 minutes.
-   - Monitoring timeout: 30 seconds (the SPA shell cold start has been
-     measured at 7.6 s; 30 s gives headroom for cross-region probe
-     latency).
-   - HTTP basic auth: leave blank.
-   - **Select alert contacts**: tick the channels created in step 2.
-   - Threshold: 2 consecutive failed checks.
-4. **My Settings -> Public Status Pages**: create one public status page
-   that includes all four monitors. Suggested slug: `afk4-staging`.
-   This gives a `https://stats.uptimerobot.com/<slug>` URL that can be
-   shared with pilot club operators ("if you suspect AFK4 is down,
-   open this page first").
-5. Walk through the staging deploy runbook
-   [coolify-staging-deploy.md](coolify-staging-deploy.md), wait at
-   least 15 minutes, and confirm all four monitors are green in the
-   UptimeRobot dashboard before treating the setup as finished.
+- Open
+  [https://dash.cloudflare.com/?to=/:account/workers/services/view/afk4-staging-uptime-monitor](https://dash.cloudflare.com/?to=/:account/workers/services/view/afk4-staging-uptime-monitor)
+  and confirm the worker exists, the cron schedule shows
+  `*/5 * * * *`, and `STATE` binding points to
+  `afk4-staging-uptime-monitor-state`.
+- Trigger a manual run from the dashboard's Cron Triggers tab, or wait
+  for the next scheduled execution. The worker logs each probe in the
+  Workers tail stream; while everything is green there will be no
+  Telegram message.
+- Force a failure by temporarily breaking one of the assertions (for
+  example point monitor 1 to `/api/healthz-wrong-path` in
+  `worker.js`, redeploy, wait two intervals). Expect a Telegram
+  "AFK4 DOWN" message after the second consecutive failure. Revert
+  the change, redeploy, expect a Telegram "AFK4 RECOVERED" message on
+  the next interval.
 
 ## Incident Playbook
 
-When an alert fires:
+When a Telegram alert fires:
 
-1. Open the UptimeRobot incident detail to see which monitor(s)
-   tripped and the failed-check response body / headers / status code.
-2. Manually reproduce the failing request from your workstation with
-   `curl` (the same URL/method/body/headers documented above).
+1. Manually reproduce the failing request from your workstation with
+   `curl` (the same URL/method/body documented in the table above).
    - If reproduction succeeds, the failure was probe-network-side or
-     transient. Wait one more interval. If alerts continue, downgrade
-     the alert threshold or open a UptimeRobot probe-location ticket.
+     transient. Watch the next intervals; the worker will send a
+     RECOVERED message automatically once the streak resets.
    - If reproduction fails the same way, the outage is real.
-3. For Platform API alerts (monitors 1 and 2), check the Coolify
-   application logs for `afk4-platform-api-staging` first - the API
+2. For Platform API alerts (monitors 1 and 2), check the Coolify
+   application logs for `afk4-platform-api-staging` first. The API
    container most commonly crashes on a bad migration or an
    exhausted DB connection pool.
-4. For SPA alerts (monitors 3 and 4), check the Coolify application
+3. For SPA alerts (monitors 3 and 4), check the Coolify application
    logs for `afk4-platform-web-staging` and the Traefik ingress
-   labels - the SPA most commonly fails on a broken build or a
-   missing Let's Encrypt cert renewal.
-5. If the failure mode looks like a database problem, follow
-   [postgres-backup-restore.md](postgres-backup-restore.md) before
+   labels. The SPA most commonly fails on a broken build or a missing
+   Let's Encrypt cert renewal.
+4. If the failure mode looks like a database problem, follow
+   [`postgres-backup-restore.md`](postgres-backup-restore.md) before
    restoring from a backup. Most "DB is down" alerts are actually
    migration or connection-pool issues that do not need a restore.
+5. After the incident, inspect the Worker tail stream
+   ([Cloudflare dashboard - Workers - afk4-staging-uptime-monitor -
+   Logs](https://dash.cloudflare.com/)) to confirm RECOVERED fired
+   and that the KV streak counter cleared.
 
 ## Production Upgrade Notes
 
 When the production environment exists (separate domain, separate
-Coolify app, separate Postgres), duplicate every monitor with the
-production hostname and tag them with `env:prod` in UptimeRobot. Keep
-the staging monitors live so a staging regression is also visible.
+Coolify app, separate Postgres), add corresponding monitors to
+`worker.js` with the production hostname. Keep the staging monitors
+live so a staging regression is also visible.
 
-Production alert channels should add at minimum:
+Add a second alert channel for production:
 
-- SMS to the on-call owner (requires UptimeRobot Pro `$7/month`).
-- A second human's phone number once there is a second human on call.
+- Either a second Telegram chat (group, not DM) so multiple humans
+  see the alert, or
+- a Discord webhook secret in addition to the Telegram secrets and a
+  small `sendDiscord` helper next to `sendTelegram`.
 
-Production status page should live at a stable URL the pilot clubs
-trust (for example `status.afk4.net`), not at the default
-`stats.uptimerobot.com/<slug>` URL.
+For production traffic, consider raising `FAIL_CONSEC_THRESHOLD` to
+`3` if the worker stays on 5-minute intervals (so an alert means a
+real ~10-minute outage), or dropping to a 1-minute schedule on the
+paid Cloudflare Workers plan ($5/month) if sub-5-min detection is
+required.
 
 ## Known Limitations
 
-- The free tier checks at 5-minute intervals. A 4-minute outage that
-  resolves itself can go undetected. This is acceptable for the pilot.
-- UptimeRobot's probe network is mostly in North America and Western
-  Europe. AFK4 staging is hosted on Coolify in Europe, so probe
-  latency is fine. A future Tajikistan/Central Asia pilot may want a
-  Pingdom-style multi-region probe set instead.
-- Keyword monitors do not validate JSON structure. The
-  `"status":"ok"` keyword for monitor 1 will pass if any other field
-  on the response also happens to contain that substring. Today the
-  health endpoint payload is small enough that this is not a concern.
-- The auth-pipeline monitor (monitor 2) is a deliberate failed
-  sign-in and produces an `audit_records` row each interval. The
-  audit table will accumulate ~12 such rows per hour. When audit
-  retention work lands, exclude these rows from the retention sweep
-  by actor IP (UptimeRobot publishes its probe IP ranges at
-  https://uptimerobot.com/inc/files/ips/IPv4andIPv6.txt).
+- Cloudflare cron is best-effort. A 4-minute outage that resolves
+  itself can go undetected. This is acceptable for the pilot.
+- The auth-pipeline monitor (#2) is a deliberate failed sign-in and
+  produces an `audit_records` row each interval. The audit table will
+  accumulate ~288 such rows per day. When audit retention work lands,
+  exclude these rows from the retention sweep either by actor IP
+  (Cloudflare publishes its egress IPs at
+  https://www.cloudflare.com/ips/) or by adding a probe header and
+  filtering on it.
+- The worker has no public status page. Sharing the worker's KV
+  state via a Cloudflare Pages dashboard, or pointing pilot clubs at
+  a hand-maintained `status.afk4.net` HTML, is a future-work item.
+- The Telegram bot is a single channel. If the chat goes silent (DND,
+  app uninstalled, account compromised) the alert is silently lost.
+  The "second alert channel" upgrade above is the mitigation.
