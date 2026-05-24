@@ -188,12 +188,16 @@ password" affordance inside the dashboard.
 
 **Why.** No password reset is a real product gap — if a club owner forgets
 their password they have to contact Mubi to get it reset via the same
-DB-delete-and-rebootstrap recipe we used for the staging admin
-([recipe](../../home/fedya/.claude/projects/-mnt-d-projects-afk4-net/memory/project_staging_admin.md))
-. That doesn't scale and is embarrassing.
+DB-delete-and-rebootstrap recipe used for the staging admin bootstrap on
+2026-05-24 (see the `PlatformAdminBootstrapHostedService` recovery flow
+in [`docs/operations/coolify-staging-deploy.md`](../../operations/coolify-staging-deploy.md)
+and the corresponding code in
+[`src/AFK4.Platform.Api/Platform/Identity/PlatformAdminBootstrapHostedService.cs`](../../../src/AFK4.Platform.Api/Platform/Identity/PlatformAdminBootstrapHostedService.cs)).
+That doesn't scale and is embarrassing.
 
-**Depends on.** Same email-sending backend as self-service signup
-(#3) — it's worth building both at once.
+**Depends on.** **Email sending infrastructure** (separate cross-cutting
+item below). Same backend as self-service signup (#3) — worth building
+both at once.
 
 **Sketch.** New `password_reset_tokens` table: `TokenHash`,
 `StaffUserId` (or `PlatformAdminUserId`), `ExpiresAtUtc` (15-minute
@@ -227,9 +231,11 @@ Push Notification service (free for paid Apple Developer accounts —
 $99/yr).
 
 **Sketch.** React Native preferred over MAUI (faster dev for small team,
-more devs available later). Auth: scan a QR code from the customer
-dashboard's `/club/account/devices` page → exchanges for an app-bound
-refresh token. App polls or subscribes via SignalR for:
+more devs available later). Auth: scan a QR code from a new
+`/club/account/mobile-devices` page in the customer dashboard (route
+added alongside this item, not present in the onboarding plan's MVP
+route tree) → exchanges for an app-bound refresh token. App polls or
+subscribes via SignalR for:
 - Branch / device status overview
 - Active sessions live count
 - Today's revenue + transaction count
@@ -275,7 +281,41 @@ SaaS engine" with AFK4 as the first vertical. Out of scope here.
 
 ---
 
-## 9. Final prod domain acquisition + cutover
+## 9. Email sending infrastructure
+
+**What.** A backend abstraction (`IEmailSender`) + templated email layer
++ a chosen transactional email provider. Templates: invite delivery,
+password reset, brute-force notification, signup verification, billing
+receipts, support ticket replies.
+
+**Why.** Three roadmap items (#3 self-signup, #6 password reset, #4
+billing receipts) and one onboarding-plan risk (#1 owner-code
+brute-force notification) all require sending email. Until this exists,
+all of those degrade — brute-force surfaces only in the SPA, password
+reset doesn't ship, signup doesn't have verification, billing has no
+receipts. Building it once across all consumers is cheaper than
+shimming each consumer.
+
+**Depends on.** Provider decision (Postmark, Mailgun, Amazon SES, or
+self-hosted Postfix). Sender domain DKIM / SPF / DMARC setup at
+`mubi.dev` or the final prod domain. Coolify secret for provider API
+key.
+
+**Sketch.** New `src/AFK4.Platform.Api/Email/` module with
+`IEmailSender`, `EmailTemplate` records, a `Razor`-based templating
+helper (or static template strings — pick during implementation),
+delivery status tracking (sent / bounced / complained) via provider
+webhooks. Template inventory grows incrementally as consumers ship.
+Bounce + complaint handling marks the staff user's email as
+undeliverable; the SPA surfaces this so the owner can fix it.
+
+A separate concern: localized templates per recipient locale (RU / EN
+at minimum, more once `Cross-Cutting Concerns → Localization beyond
+RU/EN` ships).
+
+---
+
+## 10. Final prod domain acquisition + cutover
 
 **What.** Acquire the final production domain (likely `afk4.net`), update
 all hard-coded references, DNS, Coolify hosts, Cloudflare monitors,
@@ -298,11 +338,24 @@ and `afk4.net` for a week, flip canonical / OG / sitemap URLs, redirect
 grace period. The Cloudflare uptime worker grows two monitor sets
 during the parallel period, drops the old set after.
 
-Email templates and the MSI download flow are the trickiest pieces —
-old MSIs in the wild will keep checking the old update URL, so the
-old update-channel host stays live until the install base has fully
-rolled over (Agent tracks its own check URL, and a single forced
-update can switch all live agents to the new host).
+Email templates and the MSI download flow are the trickiest pieces:
+
+- **Email templates** (see #9) embed absolute URLs; cutover requires
+  a coordinated template republish.
+- **MSI install / update URLs**: every Agent stores its own
+  `update channel URL` from the bootstrap config (set during
+  installer enroll). Agents in the wild on `mubi.dev` keep pulling
+  from `mubi.dev` until forced to migrate. Migration path:
+  1. Stand up the new `*.afk4.net` update host as a mirror of the
+     old, replicating all published manifests + MSIs.
+  2. Push a one-shot config update from the new Platform API to all
+     Agents instructing them to switch their `update channel URL`
+     to the new host.
+  3. Keep the old host live for 30+ days for any Agent that missed
+     the message (lost connectivity, suspended branch, etc.).
+  4. After the long-tail period, decommission the old host;
+     remaining stragglers will fail update checks and the Mubi
+     admin can surface them in the dashboard for manual remediation.
 
 ---
 
@@ -320,21 +373,99 @@ about.
   invoicing, data-residency requirements. Billing (#4) and self-service
   signup (#3) both touch this. Worth a separate legal review checkpoint
   before shipping #3 or #4.
+- **Privacy + GDPR-equivalent compliance.** Even before EU customers
+  arrive, the privacy primitives matter: a documented data inventory,
+  a "delete my account" flow that actually wipes the right rows
+  (vs only flipping `IsActive=false`), an export-my-data endpoint,
+  and a retention policy on `audit_records`. Trigger: any EU
+  customer, or any customer asking. Cheaper to design in than to
+  retrofit.
 - **Observability beyond `/api/health`.** Today: a 5-min cron from
   Cloudflare. Eventually: real metrics (Prometheus + Grafana on the
-  Coolify host), distributed tracing (OpenTelemetry), structured logs
-  with a queryable store (Loki / Elastic). Not urgent until either
-  pilot count exceeds ~5 or we add the billing module.
+  Coolify hosts — note: two of them after prod separation #1),
+  distributed tracing (OpenTelemetry), structured logs with a
+  queryable store (Loki / Elastic). Not urgent until either pilot
+  count exceeds ~5 or we add the billing module.
+- **Customer support + help-desk infrastructure.** Today: support
+  happens in Mubi's personal Telegram. At >5 clubs this breaks
+  down. Options: a lightweight ticketing tool (Plain, Front,
+  HelpScout) integrated with the customer dashboard, a Discord
+  community server, or a custom in-app ticket UI tied to the
+  audit-log UI (#5). Decision deferred until support volume
+  actually justifies tooling.
+- **Data analytics + BI.** For pricing decisions (#4), churn
+  analysis, feature adoption, and "do operators actually use this
+  screen?" questions, we need product analytics. Options: Mixpanel
+  / PostHog / self-hosted Plausible (basic). Should also surface
+  aggregate metrics in the Mubi admin for ad-hoc queries (tenants
+  with high churn risk, branches with no devices, etc.). Trigger:
+  any pricing/packaging decision that needs data, or first churn.
+- **Feature flags + slow-rollout.** As billing tiers and self-signup
+  ship, the ability to ramp a feature to 10% of tenants before 100%
+  becomes valuable. Options: GrowthBook (self-hosted, free),
+  Unleash (self-hosted, free), or a tiny in-house table keyed by
+  `OrganizationId`. Pick the smallest thing that works.
 - **Backups + DR drill cadence.** The Postgres backup runbook
   ([`docs/operations/postgres-backup-restore.md`](../../operations/postgres-backup-restore.md))
   exists, but the actual DR drill ("restore staging from yesterday's
   backup, verify clubs can sign in") has not been run. Add to the
   routine after production env separation (#1) so we drill against a
   non-staging DB.
+- **On-call / runbook discipline.** Today: Mubi is on call by virtue
+  of being the only operator, with the Cloudflare uptime worker as
+  the only paging signal. Pre-prod-launch: at least one secondary
+  contact in the alert group (currently the alert chat is a private
+  DM — fix in Slice 4 anyway when the landing-contact-form Telegram
+  group is set up). Post-prod: a real on-call rotation, even if it's
+  Mubi + one engineer, with documented escalation. Tracked here so
+  it doesn't get lost.
 - **Security review checkpoint.** Before payments (#4) and self-service
   signup (#3) ship, run an external security review (pentest +
   authentication/authorization audit). PR-time review is not enough
   once real money flows through.
+
+## What We Deliberately Are NOT Doing
+
+Captured here so future readers don't ask "why didn't AFK4 just use X?":
+
+- **No CRM integration.** Mubi tracks leads in the Slice-4 landing
+  contact form's Telegram group + a CSV log. At >50 leads/month or
+  first real sales pipeline complexity, revisit (probably go
+  HubSpot Free, or build a `/admin/leads` view).
+- **No GraphQL.** REST + JSON is enough for current SPA + mobile
+  needs and is closer to how the team already writes endpoints.
+  Revisit only if API consumers grow significantly beyond the
+  in-house SPA + mobile + Operator App.
+- **No microservices split.** The modular monolith inside
+  `src/AFK4.Platform.Api/` is the boundary discipline. A split would
+  require team-size justification (>3 backend engineers) and is not
+  on the path here.
+- **No event sourcing or CQRS-with-projections.** Standard
+  EF Core + audit log handles current and foreseeable scale.
+- **No Kubernetes.** Coolify is the orchestration layer. Migrating
+  off it would require multi-region or multi-tenant-isolation
+  pressure that doesn't exist yet.
+- **No third-party identity provider (Auth0 / Clerk / Cognito)** for
+  the platform-admin or staff identity. AFK4's identity model is
+  domain-specific (staff scoped to org, platform-admin separate,
+  installer-only owner code) and would fight a generic IdP. Re-
+  evaluate only if a regulatory or enterprise-SSO requirement
+  surfaces.
+
+These are revisitable — not bans. The list is the place to document
+the "why not".
+
+## Scale Of This Roadmap
+
+This roadmap is **multi-quarter, not multi-week**. Individual sections
+range from a few engineering-days (audit log UI, password reset) to
+multi-month efforts (mobile companion, multi-tenant white-label).
+None of it is on the critical path for pilot 1-2 — pilots ship on the
+onboarding plan alone. This roadmap is what comes after pilots prove
+the product and the question becomes "how do we grow".
+
+No commitment is implied by inclusion. Each section gets its own
+implementation plan only when business pressure justifies starting it.
 
 ## Related
 

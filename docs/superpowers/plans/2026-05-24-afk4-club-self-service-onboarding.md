@@ -31,22 +31,52 @@ and dependencies.
 
 ### Slice 1 — Backend foundation
 
-1. **Owner code**: short numeric code per branch owner, rotatable, audit-
+The floor map model + CRUD API already exist in the repo as of migration
+`20260513034617_AddClubLayout` (entities `ZoneEntity`, `SeatEntity`,
+`DeviceEntity`, `DeviceSeatAssignmentEntity` and endpoints
+`/api/branches/{branchId}/floor-map`, `/api/branches/{branchId}/layout/zones`,
+`/api/branches/{branchId}/layout/seats`,
+`/api/branches/{branchId}/device-enrollment-codes`, `/api/devices/enroll`,
+`/api/devices/{deviceId}/heartbeat`). Slice 1 builds on top of them rather
+than reinventing.
+
+1. **Owner code**: new short numeric code per `StaffUser`, rotatable, audit-
    logged, usable for installer authentication only (not for SPA sign-in).
-2. **Floor map**: per-branch zones + seats data model, CRUD API, plus a
-   default "default zone" auto-created with each new branch.
+   Brute-force protection specified in Risk #1 — minimum 8 digits, per-code
+   lockout after 5 failed attempts, lockout revokes the code and notifies
+   the owner.
+2. **Floor map gaps**: confirm existing endpoints cover the new editor's
+   needs (single combined GET that returns zones + seats + assignment
+   status; PUT for bulk save with optimistic-concurrency ETag).
+   - The existing zone/seat endpoints are per-resource; the editor will
+     drive many small saves OR one bulk save. Decide during Slice 1.2:
+     either (a) keep per-resource endpoints and have the editor batch
+     them, or (b) add a single `PUT /api/branches/{branchId}/floor-map`
+     bulk endpoint with `If-Match` ETag header for concurrency. **(b)
+     is preferred** — simpler client, single audit row per save, hard
+     concurrency guarantee.
+   - Add a default "default zone" auto-create hook in the existing
+     branch-provisioning service if it isn't already there (verify
+     during implementation).
 3. **Installer discovery API**: `POST /api/install/discover` taking an owner
-   code, returning the owner's branches, each branch's floor map, and the
-   subset of seats currently unassigned to any device.
+   code, returning the owner's branches under the same `StaffUser`'s
+   `OrganizationId`, each branch's floor map, and the subset of seats
+   currently unassigned to any device (via `DeviceSeatAssignmentEntity`
+   where `DetachedAtUtc IS NULL`).
 4. **Installer enrollment API**: `POST /api/install/enroll` taking an owner
-   code + branch id + seat id + role + a self-supplied PC display name,
-   returning device identity + signed bootstrap config for the Agent.
-5. **Pending devices API**: `GET /api/club/devices/pending` and approval
-   action; the wizard call from step 4 leaves the device in `pending_approval`
-   when the owner has set "manual approval" on the branch. Default is
-   auto-approve.
-6. **Audit events** for owner-code rotation, installer discover, installer
-   enroll, and pending-device approval/rejection.
+   code + branch id + seat id + role + a self-supplied PC display name +
+   device public key, returning everything Agent needs in one response
+   (`deviceId`, `apiBaseUrl`, `updateChannel`, `leaseSigningPublicKey`).
+   No second-call/one-shot-token round trip — the enroll response is the
+   bootstrap.
+5. **Pending devices API**: `GET /api/club/branches/{branchId}/devices/pending`
+   and approval action; the wizard call from step 4 leaves the device in
+   `pending_approval` when the owner has set "manual approval" on the
+   branch. Default is auto-approve. The new `EnrollmentState` column on
+   `devices` is the only schema delta from this slice.
+6. **Audit events** for owner-code rotation, installer discover (failed
+   lookups only — see Risk #16 on audit noise), installer enroll
+   (succeeded + rejected), and pending-device approval/rejection.
 
 ### Slice 2 — Customer dashboard SPA + accept-invite + terminology cleanup
 
@@ -77,13 +107,24 @@ SPA. The Mubi admin views stay in the same codebase and gain a route prefix.
    - `/club/branches/:id` — branch detail (rename, address, contact,
      deactivate).
    - `/club/branches/:id/floor-map` — drag-and-drop seats grouped into
-     zones, save-on-edit with optimistic UI.
+     zones. **Optimistic-concurrency model:** the editor loads the
+     full floor map with an ETag, all edits are local, the **Save**
+     button bulk-PUTs with `If-Match: <etag>`; the server returns 409
+     if the ETag is stale and the editor offers reload-and-replay.
+     Auto-save is explicitly out — we don't want silent overwrites
+     when two managers edit the same map.
    - `/club/branches/:id/devices` — devices in this branch, live-updating
      via SignalR (status, current seat, last heartbeat, role, rename, move
      seat, remove).
    - `/club/branches/:id/devices/pending` — pending-approval queue.
    - `/club/branches/:id/operators` — staff users (invite, roles, deactivate;
      reuses existing platform-admin staff endpoints scoped to branch).
+     **Role boundary inside `/club`**: routes under `/club/*` are
+     accessible to any staff user with `branch_owner` OR
+     `branch_manager` role (manager has read+device-ops but no
+     owner-code generate, no operator-invite, no branch lifecycle).
+     Routes for owner-code, operator invites, and branch settings are
+     `branch_owner`-only.
    - `/club/install` — owner code (with rotate button and a "valid until"
      timestamp), prominent **Download AFK4 Setup MSI** button, copy-pasteable
      install command for advanced users, and step-by-step text matching what
@@ -108,9 +149,24 @@ unsigned MSI plus a WPF first-run wizard.
 1. **Single MSI** `AFK4-Agent.msi` ships only the Agent Service + the WPF
    first-run wizard. Player Shell and Operator App are no longer in the MSI
    payload.
-2. **First-run wizard** `AFK4.SetupWizard.exe` is launched by MSI on
-   completion (postinstall custom action), opens a 4-step WPF window:
-   1. Owner-code entry (6–8 digit numeric input, with paste support).
+2. **First-run wizard** `AFK4.SetupWizard.exe` is launched after MSI
+   completion. **Important: MSI custom actions run as SYSTEM and cannot
+   open an interactive WPF window directly.** The pattern:
+   - MSI writes a per-machine "first-run pending" flag + registers
+     `AFK4.SetupWizard.exe` as a HKLM `RunOnce` entry so the wizard
+     fires on the next interactive login of any admin user.
+   - For the manual-install case the operator is already logged in;
+     the postinstall action explicitly **launches the wizard in the
+     interactive desktop session** via `WTSQueryUserToken` + `CreateProcessAsUser`,
+     OR (simpler fallback) launches it via the existing user's
+     `explorer.exe` token using a small launcher helper.
+   - If no interactive session exists (silent MDM/SCCM deploy), the
+     wizard does NOT auto-launch; the MSI completes successfully, the
+     `RunOnce` entry waits, and the operator runs the wizard from the
+     Start Menu shortcut. Device stays unenrolled until then.
+   The wizard itself is a 4-step WPF window:
+   1. Owner-code entry (8-digit numeric input, paste support, no
+      ambiguous chars).
    2. Branch picker (data from `/api/install/discover`).
    3. Visual seat picker — renders the chosen branch's floor map, free
       seats green-clickable, occupied seats grey, allows creating a new
@@ -118,14 +174,20 @@ unsigned MSI plus a WPF first-run wizard.
    4. Role radio: **Gaming PC**, **Manager workstation**.
 3. **Enroll call** uses `/api/install/enroll` with the chosen values plus
    a self-generated stable device-key pair. Server returns device identity +
-   Agent bootstrap config (API host, channel, signed lease key).
+   Agent bootstrap config (API host, channel, signed lease key) in a single
+   response.
 4. **Agent role-aware self-installer**: after first enroll, Agent reads its
    role from the bootstrap config and pulls the right component bundle from
    the update channel:
    - `gaming_pc` → installs and supervises Player Shell.
-   - `manager_workstation` → installs Operator App (and its WebView2
-     dependency check) and registers it as the default machine-wide
-     operator app.
+   - `manager_workstation` → checks for **Microsoft Edge WebView2
+     Runtime** first (registry probe at
+     `HKLM\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`),
+     downloads + runs `MicrosoftEdgeWebView2Setup.exe /silent /install`
+     if missing, then installs Operator App and registers it as the
+     default machine-wide operator app. If WebView2 install fails
+     (offline, corporate proxy, etc.) Agent surfaces the error to the
+     dashboard via heartbeat and keeps retrying on a backoff.
 5. **Self-update** continues through the existing Agent update-channel
    infrastructure; no separate updater binary.
 6. **Uninstall**: MSI uninstall stops the Agent, Agent uninstalls its child
@@ -140,9 +202,13 @@ unsigned MSI plus a WPF first-run wizard.
 
 ### Slice 4 — Public landing site
 
-Marketing-facing static site at the staging apex (`afk4.staging.mubi.dev`
-during pilot, moves to the final prod domain when one is acquired). Separate
-codebase from the SPA so a marketing iteration doesn't trigger an app rebuild.
+Marketing-facing static site on a dedicated subdomain
+`www.afk4.staging.mubi.dev` during pilot, moves to the final prod domain
+apex when one is acquired. **Not** co-hosted on the API host — the
+Platform API owns `afk4.staging.mubi.dev` apex and we don't want
+Traefik-priority hacks or reserved-prefix lists between marketing and
+API. Separate codebase from the SPA so a marketing iteration doesn't
+trigger an app rebuild.
 
 1. **Tech stack**: Astro for static-site generation. Reasons: tiny output,
    zero JS by default, drop-in React/Vue islands if a section needs it,
@@ -181,17 +247,17 @@ codebase from the SPA so a marketing iteration doesn't trigger an app rebuild.
    into a CRM.
 7. **Coolify deployment**: separate Coolify application using a tiny
    Dockerfile that runs `astro build` then `nginx` serving `dist/` on
-   port 8080. Lives at the staging apex
-   (`https://afk4.staging.mubi.dev/`) until the final prod domain is
-   decided. The Platform API's existing host stays at
-   `afk4.staging.mubi.dev/api/...` — public web is the catch-all
-   alongside it, **not** in front of it (Traefik priority lower than
-   the API router so `/api/*` keeps reaching the API).
+   port 8080. Lives at `https://www.afk4.staging.mubi.dev/` (own
+   subdomain, dedicated DNS A/AAAA, dedicated Let's Encrypt cert,
+   dedicated Traefik labels). The Platform API stays untouched on
+   `afk4.staging.mubi.dev` apex; no Traefik priority juggling needed.
 8. **Analytics**: privacy-respecting only (Plausible self-hosted if we
    stand it up later, or none for v1). No Google Analytics.
 9. **Domain migration story**: when the final prod domain is acquired,
-   the only changes are (a) Coolify host rename, (b) DNS, (c) absolute
-   URLs in `<head>` (sitemap, canonical, og:url). No content changes.
+   the changes are (a) add new Coolify host for the prod landing, (b)
+   DNS, (c) absolute URLs in `<head>` (sitemap, canonical, og:url),
+   (d) a 301 redirect from `www.afk4.staging.mubi.dev` → the new prod
+   host for any inbound links. No content changes.
 
 ## Non-Goals
 
@@ -217,20 +283,32 @@ These are agreed and should not be re-litigated during implementation.
 
 1. **Single MSI now, signed later.** Pilot 1-2 ship unsigned. SmartScreen
    "Unverified publisher" warning is accepted as a known issue until
-   SignPath Foundation approves. No `bootstrap.ps1` lives past this slice.
+   SignPath Foundation approves. `bootstrap.ps1` is retired in Slice 3.5
+   contingent on a clean Slice 3.4 VM smoke pass; it stays in the repo
+   until then so VM tests aren't suddenly broken mid-cycle.
 2. **One owner-code, not a per-device enrollment code, drives installer
-   auth.** Code is short (numeric, 6–8 digits), rotatable, audit-logged,
-   and only valid for the install/* endpoints (cannot sign in to the
-   SPA).
-3. **The owner code is per-owner, not per-branch.** A multi-branch owner
-   types one code on every PC in every branch; the wizard's branch picker
-   resolves which branch.
+   auth.** Code is 8 digits numeric (decision anchored — see Risk #1),
+   rotatable, audit-logged, and only valid for the install/* endpoints
+   (cannot sign in to the SPA).
+3. **Owner-code scope = one per `StaffUser`, which is per-organization.**
+   - A single-club owner has one code that resolves to the branches of
+     their one organization.
+   - A multi-club human who legally owns several separate organizations
+     has one `StaffUser` row per organization (current data-model
+     reality, not a regression) and therefore one owner code per
+     organization. The wizard's branch picker resolves which branch
+     within that organization.
+   - "One human, one code, any number of clubs" is **not** delivered by
+     this slice — it requires a new identity-level abstraction above
+     `StaffUser` and is tracked in the post-onboarding roadmap.
 4. **Self-naming + visual seat pick during install.** No per-PC code
    typing from the manager. No "type 30 codes one by one" workflow ever.
 5. **Single SPA codebase, audience build flag, two Coolify apps.** Mubi
    admin and customer dashboard share code, deploy as two images, two
-   hostnames. `admin.afk4.staging.mubi.dev` (current) + new
-   `app.afk4.staging.mubi.dev`.
+   hostnames. **Existing admin host stays at
+   `platform.afk4.staging.mubi.dev`** (current uptime monitor + ingress
+   reference this name — renaming it is operationally expensive and
+   pointless). **New customer host = `app.afk4.staging.mubi.dev`.**
 6. **Terminology: one term per concept in user-facing surfaces.**
    - **Setup code** = the link/code that turns a club owner into a branch
      owner. (Internally still `owner_invite_code`; SPA labels say "setup
@@ -240,13 +318,21 @@ These are agreed and should not be re-litigated during implementation.
    - **PC enrollment code** = legacy advanced path only, not in default
      UX.
 7. **Floor map is per-branch, not per-tenant.** Each branch has its own
-   zones and seat grid. Seats are unique within a branch.
+   zones and seat grid. Seats are unique within a branch. Floor map
+   schema already exists (`ZoneEntity`, `SeatEntity`,
+   `DeviceSeatAssignmentEntity` since migration `AddClubLayout`); this
+   slice adds editor APIs on top, not the data model.
 8. **Pending-device approval defaults OFF.** New devices auto-enroll into
-   the picked seat. The branch owner can flip on "manual approval" if
-   they want a queue.
-9. **Bootstrap admin and platform-admin user surface are unchanged.**
-   This plan does not touch `PlatformAdminBootstrapHostedService` or the
-   `/api/platform/auth/*` endpoint group.
+   the picked seat. The branch owner can flip on "manual approval" per
+   branch (new `BranchEntity.RequireManualDeviceApproval bool`) if they
+   want a queue. If a device enrolls into the wrong seat, the owner uses
+   `move-seat` — no re-install.
+9. **Floor-map saves use optimistic-concurrency ETag.** No silent
+   last-write-wins. Bulk PUT with `If-Match`; 409 on stale ETag, editor
+   offers reload-and-replay.
+10. **Bootstrap admin and platform-admin user surface are unchanged.**
+    This plan does not touch `PlatformAdminBootstrapHostedService` or the
+    `/api/platform/auth/*` endpoint group.
 
 ## Architecture Shape
 
@@ -284,89 +370,133 @@ Audit events to add:
 - `tenancy.device.rejected`
 - `tenancy.device.removed`
 
-### Data model additions
+### Data model — diff from existing schema
 
-New tables (snake_case names; columns stay PascalCase to match the existing
-convention):
+Existing schema as of migration `20260513034617_AddClubLayout`:
 
-- `owner_codes` — `OwnerCodeId uuid pk`, `PlatformAdminUserId uuid` for
-  Mubi-issued codes / `StaffUserId uuid nullable` for branch-owner-issued
-  codes (exactly one of the two non-null), `CodeHash text`, `CodeSuffix
-  varchar(4)`, `ExpiresAtUtc timestamptz`, `LastUsedAtUtc timestamptz
-  nullable`, `RevokedAtUtc timestamptz nullable`, `RevokedReason text
-  nullable`, `CreatedAtUtc timestamptz`. Index on `CodeHash`; partial
-  index on `(StaffUserId) WHERE RevokedAtUtc IS NULL`.
-- `zones` — `ZoneId uuid pk`, `BranchId uuid fk`, `Name varchar(64)`,
-  `DisplayOrder int`, `CreatedAtUtc`, `UpdatedAtUtc`. Index on `(BranchId,
-  DisplayOrder)`. Default `(BranchId, "Default")` row inserted whenever a
-  new branch is provisioned (in the existing tenant-provisioning service,
-  not via SQL trigger).
-- `seats` — `SeatId uuid pk`, `BranchId uuid fk`, `ZoneId uuid fk`,
-  `Label varchar(32)` (e.g. `01`, `seat-04`), `PositionX int`,
-  `PositionY int` (free-form coordinates in the editor's grid; clients
-  render however they like), `CreatedAtUtc`, `UpdatedAtUtc`. Unique
-  index on `(BranchId, Label)`. Index on `(BranchId, ZoneId)`.
-- `devices` (likely an extension of an existing entity if any — verify
-  during implementation; the smoke script's `device-enrollment-codes`
-  flow already implies a `devices` table somewhere): add `SeatId uuid
-  nullable fk`, `Role varchar(32)` (`gaming_pc` / `manager_workstation`),
-  `DisplayName varchar(64)`, `EnrollmentState varchar(32)` (`pending`,
-  `approved`, `rejected`, `removed`), `EnrolledViaOwnerCodeId uuid
-  nullable fk`. If a `devices` table does not exist yet, design it from
-  scratch with these plus the standard identity columns
-  (`DeviceId uuid pk`, `BranchId uuid fk`, key pair material, last
-  heartbeat).
+- `devices` — `DeviceEntity`: `DeviceId uuid pk`, `OrganizationId`,
+  `BranchId`, `MachineName`, `AgentVersion`, `ShellVersion`,
+  `EnrolledAtUtc`, `LastHeartbeatAtUtc`, `IsOnline`, `IsLocked`.
+- `zones` — `ZoneEntity`: `ZoneId uuid pk`, `OrganizationId`, `BranchId`,
+  `Name varchar(120)`, `SortOrder int`, `CreatedAtUtc`.
+- `seats` — `SeatEntity`: `SeatId uuid pk`, `OrganizationId`, `BranchId`,
+  `ZoneId`, `Name varchar(80)`, `SortOrder int`, `CreatedAtUtc`.
+- `device_seat_assignments` — `DeviceSeatAssignmentEntity`:
+  `DeviceSeatAssignmentId pk`, `OrganizationId`, `BranchId`, `SeatId`,
+  `DeviceId`, `AttachedAtUtc`, `DetachedAtUtc nullable`. **Many-to-many
+  with history** — a device can move between seats and the history is
+  preserved; the "current seat" of a device is the row where
+  `DetachedAtUtc IS NULL`.
+- `device_enrollment_codes` — `DeviceEnrollmentCodeEntity`: legacy
+  per-device enrollment code flow. Stays in the schema; new flow uses
+  owner-codes instead.
 
-EF migrations follow the existing pattern (one migration per slice,
-applied via the documented `docs/operations/coolify-staging-deploy.md`
-flow gated by `confirm_migrations_applied=true`).
+**What this slice adds:**
+
+- **New table `owner_codes`** — `OwnerCodeId uuid pk`, `StaffUserId uuid
+  fk`, `CodeHash text` (SHA-256 over normalized digits), `CodeSuffix
+  varchar(4)` (last 4 digits for masked display), `ExpiresAtUtc
+  timestamptz`, `LastUsedAtUtc timestamptz nullable`, `FailedAttemptCount
+  int default 0`, `RevokedAtUtc timestamptz nullable`, `RevokedReason
+  text nullable`, `CreatedAtUtc timestamptz`. Indices: `CodeHash`
+  (lookup), partial `(StaffUserId) WHERE RevokedAtUtc IS NULL` (one
+  active code per StaffUser invariant — enforced at service layer, not
+  unique constraint, because rotation creates a new row before
+  revoking the old).
+- **New columns on `devices`** —
+  - `Role varchar(32)` not null, default `'gaming_pc'` for migration
+    backfill (`gaming_pc` / `manager_workstation`).
+  - `DisplayName varchar(80)` not null, default copies `MachineName` on
+    backfill, then becomes editable in the dashboard.
+  - `EnrollmentState varchar(32)` not null, default `'approved'` for
+    migration backfill (existing devices are already approved); new
+    values `pending` and `rejected` and `removed` come from the new
+    install flow.
+  - `EnrolledViaOwnerCodeId uuid nullable fk` — null for legacy
+    `device-enrollment-codes` flow, set for new install/* flow.
+- **New column on `branches`** — `RequireManualDeviceApproval bool` not
+  null default `false`. When true, `/api/install/enroll` writes
+  `EnrollmentState = 'pending'` instead of `'approved'`.
+- **No changes to zones/seats** beyond what's already there. The new
+  editor uses a single bulk endpoint (see below) but the row shape is
+  unchanged.
+
+**Migration ordering**: one migration per slice. Applied via the
+documented `docs/operations/coolify-staging-deploy.md` flow gated by
+`confirm_migrations_applied=true`.
 
 ### API contract sketches
 
 These are *sketches*, not final. Match existing
-`src/AFK4.Shared.Contracts/Platform/` style during implementation.
+`src/AFK4.Shared.Contracts/Platform/` style during implementation. Path
+naming follows the existing pattern (`/api/branches/{branchId}/...` for
+branch-scoped staff endpoints, no `/club` prefix in the URL itself — the
+prefix lives in the SPA route tree, the API stays flat).
 
 ```
-POST /api/club/owner-code/generate            (staff, branch_owner)
+POST /api/branches/{branchId}/owner-code/generate     (staff, branch_owner)
   → { ownerCode, codeSuffix, expiresAtUtc }
-POST /api/club/owner-code/rotate              (staff, branch_owner)
+POST /api/branches/{branchId}/owner-code/rotate       (staff, branch_owner)
   → { ownerCode, codeSuffix, expiresAtUtc }
-GET  /api/club/owner-code                     (staff, branch_owner)
-  → { codeSuffix, expiresAtUtc, lastUsedAtUtc }     (never returns full code)
+GET  /api/branches/{branchId}/owner-code              (staff, branch_owner)
+  → { codeSuffix, expiresAtUtc, lastUsedAtUtc, failedAttemptCount }
+                                                      (never returns full code)
 
-GET  /api/club/branches/{branchId}/floor-map  (staff, branch_owner)
-  → { zones: [{ zoneId, name, displayOrder,
-                seats: [{ seatId, label, positionX, positionY,
-                          deviceId nullable, deviceDisplayName nullable }] }] }
-PUT  /api/club/branches/{branchId}/floor-map  (staff, branch_owner)
-  body: full zones+seats document; server diff-applies and returns the
-        canonical post-save document.
+GET  /api/branches/{branchId}/floor-map               (staff)
+  → { etag, zones: [{ zoneId, name, sortOrder,
+                       seats: [{ seatId, name, sortOrder,
+                                 deviceId nullable,
+                                 deviceDisplayName nullable }] }] }
+  (Endpoint exists today; we extend it to return ETag header + assignment
+   status by joining device_seat_assignments where DetachedAtUtc IS NULL.)
+PUT  /api/branches/{branchId}/floor-map               (staff, branch_owner)
+  headers: If-Match: <etag>
+  body: full zones+seats document
+  → 200 with new canonical document + new ETag, OR 409 with current
+    canonical document if If-Match is stale.
+  (New bulk endpoint. The existing per-zone / per-seat POST/PATCH
+   endpoints stay for now and may be deprecated in a later cycle.)
 
-POST /api/install/discover                    (unauth, owner code in body)
+POST /api/install/discover                            (unauth, owner code in body)
   body: { ownerCode }
-  → { ownerDisplayName, branches: [{ branchId, slug, name, zones, seats,
-       freeSeatIds }] }
-POST /api/install/enroll                      (unauth, owner code in body)
+  → { ownerDisplayName, branches: [{ branchId, slug, name,
+                                      floorMap: { zones: [...] },
+                                      freeSeatIds: [...] }] }
+  (Scopes response to branches under the resolved StaffUser's
+   OrganizationId only. Integration test fails closed if a branch from
+   another OrganizationId appears.)
+POST /api/install/enroll                              (unauth, owner code in body)
   body: { ownerCode, branchId, seatId, role, displayName, devicePublicKey }
   → { deviceId, apiBaseUrl, updateChannel, leaseSigningPublicKey,
-       initialEnrollmentToken }    (one-shot, used by Agent to fetch first
-                                    config bundle)
+       enrollmentState }
+  (Single response. No follow-up one-shot token call — the response IS
+   the bootstrap. enrollmentState is "approved" or "pending" depending
+   on the branch's RequireManualDeviceApproval flag.)
 
-GET  /api/club/branches/{branchId}/devices    (staff)
-  → list with status / seat / role / lastHeartbeat
-GET  /api/club/branches/{branchId}/devices/pending
+GET  /api/branches/{branchId}/devices                 (staff)
+  → list with status / seat / role / lastHeartbeat / enrollmentState
+GET  /api/branches/{branchId}/devices/pending         (staff, branch_owner)
   → pending-approval queue
-POST /api/club/devices/{deviceId}/approve
-POST /api/club/devices/{deviceId}/reject
-POST /api/club/devices/{deviceId}/rename
-POST /api/club/devices/{deviceId}/move-seat   { seatId }
-POST /api/club/devices/{deviceId}/remove
+POST /api/devices/{deviceId}/approve                  (staff, branch_owner)
+POST /api/devices/{deviceId}/reject                   (staff, branch_owner)
+POST /api/devices/{deviceId}/rename                   (staff)
+POST /api/devices/{deviceId}/move-seat                (staff)  { seatId }
+POST /api/devices/{deviceId}/remove                   (staff, branch_owner)
 ```
 
-Rate-limit the two `/api/install/*` endpoints with the same Traefik recipe
-as `/api/operator-connections/resolve` (see
-`deploy/coolify/ingress.md`). The owner-code endpoint is high-leverage
-and brute-forceable.
+**Rate-limit + brute-force protection** for the two `/api/install/*`
+endpoints — see Risk #1 for the anchored spec. Traefik recipe is
+necessary but not sufficient on its own:
+- Reuse the existing Traefik per-source-IP recipe from
+  `deploy/coolify/ingress.md` (30 req/min average, burst 10).
+- **In addition**, application-layer per-code failed-attempt counter
+  on `owner_codes.FailedAttemptCount`. 5 failures → code revoked
+  automatically (`RevokedAtUtc = now`, `RevokedReason = 'brute_force_detected'`)
+  and the owner is notified via the SPA + (when email infra exists,
+  see roadmap) email.
+- Application-layer per-IP exponential backoff that lives in the
+  install module — Traefik handles steady-state, app handles
+  per-attacker burst.
 
 ### SPA (`src/AFK4.Platform.Web`)
 
@@ -397,22 +527,48 @@ Route tree after refactor:
 
 Tech notes:
 
-- Reuse the existing `tokenStore` / RTK Query setup; add a second token
-  context for staff tokens alongside the platform-admin one.
+- Reuse the existing `tokenStore` setup; add a second token context for
+  staff tokens alongside the platform-admin one. (Verify the existing
+  SPA actually has an RTK Query layer — the current
+  `src/AFK4.Platform.Web/package.json` only lists React/Vite/Vitest,
+  no `@reduxjs/toolkit`, so RTK Query may not be in use yet; pick the
+  simplest data-fetching approach already established by the existing
+  admin pages.)
 - Floor-map editor: pick a small drag library (e.g. `dnd-kit`) over
   rolling our own.
 - Live device updates: extend the existing SignalR hub or add a new
-  `devices` hub group keyed by `branchId`.
+  `devices` hub. **Briefly:** one hub at `/hubs/devices`, clients
+  join group `branch:{branchId}` on subscribe, server broadcasts
+  `DeviceStatusChanged` (deviceId, branchId, status, seatId,
+  lastHeartbeatAtUtc) on state change. Discovered in Slice 1.4 spec.
+- Tests: the SPA uses **Vitest + React Testing Library + jsdom**
+  (current `devDependencies`). Use the same for component tests on
+  the new screens. For the floor-map drag-and-drop interaction add a
+  Vitest+JSDOM unit-style test on the editor's pure state-transition
+  reducer first; only add a Playwright (or equivalent) end-to-end
+  test if the JSDOM test cannot cover a real bug class. No
+  Playwright dependency is added unless that test is actually
+  needed.
 
 ### Coolify deployments
 
-Add a second Coolify application for the same SPA Dockerfile with build
-arg `VITE_AUDIENCE=club` and host `app.afk4.staging.mubi.dev`. The
-existing admin app stays at `platform.afk4.staging.mubi.dev` and gets
-`VITE_AUDIENCE=admin`. Both build from the same git ref and the same
-Dockerfile (`deploy/coolify/platform-web.Dockerfile`). DNS A/AAAA record
-for the new host added before first deploy. Traefik labels mirror the
-existing platform-web app.
+Two SPA Coolify apps from the same Dockerfile + git ref, distinguished
+by build arg:
+
+| Host | Build arg | Audience |
+|---|---|---|
+| `platform.afk4.staging.mubi.dev` (existing) | `VITE_AUDIENCE=admin` | Mubi admin only |
+| `app.afk4.staging.mubi.dev` (new) | `VITE_AUDIENCE=club` | Customer dashboard only |
+
+Both run on `deploy/coolify/platform-web.Dockerfile`. DNS A/AAAA record
+for the new `app.*` host added before first deploy. Traefik labels
+mirror the existing platform-web app. The existing
+`platform.afk4.staging.mubi.dev` keeps its current uptime monitor and
+ingress configuration unchanged.
+
+Plus a third unrelated Coolify app for Slice 4 (public landing) on
+`www.afk4.staging.mubi.dev` — own Dockerfile, own DNS, own cert. Not
+sharing anything with the SPA apps.
 
 ### Windows clients
 
@@ -445,9 +601,16 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
 1. **Slice 1.1** — Owner code: entity, migration, generate/rotate/lookup
    service, API endpoints, audit events, xUnit tests using
    `PlatformAdminTestHelper` patterns.
-2. **Slice 1.2** — Floor map: entities, migration, CRUD service, API,
-   default-zone auto-creation hook in `TenantProvisioningService`,
-   xUnit tests.
+2. **Slice 1.2** — Floor-map editor API gap: ETag-aware
+   `GET /api/branches/{branchId}/floor-map` (extend existing
+   endpoint) + new bulk
+   `PUT /api/branches/{branchId}/floor-map` with `If-Match`. Add
+   `RequireManualDeviceApproval` to `BranchEntity` + branch settings
+   endpoint to toggle it. Add default-zone auto-create hook in the
+   existing branch-provisioning service (verify it isn't already
+   there). Migration is small — schema delta is one bool column +
+   any nullable `PositionX/Y` columns on `seats` if decision (b) of
+   Risk #5 is chosen.
 3. **Slice 1.3** — Install module: discover + enroll endpoints, owner-code
    rate-limit ingress recipe, audit events, xUnit tests (including
    "enrolls into pending when manual approval set", "rejects on revoked
@@ -510,34 +673,86 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
 
 ## Risk + Open Questions
 
-1. **Owner code brute-force**. 6 digits = 10⁶ keyspace. Mitigation:
-   per-IP rate-limit (Traefik), per-code lock-out (e.g., 10 wrong
-   attempts → revoke code, notify owner), audit on every failed lookup.
-   Decide during Slice 1.3 whether 6 digits is enough or move to 8.
-2. **Multiple owners share the same staff user vs one user per owner**.
-   The current data model has `StaffUser` with branch role assignments.
-   If a single human owns two clubs, they have one `StaffUser` row with
-   two role rows. Owner code is per-`StaffUser`, so one human → one
-   code that resolves to multiple branches. Confirmed in the discover
-   flow.
-3. **Cross-tenant data leakage in discover**. `POST /api/install/discover`
+1. **Owner code brute-force — anchored spec.** 8 digits = 10⁸ keyspace.
+   Defense in depth:
+   - **Code length:** 8 digits, numeric only, no ambiguous chars
+     (still pure digits for paste UX).
+   - **Traefik per-source-IP rate-limit:** 30/min average, burst 10,
+     reusing `deploy/coolify/ingress.md` recipe.
+   - **Application per-code lock-out:** `FailedAttemptCount`
+     incremented on every wrong-code lookup that resolves to a
+     `StaffUser` (so each code's 5-strike budget is independent).
+     Code auto-revoked at 5 with `RevokedReason='brute_force_detected'`.
+     Owner is notified in the SPA immediately; via email when email
+     infra ships (roadmap).
+   - **Application per-IP exponential backoff:** sliding-window
+     counter per source-IP across all `/api/install/*` calls; 50
+     calls in 60s → 1s sleep on the response, 100 calls → 5s, 200
+     calls → connection reset. Lives in the install module.
+   - **Audit:** failed install.discover / install.enroll calls are
+     audited with source IP (success is **not** audited per call —
+     see Risk #11 on noise).
+2. **Multi-organization owners — known limitation.** `StaffUser` is
+   per-organization (one row per `OrganizationId`). A multi-club human
+   gets one owner code per organization, not one master code. Captured
+   in Product Decision #3. Cross-org single-code support is roadmap
+   work and explicitly out of scope here.
+3. **Cross-tenant data leakage in discover.** `POST /api/install/discover`
    accepts an owner code with no auth header — the code IS the credential.
-   The endpoint must scope its response strictly to branches owned by
-   the resolved staff user, with an integration test that fails closed
-   if a branch from another tenant appears in the response.
-4. **Pending-device queue with auto-approve default**. If a device
-   enrolls into the wrong seat by mistake, the owner must be able to
-   correct it without a full re-install — `move-seat` API handles this.
-5. **Floor-map editor coordinate model**. Free-form `PositionX, PositionY`
-   keeps backend dumb. Editor decides rendering. Risk: future "snap to
-   grid" or "club blueprint" features may need a richer model — leave
-   the migration door open with `nullable` coordinates and a `Layout` JSON
-   blob reserved for later.
-6. **SmartScreen warning for unsigned MSI**. Documented, accepted.
-   Re-evaluate if pilot 1 club rejects the warning.
-7. **Removing `bootstrap.ps1`** breaks any in-flight VM tests. Slice 3.5
-   only runs after Slice 3.4 confirms the new path works on a clean
-   VM end-to-end.
+   The endpoint must scope its response strictly to branches under the
+   resolved `StaffUser`'s `OrganizationId`. Add an integration test that
+   seeds two orgs, generates an owner code for org A's owner, and
+   asserts org B's branches never appear in the response — must fail
+   closed if the scoping changes later.
+4. **Pending-device queue with auto-approve default.** If a device
+   enrolls into the wrong seat by mistake, the owner uses `move-seat`
+   to fix it — no re-install. The `RequireManualDeviceApproval` branch
+   flag is OFF by default per Product Decision #8.
+5. **Floor-map editor — coordinate vs SortOrder.** Existing schema has
+   `SortOrder int` only (1-D). The new drag-and-drop editor wants 2-D
+   layout. Two approaches:
+   - (a) Keep `SortOrder` only — editor renders zones top-to-bottom,
+     seats inside each zone wrap left-to-right. Lossy for irregular
+     club layouts but no schema change.
+   - (b) Add nullable `PositionX, PositionY int` to `seats` for
+     editor-driven free positioning, fall back to `SortOrder` when
+     null. Requires migration.
+   **Decide during Slice 1.2.** Recommendation: (a) for the pilot,
+   (b) only if a real pilot club asks for a non-linear seat layout.
+6. **Floor-map concurrent edits — handled.** ETag/If-Match on bulk PUT
+   (Product Decision #9). 409 on stale ETag → editor reloads and
+   replays. No silent last-write-wins.
+7. **SmartScreen warning for unsigned MSI.** Documented, accepted for
+   pilot 1-2. Re-evaluate if a pilot club rejects the warning.
+8. **MSI postinstall WPF launch — non-trivial.** SYSTEM context can't
+   open an interactive WPF window. Wizard launches via `RunOnce` HKLM
+   + `CreateProcessAsUser` against the interactive desktop session for
+   the active install; silently no-ops on headless MDM/SCCM deploys,
+   waits for the next interactive login. Operator can also start the
+   wizard manually from the Start Menu shortcut. Specified in Slice 3
+   step 2.
+9. **WebView2 Runtime dependency for Operator App.** Operator App is
+   WPF + WebView2 and fails on start without the Edge WebView2 Runtime.
+   Agent probes for the runtime before installing Operator App, runs
+   `MicrosoftEdgeWebView2Setup.exe /silent /install` if missing,
+   surfaces install failure via heartbeat for the dashboard to show.
+   Specified in Slice 3 step 4.
+10. **Removing `bootstrap.ps1`** breaks any in-flight VM tests. Slice 3.5
+    only runs after Slice 3.4 confirms the new path works on a clean
+    VM end-to-end. Until 3.5 lands, both paths exist side-by-side.
+11. **`install.discover` audit noise.** Each wizard launch (30 PCs in
+    a single onboarding) produces a discover call. Decision: audit
+    **failed** discover lookups only (security signal), do not audit
+    successful ones (operational noise with no investigative value).
+    Successful enroll IS audited — that's the actual state change.
+12. **Email infrastructure** is upstream of owner-notification on
+    brute-force (#1), accept-invite email delivery, password reset
+    (roadmap), and self-signup verification (roadmap). Until it
+    exists, brute-force notifications surface only in the SPA. See
+    roadmap section "Email sending infrastructure".
+13. **Apex hostname collision** for landing avoided by putting Slice 4
+    on `www.afk4.staging.mubi.dev`. API stays on apex, landing on
+    `www.*` — no Traefik priority hacks.
 
 ## What Is Not In This Plan
 
@@ -549,6 +764,8 @@ comes:
 - Production environment separation (`coolify-prod-deploy.yml`,
   separate Postgres, separate uptime monitors, prod
   session-signing key).
+- SignPath signing rollout (PR #45 scaffolded the workflow input,
+  remaining work is application + secrets + cutover).
 - Self-service signup from the public landing page (page exists in
   Slice 4; backend tenant creation flow is roadmap).
 - Payments + billing UI.
@@ -556,36 +773,58 @@ comes:
 - Password reset flow.
 - Mobile companion app.
 - Multi-tenant white-label.
-- SignPath signing rollout (PR #45 scaffolded the workflow input,
-  remaining work is application + secrets + cutover).
+- **Email sending infrastructure** — upstream dependency for
+  brute-force owner-notification (Risk #1) and several roadmap items.
+  Until it ships, owner brute-force notifications surface only in the
+  SPA.
+- Cross-organization single owner-code (one human, one code, any
+  number of clubs). Captured in Product Decision #3 — requires a
+  new identity abstraction above `StaffUser`.
 - Final prod domain acquisition + DNS/Coolify/copy cutover.
 
 ## Definition Of Done
 
 All of the following must be true for this plan to be considered shipped:
 
-- A platform admin can create a tenant in `/admin/tenants/new` and email
-  a clickable invite link to a real human.
+- A platform admin can create a tenant in `/admin/tenants/new` (on
+  `platform.afk4.staging.mubi.dev`) and email a clickable invite link
+  to a real human.
 - That human opens the link in a desktop browser, sets a password, and
-  lands in `/club` without seeing any GUIDs, slugs, or curl commands.
-- In `/club/install` they see a 6-8 digit owner code with a one-click
-  rotate button and a one-click MSI download.
+  lands in `/club` (on `app.afk4.staging.mubi.dev`) without seeing any
+  GUIDs, slugs, or curl commands.
+- In `/club/install` they see an 8-digit owner code (with the
+  rotate / failed-attempt-count UI) and a one-click MSI download.
+- Both `platform.afk4.staging.mubi.dev` and `app.afk4.staging.mubi.dev`
+  serve only their own routes — opening `/admin/*` on the customer
+  host returns the public sign-in page or 404, and `/club/*` on the
+  admin host does the same. Audience build flag verified.
 - On a clean Windows 11 VM, double-clicking the downloaded MSI installs
   the Agent, the first-run wizard opens, the owner types their code,
   picks a branch + seat + role, clicks Finish, and within a minute the
   PC is visible in their dashboard with a green status indicator.
-- On a second clean VM enrolled as `manager_workstation`, the Operator
-  App auto-installs, launches, and is signed-in (or prompts for
-  staff creds).
+- On a second clean VM enrolled as `manager_workstation`, the WebView2
+  Runtime is installed automatically if missing, Operator App
+  auto-installs, launches, and shows a sign-in screen with the staging
+  API host pre-configured. Operator signs in with staff creds and the
+  app loads.
+- `/api/install/discover` and `/api/install/enroll` are protected by
+  the documented brute-force defense (8-digit codes, Traefik
+  rate-limit, per-code 5-strike lock-out with auto-revoke, per-IP
+  exponential backoff in the install module). An integration test
+  exists for each layer.
+- Floor-map editor uses ETag/If-Match — two concurrent edits in two
+  browser tabs produce a 409 on the second save (not silent
+  overwrite), and the editor prompts to reload-and-replay.
 - `bootstrap.ps1` and the standalone `gaming-pc.msi` / `operator-app.msi`
   no longer ship from the publishing workflow.
 - All existing staging-smoke checks (24/24 as of 2026-05-24) still pass,
-  plus the new Slice-7 walk.
+  plus the new Slice-7 walk (generate owner code → discover → enroll
+  synthetic device → list devices → move seat → remove device).
 - `docs/operations/coolify-staging-deploy.md` reflects the new install
   flow as the documented onboarding path; the old curl-based steps are
   removed.
 - A publicly-reachable landing site is live at
-  `https://afk4.staging.mubi.dev/` in Russian + English with home,
+  `https://www.afk4.staging.mubi.dev/` in Russian + English with home,
   features, pricing, contact, and legal placeholder pages; the
   contact form delivers to a Telegram group with @afk4alerts_bot.
 
