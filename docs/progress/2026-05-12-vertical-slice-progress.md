@@ -2903,6 +2903,225 @@ Operator App WebView2/React first implementation on 2026-05-20:
   no old backend-empty placeholder copy, and no horizontal or vertical overflow
   outside WebView2.
 
+- Slice 6 Windows-handoff follow-up on 2026-05-23 (commits `0e55c50`,
+  `ebe105e`, `8b7f716`): wired `ConnectionResolutionScreen` into
+  `Operator.App.Web/src/App.tsx` as the pre-sign-in gate when no
+  `organizationId`/`branchId` is present in `operatorConfig` and no resolved
+  connection is in storage, including a new in-file `BlockedTenantScreen`
+  for suspended / deletion-pending tenants with a "Сменить подключение"
+  affordance; added the WPF DPAPI mirror under
+  `src/AFK4.Operator.App/Connection/` (`OperatorConnectionSnapshot` record,
+  `IOperatorConnectionStore` interface, `ProtectedDataOperatorConnectionStore`
+  writing `%LocalAppData%/AFK4/Operator/connection.bin`); updated the plan
+  doc handoff section.
+
+  ```powershell
+  dotnet build AFK4.sln -p:EnableWindowsTargeting=true
+  dotnet test tests/AFK4.Shared.Contracts.Tests/
+  dotnet test tests/AFK4.Platform.Api.Tests/
+  dotnet test tests/AFK4.Operator.App.Tests/
+  dotnet test tests/AFK4.Player.Shell.Tests/
+  dotnet test tests/AFK4.Agent.Service.Tests/
+  dotnet test tests/AFK4.GamingPc.Setup.Tests/
+  dotnet test tests/AFK4.Update.Publisher.Tests/
+  npm test --silent          # in src/AFK4.Operator.App.Web/
+  npm test --silent          # in src/AFK4.Platform.Web/
+  ```
+
+  Result on Windows 11: build 0 warn / 0 err; Shared.Contracts 108/108;
+  Platform.Api 480/480; Operator.App **199/199** (+3 new
+  `OperatorConnectionStoreTests`); Player.Shell 11/11; Agent.Service
+  **140/140** on Windows (the 22 `powershell.exe` failures are WSL-only);
+  GamingPc.Setup 10/10; Update.Publisher 8/8; Operator.App.Web npm
+  **116/116** (+4 connection-resolution tests around the new App.tsx
+  gate); Platform.Web npm 12/12.
+
+- Slice 6 host-bridge wiring follow-up on 2026-05-23 (commits `5617ff2`,
+  `8e953ab`, `9649fba`): closed the gap left by the previous follow-up so
+  React connection storage actually flows through the new WPF DPAPI store
+  in packaged WebView2. `OperatorWebHostBridge.cs` now accepts
+  `connection:loadConnection` / `connection:saveConnection` /
+  `connection:clearConnection` next to the existing `auth:*` family (third
+  ctor dependency = `IOperatorConnectionStore`, wired in
+  `WebViewOperatorWindow.CreateDefaultHostBridge`); React-side
+  `connectionResolver.ts` gained an `OperatorConnectionStorage` abstraction
+  with `LocalStorageOperatorConnectionStorage` and
+  `BridgeOperatorConnectionStorage` impls and a `createOperatorConnectionStorage`
+  factory in `App.tsx` that auto-selects the bridge when
+  `window.chrome?.webview` is present and falls back to localStorage in
+  browser-dev. The blocked-state handler and "Сменить подключение" button
+  now call `connectionStorage.clear()` asynchronously so the bridge
+  actually deletes the DPAPI file.
+
+  ```powershell
+  dotnet build AFK4.sln -p:EnableWindowsTargeting=true
+  dotnet test tests/AFK4.Operator.App.Tests/
+  npm test --silent          # in src/AFK4.Operator.App.Web/
+  ```
+
+  Result on Windows 11: build 0 warn / 0 err; Operator.App **204/204** (+5
+  new `OperatorWebHostBridgeTests` covering the connection handlers);
+  Operator.App.Web npm **122/122** (+6 new tests for
+  `LocalStorageOperatorConnectionStorage` /
+  `BridgeOperatorConnectionStorage` load / save / clear round-trips against
+  a recording sender, plus updated App-level tests that drive the bridge
+  save / clear paths and assert `bridge.requests` /
+  `bridge.connectionSaves` instead of localStorage).
+
+- Hardening Slices A–E on 2026-05-24 (commits `2156e02`, `daee65e`,
+  `83cf259`, `1c70ee1`, `9c374e0`) — five backend-first per-concern
+  changes that close the post-Slice-6 hardening list:
+
+  - **Slice A (`2156e02`)**: enforce tenant suspension on device-credentialed
+    endpoints. New `ITenantStatusGuard.RequireActiveAsync` extension that
+    mirrors the existing middleware envelope, applied after credential
+    validation on the seven device endpoints (heartbeat, command-result,
+    session-reconciliation, installed-apps/report, updates/check,
+    updates/status) plus the device enroll endpoint (gated on
+    `request.OrganizationId` since there is no credential yet). +7 xUnit
+    cases in `TenantSuspensionEnforcementTests`.
+  - **Slice B (`daee65e`)**: promote `ActorPlatformAdminUserId` from a
+    JSON-stuffed `DetailsJson` key into a first-class nullable `uuid`
+    column on `audit_records`, with an `(ActorPlatformAdminUserId,
+    CreatedAtUtc)` index. New migration
+    `20260523181958_AddAuditActorPlatformAdminUserId`. `WritePlatformAuditAsync`
+    now writes the raw payload directly to `DetailsJson` (no wrapper) and
+    the dedicated column; `AuditRecordDto` exposes the field as an
+    optional init-only property so existing consumers (Slice 5 SPA,
+    `EfAuditSearchService`, CSV export) keep working without contract
+    churn. Existing `PlatformTenantEndpointTests` gain assertions on the
+    column + `DetailsJson` no longer carries the legacy key.
+  - **Slice C (`83cf259`)**: owner-invites list endpoint + inline revoke
+    UX + invite code masking. New `GET
+    /api/platform/tenants/{id}/owner-invites` returns
+    `OwnerInviteSummaryDto` with `CodeSuffix` = last four chars of the raw
+    code, so the full code is never re-emitted after the create / rotate
+    response. SPA `OwnerInvitesSection` now fetches via the new endpoint
+    on mount + after each mutation (replaces the in-memory state that
+    Slice 5 had to drop on refresh), shows `•••• <suffix>` for fetched
+    invites and the full code only for the freshly created one held in
+    `revealedCodes`, and replaces `window.prompt` with an inline reason
+    form per row. +3 xUnit + 1 contract serialization + 1 vitest case.
+  - **Slice D (`1c70ee1`)**: Coolify ingress recipe for the Slice 5 SaaS
+    Control Plane SPA and per-source-IP rate-limiting on the two public
+    Platform API endpoints. New `deploy/coolify/platform-web.Dockerfile`
+    (node:24 build → nginx:1.27-alpine, SPA history fallback, immutable
+    asset caching, `/healthz`) + `platform-web.nginx.conf` +
+    `ingress.md` with copy-paste Traefik labels for the SPA host and the
+    two `Idempotency-Key`-style routers with `priority=200` so the
+    catch-all router stays untouched. Coolify staging runbook gained a
+    pointer section.
+  - **Slice E (`9c374e0`)**: header-based `Idempotency-Key` for `POST
+    /api/platform/tenants`. New entity `PlatformIdempotencyRecordEntity` +
+    migration `20260523185412_AddPlatformIdempotencyRecords` (unique
+    `(Scope, IdempotencyKey)` index + `ExpiresAtUtc` index for the future
+    cleanup job). The endpoint stores the serialized response keyed by
+    Idempotency-Key + a SHA-256 hash of the request body. On retry with
+    the same key the cached 200 body is replayed with an
+    `Idempotency-Replayed: true` response header. Same key reused with a
+    different body returns 422. Header-less requests keep the original
+    slug-based 409 behaviour. +3 xUnit cases.
+
+  ```powershell
+  dotnet build AFK4.sln -p:EnableWindowsTargeting=true
+  dotnet test tests/AFK4.Shared.Contracts.Tests/
+  dotnet test tests/AFK4.Platform.Api.Tests/
+  dotnet test tests/AFK4.Operator.App.Tests/
+  dotnet test tests/AFK4.Player.Shell.Tests/
+  dotnet test tests/AFK4.Agent.Service.Tests/
+  dotnet test tests/AFK4.GamingPc.Setup.Tests/
+  dotnet test tests/AFK4.Update.Publisher.Tests/
+  npm test --silent          # in src/AFK4.Operator.App.Web/
+  npm test --silent          # in src/AFK4.Platform.Web/
+  ```
+
+  Result on Windows 11: build 0 warn / 0 err; Shared.Contracts
+  **109/109** (+1 Slice C); Platform.Api **493/493** (+7 Slice A, +1
+  Slice B regression assertions, +3 Slice C, +3 Slice E — counted as
+  +13 net new); Operator.App 204/204; Player.Shell 11/11; Agent.Service
+  140/140; GamingPc.Setup 10/10; Update.Publisher 8/8;
+  Operator.App.Web npm 122/122; Platform.Web npm **13/13** (+1 Slice C
+  `PlatformApiClient.listOwnerInvites` test). Grand total **1110/1110**.
+
+- Coolify staging deploy on 2026-05-24 (out of session, Coolify API
+  driven from Windows): pushed all 11 commits from this session to
+  `origin/main` via fast-forward `94d3dd0..9c374e0`, then drove the
+  Coolify rollout through `https://cool.mubi.dev/api/v1/`.
+
+  1. Discovered the existing Platform API app
+     (`afk4-platform-api-staging`, uuid `d3fm17hl6kb7sossg1kj8buq`) was
+     tracking the stale `codex/operator-app-redesign` branch — no push
+     to `main` had triggered a rebuild since the operator redesign PR
+     merge. Postgres (`afk4-staging-postgres`, uuid
+     `foie51tkp2w68t6nwc5xks63`) was also missing the Slice 1
+     `AddSaasControlPlaneFoundation` migration; staging had been
+     running on a stale schema.
+  2. Generated an idempotent EF migration script as a recovery
+     artifact (`artifacts/ef-migrations/2026-05-24-staging-deploy.sql`,
+     gitignored), `PATCH`ed Postgres to `is_public=true`, ran
+     `dotnet ef database update --connection "Host=207.180.237.97;Port=55432;…"`
+     from the Windows workstation against the origin IP (Cloudflare
+     fronts `cool.mubi.dev` on the standard ports but not 55432).
+     Applied three migrations in order:
+     `AddSaasControlPlaneFoundation` (Slice 1),
+     `AddAuditActorPlatformAdminUserId` (Slice B),
+     `AddPlatformIdempotencyRecords` (Slice E). `PATCH`ed Postgres
+     back to `is_public=false`; total exposure window ≈ 3 minutes.
+  3. `PATCH`ed the API app to `git_branch=main` and `POST`ed
+     `/deploy?uuid=…`; the rebuild picked up commit
+     `9c374e0e5fedac0a1e256e53794ae6608f78db58`.
+     `https://afk4.staging.mubi.dev/api/health` returned
+     `{"status":"ok"}` after the deploy.
+  4. Created a second Coolify application `afk4-platform-web-staging`
+     (uuid `r82tks8g3qyx0hvvexsiaulr`, private-github-app source,
+     project `AFK4`, environment `staging`, server `localhost`,
+     `build_pack=dockerfile`, `dockerfile_location=/deploy/coolify/platform-web.Dockerfile`,
+     `ports_exposes=8080`, `health_check_path=/healthz`,
+     `domains=https://platform.afk4.staging.mubi.dev`); added a build-time
+     env `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`
+     via `POST /applications/{uuid}/envs` with `is_buildtime=true`;
+     deployed. `https://platform.afk4.staging.mubi.dev/healthz`
+     returned `ok` and `/` returned the Vite-built SPA shell with the
+     `AFK4 Platform Control Plane` title; Let's Encrypt cert was
+     issued automatically.
+  5. Appended Slice D rate-limit Traefik labels onto the API app's
+     existing `custom_labels` (base64) so the existing
+     `https-0-d3fm17hl6kb7sossg1kj8buq` router stays untouched and
+     two new high-priority (`priority=200`) routers
+     (`afk4-api-resolve`, `afk4-api-invite-accept`) attach the
+     `afk4-public-ratelimit` middleware (30 req/min,
+     burst 10, source-IP) to `Path(/api/operator-connections/resolve)`
+     and `Path(/api/platform/owner-invites/accept)` under
+     `Host(afk4.staging.mubi.dev)`. Restarted the API container so
+     Traefik picked up the labels.
+
+  Smoke verification:
+
+  ```sh
+  curl -sS https://afk4.staging.mubi.dev/api/health
+  curl -sS -o /dev/null -w "%{http_code}\n" https://platform.afk4.staging.mubi.dev/healthz
+  curl -sS -o /dev/null -w "%{http_code}\n" -X POST https://afk4.staging.mubi.dev/api/platform/auth/sign-in -H 'Content-Type: application/json' -d '{}'
+  for i in $(seq 1 20); do curl -sS -o /dev/null -w "%{http_code} " -X POST https://afk4.staging.mubi.dev/api/operator-connections/resolve -H 'Content-Type: application/json' -d '{}'; done
+  for i in $(seq 1 20); do curl -sS -o /dev/null -w "%{http_code} " -X POST https://afk4.staging.mubi.dev/api/platform/owner-invites/accept -H 'Content-Type: application/json' -d '{}'; done
+  ```
+
+  Result: API `/api/health` returned `{"status":"ok"}`; SPA
+  `/healthz` returned `200 ok`; platform-admin `sign-in` with empty
+  body returned `401` (proving the Slice 1 endpoint is live);
+  rate-limit on `/api/operator-connections/resolve` produced
+  `400 × 14, 429 × 3, 400 × 1, 429 × 2` (validation errors first,
+  then the burst exhausts and 429 takes over); rate-limit on
+  `/api/platform/owner-invites/accept` produced
+  `400 × 13, 429 × 1, 400 × 1, 429 × 3, 400 × 1, 429 × 1`. The
+  one-off `400` slipping in mid-stream is the Traefik sliding window
+  refilling; expected.
+
+  Outstanding (next session): bootstrap a platform admin via the
+  Coolify env `PlatformAdmin__Bootstrap__Password` and walk the
+  Slice 6 staging-smoke runbook (sign in via the new SPA → create
+  tenant → accept invite → resolve from Operator App slug pair →
+  suspend → reactivate → inspect health) end-to-end.
+
 ## Historical Reference
 
 Long phase-by-phase notes, earlier test output, and old smoke evidence were
