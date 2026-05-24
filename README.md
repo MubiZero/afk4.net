@@ -153,6 +153,7 @@ $env:AFK4_OPERATOR_PLATFORM_BASE_URL = 'https://afk4.staging.mubi.dev'
 - [Agent Installer Enrollment](docs/operations/agent-installer-enrollment.md)
 - [PostgreSQL Backup And Restore](docs/operations/postgres-backup-restore.md)
 - [Pilot Branch Setup](docs/operations/pilot-branch-setup.md)
+- [Uptime Monitoring](docs/operations/uptime-monitoring.md)
 
 ## Packaging Snapshot
 
