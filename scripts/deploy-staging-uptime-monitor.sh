@@ -20,10 +20,10 @@
 
 set -euo pipefail
 
-WORKER_NAME="${WORKER_NAME:-afk4-staging-uptime-monitor}"
-KV_NAMESPACE="${KV_NAMESPACE:-afk4-staging-uptime-monitor-state}"
-CRON_SCHEDULE="${CRON_SCHEDULE:-*/5 * * * *}"
-COMPAT_DATE="${COMPAT_DATE:-2026-05-24}"
+export WORKER_NAME="${WORKER_NAME:-afk4-staging-uptime-monitor}"
+export KV_NAMESPACE="${KV_NAMESPACE:-afk4-staging-uptime-monitor-state}"
+export CRON_SCHEDULE="${CRON_SCHEDULE:-*/5 * * * *}"
+export COMPAT_DATE="${COMPAT_DATE:-2026-05-24}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -93,6 +93,7 @@ if [[ -z "$NAMESPACE_ID" ]]; then
 else
   echo "    found $NAMESPACE_ID"
 fi
+export NAMESPACE_ID
 
 echo ">>> Uploading Worker script '$WORKER_NAME'"
 METADATA=$(python3 -c "
@@ -104,7 +105,7 @@ print(json.dumps({
         {'type': 'kv_namespace', 'name': 'STATE', 'namespace_id': os.environ['NAMESPACE_ID']}
     ],
 }))
-" NAMESPACE_ID="$NAMESPACE_ID" COMPAT_DATE="$COMPAT_DATE")
+")
 
 TMP_METADATA=$(mktemp)
 printf '%s' "$METADATA" > "$TMP_METADATA"
