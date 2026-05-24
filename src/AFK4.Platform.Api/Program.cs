@@ -51,6 +51,7 @@ using Microsoft.EntityFrameworkCore;
 
 const string OperatorWebCorsPolicyName = "operator-web";
 const string PlatformWebCorsPolicyName = "platform-web";
+const string CombinedWebCorsPolicyName = "afk4-web";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -94,6 +95,11 @@ var platformWebOrigins = ResolveCorsOrigins(
         "http://127.0.0.1:4175"
     ]);
 
+var combinedWebOrigins = operatorWebOrigins
+    .Concat(platformWebOrigins)
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
@@ -107,6 +113,13 @@ builder.Services.AddCors(options =>
         PlatformWebCorsPolicyName,
         policy => policy
             .WithOrigins(platformWebOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
+    options.AddPolicy(
+        CombinedWebCorsPolicyName,
+        policy => policy
+            .WithOrigins(combinedWebOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -177,8 +190,12 @@ builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 
 var app = builder.Build();
 
-app.UseCors(OperatorWebCorsPolicyName);
-app.UseCors(PlatformWebCorsPolicyName);
+// Single UseCors call so the CORS middleware emits Access-Control-Allow-*
+// headers on preflight OPTIONS as well as the mainline request. The combined
+// policy unions OperatorWebOrigins and PlatformWebOrigins so both SPAs share
+// one preflight handler; the per-SPA named policies remain registered for
+// endpoint-scoped RequireCors usage if we ever need to split them again.
+app.UseCors(CombinedWebCorsPolicyName);
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<TenantSuspensionMiddleware>();
