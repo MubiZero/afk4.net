@@ -21,6 +21,14 @@ on:
         required: true
         default: false
         type: boolean
+      signing_provider:
+        description: Signing provider used when sign_packages=true
+        required: true
+        default: authenticode-pfx
+        type: choice
+        options:
+          - authenticode-pfx
+          - signpath
       publish_update_metadata:
         description: Publish signed update metadata for generated MSI artifacts
         required: true
@@ -142,6 +150,7 @@ jobs:
         env:
           INPUT_CHANNEL: ${{ inputs.channel }}
           INPUT_SIGN_PACKAGES: ${{ inputs.sign_packages }}
+          INPUT_SIGNING_PROVIDER: ${{ inputs.signing_provider }}
           INPUT_PUBLISH_UPDATE_METADATA: ${{ inputs.publish_update_metadata }}
           INPUT_REGISTER_UPDATE_PACKAGES: ${{ inputs.register_update_packages }}
           INPUT_CREATE_UPDATE_ROLLOUTS: ${{ inputs.create_update_rollouts }}
@@ -161,9 +170,24 @@ jobs:
           INPUT_ROLLOUT_TARGET_KIND: ${{ inputs.rollout_target_kind }}
           INPUT_ROLLOUT_TARGET_DEVICE_ID: ${{ inputs.rollout_target_device_id }}
           ALLOWED_PLATFORM_BASE_URLS: ${{ vars.AFK4_ALLOWED_PLATFORM_BASE_URLS }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.AFK4_SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT_SLUG: ${{ vars.AFK4_SIGNPATH_PROJECT_SLUG }}
+          SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.AFK4_SIGNPATH_SIGNING_POLICY_SLUG }}
+          SIGNPATH_API_TOKEN: ${{ secrets.AFK4_SIGNPATH_API_TOKEN }}
         run: |
           if ($env:INPUT_CHANNEL -eq 'stable' -and ($env:INPUT_SIGN_PACKAGES -ne 'true' -or $env:INPUT_PUBLISH_UPDATE_METADATA -ne 'true')) {
             throw "Stable releases require signing and update metadata publishing."
+          }
+
+          if ($env:INPUT_SIGN_PACKAGES -eq 'true' -and $env:INPUT_SIGNING_PROVIDER -eq 'signpath') {
+            $missing = @()
+            if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_ORGANIZATION_ID)) { $missing += 'AFK4_SIGNPATH_ORGANIZATION_ID (vars)' }
+            if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_PROJECT_SLUG)) { $missing += 'AFK4_SIGNPATH_PROJECT_SLUG (vars)' }
+            if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_SIGNING_POLICY_SLUG)) { $missing += 'AFK4_SIGNPATH_SIGNING_POLICY_SLUG (vars)' }
+            if ([string]::IsNullOrWhiteSpace($env:SIGNPATH_API_TOKEN)) { $missing += 'AFK4_SIGNPATH_API_TOKEN (secrets)' }
+            if ($missing.Count -gt 0) {
+              throw "SignPath signing requires the following repository settings: $($missing -join ', ')."
+            }
           }
 
           if ($env:INPUT_REGISTER_UPDATE_PACKAGES -eq 'true' -and $env:INPUT_PUBLISH_UPDATE_METADATA -ne 'true') {
@@ -252,21 +276,21 @@ jobs:
           powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version $env:INPUT_VERSION -Channel $env:INPUT_CHANNEL
 
       - name: Prepare Authenticode certificate
-        if: ${{ inputs.sign_packages }}
+        if: ${{ inputs.sign_packages && inputs.signing_provider == 'authenticode-pfx' }}
         shell: pwsh
         env:
           AFK4_AUTHENTICODE_PFX_BASE64: ${{ secrets.AFK4_AUTHENTICODE_PFX_BASE64 }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:AFK4_AUTHENTICODE_PFX_BASE64)) {
-            throw "AFK4_AUTHENTICODE_PFX_BASE64 secret is required when sign_packages=true."
+            throw "AFK4_AUTHENTICODE_PFX_BASE64 secret is required when sign_packages=true and signing_provider=authenticode-pfx."
           }
 
           $certificatePath = Join-Path $env:RUNNER_TEMP 'afk4-authenticode-signing.pfx'
           [System.IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:AFK4_AUTHENTICODE_PFX_BASE64))
           "AFK4_AUTHENTICODE_CERTIFICATE_PATH=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Sign client packages
-        if: ${{ inputs.sign_packages }}
+      - name: Sign client packages (Authenticode PFX)
+        if: ${{ inputs.sign_packages && inputs.signing_provider == 'authenticode-pfx' }}
         shell: pwsh
         env:
           AFK4_AUTHENTICODE_PFX_PASSWORD: ${{ secrets.AFK4_AUTHENTICODE_PFX_PASSWORD }}
@@ -284,6 +308,30 @@ jobs:
           if ($signExitCode -ne 0) {
             exit $signExitCode
           }
+
+      - name: Sign client packages (SignPath)
+        if: ${{ inputs.sign_packages && inputs.signing_provider == 'signpath' }}
+        shell: pwsh
+        env:
+          AFK4_SIGNPATH_API_TOKEN: ${{ secrets.AFK4_SIGNPATH_API_TOKEN }}
+          AFK4_SIGNPATH_ORGANIZATION_ID: ${{ vars.AFK4_SIGNPATH_ORGANIZATION_ID }}
+          AFK4_SIGNPATH_PROJECT_SLUG: ${{ vars.AFK4_SIGNPATH_PROJECT_SLUG }}
+          AFK4_SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.AFK4_SIGNPATH_SIGNING_POLICY_SLUG }}
+          AFK4_SIGNPATH_ARTIFACT_CONFIGURATION_SLUG: ${{ vars.AFK4_SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+        run: |
+          $arguments = @(
+            '-PackageDirectory', 'artifacts/client-packages',
+            '-UseSignPath',
+            '-SignPathOrganizationId', $env:AFK4_SIGNPATH_ORGANIZATION_ID,
+            '-SignPathProjectSlug', $env:AFK4_SIGNPATH_PROJECT_SLUG,
+            '-SignPathSigningPolicySlug', $env:AFK4_SIGNPATH_SIGNING_POLICY_SLUG,
+            '-SignPathApiTokenEnvVar', 'AFK4_SIGNPATH_API_TOKEN')
+
+          if (-not [string]::IsNullOrWhiteSpace($env:AFK4_SIGNPATH_ARTIFACT_CONFIGURATION_SLUG)) {
+            $arguments += @('-SignPathArtifactConfigurationSlug', $env:AFK4_SIGNPATH_ARTIFACT_CONFIGURATION_SLUG)
+          }
+
+          powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 @arguments
 
       - name: Publish update metadata
         if: ${{ inputs.publish_update_metadata }}

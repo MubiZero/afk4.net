@@ -126,7 +126,15 @@ afk4-gaming-pc-<version>-<channel>.msi
 Internal package builds may remain unsigned. Stable production package builds
 must be Authenticode-signed before update metadata is published.
 
-Sign ready MSI artifacts with a PFX supplied outside the repository:
+`scripts/sign-client-packages.ps1` supports two signing providers:
+
+- **signtool (default)** - local PFX file or certificate store.
+- **SignPath (cloud)** - submit artifacts to https://signpath.io for
+  cloud-managed Authenticode signing. AFK4 qualifies for SignPath
+  Foundation's free open-source EV signing tier because the repository is
+  AGPL-3.0-or-later licensed.
+
+### Option 1 - signtool with a local PFX
 
 ```powershell
 $env:AFK4_AUTHENTICODE_PFX_PASSWORD = 'example-pfx-password-from-release-runner'
@@ -137,7 +145,7 @@ powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
   -CertificatePasswordEnvVar AFK4_AUTHENTICODE_PFX_PASSWORD
 ```
 
-Sign with a certificate already installed on the release runner:
+### Option 2 - signtool with a certificate already in a Windows cert store
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
@@ -147,8 +155,35 @@ powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
   -CertificateStoreName My
 ```
 
-The script uses `signtool.exe` and fails when no signing source is configured.
-It does not download certificates or read secrets from repository files.
+Both signtool options use `signtool.exe` from the Windows SDK and fail when
+no signing source is configured. They do not download certificates or read
+secrets from repository files.
+
+### Option 3 - SignPath cloud signing
+
+Once the SignPath Foundation (or commercial) project is approved, supply the
+SignPath organization id, project slug, signing policy slug, and a CI user
+token. The script auto-installs the `SignPath` PowerShell module on first
+use, submits each MSI as a signing request, waits for completion, and
+replaces the unsigned artifact with the signed version returned by
+SignPath.
+
+```powershell
+$env:AFK4_SIGNPATH_API_TOKEN = 'example-ci-user-api-token'
+
+powershell -ExecutionPolicy Bypass -File scripts/sign-client-packages.ps1 `
+  -PackageDirectory artifacts/client-packages `
+  -UseSignPath `
+  -SignPathOrganizationId 11111111-1111-1111-1111-111111111111 `
+  -SignPathProjectSlug afk4-client-packages `
+  -SignPathSigningPolicySlug release-signing `
+  -SignPathApiTokenEnvVar AFK4_SIGNPATH_API_TOKEN
+```
+
+Pass `-SignPathArtifactConfigurationSlug` only when the SignPath project
+uses a non-default artifact configuration.
+
+### CI
 
 CI uses the same command through the manual GitHub Actions workflow:
 
@@ -161,6 +196,17 @@ The workflow restores .NET tools, builds and tests the solution, runs
 Guarded workflow switches can also sign MSI artifacts, publish update metadata,
 upload generated request JSON, and register requests with the Platform API when
 release inputs and protected secrets are supplied.
+
+The `signing_provider` workflow input selects between `authenticode-pfx` and
+`signpath`. The provider-specific repository settings the guard step checks
+for are:
+
+- `authenticode-pfx`: secrets `AFK4_AUTHENTICODE_PFX_BASE64` and
+  `AFK4_AUTHENTICODE_PFX_PASSWORD`.
+- `signpath`: secret `AFK4_SIGNPATH_API_TOKEN` and repository variables
+  `AFK4_SIGNPATH_ORGANIZATION_ID`, `AFK4_SIGNPATH_PROJECT_SLUG`,
+  `AFK4_SIGNPATH_SIGNING_POLICY_SLUG` (and optional
+  `AFK4_SIGNPATH_ARTIFACT_CONFIGURATION_SLUG`).
 
 For older zip-based internal signed update experiments, the existing update
 artifact publishing wrapper remains available:
