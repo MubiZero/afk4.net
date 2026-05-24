@@ -122,6 +122,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.Slug).HasMaxLength(64).IsRequired();
             entity.Property(branch => branch.Name).HasMaxLength(160).IsRequired();
             entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();
+            entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);
             entity.HasIndex(branch => new { branch.OrganizationId, branch.BranchId }).IsUnique();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.Slug }).IsUnique();
         });

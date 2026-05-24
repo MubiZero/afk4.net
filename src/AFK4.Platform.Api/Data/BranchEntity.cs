@@ -12,5 +12,7 @@ public sealed class BranchEntity
 
     public string City { get; set; } = string.Empty;
 
+    public bool RequireManualDeviceApproval { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

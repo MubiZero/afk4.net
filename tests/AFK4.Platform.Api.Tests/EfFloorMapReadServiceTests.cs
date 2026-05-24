@@ -92,9 +92,11 @@ public sealed class EfFloorMapReadServiceTests
         await using var readDb = new PlatformDbContext(options);
         var service = new EfFloorMapReadService(readDb);
 
-        var floorMap = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
+        var result = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
 
-        Assert.NotNull(floorMap);
+        Assert.NotNull(result);
+        Assert.False(string.IsNullOrWhiteSpace(result.ETag));
+        var floorMap = result.FloorMap;
         Assert.Equal("Downtown Branch", floorMap.BranchName);
         Assert.Collection(
             floorMap.Seats,
@@ -207,10 +209,10 @@ public sealed class EfFloorMapReadServiceTests
         await using var readDb = new PlatformDbContext(options);
         var service = new EfFloorMapReadService(readDb, new FixedTimeProvider(now));
 
-        var floorMap = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
+        var result = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
 
-        Assert.NotNull(floorMap);
-        var seat = Assert.Single(floorMap.Seats);
+        Assert.NotNull(result);
+        var seat = Assert.Single(result.FloorMap.Seats);
         Assert.Equal(sessionId, seat.ActiveSessionId);
         Assert.Equal(1800, seat.RemainingSeconds);
         Assert.Equal("Active", seat.State);

@@ -181,4 +181,10 @@ public static class AuditActionNames
     public const string GenerateOwnerCode = "install.owner_code.generated";
 
     public const string RotateOwnerCode = "install.owner_code.rotated";
+
+    public const string ViewBranchSettings = "branches.settings.view";
+
+    public const string UpdateBranchSettings = "branches.settings.update";
+
+    public const string UpdateFloorMap = "floor_map.update";
 }

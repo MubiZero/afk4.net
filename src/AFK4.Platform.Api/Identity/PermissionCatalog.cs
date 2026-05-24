@@ -57,7 +57,8 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageBranchStaff,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit,
-                StaffPermissionNames.ManageOwnerCode
+                StaffPermissionNames.ManageOwnerCode,
+                StaffPermissionNames.ManageBranchSettings
             },
             [StaffRoleNames.BranchManager] = new HashSet<string>
             {
@@ -107,7 +108,8 @@ public static class PermissionCatalog
                 StaffPermissionNames.ViewUpdateStatus,
                 StaffPermissionNames.ViewDiagnostics,
                 StaffPermissionNames.ManageBranchStaff,
-                StaffPermissionNames.ViewAudit
+                StaffPermissionNames.ViewAudit,
+                StaffPermissionNames.ManageBranchSettings
             },
             [StaffRoleNames.ShiftSupervisor] = new HashSet<string>
             {

@@ -99,4 +99,6 @@ public static class StaffPermissionNames
     public const string ViewAudit = "audit.view";
 
     public const string ManageOwnerCode = "identity.owner_code.manage";
+
+    public const string ManageBranchSettings = "branches.settings.manage";
 }

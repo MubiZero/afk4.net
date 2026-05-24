@@ -161,8 +161,19 @@ public sealed class EfPlatformTenantService(
             lifetime,
             now);
 
+        var defaultZone = new ZoneEntity
+        {
+            ZoneId = Guid.NewGuid(),
+            OrganizationId = organization.OrganizationId,
+            BranchId = branch.BranchId,
+            Name = "Main Hall",
+            SortOrder = 1,
+            CreatedAtUtc = now
+        };
+
         dbContext.Organizations.Add(organization);
         dbContext.Branches.Add(branch);
+        dbContext.Zones.Add(defaultZone);
         dbContext.OwnerInvites.Add(invite);
         await dbContext.SaveChangesAsync(cancellationToken);
 

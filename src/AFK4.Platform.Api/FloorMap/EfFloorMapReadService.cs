@@ -19,7 +19,7 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext, TimeProvi
     {
     }
 
-    public async Task<FloorMapDto?> GetFloorMapAsync(Guid branchId, CancellationToken cancellationToken)
+    public async Task<FloorMapReadResult?> GetFloorMapAsync(Guid branchId, CancellationToken cancellationToken)
     {
         var branch = await dbContext.Branches
             .AsNoTracking()
@@ -33,7 +33,8 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext, TimeProvi
         var zones = await dbContext.Zones
             .AsNoTracking()
             .Where(zone => zone.BranchId == branchId)
-            .ToDictionaryAsync(zone => zone.ZoneId, cancellationToken);
+            .ToListAsync(cancellationToken);
+        var zonesById = zones.ToDictionary(zone => zone.ZoneId);
         var seats = await dbContext.Seats
             .AsNoTracking()
             .Where(seat => seat.BranchId == branchId)
@@ -62,16 +63,18 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext, TimeProvi
             .ToDictionary(group => group.Key, group => group.OrderByDescending(session => session.UpdatedAtUtc).First());
 
         var seatStatuses = seats
-            .Select(seat => CreateSeatStatus(seat, zones, assignmentsBySeat, devices, sessionsBySeat))
-            .OrderBy(seat => zones.TryGetValue(seat.ZoneId, out var zone) ? zone.SortOrder : int.MaxValue)
+            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat))
+            .OrderBy(seat => zonesById.TryGetValue(seat.ZoneId, out var zone) ? zone.SortOrder : int.MaxValue)
             .ThenBy(seat => seat.SortOrder)
             .ThenBy(seat => seat.SeatName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return new FloorMapDto(
+        var dto = new FloorMapDto(
             BranchId: branch.BranchId,
             BranchName: branch.Name,
             Seats: seatStatuses);
+
+        return new FloorMapReadResult(dto, FloorMapEtag.Compute(zones, seats));
     }
 
     private SeatStatusDto CreateSeatStatus(
