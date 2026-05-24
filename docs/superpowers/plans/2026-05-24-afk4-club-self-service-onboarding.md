@@ -434,13 +434,17 @@ branch-scoped staff endpoints, no `/club` prefix in the URL itself — the
 prefix lives in the SPA route tree, the API stays flat).
 
 ```
-POST /api/branches/{branchId}/owner-code/generate     (staff, branch_owner)
+POST /api/staff/me/owner-code/generate                (staff, branch_owner)
   → { ownerCode, codeSuffix, expiresAtUtc }
-POST /api/branches/{branchId}/owner-code/rotate       (staff, branch_owner)
+POST /api/staff/me/owner-code/rotate                  (staff, branch_owner)
   → { ownerCode, codeSuffix, expiresAtUtc }
-GET  /api/branches/{branchId}/owner-code              (staff, branch_owner)
+GET  /api/staff/me/owner-code                         (staff, branch_owner)
   → { codeSuffix, expiresAtUtc, lastUsedAtUtc, failedAttemptCount }
                                                       (never returns full code)
+  (No branchId in URL — owner code is per-StaffUser per Decision #3.
+   The SPA renders the owner-code widget on every /club/branches/:id/install
+   page for UX convenience, but all three buttons call this one endpoint;
+   scope is implicit-by-token.)
 
 GET  /api/branches/{branchId}/floor-map               (staff)
   → { etag, zones: [{ zoneId, name, sortOrder,
