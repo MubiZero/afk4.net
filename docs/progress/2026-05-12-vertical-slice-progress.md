@@ -3122,6 +3122,82 @@ Operator App WebView2/React first implementation on 2026-05-20:
   tenant → accept invite → resolve from Operator App slug pair →
   suspend → reactivate → inspect health) end-to-end.
 
+- 2026-05-24: bootstrapped the staging platform admin and ran the
+  full `scripts/staging-smoke.py` Slice 1-6 + hardening A-E walk
+  end-to-end on `https://afk4.staging.mubi.dev`. The hosted service
+  refused the first attempt because the `platform_admin_users` table
+  already contained a row from an earlier session (with an unknown
+  password, 6 stale access tokens + 6 refresh tokens attached); the
+  recovery was `DELETE FROM platform_admin_access_tokens;
+  DELETE FROM platform_admin_refresh_tokens;
+  DELETE FROM platform_admin_users;` from the Coolify Postgres
+  terminal (no FK cascades declared, all three ran cleanly), then a
+  Coolify redeploy of the Platform API so the
+  `PlatformAdminBootstrapHostedService` saw an empty table and seeded
+  the new admin from the three Coolify runtime env vars
+  `PlatformAdmin__Bootstrap__UserName`,
+  `PlatformAdmin__Bootstrap__DisplayName`,
+  `PlatformAdmin__Bootstrap__Password` (Roles left null so the
+  hosted-service default of `platform_owner` applied). Sign-in then
+  returned 200 with all 10 `platform_owner` permissions
+  (`platform.audit.view`, `platform.tenants.create`,
+  `platform.tenants.health.view`,
+  `platform.tenants.invites.manage`,
+  `platform.tenants.limits.update`, `platform.tenants.plan.update`,
+  `platform.tenants.status.update`,
+  `platform.tenants.support_notes.manage`,
+  `platform.tenants.support_notes.view`,
+  `platform.tenants.view`).
+
+  The full smoke ran 22 numbered steps + the two extra integrity
+  checks inside step 8 (24/24 PASSED, 0 FAILED, ~30s wall clock).
+  Tenant created: org `77d7552d-4c76-475d-ae2b-6934e8549547`
+  (`demo-club-1779619155`), branch
+  `e69ba5d8-a439-4a4d-8f3d-9225e117fd4f` (`dushanbe-main`), invite
+  `14207ac1-66d3-484a-802a-eb45dd8b33cc` (codeSuffix `9cd3`).
+  Confirmed the full Slice 1-6 surface in production-shape staging:
+  idempotency replay returns `Idempotency-Replayed: true`, same key
+  with a mutated body returns 422 with
+  `error="Idempotency-Key was reused with a different request body."`,
+  operator-connection resolve works via both `slug` and `setup_code`
+  sources, owner-invite accept mints a staff token, suspend blocks
+  staff mutations with `403 TenantSuspended` and surfaces
+  `organizationStatus=suspended` + `organizationStatusReason` on the
+  public resolve endpoint, reactivate restores 200, tenant health
+  reports the right counts (branches=1 devices=0 staff=1
+  recentErrors=0), support note + plan/limits PATCH succeed, owner
+  invite list returns only a 4-char `codeSuffix` matching the real
+  code with no full code in the payload, the second invite revokes
+  with the supplied reason. Slice D rate-limit on
+  `/api/operator-connections/resolve` produced `15 × 400, 10 × 429`
+  out of 25 rapid empty POSTs (validation first, then the Traefik
+  token bucket drains and 429s take over). Initial tenant count was
+  3 going into the run, so staging already carried older test data
+  from earlier sessions; the smoke leaves its `demo-club-1779619155`
+  tenant in place (cleanup is a Slice 3 `status=deletion_pending`
+  PATCH or a direct Postgres delete when convenient). Notable
+  cosmetic: the bootstrap `DisplayName` env var came back as `Mubi`
+  rather than `Mubi (Platform Owner)`; the parens were stripped
+  somewhere in the Coolify env-var pipeline. Harmless for the smoke
+  but worth knowing for any future env-var values that contain shell
+  metacharacters.
+
+  Bonus side-effect: the Coolify redeploy briefly took
+  `/api/health` and the SPA shell offline, and the staging uptime
+  worker (`afk4-staging-uptime-monitor`, deployed earlier the same
+  day) correctly fired `🚨 AFK4 DOWN` for
+  `platform-api-health` + `control-plane-spa-shell` on the second
+  consecutive failed probe and then `✅ AFK4 RECOVERED` once the
+  redeploy finished — first live state-change verification of the
+  monitor's alert pipeline, end to end.
+
+  Outstanding (next session): pick from the remaining production-
+  readiness blockers — (a) smoke on real club hardware, (b) prod
+  environment separate from staging, (c) the unified one-shot
+  end-to-end setup instruction for club operators. None of the
+  remaining blockers needs staging admin work; staging admin is now
+  live and reusable for future smokes.
+
 ## Historical Reference
 
 Long phase-by-phase notes, earlier test output, and old smoke evidence were
