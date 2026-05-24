@@ -25,7 +25,7 @@ seat code copying. The `bootstrap.ps1` legacy installer is removed.
 
 ## Scope
 
-Three deliverables, in this order. Each lands as its own slice with backend +
+Four deliverables, in this order. Each lands as its own slice with backend +
 SPA + Windows-client changes + docs together. Numbering reflects build order
 and dependencies.
 
@@ -138,15 +138,71 @@ unsigned MSI plus a WPF first-run wizard.
    through, the existing `signing_provider` workflow input becomes
    `signpath` and the MSI is signed without code changes.
 
+### Slice 4 — Public landing site
+
+Marketing-facing static site at the staging apex (`afk4.staging.mubi.dev`
+during pilot, moves to the final prod domain when one is acquired). Separate
+codebase from the SPA so a marketing iteration doesn't trigger an app rebuild.
+
+1. **Tech stack**: Astro for static-site generation. Reasons: tiny output,
+   zero JS by default, drop-in React/Vue islands if a section needs it,
+   first-class i18n routing, content as Markdown.
+2. **Repo layout**: new top-level directory `src/AFK4.Public.Web/` (matches
+   the existing `src/AFK4.*` namespace pattern even though it is not .NET).
+   Astro project lives inside; `npm` and `astro build` produce a `dist/`
+   directory.
+3. **Initial pages**:
+   - `/` (home) — what AFK4 is in two sentences, three screenshots from
+     the Operator App + Customer Dashboard, primary CTA "Talk to us"
+     scrolling to the contact form, secondary CTA "Try AFK4" (placeholder
+     link to `/club/install` for invited owners — self-signup is in the
+     post-onboarding roadmap, not here).
+   - `/features` — feature grid pulled from `docs/product/AFK4-MVP-PRD.md`
+     trimmed for marketing.
+   - `/pricing` — placeholder plan tier cards (Starter / Growth /
+     Enterprise) without dollar amounts until pricing is decided; "Contact
+     us for pricing" CTAs.
+   - `/contact` — short form (name, email, club name, message) that POSTs
+     to a small Astro endpoint which forwards to a Telegram bot via the
+     existing alert channel + writes to a CSV (or future inbox table).
+   - `/legal/privacy` and `/legal/terms` — placeholders with "draft
+     pending legal review" banner.
+4. **i18n**: Russian primary, English secondary. Astro i18n routing under
+   `/`, `/en/`. Content files stored side-by-side
+   (`pages/index.md`, `pages/en/index.md`).
+5. **SEO basics**: per-page `<title>` + meta description + `og:image`
+   per locale. `sitemap.xml` auto-generated via Astro integration.
+   `robots.txt` allowing all.
+6. **Contact form delivery**: reuse the existing `@afk4alerts_bot`
+   Telegram bot with a new chat (group, not the existing private DM) so
+   future team members can see inbound leads. Bot token stored in a new
+   Coolify secret on the public-web Coolify app. Form submissions also
+   logged to a JSON file in a Coolify-mounted volume for later import
+   into a CRM.
+7. **Coolify deployment**: separate Coolify application using a tiny
+   Dockerfile that runs `astro build` then `nginx` serving `dist/` on
+   port 8080. Lives at the staging apex
+   (`https://afk4.staging.mubi.dev/`) until the final prod domain is
+   decided. The Platform API's existing host stays at
+   `afk4.staging.mubi.dev/api/...` — public web is the catch-all
+   alongside it, **not** in front of it (Traefik priority lower than
+   the API router so `/api/*` keeps reaching the API).
+8. **Analytics**: privacy-respecting only (Plausible self-hosted if we
+   stand it up later, or none for v1). No Google Analytics.
+9. **Domain migration story**: when the final prod domain is acquired,
+   the only changes are (a) Coolify host rename, (b) DNS, (c) absolute
+   URLs in `<head>` (sitemap, canonical, og:url). No content changes.
+
 ## Non-Goals
 
-These are real follow-ups but **not** covered in this plan. They get their
-own plan documents when their time comes.
+These are real follow-ups but **not** covered in this plan. Tracked in
+[`2026-05-24-afk4-roadmap-post-onboarding.md`](./2026-05-24-afk4-roadmap-post-onboarding.md)
+as a roadmap; each gets its own implementation plan when its time comes.
 
-- Public marketing website (own domain, own deploy, separate codebase).
 - Production environment separation from staging.
 - SignPath integration follow-through (already scaffolded in PR #45).
-- Self-service signup from the public landing page.
+- Self-service signup from the public landing page (the landing **page**
+  exists in Slice 4; the self-signup **flow** is roadmap).
 - Payment provider integration (Stripe / ЮKassa / Тинькофф / local TJ
   gateway).
 - Billing UI in the customer dashboard.
@@ -424,6 +480,20 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
 14. **Slice 3.5** — Deprecate `bootstrap.ps1`, `gaming-pc.msi`,
     `operator-app.msi` once the smoke passes; remove from publishing
     pipeline.
+15. **Slice 4.1** — Astro project bootstrap in `src/AFK4.Public.Web/`,
+    home page in RU + EN with placeholder content, build + serve
+    locally.
+16. **Slice 4.2** — Features, pricing, contact, legal placeholder
+    pages. Contact form endpoint with Telegram bot wiring and JSON
+    log file.
+17. **Slice 4.3** — Astro Dockerfile + Coolify application for
+    `https://afk4.staging.mubi.dev/` apex routing (Traefik priority
+    lower than Platform API to keep `/api/*` reaching the API).
+    Telegram bot chat group setup with `@afk4alerts_bot` (new group,
+    not the existing private alerts DM).
+18. **Slice 4.4** — SEO basics (sitemap.xml, robots.txt, per-page
+    meta), final screenshot pass after Slices 1-3 ship so visuals
+    match the real product, polish RU + EN copy.
 
 ## Testing
 
@@ -471,18 +541,24 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
 
 ## What Is Not In This Plan
 
-Tracked in [`docs/superpowers/plans/`](.) as future plan files when
-their time comes:
+Tracked in the post-onboarding roadmap
+([`2026-05-24-afk4-roadmap-post-onboarding.md`](./2026-05-24-afk4-roadmap-post-onboarding.md))
+as headings; each becomes its own implementation plan when its time
+comes:
 
-- Public marketing website + domain acquisition + SEO basics.
 - Production environment separation (`coolify-prod-deploy.yml`,
   separate Postgres, separate uptime monitors, prod
   session-signing key).
+- Self-service signup from the public landing page (page exists in
+  Slice 4; backend tenant creation flow is roadmap).
 - Payments + billing UI.
-- Mobile companion app.
-- Self-service signup from the public landing page.
-- Audit log UI in the Mubi admin.
+- Audit log UI.
 - Password reset flow.
+- Mobile companion app.
+- Multi-tenant white-label.
+- SignPath signing rollout (PR #45 scaffolded the workflow input,
+  remaining work is application + secrets + cutover).
+- Final prod domain acquisition + DNS/Coolify/copy cutover.
 
 ## Definition Of Done
 
@@ -508,6 +584,10 @@ All of the following must be true for this plan to be considered shipped:
 - `docs/operations/coolify-staging-deploy.md` reflects the new install
   flow as the documented onboarding path; the old curl-based steps are
   removed.
+- A publicly-reachable landing site is live at
+  `https://afk4.staging.mubi.dev/` in Russian + English with home,
+  features, pricing, contact, and legal placeholder pages; the
+  contact form delivers to a Telegram group with @afk4alerts_bot.
 
 ## Related
 
