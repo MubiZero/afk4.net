@@ -45,6 +45,22 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
+    public void ClientPackageBuildScript_BuildsSingleAgentMsiWithSetupWizard()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
+        var script = File.ReadAllText(scriptPath);
+        var agentBuild = script[
+            script.IndexOf("installers/agent/Package.wxs", StringComparison.Ordinal)..];
+
+        Assert.Contains("src/AFK4.SetupWizard/AFK4.SetupWizard.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("setup-wizard-$Version-$Channel", script, StringComparison.Ordinal);
+        Assert.Contains("afk4-agent-$Version-$Channel.msi", script, StringComparison.Ordinal);
+        Assert.Contains("-arch x64", agentBuild, StringComparison.Ordinal);
+        Assert.Contains("-d \"SetupWizardPublishDir=$setupWizardPublishDir\"", agentBuild, StringComparison.Ordinal);
+        Assert.Contains("Write-Host $agentMsiPath", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ClientPackageBuildScript_BuildsAndPublishesOperatorFrontendAssets()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
@@ -66,12 +82,34 @@ public sealed class UpdateHelperScriptTests
     [Theory]
     [InlineData("installers/operator-app/Package.wxs")]
     [InlineData("installers/gaming-pc/Package.wxs")]
+    [InlineData("installers/agent/Package.wxs")]
     public void WixPackages_DoNotUseUnsupportedFilesExcludeAttribute(string packagePath)
     {
         var absolutePath = Path.GetFullPath(Path.Combine(GetRepositoryRoot(), packagePath));
         var package = File.ReadAllText(absolutePath);
 
         Assert.DoesNotContain(" Exclude=", package, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SingleAgentWixPackage_InstallsSetupWizardAndFirstRunLaunch()
+    {
+        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "agent", "Package.wxs");
+        var package = File.ReadAllText(packagePath);
+
+        Assert.Contains("Name=\"AFK4 Agent\"", package, StringComparison.Ordinal);
+        Assert.Contains("SetupWizardFolder", package, StringComparison.Ordinal);
+        Assert.Contains("$(var.SetupWizardPublishDir)", package, StringComparison.Ordinal);
+        Assert.Contains("AFK4.SetupWizard.exe", package, StringComparison.Ordinal);
+        Assert.Contains(@"Software\Microsoft\Windows\CurrentVersion\RunOnce", package, StringComparison.Ordinal);
+        Assert.Contains("AFK4SetupWizardFirstRunPending", package, StringComparison.Ordinal);
+        Assert.Contains("ProgramMenuFolder", package, StringComparison.Ordinal);
+        Assert.Contains("LaunchSetupWizard", package, StringComparison.Ordinal);
+        Assert.Contains("asyncNoWait", package, StringComparison.Ordinal);
+        Assert.Contains("Start=\"demand\"", package, StringComparison.Ordinal);
+        Assert.DoesNotContain("Start=\"install\"", package, StringComparison.Ordinal);
+        Assert.DoesNotContain("PlayerShell", package, StringComparison.Ordinal);
+        Assert.DoesNotContain("Player Shell", package, StringComparison.Ordinal);
     }
 
     [Fact]

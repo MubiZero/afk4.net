@@ -160,7 +160,15 @@ Minimum bar:
    frontend `index.html`, JavaScript, and CSS files. The Operator App MSI now
    also has a WebView2 Evergreen Runtime launch condition using the documented
    EdgeUpdate `pv` registry values, so unsupported machines fail closed with a
-   clear prerequisite message.
+   clear prerequisite message. Slice 3.2 adds a new WiX-built
+   `afk4-agent-<version>-<channel>.msi` onboarding artifact that contains the
+   Agent Service, WPF Setup Wizard, update helpers, Start Menu shortcut,
+   first-run marker, HKLM `RunOnce`, and an interactive postinstall wizard
+   launch attempt. The service is installed demand-start and the wizard sets it
+   to automatic startup after owner-code enrollment writes machine
+   configuration. The legacy coordinated `afk4-gaming-pc` MSI remains in the
+   build/update-smoke path until role-aware component install and deprecation
+   slices retire it.
    On 2026-05-18, an already enrolled Windows 11 VM installed
    Agent/Shell `0.1.3` through the Agent update pipeline and reported
    `installed` to the backend. Follow-up staging rollouts brought that VM to
@@ -220,8 +228,10 @@ Minimum bar:
    selected seat, and apply both app-layer and documented Traefik rate-limit
    protection; the SPA now has separate admin/customer audience builds. The
    customer `app.afk4.staging.mubi.dev` Coolify app is deployed; the
-   SetupWizard/MSI flow still needs to ship before this replaces the scripted
-   pilot setup path.
+   Setup Wizard now ships inside a single Agent MSI locally, but Agent
+   role-aware Player Shell / Operator App component install and clean Windows
+   VM smoke still need to pass before this replaces the scripted pilot setup
+   path.
 
 ## Commercial Production Blockers
 
@@ -233,8 +243,9 @@ Minimum bar:
 - Internal SaaS Control Plane and no-DB-edit tenant provisioning are partially
   implemented and smoke-tested in staging for platform-admin tenant creation,
   owner invites, tenant status, support notes, and health. The customer SPA
-  host is deployed; the Windows SetupWizard/MSI flow remains an onboarding
-  blocker.
+  host is deployed; the Windows SetupWizard/MSI packaging path exists locally,
+  but clean-VM smoke and role-aware component installation remain onboarding
+  blockers.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
@@ -278,7 +289,9 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring and Windows 11 VM smoke evidence. Physical service startup validation
   remains hardening through the real-device smoke runbook.
-- A staging-only Gaming PC bootstrap path exists. The older release-workstation
+- A staging-only Gaming PC bootstrap path exists, and Slice 3.2 adds the local
+  single `afk4-agent` MSI artifact for owner-code Setup Wizard onboarding. The
+  older release-workstation
   setup executable path remains in code, but the preferred clean VM path is now
   the MinIO-hosted remote bootstrap script from `Package Smoke`:
   `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json`.
@@ -291,8 +304,11 @@ Minimum bar:
   because service startup happened before machine config was written. Corrected
   bootstrap version `0.1.14` passed clean Windows 11 VM install/enroll/
   seat-assignment/heartbeat/locked-Shell smoke, then passed two session
-  start/end cycles with no-SQL seat/device reuse. Repeat that remote bootstrap
-  path on physical Windows hardware as hardening before wider rollout.
+  start/end cycles with no-SQL seat/device reuse. The new `afk4-agent` MSI has
+  not yet replaced the remote bootstrap path because Agent-side role-aware
+  Player Shell / Operator App installation is Slice 3.3 and clean-VM
+  end-to-end smoke is Slice 3.4. Repeat that remote bootstrap path on physical
+  Windows hardware as hardening before wider rollout.
 - Lock/unlock enforcement has adapter coverage and Windows 11 VM smoke
   evidence. Physical Windows validation remains hardening before wider rollout.
 - Player Shell service-session competition is mitigated in code by

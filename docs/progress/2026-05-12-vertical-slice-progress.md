@@ -29,13 +29,14 @@ implementation evidence are needed.
   scope for their slice, not as the current product decision.
 - The active follow-on onboarding plan is
   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
-  Slices 1.1 through 3.1 now cover owner codes, ETag floor-map editing,
+  Slices 1.1 through 3.2 now cover owner codes, ETag floor-map editing,
   backend install discover/enroll, the branch device admin surface, the
   Platform Web admin route split under `/admin/*`, and the first public
   `/auth/*` accept-invite/staff sign-in pages, plus first customer
   `/club/*` dashboard/install/device/operator screens, terminology cleanup
   across the SPA and public operations docs, audience-split admin/customer SPA
-  builds, and the first direct-debug Windows Setup Wizard path.
+  builds, the first Windows Setup Wizard path, and a single Agent MSI that
+  carries the Agent Service plus that wizard for owner-code onboarding.
 
 ## Implemented Capabilities
 
@@ -444,6 +445,15 @@ implementation evidence are needed.
   `/api/install/seats`, enrolls the PC as either `gaming_pc` or
   `manager_workstation`, generates/reuses a stable local device key pair, and
   writes Agent bootstrap environment values from the install response.
+- Slice 3.2 packages that wizard into the new WiX-built
+  `afk4-agent-<version>-<channel>.msi` onboarding artifact. The MSI installs
+  Agent Service, Setup Wizard, update helpers, a Start Menu shortcut, a
+  per-machine first-run pending marker, a HKLM `RunOnce` wizard entry, and an
+  interactive postinstall wizard launch attempt. The service is installed
+  demand-start so it does not run before wizard enrollment writes bootstrap
+  configuration; after successful enrollment the wizard switches it to
+  automatic startup and starts it. Player Shell and Operator App are not
+  included in this MSI; Agent role-aware component install remains Slice 3.3.
 
 ### Player Shell
 
@@ -455,8 +465,10 @@ implementation evidence are needed.
 ### Packaging And Updates
 
 - WiX/MSI baseline:
+  - Agent onboarding MSI for Agent Service + Setup Wizard.
   - Operator App MSI.
-  - Coordinated gaming-PC MSI for Agent Service + Player Shell.
+  - Legacy coordinated gaming-PC MSI for Agent Service + Player Shell, kept
+    until role-aware install and deprecation slices replace it.
 - Local package build script:
   - `scripts/build-client-packages.ps1`
 - Provider-neutral Authenticode signing script:
@@ -3569,6 +3581,38 @@ Operator App WebView2/React first implementation on 2026-05-20:
   Result: SetupWizard tests passed 11/11, focused Shared Contracts install
   serialization tests passed 3/3, focused Platform API install endpoint tests
   passed 11/11, and the solution build passed with 0 warnings / 0 errors.
+
+- 2026-05-25: local Slice 3.2 implementation on `codex/slice-3-2`. Added the
+  single WiX `AFK4 Agent` MSI at `installers/agent/Package.wxs` and wired
+  `scripts/build-client-packages.ps1` to publish `AFK4.SetupWizard` and build
+  `afk4-agent-<version>-<channel>.msi` alongside the existing Operator App and
+  legacy Gaming PC MSI artifacts. The new MSI installs Agent Service, Setup
+  Wizard, update helpers, a Start Menu shortcut, a first-run pending marker,
+  HKLM `RunOnce`, and an interactive postinstall wizard launch attempt; the
+  wizard now sets the service to automatic startup and starts it after writing
+  bootstrap configuration. The package smoke workflow now expects the new MSI
+  artifact; packaging and onboarding runbooks, the active onboarding plan,
+  production roadmap, README, and this progress snapshot were updated. No
+  remote Package Smoke run or staging release publication was triggered
+  locally.
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter UpdateHelperScriptTests -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.SetupWizard.Tests\AFK4.SetupWizard.Tests.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  powershell -NoProfile -Command "[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/build-client-packages.ps1), [ref] `$null, [ref] `$null) | Out-Null"
+  powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.32 -Channel internal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused packaging helper tests passed 12/12, Setup Wizard tests
+  passed 11/11, and the package build produced
+  `afk4-operator-app-0.1.32-internal.msi`,
+  `afk4-agent-0.1.32-internal.msi`, and
+  `afk4-gaming-pc-0.1.32-internal.msi`. The PowerShell parser completed
+  without errors, and `git diff --check` was clean apart from expected
+  LF-to-CRLF working-copy warnings. Agent role-aware Player Shell / Operator
+  App component install remains Slice 3.3; clean Windows VM end-to-end smoke
+  remains Slice 3.4.
 
 ## Historical Reference
 

@@ -205,6 +205,13 @@ coordinated gaming-PC MSI generates two request JSON files, one for
 `agent-service` and one for `player-shell`, both pointing at the same MSI
 artifact.
 
+Slice 3.2 also builds `afk4-agent-<version>-<channel>.msi` for owner-code
+Setup Wizard onboarding. This artifact is not published by
+`scripts/publish-client-msi-updates.ps1` yet, because Agent-side role-aware
+Player Shell / Operator App component installation is still a follow-up slice.
+Until that lands, update metadata publishing continues to use the Operator App
+MSI plus the legacy coordinated gaming-PC MSI.
+
 For production-style object storage/CDN publishing:
 
 ```powershell

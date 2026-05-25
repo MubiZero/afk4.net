@@ -130,7 +130,8 @@ public sealed class SetupWizardViewModelTests
         };
         var keyStore = new RecordingDeviceKeyStore("device-public-key");
         var bootstrapWriter = new RecordingBootstrapWriter();
-        var viewModel = CreateViewModel(apiClient, keyStore, bootstrapWriter);
+        var completionAction = new RecordingCompletionAction();
+        var viewModel = CreateViewModel(apiClient, keyStore, bootstrapWriter, completionAction);
         viewModel.OwnerCode = "12345678";
         viewModel.DisplayName = "Manager desk";
         viewModel.SelectedRole = DeviceRoleNames.ManagerWorkstation;
@@ -151,6 +152,7 @@ public sealed class SetupWizardViewModelTests
         Assert.NotNull(bootstrapWriter.Config);
         Assert.Equal(apiClient.EnrollResponse.DeviceId, bootstrapWriter.Config.DeviceId);
         Assert.Equal(DeviceRoleNames.ManagerWorkstation, bootstrapWriter.Config.Role);
+        Assert.Equal(1, completionAction.CallCount);
         Assert.Equal("Enrollment pending approval in the club dashboard.", viewModel.StatusMessage);
         Assert.Equal(SetupWizardStep.Finished, viewModel.CurrentStep);
     }
@@ -158,12 +160,14 @@ public sealed class SetupWizardViewModelTests
     private static SetupWizardViewModel CreateViewModel(
         RecordingSetupWizardApiClient apiClient,
         IDeviceKeyStore? keyStore = null,
-        ISetupWizardBootstrapWriter? bootstrapWriter = null) =>
+        ISetupWizardBootstrapWriter? bootstrapWriter = null,
+        ISetupWizardCompletionAction? completionAction = null) =>
         new(
             apiClient,
             keyStore ?? new RecordingDeviceKeyStore("device-public-key"),
             bootstrapWriter ?? new RecordingBootstrapWriter(),
-            new SetupWizardMachineInfo(Environment.MachineName));
+            new SetupWizardMachineInfo(Environment.MachineName),
+            completionAction);
 
     private static InstallDiscoverResponse CreateDiscoverResponse()
     {
@@ -292,6 +296,16 @@ public sealed class SetupWizardViewModelTests
         public void Write(SetupWizardBootstrapConfig config)
         {
             Config = config;
+        }
+    }
+
+    private sealed class RecordingCompletionAction : ISetupWizardCompletionAction
+    {
+        public int CallCount { get; private set; }
+
+        public void Complete()
+        {
+            CallCount++;
         }
     }
 }

@@ -1,0 +1,122 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="AFK4 Agent"
+      Manufacturer="AFK4"
+      Version="$(var.PackageVersion)"
+      UpgradeCode="{9E6EE315-17A1-4201-A163-064102362EAA}"
+      Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4 Agent is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="AFK4RootFolder" Name="AFK4">
+        <Directory Id="AgentServiceFolder" Name="Agent Service" />
+        <Directory Id="SetupWizardFolder" Name="Setup Wizard" />
+        <Directory Id="UpdateHelperFolder" Name="Update Helpers" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AFK4ProgramsFolder" Name="AFK4" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="AFK4 Agent" Level="1">
+      <ComponentGroupRef Id="AgentServiceFiles" />
+      <ComponentGroupRef Id="SetupWizardFiles" />
+      <ComponentGroupRef Id="UpdateHelperScripts" />
+      <ComponentRef Id="AgentServiceRegistration" />
+      <ComponentRef Id="SetupWizardExecutable" />
+      <ComponentRef Id="SetupWizardRegistration" />
+      <ComponentRef Id="SetupWizardShortcut" />
+    </Feature>
+
+    <ComponentGroup Id="AgentServiceFiles" Directory="AgentServiceFolder">
+      <Files Include="$(var.AgentServiceSupportDir)\**" />
+    </ComponentGroup>
+
+    <Component Id="AgentServiceRegistration" Directory="AgentServiceFolder" Guid="{1D0F3E02-6939-4A77-B937-9888F7C89C98}">
+      <File Id="AgentServiceExe" Source="$(var.AgentServicePublishDir)\AFK4.Agent.Service.exe" KeyPath="yes" />
+      <ServiceInstall
+          Id="AgentServiceInstall"
+          Name="AFK4.Agent.Service"
+          DisplayName="AFK4 Agent Service"
+          Description="AFK4 endpoint control and update service."
+          Type="ownProcess"
+          Start="demand"
+          ErrorControl="normal"
+          Account="LocalSystem" />
+      <ServiceControl
+          Id="AgentServiceControl"
+          Name="AFK4.Agent.Service"
+          Stop="both"
+          Remove="uninstall"
+          Wait="yes" />
+      <Environment
+          Id="AgentVersionEnvironment"
+          Name="Agent__AgentVersion"
+          Value="$(var.PackageVersion)"
+          Action="set"
+          Part="all"
+          System="yes" />
+    </Component>
+
+    <ComponentGroup Id="SetupWizardFiles" Directory="SetupWizardFolder">
+      <Files Include="$(var.SetupWizardSupportDir)\**" />
+    </ComponentGroup>
+
+    <Component Id="SetupWizardExecutable" Directory="SetupWizardFolder" Guid="{403E05F1-BF7E-47F2-A785-85EC5A250461}">
+      <File Id="SetupWizardExe" Source="$(var.SetupWizardPublishDir)\AFK4.SetupWizard.exe" KeyPath="yes" />
+    </Component>
+
+    <Component Id="SetupWizardRegistration" Directory="SetupWizardFolder" Guid="{188D2198-DC3D-4B1C-8D53-9E7151226367}">
+      <RegistryValue
+          Id="AFK4SetupWizardFirstRunPending"
+          Root="HKLM"
+          Key="Software\AFK4\SetupWizard"
+          Name="FirstRunPending"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      <RegistryValue
+          Id="AFK4SetupWizardRunOnce"
+          Root="HKLM"
+          Key="Software\Microsoft\Windows\CurrentVersion\RunOnce"
+          Name="AFK4 Setup Wizard"
+          Type="string"
+          Value="&quot;[SetupWizardFolder]AFK4.SetupWizard.exe&quot;" />
+    </Component>
+
+    <Component Id="SetupWizardShortcut" Directory="AFK4ProgramsFolder" Guid="{59BDDD1E-D67F-4721-89D5-16D9D8690C94}">
+      <Shortcut
+          Id="SetupWizardStartMenuShortcut"
+          Name="AFK4 Setup Wizard"
+          Description="Enroll this PC with AFK4."
+          Target="[SetupWizardFolder]AFK4.SetupWizard.exe"
+          WorkingDirectory="SetupWizardFolder" />
+      <RemoveFolder Id="RemoveAFK4ProgramsFolder" On="uninstall" />
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\AFK4\SetupWizard"
+          Name="StartMenuShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+    </Component>
+
+    <ComponentGroup Id="UpdateHelperScripts" Directory="UpdateHelperFolder">
+      <Files Include="$(var.UpdateHelperDir)\*.ps1" />
+    </ComponentGroup>
+
+    <CustomAction
+        Id="LaunchSetupWizard"
+        FileRef="SetupWizardExe"
+        ExeCommand=""
+        Execute="immediate"
+        Return="asyncNoWait"
+        Impersonate="yes" />
+
+    <InstallExecuteSequence>
+      <Custom Action="LaunchSetupWizard" After="InstallFinalize" Condition="NOT Installed AND UILevel &gt;= 3" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

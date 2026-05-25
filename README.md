@@ -90,11 +90,13 @@ and installer adapter execution.
 
 ### Setup Wizard
 
-`src/AFK4.SetupWizard` is the first-run WPF enrollment wizard for the upcoming
-single Agent MSI flow. In Slice 3.1 it runs directly as `AFK4.SetupWizard.exe`
-against staging install APIs: owner code, branch/floor-map discovery, free-seat
-selection or seat creation, role choice, device enrollment, stable device key,
-and Agent bootstrap environment writing.
+`src/AFK4.SetupWizard` is the first-run WPF enrollment wizard for the single
+Agent MSI flow. It runs as `AFK4.SetupWizard.exe` against staging install APIs:
+owner code, branch/floor-map discovery, free-seat selection or seat creation,
+role choice, device enrollment, stable device key, and Agent bootstrap
+environment writing. Slice 3.2 packages it into the new `AFK4 Agent` MSI with
+RunOnce/start-menu launch affordances and Agent Service startup after
+successful enrollment.
 
 ### Player Shell
 
@@ -170,6 +172,11 @@ Build local MSI packages:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
 ```
+
+This produces the Operator App MSI, the new Agent + Setup Wizard onboarding
+MSI (`afk4-agent-<version>-<channel>.msi`), and the legacy coordinated
+gaming-PC MSI that remains in the staging update-smoke path until the
+role-aware component installer slices replace it.
 
 Build the staging one-click Gaming PC setup executable for clean Windows 11
 smoke VMs by supplying the committed staging session lease and update

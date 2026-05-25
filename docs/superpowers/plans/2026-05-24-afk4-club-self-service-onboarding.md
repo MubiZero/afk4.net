@@ -730,9 +730,17 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   pick a free seat, add a missing seat through the new owner-code-scoped
   `/api/install/seats` endpoint, choose `gaming_pc` or
   `manager_workstation`, enroll with a stable local device public key, and
-  write Agent bootstrap environment values. MSI authoring, postinstall launch,
-  Agent role-aware component install, and clean-VM smoke remain Slices 3.2
-  through 3.4.
+  write Agent bootstrap environment values.
+- **Slice 3.2** - completed locally on `codex/slice-3-2`: added the single
+  `afk4-agent-<version>-<channel>.msi` WiX package. The package publishes
+  `AFK4.SetupWizard`, installs Agent Service + Setup Wizard + update helper
+  scripts, adds a Start Menu shortcut, writes a first-run pending marker and
+  HKLM `RunOnce` entry, attempts interactive postinstall wizard launch, starts
+  the Agent Service after successful wizard enrollment, and is verified by the
+  local package build script. The legacy coordinated
+  `afk4-gaming-pc` MSI remains in the build/update-smoke path until Agent
+  role-aware component install and legacy deprecation land. Agent role-aware
+  component install and clean-VM smoke remain Slices 3.3 and 3.4.
 
 ## Testing
 

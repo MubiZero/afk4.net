@@ -170,7 +170,8 @@ if (-not (Test-Path -LiteralPath $operatorWebDistIndex)) {
 $projects = @(
     @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
     @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $true },
-    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $true }
+    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $true },
+    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $true }
 )
 
 foreach ($project in $projects) {
@@ -216,15 +217,22 @@ Get-ChildItem -LiteralPath $operatorWebDist -Force |
     Copy-Item -Destination $operatorWebAssetsPublishDir -Recurse -Force
 
 $agentServicePublishDir = Join-Path $publishRoot "agent-service-$Version-$Channel"
+$setupWizardPublishDir = Join-Path $publishRoot "setup-wizard-$Version-$Channel"
 $agentServiceSupportDir = Join-Path $wixInputRoot 'agent-service-support'
+$setupWizardSupportDir = Join-Path $wixInputRoot 'setup-wizard-support'
 $updateHelperDir = Join-Path $wixInputRoot 'update-helpers'
 
 New-Item -ItemType Directory -Force -Path $agentServiceSupportDir | Out-Null
+New-Item -ItemType Directory -Force -Path $setupWizardSupportDir | Out-Null
 New-Item -ItemType Directory -Force -Path $updateHelperDir | Out-Null
 
 Get-ChildItem -LiteralPath $agentServicePublishDir -File |
     Where-Object { $_.Name -ne 'AFK4.Agent.Service.exe' } |
     Copy-Item -Destination $agentServiceSupportDir -Force
+
+Get-ChildItem -LiteralPath $setupWizardPublishDir -File |
+    Where-Object { $_.Name -ne 'AFK4.SetupWizard.exe' } |
+    Copy-Item -Destination $setupWizardSupportDir -Force
 
 $updateHelperScripts = @(
     'install-afk4-update-msi.ps1',
@@ -237,6 +245,7 @@ foreach ($helperScript in $updateHelperScripts) {
 }
 
 $operatorMsiPath = Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi"
+$agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
 $gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi"
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
@@ -249,6 +258,20 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath
+
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/agent/Package.wxs') `
+    -arch x64 `
+    -d "PackageVersion=$msiVersion" `
+    -d "AgentServicePublishDir=$agentServicePublishDir" `
+    -d "AgentServiceSupportDir=$agentServiceSupportDir" `
+    -d "SetupWizardPublishDir=$setupWizardPublishDir" `
+    -d "SetupWizardSupportDir=$setupWizardSupportDir" `
+    -d "UpdateHelperDir=$updateHelperDir" `
+    -o $agentMsiPath
+
+if ($LASTEXITCODE -ne 0) {
+    throw "WiX build failed for single Agent MSI with exit code $LASTEXITCODE."
+}
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
     -arch x64 `
@@ -296,6 +319,7 @@ if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
 Write-Host "Published client package inputs under $publishRoot"
 Write-Host "MSI artifacts:"
 Write-Host $operatorMsiPath
+Write-Host $agentMsiPath
 Write-Host $gamingPcMsiPath
 
 if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {

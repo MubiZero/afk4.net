@@ -10,12 +10,14 @@ public sealed class SetupWizardViewModel(
     ISetupWizardApiClient apiClient,
     IDeviceKeyStore deviceKeyStore,
     ISetupWizardBootstrapWriter bootstrapWriter,
-    SetupWizardMachineInfo machineInfo) : INotifyPropertyChanged
+    SetupWizardMachineInfo machineInfo,
+    ISetupWizardCompletionAction? completionAction = null) : INotifyPropertyChanged
 {
     private readonly ISetupWizardApiClient apiClient = apiClient;
     private readonly IDeviceKeyStore deviceKeyStore = deviceKeyStore;
     private readonly ISetupWizardBootstrapWriter bootstrapWriter = bootstrapWriter;
     private readonly SetupWizardMachineInfo machineInfo = machineInfo;
+    private readonly ISetupWizardCompletionAction completionAction = completionAction ?? new NoOpSetupWizardCompletionAction();
     private string ownerCode = string.Empty;
     private string displayName = machineInfo.MachineName;
     private string selectedRole = DeviceRoleNames.GamingPc;
@@ -232,6 +234,7 @@ public sealed class SetupWizardViewModel(
             response.UpdateChannel,
             response.LeaseSigningPublicKeyPem,
             response.UpdatePackageSigningPublicKeyPem));
+        completionAction.Complete();
 
         StatusMessage = response.EnrollmentState == DeviceEnrollmentStateNames.Pending
             ? "Enrollment pending approval in the club dashboard."
@@ -308,3 +311,10 @@ public sealed record SetupWizardSeatViewModel(
     int SortOrder,
     string State,
     bool IsSelectable);
+
+internal sealed class NoOpSetupWizardCompletionAction : ISetupWizardCompletionAction
+{
+    public void Complete()
+    {
+    }
+}

@@ -24,6 +24,8 @@ on:
       - "src/AFK4.Player.Shell/**"
       - "src/AFK4.GamingPc.Setup/**"
       - "src/AFK4.GamingPc.Setup.Core/**"
+      - "src/AFK4.SetupWizard/**"
+      - "src/AFK4.SetupWizard.Core/**"
       - "Directory.Build.props"
       - "Directory.Packages.props"
       - "NuGet.config"
@@ -83,6 +85,7 @@ jobs:
         run: |
           $expectedArtifacts = @(
             "artifacts/client-packages/afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi",
+            "artifacts/client-packages/afk4-agent-$env:AFK4_PACKAGE_VERSION-internal.msi",
             "artifacts/client-packages/afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi"
           )
 

@@ -23,7 +23,8 @@ public partial class App : Application
             new SetupWizardApiClient(httpClient),
             new FileDeviceKeyStore(),
             new EnvironmentBootstrapWriter(machineInfo.MachineName),
-            machineInfo);
+            machineInfo,
+            new AgentServiceCompletionAction());
 
         var window = new MainWindow(viewModel);
         window.Show();

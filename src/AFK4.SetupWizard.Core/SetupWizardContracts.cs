@@ -48,3 +48,8 @@ public interface ISetupWizardBootstrapWriter
 {
     void Write(SetupWizardBootstrapConfig config);
 }
+
+public interface ISetupWizardCompletionAction
+{
+    void Complete();
+}
