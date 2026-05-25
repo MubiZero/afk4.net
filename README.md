@@ -137,7 +137,7 @@ From the repository root:
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 ```
 
-The latest recorded full verification passed 760 tests with 0 failures. See
+The latest recorded full verification passed 1049 tests with 0 failures. See
 [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) for the
 exact current verification notes.
 
@@ -174,9 +174,10 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Vers
 ```
 
 This produces the Operator App MSI, the new Agent + Setup Wizard onboarding
-MSI (`afk4-agent-<version>-<channel>.msi`), and the legacy coordinated
-gaming-PC MSI that remains in the staging update-smoke path until the
-role-aware component installer slices replace it.
+MSI (`afk4-agent-<version>-<channel>.msi`), the standalone Player Shell MSI
+(`afk4-player-shell-<version>-<channel>.msi`), and the legacy coordinated
+gaming-PC MSI that remains only for staging bootstrap compatibility until the
+clean-VM smoke and deprecation slices replace it.
 
 Build the staging one-click Gaming PC setup executable for clean Windows 11
 smoke VMs by supplying the committed staging session lease and update

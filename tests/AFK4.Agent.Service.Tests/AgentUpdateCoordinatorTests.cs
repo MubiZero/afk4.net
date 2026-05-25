@@ -1,5 +1,6 @@
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Updates;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -95,17 +96,41 @@ public sealed class AgentUpdateCoordinatorTests
     }
 
     [Fact]
-    public void AgentComponentVersionProvider_ReturnsAgentAndShellVersions()
+    public void AgentComponentVersionProvider_ReturnsAgentAndPlayerShellVersionsForGamingPcRole()
     {
-        var provider = new AgentComponentVersionProvider(Options.Create(CreateOptions()));
+        var provider = new AgentComponentVersionProvider(Options.Create(
+            CreateOptions(
+                DeviceRoleNames.GamingPc,
+                shellVersion: "1.2.1",
+                operatorAppVersion: "9.9.9")));
 
         var components = provider.GetInstalledComponents();
 
         Assert.Contains(components, component => component.Component == UpdateComponentNames.AgentService && component.Version == "1.2.2");
         Assert.Contains(components, component => component.Component == UpdateComponentNames.PlayerShell && component.Version == "1.2.1");
+        Assert.DoesNotContain(components, component => component.Component == UpdateComponentNames.OperatorApp);
     }
 
-    private static AgentOptions CreateOptions()
+    [Fact]
+    public void AgentComponentVersionProvider_ReturnsAgentAndOperatorAppVersionsForManagerWorkstationRole()
+    {
+        var provider = new AgentComponentVersionProvider(Options.Create(
+            CreateOptions(
+                DeviceRoleNames.ManagerWorkstation,
+                shellVersion: "9.9.9",
+                operatorAppVersion: "1.2.4")));
+
+        var components = provider.GetInstalledComponents();
+
+        Assert.Contains(components, component => component.Component == UpdateComponentNames.AgentService && component.Version == "1.2.2");
+        Assert.Contains(components, component => component.Component == UpdateComponentNames.OperatorApp && component.Version == "1.2.4");
+        Assert.DoesNotContain(components, component => component.Component == UpdateComponentNames.PlayerShell);
+    }
+
+    private static AgentOptions CreateOptions(
+        string deviceRole = DeviceRoleNames.GamingPc,
+        string shellVersion = "1.2.1",
+        string operatorAppVersion = "")
     {
         return new AgentOptions
         {
@@ -113,7 +138,9 @@ public sealed class AgentUpdateCoordinatorTests
             BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
             DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
             AgentVersion = "1.2.2",
-            ShellVersion = "1.2.1"
+            ShellVersion = shellVersion,
+            DeviceRole = deviceRole,
+            OperatorAppVersion = operatorAppVersion
         };
     }
 

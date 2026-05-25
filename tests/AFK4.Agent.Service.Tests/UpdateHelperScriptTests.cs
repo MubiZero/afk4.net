@@ -24,6 +24,21 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
+    public void InstallUpdateMsiScript_InstallsWebView2PrerequisiteBeforeOperatorAppMsi()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "install-afk4-update-msi.ps1");
+        var script = File.ReadAllText(scriptPath);
+
+        Assert.Contains("Test-WebView2RuntimeInstalled", script, StringComparison.Ordinal);
+        Assert.Contains("Install-WebView2Runtime", script, StringComparison.Ordinal);
+        Assert.Contains("$Component -eq 'operator-app'", script, StringComparison.Ordinal);
+        Assert.Contains(@"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", script, StringComparison.Ordinal);
+        Assert.Contains("MicrosoftEdgeWebView2Setup.exe", script, StringComparison.Ordinal);
+        Assert.Contains("/silent", script, StringComparison.Ordinal);
+        Assert.Contains("/install", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ClientPackageBuildScript_ExplicitlyAcceptsWix7EulaForCiBuilds()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
@@ -61,6 +76,20 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
+    public void ClientPackageBuildScript_BuildsStandalonePlayerShellMsi()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
+        var script = File.ReadAllText(scriptPath);
+        var playerShellBuild = script[
+            script.IndexOf("installers/player-shell/Package.wxs", StringComparison.Ordinal)..];
+
+        Assert.Contains("afk4-player-shell-$Version-$Channel.msi", script, StringComparison.Ordinal);
+        Assert.Contains("-arch x64", playerShellBuild, StringComparison.Ordinal);
+        Assert.Contains("-d \"PlayerShellPublishDir=$(Join-Path $publishRoot \"player-shell-$Version-$Channel\")\"", playerShellBuild, StringComparison.Ordinal);
+        Assert.Contains("Write-Host $playerShellMsiPath", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ClientPackageBuildScript_BuildsAndPublishesOperatorFrontendAssets()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
@@ -81,6 +110,7 @@ public sealed class UpdateHelperScriptTests
 
     [Theory]
     [InlineData("installers/operator-app/Package.wxs")]
+    [InlineData("installers/player-shell/Package.wxs")]
     [InlineData("installers/gaming-pc/Package.wxs")]
     [InlineData("installers/agent/Package.wxs")]
     public void WixPackages_DoNotUseUnsupportedFilesExcludeAttribute(string packagePath)
@@ -113,6 +143,20 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
+    public void PlayerShellWixPackage_InstallsShellAndWritesAgentShellConfiguration()
+    {
+        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "player-shell", "Package.wxs");
+        var package = File.ReadAllText(packagePath);
+
+        Assert.Contains("Name=\"AFK4 Player Shell\"", package, StringComparison.Ordinal);
+        Assert.Contains("$(var.PlayerShellPublishDir)", package, StringComparison.Ordinal);
+        Assert.Contains("AFK4.Player.Shell.exe", package, StringComparison.Ordinal);
+        Assert.Contains("Agent__ShellVersion", package, StringComparison.Ordinal);
+        Assert.Contains("Agent__PlayerShellExecutablePath", package, StringComparison.Ordinal);
+        Assert.Contains("Agent__PlayerShellAutoStartEnabled", package, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void OperatorAppWixPackage_RequiresWebView2Runtime()
     {
         var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "operator-app", "Package.wxs");
@@ -126,6 +170,16 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
         Assert.Contains("WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;", package, StringComparison.Ordinal);
         Assert.Contains("Microsoft Edge WebView2 Runtime is required.", package, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorAppWixPackage_WritesAgentOperatorAppVersion()
+    {
+        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "operator-app", "Package.wxs");
+        var package = File.ReadAllText(packagePath);
+
+        Assert.Contains("Agent__OperatorAppVersion", package, StringComparison.Ordinal);
+        Assert.Contains("Value=\"$(var.PackageVersion)\"", package, StringComparison.Ordinal);
     }
 
     private static string GetRepositoryRoot()

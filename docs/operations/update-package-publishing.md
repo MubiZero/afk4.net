@@ -1,7 +1,7 @@
 # Update Package Publishing Runbook
 
-Status: Phase 10 production-hosting boundary runbook
-Last updated: 2026-05-18
+Status: Slice 3.3 role-aware MSI publishing runbook
+Last updated: 2026-05-25
 
 ## Purpose
 
@@ -200,17 +200,12 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
   -ReleaseNotes "Internal MSI validation build."
 ```
 
-The Operator App MSI generates one request JSON for `operator-app`. The
-coordinated gaming-PC MSI generates two request JSON files, one for
-`agent-service` and one for `player-shell`, both pointing at the same MSI
-artifact.
-
-Slice 3.2 also builds `afk4-agent-<version>-<channel>.msi` for owner-code
-Setup Wizard onboarding. This artifact is not published by
-`scripts/publish-client-msi-updates.ps1` yet, because Agent-side role-aware
-Player Shell / Operator App component installation is still a follow-up slice.
-Until that lands, update metadata publishing continues to use the Operator App
-MSI plus the legacy coordinated gaming-PC MSI.
+The Operator App MSI generates one request JSON for `operator-app`, the Agent
+MSI generates one request JSON for `agent-service`, and the standalone Player
+Shell MSI generates one request JSON for `player-shell`. The legacy coordinated
+gaming-PC MSI is still built for staging bootstrap compatibility, but
+`scripts/publish-client-msi-updates.ps1` no longer uses it for update package
+metadata.
 
 For production-style object storage/CDN publishing:
 
@@ -226,13 +221,15 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
   -ArtifactStore http-put `
   -OperatorArtifactUploadUri "https://storage-provider.example/operator-upload-token" `
   -OperatorArtifactPublicUri "https://cdn.afk4.example/operator-app/stable/1.2.3/afk4-operator-app-1.2.3-stable.msi" `
-  -GamingPcArtifactUploadUri "https://storage-provider.example/gaming-pc-upload-token" `
-  -GamingPcArtifactPublicUri "https://cdn.afk4.example/gaming-pc/stable/1.2.3/afk4-gaming-pc-1.2.3-stable.msi" `
+  -AgentArtifactUploadUri "https://storage-provider.example/agent-upload-token" `
+  -AgentArtifactPublicUri "https://cdn.afk4.example/agent/stable/1.2.3/afk4-agent-1.2.3-stable.msi" `
+  -PlayerShellArtifactUploadUri "https://storage-provider.example/player-shell-upload-token" `
+  -PlayerShellArtifactPublicUri "https://cdn.afk4.example/player-shell/stable/1.2.3/afk4-player-shell-1.2.3-stable.msi" `
   -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
   -ReleaseNotes "Stable Windows client release."
 ```
 
-For staging MinIO, publish both MSI artifacts with:
+For staging MinIO, publish the role-aware MSI artifacts with:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 `
@@ -244,7 +241,7 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
   -ArtifactStore s3 `
   -S3Endpoint https://updates.afk4.staging.mubi.dev `
   -S3Bucket afk4-updates-staging `
-  -S3PublicBaseUri https://updates.afk4.staging.mubi.dev/afk4-updates-staging/ `
+  -PublicBaseUri https://updates.afk4.staging.mubi.dev/afk4-updates-staging/ `
   -S3AccessKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY `
   -S3SecretKeyEnvVar AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY `
   -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `

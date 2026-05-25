@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.EntityFrameworkCore;
 
@@ -331,16 +332,17 @@ public sealed class EfUpdateService(
             return UpdateServiceResult<DeviceUpdateCheckResponse>.Invalid("Unsupported update channel.");
         }
 
-        var deviceExists = await dbContext.Devices
+        var deviceRole = await dbContext.Devices
             .AsNoTracking()
-            .AnyAsync(
+            .Where(
                 device =>
                     device.OrganizationId == request.OrganizationId &&
                     device.BranchId == request.BranchId &&
-                    device.DeviceId == request.DeviceId,
-                cancellationToken);
+                    device.DeviceId == request.DeviceId)
+            .Select(device => device.Role)
+            .SingleOrDefaultAsync(cancellationToken);
 
-        if (!deviceExists)
+        if (deviceRole is null)
         {
             return UpdateServiceResult<DeviceUpdateCheckResponse>.Missing("Device was not found.");
         }
@@ -383,6 +385,11 @@ public sealed class EfUpdateService(
         foreach (var rollout in eligibleRollouts.OrderBy(rollout => rollout.CreatedAtUtc))
         {
             if (!packages.TryGetValue(rollout.UpdatePackageId, out var package))
+            {
+                continue;
+            }
+
+            if (!IsComponentEligibleForDeviceRole(package.Component, deviceRole))
             {
                 continue;
             }
@@ -763,6 +770,17 @@ public sealed class EfUpdateService(
             UpdateComponentNames.OperatorApp or
             UpdateComponentNames.AgentService or
             UpdateComponentNames.PlayerShell;
+    }
+
+    private static bool IsComponentEligibleForDeviceRole(string component, string deviceRole)
+    {
+        return component switch
+        {
+            UpdateComponentNames.AgentService => true,
+            UpdateComponentNames.PlayerShell => deviceRole == DeviceRoleNames.GamingPc,
+            UpdateComponentNames.OperatorApp => deviceRole == DeviceRoleNames.ManagerWorkstation,
+            _ => false
+        };
     }
 
     private static bool IsSupportedChannel(string channel)

@@ -1,0 +1,57 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="AFK4 Player Shell"
+      Manufacturer="AFK4"
+      Version="$(var.PackageVersion)"
+      UpgradeCode="{A234E9ED-8992-4852-9A27-C39D1F46D35A}"
+      Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4 Player Shell is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="AFK4RootFolder" Name="AFK4">
+        <Directory Id="PlayerShellFolder" Name="Player Shell" />
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="AFK4 Player Shell" Level="1">
+      <ComponentGroupRef Id="PlayerShellFiles" />
+      <ComponentRef Id="PlayerShellAgentConfiguration" />
+    </Feature>
+
+    <ComponentGroup Id="PlayerShellFiles" Directory="PlayerShellFolder">
+      <Files Include="$(var.PlayerShellPublishDir)\**" />
+    </ComponentGroup>
+
+    <Component Id="PlayerShellAgentConfiguration" Directory="PlayerShellFolder" Guid="{38511F7D-8B7A-45F4-B97D-7FA6E850918E}">
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\AFK4\PlayerShell"
+          Name="Installed"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      <Environment
+          Id="ShellVersionEnvironment"
+          Name="Agent__ShellVersion"
+          Value="$(var.PackageVersion)"
+          Action="set"
+          Part="all"
+          System="yes" />
+      <Environment
+          Id="PlayerShellExecutablePathEnvironment"
+          Name="Agent__PlayerShellExecutablePath"
+          Value="[PlayerShellFolder]AFK4.Player.Shell.exe"
+          Action="set"
+          Part="all"
+          System="yes" />
+      <Environment
+          Id="PlayerShellAutoStartEnvironment"
+          Name="Agent__PlayerShellAutoStartEnabled"
+          Value="true"
+          Action="set"
+          Part="all"
+          System="yes" />
+    </Component>
+  </Package>
+</Wix>

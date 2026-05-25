@@ -1,6 +1,6 @@
 # Agent Installer Enrollment Runbook
 
-Status: Slice 3.2 Setup Wizard MSI runbook
+Status: Slice 3.3 role-aware Setup Wizard MSI runbook
 Last updated: 2026-05-25
 
 ## Purpose
@@ -8,8 +8,8 @@ Last updated: 2026-05-25
 This runbook describes the current MVP bootstrap flow for a Windows endpoint.
 The default onboarding artifact is now the WiX-built `AFK4 Agent` MSI. It
 installs the Agent Service and WPF Setup Wizard; Player Shell and Operator App
-are intentionally not bundled in this MSI and will be pulled by the Agent in
-the role-aware component installer slices.
+are intentionally not bundled in this MSI and are pulled by the Agent from the
+update channel according to the enrolled device role.
 
 ## Preconditions
 
@@ -54,15 +54,26 @@ the role-aware component installer slices.
    - `Agent:DeviceId`;
    - `Agent:DeviceRole`;
    - `Agent:UpdateChannel`;
+   - update helper install/rollback/restart commands;
+   - Player Shell executable path for `gaming_pc` supervision;
    - lease and update verification public keys.
 11. After writing bootstrap configuration, the wizard switches
     `AFK4.Agent.Service` to automatic startup and starts it. Then verify
     heartbeat succeeds and the device appears in the customer dashboard/device
     workflow.
+12. On its update loop the Agent requests role-compatible update packages:
+    `gaming_pc` devices install `player-shell`, and `manager_workstation`
+    devices install `operator-app`. Operator App installation checks for the
+    Microsoft Edge WebView2 Runtime first and runs the Evergreen bootstrapper
+    before the MSI when the runtime is missing.
+13. After installing Agent Service, Player Shell, or Operator App components,
+    the update helper schedules an Agent Service restart so new machine
+    environment values, component versions, and Shell executable paths are
+    loaded by the running service.
 
 The legacy PC enrollment code path and coordinated `afk4-gaming-pc` MSI remain
-available for staging smoke until the new Agent role-aware component installer
-and clean-VM smoke slices replace them.
+available for staging smoke until the clean-VM smoke and deprecation slices
+replace them.
 
 ## Safety Rules
 

@@ -54,8 +54,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "PublicBaseUri");
         AssertParameter(ast, "OperatorArtifactUploadUri");
         AssertParameter(ast, "OperatorArtifactPublicUri");
-        AssertParameter(ast, "GamingPcArtifactUploadUri");
-        AssertParameter(ast, "GamingPcArtifactPublicUri");
+        AssertParameter(ast, "AgentArtifactUploadUri");
+        AssertParameter(ast, "AgentArtifactPublicUri");
+        AssertParameter(ast, "PlayerShellArtifactUploadUri");
+        AssertParameter(ast, "PlayerShellArtifactPublicUri");
         AssertParameter(ast, "S3Endpoint");
         AssertParameter(ast, "S3Bucket");
         AssertParameter(ast, "S3KeyPrefix");
@@ -505,8 +507,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("INPUT_S3_BUCKET: ${{ inputs.s3_bucket }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
-        Assert.Contains("INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
-        Assert.Contains("INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_AGENT_ARTIFACT_UPLOAD_URI: ${{ inputs.agent_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_AGENT_ARTIFACT_PUBLIC_URI: ${{ inputs.agent_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI: ${{ inputs.player_shell_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI: ${{ inputs.player_shell_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("$env:INPUT_VERSION", publishStep, StringComparison.Ordinal);
         Assert.Contains("$env:INPUT_CHANNEL", publishStep, StringComparison.Ordinal);
         Assert.Contains("$env:INPUT_ORGANIZATION_ID", publishStep, StringComparison.Ordinal);
@@ -596,6 +600,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("LeaseSigningPublicKeyPath deploy/coolify/staging-session-signing-public.pem", workflow, StringComparison.Ordinal);
         Assert.Contains("UpdateSigningPublicKeyPath deploy/coolify/staging-update-signing-public.pem", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-agent-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-player-shell-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("afk4-gaming-pc-setup-$env:AFK4_PACKAGE_VERSION-internal.exe", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("$env:GITHUB_RUN_NUMBER-ci", workflow, StringComparison.Ordinal);
@@ -716,9 +722,11 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
         var operatorMsi = Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi");
-        var gamingPcMsi = Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.3-internal.msi");
+        var agentMsi = Path.Combine(packageDirectory, "afk4-agent-1.2.3-internal.msi");
+        var playerShellMsi = Path.Combine(packageDirectory, "afk4-player-shell-1.2.3-internal.msi");
         File.WriteAllText(operatorMsi, "operator");
-        File.WriteAllText(gamingPcMsi, "gaming-pc");
+        File.WriteAllText(agentMsi, "agent");
+        File.WriteAllText(playerShellMsi, "player-shell");
         var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-args.log");
         var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
         var signingKeyPath = Path.Combine(tempRoot, "update-signing-key.pem");
@@ -752,7 +760,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--signing-key|" + signingKeyPath, invocation, StringComparison.Ordinal));
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--release-notes|Internal MSI release.", invocation, StringComparison.Ordinal));
         Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + operatorMsi, StringComparison.Ordinal)));
-        Assert.Equal(2, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + gamingPcMsi, StringComparison.Ordinal)));
+        Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + agentMsi, StringComparison.Ordinal)));
+        Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + playerShellMsi, StringComparison.Ordinal)));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("operator-app-1.2.3-internal-request.json", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("agent-service-1.2.3-internal-request.json", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("player-shell-1.2.3-internal-request.json", StringComparison.Ordinal));
@@ -767,9 +776,11 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
         var operatorMsi = Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-beta.msi");
-        var gamingPcMsi = Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.3-beta.msi");
+        var agentMsi = Path.Combine(packageDirectory, "afk4-agent-1.2.3-beta.msi");
+        var playerShellMsi = Path.Combine(packageDirectory, "afk4-player-shell-1.2.3-beta.msi");
         File.WriteAllText(operatorMsi, "operator");
-        File.WriteAllText(gamingPcMsi, "gaming-pc");
+        File.WriteAllText(agentMsi, "agent");
+        File.WriteAllText(playerShellMsi, "player-shell");
         var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-http-put-args.log");
         var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
 
@@ -784,8 +795,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             "-ArtifactStore", "http-put",
             "-OperatorArtifactUploadUri", "https://upload.afk4.test/operator",
             "-OperatorArtifactPublicUri", "https://cdn.afk4.test/operator.msi",
-            "-GamingPcArtifactUploadUri", "https://upload.afk4.test/gaming-pc",
-            "-GamingPcArtifactPublicUri", "https://cdn.afk4.test/gaming-pc.msi",
+            "-AgentArtifactUploadUri", "https://upload.afk4.test/agent",
+            "-AgentArtifactPublicUri", "https://cdn.afk4.test/agent.msi",
+            "-PlayerShellArtifactUploadUri", "https://upload.afk4.test/player-shell",
+            "-PlayerShellArtifactPublicUri", "https://cdn.afk4.test/player-shell.msi",
             "-SigningKeyEnvVar", "AFK4_UPDATE_SIGNING_PRIVATE_KEY",
             "-ReleaseNotes", "Beta MSI release.",
             "-DotnetPath", fakeDotnetPath);
@@ -801,12 +814,15 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/operator", operatorInvocation, StringComparison.Ordinal);
         Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/operator.msi", operatorInvocation, StringComparison.Ordinal);
 
-        foreach (var component in new[] { "agent-service", "player-shell" })
-        {
-            var invocation = Assert.Single(dotnetInvocations, candidate => candidate.Contains("--component|" + component, StringComparison.Ordinal));
-            Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/gaming-pc", invocation, StringComparison.Ordinal);
-            Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/gaming-pc.msi", invocation, StringComparison.Ordinal);
-        }
+        var agentInvocation = Assert.Single(dotnetInvocations, candidate => candidate.Contains("--component|agent-service", StringComparison.Ordinal));
+        Assert.Contains("--artifact|" + agentMsi, agentInvocation, StringComparison.Ordinal);
+        Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/agent", agentInvocation, StringComparison.Ordinal);
+        Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/agent.msi", agentInvocation, StringComparison.Ordinal);
+
+        var playerShellInvocation = Assert.Single(dotnetInvocations, candidate => candidate.Contains("--component|player-shell", StringComparison.Ordinal));
+        Assert.Contains("--artifact|" + playerShellMsi, playerShellInvocation, StringComparison.Ordinal);
+        Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/player-shell", playerShellInvocation, StringComparison.Ordinal);
+        Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/player-shell.msi", playerShellInvocation, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -818,7 +834,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.4-internal.msi"), "operator");
-        File.WriteAllText(Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.4-internal.msi"), "gaming-pc");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-agent-1.2.4-internal.msi"), "agent");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-player-shell-1.2.4-internal.msi"), "player-shell");
         var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-s3-args.log");
         var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
 
@@ -862,7 +879,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi"), "operator");
-        File.WriteAllText(Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.3-internal.msi"), "gaming-pc");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-agent-1.2.3-internal.msi"), "agent");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-player-shell-1.2.3-internal.msi"), "player-shell");
         var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(Path.Combine(tempRoot, "dotnet-failure-args.log"), exitCode: 23);
         var signingKeyPath = Path.Combine(tempRoot, "update-signing-key.pem");
         File.WriteAllText(signingKeyPath, "pem");
@@ -928,7 +946,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi"), "operator");
-        File.WriteAllText(Path.Combine(packageDirectory, "afk4-gaming-pc-1.2.3-internal.msi"), "gaming-pc");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-agent-1.2.3-internal.msi"), "agent");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-player-shell-1.2.3-internal.msi"), "player-shell");
         var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-relative-uri-args.log");
         var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(dotnetArgumentsPath);
         var signingKeyPath = Path.Combine(tempRoot, "update-signing-key.pem");

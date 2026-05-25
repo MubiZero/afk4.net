@@ -1,6 +1,6 @@
 # Client Packaging Runbook
 
-Status: Slice 3.2 Windows client packaging runbook
+Status: Slice 3.3 Windows client packaging runbook
 Last updated: 2026-05-25
 
 ## Purpose
@@ -30,10 +30,14 @@ AFK4 uses WiX-authored MSI packages as the MVP packaging baseline:
   to automatic startup and starts it after successful enrollment. It does not
   carry Player Shell or Operator App payloads.
 - Operator App has its own MSI.
+- Player Shell has its own MSI for `gaming_pc` devices. It installs the Shell
+  and writes the Agent machine environment values needed to report
+  `player-shell` version and supervise the Shell executable.
+- Agent, Player Shell, and Operator App component installs schedule an Agent
+  Service restart so machine environment values written by MSIs are reloaded.
 - The older coordinated gaming-PC MSI that contains Agent Service and Player
-  Shell remains in the package build and staging update smoke path until the
-  Slice 3.3 role-aware component installer and Slice 3.5 legacy deprecation
-  work retire it.
+  Shell remains in the package build and staging bootstrap path until Slice
+  3.4 clean-VM smoke passes and Slice 3.5 retires it.
 - MSIX is deferred as a future optional Operator App distribution channel.
 
 This matches the current runtime model: the Agent is an elevated Windows
@@ -130,14 +134,15 @@ Expected MSI artifact names:
 ```text
 afk4-operator-app-<version>-<channel>.msi
 afk4-agent-<version>-<channel>.msi
+afk4-player-shell-<version>-<channel>.msi
 afk4-gaming-pc-<version>-<channel>.msi
 ```
 
 `afk4-agent-<version>-<channel>.msi` is the new owner-code Setup Wizard
-onboarding artifact. `scripts/publish-client-msi-updates.ps1` still publishes
-update metadata for the Operator App MSI and the legacy coordinated
-gaming-PC MSI only; switching Agent update rollouts to the new agent-only MSI
-belongs with the role-aware component install/deprecation slices.
+onboarding artifact. `scripts/publish-client-msi-updates.ps1` now publishes
+role-aware update metadata from the Operator App MSI, Agent MSI, and Player
+Shell MSI. The legacy `afk4-gaming-pc` MSI is still built for the old staging
+bootstrap path but is no longer used for generated update package metadata.
 
 ## Authenticode Signing
 

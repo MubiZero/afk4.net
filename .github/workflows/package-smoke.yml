@@ -86,6 +86,7 @@ jobs:
           $expectedArtifacts = @(
             "artifacts/client-packages/afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi",
             "artifacts/client-packages/afk4-agent-$env:AFK4_PACKAGE_VERSION-internal.msi",
+            "artifacts/client-packages/afk4-player-shell-$env:AFK4_PACKAGE_VERSION-internal.msi",
             "artifacts/client-packages/afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi"
           )
 

@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Install;
+
 namespace AFK4.Agent.Service;
 
 public sealed class AgentOptions
@@ -14,7 +16,11 @@ public sealed class AgentOptions
 
     public string AgentVersion { get; init; } = "0.1.0";
 
-    public string ShellVersion { get; init; } = "0.1.0";
+    public string ShellVersion { get; init; } = string.Empty;
+
+    public string OperatorAppVersion { get; init; } = string.Empty;
+
+    public string DeviceRole { get; init; } = DeviceRoleNames.GamingPc;
 
     public string DeviceCredentialSecret { get; init; } = string.Empty;
 

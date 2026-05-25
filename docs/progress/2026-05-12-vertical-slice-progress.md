@@ -453,7 +453,17 @@ implementation evidence are needed.
   demand-start so it does not run before wizard enrollment writes bootstrap
   configuration; after successful enrollment the wizard switches it to
   automatic startup and starts it. Player Shell and Operator App are not
-  included in this MSI; Agent role-aware component install remains Slice 3.3.
+  included in this MSI.
+- Slice 3.3 adds role-aware component installation through the existing update
+  channel. The wizard writes the Agent role and update-helper configuration,
+  the Agent reports installed `player-shell` only for `gaming_pc` and
+  `operator-app` only for `manager_workstation`, and backend update checks
+  filter role-specific component rollouts using the persisted device role.
+  A standalone Player Shell MSI now exists, Operator App MSI writes its Agent
+  component version marker, and the MSI helper installs WebView2 before
+  Operator App when the runtime is missing. Agent restarts are scheduled after
+  Agent, Player Shell, and Operator App component installs so the service
+  reloads machine environment values written by those MSIs.
 
 ### Player Shell
 
@@ -467,8 +477,10 @@ implementation evidence are needed.
 - WiX/MSI baseline:
   - Agent onboarding MSI for Agent Service + Setup Wizard.
   - Operator App MSI.
+  - Standalone Player Shell MSI for Agent-pulled `gaming_pc` component
+    installation.
   - Legacy coordinated gaming-PC MSI for Agent Service + Player Shell, kept
-    until role-aware install and deprecation slices replace it.
+    until clean-VM smoke and deprecation slices replace it.
 - Local package build script:
   - `scripts/build-client-packages.ps1`
 - Provider-neutral Authenticode signing script:
@@ -3613,6 +3625,54 @@ Operator App WebView2/React first implementation on 2026-05-20:
   LF-to-CRLF working-copy warnings. Agent role-aware Player Shell / Operator
   App component install remains Slice 3.3; clean Windows VM end-to-end smoke
   remains Slice 3.4.
+
+- 2026-05-25: local Slice 3.3 implementation on `codex/slice-3-3`. Added
+  Agent role-aware component selection for the update loop: Agent options now
+  include `DeviceRole` and `OperatorAppVersion`, installed component reporting
+  is role-specific, and Platform API update checks filter `player-shell` and
+  `operator-app` rollouts by the persisted device role. Added a standalone
+  `AFK4 Player Shell` MSI, Operator App MSI component-version environment
+  marker, package build output for `afk4-player-shell-<version>-<channel>.msi`,
+  and update metadata publishing from separate Operator App, Agent, and Player
+  Shell MSI artifacts instead of the legacy coordinated gaming-PC MSI. The
+  Setup Wizard now writes update helper command configuration during
+  enrollment, and `install-afk4-update-msi.ps1` checks/installs Microsoft Edge
+  WebView2 before applying the Operator App MSI. Agent Service restarts are now
+  scheduled after Agent, Player Shell, and Operator App component installs so
+  the running service reloads component versions and executable paths written
+  to machine environment variables. Clean Windows VM end-to-end owner-code
+  smoke remains Slice 3.4; the legacy gaming-PC MSI still builds for staging
+  bootstrap compatibility until Slice 3.5 deprecation.
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "AgentComponentVersionProvider" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "CheckForUpdatesAsync_FiltersRoleSpecificComponentRolloutsForDeviceRole" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "UpdateHelperScriptTests|PublishClientMsiUpdates" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.SetupWizard.Tests\AFK4.SetupWizard.Tests.csproj --filter "EnvironmentBootstrapWriterTests" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.SetupWizard.Tests\AFK4.SetupWizard.Tests.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "EfUpdateServiceTests|UpdateEndpointTests" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  powershell -NoProfile -Command "[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/build-client-packages.ps1), [ref] `$null, [ref] `$null) | Out-Null"
+  powershell -NoProfile -Command "[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/publish-client-msi-updates.ps1), [ref] `$null, [ref] `$null) | Out-Null"
+  powershell -NoProfile -Command "[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/install-afk4-update-msi.ps1), [ref] `$null, [ref] `$null) | Out-Null"
+  powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.34 -Channel internal
+  & 'C:\Program Files\dotnet\dotnet.exe' build .\AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\AFK4.sln --no-restore -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused Agent component-version tests passed 2/2, focused Platform
+  API role-filter test passed 1/1, packaging/release automation tests passed
+  23/23, Setup Wizard bootstrap writer test passed 1/1, full Agent Service
+  tests passed 152/152, Setup Wizard tests passed 11/11, focused Platform API
+  update tests passed 30/30, PowerShell parser checks completed without
+  errors, package build produced `afk4-operator-app-0.1.34-internal.msi`,
+  `afk4-agent-0.1.34-internal.msi`,
+  `afk4-player-shell-0.1.34-internal.msi`, and
+  `afk4-gaming-pc-0.1.34-internal.msi`, solution build passed with
+  0 warnings / 0 errors, full solution tests passed 1049/1049, and
+  `git diff --check` was clean apart from expected LF-to-CRLF working-copy
+  warnings.
 
 ## Historical Reference
 

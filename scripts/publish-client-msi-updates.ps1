@@ -24,9 +24,13 @@ param(
 
     [uri] $OperatorArtifactPublicUri,
 
-    [uri] $GamingPcArtifactUploadUri,
+    [uri] $AgentArtifactUploadUri,
 
-    [uri] $GamingPcArtifactPublicUri,
+    [uri] $AgentArtifactPublicUri,
+
+    [uri] $PlayerShellArtifactUploadUri,
+
+    [uri] $PlayerShellArtifactPublicUri,
 
     [uri] $S3Endpoint,
 
@@ -254,7 +258,8 @@ $resolvedPackageDirectory = Require-Directory $PackageDirectory 'Package directo
 $resolvedOutputDirectory = Resolve-OutputDirectory $OutputDirectory
 
 $operatorMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-operator-app-$Version-$Channel.msi") 'Operator App MSI'
-$gamingPcMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-gaming-pc-$Version-$Channel.msi") 'Gaming-PC MSI'
+$agentMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-agent-$Version-$Channel.msi") 'Agent MSI'
+$playerShellMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-player-shell-$Version-$Channel.msi") 'Player Shell MSI'
 
 $usingSigningKeyPath = -not [string]::IsNullOrWhiteSpace($SigningKeyPath)
 $usingSigningKeyEnvVar = -not [string]::IsNullOrWhiteSpace($SigningKeyEnvVar)
@@ -280,8 +285,10 @@ if ($ArtifactStore -eq 'file-system') {
 elseif ($ArtifactStore -eq 'http-put') {
     Require-AbsoluteUri $OperatorArtifactUploadUri 'OperatorArtifactUploadUri' 'OperatorArtifactUploadUri is required when ArtifactStore is http-put.'
     Require-AbsoluteUri $OperatorArtifactPublicUri 'OperatorArtifactPublicUri' 'OperatorArtifactPublicUri is required when ArtifactStore is http-put.'
-    Require-AbsoluteUri $GamingPcArtifactUploadUri 'GamingPcArtifactUploadUri' 'GamingPcArtifactUploadUri is required when ArtifactStore is http-put.'
-    Require-AbsoluteUri $GamingPcArtifactPublicUri 'GamingPcArtifactPublicUri' 'GamingPcArtifactPublicUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $AgentArtifactUploadUri 'AgentArtifactUploadUri' 'AgentArtifactUploadUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $AgentArtifactPublicUri 'AgentArtifactPublicUri' 'AgentArtifactPublicUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $PlayerShellArtifactUploadUri 'PlayerShellArtifactUploadUri' 'PlayerShellArtifactUploadUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $PlayerShellArtifactPublicUri 'PlayerShellArtifactPublicUri' 'PlayerShellArtifactPublicUri is required when ArtifactStore is http-put.'
 }
 else {
     Require-AbsoluteUri $S3Endpoint 'S3Endpoint' 'S3Endpoint is required when ArtifactStore is s3.'
@@ -315,17 +322,17 @@ $requests = @(
     },
     [pscustomobject]@{
         Component = 'agent-service'
-        ArtifactPath = $gamingPcMsi
+        ArtifactPath = $agentMsi
         RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "agent-service-$Version-$Channel-request.json") 'Update package request path'
-        ArtifactUploadUri = $GamingPcArtifactUploadUri
-        ArtifactPublicUri = $GamingPcArtifactPublicUri
+        ArtifactUploadUri = $AgentArtifactUploadUri
+        ArtifactPublicUri = $AgentArtifactPublicUri
     },
     [pscustomobject]@{
         Component = 'player-shell'
-        ArtifactPath = $gamingPcMsi
+        ArtifactPath = $playerShellMsi
         RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "player-shell-$Version-$Channel-request.json") 'Update package request path'
-        ArtifactUploadUri = $GamingPcArtifactUploadUri
-        ArtifactPublicUri = $GamingPcArtifactPublicUri
+        ArtifactUploadUri = $PlayerShellArtifactUploadUri
+        ArtifactPublicUri = $PlayerShellArtifactPublicUri
     }
 )
 

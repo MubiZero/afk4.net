@@ -36,10 +36,28 @@
 
     <Feature Id="MainFeature" Title="AFK4 Operator App" Level="1">
       <ComponentGroupRef Id="OperatorAppFiles" />
+      <ComponentRef Id="OperatorAppAgentConfiguration" />
     </Feature>
 
     <ComponentGroup Id="OperatorAppFiles" Directory="OperatorAppFolder">
       <Files Include="$(var.OperatorAppPublishDir)\**" />
     </ComponentGroup>
+
+    <Component Id="OperatorAppAgentConfiguration" Directory="OperatorAppFolder" Guid="{17688042-51F4-47C6-894C-E70A2CC2611F}">
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\AFK4\OperatorApp"
+          Name="Installed"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      <Environment
+          Id="OperatorAppVersionEnvironment"
+          Name="Agent__OperatorAppVersion"
+          Value="$(var.PackageVersion)"
+          Action="set"
+          Part="all"
+          System="yes" />
+    </Component>
   </Package>
 </Wix>

@@ -166,9 +166,13 @@ Minimum bar:
    first-run marker, HKLM `RunOnce`, and an interactive postinstall wizard
    launch attempt. The service is installed demand-start and the wizard sets it
    to automatic startup after owner-code enrollment writes machine
-   configuration. The legacy coordinated `afk4-gaming-pc` MSI remains in the
-   build/update-smoke path until role-aware component install and deprecation
-   slices retire it.
+   configuration. Slice 3.3 adds role-aware Agent component installation:
+   `gaming_pc` devices pull a standalone Player Shell MSI, `manager_workstation`
+   devices pull the Operator App MSI after a WebView2 runtime check/install,
+   and update metadata publishing now uses separate Operator App, Agent, and
+   Player Shell MSI artifacts. The legacy coordinated `afk4-gaming-pc` MSI
+   remains in the build/staging-bootstrap path until clean-VM smoke and
+   deprecation slices retire it.
    On 2026-05-18, an already enrolled Windows 11 VM installed
    Agent/Shell `0.1.3` through the Agent update pipeline and reported
    `installed` to the backend. Follow-up staging rollouts brought that VM to
@@ -227,11 +231,11 @@ Minimum bar:
    create approved or pending devices, issue device credentials, attach the
    selected seat, and apply both app-layer and documented Traefik rate-limit
    protection; the SPA now has separate admin/customer audience builds. The
-   customer `app.afk4.staging.mubi.dev` Coolify app is deployed; the
-   Setup Wizard now ships inside a single Agent MSI locally, but Agent
-   role-aware Player Shell / Operator App component install and clean Windows
-   VM smoke still need to pass before this replaces the scripted pilot setup
-   path.
+  customer `app.afk4.staging.mubi.dev` Coolify app is deployed; the
+  Setup Wizard now ships inside a single Agent MSI locally, and Agent
+  role-aware Player Shell / Operator App component install exists locally, but
+  clean Windows VM smoke still needs to pass before this replaces the scripted
+  pilot setup path.
 
 ## Commercial Production Blockers
 
@@ -244,8 +248,8 @@ Minimum bar:
   implemented and smoke-tested in staging for platform-admin tenant creation,
   owner invites, tenant status, support notes, and health. The customer SPA
   host is deployed; the Windows SetupWizard/MSI packaging path exists locally,
-  but clean-VM smoke and role-aware component installation remain onboarding
-  blockers.
+  including role-aware component installation, but clean-VM smoke remains an
+  onboarding blocker.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
@@ -289,8 +293,9 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring and Windows 11 VM smoke evidence. Physical service startup validation
   remains hardening through the real-device smoke runbook.
-- A staging-only Gaming PC bootstrap path exists, and Slice 3.2 adds the local
-  single `afk4-agent` MSI artifact for owner-code Setup Wizard onboarding. The
+- A staging-only Gaming PC bootstrap path exists, and Slices 3.2/3.3 add the
+  local single `afk4-agent` MSI artifact plus role-aware Player Shell/Operator
+  App installation for owner-code Setup Wizard onboarding. The
   older release-workstation
   setup executable path remains in code, but the preferred clean VM path is now
   the MinIO-hosted remote bootstrap script from `Package Smoke`:
@@ -305,10 +310,9 @@ Minimum bar:
   bootstrap version `0.1.14` passed clean Windows 11 VM install/enroll/
   seat-assignment/heartbeat/locked-Shell smoke, then passed two session
   start/end cycles with no-SQL seat/device reuse. The new `afk4-agent` MSI has
-  not yet replaced the remote bootstrap path because Agent-side role-aware
-  Player Shell / Operator App installation is Slice 3.3 and clean-VM
-  end-to-end smoke is Slice 3.4. Repeat that remote bootstrap path on physical
-  Windows hardware as hardening before wider rollout.
+  not yet replaced the remote bootstrap path because clean-VM end-to-end smoke
+  is Slice 3.4. Repeat that remote bootstrap path on physical Windows hardware
+  as hardening before wider rollout.
 - Lock/unlock enforcement has adapter coverage and Windows 11 VM smoke
   evidence. Physical Windows validation remains hardening before wider rollout.
 - Player Shell service-session competition is mitigated in code by

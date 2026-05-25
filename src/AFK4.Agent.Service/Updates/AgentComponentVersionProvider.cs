@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.Extensions.Options;
 
@@ -15,9 +16,16 @@ public sealed class AgentComponentVersionProvider(IOptions<AgentOptions> options
             components.Add(new DeviceComponentVersionDto(UpdateComponentNames.AgentService, agentOptions.AgentVersion));
         }
 
-        if (!string.IsNullOrWhiteSpace(agentOptions.ShellVersion))
+        if (agentOptions.DeviceRole == DeviceRoleNames.GamingPc &&
+            !string.IsNullOrWhiteSpace(agentOptions.ShellVersion))
         {
             components.Add(new DeviceComponentVersionDto(UpdateComponentNames.PlayerShell, agentOptions.ShellVersion));
+        }
+
+        if (agentOptions.DeviceRole == DeviceRoleNames.ManagerWorkstation &&
+            !string.IsNullOrWhiteSpace(agentOptions.OperatorAppVersion))
+        {
+            components.Add(new DeviceComponentVersionDto(UpdateComponentNames.OperatorApp, agentOptions.OperatorAppVersion));
         }
 
         return components;

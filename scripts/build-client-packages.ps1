@@ -246,6 +246,7 @@ foreach ($helperScript in $updateHelperScripts) {
 
 $operatorMsiPath = Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi"
 $agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
+$playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Channel.msi"
 $gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi"
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
@@ -271,6 +272,16 @@ Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath
 
 if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for single Agent MSI with exit code $LASTEXITCODE."
+}
+
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/player-shell/Package.wxs') `
+    -arch x64 `
+    -d "PackageVersion=$msiVersion" `
+    -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
+    -o $playerShellMsiPath
+
+if ($LASTEXITCODE -ne 0) {
+    throw "WiX build failed for Player Shell MSI with exit code $LASTEXITCODE."
 }
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
@@ -320,6 +331,7 @@ Write-Host "Published client package inputs under $publishRoot"
 Write-Host "MSI artifacts:"
 Write-Host $operatorMsiPath
 Write-Host $agentMsiPath
+Write-Host $playerShellMsiPath
 Write-Host $gamingPcMsiPath
 
 if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {

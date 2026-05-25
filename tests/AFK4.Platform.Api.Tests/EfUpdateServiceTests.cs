@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Updates;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.EntityFrameworkCore;
 
@@ -199,6 +200,53 @@ public sealed class EfUpdateServiceTests
         Assert.True(check.Succeeded);
         Assert.NotNull(check.Response);
         Assert.Empty(check.Response.Updates);
+    }
+
+    [Fact]
+    public async Task CheckForUpdatesAsync_FiltersRoleSpecificComponentRolloutsForDeviceRole()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        await SeedDeviceAsync(db, TestIds.DeviceId, DeviceRoleNames.GamingPc);
+        await SeedDeviceAsync(db, OtherDeviceId, DeviceRoleNames.ManagerWorkstation);
+        var playerShellPackage = await RegisterPackageAsync(
+            service,
+            UpdateComponentNames.PlayerShell,
+            "https://updates.afk4.test/player-shell/1.2.3/player-shell.msi");
+        var operatorAppPackage = await RegisterPackageAsync(
+            service,
+            UpdateComponentNames.OperatorApp,
+            "https://updates.afk4.test/operator-app/1.2.3/operator-app.msi");
+        await CreateBranchRolloutAsync(service, playerShellPackage.UpdatePackageId, "Player Shell branch rollout.");
+        await CreateBranchRolloutAsync(service, operatorAppPackage.UpdatePackageId, "Operator App branch rollout.");
+
+        var gamingPcCheck = await service.CheckForUpdatesAsync(
+            new DeviceUpdateCheckRequest(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                TestIds.DeviceId,
+                UpdateChannelNames.Beta,
+                Now.AddMinutes(1),
+                [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]),
+            CancellationToken.None);
+        var managerCheck = await service.CheckForUpdatesAsync(
+            new DeviceUpdateCheckRequest(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                OtherDeviceId,
+                UpdateChannelNames.Beta,
+                Now.AddMinutes(1),
+                [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")]),
+            CancellationToken.None);
+
+        Assert.True(gamingPcCheck.Succeeded);
+        Assert.NotNull(gamingPcCheck.Response);
+        var gamingPcUpdate = Assert.Single(gamingPcCheck.Response.Updates);
+        Assert.Equal(UpdateComponentNames.PlayerShell, gamingPcUpdate.Component);
+        Assert.True(managerCheck.Succeeded);
+        Assert.NotNull(managerCheck.Response);
+        var managerUpdate = Assert.Single(managerCheck.Response.Updates);
+        Assert.Equal(UpdateComponentNames.OperatorApp, managerUpdate.Component);
     }
 
     [Fact]
@@ -457,6 +505,51 @@ public sealed class EfUpdateServiceTests
         return result.Response;
     }
 
+    private static async Task<UpdatePackageDto> RegisterPackageAsync(
+        EfUpdateService service,
+        string component,
+        string artifactUri)
+    {
+        var result = await service.RegisterPackageAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            PackageRequest() with
+            {
+                Component = component,
+                ArtifactUri = artifactUri,
+                ReleaseNotes = $"{component} update."
+            },
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+
+        return result.Response;
+    }
+
+    private static async Task CreateBranchRolloutAsync(
+        EfUpdateService service,
+        Guid updatePackageId,
+        string reason)
+    {
+        var result = await service.CreateRolloutAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateUpdateRolloutRequest(
+                TestIds.OrganizationId,
+                updatePackageId,
+                UpdateChannelNames.Beta,
+                UpdateTargetKindNames.Branch,
+                [],
+                BatchPercent: 100,
+                StartsAtUtc: Now,
+                Reason: reason),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+    }
+
     private static DeviceUpdateStatusReportRequest StatusReport(
         Guid rolloutId,
         Guid packageId,
@@ -477,7 +570,10 @@ public sealed class EfUpdateServiceTests
             Now.AddMinutes(1));
     }
 
-    private static async Task SeedDeviceAsync(PlatformDbContext db, Guid deviceId)
+    private static async Task SeedDeviceAsync(
+        PlatformDbContext db,
+        Guid deviceId,
+        string role = DeviceRoleNames.GamingPc)
     {
         db.Devices.Add(new DeviceEntity
         {
@@ -485,6 +581,7 @@ public sealed class EfUpdateServiceTests
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
             MachineName = deviceId == TestIds.DeviceId ? "PC-001" : "PC-002",
+            Role = role,
             AgentVersion = "1.2.2",
             ShellVersion = "1.2.2",
             EnrolledAtUtc = Now.AddDays(-1),

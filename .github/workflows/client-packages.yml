@@ -93,12 +93,20 @@ on:
         description: Public download URI for the Operator App MSI
         required: false
         type: string
-      gaming_pc_artifact_upload_uri:
-        description: Presigned upload URI for the coordinated gaming-PC MSI
+      agent_artifact_upload_uri:
+        description: Presigned upload URI for the AFK4 Agent MSI
         required: false
         type: string
-      gaming_pc_artifact_public_uri:
-        description: Public download URI for the coordinated gaming-PC MSI
+      agent_artifact_public_uri:
+        description: Public download URI for the AFK4 Agent MSI
+        required: false
+        type: string
+      player_shell_artifact_upload_uri:
+        description: Presigned upload URI for the Player Shell MSI
+        required: false
+        type: string
+      player_shell_artifact_public_uri:
+        description: Public download URI for the Player Shell MSI
         required: false
         type: string
       release_notes:
@@ -164,8 +172,10 @@ jobs:
           INPUT_S3_BUCKET: ${{ inputs.s3_bucket }}
           INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}
           INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}
-          INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}
-          INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}
+          INPUT_AGENT_ARTIFACT_UPLOAD_URI: ${{ inputs.agent_artifact_upload_uri }}
+          INPUT_AGENT_ARTIFACT_PUBLIC_URI: ${{ inputs.agent_artifact_public_uri }}
+          INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI: ${{ inputs.player_shell_artifact_upload_uri }}
+          INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI: ${{ inputs.player_shell_artifact_public_uri }}
           INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
           INPUT_ROLLOUT_TARGET_KIND: ${{ inputs.rollout_target_kind }}
           INPUT_ROLLOUT_TARGET_DEVICE_ID: ${{ inputs.rollout_target_device_id }}
@@ -206,8 +216,8 @@ jobs:
             throw "hosting_root and public_base_uri are required when artifact_store=file-system."
           }
 
-          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 'http-put' -and ([string]::IsNullOrWhiteSpace($env:INPUT_OPERATOR_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_OPERATOR_ARTIFACT_PUBLIC_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI))) {
-            throw "operator and gaming-PC upload/public URIs are required when artifact_store=http-put."
+          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 'http-put' -and ([string]::IsNullOrWhiteSpace($env:INPUT_OPERATOR_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_OPERATOR_ARTIFACT_PUBLIC_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_AGENT_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_AGENT_ARTIFACT_PUBLIC_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI))) {
+            throw "operator, agent, and Player Shell upload/public URIs are required when artifact_store=http-put."
           }
 
           if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 's3' -and ([string]::IsNullOrWhiteSpace($env:INPUT_S3_ENDPOINT) -or [string]::IsNullOrWhiteSpace($env:INPUT_S3_BUCKET) -or [string]::IsNullOrWhiteSpace($env:INPUT_PUBLIC_BASE_URI))) {
@@ -349,8 +359,10 @@ jobs:
           INPUT_S3_KEY_PREFIX: ${{ inputs.s3_key_prefix }}
           INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}
           INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}
-          INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI: ${{ inputs.gaming_pc_artifact_upload_uri }}
-          INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI: ${{ inputs.gaming_pc_artifact_public_uri }}
+          INPUT_AGENT_ARTIFACT_UPLOAD_URI: ${{ inputs.agent_artifact_upload_uri }}
+          INPUT_AGENT_ARTIFACT_PUBLIC_URI: ${{ inputs.agent_artifact_public_uri }}
+          INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI: ${{ inputs.player_shell_artifact_upload_uri }}
+          INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI: ${{ inputs.player_shell_artifact_public_uri }}
           INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
           AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY: ${{ secrets.AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY }}
           AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY: ${{ secrets.AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY }}
@@ -376,8 +388,10 @@ jobs:
           elseif ($env:INPUT_ARTIFACT_STORE -eq 'http-put') {
             $arguments += @('-OperatorArtifactUploadUri', $env:INPUT_OPERATOR_ARTIFACT_UPLOAD_URI)
             $arguments += @('-OperatorArtifactPublicUri', $env:INPUT_OPERATOR_ARTIFACT_PUBLIC_URI)
-            $arguments += @('-GamingPcArtifactUploadUri', $env:INPUT_GAMING_PC_ARTIFACT_UPLOAD_URI)
-            $arguments += @('-GamingPcArtifactPublicUri', $env:INPUT_GAMING_PC_ARTIFACT_PUBLIC_URI)
+            $arguments += @('-AgentArtifactUploadUri', $env:INPUT_AGENT_ARTIFACT_UPLOAD_URI)
+            $arguments += @('-AgentArtifactPublicUri', $env:INPUT_AGENT_ARTIFACT_PUBLIC_URI)
+            $arguments += @('-PlayerShellArtifactUploadUri', $env:INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI)
+            $arguments += @('-PlayerShellArtifactPublicUri', $env:INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI)
           }
           else {
             if ([string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY) -or [string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY)) {

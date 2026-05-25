@@ -16,6 +16,14 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
         "Agent__DeviceCredentialSecret",
         "Agent__LeaseSigningPublicKeyPem",
         "Agent__UpdateChannel",
+        "Agent__PlayerShellExecutablePath",
+        "Agent__PlayerShellAutoStartEnabled",
+        "Agent__UpdateInstallerExecutablePath",
+        "Agent__UpdateInstallerArgumentsTemplate",
+        "Agent__UpdateRollbackExecutablePath",
+        "Agent__UpdateRollbackArgumentsTemplate",
+        "Agent__UpdateRestartExecutablePath",
+        "Agent__UpdateRestartArgumentsTemplate",
         "Agent__UpdatePackageSigningPublicKeyPem"
     ];
 
@@ -46,6 +54,31 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
         Assert.Equal("credential-secret", Environment.GetEnvironmentVariable("Agent__DeviceCredentialSecret"));
         Assert.Equal("lease-public-key", Environment.GetEnvironmentVariable("Agent__LeaseSigningPublicKeyPem"));
         Assert.Equal("internal", Environment.GetEnvironmentVariable("Agent__UpdateChannel"));
+        Assert.EndsWith(
+            @"WindowsPowerShell\v1.0\powershell.exe",
+            Environment.GetEnvironmentVariable("Agent__UpdateInstallerExecutablePath"));
+        Assert.Contains(
+            @"AFK4\Update Helpers\install-afk4-update-msi.ps1",
+            Environment.GetEnvironmentVariable("Agent__UpdateInstallerArgumentsTemplate"),
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            @"WindowsPowerShell\v1.0\powershell.exe",
+            Environment.GetEnvironmentVariable("Agent__UpdateRollbackExecutablePath"));
+        Assert.Contains(
+            @"AFK4\Update Helpers\rollback-afk4-update-msi.ps1",
+            Environment.GetEnvironmentVariable("Agent__UpdateRollbackArgumentsTemplate"),
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            @"WindowsPowerShell\v1.0\powershell.exe",
+            Environment.GetEnvironmentVariable("Agent__UpdateRestartExecutablePath"));
+        Assert.Contains(
+            @"AFK4\Update Helpers\restart-afk4-agent-service.ps1",
+            Environment.GetEnvironmentVariable("Agent__UpdateRestartArgumentsTemplate"),
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            @"AFK4\Player Shell\AFK4.Player.Shell.exe",
+            Environment.GetEnvironmentVariable("Agent__PlayerShellExecutablePath"));
+        Assert.Equal(bool.TrueString, Environment.GetEnvironmentVariable("Agent__PlayerShellAutoStartEnabled"));
         Assert.Equal("update-public-key", Environment.GetEnvironmentVariable("Agent__UpdatePackageSigningPublicKeyPem"));
     }
 

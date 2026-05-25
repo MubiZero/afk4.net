@@ -11,7 +11,7 @@ public sealed class ExternalProcessAgentRestartScheduler(IOptions<AgentOptions> 
         UpdateInstallState state,
         CancellationToken cancellationToken)
     {
-        if (instruction.Component != UpdateComponentNames.AgentService)
+        if (!RequiresAgentRestart(instruction.Component))
         {
             return UpdateRestartResult.NotRequired("Restart is not required for this component.");
         }
@@ -60,5 +60,13 @@ public sealed class ExternalProcessAgentRestartScheduler(IOptions<AgentOptions> 
             .Replace("{TargetVersion}", state.TargetVersion, StringComparison.Ordinal)
             .Replace("{UpdatePackageId}", state.UpdatePackageId.ToString("D"), StringComparison.Ordinal)
             .Replace("{UpdateRolloutId}", state.UpdateRolloutId.ToString("D"), StringComparison.Ordinal);
+    }
+
+    private static bool RequiresAgentRestart(string component)
+    {
+        return component is
+            UpdateComponentNames.AgentService or
+            UpdateComponentNames.PlayerShell or
+            UpdateComponentNames.OperatorApp;
     }
 }

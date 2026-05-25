@@ -741,6 +741,18 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   `afk4-gaming-pc` MSI remains in the build/update-smoke path until Agent
   role-aware component install and legacy deprecation land. Agent role-aware
   component install and clean-VM smoke remain Slices 3.3 and 3.4.
+- **Slice 3.3** - completed locally on `codex/slice-3-3`: Agent component
+  version reporting and Platform API update checks are now role-aware, so
+  `gaming_pc` devices pull `player-shell` and `manager_workstation` devices
+  pull `operator-app` from the existing update channel while `agent-service`
+  stays common. The build now produces a standalone
+  `afk4-player-shell-<version>-<channel>.msi`; update metadata publishing uses
+  separate Operator App, Agent, and Player Shell MSI artifacts; the Setup
+  Wizard writes update-helper configuration after owner-code enrollment; and
+  the MSI helper installs WebView2 before applying the Operator App MSI when
+  needed. Agent restarts after Agent, Player Shell, and Operator App component
+  installs so it reloads machine environment values written by the MSIs. Clean
+  Windows VM end-to-end smoke remains Slice 3.4.
 
 ## Testing
 
