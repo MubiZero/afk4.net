@@ -3493,7 +3493,14 @@ Operator App WebView2/React first implementation on 2026-05-20:
   and `/auth/sign-in` renders on both hosts. Added GitHub repository variables
   `COOLIFY_PLATFORM_WEB_APP_UUID=r82tks8g3qyx0hvvexsiaulr` and
   `COOLIFY_CLUB_WEB_APP_UUID=ajpxlrv4sirqrcyn8p7gausm` for future SPA deploy
-  workflows.
+  workflows. Remote GitHub Actions fallout from pushing the accumulated local
+  slice commits: `Coolify Staging Deploy` run `26400064761` failed before API
+  deployment on the intentional EF migration guard because commit range
+  `012042f..b45f17e` included
+  `src/AFK4.Platform.Api/Data/Migrations/20260525133000_HardenInstallAndOwnerCodes.cs`;
+  `Package Smoke` run `26400064731` built/published artifacts but failed update
+  registration on staging staff sign-in with HTTP 401. Neither failure was
+  retried in this session.
 
 ## Historical Reference
 
