@@ -282,6 +282,15 @@ validation.
   summary so unrelated files are not accidentally included.
 - Report whether changes were committed, pushed, or left local. Do not push
   unless the user asks or the workflow explicitly requires remote validation.
+- For local-only implementation task branches, after the task is committed,
+  focused verification has passed, and progress/doc update needs have been
+  checked, merge the task branch back into local `main` with `--ff-only` and
+  delete the now-merged local branch before the final response by default. Do
+  not do this if the user explicitly asks to keep the branch, leave work on the
+  feature branch, push/open a PR first, or wait for remote validation.
+- If the task branch cannot be merged into local `main` with `--ff-only`, stop
+  and report the divergence instead of rebasing, force-merging, or deleting the
+  branch.
 - When a task branch has been merged into `main`, delete the now-merged local
   feature branch before ending the session unless the user asks to keep it.
 
