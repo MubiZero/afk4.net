@@ -64,11 +64,17 @@ implementation evidence are needed.
   floor-map/free-seat data from the owner staff user's organization. Enroll
   creates a device credential and seat assignment, stores device role/display
   name/enrollment state, supports `approved` vs `pending` through branch
-  `RequireManualDeviceApproval`, rejects revoked owner codes, audits rejected
-  enroll attempts and successful enrolls, and revokes an owner code after five
-  resolved per-code install failures. `/api/install/*` also has in-process
-  per-source-IP backoff, and the Coolify Traefik ingress recipe now includes
-  the install endpoints.
+  `RequireManualDeviceApproval`, rejects revoked owner codes, blocks discover
+  for suspended/deletion-pending tenants, audits rejected enroll/discover
+  attempts and successful enrolls with source IP, and revokes an owner code
+  after five resolved per-code install failures. Pending devices may heartbeat
+  so support can see presence while their assigned floor-map seat remains in
+  `Maintenance`, but command delivery, command results, reconciliation,
+  installed-app reports, update check/status, SignalR device registration,
+  staff-dispatched device commands, and session start/transfer require an
+  approved enrollment. `/api/install/*` also has in-process
+  per-source-IP backoff/429 rejection, and the Coolify Traefik ingress recipe
+  now includes the install endpoints on the real staging API host.
 - Session start, extend, transfer, end, signed leases, reconciliation, and
   heartbeat-driven lock/unlock/lease-refresh command planning. Repeated
   session-end requests against an already `ending` session now return the
@@ -3218,6 +3224,34 @@ Operator App WebView2/React first implementation on 2026-05-20:
   end-to-end setup instruction for club operators. None of the
   remaining blockers needs staging admin work; staging admin is now
   live and reusable for future smokes.
+
+- 2026-05-25: local Slice 1.3 review hardening after pulling commit
+  `012042f` from `origin/main`. The install discover/enroll backend path now
+  treats manual approval as an operational gate instead of only a UI state:
+  pending devices may heartbeat so support can see presence, but approved
+  enrollment is required before command delivery/results, session
+  reconciliation, installed-app reports, update check/status, SignalR device
+  registration, staff-dispatched device commands, and session start/transfer;
+  floor-map projection keeps pending seats in `Maintenance` even after
+  heartbeat. Discover now rejects suspended/deletion-pending tenants, install
+  audit rows include source IP context, `/api/install/*` has in-process
+  per-source-IP backoff with 429 rejection, and the Coolify ingress/runbook
+  examples use the actual staging API host `afk4.staging.mubi.dev`.
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "InstallEndpointTests|DeviceHeartbeatServicePersistenceTests|DeviceHeartbeatEndpointTests|SessionEndpointTests|DeviceCommandEndpointTests|UpdateEndpointTests|InstalledAppsEndpointTests" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter InstallContractSerializationTests -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused Platform API tests passed 63/63, focused Shared Contracts
+  install serialization tests passed 2/2, full Platform API tests passed
+  519/519, full Shared Contracts tests passed 111/111, solution build passed
+  with 0 warnings / 0 errors, and `git diff --check` was clean apart from
+  expected LF-to-CRLF conversion warnings.
 
 ## Historical Reference
 

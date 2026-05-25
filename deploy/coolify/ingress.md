@@ -30,7 +30,7 @@ Coolify settings:
 | --- | --- |
 | Build context | repository root |
 | Dockerfile path | `deploy/coolify/platform-web.Dockerfile` |
-| Build argument | `VITE_PLATFORM_API_BASE_URL=https://api.afk4.staging.mubi.dev` (or whatever the Platform API public URL is on this Coolify) |
+| Build argument | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev` (or whatever the Platform API public URL is on this Coolify) |
 | Exposed port | `8080` |
 | Health path | `/healthz` |
 
@@ -72,7 +72,7 @@ router (which serves everything else) keeps its existing labels untouched.
 - traefik.http.middlewares.afk4-public-ratelimit.ratelimit.sourcecriterion.ipstrategy.depth=1
 
 # Router 1: /api/operator-connections/resolve
-- traefik.http.routers.afk4-api-resolve.rule=Host(`api.afk4.staging.mubi.dev`) && Path(`/api/operator-connections/resolve`) && Method(`POST`)
+- traefik.http.routers.afk4-api-resolve.rule=Host(`afk4.staging.mubi.dev`) && Path(`/api/operator-connections/resolve`) && Method(`POST`)
 - traefik.http.routers.afk4-api-resolve.entrypoints=https
 - traefik.http.routers.afk4-api-resolve.tls=true
 - traefik.http.routers.afk4-api-resolve.tls.certresolver=letsencrypt
@@ -81,7 +81,7 @@ router (which serves everything else) keeps its existing labels untouched.
 - traefik.http.routers.afk4-api-resolve.priority=200
 
 # Router 2: /api/platform/owner-invites/accept
-- traefik.http.routers.afk4-api-invite-accept.rule=Host(`api.afk4.staging.mubi.dev`) && Path(`/api/platform/owner-invites/accept`) && Method(`POST`)
+- traefik.http.routers.afk4-api-invite-accept.rule=Host(`afk4.staging.mubi.dev`) && Path(`/api/platform/owner-invites/accept`) && Method(`POST`)
 - traefik.http.routers.afk4-api-invite-accept.entrypoints=https
 - traefik.http.routers.afk4-api-invite-accept.tls=true
 - traefik.http.routers.afk4-api-invite-accept.tls.certresolver=letsencrypt
@@ -90,7 +90,7 @@ router (which serves everything else) keeps its existing labels untouched.
 - traefik.http.routers.afk4-api-invite-accept.priority=200
 
 # Router 3: /api/install/discover
-- traefik.http.routers.afk4-api-install-discover.rule=Host(`api.afk4.staging.mubi.dev`) && Path(`/api/install/discover`) && Method(`POST`)
+- traefik.http.routers.afk4-api-install-discover.rule=Host(`afk4.staging.mubi.dev`) && Path(`/api/install/discover`) && Method(`POST`)
 - traefik.http.routers.afk4-api-install-discover.entrypoints=https
 - traefik.http.routers.afk4-api-install-discover.tls=true
 - traefik.http.routers.afk4-api-install-discover.tls.certresolver=letsencrypt
@@ -99,7 +99,7 @@ router (which serves everything else) keeps its existing labels untouched.
 - traefik.http.routers.afk4-api-install-discover.priority=200
 
 # Router 4: /api/install/enroll
-- traefik.http.routers.afk4-api-install-enroll.rule=Host(`api.afk4.staging.mubi.dev`) && Path(`/api/install/enroll`) && Method(`POST`)
+- traefik.http.routers.afk4-api-install-enroll.rule=Host(`afk4.staging.mubi.dev`) && Path(`/api/install/enroll`) && Method(`POST`)
 - traefik.http.routers.afk4-api-install-enroll.entrypoints=https
 - traefik.http.routers.afk4-api-install-enroll.tls=true
 - traefik.http.routers.afk4-api-install-enroll.tls.certresolver=letsencrypt
@@ -133,7 +133,7 @@ After applying the labels:
 2. `curl -I https://platform.afk4.staging.mubi.dev/` returns `200` and the
    SPA shell.
 3. From a single source IP, run `for i in $(seq 1 50); do curl -s -o /dev/null
-   -w '%{http_code}\n' -X POST https://api.afk4.staging.mubi.dev/api/operator-connections/resolve
+   -w '%{http_code}\n' -X POST https://afk4.staging.mubi.dev/api/operator-connections/resolve
    -H 'content-type: application/json' -d '{}'; done`. The first ~10 requests
    return 400 (validation), then the rest return 429 until the period rolls.
 4. The same pattern applied to `/api/platform/owner-invites/accept` should

@@ -271,7 +271,7 @@ and served as a separate Coolify application alongside the Platform API:
    exposed port `8080`, health path `/healthz`).
 2. Set the `VITE_PLATFORM_API_BASE_URL` build argument to the Platform API's
    public URL on this Coolify (e.g.
-   `https://api.afk4.staging.mubi.dev`). The value is baked into the bundle
+   `https://afk4.staging.mubi.dev`). The value is baked into the bundle
    at build time so the SPA can call the API across the public origin.
 3. Wire the dedicated host (e.g. `platform.afk4.staging.mubi.dev`) via the
    Traefik labels in [`deploy/coolify/ingress.md`](../../deploy/coolify/ingress.md#1-platformweb-spa-platformafk4stagingmubidev).

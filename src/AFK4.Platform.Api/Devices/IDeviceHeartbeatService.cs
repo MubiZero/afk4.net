@@ -4,5 +4,9 @@ namespace AFK4.Platform.Api.Devices;
 
 public interface IDeviceHeartbeatService
 {
-    Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(Guid deviceId, DeviceHeartbeatRequest request, CancellationToken cancellationToken);
+    Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
+        Guid deviceId,
+        DeviceHeartbeatRequest request,
+        bool allowOperationalCommands,
+        CancellationToken cancellationToken);
 }

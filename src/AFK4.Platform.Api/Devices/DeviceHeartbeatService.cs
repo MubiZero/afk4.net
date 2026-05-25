@@ -16,6 +16,7 @@ public sealed class DeviceHeartbeatService(
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
         DeviceHeartbeatRequest request,
+        bool allowOperationalCommands,
         CancellationToken cancellationToken)
     {
         var device = await dbContext.Devices.SingleOrDefaultAsync(
@@ -45,9 +46,12 @@ public sealed class DeviceHeartbeatService(
             IsLocked: request.IsLocked,
             ObservedAtUtc: request.ObservedAtUtc);
 
-        await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
+        if (allowOperationalCommands)
+        {
+            await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
+        }
 
-        if (device is not null)
+        if (device is not null && allowOperationalCommands)
         {
             var plannedCommands = await sessionCommandPlanner.PlanAsync(deviceId, request, cancellationToken);
             foreach (var plan in plannedCommands)
@@ -56,27 +60,31 @@ public sealed class DeviceHeartbeatService(
             }
         }
 
-        var pendingCommands = await dbContext.DeviceCommands
-            .AsNoTracking()
-            .Where(command => command.DeviceId == deviceId && command.Status == "Pending")
-            .OrderBy(command => command.CreatedAtUtc)
-            .ThenBy(command => command.CommandId)
-            .Select(command => new
-            {
-                command.CommandId,
-                command.Type,
-                command.CreatedAtUtc,
-                command.PayloadJson
-            })
-            .ToListAsync(cancellationToken);
+        var commands = new List<DeviceCommandDto>();
+        if (allowOperationalCommands)
+        {
+            var pendingCommands = await dbContext.DeviceCommands
+                .AsNoTracking()
+                .Where(command => command.DeviceId == deviceId && command.Status == "Pending")
+                .OrderBy(command => command.CreatedAtUtc)
+                .ThenBy(command => command.CommandId)
+                .Select(command => new
+                {
+                    command.CommandId,
+                    command.Type,
+                    command.CreatedAtUtc,
+                    command.PayloadJson
+                })
+                .ToListAsync(cancellationToken);
 
-        var commands = pendingCommands
-            .Select(command => new DeviceCommandDto(
-                command.CommandId,
-                command.Type,
-                command.CreatedAtUtc,
-                JsonSerializer.Deserialize<Dictionary<string, string>>(command.PayloadJson) ?? []))
-            .ToList();
+            commands = pendingCommands
+                .Select(command => new DeviceCommandDto(
+                    command.CommandId,
+                    command.Type,
+                    command.CreatedAtUtc,
+                    JsonSerializer.Deserialize<Dictionary<string, string>>(command.PayloadJson) ?? []))
+                .ToList();
+        }
 
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: DateTimeOffset.UtcNow,

@@ -7,11 +7,11 @@ public sealed class InMemoryInstallRequestThrottle(TimeProvider timeProvider) : 
     private static readonly TimeSpan Window = TimeSpan.FromSeconds(60);
     private readonly ConcurrentDictionary<string, RequestWindow> windows = new(StringComparer.Ordinal);
 
-    public async Task ApplyAsync(string sourceIp, CancellationToken cancellationToken)
+    public async Task<InstallRequestThrottleDecision> ApplyAsync(string sourceIp, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(sourceIp))
         {
-            return;
+            return InstallRequestThrottleDecision.Allowed(TimeSpan.Zero);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -30,16 +30,23 @@ public sealed class InMemoryInstallRequestThrottle(TimeProvider timeProvider) : 
 
         var delay = window.Count switch
         {
-            >= 200 => TimeSpan.FromSeconds(5),
+            >= 200 => TimeSpan.FromSeconds(60),
             >= 100 => TimeSpan.FromSeconds(5),
             >= 50 => TimeSpan.FromSeconds(1),
             _ => TimeSpan.Zero
         };
 
+        if (window.Count >= 200)
+        {
+            return InstallRequestThrottleDecision.Rejected(delay);
+        }
+
         if (delay > TimeSpan.Zero)
         {
             await Task.Delay(delay, cancellationToken);
         }
+
+        return InstallRequestThrottleDecision.Allowed(delay);
     }
 
     private sealed record RequestWindow(DateTimeOffset StartedAtUtc, int Count);

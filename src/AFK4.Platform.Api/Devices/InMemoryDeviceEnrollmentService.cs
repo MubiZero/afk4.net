@@ -98,6 +98,11 @@ public sealed class InMemoryDeviceEnrollmentService(TimeProvider timeProvider) :
 
     public bool Validate(Guid organizationId, Guid branchId, Guid deviceId, string? credentialSecret)
     {
+        return ValidateApproved(organizationId, branchId, deviceId, credentialSecret);
+    }
+
+    public bool ValidateApproved(Guid organizationId, Guid branchId, Guid deviceId, string? credentialSecret)
+    {
         if (string.IsNullOrWhiteSpace(credentialSecret))
         {
             return false;

@@ -30,8 +30,12 @@ public sealed record InstallOperationResult<T>(
         Guid ownerCodeId) =>
         new(InstallOperationStatus.Succeeded, value, null, organizationId, branchId, ownerCodeId);
 
-    public static InstallOperationResult<T> BadRequest(string error, Guid? ownerCodeId = null) =>
-        new(InstallOperationStatus.BadRequest, default, error, OwnerCodeId: ownerCodeId);
+    public static InstallOperationResult<T> BadRequest(
+        string error,
+        Guid? ownerCodeId = null,
+        Guid? organizationId = null,
+        Guid? branchId = null) =>
+        new(InstallOperationStatus.BadRequest, default, error, organizationId, branchId, ownerCodeId);
 
     public static InstallOperationResult<T> NotFound(string error, Guid? ownerCodeId = null) =>
         new(InstallOperationStatus.NotFound, default, error, OwnerCodeId: ownerCodeId);

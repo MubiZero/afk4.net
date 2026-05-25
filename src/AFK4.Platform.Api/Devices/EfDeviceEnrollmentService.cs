@@ -116,18 +116,40 @@ public sealed class EfDeviceEnrollmentService(
 
     public bool Validate(Guid organizationId, Guid branchId, Guid deviceId, string? credentialSecret)
     {
+        return ValidateCore(organizationId, branchId, deviceId, credentialSecret, requireApproved: false);
+    }
+
+    public bool ValidateApproved(Guid organizationId, Guid branchId, Guid deviceId, string? credentialSecret)
+    {
+        return ValidateCore(organizationId, branchId, deviceId, credentialSecret, requireApproved: true);
+    }
+
+    private bool ValidateCore(
+        Guid organizationId,
+        Guid branchId,
+        Guid deviceId,
+        string? credentialSecret,
+        bool requireApproved)
+    {
         if (string.IsNullOrWhiteSpace(credentialSecret))
         {
             return false;
         }
 
-        var credential = dbContext.DeviceCredentials
-            .AsNoTracking()
-            .SingleOrDefault(candidate =>
-                candidate.OrganizationId == organizationId &&
+        var credential = (
+            from candidate in dbContext.DeviceCredentials.AsNoTracking()
+            join device in dbContext.Devices.AsNoTracking()
+                on candidate.DeviceId equals device.DeviceId
+            where candidate.OrganizationId == organizationId &&
                 candidate.BranchId == branchId &&
                 candidate.DeviceId == deviceId &&
-                candidate.RevokedAtUtc == null);
+                candidate.RevokedAtUtc == null &&
+                device.OrganizationId == organizationId &&
+                device.BranchId == branchId &&
+                (!requireApproved || device.EnrollmentState == DeviceEnrollmentStateNames.Approved)
+            select candidate)
+            .AsNoTracking()
+            .SingleOrDefault();
 
         return credential is not null &&
             DeviceCredentialSecrets.SecretMatches(credential.SecretHash, credentialSecret);

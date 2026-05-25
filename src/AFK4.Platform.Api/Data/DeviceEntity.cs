@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Install;
+
 namespace AFK4.Platform.Api.Data;
 
 public sealed class DeviceEntity
@@ -12,9 +14,9 @@ public sealed class DeviceEntity
 
     public string DisplayName { get; set; } = string.Empty;
 
-    public string Role { get; set; } = string.Empty;
+    public string Role { get; set; } = DeviceRoleNames.GamingPc;
 
-    public string EnrollmentState { get; set; } = string.Empty;
+    public string EnrollmentState { get; set; } = DeviceEnrollmentStateNames.Approved;
 
     public Guid? EnrolledViaOwnerCodeId { get; set; }
 

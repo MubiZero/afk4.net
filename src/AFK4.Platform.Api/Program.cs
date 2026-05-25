@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text;
 using AFK4.Platform.Api.Audit;
@@ -217,7 +218,16 @@ app.Use(async (httpContext, next) =>
     {
         var sourceIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var throttle = httpContext.RequestServices.GetRequiredService<IInstallRequestThrottle>();
-        await throttle.ApplyAsync(sourceIp, httpContext.RequestAborted);
+        var decision = await throttle.ApplyAsync(sourceIp, httpContext.RequestAborted);
+        if (decision.IsRejected)
+        {
+            httpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(decision.RetryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+            httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            await httpContext.Response.WriteAsJsonAsync(
+                new { Error = "Too many install requests from this source IP." },
+                httpContext.RequestAborted);
+            return;
+        }
     }
 
     await next(httpContext);
@@ -3655,11 +3665,13 @@ app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
 
 app.MapPost("/api/install/discover", async (
     InstallDiscoverRequest request,
+    HttpContext httpContext,
     IInstallService installService,
     IAuditRecordWriter auditRecordWriter,
     CancellationToken cancellationToken) =>
 {
     var result = await installService.DiscoverAsync(request, cancellationToken);
+    var sourceIp = GetSourceIp(httpContext);
     if (!result.Succeeded)
     {
         await WriteInstallAuditAsync(
@@ -3670,7 +3682,7 @@ app.MapPost("/api/install/discover", async (
             "OwnerCode",
             result.OwnerCodeId?.ToString("D"),
             AuditOutcome.Denied,
-            new { result.Error },
+            new { result.Error, SourceIp = sourceIp },
             cancellationToken);
     }
 
@@ -3679,11 +3691,13 @@ app.MapPost("/api/install/discover", async (
 
 app.MapPost("/api/install/enroll", async (
     InstallEnrollRequest request,
+    HttpContext httpContext,
     IInstallService installService,
     IAuditRecordWriter auditRecordWriter,
     CancellationToken cancellationToken) =>
 {
     var result = await installService.EnrollAsync(request, cancellationToken);
+    var sourceIp = GetSourceIp(httpContext);
     if (result.Succeeded)
     {
         await WriteInstallAuditAsync(
@@ -3699,7 +3713,8 @@ app.MapPost("/api/install/enroll", async (
                 request.SeatId,
                 request.Role,
                 request.DisplayName,
-                result.Value.EnrollmentState
+                result.Value.EnrollmentState,
+                SourceIp = sourceIp
             },
             cancellationToken);
     }
@@ -3718,7 +3733,8 @@ app.MapPost("/api/install/enroll", async (
                 request.BranchId,
                 request.SeatId,
                 request.Role,
-                result.Error
+                result.Error,
+                SourceIp = sourceIp
             },
             cancellationToken);
     }
@@ -3767,6 +3783,11 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
     {
         return Results.Unauthorized();
     }
+    var allowOperationalCommands = credentialValidator.ValidateApproved(
+        request.OrganizationId,
+        request.BranchId,
+        deviceId,
+        credentialSecret);
 
     var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
     if (suspendedCheck is not null)
@@ -3774,7 +3795,11 @@ app.MapPost("/api/devices/{deviceId:guid}/heartbeat", async (
         return suspendedCheck;
     }
 
-    var response = await heartbeatService.RecordHeartbeatAsync(deviceId, request, cancellationToken);
+    var response = await heartbeatService.RecordHeartbeatAsync(
+        deviceId,
+        request,
+        allowOperationalCommands,
+        cancellationToken);
 
     return Results.Ok(response);
 });
@@ -3802,7 +3827,7 @@ app.MapPost("/api/devices/{deviceId:guid}/commands/{commandId:guid}/result", asy
     }
 
     var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
-    if (!credentialValidator.Validate(result.OrganizationId, result.BranchId, deviceId, credentialSecret))
+    if (!credentialValidator.ValidateApproved(result.OrganizationId, result.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
     }
@@ -3842,7 +3867,7 @@ app.MapPost("/api/devices/{deviceId:guid}/session-reconciliation", async (
     }
 
     var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
-    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
     }
@@ -3972,7 +3997,7 @@ app.MapPost("/api/devices/{deviceId:guid}/installed-apps/report", async (
     }
 
     var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
-    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
     }
@@ -4447,6 +4472,28 @@ app.MapPost("/api/devices/{deviceId:guid}/commands", async (
     if (request.Payload is null)
     {
         return Results.BadRequest(new { Error = "Command payload is required." });
+    }
+
+    if (device.EnrollmentState != DeviceEnrollmentStateNames.Approved)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            OrganizationId: authorization.StaffContext!.OrganizationId,
+            BranchId: device.BranchId,
+            ActorStaffUserId: authorization.StaffContext.StaffUserId,
+            Action: AuditActionNames.DispatchDeviceCommand,
+            TargetType: "Device",
+            TargetId: deviceId.ToString("D"),
+            Outcome: AuditOutcome.Denied,
+            SourceApp: "PlatformApi",
+            DetailsJson: JsonSerializer.Serialize(new
+            {
+                request.Type,
+                device.EnrollmentState,
+                Reason = "Device enrollment is not approved."
+            })),
+            cancellationToken);
+
+        return Results.Conflict(new { Error = "Device enrollment is not approved." });
     }
 
     var command = await commandDispatchService.DispatchAsync(deviceId, request, cancellationToken);
@@ -8366,7 +8413,7 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/check", async (
     }
 
     var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
-    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
     }
@@ -8397,7 +8444,7 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/status", async (
     }
 
     var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
-    if (!credentialValidator.Validate(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+    if (!credentialValidator.ValidateApproved(request.OrganizationId, request.BranchId, deviceId, credentialSecret))
     {
         return Results.Unauthorized();
     }
@@ -8486,6 +8533,11 @@ static IResult ToInstallHttpResult<TResponse>(InstallOperationResult<TResponse> 
         InstallOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
         _ => Results.BadRequest(new { Error = result.Error })
     };
+}
+
+static string GetSourceIp(HttpContext httpContext)
+{
+    return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }
 
 static async Task WriteInstallAuditAsync(

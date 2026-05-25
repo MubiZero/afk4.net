@@ -46,6 +46,17 @@ public sealed class EfInstallService(
                 lookup.OwnerCodeId);
         }
 
+        var organization = await dbContext.Organizations
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == lookup.OrganizationId, cancellationToken);
+        if (organization is null || organization.Status != TenantStatusNames.Active)
+        {
+            return InstallOperationResult<InstallDiscoverResponse>.BadRequest(
+                "Tenant is not active.",
+                lookup.OwnerCodeId,
+                lookup.OrganizationId);
+        }
+
         var branches = await dbContext.Branches
             .AsNoTracking()
             .Where(branch => branch.OrganizationId == lookup.OrganizationId)

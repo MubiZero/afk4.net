@@ -53,6 +53,7 @@ public sealed class DeviceHeartbeatServicePersistenceTests
                     ActiveSessionId: null,
                     ActiveSessionLeaseExpiresAtUtc: null,
                     ActiveSessionLeaseSequence: null),
+                allowOperationalCommands: true,
                 CancellationToken.None);
         }
 
@@ -139,6 +140,7 @@ public sealed class DeviceHeartbeatServicePersistenceTests
                     ActiveSessionId: null,
                     ActiveSessionLeaseExpiresAtUtc: null,
                     ActiveSessionLeaseSequence: null),
+                allowOperationalCommands: true,
                 CancellationToken.None);
 
             var command = Assert.Single(response.Commands);
@@ -203,6 +205,7 @@ public sealed class DeviceHeartbeatServicePersistenceTests
                     ActiveSessionId: sessionId,
                     ActiveSessionLeaseExpiresAtUtc: DateTimeOffset.Parse("2026-05-12T00:03:00Z"),
                     ActiveSessionLeaseSequence: 1),
+                allowOperationalCommands: true,
                 CancellationToken.None);
 
             var command = Assert.Single(response.Commands);

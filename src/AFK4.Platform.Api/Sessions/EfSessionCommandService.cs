@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
@@ -57,7 +58,7 @@ public sealed class EfSessionCommandService(
 
         if (assignment is null)
         {
-            return SessionCommandServiceResult.Invalid("Seat has no active device assignment.");
+            return SessionCommandServiceResult.Invalid("Seat has no active approved device assignment.");
         }
 
         if (await HasBlockingSessionAsync(
@@ -344,7 +345,7 @@ public sealed class EfSessionCommandService(
 
         if (assignment is null)
         {
-            return SessionCommandServiceResult.Invalid("Target seat has no active device assignment.");
+            return SessionCommandServiceResult.Invalid("Target seat has no active approved device assignment.");
         }
 
         if (await HasBlockingSessionAsync(
@@ -578,14 +579,19 @@ public sealed class EfSessionCommandService(
         Guid seatId,
         CancellationToken cancellationToken)
     {
-        return await dbContext.DeviceSeatAssignments
-            .AsNoTracking()
-            .Where(assignment =>
-                assignment.OrganizationId == organizationId &&
+        return await (
+            from assignment in dbContext.DeviceSeatAssignments.AsNoTracking()
+            join device in dbContext.Devices.AsNoTracking()
+                on assignment.DeviceId equals device.DeviceId
+            where assignment.OrganizationId == organizationId &&
                 assignment.BranchId == branchId &&
                 assignment.SeatId == seatId &&
-                assignment.DetachedAtUtc == null)
-            .OrderByDescending(assignment => assignment.AttachedAtUtc)
+                assignment.DetachedAtUtc == null &&
+                device.OrganizationId == organizationId &&
+                device.BranchId == branchId &&
+                device.EnrollmentState == DeviceEnrollmentStateNames.Approved
+            orderby assignment.AttachedAtUtc descending
+            select assignment)
             .FirstOrDefaultAsync(cancellationToken);
     }
 

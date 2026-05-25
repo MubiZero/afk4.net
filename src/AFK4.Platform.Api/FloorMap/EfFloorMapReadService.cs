@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
@@ -136,6 +137,11 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext, TimeProvi
         }
 
         if (device is null)
+        {
+            return "Maintenance";
+        }
+
+        if (device.EnrollmentState != DeviceEnrollmentStateNames.Approved)
         {
             return "Maintenance";
         }

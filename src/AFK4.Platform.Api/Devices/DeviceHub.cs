@@ -13,7 +13,7 @@ public sealed class DeviceHub(
 {
     public async Task RegisterDeviceAsync(DeviceConnectionRequest request)
     {
-        if (!credentialValidator.Validate(
+        if (!credentialValidator.ValidateApproved(
                 request.OrganizationId,
                 request.BranchId,
                 request.DeviceId,

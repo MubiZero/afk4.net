@@ -2,9 +2,13 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
+using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -92,6 +96,7 @@ public sealed class InstallEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var ownerAuthorization = client.DefaultRequestHeaders.Authorization;
         var ownerCode = await GenerateOwnerCodeAsync(client);
         await SeedLayoutAsync(factory, requireManualApproval: true);
         client.DefaultRequestHeaders.Authorization = null;
@@ -117,6 +122,98 @@ public sealed class InstallEndpointTests
         var device = await dbContext.Devices.SingleAsync(candidate => candidate.DeviceId == body.DeviceId);
         Assert.Equal(DeviceRoleNames.ManagerWorkstation, device.Role);
         Assert.Equal(DeviceEnrollmentStateNames.Pending, device.EnrollmentState);
+
+        var validator = scope.ServiceProvider.GetRequiredService<IDeviceCredentialValidator>();
+        Assert.True(validator.Validate(TestIds.OrganizationId, TestIds.BranchId, body.DeviceId, body.CredentialSecret));
+        Assert.False(validator.ValidateApproved(TestIds.OrganizationId, TestIds.BranchId, body.DeviceId, body.CredentialSecret));
+
+        dbContext.DeviceCommands.Add(new DeviceCommandEntity
+        {
+            DeviceId = body.DeviceId,
+            CommandId = Guid.Parse("77777777-7777-4777-8777-777777777777"),
+            Type = DeviceCommandTypeNames.Unlock,
+            PayloadJson = """{"reason":"pending-device-regression"}""",
+            Status = "Pending",
+            CreatedAtUtc = DateTimeOffset.Parse("2026-05-25T11:30:00Z"),
+            UpdatedAtUtc = DateTimeOffset.Parse("2026-05-25T11:30:00Z")
+        });
+        await dbContext.SaveChangesAsync();
+
+        using var heartbeat = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{body.DeviceId:D}/heartbeat")
+        {
+            Content = JsonContent.Create(new DeviceHeartbeatRequest(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                body.DeviceId,
+                "MANAGER-01",
+                "0.1.0",
+                "0.1.0",
+                DateTimeOffset.Parse("2026-05-25T11:31:00Z"),
+                IsLocked: true,
+                ActiveSessionId: null,
+                ActiveSessionLeaseExpiresAtUtc: null,
+                ActiveSessionLeaseSequence: null))
+        };
+        heartbeat.Headers.Add(DeviceCredentialHeaders.CredentialSecret, body.CredentialSecret);
+        var heartbeatResponse = await client.SendAsync(heartbeat);
+        var heartbeatBody = await heartbeatResponse.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>();
+        Assert.Equal(HttpStatusCode.OK, heartbeatResponse.StatusCode);
+        Assert.NotNull(heartbeatBody);
+        Assert.Empty(heartbeatBody.Commands);
+
+        client.DefaultRequestHeaders.Authorization = ownerAuthorization;
+        var startResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                TestIds.SeatId,
+                DurationMinutes: 30,
+                TariffRuleVersionId: "manual-v1",
+                IdempotencyKey: "pending-device-start"));
+        Assert.Equal(HttpStatusCode.BadRequest, startResponse.StatusCode);
+
+        var commandResponse = await client.PostAsJsonAsync(
+            $"/api/devices/{body.DeviceId:D}/commands",
+            new CreateDeviceCommandRequest(
+                DeviceCommandTypeNames.Unlock,
+                new Dictionary<string, string> { ["reason"] = "pending-device-regression" }));
+        Assert.Equal(HttpStatusCode.Conflict, commandResponse.StatusCode);
+
+        var floorMapResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var floorMap = await floorMapResponse.Content.ReadFromJsonAsync<FloorMapDto>();
+        Assert.Equal(HttpStatusCode.OK, floorMapResponse.StatusCode);
+        Assert.NotNull(floorMap);
+        var seat = Assert.Single(floorMap.Seats, candidate => candidate.SeatId == TestIds.SeatId);
+        Assert.Equal("Maintenance", seat.State);
+        Assert.True(seat.IsDeviceOnline);
+        Assert.Equal(body.DeviceId, seat.DeviceId);
+    }
+
+    [Fact]
+    public async Task Discover_WithSuspendedTenant_ReturnsBadRequestWithoutBranches()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var ownerCode = await GenerateOwnerCodeAsync(client);
+        await SeedLayoutAsync(factory);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var organization = await dbContext.Organizations.SingleAsync(candidate => candidate.OrganizationId == TestIds.OrganizationId);
+            organization.Status = "suspended";
+            organization.StatusReason = "billing hold";
+            await dbContext.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await client.PostAsJsonAsync(
+            "/api/install/discover",
+            new InstallDiscoverRequest(ownerCode));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

@@ -8,6 +8,7 @@ public sealed class InMemoryDeviceHeartbeatService(IHubContext<DeviceHub> hubCon
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
         DeviceHeartbeatRequest request,
+        bool allowOperationalCommands,
         CancellationToken cancellationToken)
     {
         var status = new DeviceStatusChangedDto(
