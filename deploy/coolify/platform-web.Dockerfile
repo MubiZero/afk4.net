@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1.7
 
-# Multistage Dockerfile for the internal SaaS Control Plane SPA
-# (src/AFK4.Platform.Web). Build context = repository root.
+# Multistage Dockerfile for Platform.Web (src/AFK4.Platform.Web). Build
+# context = repository root. The same source builds either the internal admin
+# host or the customer club host through VITE_AUDIENCE.
 #
 # Build command:
-#   docker build -f deploy/coolify/platform-web.Dockerfile -t afk4-platform-web .
+#   docker build -f deploy/coolify/platform-web.Dockerfile --build-arg VITE_AUDIENCE=admin -t afk4-platform-web-admin .
+#   docker build -f deploy/coolify/platform-web.Dockerfile --build-arg VITE_AUDIENCE=club -t afk4-platform-web-club .
 #
 # Runtime image serves the Vite `dist/` output via nginx with SPA-style
 # fallback (every unknown path is rewritten to /index.html). The actual
@@ -17,7 +19,9 @@ COPY src/AFK4.Platform.Web/package.json src/AFK4.Platform.Web/package-lock.json 
 RUN npm ci
 COPY src/AFK4.Platform.Web/. ./
 ARG VITE_PLATFORM_API_BASE_URL=""
+ARG VITE_AUDIENCE="admin"
 ENV VITE_PLATFORM_API_BASE_URL=${VITE_PLATFORM_API_BASE_URL}
+ENV VITE_AUDIENCE=${VITE_AUDIENCE}
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime

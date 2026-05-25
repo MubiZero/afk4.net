@@ -261,31 +261,41 @@ Minimum first-deploy evidence:
 - the API container logs do not show database connection failures;
 - Coolify reports the deployment healthy on the current commit.
 
-## Slice 5 SaaS Control Plane SPA + Public-Endpoint Rate-Limiting
+## Platform.Web SPA Audiences + Public-Endpoint Rate-Limiting
 
-The internal Slice 5 SaaS Control Plane SPA (`src/AFK4.Platform.Web`) is built
-and served as a separate Coolify application alongside the Platform API:
+`src/AFK4.Platform.Web` is one codebase deployed as two Coolify applications:
+the internal admin host and the customer club host. Both use
+`deploy/coolify/platform-web.Dockerfile` (build context = repository root,
+exposed port `8080`, health path `/healthz`) and differ only by build args and
+Traefik host labels:
 
-1. Add a second Coolify application from this repository pointing at
-   `deploy/coolify/platform-web.Dockerfile` (build context = repository root,
-   exposed port `8080`, health path `/healthz`).
-2. Set the `VITE_PLATFORM_API_BASE_URL` build argument to the Platform API's
-   public URL on this Coolify (e.g.
-   `https://afk4.staging.mubi.dev`). The value is baked into the bundle
-   at build time so the SPA can call the API across the public origin.
-3. Wire the dedicated host (e.g. `platform.afk4.staging.mubi.dev`) via the
-   Traefik labels in [`deploy/coolify/ingress.md`](../../deploy/coolify/ingress.md#1-platformweb-spa-platformafk4stagingmubidev).
-   Don't forget the DNS A/AAAA record before redeploying.
+| Coolify app | Host | Build arguments |
+| --- | --- | --- |
+| Admin SPA | `platform.afk4.staging.mubi.dev` | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`, `VITE_AUDIENCE=admin` |
+| Customer SPA | `app.afk4.staging.mubi.dev` | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`, `VITE_AUDIENCE=club` |
+
+For Slice 2.5, add the customer SPA as a new Coolify application from the same
+repository and Dockerfile. Keep the existing admin SPA application and hostname
+unchanged. Add the DNS A/AAAA record for `app.afk4.staging.mubi.dev` before
+deploying so Let's Encrypt can issue the certificate.
+
+The build-time `VITE_AUDIENCE` value is baked into the Vite bundle: the admin
+host exposes only `/admin/*` plus `/auth/*`; the customer host exposes only
+`/club/*` plus `/auth/*`. Verify route isolation in a browser after deploy:
+`/club/install` on `platform.*` and `/admin/tenants` on `app.*` must render the
+SPA not-found state, while `/auth/sign-in` must render on both hosts.
+
+Wire both dedicated hosts via the Traefik labels in
+[`deploy/coolify/ingress.md`](../../deploy/coolify/ingress.md#1-platformweb-spa-audiences).
 
 Same file documents how to attach a per-source-IP rate-limit middleware to the
-two public Platform API endpoints that accept bearer-style credentials with no
-auth handshake in front of them
-(`POST /api/operator-connections/resolve` and
-`POST /api/platform/owner-invites/accept`). The labels go on the existing
-Platform API Coolify application and create two extra Traefik routers with a
-higher priority than the catch-all, so the rest of the API surface stays
-unchanged. Verify after deploying using the curl recipes at the bottom of the
-ingress doc.
+public Platform API endpoints that accept bearer-style setup, install, or
+connection credentials with no auth handshake in front of them
+(`/api/operator-connections/resolve`, `/api/platform/owner-invites/accept`,
+`/api/install/discover`, and `/api/install/enroll`). The labels go on the
+existing Platform API Coolify application and create higher-priority Traefik
+routers for those exact paths, so the rest of the API surface stays unchanged.
+Verify after deploying using the curl recipes at the bottom of the ingress doc.
 
 ## Rollback
 

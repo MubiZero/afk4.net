@@ -117,7 +117,7 @@ implementation evidence are needed.
 
 ### SaaS Control Plane / Platform Web
 
-- Club self-service onboarding Slices 2.1 through 2.4 start the Platform Web
+- Club self-service onboarding Slices 2.1 through 2.5 start the Platform Web
   route split. Existing platform-admin tenant list/create/detail screens now
   resolve under `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
   `/admin/tenants/{organizationId}` with legacy root-level admin bookmark
@@ -130,7 +130,11 @@ implementation evidence are needed.
   screens, and operators screen wired to existing staff APIs. Slice 2.4 cleans
   human-facing terminology so setup codes, owner codes, PC enrollment codes,
   and tenant/branch keys are consistently named in the SPA and public
-  operations docs.
+  operations docs. Slice 2.5 adds the `VITE_AUDIENCE` build flag so the same
+  SPA source can build an admin host exposing `/admin/*` + `/auth/*` and a
+  customer host exposing `/club/*` + `/auth/*`; Coolify docs now define the new
+  `app.afk4.staging.mubi.dev` customer app alongside the existing
+  `platform.afk4.staging.mubi.dev` admin app.
 
 ### Operator App
 
@@ -1769,9 +1773,9 @@ Operator App redesign branch-local verification on 2026-05-20:
    commit must have a green remote `PR Verification Result`.
 2. Continue the club self-service onboarding plan from
    `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`
-   with Slice 2.4 terminology cleanup across SPA strings and public-facing
-   operations docs, then Slice 2.5 audience build flag and second Coolify app
-   for the customer host before the SetupWizard/MSI slices.
+   by creating/deploying the documented `app.afk4.staging.mubi.dev` customer
+   Coolify app when DNS/Coolify credentials are available, then proceed to
+   Slice 3.1 SetupWizard before the MSI slices.
 3. Continue `codex/operator-app-redesign` from the backend-connected React
    shell by working through the new "Backend Connectivity TODO From Current
    React UI Copy" checklist in
@@ -3443,6 +3447,32 @@ Operator App WebView2/React first implementation on 2026-05-20:
   --ignore-scripts`, solution build passed with 0 warnings / 0 errors, and
   `git diff --check` was clean apart from expected LF-to-CRLF working-copy
   warnings.
+
+- 2026-05-25: local Slice 2.5 implementation on
+  `codex/slice-2.5-platform-web-audience`. `src/AFK4.Platform.Web` now reads
+  `VITE_AUDIENCE=admin|club|all`, gates route resolution/rendering by
+  audience, redirects the club host root to `/club/install`, and sets the
+  runtime document title for the selected audience. The Dockerfile now accepts
+  `VITE_AUDIENCE` with an admin default, and the Coolify ingress/runbook docs
+  define the existing `platform.afk4.staging.mubi.dev` admin SPA plus the new
+  `app.afk4.staging.mubi.dev` customer SPA. No remote Coolify mutation was
+  attempted in this local session because the shell has no Coolify API/base URL
+  environment configured.
+
+  ```powershell
+  npm test -- App.test.tsx       # in src/AFK4.Platform.Web/
+  npm test --silent              # in src/AFK4.Platform.Web/
+  $env:VITE_AUDIENCE='admin'; npm run build --silent; Remove-Item Env:\VITE_AUDIENCE
+  $env:VITE_AUDIENCE='club'; npm run build --silent; Remove-Item Env:\VITE_AUDIENCE
+  # Browser smoke against Vite dev servers on 127.0.0.1:5176 (admin) and 127.0.0.1:5177 (club)
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused App tests passed 14/14, full Platform.Web tests passed 35/35,
+  both audience production builds passed, browser smoke confirmed admin
+  `/club/install` and club `/admin/tenants` render not-found while shared
+  `/auth/sign-in` works, and `git diff --check` was clean apart from expected
+  LF-to-CRLF working-copy warnings.
 
 ## Historical Reference
 

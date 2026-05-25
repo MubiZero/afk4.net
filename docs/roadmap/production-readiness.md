@@ -211,11 +211,13 @@ Minimum bar:
    deactivation, layout zone/seat creation/update, device command
    dispatch, and device credential rotation/revocation through existing backend
    endpoints on `codex/operator-app-redesign`. Club self-service onboarding
-   now has the first backend install path: owner-code discover/enroll endpoints
-   can create approved or pending devices, issue device credentials, attach the
+   now has the backend install path, branch device admin APIs, and first
+   owner-facing Platform.Web screens locally: owner-code discover/enroll can
+   create approved or pending devices, issue device credentials, attach the
    selected seat, and apply both app-layer and documented Traefik rate-limit
-   protection. The owner-facing SPA, SetupWizard/MSI flow, and device admin
-   approve/reject queue still need to ship before this replaces the scripted
+   protection; the SPA now has separate admin/customer audience builds. The
+   customer `app.afk4.staging.mubi.dev` Coolify app deployment and
+   SetupWizard/MSI flow still need to ship before this replaces the scripted
    pilot setup path.
 
 ## Commercial Production Blockers
@@ -225,9 +227,10 @@ Minimum bar:
 - Production hosting provider and deployment topology are not selected for
   commercial production.
 - Production environments are not codified.
-- Internal SaaS Control Plane and no-DB-edit tenant provisioning are not
-  implemented yet. They are now production-readiness scope, not an optional
-  later admin convenience.
+- Internal SaaS Control Plane and no-DB-edit tenant provisioning are partially
+  implemented and smoke-tested in staging for platform-admin tenant creation,
+  owner invites, tenant status, support notes, and health. Customer-host
+  deployment plus the Windows SetupWizard/MSI flow remain onboarding blockers.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging

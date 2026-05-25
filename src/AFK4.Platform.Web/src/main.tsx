@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
+import App, { readPlatformWebAudience, type PlatformWebAudience } from './App';
 import './styles.css';
 
 const container = document.getElementById('root');
@@ -8,9 +8,12 @@ if (container === null) {
   throw new Error('Root element not found.');
 }
 
+const audience = readPlatformWebAudience();
+setDocumentTitle(audience);
+
 createRoot(container).render(
   <StrictMode>
-    <App apiBaseUrl={resolveApiBaseUrl()} />
+    <App apiBaseUrl={resolveApiBaseUrl()} audience={audience} />
   </StrictMode>
 );
 
@@ -26,4 +29,11 @@ function resolveApiBaseUrl(): string {
     return `${window.location.protocol}//${window.location.host}`;
   }
   return 'http://localhost:5000';
+}
+
+function setDocumentTitle(audience: PlatformWebAudience): void {
+  if (typeof document === 'undefined') {
+    return;
+  }
+  document.title = audience === 'club' ? 'AFK4 Club Dashboard' : 'AFK4 Platform Control Plane';
 }

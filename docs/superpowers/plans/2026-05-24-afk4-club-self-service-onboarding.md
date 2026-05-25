@@ -713,6 +713,16 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   tenant/branch keys instead of visible slug labels. Public
   operations docs now call the legacy `/device-enrollment-codes` path PC
   enrollment codes while preserving endpoint names.
+- **Slice 2.5** - completed locally on
+  `codex/slice-2.5-platform-web-audience`: Platform Web now reads
+  `VITE_AUDIENCE=admin|club|all`, gates route resolution/rendering so the admin
+  build exposes `/admin/*` + `/auth/*` and the customer build exposes
+  `/club/*` + `/auth/*`, redirects the customer host root to `/club/install`,
+  and builds both audience variants. The shared Dockerfile accepts
+  `VITE_AUDIENCE`, and Coolify ingress/runbook docs define the existing
+  `platform.afk4.staging.mubi.dev` admin app plus the new
+  `app.afk4.staging.mubi.dev` customer app. Remote Coolify app creation remains
+  an operational follow-up when DNS/Coolify credentials are available.
 
 ## Testing
 

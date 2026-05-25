@@ -13,6 +13,8 @@ import { TenantList } from './components/TenantList';
 import { TenantDetailView } from './components/TenantDetail';
 import { NewTenant } from './components/NewTenant';
 
+export type PlatformWebAudience = 'all' | 'admin' | 'club';
+
 export type AdminRoute =
   | { kind: 'tenantList' }
   | { kind: 'newTenant' }
@@ -47,12 +49,15 @@ export interface RouteResolution {
 
 export interface AppProps {
   apiBaseUrl: string;
+  audience?: PlatformWebAudience;
 }
 
-export default function App({ apiBaseUrl }: AppProps) {
+const defaultAudience = readPlatformWebAudience();
+
+export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps) {
   const [adminSession, setAdminSession] = useState<PlatformAdminSession | null>(() => readSession());
   const [staffSession, setStaffSession] = useState<StaffSession | null>(() => readStaffSession());
-  const [route, setRoute] = useState<AppRoute>(() => readCurrentRoute());
+  const [route, setRoute] = useState<AppRoute>(() => readCurrentRoute(audience));
 
   const adminClient = useMemo(
     () =>
@@ -96,7 +101,8 @@ export default function App({ apiBaseUrl }: AppProps) {
       const resolution = resolvePlatformRoute(
         window.location.pathname,
         window.history.state,
-        window.location.search
+        window.location.search,
+        audience
       );
       if (resolution.redirectTo !== undefined) {
         window.history.replaceState(window.history.state, '', resolution.redirectTo);
@@ -107,14 +113,20 @@ export default function App({ apiBaseUrl }: AppProps) {
     syncRouteFromLocation();
     window.addEventListener('popstate', syncRouteFromLocation);
     return () => window.removeEventListener('popstate', syncRouteFromLocation);
-  }, []);
+  }, [audience]);
 
   const navigate = useCallback((nextRoute: AppRoute, path: string, historyState: unknown = null) => {
+    const allowedRoute = routeForAudience(nextRoute, path, audience);
     if (typeof window !== 'undefined') {
       window.history.pushState(historyState, '', path);
     }
-    setRoute(nextRoute);
-  }, []);
+    setRoute(allowedRoute);
+  }, [audience]);
+
+  const navigateToAudienceHome = useCallback(() => {
+    const home = getAudienceHome(audience);
+    navigate(home.route, home.path);
+  }, [audience, navigate]);
 
   const navigateToTenantList = useCallback(
     () => navigate({ kind: 'tenantList' }, '/admin/tenants'),
@@ -153,7 +165,13 @@ export default function App({ apiBaseUrl }: AppProps) {
   );
 
   if (route.kind === 'notFound') {
-    return <NotFound path={route.path} onHome={navigateToTenantList} />;
+    return (
+      <NotFound
+        path={route.path}
+        homeLabel={getAudienceHome(audience).label}
+        onHome={navigateToAudienceHome}
+      />
+    );
   }
 
   if (route.kind === 'acceptInvite') {
@@ -203,7 +221,13 @@ export default function App({ apiBaseUrl }: AppProps) {
   }
 
   if (!isAdminRoute(route)) {
-    return <NotFound path="/" onHome={navigateToTenantList} />;
+    return (
+      <NotFound
+        path="/"
+        homeLabel={getAudienceHome(audience).label}
+        onHome={navigateToAudienceHome}
+      />
+    );
   }
 
   if (adminSession === null) {
@@ -251,45 +275,50 @@ export default function App({ apiBaseUrl }: AppProps) {
 export function resolvePlatformRoute(
   pathname: string,
   historyState: unknown = null,
-  search = ''
+  search = '',
+  audience: PlatformWebAudience = defaultAudience
 ): RouteResolution {
   const path = normalizePath(pathname);
 
   if (path === '/') {
-    return { route: { kind: 'tenantList' }, redirectTo: '/admin' };
-  }
-  if (path === '/tenants') {
-    return { route: { kind: 'tenantList' }, redirectTo: '/admin/tenants' };
-  }
-  if (path === '/tenants/new') {
-    return { route: { kind: 'newTenant' }, redirectTo: '/admin/tenants/new' };
+    const home = getAudienceHome(audience);
+    return { route: home.route, redirectTo: home.path };
   }
 
-  const legacyTenantDetailMatch = /^\/tenants\/([^/]+)$/u.exec(path);
-  if (legacyTenantDetailMatch !== null) {
-    const organizationId = decodePathSegment(legacyTenantDetailMatch[1]);
-    return {
-      route: { kind: 'tenantDetail', organizationId, initialInvite: readInitialInvite(historyState) },
-      redirectTo: `/admin/tenants/${encodeURIComponent(organizationId)}`
-    };
-  }
+  if (allowsAdminRoutes(audience)) {
+    if (path === '/tenants') {
+      return { route: { kind: 'tenantList' }, redirectTo: '/admin/tenants' };
+    }
+    if (path === '/tenants/new') {
+      return { route: { kind: 'newTenant' }, redirectTo: '/admin/tenants/new' };
+    }
 
-  if (path === '/admin' || path === '/admin/tenants') {
-    return { route: { kind: 'tenantList' } };
-  }
-  if (path === '/admin/tenants/new') {
-    return { route: { kind: 'newTenant' } };
-  }
+    const legacyTenantDetailMatch = /^\/tenants\/([^/]+)$/u.exec(path);
+    if (legacyTenantDetailMatch !== null) {
+      const organizationId = decodePathSegment(legacyTenantDetailMatch[1]);
+      return {
+        route: { kind: 'tenantDetail', organizationId, initialInvite: readInitialInvite(historyState) },
+        redirectTo: `/admin/tenants/${encodeURIComponent(organizationId)}`
+      };
+    }
 
-  const tenantDetailMatch = /^\/admin\/tenants\/([^/]+)$/u.exec(path);
-  if (tenantDetailMatch !== null) {
-    return {
-      route: {
-        kind: 'tenantDetail',
-        organizationId: decodePathSegment(tenantDetailMatch[1]),
-        initialInvite: readInitialInvite(historyState)
-      }
-    };
+    if (path === '/admin' || path === '/admin/tenants') {
+      return { route: { kind: 'tenantList' } };
+    }
+    if (path === '/admin/tenants/new') {
+      return { route: { kind: 'newTenant' } };
+    }
+
+    const tenantDetailMatch = /^\/admin\/tenants\/([^/]+)$/u.exec(path);
+    if (tenantDetailMatch !== null) {
+      return {
+        route: {
+          kind: 'tenantDetail',
+          organizationId: decodePathSegment(tenantDetailMatch[1]),
+          initialInvite: readInitialInvite(historyState)
+        }
+      };
+    }
   }
 
   if (path === '/auth') {
@@ -308,77 +337,92 @@ export function resolvePlatformRoute(
     return { route: { kind: 'resetPassword' } };
   }
 
-  if (path === '/club') {
-    return { route: { kind: 'clubDashboard' } };
-  }
-  if (path === '/club/install') {
-    return { route: { kind: 'clubInstall' } };
-  }
-  if (path === '/club/branches') {
-    return { route: { kind: 'clubBranches' } };
-  }
+  if (allowsClubRoutes(audience)) {
+    if (path === '/club') {
+      return { route: { kind: 'clubDashboard' } };
+    }
+    if (path === '/club/install') {
+      return { route: { kind: 'clubInstall' } };
+    }
+    if (path === '/club/branches') {
+      return { route: { kind: 'clubBranches' } };
+    }
 
-  const pendingDevicesMatch = /^\/club\/branches\/([^/]+)\/devices\/pending$/u.exec(path);
-  if (pendingDevicesMatch !== null) {
-    return {
-      route: {
-        kind: 'clubBranchPendingDevices',
-        branchId: decodePathSegment(pendingDevicesMatch[1])
-      }
-    };
-  }
+    const pendingDevicesMatch = /^\/club\/branches\/([^/]+)\/devices\/pending$/u.exec(path);
+    if (pendingDevicesMatch !== null) {
+      return {
+        route: {
+          kind: 'clubBranchPendingDevices',
+          branchId: decodePathSegment(pendingDevicesMatch[1])
+        }
+      };
+    }
 
-  const branchDevicesMatch = /^\/club\/branches\/([^/]+)\/devices$/u.exec(path);
-  if (branchDevicesMatch !== null) {
-    return {
-      route: {
-        kind: 'clubBranchDevices',
-        branchId: decodePathSegment(branchDevicesMatch[1])
-      }
-    };
-  }
+    const branchDevicesMatch = /^\/club\/branches\/([^/]+)\/devices$/u.exec(path);
+    if (branchDevicesMatch !== null) {
+      return {
+        route: {
+          kind: 'clubBranchDevices',
+          branchId: decodePathSegment(branchDevicesMatch[1])
+        }
+      };
+    }
 
-  const floorMapMatch = /^\/club\/branches\/([^/]+)\/floor-map$/u.exec(path);
-  if (floorMapMatch !== null) {
-    return {
-      route: {
-        kind: 'clubBranchFloorMap',
-        branchId: decodePathSegment(floorMapMatch[1])
-      }
-    };
-  }
+    const floorMapMatch = /^\/club\/branches\/([^/]+)\/floor-map$/u.exec(path);
+    if (floorMapMatch !== null) {
+      return {
+        route: {
+          kind: 'clubBranchFloorMap',
+          branchId: decodePathSegment(floorMapMatch[1])
+        }
+      };
+    }
 
-  const operatorsMatch = /^\/club\/branches\/([^/]+)\/operators$/u.exec(path);
-  if (operatorsMatch !== null) {
-    return {
-      route: {
-        kind: 'clubBranchOperators',
-        branchId: decodePathSegment(operatorsMatch[1])
-      }
-    };
-  }
+    const operatorsMatch = /^\/club\/branches\/([^/]+)\/operators$/u.exec(path);
+    if (operatorsMatch !== null) {
+      return {
+        route: {
+          kind: 'clubBranchOperators',
+          branchId: decodePathSegment(operatorsMatch[1])
+        }
+      };
+    }
 
-  const branchDetailMatch = /^\/club\/branches\/([^/]+)$/u.exec(path);
-  if (branchDetailMatch !== null) {
-    return {
-      route: {
-        kind: 'clubBranchDetail',
-        branchId: decodePathSegment(branchDetailMatch[1])
-      }
-    };
+    const branchDetailMatch = /^\/club\/branches\/([^/]+)$/u.exec(path);
+    if (branchDetailMatch !== null) {
+      return {
+        route: {
+          kind: 'clubBranchDetail',
+          branchId: decodePathSegment(branchDetailMatch[1])
+        }
+      };
+    }
   }
 
   return { route: { kind: 'notFound', path } };
 }
 
-function readCurrentRoute(): AppRoute {
+export function readPlatformWebAudience(
+  env: Record<string, string | undefined> | undefined = (
+    import.meta as unknown as { env?: Record<string, string | undefined> }
+  ).env
+): PlatformWebAudience {
+  const value = env?.VITE_AUDIENCE?.trim().toLowerCase();
+  if (value === 'admin' || value === 'club' || value === 'all') {
+    return value;
+  }
+  return 'all';
+}
+
+function readCurrentRoute(audience: PlatformWebAudience): AppRoute {
   if (typeof window === 'undefined') {
-    return { kind: 'tenantList' };
+    return getAudienceHome(audience).route;
   }
   return resolvePlatformRoute(
     window.location.pathname,
     window.history.state,
-    window.location.search
+    window.location.search,
+    audience
   ).route;
 }
 
@@ -436,6 +480,48 @@ function isClubRoute(route: AppRoute): route is ClubRoute {
     || route.kind === 'clubBranchOperators';
 }
 
+function routeForAudience(route: AppRoute, path: string, audience: PlatformWebAudience): AppRoute {
+  if (isRouteAllowedForAudience(route, audience)) {
+    return route;
+  }
+  return { kind: 'notFound', path: normalizePath(path) };
+}
+
+function isRouteAllowedForAudience(route: AppRoute, audience: PlatformWebAudience): boolean {
+  if (route.kind === 'notFound' || isAuthRoute(route)) {
+    return true;
+  }
+  if (isAdminRoute(route)) {
+    return allowsAdminRoutes(audience);
+  }
+  if (isClubRoute(route)) {
+    return allowsClubRoutes(audience);
+  }
+  return false;
+}
+
+function isAuthRoute(route: AppRoute): route is AuthRoute {
+  return route.kind === 'acceptInvite'
+    || route.kind === 'staffSignIn'
+    || route.kind === 'forgotPassword'
+    || route.kind === 'resetPassword';
+}
+
+function allowsAdminRoutes(audience: PlatformWebAudience): boolean {
+  return audience === 'all' || audience === 'admin';
+}
+
+function allowsClubRoutes(audience: PlatformWebAudience): boolean {
+  return audience === 'all' || audience === 'club';
+}
+
+function getAudienceHome(audience: PlatformWebAudience): { route: AppRoute; path: string; label: string } {
+  if (audience === 'club') {
+    return { route: { kind: 'clubInstall' }, path: '/club/install', label: 'Open club install' };
+  }
+  return { route: { kind: 'tenantList' }, path: '/admin', label: 'Open admin tenants' };
+}
+
 function ReservedAuthPage({ onSignIn }: { onSignIn: () => void }) {
   return (
     <div className="page page-narrow">
@@ -448,7 +534,15 @@ function ReservedAuthPage({ onSignIn }: { onSignIn: () => void }) {
   );
 }
 
-function NotFound({ path, onHome }: { path: string; onHome: () => void }) {
+function NotFound({
+  path,
+  homeLabel,
+  onHome
+}: {
+  path: string;
+  homeLabel: string;
+  onHome: () => void;
+}) {
   return (
     <main>
       <div className="page page-narrow">
@@ -457,7 +551,7 @@ function NotFound({ path, onHome }: { path: string; onHome: () => void }) {
         </div>
         <section className="section">
           <p className="muted">No Platform Web route matches <code>{path}</code>.</p>
-          <button type="button" className="primary" onClick={onHome}>Open admin tenants</button>
+          <button type="button" className="primary" onClick={onHome}>{homeLabel}</button>
         </section>
       </div>
     </main>

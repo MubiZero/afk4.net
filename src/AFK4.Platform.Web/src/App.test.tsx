@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App, { resolvePlatformRoute } from './App';
+import App, { readPlatformWebAudience, resolvePlatformRoute } from './App';
 import { clearStaffSession, readStaffSession, writeStaffSession, type StaffSession } from './auth/staffTokenStore';
 import { clearSession, writeSession, type PlatformAdminSession } from './auth/tokenStore';
 
@@ -250,6 +250,62 @@ describe('Platform Web routing', () => {
     expect(resolvePlatformRoute('/club/branches/branch-1/operators')).toMatchObject({
       route: { kind: 'clubBranchOperators', branchId: 'branch-1' }
     });
+  });
+
+  it('gates routes by the audience build flag', () => {
+    expect(resolvePlatformRoute('/', null, '', 'admin')).toMatchObject({
+      redirectTo: '/admin',
+      route: { kind: 'tenantList' }
+    });
+    expect(resolvePlatformRoute('/', null, '', 'club')).toMatchObject({
+      redirectTo: '/club/install',
+      route: { kind: 'clubInstall' }
+    });
+    expect(resolvePlatformRoute('/auth/sign-in', null, '', 'admin')).toMatchObject({
+      route: { kind: 'staffSignIn' }
+    });
+    expect(resolvePlatformRoute('/auth/sign-in', null, '', 'club')).toMatchObject({
+      route: { kind: 'staffSignIn' }
+    });
+    expect(resolvePlatformRoute('/club/install', null, '', 'admin')).toMatchObject({
+      route: { kind: 'notFound', path: '/club/install' }
+    });
+    expect(resolvePlatformRoute('/admin/tenants', null, '', 'club')).toMatchObject({
+      route: { kind: 'notFound', path: '/admin/tenants' }
+    });
+    expect(resolvePlatformRoute('/tenants/org-1', null, '', 'club')).toMatchObject({
+      route: { kind: 'notFound', path: '/tenants/org-1' }
+    });
+  });
+
+  it('normalizes the VITE_AUDIENCE build flag', () => {
+    expect(readPlatformWebAudience({ VITE_AUDIENCE: 'admin' })).toBe('admin');
+    expect(readPlatformWebAudience({ VITE_AUDIENCE: 'club' })).toBe('club');
+    expect(readPlatformWebAudience({ VITE_AUDIENCE: 'ALL' })).toBe('all');
+    expect(readPlatformWebAudience({ VITE_AUDIENCE: 'unexpected' })).toBe('all');
+    expect(readPlatformWebAudience({})).toBe('all');
+  });
+
+  it('does not render customer screens in an admin audience build', () => {
+    window.history.replaceState(null, '', '/club/install');
+    writeStaffSession(buildStaffSession());
+
+    render(<App apiBaseUrl="http://localhost" audience="admin" />);
+
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Install AFK4 on PCs' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open admin tenants' })).toBeInTheDocument();
+  });
+
+  it('does not render platform-admin screens in a club audience build', () => {
+    window.history.replaceState(null, '', '/admin/tenants');
+    writeSession(buildSession());
+
+    render(<App apiBaseUrl="http://localhost" audience="club" />);
+
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Tenants' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open club install' })).toBeInTheDocument();
   });
 
   it('redirects the old root bookmark to /admin for signed-in platform admins', async () => {
