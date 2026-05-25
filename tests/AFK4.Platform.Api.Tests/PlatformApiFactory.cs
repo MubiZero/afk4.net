@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Sessions;
 using Microsoft.AspNetCore.Hosting;
@@ -44,6 +45,11 @@ internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
             services.Configure<SessionLeaseOptions>(options =>
             {
                 options.SigningPrivateKeyPem = signingPrivateKeyPem;
+            });
+            services.PostConfigure<InstallOptions>(options =>
+            {
+                options.LeaseSigningPublicKeyPem = "test-lease-public-key";
+                options.UpdatePackageSigningPublicKeyPem = "test-update-public-key";
             });
 
             // Suppress configuration-driven platform admin bootstrap during tests so each test

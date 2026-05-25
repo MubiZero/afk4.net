@@ -338,6 +338,11 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
+                    b.Property<string>("DevicePublicKey")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)");
+
                     b.Property<DateTimeOffset>("EnrolledAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -712,7 +717,9 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.HasKey("OwnerCodeId");
 
-                    b.HasIndex("CodeHash");
+                    b.HasIndex("CodeHash")
+                        .IsUnique()
+                        .HasFilter("\"RevokedAtUtc\" IS NULL");
 
                     b.HasIndex("ExpiresAtUtc");
 

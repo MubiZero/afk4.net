@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text;
 using AFK4.Platform.Api.Audit;
@@ -216,7 +218,7 @@ app.Use(async (httpContext, next) =>
     if (httpContext.Request.Path.StartsWithSegments("/api/install") &&
         HttpMethods.IsPost(httpContext.Request.Method))
     {
-        var sourceIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var sourceIp = GetSourceIp(httpContext);
         var throttle = httpContext.RequestServices.GetRequiredService<IInstallRequestThrottle>();
         var decision = await throttle.ApplyAsync(sourceIp, httpContext.RequestAborted);
         if (decision.IsRejected)
@@ -3840,7 +3842,9 @@ app.MapPost("/api/devices/{deviceId:guid}/commands/{commandId:guid}/result", asy
 
     await commandStore.ApplyResultAsync(result, cancellationToken);
     await sessionCommandResultProcessor.ProcessAsync(result, cancellationToken);
-    await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceCommandResult, result, cancellationToken);
+    await hubContext.Clients
+        .Group(DeviceHubGroups.Branch(result.BranchId))
+        .SendAsync(DeviceRealtimeEvents.DeviceCommandResult, result, cancellationToken);
 
     return Results.Ok();
 });
@@ -4400,9 +4404,9 @@ app.MapPost("/api/devices/{deviceId:guid}/rename", async (
         return Results.BadRequest(new { Error = "DisplayName is required." });
     }
 
-    if (displayName.Length > 120)
+    if (displayName.Length > 80)
     {
-        return Results.BadRequest(new { Error = "DisplayName must be 120 characters or fewer." });
+        return Results.BadRequest(new { Error = "DisplayName must be 80 characters or fewer." });
     }
 
     var previousDisplayName = device.DisplayName;
@@ -8882,7 +8886,49 @@ static IResult ToInstallHttpResult<TResponse>(InstallOperationResult<TResponse> 
 
 static string GetSourceIp(HttpContext httpContext)
 {
-    return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    var remoteIp = httpContext.Connection.RemoteIpAddress;
+    if (ShouldTrustForwardedFor(remoteIp))
+    {
+        var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].ToString();
+        var firstForwardedFor = forwardedFor
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(firstForwardedFor))
+        {
+            return firstForwardedFor;
+        }
+    }
+
+    return remoteIp?.ToString() ?? "unknown";
+}
+
+static bool ShouldTrustForwardedFor(IPAddress? remoteIp)
+{
+    if (remoteIp is null || IPAddress.IsLoopback(remoteIp))
+    {
+        return true;
+    }
+
+    if (remoteIp.IsIPv4MappedToIPv6)
+    {
+        remoteIp = remoteIp.MapToIPv4();
+    }
+
+    if (remoteIp.AddressFamily == AddressFamily.InterNetwork)
+    {
+        var bytes = remoteIp.GetAddressBytes();
+        return bytes[0] == 10 ||
+            (bytes[0] == 172 && bytes[1] is >= 16 and <= 31) ||
+            (bytes[0] == 192 && bytes[1] == 168);
+    }
+
+    if (remoteIp.AddressFamily == AddressFamily.InterNetworkV6)
+    {
+        var bytes = remoteIp.GetAddressBytes();
+        return remoteIp.IsIPv6LinkLocal || (bytes[0] & 0xfe) == 0xfc;
+    }
+
+    return false;
 }
 
 static async Task WriteInstallAuditAsync(
@@ -9503,7 +9549,9 @@ static async Task NotifyDeviceChangesAsync(
             EnrollmentState: device.EnrollmentState,
             SeatId: seatId);
 
-        await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
+        await hubContext.Clients
+            .Group(DeviceHubGroups.Branch(device.BranchId))
+            .SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
     }
 }
 

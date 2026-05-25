@@ -103,7 +103,10 @@ public sealed class OwnerCodeService(
 
         var codeHash = hasher.Hash(normalized);
         var code = await dbContext.OwnerCodes
-            .SingleOrDefaultAsync(candidate => candidate.CodeHash == codeHash, cancellationToken);
+            .Where(candidate => candidate.CodeHash == codeHash)
+            .OrderByDescending(candidate => candidate.RevokedAtUtc == null)
+            .ThenByDescending(candidate => candidate.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
         if (code is null)
         {
             return OwnerCodeLookupResult.NotFound("Owner code was not found.");
@@ -143,28 +146,44 @@ public sealed class OwnerCodeService(
     {
         var now = timeProvider.GetUtcNow();
         var lifetime = options.Value.Lifetime;
-        var plaintext = generator.Generate();
-        var normalized = hasher.Normalize(plaintext);
-        var codeHash = hasher.Hash(normalized);
-        var suffix = hasher.Suffix(normalized);
         var expiresAt = now + lifetime;
 
-        dbContext.OwnerCodes.Add(new OwnerCodeEntity
+        for (var attempt = 0; attempt < 10; attempt++)
         {
-            OwnerCodeId = Guid.NewGuid(),
-            StaffUserId = staffUserId,
-            CodeHash = codeHash,
-            CodeSuffix = suffix,
-            ExpiresAtUtc = expiresAt,
-            LastUsedAtUtc = null,
-            FailedAttemptCount = 0,
-            RevokedAtUtc = null,
-            RevokedReason = null,
-            CreatedAtUtc = now
-        });
+            var plaintext = generator.Generate();
+            var normalized = hasher.Normalize(plaintext);
+            var codeHash = hasher.Hash(normalized);
+            var activeCollisionExists = await dbContext.OwnerCodes
+                .AsNoTracking()
+                .AnyAsync(
+                    code => code.CodeHash == codeHash && code.RevokedAtUtc == null,
+                    cancellationToken);
+            if (activeCollisionExists)
+            {
+                continue;
+            }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+            var suffix = hasher.Suffix(normalized);
 
-        return new OwnerCodeIssued(plaintext, suffix, expiresAt);
+            dbContext.OwnerCodes.Add(new OwnerCodeEntity
+            {
+                OwnerCodeId = Guid.NewGuid(),
+                StaffUserId = staffUserId,
+                CodeHash = codeHash,
+                CodeSuffix = suffix,
+                ExpiresAtUtc = expiresAt,
+                LastUsedAtUtc = null,
+                FailedAttemptCount = 0,
+                RevokedAtUtc = null,
+                RevokedReason = null,
+                CreatedAtUtc = now
+            });
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return new OwnerCodeIssued(plaintext, suffix, expiresAt);
+        }
+
+        throw new InvalidOperationException("Unable to generate a unique active owner code.");
     }
 }

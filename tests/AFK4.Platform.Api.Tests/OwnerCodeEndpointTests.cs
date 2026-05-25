@@ -181,6 +181,42 @@ public sealed class OwnerCodeEndpointTests
         Assert.NotNull(stored.LastUsedAtUtc);
     }
 
+    [Fact]
+    public async Task LookupActiveOwnerCode_WithHistoricalHashDuplicate_UsesActiveCode()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var generated = await client.PostAsync("/api/staff/me/owner-code/generate", content: null);
+        var generatedBody = await generated.Content.ReadFromJsonAsync<OwnerCodeIssuedResponse>();
+        Assert.NotNull(generatedBody);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.OwnerCodes.Add(new OwnerCodeEntity
+        {
+            OwnerCodeId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            StaffUserId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+            CodeHash = ExpectedHash(generatedBody.OwnerCode),
+            CodeSuffix = generatedBody.CodeSuffix,
+            ExpiresAtUtc = DateTimeOffset.Parse("2026-05-25T10:00:00Z"),
+            LastUsedAtUtc = null,
+            FailedAttemptCount = 0,
+            RevokedAtUtc = DateTimeOffset.Parse("2026-05-24T10:00:00Z"),
+            RevokedReason = "rotated",
+            CreatedAtUtc = DateTimeOffset.Parse("2026-05-23T10:00:00Z")
+        });
+        await dbContext.SaveChangesAsync();
+
+        var ownerCodeService = scope.ServiceProvider.GetRequiredService<IOwnerCodeService>();
+        var lookup = await ownerCodeService.LookupActiveAsync(generatedBody.OwnerCode, CancellationToken.None);
+
+        Assert.Equal(OwnerCodeLookupStatus.Succeeded, lookup.Status);
+        Assert.Equal(TestIds.TechnicianStaffUserId, lookup.StaffUserId);
+        var active = await dbContext.OwnerCodes.SingleAsync(code => code.RevokedAtUtc == null);
+        Assert.NotNull(active.LastUsedAtUtc);
+    }
+
     private static string ExpectedHash(string plaintext)
     {
         var bytes = Encoding.ASCII.GetBytes(plaintext);

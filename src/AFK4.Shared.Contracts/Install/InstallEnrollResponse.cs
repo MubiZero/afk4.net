@@ -9,4 +9,9 @@ public sealed record InstallEnrollResponse(
     string EnrollmentState,
     string ApiBaseUrl,
     string UpdateChannel,
-    DateTimeOffset EnrolledAtUtc);
+    DateTimeOffset EnrolledAtUtc)
+{
+    public string LeaseSigningPublicKeyPem { get; init; } = string.Empty;
+
+    public string UpdatePackageSigningPublicKeyPem { get; init; } = string.Empty;
+}

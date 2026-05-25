@@ -13,4 +13,14 @@ public sealed class DeviceHubGroupsTests
 
         Assert.Equal("device:d76eff15-9cf9-4c30-a6d4-c05fd215793f", group);
     }
+
+    [Fact]
+    public void Branch_ReturnsStableBranchGroupName()
+    {
+        var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+
+        var group = DeviceHubGroups.Branch(branchId);
+
+        Assert.Equal("branch:acfc0212-967f-4d84-94be-9003387b09c2", group);
+    }
 }

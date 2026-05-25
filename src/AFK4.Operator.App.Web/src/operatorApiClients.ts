@@ -28,7 +28,14 @@ export interface SeatStatusDto {
 export interface FloorMapDto {
   branchId: Guid;
   branchName: string;
+  zones?: FloorMapZoneDto[];
   seats: SeatStatusDto[];
+}
+
+export interface FloorMapZoneDto {
+  zoneId: Guid;
+  name: string;
+  sortOrder: number;
 }
 
 export interface StartGuestSessionRequest {

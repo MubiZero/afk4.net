@@ -124,6 +124,25 @@ public sealed class DeviceAdminEndpointTests
     }
 
     [Fact]
+    public async Task RenameDevice_WithTooLongDisplayName_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/devices/{PendingDeviceId:D}/rename",
+            new RenameDeviceRequest(TestIds.OrganizationId, new string('D', 81)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var persisted = await dbContext.Devices.SingleAsync(candidate => candidate.DeviceId == PendingDeviceId);
+        Assert.Equal("Front desk install", persisted.DisplayName);
+    }
+
+    [Fact]
     public async Task MoveDeviceSeat_DetachesConflictingAssignmentAndWritesAudit()
     {
         await using var factory = new PlatformApiFactory();

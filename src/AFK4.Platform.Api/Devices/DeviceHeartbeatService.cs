@@ -64,7 +64,9 @@ public sealed class DeviceHeartbeatService(
 
         if (allowOperationalCommands)
         {
-            await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
+            await hubContext.Clients
+                .Group(DeviceHubGroups.Branch(request.BranchId))
+                .SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
         }
 
         if (device is not null && allowOperationalCommands)

@@ -215,6 +215,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(device => device.DeviceId);
             entity.Property(device => device.MachineName).HasMaxLength(128).IsRequired();
             entity.Property(device => device.DisplayName).HasMaxLength(80).IsRequired();
+            entity.Property(device => device.DevicePublicKey).HasMaxLength(4096).IsRequired();
             entity.Property(device => device.Role).HasMaxLength(32).IsRequired();
             entity.Property(device => device.EnrollmentState).HasMaxLength(32).IsRequired();
             entity.Property(device => device.AgentVersion).HasMaxLength(64).IsRequired();
@@ -712,7 +713,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(code => code.CodeHash).HasMaxLength(64).IsRequired();
             entity.Property(code => code.CodeSuffix).HasMaxLength(4).IsRequired();
             entity.Property(code => code.RevokedReason).HasMaxLength(512);
-            entity.HasIndex(code => code.CodeHash);
+            entity.HasIndex(code => code.CodeHash)
+                .IsUnique()
+                .HasFilter("\"RevokedAtUtc\" IS NULL");
             entity.HasIndex(code => code.StaffUserId)
                 .IsUnique()
                 .HasFilter("\"RevokedAtUtc\" IS NULL");

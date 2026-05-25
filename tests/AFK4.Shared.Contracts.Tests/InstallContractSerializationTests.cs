@@ -73,7 +73,11 @@ public sealed class InstallContractSerializationTests
             DeviceEnrollmentStateNames.Approved,
             "https://api.afk4.test",
             UpdateChannelNames.Internal,
-            DateTimeOffset.Parse("2026-05-25T10:00:00Z"));
+            DateTimeOffset.Parse("2026-05-25T10:00:00Z"))
+        {
+            LeaseSigningPublicKeyPem = "lease-public-key",
+            UpdatePackageSigningPublicKeyPem = "update-public-key"
+        };
 
         var requestCopy = JsonSerializer.Deserialize<InstallEnrollRequest>(JsonSerializer.Serialize(request));
         var responseCopy = JsonSerializer.Deserialize<InstallEnrollResponse>(JsonSerializer.Serialize(response));
@@ -84,5 +88,7 @@ public sealed class InstallContractSerializationTests
         Assert.Equal(DeviceEnrollmentStateNames.Approved, responseCopy.EnrollmentState);
         Assert.Equal(UpdateChannelNames.Internal, responseCopy.UpdateChannel);
         Assert.Equal("device-secret", responseCopy.CredentialSecret);
+        Assert.Equal("lease-public-key", responseCopy.LeaseSigningPublicKeyPem);
+        Assert.Equal("update-public-key", responseCopy.UpdatePackageSigningPublicKeyPem);
     }
 }

@@ -55,30 +55,36 @@ implementation evidence are needed.
 - Club self-service onboarding backend Slice 1.1 has owner-code generate,
   rotate, summary, and active lookup service support. Active owner codes are
   stored hashed, expire, update last-used on successful lookup, and now have a
-  database-level one-active-code-per-staff invariant.
+  database-level one-active-code-per-staff invariant plus an active-code-hash
+  uniqueness guard so hash collisions or historical duplicate hashes do not
+  500 active lookup.
 - Device enrollment, credential issuance, heartbeat validation, command
   dispatch/status, command result fallback, credential rotation, and revocation.
 - Persisted zones, seats, staff-authorized device-seat assignment, floor-map
-  reads, ETag-aware floor-map bulk PUT, installed app reporting, and device
-  detail projections. Bulk floor-map deletion now preserves seats that have
-  active device assignments or session history.
+  reads that return the combined zones+seats document including empty zones,
+  ETag-aware floor-map bulk PUT, installed app reporting, and device detail
+  projections. Bulk floor-map deletion now preserves seats that have active
+  device assignments or session history.
 - Club self-service onboarding backend Slice 1.3 adds unauthenticated
   `POST /api/install/discover` and `POST /api/install/enroll` endpoints where
   the 8-digit owner code is the credential. Discover returns only branches and
   floor-map/free-seat data from the owner staff user's organization. Enroll
   creates a device credential and seat assignment, stores device role/display
-  name/enrollment state, supports `approved` vs `pending` through branch
-  `RequireManualDeviceApproval`, rejects revoked owner codes, blocks discover
-  for suspended/deletion-pending tenants, audits rejected enroll/discover
-  attempts and successful enrolls with source IP, and revokes an owner code
-  after five resolved per-code install failures. Pending devices may heartbeat
-  so support can see presence while their assigned floor-map seat remains in
-  `Maintenance`, but command delivery, command results, reconciliation,
-  installed-app reports, update check/status, SignalR device registration,
-  staff-dispatched device commands, and session start/transfer require an
-  approved enrollment. `/api/install/*` also has in-process
-  per-source-IP backoff/429 rejection, and the Coolify Traefik ingress recipe
-  now includes the install endpoints on the real staging API host.
+  name/enrollment state and device public key, returns device credential plus
+  API base URL, update channel, lease signing public key, and update package
+  signing public key bootstrap data, supports `approved` vs `pending` through
+  branch `RequireManualDeviceApproval`, rejects revoked owner codes, blocks
+  discover for suspended/deletion-pending tenants, audits rejected
+  enroll/discover attempts and successful enrolls with forwarded source IP,
+  and revokes an owner code after five resolved per-code install failures.
+  Pending devices may heartbeat so support can see presence while their
+  assigned floor-map seat remains in `Maintenance`, but command delivery,
+  command results, reconciliation, installed-app reports, update check/status,
+  SignalR device registration, staff-dispatched device commands, and session
+  start/transfer require an approved enrollment. `/api/install/*` also has
+  in-process per-source-IP backoff/429 rejection keyed by forwarded source IP,
+  and the Coolify Traefik ingress recipe now includes the install endpoints on
+  the real staging API host.
 - Club self-service onboarding backend Slice 1.4 adds branch-scoped device
   admin APIs for pending-device queue, approve, reject, rename, move-seat, and
   remove. Device inventory/detail contracts now expose display name, role, and
@@ -226,7 +232,9 @@ implementation evidence are needed.
   existing `/hubs/devices` hub. It tracks disconnected/connecting/connected/
   reconnecting state, applies `deviceStatusChanged` updates by device id or
   machine name, preserves active sessions as warning/problem seats when the PC
-  goes offline, and treats realtime as context only.
+  goes offline, and treats realtime as context only. Platform API broadcasts
+  device status and command-result events only to authenticated staff
+  connections in the matching branch SignalR group.
 - The React primary floor map now also listens for `deviceCommandResult` and
   reloads the authoritative backend floor map after session/device command
   completion, with a locked-heartbeat fallback for active or pending seats.
@@ -3404,6 +3412,36 @@ Operator App WebView2/React first implementation on 2026-05-20:
 
   Result: full Platform.Web tests passed 31/31, Vite production build passed,
   and `git diff --check` was clean apart from expected LF-to-CRLF working-copy
+  warnings.
+
+- 2026-05-25: local review-blocker hardening for completed onboarding Slices
+  1.x and 2.x through 2.4 on `codex/fix-onboarding-review-blockers`. Fixed the
+  review blockers found before Slice 2.5: device realtime broadcasts are now
+  branch-scoped, floor-map reads include empty zones, install enroll stores the
+  device public key and returns bootstrap signing keys, owner-code active hash
+  lookup/indexing is collision-safe, install source IP uses `X-Forwarded-For`
+  only from trusted loopback/private proxy addresses, and install/admin device
+  display-name and machine-name lengths are validated before persistence.
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter "InstallContractSerializationTests|ContractSerializationTests" -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "OwnerCodeEndpointTests|FloorMapBulkUpdateEndpointTests|FloorMapEndpointTests|EfFloorMapReadServiceTests|InstallEndpointTests|DeviceAdminEndpointTests|DeviceHeartbeatServicePersistenceTests|DeviceHeartbeatEndpointTests|DeviceCommandEndpointTests|DeviceHubGroupsTests" -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "InstallEndpointTests" -p:UseSharedCompilation=false -v minimal
+  npm test --silent          # in src/AFK4.Platform.Web/
+  npm run build --silent     # in src/AFK4.Platform.Web/
+  npm test --silent          # in src/AFK4.Operator.App.Web/
+  npm run build --silent     # in src/AFK4.Operator.App.Web/
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: Shared Contracts command passed 110/110, focused Platform API tests
+  passed 67/67, install endpoint rerun after the forwarded-IP trust narrowing
+  passed 9/9, Platform.Web tests passed 31/31 and production build passed,
+  Operator.App.Web tests passed 122/122 and production build passed after
+  repairing missing local optional npm dependencies with `npm install
+  --ignore-scripts`, solution build passed with 0 warnings / 0 errors, and
+  `git diff --check` was clean apart from expected LF-to-CRLF working-copy
   warnings.
 
 ## Historical Reference

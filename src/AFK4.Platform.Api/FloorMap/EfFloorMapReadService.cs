@@ -69,11 +69,22 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext, TimeProvi
             .ThenBy(seat => seat.SortOrder)
             .ThenBy(seat => seat.SeatName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var zoneStatuses = zones
+            .OrderBy(zone => zone.SortOrder)
+            .ThenBy(zone => zone.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(zone => new FloorMapZoneDto(
+                ZoneId: zone.ZoneId,
+                Name: zone.Name,
+                SortOrder: zone.SortOrder))
+            .ToList();
 
         var dto = new FloorMapDto(
             BranchId: branch.BranchId,
             BranchName: branch.Name,
-            Seats: seatStatuses);
+            Seats: seatStatuses)
+        {
+            Zones = zoneStatuses
+        };
 
         return new FloorMapReadResult(dto, FloorMapEtag.Compute(zones, seats));
     }

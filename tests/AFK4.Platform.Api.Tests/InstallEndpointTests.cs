@@ -51,6 +51,7 @@ public sealed class InstallEndpointTests
         var ownerCode = await GenerateOwnerCodeAsync(client);
         await SeedLayoutAsync(factory);
         client.DefaultRequestHeaders.Authorization = null;
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", "203.0.113.10, 10.0.0.5");
 
         var response = await client.PostAsJsonAsync(
             "/api/install/enroll",
@@ -72,12 +73,15 @@ public sealed class InstallEndpointTests
         Assert.NotEqual(Guid.Empty, body.DeviceId);
         Assert.NotEqual(Guid.Empty, body.CredentialId);
         Assert.False(string.IsNullOrWhiteSpace(body.CredentialSecret));
+        Assert.Equal("test-lease-public-key", body.LeaseSigningPublicKeyPem);
+        Assert.Equal("test-update-public-key", body.UpdatePackageSigningPublicKeyPem);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var device = await dbContext.Devices.SingleAsync(candidate => candidate.DeviceId == body.DeviceId);
         Assert.Equal("PC-101", device.MachineName);
         Assert.Equal("PC-101", device.DisplayName);
+        Assert.Equal("device-public-key", device.DevicePublicKey);
         Assert.Equal(DeviceRoleNames.GamingPc, device.Role);
         Assert.Equal(DeviceEnrollmentStateNames.Approved, device.EnrollmentState);
         Assert.NotNull(device.EnrolledViaOwnerCodeId);
@@ -88,6 +92,7 @@ public sealed class InstallEndpointTests
 
         var audit = await dbContext.AuditRecords.SingleAsync(record => record.Action == AuditActionNames.InstallEnrollSucceeded);
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+        Assert.Contains("203.0.113.10", audit.DetailsJson, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -187,6 +192,87 @@ public sealed class InstallEndpointTests
         Assert.Equal("Maintenance", seat.State);
         Assert.True(seat.IsDeviceOnline);
         Assert.Equal(body.DeviceId, seat.DeviceId);
+    }
+
+    [Fact]
+    public async Task Enroll_WithTooLongDisplayName_ReturnsBadRequestBeforePersistence()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var ownerCode = await GenerateOwnerCodeAsync(client);
+        await SeedLayoutAsync(factory);
+        client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await client.PostAsJsonAsync(
+            "/api/install/enroll",
+            new InstallEnrollRequest(
+                ownerCode,
+                TestIds.BranchId,
+                TestIds.SeatId,
+                DeviceRoleNames.GamingPc,
+                new string('D', 81),
+                "PC-102",
+                "device-public-key"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await dbContext.Devices.Where(device => device.MachineName == "PC-102").ToListAsync());
+    }
+
+    [Fact]
+    public async Task Enroll_WithTooLongMachineName_ReturnsBadRequestBeforePersistence()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var ownerCode = await GenerateOwnerCodeAsync(client);
+        await SeedLayoutAsync(factory);
+        client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await client.PostAsJsonAsync(
+            "/api/install/enroll",
+            new InstallEnrollRequest(
+                ownerCode,
+                TestIds.BranchId,
+                TestIds.SeatId,
+                DeviceRoleNames.GamingPc,
+                "PC-102",
+                new string('M', 129),
+                "device-public-key"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await dbContext.Devices.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Enroll_WithoutDevicePublicKey_ReturnsBadRequestBeforePersistence()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var ownerCode = await GenerateOwnerCodeAsync(client);
+        await SeedLayoutAsync(factory);
+        client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await client.PostAsJsonAsync(
+            "/api/install/enroll",
+            new InstallEnrollRequest(
+                ownerCode,
+                TestIds.BranchId,
+                TestIds.SeatId,
+                DeviceRoleNames.GamingPc,
+                "PC-102",
+                "PC-102",
+                "   "));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await dbContext.Devices.ToListAsync());
     }
 
     [Fact]

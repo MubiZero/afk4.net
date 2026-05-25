@@ -158,6 +158,7 @@ function buildClubFetchMock() {
       return jsonResponse(200, {
         branchId: '33333333-3333-3333-3333-333333333333',
         branchName: 'Demo Branch',
+        zones: [],
         seats: []
       });
     }

@@ -14,6 +14,8 @@ public sealed class DeviceEntity
 
     public string DisplayName { get; set; } = string.Empty;
 
+    public string DevicePublicKey { get; set; } = string.Empty;
+
     public string Role { get; set; } = DeviceRoleNames.GamingPc;
 
     public string EnrollmentState { get; set; } = DeviceEnrollmentStateNames.Approved;

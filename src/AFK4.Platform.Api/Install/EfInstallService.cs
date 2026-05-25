@@ -1,7 +1,9 @@
+using System.Security.Cryptography;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity.OwnerCodes;
+using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Tenants;
@@ -15,9 +17,13 @@ public sealed class EfInstallService(
     IOwnerCodeService ownerCodeService,
     IFloorMapReadService floorMapReadService,
     IOptions<InstallOptions> options,
+    IOptions<SessionLeaseOptions> sessionLeaseOptions,
     TimeProvider timeProvider) : IInstallService
 {
     private const int MaxResolvedOwnerCodeFailures = 5;
+    private const int MaxMachineNameLength = 128;
+    private const int MaxDisplayNameLength = 80;
+    private const int MaxDevicePublicKeyLength = 4096;
 
     public async Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverAsync(
         InstallDiscoverRequest request,
@@ -142,11 +148,48 @@ public sealed class EfInstallService(
                 ownerCodeId);
         }
 
-        if (string.IsNullOrWhiteSpace(request.MachineName))
+        var machineName = request.MachineName.Trim();
+        if (machineName.Length == 0)
         {
             await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
                 "Machine name is required.",
+                ownerCodeId);
+        }
+
+        if (machineName.Length > MaxMachineNameLength)
+        {
+            await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
+                $"Machine name must be {MaxMachineNameLength} characters or fewer.",
+                ownerCodeId);
+        }
+
+        var displayName = string.IsNullOrWhiteSpace(request.DisplayName)
+            ? machineName
+            : request.DisplayName.Trim();
+        if (displayName.Length > MaxDisplayNameLength)
+        {
+            await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
+                $"Display name must be {MaxDisplayNameLength} characters or fewer.",
+                ownerCodeId);
+        }
+
+        var devicePublicKey = request.DevicePublicKey.Trim();
+        if (devicePublicKey.Length == 0)
+        {
+            await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
+                "Device public key is required.",
+                ownerCodeId);
+        }
+
+        if (devicePublicKey.Length > MaxDevicePublicKeyLength)
+        {
+            await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
+                $"Device public key must be {MaxDevicePublicKeyLength} characters or fewer.",
                 ownerCodeId);
         }
 
@@ -191,11 +234,6 @@ public sealed class EfInstallService(
         var enrollmentState = branch.RequireManualDeviceApproval
             ? DeviceEnrollmentStateNames.Pending
             : DeviceEnrollmentStateNames.Approved;
-        var machineName = request.MachineName.Trim();
-        var displayName = string.IsNullOrWhiteSpace(request.DisplayName)
-            ? machineName
-            : request.DisplayName.Trim();
-
         dbContext.Devices.Add(new DeviceEntity
         {
             DeviceId = deviceId,
@@ -203,6 +241,7 @@ public sealed class EfInstallService(
             BranchId = request.BranchId,
             MachineName = machineName,
             DisplayName = displayName,
+            DevicePublicKey = devicePublicKey,
             Role = request.Role.Trim(),
             EnrollmentState = enrollmentState,
             EnrolledViaOwnerCodeId = ownerCodeId,
@@ -242,7 +281,11 @@ public sealed class EfInstallService(
             enrollmentState,
             options.Value.ApiBaseUrl.TrimEnd('/'),
             options.Value.UpdateChannel,
-            now);
+            now)
+        {
+            LeaseSigningPublicKeyPem = ResolveLeaseSigningPublicKeyPem(),
+            UpdatePackageSigningPublicKeyPem = options.Value.UpdatePackageSigningPublicKeyPem
+        };
 
         return InstallOperationResult<InstallEnrollResponse>.Success(
             response,
@@ -274,5 +317,22 @@ public sealed class EfInstallService(
     {
         var normalized = role.Trim();
         return normalized is DeviceRoleNames.GamingPc or DeviceRoleNames.ManagerWorkstation;
+    }
+
+    private string ResolveLeaseSigningPublicKeyPem()
+    {
+        if (!string.IsNullOrWhiteSpace(options.Value.LeaseSigningPublicKeyPem))
+        {
+            return options.Value.LeaseSigningPublicKeyPem;
+        }
+
+        if (string.IsNullOrWhiteSpace(sessionLeaseOptions.Value.SigningPrivateKeyPem))
+        {
+            return string.Empty;
+        }
+
+        using var signingKey = ECDsa.Create();
+        signingKey.ImportFromPem(sessionLeaseOptions.Value.SigningPrivateKeyPem);
+        return signingKey.ExportSubjectPublicKeyInfoPem();
     }
 }

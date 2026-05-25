@@ -38,7 +38,8 @@ public sealed class DeviceHeartbeatServicePersistenceTests
 
         await using (var db = new PlatformDbContext(options))
         {
-            var service = CreateService(db);
+            var hubContext = new CapturingHubContext();
+            var service = CreateService(db, hubContext: hubContext);
             await service.RecordHeartbeatAsync(
                 deviceId,
                 new DeviceHeartbeatRequest(
@@ -55,6 +56,9 @@ public sealed class DeviceHeartbeatServicePersistenceTests
                     ActiveSessionLeaseSequence: null),
                 allowOperationalCommands: true,
                 CancellationToken.None);
+
+            Assert.Equal(DeviceHubGroups.Branch(branchId), hubContext.CapturedClients.LastGroupName);
+            Assert.Equal(DeviceRealtimeEvents.DeviceStatusChanged, hubContext.CapturedClients.LastMethod);
         }
 
         await using (var db = new PlatformDbContext(options))
@@ -222,9 +226,10 @@ public sealed class DeviceHeartbeatServicePersistenceTests
 
     private static DeviceHeartbeatService CreateService(
         PlatformDbContext dbContext,
-        IHeartbeatSessionCommandPlanner? planner = null)
+        IHeartbeatSessionCommandPlanner? planner = null,
+        CapturingHubContext? hubContext = null)
     {
-        var hubContext = new CapturingHubContext();
+        hubContext ??= new CapturingHubContext();
 
         return new DeviceHeartbeatService(
             hubContext,
@@ -237,7 +242,9 @@ public sealed class DeviceHeartbeatServicePersistenceTests
 
     private sealed class CapturingHubContext : IHubContext<DeviceHub>
     {
-        public IHubClients Clients { get; } = new CapturingHubClients();
+        public CapturingHubClients CapturedClients { get; } = new();
+
+        public IHubClients Clients => CapturedClients;
 
         public IGroupManager Groups => throw new NotSupportedException();
     }
@@ -245,6 +252,10 @@ public sealed class DeviceHeartbeatServicePersistenceTests
     private sealed class CapturingHubClients : IHubClients
     {
         private readonly IClientProxy proxy = new NoOpClientProxy();
+
+        public string? LastGroupName { get; private set; }
+
+        public string? LastMethod { get; private set; }
 
         public IClientProxy All => proxy;
 
@@ -254,7 +265,11 @@ public sealed class DeviceHeartbeatServicePersistenceTests
 
         public IClientProxy Clients(IReadOnlyList<string> connectionIds) => throw new NotSupportedException();
 
-        public IClientProxy Group(string groupName) => throw new NotSupportedException();
+        public IClientProxy Group(string groupName)
+        {
+            LastGroupName = groupName;
+            return new RecordingClientProxy(this);
+        }
 
         public IClientProxy GroupExcept(string groupName, IReadOnlyList<string> excludedConnectionIds) => throw new NotSupportedException();
 
@@ -263,12 +278,26 @@ public sealed class DeviceHeartbeatServicePersistenceTests
         public IClientProxy User(string userId) => throw new NotSupportedException();
 
         public IClientProxy Users(IReadOnlyList<string> userIds) => throw new NotSupportedException();
+
+        public void RecordMethod(string method)
+        {
+            LastMethod = method;
+        }
     }
 
     private sealed class NoOpClientProxy : IClientProxy
     {
         public Task SendCoreAsync(string method, object?[] args, CancellationToken cancellationToken = default)
         {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingClientProxy(CapturingHubClients clients) : IClientProxy
+    {
+        public Task SendCoreAsync(string method, object?[] args, CancellationToken cancellationToken = default)
+        {
+            clients.RecordMethod(method);
             return Task.CompletedTask;
         }
     }

@@ -98,6 +98,10 @@ public sealed class EfFloorMapReadServiceTests
         Assert.False(string.IsNullOrWhiteSpace(result.ETag));
         var floorMap = result.FloorMap;
         Assert.Equal("Downtown Branch", floorMap.BranchName);
+        var zone = Assert.Single(floorMap.Zones);
+        Assert.Equal(zoneId, zone.ZoneId);
+        Assert.Equal("Main Hall", zone.Name);
+        Assert.Equal(1, zone.SortOrder);
         Assert.Collection(
             floorMap.Seats,
             seat =>
@@ -118,6 +122,55 @@ public sealed class EfFloorMapReadServiceTests
                 Assert.Equal("Maintenance", seat.State);
                 Assert.Null(seat.DeviceId);
             });
+    }
+
+    [Fact]
+    public async Task GetFloorMapAsync_ReturnsEmptyZonesWithoutSeats()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var zoneId = Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
+        var now = DateTimeOffset.Parse("2026-05-12T00:00:00Z");
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.Organizations.Add(new OrganizationEntity
+            {
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Demo Org",
+                CreatedAtUtc = now
+            });
+            db.Branches.Add(new BranchEntity
+            {
+                BranchId = TestIds.BranchId,
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Downtown Branch",
+                CreatedAtUtc = now
+            });
+            db.Zones.Add(new ZoneEntity
+            {
+                ZoneId = zoneId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                Name = "Empty VIP",
+                SortOrder = 2,
+                CreatedAtUtc = now
+            });
+            await db.SaveChangesAsync();
+        }
+
+        await using var readDb = new PlatformDbContext(options);
+        var service = new EfFloorMapReadService(readDb);
+
+        var result = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Empty(result.FloorMap.Seats);
+        var zone = Assert.Single(result.FloorMap.Zones);
+        Assert.Equal(zoneId, zone.ZoneId);
+        Assert.Equal("Empty VIP", zone.Name);
+        Assert.Equal(2, zone.SortOrder);
     }
 
     [Fact]

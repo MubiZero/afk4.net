@@ -88,7 +88,14 @@ export interface SeatStatus {
 export interface FloorMap {
   branchId: string;
   branchName: string;
+  zones: FloorMapZone[];
   seats: SeatStatus[];
+}
+
+export interface FloorMapZone {
+  zoneId: string;
+  name: string;
+  sortOrder: number;
 }
 
 export interface FloorMapRead {

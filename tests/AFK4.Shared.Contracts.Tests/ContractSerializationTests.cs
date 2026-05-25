@@ -54,13 +54,26 @@ public sealed class ContractSerializationTests
         var map = new FloorMapDto(
             BranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
             BranchName: "Demo Branch",
-            Seats: [seat]);
+            Seats: [seat])
+        {
+            Zones =
+            [
+                new FloorMapZoneDto(
+                    ZoneId: Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"),
+                    Name: "Main Hall",
+                    SortOrder: 1)
+            ]
+        };
+        var copy = JsonSerializer.Deserialize<FloorMapDto>(JsonSerializer.Serialize(map));
 
-        Assert.Single(map.Seats);
-        Assert.Equal("Locked", map.Seats[0].State);
-        Assert.Equal(Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"), map.Seats[0].ZoneId);
-        Assert.Equal(Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"), map.Seats[0].DeviceId);
-        Assert.True(map.Seats[0].IsDeviceOnline);
-        Assert.Equal("0.1.2", map.Seats[0].ShellVersion);
+        Assert.NotNull(copy);
+        Assert.Single(copy.Zones);
+        Assert.Equal("Main Hall", copy.Zones[0].Name);
+        Assert.Single(copy.Seats);
+        Assert.Equal("Locked", copy.Seats[0].State);
+        Assert.Equal(Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"), copy.Seats[0].ZoneId);
+        Assert.Equal(Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"), copy.Seats[0].DeviceId);
+        Assert.True(copy.Seats[0].IsDeviceOnline);
+        Assert.Equal("0.1.2", copy.Seats[0].ShellVersion);
     }
 }

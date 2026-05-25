@@ -758,7 +758,7 @@ function FloorMapScreen({
       const result = await client.getFloorMap(branchId);
       setFloorMap(result.floorMap);
       setEtag(result.etag);
-      setZones(toEditorZones(result.floorMap.seats));
+      setZones(toEditorZones(result.floorMap));
     } catch (cause) {
       setError(projectError(cause));
     } finally {
@@ -1313,9 +1313,18 @@ function KpiCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function toEditorZones(seats: SeatStatus[]): EditorZone[] {
+function toEditorZones(floorMap: FloorMap): EditorZone[] {
   const zonesById = new Map<string, EditorZone>();
-  for (const seat of seats) {
+  for (const zone of floorMap.zones ?? []) {
+    zonesById.set(zone.zoneId, {
+      clientId: zone.zoneId,
+      zoneId: zone.zoneId,
+      name: zone.name,
+      sortOrder: zone.sortOrder,
+      seats: []
+    });
+  }
+  for (const seat of floorMap.seats) {
     let zone = zonesById.get(seat.zoneId);
     if (zone === undefined) {
       zone = {
