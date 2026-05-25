@@ -24,6 +24,7 @@ public sealed class EfInstallService(
     private const int MaxMachineNameLength = 128;
     private const int MaxDisplayNameLength = 80;
     private const int MaxDevicePublicKeyLength = 4096;
+    private const int MaxSeatNameLength = 80;
 
     public async Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverAsync(
         InstallDiscoverRequest request,
@@ -292,6 +293,145 @@ public sealed class EfInstallService(
             organizationId,
             request.BranchId,
             ownerCodeId);
+    }
+
+    public async Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatAsync(
+        InstallCreateSeatRequest request,
+        CancellationToken cancellationToken)
+    {
+        var lookup = await ownerCodeService.LookupActiveAsync(request.OwnerCode, cancellationToken);
+        if (!lookup.Succeeded)
+        {
+            return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
+                lookup.Error ?? "Owner code is invalid.",
+                lookup.OwnerCodeId);
+        }
+
+        var organizationId = lookup.OrganizationId!.Value;
+        var ownerCodeId = lookup.OwnerCodeId!.Value;
+        var staffUserId = lookup.StaffUserId!.Value;
+        var organization = await dbContext.Organizations
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
+        if (organization is null || organization.Status != TenantStatusNames.Active)
+        {
+            return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
+                "Tenant is not active.",
+                ownerCodeId,
+                organizationId,
+                staffUserId: staffUserId);
+        }
+
+        var branchExists = await dbContext.Branches.AnyAsync(
+            branch => branch.OrganizationId == organizationId && branch.BranchId == request.BranchId,
+            cancellationToken);
+        if (!branchExists)
+        {
+            await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
+            return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
+                "Branch was not found for this owner code.",
+                ownerCodeId,
+                organizationId,
+                staffUserId: staffUserId);
+        }
+
+        var zoneExists = await dbContext.Zones.AnyAsync(
+            zone =>
+                zone.OrganizationId == organizationId &&
+                zone.BranchId == request.BranchId &&
+                zone.ZoneId == request.ZoneId,
+            cancellationToken);
+        if (!zoneExists)
+        {
+            await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
+            return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
+                "Zone was not found for this branch.",
+                ownerCodeId,
+                organizationId,
+                request.BranchId,
+                staffUserId);
+        }
+
+        var seatName = request.Name.Trim();
+        if (seatName.Length == 0)
+        {
+            return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
+                "Seat name is required.",
+                ownerCodeId,
+                organizationId,
+                request.BranchId,
+                staffUserId);
+        }
+
+        if (seatName.Length > MaxSeatNameLength)
+        {
+            return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
+                $"Seat name must be {MaxSeatNameLength} characters or fewer.",
+                ownerCodeId,
+                organizationId,
+                request.BranchId,
+                staffUserId);
+        }
+
+        var normalizedName = seatName.ToUpperInvariant();
+        var existingSeat = await dbContext.Seats.SingleOrDefaultAsync(
+            seat =>
+                seat.OrganizationId == organizationId &&
+                seat.BranchId == request.BranchId &&
+                seat.ZoneId == request.ZoneId &&
+                seat.Name.ToUpper() == normalizedName,
+            cancellationToken);
+        if (existingSeat is not null)
+        {
+            var existingResponse = new InstallCreateSeatResponse(
+                existingSeat.OrganizationId,
+                existingSeat.BranchId,
+                existingSeat.ZoneId,
+                existingSeat.SeatId,
+                existingSeat.Name,
+                existingSeat.SortOrder);
+            return InstallOperationResult<InstallCreateSeatResponse>.Success(
+                existingResponse,
+                organizationId,
+                request.BranchId,
+                ownerCodeId,
+                staffUserId);
+        }
+
+        var nextSortOrder = await dbContext.Seats
+            .Where(seat =>
+                seat.OrganizationId == organizationId &&
+                seat.BranchId == request.BranchId &&
+                seat.ZoneId == request.ZoneId)
+            .Select(seat => (int?)seat.SortOrder)
+            .MaxAsync(cancellationToken) ?? 0;
+        var now = timeProvider.GetUtcNow();
+        var created = new SeatEntity
+        {
+            SeatId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            BranchId = request.BranchId,
+            ZoneId = request.ZoneId,
+            Name = seatName,
+            SortOrder = nextSortOrder + 1,
+            CreatedAtUtc = now
+        };
+        dbContext.Seats.Add(created);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = new InstallCreateSeatResponse(
+            created.OrganizationId,
+            created.BranchId,
+            created.ZoneId,
+            created.SeatId,
+            created.Name,
+            created.SortOrder);
+        return InstallOperationResult<InstallCreateSeatResponse>.Success(
+            response,
+            organizationId,
+            request.BranchId,
+            ownerCodeId,
+            staffUserId);
     }
 
     private async Task RecordResolvedOwnerCodeFailureAsync(Guid ownerCodeId, CancellationToken cancellationToken)

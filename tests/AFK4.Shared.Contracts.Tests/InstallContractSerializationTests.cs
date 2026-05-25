@@ -91,4 +91,32 @@ public sealed class InstallContractSerializationTests
         Assert.Equal("lease-public-key", responseCopy.LeaseSigningPublicKeyPem);
         Assert.Equal("update-public-key", responseCopy.UpdatePackageSigningPublicKeyPem);
     }
+
+    [Fact]
+    public void InstallCreateSeat_RoundTripsOwnerCodeScopedSeat()
+    {
+        var request = new InstallCreateSeatRequest(
+            "12345678",
+            Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            Guid.Parse("c6ccf73f-dc8d-4147-bd5b-445143fc90dc"),
+            "PC-NEW");
+        var response = new InstallCreateSeatResponse(
+            Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            request.BranchId,
+            request.ZoneId,
+            Guid.Parse("a1fdf945-6ce1-49ee-8d1e-4b4798c9508b"),
+            "PC-NEW",
+            SortOrder: 5);
+
+        var requestCopy = JsonSerializer.Deserialize<InstallCreateSeatRequest>(JsonSerializer.Serialize(request));
+        var responseCopy = JsonSerializer.Deserialize<InstallCreateSeatResponse>(JsonSerializer.Serialize(response));
+
+        Assert.NotNull(requestCopy);
+        Assert.NotNull(responseCopy);
+        Assert.Equal("12345678", requestCopy.OwnerCode);
+        Assert.Equal(request.BranchId, responseCopy.BranchId);
+        Assert.Equal(request.ZoneId, responseCopy.ZoneId);
+        Assert.Equal("PC-NEW", responseCopy.Name);
+        Assert.Equal(5, responseCopy.SortOrder);
+    }
 }

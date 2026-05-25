@@ -365,6 +365,68 @@ public sealed class InstallEndpointTests
         Assert.Equal("brute_force_detected", stored.RevokedReason);
     }
 
+    [Fact]
+    public async Task CreateSeat_WithOwnerCode_CreatesFreeSeatInOwnerBranchAndAuditsSuccess()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var ownerCode = await GenerateOwnerCodeAsync(client);
+        await SeedLayoutAsync(factory);
+        client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await client.PostAsJsonAsync(
+            "/api/install/seats",
+            new InstallCreateSeatRequest(ownerCode, TestIds.BranchId, TestIds.ZoneId, "PC-102"));
+        var body = await response.Content.ReadFromJsonAsync<InstallCreateSeatResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
+        Assert.Equal(TestIds.BranchId, body.BranchId);
+        Assert.Equal(TestIds.ZoneId, body.ZoneId);
+        Assert.Equal("PC-102", body.Name);
+        Assert.Equal(2, body.SortOrder);
+
+        var discover = await client.PostAsJsonAsync(
+            "/api/install/discover",
+            new InstallDiscoverRequest(ownerCode));
+        var discoverBody = await discover.Content.ReadFromJsonAsync<InstallDiscoverResponse>();
+        Assert.Equal(HttpStatusCode.OK, discover.StatusCode);
+        Assert.NotNull(discoverBody);
+        var branch = Assert.Single(discoverBody.Branches);
+        Assert.Contains(body.SeatId, branch.FreeSeatIds);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var seat = await dbContext.Seats.SingleAsync(candidate => candidate.SeatId == body.SeatId);
+        Assert.Equal("PC-102", seat.Name);
+        var audit = await dbContext.AuditRecords.SingleAsync(record => record.Action == AuditActionNames.CreateSeat);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+        Assert.Contains(body.SeatId.ToString("D"), audit.TargetId, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CreateSeat_WithBranchOutsideOwnerOrganization_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var ownerCode = await GenerateOwnerCodeAsync(client);
+        await SeedLayoutAsync(factory);
+        await SeedOtherOrganizationLayoutAsync(factory);
+        client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await client.PostAsJsonAsync(
+            "/api/install/seats",
+            new InstallCreateSeatRequest(ownerCode, TestIds.OtherBranchId, TestIds.ZoneId, "PC-OTHER"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await dbContext.Seats.Where(seat => seat.Name == "PC-OTHER").ToListAsync());
+    }
+
     private static async Task<string> GenerateOwnerCodeAsync(HttpClient client)
     {
         var response = await client.PostAsync("/api/staff/me/owner-code/generate", content: null);

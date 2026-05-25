@@ -11,6 +11,10 @@ public interface IInstallService
     Task<InstallOperationResult<InstallEnrollResponse>> EnrollAsync(
         InstallEnrollRequest request,
         CancellationToken cancellationToken);
+
+    Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatAsync(
+        InstallCreateSeatRequest request,
+        CancellationToken cancellationToken);
 }
 
 public sealed record InstallOperationResult<T>(
@@ -19,7 +23,8 @@ public sealed record InstallOperationResult<T>(
     string? Error,
     Guid? OrganizationId = null,
     Guid? BranchId = null,
-    Guid? OwnerCodeId = null)
+    Guid? OwnerCodeId = null,
+    Guid? StaffUserId = null)
 {
     public bool Succeeded => Status == InstallOperationStatus.Succeeded;
 
@@ -27,15 +32,17 @@ public sealed record InstallOperationResult<T>(
         T value,
         Guid organizationId,
         Guid? branchId,
-        Guid ownerCodeId) =>
-        new(InstallOperationStatus.Succeeded, value, null, organizationId, branchId, ownerCodeId);
+        Guid ownerCodeId,
+        Guid? staffUserId = null) =>
+        new(InstallOperationStatus.Succeeded, value, null, organizationId, branchId, ownerCodeId, staffUserId);
 
     public static InstallOperationResult<T> BadRequest(
         string error,
         Guid? ownerCodeId = null,
         Guid? organizationId = null,
-        Guid? branchId = null) =>
-        new(InstallOperationStatus.BadRequest, default, error, organizationId, branchId, ownerCodeId);
+        Guid? branchId = null,
+        Guid? staffUserId = null) =>
+        new(InstallOperationStatus.BadRequest, default, error, organizationId, branchId, ownerCodeId, staffUserId);
 
     public static InstallOperationResult<T> NotFound(string error, Guid? ownerCodeId = null) =>
         new(InstallOperationStatus.NotFound, default, error, OwnerCodeId: ownerCodeId);

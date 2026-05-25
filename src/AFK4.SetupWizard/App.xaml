@@ -1,0 +1,9 @@
+<Application x:Class="AFK4.SetupWizard.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <SolidColorBrush x:Key="AccentBrush" Color="#1F7A4D" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#667085" />
+        <SolidColorBrush x:Key="PanelBrush" Color="#F6F8FA" />
+    </Application.Resources>
+</Application>

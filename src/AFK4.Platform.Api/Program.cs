@@ -3744,6 +3744,60 @@ app.MapPost("/api/install/enroll", async (
     return ToInstallHttpResult(result);
 });
 
+app.MapPost("/api/install/seats", async (
+    InstallCreateSeatRequest request,
+    HttpContext httpContext,
+    IInstallService installService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var result = await installService.CreateSeatAsync(request, cancellationToken);
+    var sourceIp = GetSourceIp(httpContext);
+    if (result.Succeeded)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            result.OrganizationId!.Value,
+            result.BranchId!.Value,
+            result.StaffUserId!.Value,
+            AuditActionNames.CreateSeat,
+            "Seat",
+            result.Value!.SeatId.ToString("D"),
+            AuditOutcome.Succeeded,
+            new
+            {
+                request.ZoneId,
+                request.Name,
+                SourceIp = sourceIp,
+                Via = "owner_code_install"
+            },
+            cancellationToken);
+    }
+    else
+    {
+        await WriteInstallAuditAsync(
+            auditRecordWriter,
+            result.OrganizationId ?? Guid.Empty,
+            result.BranchId,
+            AuditActionNames.CreateSeat,
+            "OwnerCode",
+            result.OwnerCodeId?.ToString("D"),
+            AuditOutcome.Denied,
+            new
+            {
+                request.BranchId,
+                request.ZoneId,
+                request.Name,
+                result.Error,
+                SourceIp = sourceIp,
+                Via = "owner_code_install"
+            },
+            cancellationToken);
+    }
+
+    return ToInstallHttpResult(result);
+});
+
 app.MapPost("/api/devices/enroll", async (
     DeviceEnrollmentRequest request,
     IDeviceEnrollmentService enrollmentService,

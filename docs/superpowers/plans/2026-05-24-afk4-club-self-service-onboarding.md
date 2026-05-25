@@ -723,6 +723,16 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   `platform.afk4.staging.mubi.dev` admin app plus the new
   `app.afk4.staging.mubi.dev` customer app. Remote Coolify app creation remains
   an operational follow-up when DNS/Coolify credentials are available.
+- **Slice 3.1** - completed locally on
+  `codex/slice-3.1-setup-wizard`: added `AFK4.SetupWizard.exe` as a direct-
+  debug WPF first-run wizard plus a tested `AFK4.SetupWizard.Core`. The wizard
+  uses the staging install APIs to discover branches/floor maps by owner code,
+  pick a free seat, add a missing seat through the new owner-code-scoped
+  `/api/install/seats` endpoint, choose `gaming_pc` or
+  `manager_workstation`, enroll with a stable local device public key, and
+  write Agent bootstrap environment values. MSI authoring, postinstall launch,
+  Agent role-aware component install, and clean-VM smoke remain Slices 3.2
+  through 3.4.
 
 ## Testing
 

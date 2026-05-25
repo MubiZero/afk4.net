@@ -88,6 +88,14 @@ heartbeat, realtime commands, lease validation, local session state,
 reconciliation, Shell supervision, launcher policy, update download/verification
 and installer adapter execution.
 
+### Setup Wizard
+
+`src/AFK4.SetupWizard` is the first-run WPF enrollment wizard for the upcoming
+single Agent MSI flow. In Slice 3.1 it runs directly as `AFK4.SetupWizard.exe`
+against staging install APIs: owner code, branch/floor-map discovery, free-seat
+selection or seat creation, role choice, device enrollment, stable device key,
+and Agent bootstrap environment writing.
+
 ### Player Shell
 
 `src/AFK4.Player.Shell` is the player-facing WPF UI. It displays locked,

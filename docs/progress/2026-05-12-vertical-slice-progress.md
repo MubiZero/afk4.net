@@ -29,12 +29,13 @@ implementation evidence are needed.
   scope for their slice, not as the current product decision.
 - The active follow-on onboarding plan is
   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
-  Slices 1.1 through 2.4 now cover owner codes, ETag floor-map editing,
+  Slices 1.1 through 3.1 now cover owner codes, ETag floor-map editing,
   backend install discover/enroll, the branch device admin surface, the
   Platform Web admin route split under `/admin/*`, and the first public
   `/auth/*` accept-invite/staff sign-in pages, plus first customer
-  `/club/*` dashboard/install/device/operator screens and terminology cleanup
-  across the SPA and public operations docs.
+  `/club/*` dashboard/install/device/operator screens, terminology cleanup
+  across the SPA and public operations docs, audience-split admin/customer SPA
+  builds, and the first direct-debug Windows Setup Wizard path.
 
 ## Implemented Capabilities
 
@@ -77,6 +78,10 @@ implementation evidence are needed.
   discover for suspended/deletion-pending tenants, audits rejected
   enroll/discover attempts and successful enrolls with forwarded source IP,
   and revokes an owner code after five resolved per-code install failures.
+  Slice 3.1 extends the install surface with owner-code-scoped
+  `POST /api/install/seats` so the Windows wizard can add a missing seat inside
+  the selected branch/zone before enrollment; the endpoint is tenant-scoped,
+  audited, and returns the new seat as immediately free for install.
   Pending devices may heartbeat so support can see presence while their
   assigned floor-map seat remains in `Maintenance`, but command delivery,
   command results, reconciliation, installed-app reports, update check/status,
@@ -428,6 +433,17 @@ implementation evidence are needed.
   artifact download, SHA-256 verification, ECDSA metadata signature validation,
   persisted recovery state, install/rollback/restart adapter boundaries, and
   status progression.
+
+### Windows Setup Wizard
+
+- Slice 3.1 adds `src/AFK4.SetupWizard` and `src/AFK4.SetupWizard.Core`: a WPF
+  first-run wizard that runs directly as `AFK4.SetupWizard.exe` against the
+  staging install APIs before the single-MSI slice exists. It accepts an
+  8-digit owner code, discovers owner branches/floor maps, shows selectable
+  free seats versus occupied seats, can add a missing seat through
+  `/api/install/seats`, enrolls the PC as either `gaming_pc` or
+  `manager_workstation`, generates/reuses a stable local device key pair, and
+  writes Agent bootstrap environment values from the install response.
 
 ### Player Shell
 
@@ -3530,6 +3546,29 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `3e804f73-ef87-41ae-b7b3-d0c76b22c61d`, and uploaded MSI/bootstrapper/request
   artifacts. The earlier red runs `26400064761` and `26400064731` are closed as
   staging operations/credential fallout, not Slice 2.5 implementation gaps.
+
+- 2026-05-25: local Slice 3.1 implementation on
+  `codex/slice-3.1-setup-wizard`. Added the direct-debug Windows
+  `AFK4.SetupWizard.exe` WPF path plus `AFK4.SetupWizard.Core` tests. The
+  wizard uses the owner code to discover branches/floor maps, distinguishes
+  free and occupied seats, creates missing seats through the new
+  owner-code-scoped `POST /api/install/seats` backend endpoint, enrolls with a
+  stable local device public key and selected role (`gaming_pc` or
+  `manager_workstation`), and writes Agent bootstrap environment values from
+  the install response. No MSI, postinstall launch hook, Agent role-aware
+  component install, or clean-VM smoke is included yet; those remain Slices
+  3.2 through 3.4.
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.SetupWizard.Tests\AFK4.SetupWizard.Tests.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter InstallContractSerializationTests -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter InstallEndpointTests -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build .\AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: SetupWizard tests passed 11/11, focused Shared Contracts install
+  serialization tests passed 3/3, focused Platform API install endpoint tests
+  passed 11/11, and the solution build passed with 0 warnings / 0 errors.
 
 ## Historical Reference
 
