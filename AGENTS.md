@@ -45,6 +45,29 @@ logs under `docs/archive/` are reference material. Read them only when the
 current task touches that historical slice or the current progress file points
 there.
 
+## Continuation And Slice Discovery
+
+Do not rediscover already-recorded slice scope with broad repo searches when
+the progress snapshot or focused plan answers it.
+
+- When the user asks to continue or do a numbered slice, first read the
+  "Current Product Direction", "Implemented Capabilities", latest dated entry,
+  and "Historical Reference" pointers in
+  `docs/progress/2026-05-12-vertical-slice-progress.md`.
+- Then read the active focused plan named by that progress file, especially its
+  "Sequencing And Implementation Order", "Slice Status", and "Testing"
+  sections.
+- Use the slice title and plan bullets to make a short touch-map. Only then run
+  targeted `rg` searches for the named endpoints, DTOs, services, tests, or
+  docs. Avoid repo-wide exploratory searches for generic words like `slice`,
+  `pending`, or `device` unless the plan/progress files are stale or ambiguous.
+- If progress says a prior slice is complete, treat that as the starting point:
+  inspect its changed files or named tests only when the new task depends on
+  those details. Do not re-review completed slices from scratch.
+- If the progress snapshot and focused plan disagree, pause broad
+  implementation work, inspect the exact referenced files/commits, and update
+  the progress snapshot once the correct current state is clear.
+
 ## Product Decisions That Must Not Be Reopened Casually
 
 - AFK4 is a cloud-first SaaS platform for computer clubs.
