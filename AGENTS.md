@@ -142,6 +142,45 @@ full path above if `dotnet` is not recognized.
 - Commit coherent units of work with clear messages.
 - Do not revert user changes unless explicitly asked.
 
+## Fast Slice Workflow
+
+Use this mode by default for vertical-slice implementation, review, and polish
+work unless the user explicitly asks for exhaustive review or full release
+validation.
+
+- Start with a short touch-map, not a long investigation: identify the focused
+  plan/progress section, affected endpoints/components/services, existing tests,
+  and the smallest acceptance checklist that proves the slice works.
+- Keep review and implementation separate. When the user asks whether a pushed
+  slice is good, default to a 30-45 minute blocker review with findings first;
+  do not start fixes until the user asks to implement them.
+- During blocker review, prioritize only issues that can break product promises:
+  tenant isolation/status, auth/permissions, money/session/device authority,
+  idempotency, auditability, public endpoint abuse, state-machine correctness,
+  migrations/defaults, contract compatibility, realtime leakage, and compile or
+  test failures.
+- Treat naming, cosmetics, broader refactors, and nice-to-have test expansion as
+  follow-up unless they are needed to make the slice safe or coherent.
+- Once the user says to proceed, implement the smallest coherent fix set for the
+  selected blockers. Do not broaden the scope unless a new blocker is discovered
+  while making those fixes.
+- Use verification tiers:
+  - **Focused** while iterating: only the directly affected tests/build target.
+  - **Affected** before commit: affected project test suites and any shared
+    contract tests touched by the change.
+  - **Full** only before push/merge/release validation, or when shared
+    infrastructure, migrations, packaging, or cross-application contracts changed.
+- Prefer one working vertical path before polishing. Make the primary scenario
+  pass, run focused verification, then do one blocker-review pass.
+- If a decision point is still unclear after 60-90 minutes, stop and present two
+  options: the fastest pragmatic fix and the slower more complete fix, with the
+  tradeoff.
+- Keep progress updates short. Update the progress snapshot only when current
+  implementation state, latest verification, known gaps, next work, release
+  gates, or integration notes changed; do not expand long historical logs.
+- Do not push or trigger remote CI just to get feedback. Push only coherent
+  changes that are ready for remote validation or when the user asks.
+
 ## GitHub Actions And PR Merge Discipline
 
 GitHub Actions billing is enabled for this repository, but paid CI minutes must
