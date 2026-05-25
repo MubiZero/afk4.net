@@ -695,6 +695,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("ExpiresAtUtc");
 
                     b.HasIndex("StaffUserId")
+                        .IsUnique()
                         .HasFilter("\"RevokedAtUtc\" IS NULL");
 
                     b.ToTable("owner_codes", (string)null);

@@ -5,6 +5,7 @@ using System.Text;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Shared.Contracts.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -153,6 +154,31 @@ public sealed class OwnerCodeEndpointTests
         Assert.Equal(generatedBody.ExpiresAtUtc, summary.ExpiresAtUtc);
         Assert.Equal(0, summary.FailedAttemptCount);
         Assert.Null(summary.LastUsedAtUtc);
+    }
+
+    [Fact]
+    public async Task LookupActiveOwnerCode_WithIssuedCode_ReturnsStaffContextAndUpdatesLastUsed()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var generated = await client.PostAsync("/api/staff/me/owner-code/generate", content: null);
+        var generatedBody = await generated.Content.ReadFromJsonAsync<OwnerCodeIssuedResponse>();
+        Assert.NotNull(generatedBody);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var ownerCodeService = scope.ServiceProvider.GetRequiredService<IOwnerCodeService>();
+        var lookup = await ownerCodeService.LookupActiveAsync(generatedBody.OwnerCode, CancellationToken.None);
+
+        Assert.Equal(OwnerCodeLookupStatus.Succeeded, lookup.Status);
+        Assert.Equal(TestIds.TechnicianStaffUserId, lookup.StaffUserId);
+        Assert.Equal(TestIds.OrganizationId, lookup.OrganizationId);
+
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var stored = await dbContext.OwnerCodes
+            .AsNoTracking()
+            .SingleAsync(code => code.StaffUserId == TestIds.TechnicianStaffUserId);
+        Assert.NotNull(stored.LastUsedAtUtc);
     }
 
     private static string ExpectedHash(string plaintext)

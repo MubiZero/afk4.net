@@ -197,8 +197,22 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
             if (hasAssignments)
             {
                 return new FloorMapBulkUpdateResult(
-                    FloorMapBulkUpdateStatus.BadRequest,
+                    FloorMapBulkUpdateStatus.Conflict,
                     "Cannot remove seats that still have a device attached.",
+                    null,
+                    null);
+            }
+
+            var hasSessionHistory = await dbContext.Sessions
+                .AsNoTracking()
+                .AnyAsync(
+                    session => seatIds.Contains(session.SeatId),
+                    cancellationToken);
+            if (hasSessionHistory)
+            {
+                return new FloorMapBulkUpdateResult(
+                    FloorMapBulkUpdateStatus.Conflict,
+                    "Cannot remove seats that have session history.",
                     null,
                     null);
             }

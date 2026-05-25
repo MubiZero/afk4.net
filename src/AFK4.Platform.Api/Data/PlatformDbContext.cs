@@ -709,6 +709,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(code => code.RevokedReason).HasMaxLength(512);
             entity.HasIndex(code => code.CodeHash);
             entity.HasIndex(code => code.StaffUserId)
+                .IsUnique()
                 .HasFilter("\"RevokedAtUtc\" IS NULL");
             entity.HasIndex(code => code.ExpiresAtUtc);
         });

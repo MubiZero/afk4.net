@@ -22,6 +22,7 @@ public enum FloorMapBulkUpdateStatus
 {
     Success,
     BadRequest,
+    Conflict,
     PreconditionRequired,
     PreconditionFailed,
     NotFound

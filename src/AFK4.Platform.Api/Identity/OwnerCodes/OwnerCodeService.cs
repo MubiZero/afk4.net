@@ -72,9 +72,10 @@ public sealed class OwnerCodeService(
         Guid staffUserId,
         CancellationToken cancellationToken)
     {
+        var now = timeProvider.GetUtcNow();
         var active = await dbContext.OwnerCodes
             .AsNoTracking()
-            .Where(code => code.StaffUserId == staffUserId && code.RevokedAtUtc == null)
+            .Where(code => code.StaffUserId == staffUserId && code.RevokedAtUtc == null && code.ExpiresAtUtc > now)
             .OrderByDescending(code => code.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -88,6 +89,54 @@ public sealed class OwnerCodeService(
             active.ExpiresAtUtc,
             active.LastUsedAtUtc,
             active.FailedAttemptCount);
+    }
+
+    public async Task<OwnerCodeLookupResult> LookupActiveAsync(
+        string rawCode,
+        CancellationToken cancellationToken)
+    {
+        var normalized = hasher.Normalize(rawCode);
+        if (normalized.Length != RandomOwnerCodeGenerator.Digits)
+        {
+            return OwnerCodeLookupResult.NotFound("Owner code was not found.");
+        }
+
+        var codeHash = hasher.Hash(normalized);
+        var code = await dbContext.OwnerCodes
+            .SingleOrDefaultAsync(candidate => candidate.CodeHash == codeHash, cancellationToken);
+        if (code is null)
+        {
+            return OwnerCodeLookupResult.NotFound("Owner code was not found.");
+        }
+
+        if (code.RevokedAtUtc is not null)
+        {
+            return OwnerCodeLookupResult.Revoked(code.OwnerCodeId, "Owner code was revoked.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        if (code.ExpiresAtUtc <= now)
+        {
+            code.RevokedAtUtc = now;
+            code.RevokedReason = "expired";
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return OwnerCodeLookupResult.Expired(code.OwnerCodeId, "Owner code has expired.");
+        }
+
+        var staffUser = await dbContext.StaffUsers
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.StaffUserId == code.StaffUserId && candidate.IsActive,
+                cancellationToken);
+        if (staffUser is null)
+        {
+            return OwnerCodeLookupResult.NotFound("Owner code staff user was not found.");
+        }
+
+        code.LastUsedAtUtc = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return OwnerCodeLookupResult.Success(staffUser.StaffUserId, staffUser.OrganizationId, code.OwnerCodeId);
     }
 
     private async Task<OwnerCodeIssued> InsertNewCodeAsync(Guid staffUserId, CancellationToken cancellationToken)

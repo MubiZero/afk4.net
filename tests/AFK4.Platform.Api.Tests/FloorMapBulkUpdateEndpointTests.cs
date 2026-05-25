@@ -146,6 +146,34 @@ public sealed class FloorMapBulkUpdateEndpointTests
     }
 
     [Fact]
+    public async Task Put_WhenRemovedSeatHasSessionHistory_ReturnsConflictAndKeepsSeat()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var (zoneId, seatId) = await SeedZoneAndSeatAsync(factory);
+        await SeedSessionHistoryAsync(factory, seatId);
+
+        var current = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var etag = current.Headers.ETag?.Tag;
+
+        var request = new FloorMapBulkUpdateRequest(
+            TestIds.OrganizationId,
+            Zones: [new FloorMapBulkZoneRequest(zoneId, zoneId.ToString("D"), "Main Hall", 1)],
+            Seats: []);
+        var response = await client.SendAsync(BuildPut(etag!, request));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var stillThere = await dbContext.Seats
+            .AsNoTracking()
+            .AnyAsync(s => s.SeatId == seatId);
+        Assert.True(stillThere);
+    }
+
+    [Fact]
     public async Task Put_WithStaffWithoutManageLayout_ReturnsForbidden()
     {
         await using var factory = new PlatformApiFactory();
@@ -217,5 +245,29 @@ public sealed class FloorMapBulkUpdateEndpointTests
         });
         await dbContext.SaveChangesAsync();
         return (zoneId, seatId);
+    }
+
+    private static async Task SeedSessionHistoryAsync(PlatformApiFactory factory, Guid seatId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var now = DateTimeOffset.Parse("2026-05-12T01:00:00Z");
+        dbContext.Sessions.Add(new SessionEntity
+        {
+            SessionId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = seatId,
+            DeviceId = Guid.NewGuid(),
+            CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            PlayerKind = "guest",
+            TariffRuleVersionId = "test-rule",
+            State = "ended",
+            RequestedAtUtc = now,
+            StartedAtUtc = now,
+            EndedAtUtc = now.AddMinutes(30),
+            UpdatedAtUtc = now.AddMinutes(30)
+        });
+        await dbContext.SaveChangesAsync();
     }
 }

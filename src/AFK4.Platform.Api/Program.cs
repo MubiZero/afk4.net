@@ -307,6 +307,8 @@ app.MapPut("/api/branches/{branchId:guid}/floor-map", async (
             return Results.Json(new { Error = result.Error }, statusCode: StatusCodes.Status412PreconditionFailed);
         case FloorMapBulkUpdateStatus.BadRequest:
             return Results.BadRequest(new { Error = result.Error });
+        case FloorMapBulkUpdateStatus.Conflict:
+            return Results.Conflict(new { Error = result.Error });
         case FloorMapBulkUpdateStatus.NotFound:
             return Results.NotFound();
         case FloorMapBulkUpdateStatus.Success:

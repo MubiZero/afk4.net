@@ -44,10 +44,16 @@ implementation evidence are needed.
 - Branch profile read/update endpoint for owner/manager setup, with branch name
   and city stored on the branch record, `layout.manage` authorization, and
   audit records.
+- Club self-service onboarding backend Slice 1.1 has owner-code generate,
+  rotate, summary, and active lookup service support. Active owner codes are
+  stored hashed, expire, update last-used on successful lookup, and now have a
+  database-level one-active-code-per-staff invariant.
 - Device enrollment, credential issuance, heartbeat validation, command
   dispatch/status, command result fallback, credential rotation, and revocation.
 - Persisted zones, seats, staff-authorized device-seat assignment, floor-map
-  reads, installed app reporting, and device detail projections.
+  reads, ETag-aware floor-map bulk PUT, installed app reporting, and device
+  detail projections. Bulk floor-map deletion now preserves seats that have
+  active device assignments or session history.
 - Session start, extend, transfer, end, signed leases, reconciliation, and
   heartbeat-driven lock/unlock/lease-refresh command planning. Repeated
   session-end requests against an already `ending` session now return the

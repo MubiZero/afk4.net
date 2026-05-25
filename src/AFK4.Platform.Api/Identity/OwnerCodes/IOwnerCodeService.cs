@@ -14,4 +14,8 @@ public interface IOwnerCodeService
     Task<OwnerCodeSummary?> GetActiveSummaryAsync(
         Guid staffUserId,
         CancellationToken cancellationToken);
+
+    Task<OwnerCodeLookupResult> LookupActiveAsync(
+        string rawCode,
+        CancellationToken cancellationToken);
 }
