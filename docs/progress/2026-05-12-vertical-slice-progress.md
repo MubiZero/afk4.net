@@ -29,10 +29,11 @@ implementation evidence are needed.
   scope for their slice, not as the current product decision.
 - The active follow-on onboarding plan is
   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
-  Slices 1.1 through 2.2 now cover owner codes, ETag floor-map editing,
+  Slices 1.1 through 2.3 now cover owner codes, ETag floor-map editing,
   backend install discover/enroll, the branch device admin surface, the
   Platform Web admin route split under `/admin/*`, and the first public
-  `/auth/*` accept-invite/staff sign-in pages.
+  `/auth/*` accept-invite/staff sign-in pages, plus first customer
+  `/club/*` dashboard/install/device/operator screens.
 
 ## Implemented Capabilities
 
@@ -109,15 +110,17 @@ implementation evidence are needed.
 
 ### SaaS Control Plane / Platform Web
 
-- Club self-service onboarding Slices 2.1 and 2.2 start the Platform Web
+- Club self-service onboarding Slices 2.1 through 2.3 start the Platform Web
   route split. Existing platform-admin tenant list/create/detail screens now
   resolve under `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
   `/admin/tenants/{organizationId}` with legacy root-level admin bookmark
   redirects. Public `/auth/accept-invite` and `/auth/sign-in` pages now call
   the existing accept-invite/staff sign-in endpoints, store a separate staff
-  session, and redirect successful staff auth to `/club`; forgot/reset routes
-  are reserved. Customer dashboard MVP screens under `/club/*` remain pending
-  for Slice 2.3.
+  session, and redirect successful staff auth to `/club/install`; forgot/reset
+  routes are reserved. Customer `/club/*` routes now include the first MVP
+  dashboard/install branch overview, owner-code generate/rotate page,
+  branch detail/settings, ETag floor-map editor, devices/pending-device admin
+  screens, and operators screen wired to existing staff APIs.
 
 ### Operator App
 
@@ -1754,10 +1757,9 @@ Operator App redesign branch-local verification on 2026-05-20:
    commit must have a green remote `PR Verification Result`.
 2. Continue the club self-service onboarding plan from
    `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`
-   with Slice 2.2: public `/auth/accept-invite` and `/auth/sign-in` pages
-   wired to the existing accept-invite and staff sign-in endpoints. Then move
-   into the `/club/*` customer dashboard slices before the SetupWizard/MSI
-   slices.
+   with Slice 2.4 terminology cleanup across SPA strings and public-facing
+   operations docs, then Slice 2.5 audience build flag and second Coolify app
+   for the customer host before the SetupWizard/MSI slices.
 3. Continue `codex/operator-app-redesign` from the backend-connected React
    shell by working through the new "Backend Connectivity TODO From Current
    React UI Copy" checklist in
@@ -3354,6 +3356,33 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `http://127.0.0.1:5175` confirmed `/auth/accept-invite?code=...` renders
   with the setup code prefilled, `/auth/sign-in?organizationId=...` prefills
   the organization field, and legacy `/` still redirects to `/admin`.
+
+- 2026-05-25: local Slice 2.3 implementation on
+  `codex/slice-2.3-club-dashboard`. `src/AFK4.Platform.Web` now has the first
+  customer dashboard MVP screens under `/club/*`. Successful setup-code accept
+  and staff sign-in redirect to `/club/install`; signed-in staff get a club
+  shell with install/owner-code generate-rotate, overview branch KPIs, branch
+  list/detail/settings, ETag floor-map bulk-save editor, devices and
+  pending-device admin actions, and operators screen wired to the existing
+  staff APIs through a separate `ClubApiClient` staff-token boundary. This
+  slice intentionally does not add new branch creation/deactivation backend
+  contracts or customer-SPA SignalR; those remain follow-up scope.
+
+  ```powershell
+  npm test -- App.test.tsx
+  npm test --silent
+  npm run build --silent
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused Platform.Web route/auth/install tests passed 10/10, full
+  Platform.Web tests passed 31/31, Vite production build passed, and
+  `git diff --check` was clean apart from expected LF-to-CRLF working-copy
+  warnings. Browser smoke against the existing Vite dev server
+  `http://127.0.0.1:5175` confirmed
+  `/auth/sign-in?organizationId=...` renders with the organization prefilled
+  and direct `/club/install` preserves the route while showing the staff
+  sign-in guard when no staff session is present.
 
 ## Historical Reference
 

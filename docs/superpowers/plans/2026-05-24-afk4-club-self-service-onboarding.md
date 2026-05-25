@@ -698,6 +698,15 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   accept/sign-in redirects to `/club`, `/auth/forgot-password` and
   `/auth/reset-password` are reserved, and `/club` is only a minimal signed-in
   handoff until the Slice 2.3 customer dashboard screens land.
+- **Slice 2.3** - completed locally on
+  `codex/slice-2.3-club-dashboard`: `Platform.Web` now resolves the first
+  customer dashboard MVP routes under `/club/*`. Successful accept-invite and
+  staff sign-in redirect to `/club/install`; the signed-in club shell has
+  install/owner-code generate-rotate, overview KPI, branch list/detail,
+  branch settings, ETag floor-map editor, devices/pending-device actions, and
+  operators screens backed by the existing staff APIs. This slice does not add
+  new backend branch-creation/deactivation contracts or SignalR in the
+  customer SPA.
 
 ## Testing
 

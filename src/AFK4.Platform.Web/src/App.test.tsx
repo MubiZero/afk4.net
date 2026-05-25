@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App, { resolvePlatformRoute } from './App';
-import { clearStaffSession, readStaffSession } from './auth/staffTokenStore';
+import { clearStaffSession, readStaffSession, writeStaffSession, type StaffSession } from './auth/staffTokenStore';
 import { clearSession, writeSession, type PlatformAdminSession } from './auth/tokenStore';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -35,8 +35,135 @@ function buildStaffSignInResponse() {
     refreshToken: 'staff-refresh-token',
     refreshTokenExpiresAtUtc: '2030-02-01T00:00:00Z',
     branchIds: ['33333333-3333-3333-3333-333333333333'],
-    permissions: ['layout.manage']
+    permissions: [
+      'floor_map.view',
+      'layout.manage',
+      'devices.detail.view',
+      'devices.seat_assignment.assign',
+      'devices.credentials.revoke',
+      'identity.branch_staff.manage',
+      'identity.owner_code.manage',
+      'branches.settings.manage'
+    ]
   };
+}
+
+function buildStaffSession(): StaffSession {
+  return {
+    staffUserId: '11111111-1111-1111-1111-111111111111',
+    organizationId: '22222222-2222-2222-2222-222222222222',
+    displayName: 'Demo Owner',
+    branchIds: ['33333333-3333-3333-3333-333333333333'],
+    permissions: buildStaffSignInResponse().permissions,
+    accessToken: 'staff-access-token',
+    accessTokenExpiresAtUtc: '2030-01-01T00:00:00Z',
+    refreshToken: 'staff-refresh-token',
+    refreshTokenExpiresAtUtc: '2030-02-01T00:00:00Z'
+  };
+}
+
+function buildClubFetchMock() {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? 'GET';
+
+    if (url.pathname === '/api/platform/owner-invites/accept' && method === 'POST') {
+      return jsonResponse(200, buildStaffSignInResponse());
+    }
+    if (url.pathname === '/api/auth/staff/sign-in' && method === 'POST') {
+      return jsonResponse(200, buildStaffSignInResponse());
+    }
+    if (url.pathname === '/api/staff/me/owner-code' && method === 'GET') {
+      return new Response(null, { status: 204 });
+    }
+    if (url.pathname === '/api/staff/me/owner-code/generate' && method === 'POST') {
+      return jsonResponse(200, {
+        ownerCode: '12345678',
+        codeSuffix: '5678',
+        expiresAtUtc: '2030-01-01T00:00:00Z'
+      });
+    }
+    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/profile') {
+      return jsonResponse(200, {
+        organizationId: '22222222-2222-2222-2222-222222222222',
+        branchId: '33333333-3333-3333-3333-333333333333',
+        name: 'Demo Branch',
+        city: 'Dushanbe',
+        createdAtUtc: '2026-05-24T00:00:00Z'
+      });
+    }
+    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/dashboard/summary') {
+      return jsonResponse(200, {
+        organizationId: '22222222-2222-2222-2222-222222222222',
+        branchId: '33333333-3333-3333-3333-333333333333',
+        fromUtc: '2026-05-25T00:00:00Z',
+        toUtc: '2026-05-25T23:59:59Z',
+        generatedAtUtc: '2026-05-25T12:00:00Z',
+        utilization: {
+          totalSeats: 5,
+          activeSessions: 2,
+          endingSessions: 0,
+          onlineDevices: 3,
+          offlineDevices: 1,
+          sessionStarts: 4,
+          utilizationPercent: 40
+        },
+        alertPressure: {
+          pendingCommands: 0,
+          failedCommands: 1,
+          offlineDevices: 1,
+          endingSessions: 0,
+          totalAlerts: 2
+        },
+        revenue: {
+          posNetSales: { amount: 0, currencyCode: 'TJS' },
+          gameplayRevenue: { amount: 0, currencyCode: 'TJS' },
+          totalRevenue: { amount: 0, currencyCode: 'TJS' },
+          posCheckCount: 0,
+          newPlayerCount: 0
+        }
+      });
+    }
+    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/devices') {
+      return jsonResponse(200, [
+        {
+          organizationId: '22222222-2222-2222-2222-222222222222',
+          branchId: '33333333-3333-3333-3333-333333333333',
+          deviceId: '44444444-4444-4444-4444-444444444444',
+          machineName: 'PC-01',
+          agentVersion: '0.1.0',
+          shellVersion: '0.1.0',
+          enrolledAtUtc: '2026-05-24T00:00:00Z',
+          lastHeartbeatAtUtc: '2026-05-25T12:00:00Z',
+          isOnline: true,
+          isLocked: false,
+          seatId: null,
+          seatName: null,
+          zoneId: null,
+          zoneName: null,
+          activeCredentialCount: 1,
+          installedAppCount: 0,
+          pendingCommandCount: 0,
+          failedCommandCount: 0,
+          displayName: 'PC-01',
+          role: 'gaming_pc',
+          enrollmentState: 'approved'
+        }
+      ]);
+    }
+    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/devices/pending') {
+      return jsonResponse(200, []);
+    }
+    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/floor-map') {
+      return jsonResponse(200, {
+        branchId: '33333333-3333-3333-3333-333333333333',
+        branchName: 'Demo Branch',
+        seats: []
+      });
+    }
+
+    return jsonResponse(404, { error: `Unhandled ${method} ${url.pathname}` });
+  });
 }
 
 describe('Platform Web routing', () => {
@@ -97,6 +224,33 @@ describe('Platform Web routing', () => {
     });
   });
 
+  it('resolves customer dashboard URLs under /club', () => {
+    expect(resolvePlatformRoute('/club')).toMatchObject({
+      route: { kind: 'clubDashboard' }
+    });
+    expect(resolvePlatformRoute('/club/install')).toMatchObject({
+      route: { kind: 'clubInstall' }
+    });
+    expect(resolvePlatformRoute('/club/branches')).toMatchObject({
+      route: { kind: 'clubBranches' }
+    });
+    expect(resolvePlatformRoute('/club/branches/branch-1')).toMatchObject({
+      route: { kind: 'clubBranchDetail', branchId: 'branch-1' }
+    });
+    expect(resolvePlatformRoute('/club/branches/branch-1/floor-map')).toMatchObject({
+      route: { kind: 'clubBranchFloorMap', branchId: 'branch-1' }
+    });
+    expect(resolvePlatformRoute('/club/branches/branch-1/devices')).toMatchObject({
+      route: { kind: 'clubBranchDevices', branchId: 'branch-1' }
+    });
+    expect(resolvePlatformRoute('/club/branches/branch-1/devices/pending')).toMatchObject({
+      route: { kind: 'clubBranchPendingDevices', branchId: 'branch-1' }
+    });
+    expect(resolvePlatformRoute('/club/branches/branch-1/operators')).toMatchObject({
+      route: { kind: 'clubBranchOperators', branchId: 'branch-1' }
+    });
+  });
+
   it('redirects the old root bookmark to /admin for signed-in platform admins', async () => {
     writeSession(buildSession());
     render(<App apiBaseUrl="http://localhost" />);
@@ -133,9 +287,9 @@ describe('Platform Web routing', () => {
     expect(screen.getByRole('heading', { name: 'Tenants' })).toBeInTheDocument();
   });
 
-  it('accepts a setup code, stores the staff session, and redirects to /club', async () => {
+  it('accepts a setup code, stores the staff session, and redirects to /club/install', async () => {
     window.history.replaceState(null, '', '/auth/accept-invite?code=setup-code-1');
-    const fetchMock = vi.fn(async () => jsonResponse(200, buildStaffSignInResponse()));
+    const fetchMock = buildClubFetchMock();
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App apiBaseUrl="http://localhost" />);
@@ -149,8 +303,8 @@ describe('Platform Web routing', () => {
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'Passw0rd!Real' } });
     fireEvent.click(screen.getByRole('button', { name: 'Accept and open club' }));
 
-    await waitFor(() => expect(window.location.pathname).toBe('/club'));
-    expect(screen.getByRole('heading', { name: 'Club dashboard' })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.pathname).toBe('/club/install'));
+    expect(screen.getByRole('heading', { name: 'Install AFK4 on PCs' })).toBeInTheDocument();
     expect(readStaffSession()?.accessToken).toBe('staff-access-token');
 
     const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -163,13 +317,13 @@ describe('Platform Web routing', () => {
     });
   });
 
-  it('signs in a staff user and redirects to /club', async () => {
+  it('signs in a staff user and redirects to /club/install', async () => {
     window.history.replaceState(
       null,
       '',
       '/auth/sign-in?organizationId=22222222-2222-2222-2222-222222222222'
     );
-    const fetchMock = vi.fn(async () => jsonResponse(200, buildStaffSignInResponse()));
+    const fetchMock = buildClubFetchMock();
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App apiBaseUrl="http://localhost" />);
@@ -181,8 +335,8 @@ describe('Platform Web routing', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Passw0rd!Real' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    await waitFor(() => expect(window.location.pathname).toBe('/club'));
-    expect(screen.getByRole('heading', { name: 'Club dashboard' })).toBeInTheDocument();
+    await waitFor(() => expect(window.location.pathname).toBe('/club/install'));
+    expect(screen.getByRole('heading', { name: 'Install AFK4 on PCs' })).toBeInTheDocument();
 
     const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in');
@@ -191,5 +345,39 @@ describe('Platform Web routing', () => {
       userName: 'owner@demo.test',
       password: 'Passw0rd!Real'
     });
+  });
+
+  it('loads the signed-in club overview KPIs from branch APIs', async () => {
+    window.history.replaceState(null, '', '/club');
+    writeStaffSession(buildStaffSession());
+    vi.stubGlobal('fetch', buildClubFetchMock());
+
+    render(<App apiBaseUrl="http://localhost" />);
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Club overview' })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Demo Branch')).toBeInTheDocument());
+    expect(screen.getAllByText('Devices').length).toBeGreaterThan(0);
+    expect(screen.getByText('Active sessions')).toBeInTheDocument();
+    expect(screen.getByText('Alerts today')).toBeInTheDocument();
+  });
+
+  it('generates and reveals an owner code from /club/install', async () => {
+    window.history.replaceState(null, '', '/club/install');
+    writeStaffSession(buildStaffSession());
+    const fetchMock = buildClubFetchMock();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App apiBaseUrl="http://localhost" />);
+
+    expect(screen.getByRole('heading', { name: 'Install AFK4 on PCs' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('Owner code')).toHaveTextContent('No active code'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate code' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Owner code')).toHaveTextContent('12345678'));
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost/api/staff/me/owner-code/generate',
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 });

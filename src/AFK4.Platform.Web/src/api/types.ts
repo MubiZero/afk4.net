@@ -29,6 +29,178 @@ export interface AcceptOwnerInviteRequest {
   password: string;
 }
 
+export interface OwnerCodeSummary {
+  codeSuffix: string;
+  expiresAtUtc: string;
+  lastUsedAtUtc: string | null;
+  failedAttemptCount: number;
+}
+
+export interface OwnerCodeIssued {
+  ownerCode: string;
+  codeSuffix: string;
+  expiresAtUtc: string;
+}
+
+export interface BranchProfile {
+  organizationId: string;
+  branchId: string;
+  name: string;
+  city: string;
+  createdAtUtc: string;
+}
+
+export interface BranchSettings {
+  organizationId: string;
+  branchId: string;
+  requireManualDeviceApproval: boolean;
+}
+
+export interface UpdateBranchProfileRequest {
+  organizationId: string;
+  name: string;
+  city: string;
+}
+
+export interface UpdateBranchSettingsRequest {
+  organizationId: string;
+  requireManualDeviceApproval: boolean;
+}
+
+export interface SeatStatus {
+  seatId: string;
+  seatName: string;
+  zoneId: string;
+  zoneName: string;
+  sortOrder: number;
+  state: string;
+  deviceId: string | null;
+  deviceName: string | null;
+  isDeviceOnline: boolean | null;
+  isDeviceLocked: boolean | null;
+  lastHeartbeatAtUtc: string | null;
+  agentVersion: string | null;
+  shellVersion: string | null;
+  activeSessionId: string | null;
+  remainingSeconds: number | null;
+}
+
+export interface FloorMap {
+  branchId: string;
+  branchName: string;
+  seats: SeatStatus[];
+}
+
+export interface FloorMapRead {
+  etag: string | null;
+  floorMap: FloorMap;
+}
+
+export interface FloorMapBulkUpdateRequest {
+  organizationId: string;
+  zones: FloorMapBulkZoneRequest[];
+  seats: FloorMapBulkSeatRequest[];
+}
+
+export interface FloorMapBulkZoneRequest {
+  zoneId: string | null;
+  clientId: string;
+  name: string;
+  sortOrder: number;
+}
+
+export interface FloorMapBulkSeatRequest {
+  seatId: string | null;
+  clientId: string;
+  zoneClientId: string;
+  name: string;
+  sortOrder: number;
+}
+
+export interface FloorMapBulkUpdateResponse {
+  eTag: string;
+  zones: Array<{ clientId: string; zoneId: string }>;
+  seats: Array<{ clientId: string; seatId: string }>;
+}
+
+export interface Money {
+  amount: number;
+  currencyCode: string;
+}
+
+export interface OperatorDashboardSummary {
+  organizationId: string;
+  branchId: string;
+  fromUtc: string;
+  toUtc: string;
+  generatedAtUtc: string;
+  utilization: {
+    totalSeats: number;
+    activeSessions: number;
+    endingSessions: number;
+    onlineDevices: number;
+    offlineDevices: number;
+    sessionStarts: number;
+    utilizationPercent: number;
+  };
+  alertPressure: {
+    pendingCommands: number;
+    failedCommands: number;
+    offlineDevices: number;
+    endingSessions: number;
+    totalAlerts: number;
+  };
+  revenue: {
+    posNetSales: Money;
+    gameplayRevenue: Money;
+    totalRevenue: Money;
+    posCheckCount: number;
+    newPlayerCount: number;
+  };
+}
+
+export interface DeviceInventoryItem {
+  organizationId: string;
+  branchId: string;
+  deviceId: string;
+  machineName: string;
+  agentVersion: string;
+  shellVersion: string;
+  enrolledAtUtc: string;
+  lastHeartbeatAtUtc: string | null;
+  isOnline: boolean;
+  isLocked: boolean;
+  seatId: string | null;
+  seatName: string | null;
+  zoneId: string | null;
+  zoneName: string | null;
+  activeCredentialCount: number;
+  installedAppCount: number;
+  pendingCommandCount: number;
+  failedCommandCount: number;
+  displayName: string;
+  role: string;
+  enrollmentState: string;
+}
+
+export interface StaffUser {
+  staffUserId: string;
+  organizationId: string;
+  userName: string;
+  displayName: string;
+  isActive: boolean;
+  roleNames: string[];
+  createdAtUtc: string;
+}
+
+export interface CreateStaffUserRequest {
+  organizationId: string;
+  userName: string;
+  displayName: string;
+  password: string;
+  roleNames: string[];
+}
+
 export interface TenantSummary {
   organizationId: string;
   slug: string;

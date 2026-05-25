@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ClubApiClient } from './api/clubApi';
 import { PlatformApiClient } from './api/platformApi';
 import { StaffAuthApiClient } from './api/staffAuthApi';
 import type { OwnerInvite } from './api/types';
 import { readStaffSession, type StaffSession } from './auth/staffTokenStore';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { AcceptInvite } from './components/AcceptInvite';
+import { ClubDashboard } from './components/ClubDashboard';
 import { SignIn } from './components/SignIn';
 import { StaffSignIn } from './components/StaffSignIn';
 import { TenantList } from './components/TenantList';
@@ -22,7 +24,15 @@ export type AuthRoute =
   | { kind: 'forgotPassword' }
   | { kind: 'resetPassword' };
 
-export type ClubRoute = { kind: 'clubHome' };
+export type ClubRoute =
+  | { kind: 'clubDashboard' }
+  | { kind: 'clubInstall' }
+  | { kind: 'clubBranches' }
+  | { kind: 'clubBranchDetail'; branchId: string }
+  | { kind: 'clubBranchFloorMap'; branchId: string }
+  | { kind: 'clubBranchDevices'; branchId: string }
+  | { kind: 'clubBranchPendingDevices'; branchId: string }
+  | { kind: 'clubBranchOperators'; branchId: string };
 
 export type AppRoute =
   | AdminRoute
@@ -64,6 +74,17 @@ export default function App({ apiBaseUrl }: AppProps) {
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [apiBaseUrl]
+  );
+
+  const clubClient = useMemo(
+    () =>
+      new ClubApiClient({
+        baseUrl: apiBaseUrl,
+        session: staffSession,
+        onSessionChanged: next => setStaffSession(next)
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [apiBaseUrl, staffSession]
   );
 
   useEffect(() => {
@@ -121,8 +142,13 @@ export default function App({ apiBaseUrl }: AppProps) {
     [navigate]
   );
 
-  const navigateToClubHome = useCallback(
-    () => navigate({ kind: 'clubHome' }, '/club'),
+  const navigateToClubInstall = useCallback(
+    () => navigate({ kind: 'clubInstall' }, '/club/install'),
+    [navigate]
+  );
+
+  const navigateToClubRoute = useCallback(
+    (nextRoute: ClubRoute, path: string) => navigate(nextRoute, path),
     [navigate]
   );
 
@@ -135,7 +161,7 @@ export default function App({ apiBaseUrl }: AppProps) {
       <AcceptInvite
         client={staffClient}
         initialCode={route.code}
-        onAccepted={navigateToClubHome}
+        onAccepted={navigateToClubInstall}
         onOpenSignIn={navigateToStaffSignIn}
       />
     );
@@ -146,7 +172,7 @@ export default function App({ apiBaseUrl }: AppProps) {
       <StaffSignIn
         client={staffClient}
         initialOrganizationId={route.organizationId}
-        onSignedIn={navigateToClubHome}
+        onSignedIn={navigateToClubInstall}
       />
     );
   }
@@ -155,20 +181,23 @@ export default function App({ apiBaseUrl }: AppProps) {
     return <ReservedAuthPage onSignIn={navigateToStaffSignIn} />;
   }
 
-  if (route.kind === 'clubHome') {
+  if (isClubRoute(route)) {
     if (staffSession === null) {
       return (
         <StaffSignIn
           client={staffClient}
           initialOrganizationId={null}
-          onSignedIn={navigateToClubHome}
+          onSignedIn={navigateToClubInstall}
         />
       );
     }
     return (
-      <ClubHome
+      <ClubDashboard
+        client={clubClient}
+        route={route}
         session={staffSession}
         onSignOut={() => staffClient.signOutLocal()}
+        onNavigate={navigateToClubRoute}
       />
     );
   }
@@ -280,7 +309,63 @@ export function resolvePlatformRoute(
   }
 
   if (path === '/club') {
-    return { route: { kind: 'clubHome' } };
+    return { route: { kind: 'clubDashboard' } };
+  }
+  if (path === '/club/install') {
+    return { route: { kind: 'clubInstall' } };
+  }
+  if (path === '/club/branches') {
+    return { route: { kind: 'clubBranches' } };
+  }
+
+  const pendingDevicesMatch = /^\/club\/branches\/([^/]+)\/devices\/pending$/u.exec(path);
+  if (pendingDevicesMatch !== null) {
+    return {
+      route: {
+        kind: 'clubBranchPendingDevices',
+        branchId: decodePathSegment(pendingDevicesMatch[1])
+      }
+    };
+  }
+
+  const branchDevicesMatch = /^\/club\/branches\/([^/]+)\/devices$/u.exec(path);
+  if (branchDevicesMatch !== null) {
+    return {
+      route: {
+        kind: 'clubBranchDevices',
+        branchId: decodePathSegment(branchDevicesMatch[1])
+      }
+    };
+  }
+
+  const floorMapMatch = /^\/club\/branches\/([^/]+)\/floor-map$/u.exec(path);
+  if (floorMapMatch !== null) {
+    return {
+      route: {
+        kind: 'clubBranchFloorMap',
+        branchId: decodePathSegment(floorMapMatch[1])
+      }
+    };
+  }
+
+  const operatorsMatch = /^\/club\/branches\/([^/]+)\/operators$/u.exec(path);
+  if (operatorsMatch !== null) {
+    return {
+      route: {
+        kind: 'clubBranchOperators',
+        branchId: decodePathSegment(operatorsMatch[1])
+      }
+    };
+  }
+
+  const branchDetailMatch = /^\/club\/branches\/([^/]+)$/u.exec(path);
+  if (branchDetailMatch !== null) {
+    return {
+      route: {
+        kind: 'clubBranchDetail',
+        branchId: decodePathSegment(branchDetailMatch[1])
+      }
+    };
   }
 
   return { route: { kind: 'notFound', path } };
@@ -340,6 +425,17 @@ function isAdminRoute(route: AppRoute): route is AdminRoute {
     || route.kind === 'tenantDetail';
 }
 
+function isClubRoute(route: AppRoute): route is ClubRoute {
+  return route.kind === 'clubDashboard'
+    || route.kind === 'clubInstall'
+    || route.kind === 'clubBranches'
+    || route.kind === 'clubBranchDetail'
+    || route.kind === 'clubBranchFloorMap'
+    || route.kind === 'clubBranchDevices'
+    || route.kind === 'clubBranchPendingDevices'
+    || route.kind === 'clubBranchOperators';
+}
+
 function ReservedAuthPage({ onSignIn }: { onSignIn: () => void }) {
   return (
     <div className="page page-narrow">
@@ -349,30 +445,6 @@ function ReservedAuthPage({ onSignIn }: { onSignIn: () => void }) {
         <button type="button" className="primary" onClick={onSignIn}>Back to sign in</button>
       </section>
     </div>
-  );
-}
-
-function ClubHome({ session, onSignOut }: { session: StaffSession; onSignOut: () => void }) {
-  return (
-    <>
-      <header className="app-header">
-        <div className="app-title">AFK4 Club</div>
-        <div className="app-session">
-          <span className="muted">{session.displayName}</span>
-          <button type="button" onClick={onSignOut}>Sign out</button>
-        </div>
-      </header>
-      <main>
-        <div className="page">
-          <div className="page-header">
-            <h1>Club dashboard</h1>
-          </div>
-          <section className="section">
-            <p className="muted">Your club session is active.</p>
-          </section>
-        </div>
-      </main>
-    </>
   );
 }
 
