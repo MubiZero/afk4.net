@@ -14,8 +14,8 @@ in a repeatable way.
 
 - The PC runs Windows 10/11.
 - The branch exists in the AFK4 backend.
-- An authorized technician or manager can create a short-lived device
-  enrollment code from the Operator App or API.
+- An authorized technician or manager can create a short-lived PC enrollment
+  code from the Operator App or API.
 - Agent Service and Player Shell binaries are signed and come from an approved
   AFK4 distribution source.
 - Production secrets and signing keys are not stored in the repository.
@@ -28,7 +28,8 @@ in a repeatable way.
    - default service configuration;
    - recovery/uninstall metadata for rollback.
 2. Start the installer in enrollment mode.
-3. Enter or scan the branch/device enrollment code created by authorized staff.
+3. Enter or scan the branch-scoped PC enrollment code created by authorized
+   staff.
 4. The installer or first-run Agent calls `POST /api/devices/enroll`.
 5. The backend issues:
    - device id;
@@ -51,7 +52,7 @@ in a repeatable way.
 ## Safety Rules
 
 - Never ship a hardcoded device credential in installer files.
-- Enrollment codes must be short-lived and branch-scoped.
+- PC enrollment codes must be short-lived and branch-scoped.
 - A device credential belongs to exactly one device id.
 - If enrollment is repeated for replacement hardware, revoke old credentials
   through the backend.
@@ -68,7 +69,7 @@ If enrollment or startup fails:
 2. Inspect local Agent logs and backend device command/status records.
 3. Remove only the local AFK4 configuration and credential for this device if a
    clean re-enrollment is required.
-4. Recreate a fresh enrollment code from an authorized technician account.
+4. Recreate a fresh PC enrollment code from an authorized technician account.
 5. Re-enroll the device.
 6. Revoke stale credentials for the previous enrollment.
 

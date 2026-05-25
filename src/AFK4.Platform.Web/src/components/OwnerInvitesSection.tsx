@@ -36,7 +36,7 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
       const list = await client.listOwnerInvites(organizationId);
       setInvites(list);
     } catch (cause) {
-      setError(toMessage(cause, 'Failed to load owner invites.'));
+      setError(toMessage(cause, 'Failed to load setup codes.'));
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
       setOwnerDisplayName('');
       await refresh();
     } catch (cause) {
-      setError(toMessage(cause, 'Failed to create owner invite.'));
+      setError(toMessage(cause, 'Failed to create setup code.'));
     } finally {
       setCreating(false);
     }
@@ -113,7 +113,7 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
       setRevokeReason('');
       await refresh();
     } catch (cause) {
-      setError(toMessage(cause, 'Failed to revoke invite.'));
+      setError(toMessage(cause, 'Failed to revoke setup code.'));
     } finally {
       setIsRevoking(false);
     }
@@ -122,14 +122,14 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
   return (
     <section className="section">
       <header className="section-header">
-        <h2>Owner invites</h2>
+        <h2>Setup codes</h2>
       </header>
       <ErrorBanner message={error} onDismiss={() => setError(null)} />
       <form className="form form-inline" onSubmit={handleCreate}>
         <Field label="Branch" htmlFor="invite-branch">
           <select id="invite-branch" value={branchId} onChange={e => setBranchId(e.target.value)}>
             {branches.map(branch => (
-              <option key={branch.branchId} value={branch.branchId}>{branch.slug} — {branch.name}</option>
+              <option key={branch.branchId} value={branch.branchId}>{branch.name} ({branch.city})</option>
             ))}
           </select>
         </Field>
@@ -140,19 +140,19 @@ export function OwnerInvitesSection({ client, organizationId, branches, initialI
           <input id="invite-display" value={ownerDisplayName} onChange={e => setOwnerDisplayName(e.target.value)} />
         </Field>
         <button type="submit" className="primary" disabled={isCreating || branches.length === 0}>
-          {isCreating ? 'Creating…' : 'Create invite'}
+          {isCreating ? 'Creating…' : 'Create setup code'}
         </button>
       </form>
-      {isLoading && invites === null && <Loading label="Loading invites…" />}
+      {isLoading && invites === null && <Loading label="Loading setup codes…" />}
       {invites !== null && invites.length === 0 && (
-        <EmptyState>No invites yet. Use the form above to send the first one.</EmptyState>
+        <EmptyState>No setup codes yet. Use the form above to create the first one.</EmptyState>
       )}
       {invites !== null && invites.length > 0 && (
         <table className="table">
           <thead>
             <tr>
               <th>Status</th>
-              <th>Code</th>
+              <th>Setup code</th>
               <th>Owner</th>
               <th>Expires</th>
               <th>Actions</th>

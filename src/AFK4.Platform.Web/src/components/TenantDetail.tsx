@@ -49,7 +49,7 @@ export function TenantDetailView({ client, organizationId, initialInvite, onBack
       <div className="page-header">
         <div>
           <button type="button" onClick={onBack}>← Back</button>
-          {tenant !== null && <h1>{tenant.name} <small><code>{tenant.slug}</code></small></h1>}
+          {tenant !== null && <h1>{tenant.name} <small>Tenant key <code>{tenant.slug}</code></small></h1>}
           {tenant === null && <h1>Tenant detail</h1>}
         </div>
         {tenant !== null && (
@@ -68,7 +68,7 @@ export function TenantDetailView({ client, organizationId, initialInvite, onBack
               <h2>Overview</h2>
             </header>
             <dl className="kv">
-              <dt>Slug</dt><dd><code>{tenant.slug}</code></dd>
+              <dt>Tenant key</dt><dd><code>{tenant.slug}</code></dd>
               <dt>Created</dt><dd>{formatDate(tenant.createdAtUtc)}</dd>
               <dt>Updated</dt><dd>{formatDate(tenant.updatedAtUtc)}</dd>
               <dt>Branches</dt>
@@ -76,7 +76,7 @@ export function TenantDetailView({ client, organizationId, initialInvite, onBack
                 <ul>
                   {tenant.branches.map(branch => (
                     <li key={branch.branchId}>
-                      <code>{branch.slug}</code> — {branch.name} ({branch.city})
+                      {branch.name} ({branch.city}) <span className="muted">Key <code>{branch.slug}</code></span>
                     </li>
                   ))}
                 </ul>

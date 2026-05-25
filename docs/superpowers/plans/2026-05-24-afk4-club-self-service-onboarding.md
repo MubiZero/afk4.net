@@ -707,6 +707,12 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   operators screens backed by the existing staff APIs. This slice does not add
   new backend branch-creation/deactivation contracts or SignalR in the
   customer SPA.
+- **Slice 2.4** - completed locally on
+  `codex/slice-2.4-terminology`: Platform Web visible copy now uses setup
+  codes for owner onboarding, owner codes for the Windows setup wizard, and
+  tenant/branch keys instead of visible slug labels. Public
+  operations docs now call the legacy `/device-enrollment-codes` path PC
+  enrollment codes while preserving endpoint names.
 
 ## Testing
 

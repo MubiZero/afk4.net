@@ -74,7 +74,7 @@ The smoke exercises these API boundaries:
 | --- | --- |
 | Health | `GET /api/health` |
 | Staff auth | `POST /api/auth/staff/sign-in` |
-| Enrollment code | `POST /api/branches/{branchId}/device-enrollment-codes` |
+| PC enrollment code | `POST /api/branches/{branchId}/device-enrollment-codes` |
 | Device enrollment | `POST /api/devices/enroll` |
 | Device assignment | `POST /api/branches/{branchId}/devices/{deviceId}/seat-assignment` |
 | Heartbeat | `POST /api/devices/{deviceId}/heartbeat` |
@@ -367,7 +367,7 @@ organization, branch, smoke seat, session lease verification public key, and
 internal update package verification public key fixed at publish time. It asks
 for staff username and password, downloads the current internal Gaming PC MSI
 from MinIO, verifies the MSI SHA-256 from the bootstrap manifest, creates the
-enrollment code, enrolls the VM, assigns the device to the smoke seat through
+PC enrollment code, enrolls the VM, assigns the device to the smoke seat through
 the Platform API, installs the MSI, writes Agent machine configuration, starts
 `AFK4.Agent.Service`, and waits for backend heartbeat evidence.
 
@@ -410,7 +410,7 @@ artifacts/client-packages/afk4-gaming-pc-0.1.0-ci-internal.msi
 
 ## Enroll The Device
 
-Create a short-lived enrollment code:
+Create a short-lived PC enrollment code:
 
 ```powershell
 $codeBody = @{
@@ -874,7 +874,7 @@ Evidence to collect:
 - staging health response time and status;
 - migration state if DB access is available;
 - staff sign-in success without recording token values;
-- enrollment code creation timestamp, not the code value;
+- PC enrollment code creation timestamp, not the code value;
 - enrolled `deviceId`, not the credential secret;
 - service install log;
 - `sc.exe query` output;
@@ -894,7 +894,7 @@ Overall pass requires:
 
 - staging `GET /api/health` returns `status = ok` without insecure TLS flags;
 - staging staff sign-in succeeds for the smoke staff user;
-- a short-lived enrollment code enrolls one Windows 10/11 PC;
+- a short-lived PC enrollment code enrolls one Windows 10/11 PC;
 - the Agent Service runs as `AFK4.Agent.Service`;
 - authenticated heartbeat succeeds repeatedly;
 - SignalR connects and registers the device, or the fallback heartbeat command

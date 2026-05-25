@@ -98,7 +98,7 @@ export function NewTenant({ client, onCreated, onCancel }: NewTenantProps) {
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
         <fieldset className="fieldset">
           <legend>Organization</legend>
-          <Field label="Slug" htmlFor="org-slug" hint="3–64 chars, a–z, 0–9, hyphens between segments.">
+          <Field label="Tenant key" htmlFor="org-slug" hint="URL-safe key: 3-64 chars, a-z, 0-9, hyphens between segments.">
             <input id="org-slug" value={form.organizationSlug} onChange={e => update('organizationSlug', e.target.value)} required />
           </Field>
           <Field label="Name" htmlFor="org-name">
@@ -107,7 +107,7 @@ export function NewTenant({ client, onCreated, onCancel }: NewTenantProps) {
         </fieldset>
         <fieldset className="fieldset">
           <legend>First branch</legend>
-          <Field label="Branch slug" htmlFor="branch-slug">
+          <Field label="Branch key" htmlFor="branch-slug">
             <input id="branch-slug" value={form.branchSlug} onChange={e => update('branchSlug', e.target.value)} required />
           </Field>
           <Field label="Branch name" htmlFor="branch-name">
@@ -151,7 +151,7 @@ export function NewTenant({ client, onCreated, onCancel }: NewTenantProps) {
           </Field>
         </fieldset>
         <fieldset className="fieldset">
-          <legend>Owner invite (optional)</legend>
+          <legend>Setup code recipient (optional)</legend>
           <Field label="Owner user name (email)" htmlFor="owner-username">
             <input id="owner-username" value={form.ownerUserName} onChange={e => update('ownerUserName', e.target.value)} />
           </Field>

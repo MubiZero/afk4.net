@@ -54,7 +54,7 @@ export function TenantList({ client, onOpenTenant, onCreateTenant }: TenantListP
           <thead>
             <tr>
               <th>Name</th>
-              <th>Slug</th>
+              <th>Tenant key</th>
               <th>Status</th>
               <th>Plan</th>
               <th>Subscription</th>

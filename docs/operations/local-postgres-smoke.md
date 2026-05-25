@@ -228,7 +228,7 @@ $staffHeaders = @{
 }
 ```
 
-Create an enrollment code with the staff bearer token:
+Create a PC enrollment code with the staff bearer token:
 
 ```powershell
 $codeBody = @{

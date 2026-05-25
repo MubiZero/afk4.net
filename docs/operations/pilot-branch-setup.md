@@ -72,7 +72,7 @@ The script is intentionally idempotent for normal pilot reruns:
 
 For a clean gaming PC, use the staging MinIO-hosted remote bootstrap
 `latest.json` and script. The script downloads and verifies the internal Gaming
-PC MSI, creates an enrollment code, enrolls the device, assigns the configured
+PC MSI, creates a PC enrollment code, enrolls the device, assigns the configured
 smoke seat, installs and configures the client, starts `AFK4.Agent.Service`,
 and waits for heartbeat evidence.
 

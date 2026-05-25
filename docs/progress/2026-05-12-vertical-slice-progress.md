@@ -29,11 +29,12 @@ implementation evidence are needed.
   scope for their slice, not as the current product decision.
 - The active follow-on onboarding plan is
   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
-  Slices 1.1 through 2.3 now cover owner codes, ETag floor-map editing,
+  Slices 1.1 through 2.4 now cover owner codes, ETag floor-map editing,
   backend install discover/enroll, the branch device admin surface, the
   Platform Web admin route split under `/admin/*`, and the first public
   `/auth/*` accept-invite/staff sign-in pages, plus first customer
-  `/club/*` dashboard/install/device/operator screens.
+  `/club/*` dashboard/install/device/operator screens and terminology cleanup
+  across the SPA and public operations docs.
 
 ## Implemented Capabilities
 
@@ -110,7 +111,7 @@ implementation evidence are needed.
 
 ### SaaS Control Plane / Platform Web
 
-- Club self-service onboarding Slices 2.1 through 2.3 start the Platform Web
+- Club self-service onboarding Slices 2.1 through 2.4 start the Platform Web
   route split. Existing platform-admin tenant list/create/detail screens now
   resolve under `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
   `/admin/tenants/{organizationId}` with legacy root-level admin bookmark
@@ -120,7 +121,10 @@ implementation evidence are needed.
   routes are reserved. Customer `/club/*` routes now include the first MVP
   dashboard/install branch overview, owner-code generate/rotate page,
   branch detail/settings, ETag floor-map editor, devices/pending-device admin
-  screens, and operators screen wired to existing staff APIs.
+  screens, and operators screen wired to existing staff APIs. Slice 2.4 cleans
+  human-facing terminology so setup codes, owner codes, PC enrollment codes,
+  and tenant/branch keys are consistently named in the SPA and public
+  operations docs.
 
 ### Operator App
 
@@ -3383,6 +3387,24 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `/auth/sign-in?organizationId=...` renders with the organization prefilled
   and direct `/club/install` preserves the route while showing the staff
   sign-in guard when no staff session is present.
+
+- 2026-05-25: local Slice 2.4 implementation on
+  `codex/slice-2.4-terminology`. `src/AFK4.Platform.Web` now uses the agreed
+  human-facing terms in the Platform Web UI: setup codes for owner onboarding,
+  owner codes for the Windows setup wizard, and
+  tenant/branch keys instead of visible slug labels. Public operations docs in
+  `docs/operations/` now refer to the legacy `/device-enrollment-codes` flow
+  as PC enrollment codes while leaving endpoint names unchanged.
+
+  ```powershell
+  npm test --silent
+  npm run build --silent
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: full Platform.Web tests passed 31/31, Vite production build passed,
+  and `git diff --check` was clean apart from expected LF-to-CRLF working-copy
+  warnings.
 
 ## Historical Reference
 
