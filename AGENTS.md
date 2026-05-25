@@ -9,13 +9,22 @@ explicitly asks for it.
 
 ## Required Context For Every New Session
 
-Before changing code, product scope, architecture, or plans, read:
+Use tiered context loading so routine work stays fast while product and
+architecture decisions still use the right source of truth.
 
-- `README.md`
-- `docs/product/AFK4-MVP-PRD.md`
-- `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`
-- `docs/progress/2026-05-12-vertical-slice-progress.md`
-- `docs/roadmap/production-readiness.md`
+- For any repo task that changes files or durable delivery state, read
+  `README.md` and `docs/progress/2026-05-12-vertical-slice-progress.md`.
+- Before changing product scope, user journeys, MVP boundaries, architecture,
+  module boundaries, or implementation plans, also read
+  `docs/product/AFK4-MVP-PRD.md` and
+  `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`.
+- Before changing release gates, deployment, staging/production sequencing, CI,
+  packaging, backup/restore, or operational readiness, also read
+  `docs/roadmap/production-readiness.md` and the directly relevant operations
+  docs.
+- For narrow docs/tooling edits inside already-approved workflow, read the
+  directly relevant files and use the full source-of-truth set only if the
+  change touches product, architecture, release, or delivery state.
 
 Source-of-truth order:
 
@@ -77,6 +86,17 @@ Use:
 
 Keep progress files short enough to be useful in future agent sessions. Archive
 large historical logs instead of making them mandatory reading.
+
+Progress snapshot hygiene:
+
+- Keep new progress entries compact: current state, latest verification, known
+  gaps, and next work. Avoid long command transcripts.
+- Move detailed smoke logs, historical evidence, one-off incident narratives,
+  and bulky output to `docs/archive/` when they are useful but not required
+  context for every new session.
+- Prefer updating an existing current-state bullet over appending another long
+  chronological note when the old detail no longer changes what the next agent
+  should do.
 
 Before ending any session that changed code, workflows, deployment/operations
 docs, implementation plans, product scope, architecture, CI/release behavior, or
@@ -141,6 +161,41 @@ full path above if `dotnet` is not recognized.
 - Verify with fresh commands before claiming build, tests, or completion.
 - Commit coherent units of work with clear messages.
 - Do not revert user changes unless explicitly asked.
+- When the user asks to review, check, or assess existing work, default to
+  findings-only review. Do not fix, stage, commit, or push until the user asks
+  for implementation.
+- If a task expands or remains unclear after 60-90 minutes, stop and present the
+  fastest pragmatic option and the slower more complete option with tradeoffs.
+
+## Verification Policy
+
+Use the narrowest fresh verification that proves the changed behavior, then
+scale up only when the blast radius requires it.
+
+- Docs-only changes: run `git diff --check`; no build/test unless the docs
+  include generated examples or scripts that changed.
+- Backend endpoint/service changes: run focused tests for the affected endpoint,
+  service, and policy path.
+- Shared contracts, migrations, auth/tenant/device/session/money boundaries, or
+  cross-module changes: run affected project tests plus the relevant contract
+  tests and build target.
+- Frontend behavior changes: run focused frontend tests; run production build
+  when bundling, routing, environment config, or shared UI wiring changed.
+- Packaging, installer, deployment, CI, backup/restore, or release-gate changes:
+  run the affected build/package/runbook smoke path before claiming readiness.
+- Full solution build/test is required before push/merge/release validation, or
+  when shared infrastructure, migrations, packaging, or cross-application
+  contracts changed. Do not use it as the default inner-loop check.
+
+## Definition Of Done
+
+Before ending implementation work, make sure:
+
+- the requested behavior is implemented or the blocker is clearly stated;
+- focused verification passed, or the reason it could not run is explicit;
+- progress/roadmap/doc update needs were checked;
+- git status, branch/ahead state, and commit/push status are reported;
+- unrelated user changes were not reverted or mixed into the work.
 
 ## Fast Slice Workflow
 
@@ -181,6 +236,21 @@ validation.
 - Do not push or trigger remote CI just to get feedback. Push only coherent
   changes that are ready for remote validation or when the user asks.
 
+## Git Branch And Commit Discipline
+
+- Prefer a `codex/<topic>` branch for non-trivial agent implementation work
+  unless the user explicitly asks to work on the current branch or the task is a
+  small local docs/workflow update.
+- Do not switch branches with a dirty worktree until the dirty files are
+  inspected and either committed, stashed with user approval, or confirmed
+  unrelated and safe.
+- Keep review-only work uncommitted. Commit only after the user asks for fixes
+  or after an implementation task is complete.
+- Before committing broad changes, inspect staged status and a staged diff
+  summary so unrelated files are not accidentally included.
+- Report whether changes were committed, pushed, or left local. Do not push
+  unless the user asks or the workflow explicitly requires remote validation.
+
 ## GitHub Actions And PR Merge Discipline
 
 GitHub Actions billing is enabled for this repository, but paid CI minutes must
@@ -189,6 +259,10 @@ be used carefully.
 - Do not trigger remote GitHub Actions runs casually. Prefer local build/test
   verification while iterating, and push only coherent changes that are ready
   for remote validation.
+- Push only after local affected verification has passed, unless the task is to
+  reproduce or debug a remote-only CI/deploy failure.
+- Do not retry failed GitHub Actions by pushing speculative commits. Inspect the
+  failing check/log first, then make a targeted fix.
 - Treat `PR Verification Result` as the required PR gate for normal merges.
 - Do not merge a PR until the latest commit on the PR branch has a green remote
   `PR Verification Result` check.
