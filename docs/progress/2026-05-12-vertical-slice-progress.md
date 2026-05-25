@@ -3474,6 +3474,16 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `/auth/sign-in` works, and `git diff --check` was clean apart from expected
   LF-to-CRLF working-copy warnings.
 
+- 2026-05-25: deployed the Slice 2.5 customer SPA host to Coolify as
+  `afk4-club-web-staging` (`app.afk4.staging.mubi.dev`, Coolify app UUID
+  `ajpxlrv4sirqrcyn8p7gausm`) after DNS was added in Cloudflare. Public smoke
+  found direct nested SPA routes were blank in the production nginx container
+  because Vite emitted relative asset URLs with `base: './'`. Fixed
+  `src/AFK4.Platform.Web/vite.config.ts` to use root-relative assets
+  (`base: '/'`) and added a config regression test so `/auth/sign-in`,
+  `/club/install`, and `/admin/tenants` direct loads resolve assets through the
+  nginx SPA fallback correctly.
+
 ## Historical Reference
 
 Long phase-by-phase notes, earlier test output, and old smoke evidence were
