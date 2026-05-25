@@ -676,15 +676,22 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   discovery, auto-approved vs pending enrollment, rejected/success audit,
   per-code five-strike owner-code revocation for resolved install failures,
   app-layer install backoff, and Coolify ingress rate-limit recipe updates.
+- **Slice 1.4** - completed locally on `codex/slice-1.4-devices-admin`:
+  branch device inventory now carries display name, role, and enrollment
+  state; pending-device queue plus approve/reject/rename/move-seat/remove
+  staff APIs are implemented with audit records, credential revocation on
+  reject/remove, active-session remove protection, removed-device list hiding,
+  and `deviceStatusChanged` notifications for admin state changes.
 
 ## Testing
 
 - Unit + integration tests in `tests/AFK4.Platform.Api.Tests` for every
   new endpoint, including failure modes (revoked owner code, mismatched
   branch, exhausted seats, brute-force rate-limit).
-- Extend `scripts/staging-smoke.py` with a Slice-7 walk:
+- Extend `scripts/staging-smoke.py` with a Slice 1.4 walk:
   generate owner code → call discover → call enroll for a synthetic
-  device → list devices → move seat → remove device.
+  device → list pending devices → approve → rename → move seat →
+  remove device.
 - Manual end-to-end on a clean Windows 11 VM (the existing
   `docs/operations/real-device-windows-pc-smoke.md` rig) for Slice 3.4.
 - Floor-map editor needs a Playwright (or equivalent) test for the

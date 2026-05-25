@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.Shared.Contracts.Tests;
 
@@ -50,6 +51,32 @@ public sealed class DeviceRealtimeContractSerializationTests
         Assert.Equal(result.CommandId, copy.CommandId);
         Assert.Equal("Accepted", copy.Status);
         Assert.Equal("Command accepted by Agent skeleton.", copy.Message);
+    }
+
+    [Fact]
+    public void DeviceStatusChangedDto_RoundTripsAdminState()
+    {
+        var status = new DeviceStatusChangedDto(
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId: Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName: "PC-001",
+            IsOnline: true,
+            IsLocked: false,
+            ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:00:05Z"),
+            DisplayName: "VIP-01",
+            Role: DeviceRoleNames.ManagerWorkstation,
+            EnrollmentState: DeviceEnrollmentStateNames.Pending,
+            SeatId: Guid.Parse("11111111-1111-4111-8111-111111111111"));
+
+        var json = JsonSerializer.Serialize(status);
+        var copy = JsonSerializer.Deserialize<DeviceStatusChangedDto>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal("VIP-01", copy.DisplayName);
+        Assert.Equal(DeviceRoleNames.ManagerWorkstation, copy.Role);
+        Assert.Equal(DeviceEnrollmentStateNames.Pending, copy.EnrollmentState);
+        Assert.Equal(status.SeatId, copy.SeatId);
     }
 
     [Fact]

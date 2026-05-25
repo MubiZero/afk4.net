@@ -14,6 +14,16 @@ public static class AuditActionNames
 
     public const string AssignDeviceSeat = "devices.seat_assignment.assign";
 
+    public const string ApprovePendingDevice = "devices.pending.approve";
+
+    public const string RejectPendingDevice = "devices.pending.reject";
+
+    public const string RenameDevice = "devices.rename";
+
+    public const string MoveDeviceSeat = "devices.seat.move";
+
+    public const string RemoveDevice = "devices.remove";
+
     public const string StartSession = "sessions.start";
 
     public const string ExtendSession = "sessions.extend";

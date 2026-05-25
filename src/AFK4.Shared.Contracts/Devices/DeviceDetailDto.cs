@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Install;
+
 namespace AFK4.Shared.Contracts.Devices;
 
 public sealed record DeviceDetailDto(
@@ -17,4 +19,7 @@ public sealed record DeviceDetailDto(
     string? ZoneName,
     int ActiveCredentialCount,
     int InstalledAppCount,
-    IReadOnlyList<DeviceCommandStatusDto> RecentCommands);
+    IReadOnlyList<DeviceCommandStatusDto> RecentCommands,
+    string DisplayName = "",
+    string Role = DeviceRoleNames.GamingPc,
+    string EnrollmentState = DeviceEnrollmentStateNames.Approved);

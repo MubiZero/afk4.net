@@ -37,6 +37,18 @@ public sealed class DeviceHeartbeatService(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        Guid? seatId = null;
+        if (device is not null)
+        {
+            seatId = await dbContext.DeviceSeatAssignments
+                .AsNoTracking()
+                .Where(assignment => assignment.DeviceId == deviceId && assignment.DetachedAtUtc == null)
+                .OrderByDescending(assignment => assignment.AttachedAtUtc)
+                .ThenByDescending(assignment => assignment.DeviceSeatAssignmentId)
+                .Select(assignment => (Guid?)assignment.SeatId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         var status = new DeviceStatusChangedDto(
             OrganizationId: request.OrganizationId,
             BranchId: request.BranchId,
@@ -44,7 +56,11 @@ public sealed class DeviceHeartbeatService(
             MachineName: request.MachineName,
             IsOnline: true,
             IsLocked: request.IsLocked,
-            ObservedAtUtc: request.ObservedAtUtc);
+            ObservedAtUtc: request.ObservedAtUtc,
+            DisplayName: device is null || string.IsNullOrWhiteSpace(device.DisplayName) ? request.MachineName : device.DisplayName,
+            Role: device?.Role ?? string.Empty,
+            EnrollmentState: device?.EnrollmentState ?? string.Empty,
+            SeatId: seatId);
 
         if (allowOperationalCommands)
         {

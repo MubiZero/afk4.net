@@ -29,8 +29,8 @@ implementation evidence are needed.
   scope for their slice, not as the current product decision.
 - The active follow-on onboarding plan is
   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
-  Slices 1.1 through 1.3 now cover owner codes, ETag floor-map editing, and the
-  backend install discover/enroll path.
+  Slices 1.1 through 1.4 now cover owner codes, ETag floor-map editing,
+  backend install discover/enroll, and the branch device admin surface.
 
 ## Implemented Capabilities
 
@@ -75,6 +75,16 @@ implementation evidence are needed.
   approved enrollment. `/api/install/*` also has in-process
   per-source-IP backoff/429 rejection, and the Coolify Traefik ingress recipe
   now includes the install endpoints on the real staging API host.
+- Club self-service onboarding backend Slice 1.4 adds branch-scoped device
+  admin APIs for pending-device queue, approve, reject, rename, move-seat, and
+  remove. Device inventory/detail contracts now expose display name, role, and
+  enrollment state. Reject/remove revoke active credentials and detach active
+  seat assignments, remove is blocked for active/paused/ending sessions,
+  removed devices are hidden from active branch inventory, every admin mutation
+  writes audit, and state changes emit `deviceStatusChanged` context for
+  realtime reloads. `scripts/staging-smoke.py` now includes the Slice 1.4
+  owner-code discover/enroll-to-pending/admin-action walk, but it has not been
+  run locally because Python is not installed in this Windows PATH.
 - Session start, extend, transfer, end, signed leases, reconciliation, and
   heartbeat-driven lock/unlock/lease-refresh command planning. Repeated
   session-end requests against an already `ending` session now return the
@@ -3252,6 +3262,34 @@ Operator App WebView2/React first implementation on 2026-05-20:
   519/519, full Shared Contracts tests passed 111/111, solution build passed
   with 0 warnings / 0 errors, and `git diff --check` was clean apart from
   expected LF-to-CRLF conversion warnings.
+
+- 2026-05-25: local Slice 1.4 implementation on
+  `codex/slice-1.4-devices-admin`. Added the branch device admin backend
+  surface: `GET /api/branches/{branchId}/devices/pending`,
+  `POST /api/devices/{deviceId}/approve`, `/reject`, `/rename`,
+  `/move-seat`, and `/remove`. Device inventory/detail/realtime contracts now
+  carry display name, role, enrollment state, and realtime seat context.
+  Reject/remove revoke active credentials and detach assignments; remove
+  refuses devices with active, paused, or ending sessions; active branch device
+  inventory hides removed devices; all mutations write audit; admin state
+  changes emit `deviceStatusChanged`. `scripts/staging-smoke.py` was extended
+  with a Slice 1.4 walk from owner-code generation through pending enroll,
+  approve, rename, move-seat, and remove.
+
+  ```powershell
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --filter "DeviceAdminEndpointTests|DeviceInventoryEndpointTests|DeviceDetailEndpointTests|DeviceSeatAssignmentEndpointTests|DeviceHeartbeatServicePersistenceTests" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter "DeviceDetailContractSerializationTests|DeviceRealtimeContractSerializationTests" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Platform.Api.Tests\AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  & 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: focused Platform API tests passed 23/23, focused Shared Contracts
+  tests passed 7/7, full Platform API tests passed 526/526, full Shared
+  Contracts tests passed 113/113, and solution build passed with 0 warnings /
+  0 errors. Python is not installed in this Windows PATH, so
+  `scripts/staging-smoke.py` could not be syntax-checked locally with
+  `py_compile` and was not run against staging.
 
 ## Historical Reference
 

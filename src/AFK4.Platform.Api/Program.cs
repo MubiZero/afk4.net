@@ -4057,105 +4057,46 @@ app.MapGet("/api/branches/{branchId:guid}/devices", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var devices = await dbContext.Devices
-        .AsNoTracking()
-        .Where(device => device.BranchId == branchId)
-        .OrderBy(device => device.MachineName)
-        .ThenBy(device => device.DeviceId)
-        .ToListAsync(cancellationToken);
+    var devices = await LoadBranchDeviceInventoryAsync(
+        dbContext,
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        enrollmentState: null,
+        cancellationToken);
 
-    if (devices.Count == 0)
+    return Results.Ok(devices);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/devices/pending", async (
+    Guid branchId,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
     {
-        return Results.Ok(Array.Empty<DeviceInventoryItemDto>());
+        return Results.Unauthorized();
     }
 
-    var deviceIds = devices.Select(device => device.DeviceId).ToList();
-    var assignments = await dbContext.DeviceSeatAssignments
-        .AsNoTracking()
-        .Where(assignment => deviceIds.Contains(assignment.DeviceId) && assignment.DetachedAtUtc == null)
-        .OrderByDescending(assignment => assignment.AttachedAtUtc)
-        .ToListAsync(cancellationToken);
-    var assignmentsByDevice = assignments
-        .GroupBy(assignment => assignment.DeviceId)
-        .ToDictionary(group => group.Key, group => group.First());
-    var seatIds = assignmentsByDevice.Values
-        .Select(assignment => assignment.SeatId)
-        .Distinct()
-        .ToList();
-    var seats = seatIds.Count == 0
-        ? []
-        : await dbContext.Seats
-            .AsNoTracking()
-            .Where(seat => seatIds.Contains(seat.SeatId))
-            .ToListAsync(cancellationToken);
-    var seatsById = seats.ToDictionary(seat => seat.SeatId);
-    var zoneIds = seats
-        .Select(seat => seat.ZoneId)
-        .Distinct()
-        .ToList();
-    var zones = zoneIds.Count == 0
-        ? []
-        : await dbContext.Zones
-            .AsNoTracking()
-            .Where(zone => zoneIds.Contains(zone.ZoneId))
-            .ToListAsync(cancellationToken);
-    var zonesById = zones.ToDictionary(zone => zone.ZoneId);
-    var activeCredentialCounts = await dbContext.DeviceCredentials
-        .AsNoTracking()
-        .Where(credential => deviceIds.Contains(credential.DeviceId) && credential.RevokedAtUtc == null)
-        .GroupBy(credential => credential.DeviceId)
-        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
-        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
-    var installedAppCounts = await dbContext.DeviceInstalledApps
-        .AsNoTracking()
-        .Where(app => deviceIds.Contains(app.DeviceId))
-        .GroupBy(app => app.DeviceId)
-        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
-        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
-    var pendingCommandCounts = await dbContext.DeviceCommands
-        .AsNoTracking()
-        .Where(command => deviceIds.Contains(command.DeviceId) && command.Status == "Pending")
-        .GroupBy(command => command.DeviceId)
-        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
-        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
-    var failedCommandCounts = await dbContext.DeviceCommands
-        .AsNoTracking()
-        .Where(command => deviceIds.Contains(command.DeviceId) && (command.Status == "Failed" || command.Status == "Rejected"))
-        .GroupBy(command => command.DeviceId)
-        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
-        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewDeviceDetail,
+        cancellationToken);
 
-    return Results.Ok(devices.Select(device =>
+    if (!authorization.IsAllowed)
     {
-        assignmentsByDevice.TryGetValue(device.DeviceId, out var assignment);
-        SeatEntity? seat = null;
-        ZoneEntity? zone = null;
-        if (assignment is not null && seatsById.TryGetValue(assignment.SeatId, out var assignedSeat))
-        {
-            seat = assignedSeat;
-            zonesById.TryGetValue(assignedSeat.ZoneId, out zone);
-        }
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
 
-        return new DeviceInventoryItemDto(
-            OrganizationId: device.OrganizationId,
-            BranchId: device.BranchId,
-            DeviceId: device.DeviceId,
-            MachineName: device.MachineName,
-            AgentVersion: device.AgentVersion,
-            ShellVersion: device.ShellVersion,
-            EnrolledAtUtc: device.EnrolledAtUtc,
-            LastHeartbeatAtUtc: device.LastHeartbeatAtUtc,
-            IsOnline: device.IsOnline,
-            IsLocked: device.IsLocked,
-            SeatId: seat?.SeatId,
-            SeatName: seat?.Name,
-            ZoneId: zone?.ZoneId,
-            ZoneName: zone?.Name,
-            ActiveCredentialCount: activeCredentialCounts.GetValueOrDefault(device.DeviceId),
-            InstalledAppCount: installedAppCounts.GetValueOrDefault(device.DeviceId),
-            PendingCommandCount: pendingCommandCounts.GetValueOrDefault(device.DeviceId),
-            FailedCommandCount: failedCommandCounts.GetValueOrDefault(device.DeviceId));
-    }).ToList());
+    var devices = await LoadBranchDeviceInventoryAsync(
+        dbContext,
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        DeviceEnrollmentStateNames.Pending,
+        cancellationToken);
+
+    return Results.Ok(devices);
 });
 
 app.MapGet("/api/devices/{deviceId:guid}", async (
@@ -4251,7 +4192,411 @@ app.MapGet("/api/devices/{deviceId:guid}", async (
         ZoneName: zone?.Name,
         ActiveCredentialCount: activeCredentialCount,
         InstalledAppCount: installedAppCount,
-        RecentCommands: recentCommands));
+        RecentCommands: recentCommands,
+        DisplayName: string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
+        Role: device.Role,
+        EnrollmentState: device.EnrollmentState));
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/approve", async (
+    Guid deviceId,
+    DeviceStateChangeRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IHubContext<DeviceHub> hubContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var scope = await LoadDeviceMutationScopeAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        auditRecordWriter,
+        deviceId,
+        StaffPermissionNames.AssignDeviceSeat,
+        AuditActionNames.ApprovePendingDevice,
+        new
+        {
+            request.OrganizationId,
+            request.Reason
+        },
+        cancellationToken);
+
+    if (scope.ErrorResult is not null)
+    {
+        return scope.ErrorResult;
+    }
+
+    var device = scope.Device!;
+    var authorization = scope.Authorization!;
+    var organizationValidation = ValidateDeviceMutationOrganization(request.OrganizationId, authorization, device);
+    if (organizationValidation is not null)
+    {
+        return organizationValidation;
+    }
+
+    if (device.EnrollmentState is DeviceEnrollmentStateNames.Rejected or DeviceEnrollmentStateNames.Removed)
+    {
+        return Results.Conflict(new { Error = "Rejected or removed devices cannot be approved." });
+    }
+
+    var previousState = device.EnrollmentState;
+    if (device.EnrollmentState == DeviceEnrollmentStateNames.Pending)
+    {
+        device.EnrollmentState = DeviceEnrollmentStateNames.Approved;
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        device.OrganizationId,
+        device.BranchId,
+        authorization.StaffContext!.StaffUserId,
+        AuditActionNames.ApprovePendingDevice,
+        "Device",
+        device.DeviceId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new
+        {
+            PreviousEnrollmentState = previousState,
+            device.EnrollmentState,
+            request.Reason
+        },
+        cancellationToken);
+
+    var observedAtUtc = timeProvider.GetUtcNow();
+    await NotifyDeviceChangesAsync(hubContext, dbContext, [device.DeviceId], observedAtUtc, cancellationToken);
+
+    return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/reject", async (
+    Guid deviceId,
+    DeviceStateChangeRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IHubContext<DeviceHub> hubContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var scope = await LoadDeviceMutationScopeAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        auditRecordWriter,
+        deviceId,
+        StaffPermissionNames.AssignDeviceSeat,
+        AuditActionNames.RejectPendingDevice,
+        new
+        {
+            request.OrganizationId,
+            request.Reason
+        },
+        cancellationToken);
+
+    if (scope.ErrorResult is not null)
+    {
+        return scope.ErrorResult;
+    }
+
+    var device = scope.Device!;
+    var authorization = scope.Authorization!;
+    var organizationValidation = ValidateDeviceMutationOrganization(request.OrganizationId, authorization, device);
+    if (organizationValidation is not null)
+    {
+        return organizationValidation;
+    }
+
+    if (device.EnrollmentState == DeviceEnrollmentStateNames.Approved)
+    {
+        return Results.Conflict(new { Error = "Approved devices must be removed instead of rejected." });
+    }
+
+    if (device.EnrollmentState == DeviceEnrollmentStateNames.Removed)
+    {
+        return Results.Conflict(new { Error = "Removed devices cannot be rejected." });
+    }
+
+    var now = timeProvider.GetUtcNow();
+    var previousState = device.EnrollmentState;
+    device.EnrollmentState = DeviceEnrollmentStateNames.Rejected;
+    device.IsOnline = false;
+
+    var changedDeviceIds = await DetachActiveDeviceAssignmentsAsync(dbContext, device, now, cancellationToken);
+    var revokedCredentialCount = await RevokeActiveDeviceCredentialsAsync(dbContext, device, now, cancellationToken);
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        device.OrganizationId,
+        device.BranchId,
+        authorization.StaffContext!.StaffUserId,
+        AuditActionNames.RejectPendingDevice,
+        "Device",
+        device.DeviceId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new
+        {
+            PreviousEnrollmentState = previousState,
+            device.EnrollmentState,
+            RevokedCredentialCount = revokedCredentialCount,
+            request.Reason
+        },
+        cancellationToken);
+
+    await NotifyDeviceChangesAsync(hubContext, dbContext, changedDeviceIds, now, cancellationToken);
+
+    return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/rename", async (
+    Guid deviceId,
+    RenameDeviceRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IHubContext<DeviceHub> hubContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var scope = await LoadDeviceMutationScopeAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        auditRecordWriter,
+        deviceId,
+        StaffPermissionNames.AssignDeviceSeat,
+        AuditActionNames.RenameDevice,
+        new
+        {
+            request.OrganizationId,
+            request.DisplayName
+        },
+        cancellationToken);
+
+    if (scope.ErrorResult is not null)
+    {
+        return scope.ErrorResult;
+    }
+
+    var device = scope.Device!;
+    var authorization = scope.Authorization!;
+    var organizationValidation = ValidateDeviceMutationOrganization(request.OrganizationId, authorization, device);
+    if (organizationValidation is not null)
+    {
+        return organizationValidation;
+    }
+
+    var displayName = request.DisplayName.Trim();
+    if (displayName.Length == 0)
+    {
+        return Results.BadRequest(new { Error = "DisplayName is required." });
+    }
+
+    if (displayName.Length > 120)
+    {
+        return Results.BadRequest(new { Error = "DisplayName must be 120 characters or fewer." });
+    }
+
+    var previousDisplayName = device.DisplayName;
+    device.DisplayName = displayName;
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        device.OrganizationId,
+        device.BranchId,
+        authorization.StaffContext!.StaffUserId,
+        AuditActionNames.RenameDevice,
+        "Device",
+        device.DeviceId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new
+        {
+            PreviousDisplayName = previousDisplayName,
+            device.DisplayName
+        },
+        cancellationToken);
+
+    var observedAtUtc = timeProvider.GetUtcNow();
+    await NotifyDeviceChangesAsync(hubContext, dbContext, [device.DeviceId], observedAtUtc, cancellationToken);
+
+    return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/move-seat", async (
+    Guid deviceId,
+    MoveDeviceSeatRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IHubContext<DeviceHub> hubContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var scope = await LoadDeviceMutationScopeAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        auditRecordWriter,
+        deviceId,
+        StaffPermissionNames.AssignDeviceSeat,
+        AuditActionNames.MoveDeviceSeat,
+        new
+        {
+            request.OrganizationId,
+            request.SeatId
+        },
+        cancellationToken);
+
+    if (scope.ErrorResult is not null)
+    {
+        return scope.ErrorResult;
+    }
+
+    var device = scope.Device!;
+    var authorization = scope.Authorization!;
+    var organizationValidation = ValidateDeviceMutationOrganization(request.OrganizationId, authorization, device);
+    if (organizationValidation is not null)
+    {
+        return organizationValidation;
+    }
+
+    if (device.EnrollmentState is DeviceEnrollmentStateNames.Rejected or DeviceEnrollmentStateNames.Removed)
+    {
+        return Results.Conflict(new { Error = "Rejected or removed devices cannot be moved." });
+    }
+
+    if (request.SeatId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "SeatId is required." });
+    }
+
+    var assignment = await ApplyDeviceSeatAssignmentAsync(
+        dbContext,
+        device,
+        request.OrganizationId,
+        request.SeatId,
+        timeProvider.GetUtcNow(),
+        cancellationToken);
+
+    if (assignment.ErrorResult is not null)
+    {
+        return assignment.ErrorResult;
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        device.OrganizationId,
+        device.BranchId,
+        authorization.StaffContext!.StaffUserId,
+        AuditActionNames.MoveDeviceSeat,
+        "DeviceSeatAssignment",
+        assignment.Assignment!.DeviceSeatAssignmentId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new
+        {
+            DeviceId = device.DeviceId,
+            request.SeatId
+        },
+        cancellationToken);
+
+    await NotifyDeviceChangesAsync(
+        hubContext,
+        dbContext,
+        assignment.ChangedDeviceIds,
+        assignment.ObservedAtUtc,
+        cancellationToken);
+
+    return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
+});
+
+app.MapPost("/api/devices/{deviceId:guid}/remove", async (
+    Guid deviceId,
+    DeviceStateChangeRequest request,
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IHubContext<DeviceHub> hubContext,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var scope = await LoadDeviceMutationScopeAsync(
+        dbContext,
+        staffContextAccessor,
+        authorizationService,
+        auditRecordWriter,
+        deviceId,
+        StaffPermissionNames.RevokeDeviceCredential,
+        AuditActionNames.RemoveDevice,
+        new
+        {
+            request.OrganizationId,
+            request.Reason
+        },
+        cancellationToken);
+
+    if (scope.ErrorResult is not null)
+    {
+        return scope.ErrorResult;
+    }
+
+    var device = scope.Device!;
+    var authorization = scope.Authorization!;
+    var organizationValidation = ValidateDeviceMutationOrganization(request.OrganizationId, authorization, device);
+    if (organizationValidation is not null)
+    {
+        return organizationValidation;
+    }
+
+    var hasActiveSession = await HasActiveDeviceSessionAsync(dbContext, device, cancellationToken);
+    if (hasActiveSession)
+    {
+        return Results.Conflict(new { Error = "Device has an active, paused, or ending session." });
+    }
+
+    var now = timeProvider.GetUtcNow();
+    var previousState = device.EnrollmentState;
+    device.EnrollmentState = DeviceEnrollmentStateNames.Removed;
+    device.IsOnline = false;
+
+    var changedDeviceIds = await DetachActiveDeviceAssignmentsAsync(dbContext, device, now, cancellationToken);
+    var revokedCredentialCount = await RevokeActiveDeviceCredentialsAsync(dbContext, device, now, cancellationToken);
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        device.OrganizationId,
+        device.BranchId,
+        authorization.StaffContext!.StaffUserId,
+        AuditActionNames.RemoveDevice,
+        "Device",
+        device.DeviceId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new
+        {
+            PreviousEnrollmentState = previousState,
+            device.EnrollmentState,
+            RevokedCredentialCount = revokedCredentialCount,
+            request.Reason
+        },
+        cancellationToken);
+
+    await NotifyDeviceChangesAsync(hubContext, dbContext, changedDeviceIds, now, cancellationToken);
+
+    return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
 });
 
 app.MapPost("/api/branches/{branchId:guid}/devices/{deviceId:guid}/seat-assignment", async (
@@ -8728,6 +9073,440 @@ static int GetReportRowCount<TReport>(TReport report)
     };
 }
 
+static async Task<IReadOnlyList<DeviceInventoryItemDto>> LoadBranchDeviceInventoryAsync(
+    PlatformDbContext dbContext,
+    Guid organizationId,
+    Guid branchId,
+    string? enrollmentState,
+    CancellationToken cancellationToken)
+{
+    var query = dbContext.Devices
+        .AsNoTracking()
+        .Where(device => device.OrganizationId == organizationId && device.BranchId == branchId);
+
+    query = enrollmentState is null
+        ? query.Where(device => device.EnrollmentState != DeviceEnrollmentStateNames.Removed)
+        : query.Where(device => device.EnrollmentState == enrollmentState);
+
+    var devices = await query
+        .OrderBy(device => device.MachineName)
+        .ThenBy(device => device.DeviceId)
+        .ToListAsync(cancellationToken);
+
+    return await BuildDeviceInventoryAsync(dbContext, devices, cancellationToken);
+}
+
+static async Task<DeviceInventoryItemDto?> LoadDeviceInventoryItemAsync(
+    PlatformDbContext dbContext,
+    Guid deviceId,
+    CancellationToken cancellationToken)
+{
+    var device = await dbContext.Devices
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
+
+    if (device is null)
+    {
+        return null;
+    }
+
+    var items = await BuildDeviceInventoryAsync(dbContext, [device], cancellationToken);
+    return items.SingleOrDefault();
+}
+
+static async Task<IReadOnlyList<DeviceInventoryItemDto>> BuildDeviceInventoryAsync(
+    PlatformDbContext dbContext,
+    IReadOnlyList<DeviceEntity> devices,
+    CancellationToken cancellationToken)
+{
+    if (devices.Count == 0)
+    {
+        return [];
+    }
+
+    var deviceIds = devices.Select(device => device.DeviceId).ToList();
+    var assignments = await dbContext.DeviceSeatAssignments
+        .AsNoTracking()
+        .Where(assignment => deviceIds.Contains(assignment.DeviceId) && assignment.DetachedAtUtc == null)
+        .OrderByDescending(assignment => assignment.AttachedAtUtc)
+        .ToListAsync(cancellationToken);
+    var assignmentsByDevice = assignments
+        .GroupBy(assignment => assignment.DeviceId)
+        .ToDictionary(group => group.Key, group => group.First());
+    var seatIds = assignmentsByDevice.Values
+        .Select(assignment => assignment.SeatId)
+        .Distinct()
+        .ToList();
+    var seats = seatIds.Count == 0
+        ? []
+        : await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat => seatIds.Contains(seat.SeatId))
+            .ToListAsync(cancellationToken);
+    var seatsById = seats.ToDictionary(seat => seat.SeatId);
+    var zoneIds = seats
+        .Select(seat => seat.ZoneId)
+        .Distinct()
+        .ToList();
+    var zones = zoneIds.Count == 0
+        ? []
+        : await dbContext.Zones
+            .AsNoTracking()
+            .Where(zone => zoneIds.Contains(zone.ZoneId))
+            .ToListAsync(cancellationToken);
+    var zonesById = zones.ToDictionary(zone => zone.ZoneId);
+    var activeCredentialCounts = await dbContext.DeviceCredentials
+        .AsNoTracking()
+        .Where(credential => deviceIds.Contains(credential.DeviceId) && credential.RevokedAtUtc == null)
+        .GroupBy(credential => credential.DeviceId)
+        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
+        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+    var installedAppCounts = await dbContext.DeviceInstalledApps
+        .AsNoTracking()
+        .Where(app => deviceIds.Contains(app.DeviceId))
+        .GroupBy(app => app.DeviceId)
+        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
+        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+    var pendingCommandCounts = await dbContext.DeviceCommands
+        .AsNoTracking()
+        .Where(command => deviceIds.Contains(command.DeviceId) && command.Status == "Pending")
+        .GroupBy(command => command.DeviceId)
+        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
+        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+    var failedCommandCounts = await dbContext.DeviceCommands
+        .AsNoTracking()
+        .Where(command => deviceIds.Contains(command.DeviceId) && (command.Status == "Failed" || command.Status == "Rejected"))
+        .GroupBy(command => command.DeviceId)
+        .Select(group => new { DeviceId = group.Key, Count = group.Count() })
+        .ToDictionaryAsync(group => group.DeviceId, group => group.Count, cancellationToken);
+
+    return devices.Select(device =>
+    {
+        assignmentsByDevice.TryGetValue(device.DeviceId, out var assignment);
+        SeatEntity? seat = null;
+        ZoneEntity? zone = null;
+        if (assignment is not null && seatsById.TryGetValue(assignment.SeatId, out var assignedSeat))
+        {
+            seat = assignedSeat;
+            zonesById.TryGetValue(assignedSeat.ZoneId, out zone);
+        }
+
+        return new DeviceInventoryItemDto(
+            OrganizationId: device.OrganizationId,
+            BranchId: device.BranchId,
+            DeviceId: device.DeviceId,
+            MachineName: device.MachineName,
+            AgentVersion: device.AgentVersion,
+            ShellVersion: device.ShellVersion,
+            EnrolledAtUtc: device.EnrolledAtUtc,
+            LastHeartbeatAtUtc: device.LastHeartbeatAtUtc,
+            IsOnline: device.IsOnline,
+            IsLocked: device.IsLocked,
+            SeatId: seat?.SeatId,
+            SeatName: seat?.Name,
+            ZoneId: zone?.ZoneId,
+            ZoneName: zone?.Name,
+            ActiveCredentialCount: activeCredentialCounts.GetValueOrDefault(device.DeviceId),
+            InstalledAppCount: installedAppCounts.GetValueOrDefault(device.DeviceId),
+            PendingCommandCount: pendingCommandCounts.GetValueOrDefault(device.DeviceId),
+            FailedCommandCount: failedCommandCounts.GetValueOrDefault(device.DeviceId),
+            DisplayName: string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
+            Role: device.Role,
+            EnrollmentState: device.EnrollmentState);
+    }).ToList();
+}
+
+static async Task<DeviceMutationScope> LoadDeviceMutationScopeAsync(
+    PlatformDbContext dbContext,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    Guid deviceId,
+    string permission,
+    string auditAction,
+    object details,
+    CancellationToken cancellationToken)
+{
+    var staffContext = staffContextAccessor.Current;
+    if (staffContext is null)
+    {
+        return new DeviceMutationScope(null, null, Results.Unauthorized());
+    }
+
+    var device = await dbContext.Devices
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.DeviceId == deviceId &&
+                candidate.OrganizationId == staffContext.OrganizationId,
+            cancellationToken);
+
+    if (device is null)
+    {
+        return new DeviceMutationScope(null, null, Results.NotFound());
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        device.BranchId,
+        permission,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return new DeviceMutationScope(device, authorization, Results.Unauthorized());
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            device.BranchId,
+            authorization.StaffContext.StaffUserId,
+            auditAction,
+            "Device",
+            device.DeviceId.ToString("D"),
+            AuditOutcome.Denied,
+            new
+            {
+                authorization.DenialReason,
+                Details = details
+            },
+            cancellationToken);
+
+        return new DeviceMutationScope(device, authorization, Results.StatusCode(StatusCodes.Status403Forbidden));
+    }
+
+    return new DeviceMutationScope(device, authorization, null);
+}
+
+static IResult? ValidateDeviceMutationOrganization(
+    Guid requestOrganizationId,
+    StaffAuthorizationResult authorization,
+    DeviceEntity device)
+{
+    if (requestOrganizationId == Guid.Empty)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId is required." });
+    }
+
+    if (requestOrganizationId != authorization.StaffContext!.OrganizationId ||
+        requestOrganizationId != device.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization and device." });
+    }
+
+    return null;
+}
+
+static async Task<DeviceSeatAssignmentOperationResult> ApplyDeviceSeatAssignmentAsync(
+    PlatformDbContext dbContext,
+    DeviceEntity device,
+    Guid organizationId,
+    Guid seatId,
+    DateTimeOffset observedAtUtc,
+    CancellationToken cancellationToken)
+{
+    var seat = await dbContext.Seats
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.SeatId == seatId &&
+                candidate.OrganizationId == organizationId &&
+                candidate.BranchId == device.BranchId,
+            cancellationToken);
+
+    if (seat is null)
+    {
+        return new DeviceSeatAssignmentOperationResult(null, Results.NotFound(), [device.DeviceId], observedAtUtc);
+    }
+
+    var hasActiveSession = await dbContext.Sessions
+        .AsNoTracking()
+        .AnyAsync(
+            candidate =>
+                candidate.OrganizationId == organizationId &&
+                candidate.BranchId == device.BranchId &&
+                (candidate.SeatId == seatId || candidate.DeviceId == device.DeviceId) &&
+                (candidate.State == SessionStateNames.Active ||
+                 candidate.State == SessionStateNames.Paused ||
+                 candidate.State == SessionStateNames.Ending),
+            cancellationToken);
+
+    if (hasActiveSession)
+    {
+        return new DeviceSeatAssignmentOperationResult(
+            null,
+            Results.Conflict(new { Error = "Seat or device has an active, paused, or ending session." }),
+            [device.DeviceId],
+            observedAtUtc);
+    }
+
+    var activeAssignments = await dbContext.DeviceSeatAssignments
+        .Where(
+            candidate =>
+                candidate.OrganizationId == organizationId &&
+                candidate.BranchId == device.BranchId &&
+                candidate.DetachedAtUtc == null &&
+                (candidate.SeatId == seatId || candidate.DeviceId == device.DeviceId))
+        .OrderByDescending(candidate => candidate.AttachedAtUtc)
+        .ThenByDescending(candidate => candidate.DeviceSeatAssignmentId)
+        .ToListAsync(cancellationToken);
+
+    var changedDeviceIds = activeAssignments
+        .Select(candidate => candidate.DeviceId)
+        .Append(device.DeviceId)
+        .Distinct()
+        .ToArray();
+    var currentAssignment = activeAssignments.FirstOrDefault(
+        candidate => candidate.SeatId == seatId && candidate.DeviceId == device.DeviceId);
+
+    if (currentAssignment is not null)
+    {
+        foreach (var assignment in activeAssignments.Where(candidate => candidate.DeviceSeatAssignmentId != currentAssignment.DeviceSeatAssignmentId))
+        {
+            assignment.DetachedAtUtc = observedAtUtc;
+        }
+    }
+    else
+    {
+        foreach (var assignment in activeAssignments)
+        {
+            assignment.DetachedAtUtc = observedAtUtc;
+        }
+
+        currentAssignment = new DeviceSeatAssignmentEntity
+        {
+            DeviceSeatAssignmentId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            BranchId = device.BranchId,
+            SeatId = seatId,
+            DeviceId = device.DeviceId,
+            AttachedAtUtc = observedAtUtc
+        };
+        dbContext.DeviceSeatAssignments.Add(currentAssignment);
+    }
+
+    return new DeviceSeatAssignmentOperationResult(currentAssignment, null, changedDeviceIds, observedAtUtc);
+}
+
+static async Task<IReadOnlyList<Guid>> DetachActiveDeviceAssignmentsAsync(
+    PlatformDbContext dbContext,
+    DeviceEntity device,
+    DateTimeOffset detachedAtUtc,
+    CancellationToken cancellationToken)
+{
+    var assignments = await dbContext.DeviceSeatAssignments
+        .Where(
+            assignment =>
+                assignment.OrganizationId == device.OrganizationId &&
+                assignment.BranchId == device.BranchId &&
+                assignment.DeviceId == device.DeviceId &&
+                assignment.DetachedAtUtc == null)
+        .ToListAsync(cancellationToken);
+
+    foreach (var assignment in assignments)
+    {
+        assignment.DetachedAtUtc = detachedAtUtc;
+    }
+
+    return assignments.Count == 0
+        ? [device.DeviceId]
+        : assignments
+            .Select(assignment => assignment.DeviceId)
+            .Append(device.DeviceId)
+            .Distinct()
+            .ToArray();
+}
+
+static async Task<int> RevokeActiveDeviceCredentialsAsync(
+    PlatformDbContext dbContext,
+    DeviceEntity device,
+    DateTimeOffset revokedAtUtc,
+    CancellationToken cancellationToken)
+{
+    var credentials = await dbContext.DeviceCredentials
+        .Where(
+            credential =>
+                credential.OrganizationId == device.OrganizationId &&
+                credential.BranchId == device.BranchId &&
+                credential.DeviceId == device.DeviceId &&
+                credential.RevokedAtUtc == null)
+        .ToListAsync(cancellationToken);
+
+    foreach (var credential in credentials)
+    {
+        credential.RevokedAtUtc = revokedAtUtc;
+    }
+
+    return credentials.Count;
+}
+
+static async Task<bool> HasActiveDeviceSessionAsync(
+    PlatformDbContext dbContext,
+    DeviceEntity device,
+    CancellationToken cancellationToken)
+{
+    return await dbContext.Sessions
+        .AsNoTracking()
+        .AnyAsync(
+            session =>
+                session.OrganizationId == device.OrganizationId &&
+                session.BranchId == device.BranchId &&
+                session.DeviceId == device.DeviceId &&
+                (session.State == SessionStateNames.Active ||
+                 session.State == SessionStateNames.Paused ||
+                 session.State == SessionStateNames.Ending),
+            cancellationToken);
+}
+
+static async Task NotifyDeviceChangesAsync(
+    IHubContext<DeviceHub> hubContext,
+    PlatformDbContext dbContext,
+    IEnumerable<Guid> deviceIds,
+    DateTimeOffset observedAtUtc,
+    CancellationToken cancellationToken)
+{
+    var ids = deviceIds.Distinct().ToArray();
+    if (ids.Length == 0)
+    {
+        return;
+    }
+
+    var devices = await dbContext.Devices
+        .AsNoTracking()
+        .Where(device => ids.Contains(device.DeviceId))
+        .ToListAsync(cancellationToken);
+    var assignmentRows = await dbContext.DeviceSeatAssignments
+        .AsNoTracking()
+        .Where(assignment => ids.Contains(assignment.DeviceId) && assignment.DetachedAtUtc == null)
+        .OrderByDescending(assignment => assignment.AttachedAtUtc)
+        .ThenByDescending(assignment => assignment.DeviceSeatAssignmentId)
+        .ToListAsync(cancellationToken);
+    var assignments = assignmentRows
+        .GroupBy(assignment => assignment.DeviceId)
+        .ToDictionary(group => group.Key, group => group.First().SeatId);
+
+    foreach (var device in devices)
+    {
+        var seatId = assignments.TryGetValue(device.DeviceId, out var assignedSeatId)
+            ? assignedSeatId
+            : (Guid?)null;
+        var status = new DeviceStatusChangedDto(
+            OrganizationId: device.OrganizationId,
+            BranchId: device.BranchId,
+            DeviceId: device.DeviceId,
+            MachineName: device.MachineName,
+            IsOnline: device.IsOnline,
+            IsLocked: device.IsLocked,
+            ObservedAtUtc: observedAtUtc,
+            DisplayName: string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
+            Role: device.Role,
+            EnrollmentState: device.EnrollmentState,
+            SeatId: seatId);
+
+        await hubContext.Clients.All.SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
+    }
+}
+
 static async Task<PlayerAccountEntity?> LoadPlayerForStaffAsync(
     PlatformDbContext dbContext,
     Guid playerAccountId,
@@ -9391,5 +10170,16 @@ public sealed record ScopedEntityEndpointResult<TEntity>(
     StaffAuthorizationResult? Authorization,
     IResult? Result)
     where TEntity : class;
+
+public sealed record DeviceMutationScope(
+    DeviceEntity? Device,
+    StaffAuthorizationResult? Authorization,
+    IResult? ErrorResult);
+
+public sealed record DeviceSeatAssignmentOperationResult(
+    DeviceSeatAssignmentEntity? Assignment,
+    IResult? ErrorResult,
+    IReadOnlyList<Guid> ChangedDeviceIds,
+    DateTimeOffset ObservedAtUtc);
 
 public partial class Program;

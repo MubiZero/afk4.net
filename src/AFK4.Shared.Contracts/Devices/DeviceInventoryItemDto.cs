@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Install;
+
 namespace AFK4.Shared.Contracts.Devices;
 
 public sealed record DeviceInventoryItemDto(
@@ -18,4 +20,7 @@ public sealed record DeviceInventoryItemDto(
     int ActiveCredentialCount,
     int InstalledAppCount,
     int PendingCommandCount,
-    int FailedCommandCount);
+    int FailedCommandCount,
+    string DisplayName = "",
+    string Role = DeviceRoleNames.GamingPc,
+    string EnrollmentState = DeviceEnrollmentStateNames.Approved);

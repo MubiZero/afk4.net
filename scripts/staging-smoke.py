@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""End-to-end staging smoke for AFK4 SaaS Control Plane Slices 1-6 + hardening A-E.
+"""End-to-end staging smoke for AFK4 SaaS Control Plane Slices 1-6,
+onboarding Slice 1.4, and hardening A-E.
 
 Usage:
     AFK4_PLATFORM_API=https://afk4.staging.mubi.dev \
@@ -72,6 +73,13 @@ def request(method, path, *, body=None, auth=None, extra_headers=None):
         return status, json.loads(raw) if raw else {}, out_headers
     except json.JSONDecodeError:
         return status, {"_text": raw}, out_headers
+
+
+def header(headers, name):
+    for key, value in headers.items():
+        if key.lower() == name.lower():
+            return value
+    return None
 
 
 step("1. Platform admin sign-in")
@@ -295,7 +303,142 @@ else:
     fail(f"expected 200, got {status} {body}")
 
 
-step("18. Tenant health (Slice 4)")
+step("18. Slice 1.4 device admin path")
+status, body, headers = request("GET", f"/api/branches/{branch_id}/floor-map", auth=staff_token)
+etag = header(headers, "ETag")
+if status == 200 and etag:
+    ok(f"floor-map loaded for Slice 1.4 setup, etag={etag}")
+else:
+    fail(f"floor-map load: {status} {body} etag={etag}")
+
+floor_map = {
+    "organizationId": org_id,
+    "zones": [
+        {"zoneId": None, "clientId": "z-main", "name": "Main Hall", "sortOrder": 1},
+    ],
+    "seats": [
+        {"seatId": None, "clientId": "s-smoke-1", "zoneClientId": "z-main", "name": "Smoke PC 01", "sortOrder": 1},
+        {"seatId": None, "clientId": "s-smoke-2", "zoneClientId": "z-main", "name": "Smoke PC 02", "sortOrder": 2},
+    ],
+}
+status, body, headers = request(
+    "PUT", f"/api/branches/{branch_id}/floor-map",
+    body=floor_map,
+    auth=staff_token,
+    extra_headers={"If-Match": etag or ""},
+)
+if status == 200:
+    seat_ids = {s["clientId"]: s["seatId"] for s in body.get("seats", [])}
+    seat_1 = seat_ids.get("s-smoke-1")
+    seat_2 = seat_ids.get("s-smoke-2")
+    if seat_1 and seat_2:
+        ok(f"floor-map seeded seats {seat_1[:8]}... and {seat_2[:8]}...")
+    else:
+        fail(f"floor-map response missing seeded seats: {body}")
+else:
+    fail(f"floor-map seed: {status} {body}")
+    seat_1 = None
+    seat_2 = None
+
+status, body, _ = request(
+    "PUT", f"/api/branches/{branch_id}/settings",
+    body={"organizationId": org_id, "requireManualDeviceApproval": True},
+    auth=staff_token,
+)
+if status == 200 and body.get("requireManualDeviceApproval") is True:
+    ok("manual device approval enabled")
+else:
+    fail(f"manual approval enable: {status} {body}")
+
+status, body, _ = request("POST", "/api/staff/me/owner-code/generate", auth=staff_token)
+owner_code = body.get("ownerCode") if status == 200 else None
+if owner_code and len(owner_code) == 8:
+    ok(f"owner code generated suffix={body.get('codeSuffix')}")
+else:
+    fail(f"owner code generate: {status} {body}")
+
+status, body, _ = request("POST", "/api/install/discover", body={"ownerCode": owner_code or ""})
+branches = body.get("branches", []) if status == 200 else []
+target_branch = next((b for b in branches if b.get("branchId") == branch_id), None)
+if target_branch and seat_1 in target_branch.get("freeSeatIds", []) and seat_2 in target_branch.get("freeSeatIds", []):
+    ok(f"install discover returned free seats for branch={branch_id}")
+else:
+    fail(f"install discover: {status} {body}")
+
+status, body, _ = request(
+    "POST", "/api/install/enroll",
+    body={
+        "ownerCode": owner_code or "",
+        "branchId": branch_id,
+        "seatId": seat_1 or "",
+        "role": "gaming_pc",
+        "displayName": "Smoke PC 01",
+        "machineName": f"SMOKE-{STAMP}",
+        "devicePublicKey": "smoke-public-key",
+    },
+)
+smoke_device_id = body.get("deviceId") if status == 200 else None
+if status == 200 and body.get("enrollmentState") == "pending" and smoke_device_id:
+    ok(f"install enroll created pending device={smoke_device_id}")
+else:
+    fail(f"install enroll pending: {status} {body}")
+
+status, body, _ = request("GET", f"/api/branches/{branch_id}/devices/pending", auth=staff_token)
+pending_device = next((d for d in body if d.get("deviceId") == smoke_device_id), None) if isinstance(body, list) else None
+if status == 200 and pending_device and pending_device.get("enrollmentState") == "pending":
+    ok("pending device queue contains enrolled smoke device")
+else:
+    fail(f"pending queue: {status} {body}")
+
+status, body, _ = request(
+    "POST", f"/api/devices/{smoke_device_id}/approve",
+    body={"organizationId": org_id, "reason": "Staging smoke approval"},
+    auth=staff_token,
+)
+if status == 200 and body.get("enrollmentState") == "approved":
+    ok("pending device approved")
+else:
+    fail(f"device approve: {status} {body}")
+
+status, body, _ = request(
+    "POST", f"/api/devices/{smoke_device_id}/rename",
+    body={"organizationId": org_id, "displayName": "Smoke PC 01 renamed"},
+    auth=staff_token,
+)
+if status == 200 and body.get("displayName") == "Smoke PC 01 renamed":
+    ok("device renamed")
+else:
+    fail(f"device rename: {status} {body}")
+
+status, body, _ = request(
+    "POST", f"/api/devices/{smoke_device_id}/move-seat",
+    body={"organizationId": org_id, "seatId": seat_2 or ""},
+    auth=staff_token,
+)
+if status == 200 and body.get("seatId") == seat_2:
+    ok("device moved to second smoke seat")
+else:
+    fail(f"device move-seat: {status} {body}")
+
+status, body, _ = request(
+    "POST", f"/api/devices/{smoke_device_id}/remove",
+    body={"organizationId": org_id, "reason": "Staging smoke cleanup"},
+    auth=staff_token,
+)
+if status == 200 and body.get("enrollmentState") == "removed" and body.get("seatId") is None:
+    ok("device removed, seat detached")
+else:
+    fail(f"device remove: {status} {body}")
+
+status, body, _ = request("GET", f"/api/branches/{branch_id}/devices", auth=staff_token)
+listed = [d.get("deviceId") for d in body] if isinstance(body, list) else []
+if status == 200 and smoke_device_id not in listed:
+    ok("removed device is hidden from active branch device list")
+else:
+    fail(f"device list after remove: {status} {body}")
+
+
+step("19. Tenant health (Slice 4)")
 status, body, _ = request("GET", f"/api/platform/tenants/{org_id}/health", auth=token)
 if status == 200:
     ok(f"health: branches={body.get('branchCount')} devices={body.get('deviceCount')} staff={body.get('activeStaffUserCount')} recentErrors={body.get('recentErrorCount')}")
@@ -303,7 +446,7 @@ else:
     fail(f"health: {status} {body}")
 
 
-step("19. Create support note (Slice 4)")
+step("20. Create support note (Slice 4)")
 status, body, _ = request(
     "POST", f"/api/platform/tenants/{org_id}/support-notes",
     body={"body": "Smoke test note: tenant lifecycle verified end-to-end."},
@@ -315,7 +458,7 @@ else:
     fail(f"note: {status} {body}")
 
 
-step("20. Update plan + limits")
+step("21. Update plan + limits")
 status, body, _ = request(
     "PATCH", f"/api/platform/tenants/{org_id}/plan",
     body={"planCode": "growth", "subscriptionStatus": "active"},
@@ -339,7 +482,7 @@ else:
     fail(f"plan={status} limits={status2}")
 
 
-step("21. Slice D: rate-limit on /api/operator-connections/resolve (25 requests)")
+step("22. Slice D: rate-limit on /api/operator-connections/resolve (25 requests)")
 codes = []
 for _ in range(25):
     s, _, _ = request("POST", "/api/operator-connections/resolve", body={})
@@ -354,7 +497,7 @@ else:
     fail(f"no 429 in: {seq}")
 
 
-step("22. Slice C revoke flow: create + revoke a fresh invite")
+step("23. Slice C revoke flow: create + revoke a fresh invite")
 status, body, _ = request(
     "POST", f"/api/platform/tenants/{org_id}/owner-invites",
     body={"branchId": branch_id, "ownerUserName": "owner-2@demo.test", "ownerDisplayName": "Owner Two", "lifetime": "7.00:00:00"},
