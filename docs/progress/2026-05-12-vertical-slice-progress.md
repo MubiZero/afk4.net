@@ -3476,13 +3476,24 @@ Operator App WebView2/React first implementation on 2026-05-20:
 
 - 2026-05-25: deployed the Slice 2.5 customer SPA host to Coolify as
   `afk4-club-web-staging` (`app.afk4.staging.mubi.dev`, Coolify app UUID
-  `ajpxlrv4sirqrcyn8p7gausm`) after DNS was added in Cloudflare. Public smoke
-  found direct nested SPA routes were blank in the production nginx container
-  because Vite emitted relative asset URLs with `base: './'`. Fixed
+  `ajpxlrv4sirqrcyn8p7gausm`) after DNS was added in Cloudflare, set build-time
+  `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev` and
+  `VITE_AUDIENCE=club`, and redeployed the existing admin SPA
+  `afk4-platform-web-staging` with `VITE_AUDIENCE=admin`. Public smoke found
+  direct nested SPA routes were blank in the production nginx container because
+  Vite emitted relative asset URLs with `base: './'`. Fixed
   `src/AFK4.Platform.Web/vite.config.ts` to use root-relative assets
   (`base: '/'`) and added a config regression test so `/auth/sign-in`,
   `/club/install`, and `/admin/tenants` direct loads resolve assets through the
-  nginx SPA fallback correctly.
+  nginx SPA fallback correctly. Pushed commit `30d377d`, redeployed both SPA
+  apps to `running:healthy`, verified both `/healthz` endpoints, verified root
+  HTML now references `/assets/...`, and browser-smoked audience isolation:
+  platform host root opens `/admin`, platform `/club/install` is not-found,
+  customer root opens `/club/install`, customer `/admin/tenants` is not-found,
+  and `/auth/sign-in` renders on both hosts. Added GitHub repository variables
+  `COOLIFY_PLATFORM_WEB_APP_UUID=r82tks8g3qyx0hvvexsiaulr` and
+  `COOLIFY_CLUB_WEB_APP_UUID=ajpxlrv4sirqrcyn8p7gausm` for future SPA deploy
+  workflows.
 
 ## Historical Reference
 
