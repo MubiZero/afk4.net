@@ -691,6 +691,13 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   `history.replaceState`; in-app transitions use admin-prefixed URLs and
   `popstate` handles browser back/forward. No new `/auth` or `/club` screens
   are included in this slice.
+- **Slice 2.2** - completed locally on `codex/slice-2.2-auth-pages`:
+  `Platform.Web` now has public `/auth/accept-invite` and `/auth/sign-in`
+  pages wired to the existing accept-invite and staff sign-in endpoints.
+  Staff auth uses a separate session store from platform-admin auth, successful
+  accept/sign-in redirects to `/club`, `/auth/forgot-password` and
+  `/auth/reset-password` are reserved, and `/club` is only a minimal signed-in
+  handoff until the Slice 2.3 customer dashboard screens land.
 
 ## Testing
 

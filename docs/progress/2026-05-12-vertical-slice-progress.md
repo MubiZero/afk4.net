@@ -29,9 +29,10 @@ implementation evidence are needed.
   scope for their slice, not as the current product decision.
 - The active follow-on onboarding plan is
   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
-  Slices 1.1 through 2.1 now cover owner codes, ETag floor-map editing,
-  backend install discover/enroll, the branch device admin surface, and the
-  first Platform Web admin route split under `/admin/*`.
+  Slices 1.1 through 2.2 now cover owner codes, ETag floor-map editing,
+  backend install discover/enroll, the branch device admin surface, the
+  Platform Web admin route split under `/admin/*`, and the first public
+  `/auth/*` accept-invite/staff sign-in pages.
 
 ## Implemented Capabilities
 
@@ -108,14 +109,15 @@ implementation evidence are needed.
 
 ### SaaS Control Plane / Platform Web
 
-- Club self-service onboarding Slice 2.1 starts the Platform Web route split:
-  existing platform-admin tenant list/create/detail screens now resolve under
-  `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
-  `/admin/tenants/{organizationId}`. Legacy root-level admin bookmarks
-  (`/`, `/tenants`, `/tenants/new`, `/tenants/{organizationId}`) redirect with
-  `history.replaceState`; in-app transitions use admin-prefixed URLs and
-  `popstate` handles browser back/forward. Customer `/club/*` routes and
-  public `/auth/*` pages are still pending for Slices 2.2 and 2.3.
+- Club self-service onboarding Slices 2.1 and 2.2 start the Platform Web
+  route split. Existing platform-admin tenant list/create/detail screens now
+  resolve under `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
+  `/admin/tenants/{organizationId}` with legacy root-level admin bookmark
+  redirects. Public `/auth/accept-invite` and `/auth/sign-in` pages now call
+  the existing accept-invite/staff sign-in endpoints, store a separate staff
+  session, and redirect successful staff auth to `/club`; forgot/reset routes
+  are reserved. Customer dashboard MVP screens under `/club/*` remain pending
+  for Slice 2.3.
 
 ### Operator App
 
@@ -3327,6 +3329,31 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `/admin`, legacy `/tenants/new` becomes `/admin/tenants/new`, and direct
   `/admin/tenants/new` renders the expected platform-admin sign-in when no
   session is present.
+
+- 2026-05-25: local Slice 2.2 implementation on
+  `codex/slice-2.2-auth-pages`. `src/AFK4.Platform.Web` now has public
+  `/auth/accept-invite` and `/auth/sign-in` pages wired to
+  `/api/platform/owner-invites/accept` and `/api/auth/staff/sign-in`.
+  Accepted setup codes and staff sign-ins write a separate staff session in
+  `sessionStorage`, leave the platform-admin session boundary untouched, and
+  redirect to a minimal signed-in `/club` handoff route for the upcoming
+  customer dashboard slice. `/auth/forgot-password` and
+  `/auth/reset-password` are reserved but not implemented.
+
+  ```powershell
+  npm test -- App.test.tsx staffAuthApi.test.ts staffTokenStore.test.ts
+  npm test --silent
+  npm run build --silent
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused Platform.Web auth-route tests passed 15/15, full
+  Platform.Web tests passed 28/28, Vite production build passed, and
+  `git diff --check` was clean apart from expected LF-to-CRLF working-copy
+  warnings. Browser smoke against the Vite dev server
+  `http://127.0.0.1:5175` confirmed `/auth/accept-invite?code=...` renders
+  with the setup code prefilled, `/auth/sign-in?organizationId=...` prefills
+  the organization field, and legacy `/` still redirects to `/admin`.
 
 ## Historical Reference
 

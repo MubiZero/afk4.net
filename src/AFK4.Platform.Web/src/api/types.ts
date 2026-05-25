@@ -10,6 +10,25 @@ export interface PlatformAdminSignInResponse {
   permissions: string[];
 }
 
+export interface StaffSignInResponse {
+  staffUserId: string;
+  organizationId: string;
+  displayName: string;
+  accessToken: string;
+  accessTokenExpiresAtUtc: string;
+  refreshToken: string;
+  refreshTokenExpiresAtUtc: string;
+  branchIds: string[];
+  permissions: string[];
+}
+
+export interface AcceptOwnerInviteRequest {
+  code: string;
+  userName: string;
+  displayName: string;
+  password: string;
+}
+
 export interface TenantSummary {
   organizationId: string;
   slug: string;
