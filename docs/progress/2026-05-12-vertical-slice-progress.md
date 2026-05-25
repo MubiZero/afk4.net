@@ -29,8 +29,9 @@ implementation evidence are needed.
   scope for their slice, not as the current product decision.
 - The active follow-on onboarding plan is
   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
-  Slices 1.1 through 1.4 now cover owner codes, ETag floor-map editing,
-  backend install discover/enroll, and the branch device admin surface.
+  Slices 1.1 through 2.1 now cover owner codes, ETag floor-map editing,
+  backend install discover/enroll, the branch device admin surface, and the
+  first Platform Web admin route split under `/admin/*`.
 
 ## Implemented Capabilities
 
@@ -104,6 +105,17 @@ implementation evidence are needed.
 - Operator Dashboard summary endpoint for active shift, revenue/utilization,
   alert pressure, focus queue, floor-map-derived availability, and recent
   payments.
+
+### SaaS Control Plane / Platform Web
+
+- Club self-service onboarding Slice 2.1 starts the Platform Web route split:
+  existing platform-admin tenant list/create/detail screens now resolve under
+  `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
+  `/admin/tenants/{organizationId}`. Legacy root-level admin bookmarks
+  (`/`, `/tenants`, `/tenants/new`, `/tenants/{organizationId}`) redirect with
+  `history.replaceState`; in-app transitions use admin-prefixed URLs and
+  `popstate` handles browser back/forward. Customer `/club/*` routes and
+  public `/auth/*` pages are still pending for Slices 2.2 and 2.3.
 
 ### Operator App
 
@@ -1740,9 +1752,9 @@ Operator App redesign branch-local verification on 2026-05-20:
    commit must have a green remote `PR Verification Result`.
 2. Continue the club self-service onboarding plan from
    `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`
-   with Slice 1.4: devices admin surface API for pending queue, approve/reject,
-   rename, move-seat, remove, and SignalR/device projection updates. Then move
-   into the SPA route/customer dashboard slices before the SetupWizard/MSI
+   with Slice 2.2: public `/auth/accept-invite` and `/auth/sign-in` pages
+   wired to the existing accept-invite and staff sign-in endpoints. Then move
+   into the `/club/*` customer dashboard slices before the SetupWizard/MSI
    slices.
 3. Continue `codex/operator-app-redesign` from the backend-connected React
    shell by working through the new "Backend Connectivity TODO From Current
@@ -3290,6 +3302,31 @@ Operator App WebView2/React first implementation on 2026-05-20:
   0 errors. Python is not installed in this Windows PATH, so
   `scripts/staging-smoke.py` could not be syntax-checked locally with
   `py_compile` and was not run against staging.
+
+- 2026-05-25: local Slice 2.1 implementation on
+  `codex/slice-2.1-platform-web-routes`. `src/AFK4.Platform.Web` now routes
+  the existing platform-admin tenant list/create/detail screens under
+  `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
+  `/admin/tenants/{organizationId}`. Legacy root-level admin bookmarks are
+  redirected client-side with `history.replaceState`; in-app navigation uses
+  admin-prefixed `pushState` URLs and listens for `popstate`. Added Vitest
+  coverage for route resolution, legacy redirects, and admin-prefixed tenant
+  navigation.
+
+  ```powershell
+  npm test -- App.test.tsx       # in src/AFK4.Platform.Web/
+  npm test --silent              # in src/AFK4.Platform.Web/
+  npm run build --silent         # in src/AFK4.Platform.Web/
+  & 'C:\Program Files\Git\cmd\git.exe' diff --check
+  ```
+
+  Result: focused route tests passed 4/4, full Platform.Web tests passed
+  17/17, Vite production build passed, and `git diff --check` was clean apart
+  from the expected LF-to-CRLF working-copy warning on `App.tsx`. Browser smoke
+  against Vite dev server `http://127.0.0.1:5175` confirmed `/` becomes
+  `/admin`, legacy `/tenants/new` becomes `/admin/tenants/new`, and direct
+  `/admin/tenants/new` renders the expected platform-admin sign-in when no
+  session is present.
 
 ## Historical Reference
 

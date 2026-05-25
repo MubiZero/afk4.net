@@ -682,6 +682,15 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   staff APIs are implemented with audit records, credential revocation on
   reject/remove, active-session remove protection, removed-device list hiding,
   and `deviceStatusChanged` notifications for admin state changes.
+- **Slice 2.1** - completed locally on
+  `codex/slice-2.1-platform-web-routes`: the existing `Platform.Web`
+  platform-admin tenant list/create/detail screens now resolve under
+  `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
+  `/admin/tenants/{organizationId}`. Legacy root-level admin bookmarks
+  (`/`, `/tenants`, `/tenants/new`, `/tenants/{organizationId}`) redirect with
+  `history.replaceState`; in-app transitions use admin-prefixed URLs and
+  `popstate` handles browser back/forward. No new `/auth` or `/club` screens
+  are included in this slice.
 
 ## Testing
 

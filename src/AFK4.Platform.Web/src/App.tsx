@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PlatformApiClient } from './api/platformApi';
 import type { OwnerInvite } from './api/types';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
@@ -7,10 +7,16 @@ import { TenantList } from './components/TenantList';
 import { TenantDetailView } from './components/TenantDetail';
 import { NewTenant } from './components/NewTenant';
 
-type View =
-  | { kind: 'list' }
-  | { kind: 'new' }
-  | { kind: 'detail'; organizationId: string; initialInvite: OwnerInvite | null };
+export type AdminRoute =
+  | { kind: 'tenantList' }
+  | { kind: 'newTenant' }
+  | { kind: 'tenantDetail'; organizationId: string; initialInvite: OwnerInvite | null }
+  | { kind: 'notFound'; path: string };
+
+export interface RouteResolution {
+  route: AdminRoute;
+  redirectTo?: string;
+}
 
 export interface AppProps {
   apiBaseUrl: string;
@@ -18,7 +24,7 @@ export interface AppProps {
 
 export default function App({ apiBaseUrl }: AppProps) {
   const [session, setSession] = useState<PlatformAdminSession | null>(() => readSession());
-  const [view, setView] = useState<View>({ kind: 'list' });
+  const [route, setRoute] = useState<AdminRoute>(() => readCurrentRoute());
 
   const client = useMemo(
     () =>
@@ -32,10 +38,54 @@ export default function App({ apiBaseUrl }: AppProps) {
   );
 
   useEffect(() => {
-    if (session === null && view.kind !== 'list') {
-      setView({ kind: 'list' });
+    if (typeof window === 'undefined') {
+      return;
     }
-  }, [session, view.kind]);
+
+    function syncRouteFromLocation() {
+      const resolution = resolvePlatformRoute(window.location.pathname, window.history.state);
+      if (resolution.redirectTo !== undefined) {
+        window.history.replaceState(window.history.state, '', resolution.redirectTo);
+      }
+      setRoute(resolution.route);
+    }
+
+    syncRouteFromLocation();
+    window.addEventListener('popstate', syncRouteFromLocation);
+    return () => window.removeEventListener('popstate', syncRouteFromLocation);
+  }, []);
+
+  const navigate = useCallback((nextRoute: AdminRoute, path: string, historyState: unknown = null) => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState(historyState, '', path);
+    }
+    setRoute(nextRoute);
+  }, []);
+
+  const navigateToTenantList = useCallback(
+    () => navigate({ kind: 'tenantList' }, '/admin/tenants'),
+    [navigate]
+  );
+
+  const navigateToNewTenant = useCallback(
+    () => navigate({ kind: 'newTenant' }, '/admin/tenants/new'),
+    [navigate]
+  );
+
+  const navigateToTenantDetail = useCallback(
+    (organizationId: string, initialInvite: OwnerInvite | null = null) => {
+      navigate(
+        { kind: 'tenantDetail', organizationId, initialInvite },
+        `/admin/tenants/${encodeURIComponent(organizationId)}`,
+        { initialInvite }
+      );
+    },
+    [navigate]
+  );
+
+  if (route.kind === 'notFound') {
+    return <NotFound path={route.path} onHome={navigateToTenantList} />;
+  }
 
   if (session === null) {
     return <SignIn client={client} onSignedIn={() => setSession(client.getSession())} />;
@@ -46,41 +96,125 @@ export default function App({ apiBaseUrl }: AppProps) {
       <header className="app-header">
         <div className="app-title">AFK4 Control Plane</div>
         <div className="app-session">
-          <button type="button" className="link" onClick={() => setView({ kind: 'list' })}>Tenants</button>
+          <button type="button" className="link" onClick={navigateToTenantList}>Tenants</button>
           <span className="muted">{session.displayName} ({session.userName})</span>
           <button type="button" onClick={() => void client.signOut()}>Sign out</button>
         </div>
       </header>
       <main>
-        {view.kind === 'list' && (
+        {route.kind === 'tenantList' && (
           <TenantList
             client={client}
-            onOpenTenant={id => setView({ kind: 'detail', organizationId: id, initialInvite: null })}
-            onCreateTenant={() => setView({ kind: 'new' })}
+            onOpenTenant={id => navigateToTenantDetail(id)}
+            onCreateTenant={navigateToNewTenant}
           />
         )}
-        {view.kind === 'new' && (
+        {route.kind === 'newTenant' && (
           <NewTenant
             client={client}
-            onCreated={response =>
-              setView({
-                kind: 'detail',
-                organizationId: response.tenant.organizationId,
-                initialInvite: response.ownerInvite
-              })
-            }
-            onCancel={() => setView({ kind: 'list' })}
+            onCreated={response => navigateToTenantDetail(response.tenant.organizationId, response.ownerInvite)}
+            onCancel={navigateToTenantList}
           />
         )}
-        {view.kind === 'detail' && (
+        {route.kind === 'tenantDetail' && (
           <TenantDetailView
             client={client}
-            organizationId={view.organizationId}
-            initialInvite={view.initialInvite}
-            onBack={() => setView({ kind: 'list' })}
+            organizationId={route.organizationId}
+            initialInvite={route.initialInvite}
+            onBack={navigateToTenantList}
           />
         )}
       </main>
     </>
+  );
+}
+
+export function resolvePlatformRoute(pathname: string, historyState: unknown = null): RouteResolution {
+  const path = normalizePath(pathname);
+
+  if (path === '/') {
+    return { route: { kind: 'tenantList' }, redirectTo: '/admin' };
+  }
+  if (path === '/tenants') {
+    return { route: { kind: 'tenantList' }, redirectTo: '/admin/tenants' };
+  }
+  if (path === '/tenants/new') {
+    return { route: { kind: 'newTenant' }, redirectTo: '/admin/tenants/new' };
+  }
+
+  const legacyTenantDetailMatch = /^\/tenants\/([^/]+)$/u.exec(path);
+  if (legacyTenantDetailMatch !== null) {
+    const organizationId = decodePathSegment(legacyTenantDetailMatch[1]);
+    return {
+      route: { kind: 'tenantDetail', organizationId, initialInvite: readInitialInvite(historyState) },
+      redirectTo: `/admin/tenants/${encodeURIComponent(organizationId)}`
+    };
+  }
+
+  if (path === '/admin' || path === '/admin/tenants') {
+    return { route: { kind: 'tenantList' } };
+  }
+  if (path === '/admin/tenants/new') {
+    return { route: { kind: 'newTenant' } };
+  }
+
+  const tenantDetailMatch = /^\/admin\/tenants\/([^/]+)$/u.exec(path);
+  if (tenantDetailMatch !== null) {
+    return {
+      route: {
+        kind: 'tenantDetail',
+        organizationId: decodePathSegment(tenantDetailMatch[1]),
+        initialInvite: readInitialInvite(historyState)
+      }
+    };
+  }
+
+  return { route: { kind: 'notFound', path } };
+}
+
+function readCurrentRoute(): AdminRoute {
+  if (typeof window === 'undefined') {
+    return { kind: 'tenantList' };
+  }
+  return resolvePlatformRoute(window.location.pathname, window.history.state).route;
+}
+
+function normalizePath(pathname: string): string {
+  const withLeadingSlash = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  return withLeadingSlash.replace(/\/+$/u, '') || '/';
+}
+
+function decodePathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+function readInitialInvite(historyState: unknown): OwnerInvite | null {
+  if (historyState === null || typeof historyState !== 'object') {
+    return null;
+  }
+  const candidate = (historyState as { initialInvite?: unknown }).initialInvite;
+  if (candidate === null || typeof candidate === 'object') {
+    return candidate as OwnerInvite | null;
+  }
+  return null;
+}
+
+function NotFound({ path, onHome }: { path: string; onHome: () => void }) {
+  return (
+    <main>
+      <div className="page page-narrow">
+        <div className="page-header">
+          <h1>Page not found</h1>
+        </div>
+        <section className="section">
+          <p className="muted">No Platform Control Plane route matches <code>{path}</code>.</p>
+          <button type="button" className="primary" onClick={onHome}>Open admin tenants</button>
+        </section>
+      </div>
+    </main>
   );
 }
