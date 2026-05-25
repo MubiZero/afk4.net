@@ -174,11 +174,14 @@ Minimum bar:
    update/rollback evidence remains broader release hardening. On 2026-05-19,
    `Package Smoke` also began publishing a remote
    clean-machine Gaming PC bootstrap script and `latest.json` manifest to
-   staging MinIO. The public latest manifest URL was verified after workflow
-   run `26089632552` and points to version `0.1.13`; this removes local file
-   copying for clean staging VM bootstrap while keeping already enrolled PCs on
-   the signed/internal MSI update rollout path. The first clean VM run against
-   version `0.1.13` enrolled and assigned the seat, but exposed a bootstrap/MSI
+   staging MinIO. The public latest manifest URL now points to the latest
+   successful package-smoke build; workflow run `26404714472` published version
+   `0.1.23`, registered update packages with the staging Platform API, and
+   created an internal agent-service rollout after the staging update staff
+   credential/data sync was repaired. This removes local file copying for clean
+   staging VM bootstrap while keeping already enrolled PCs on the signed/
+   internal MSI update rollout path. The first clean VM run against version
+   `0.1.13` enrolled and assigned the seat, but exposed a bootstrap/MSI
    sequencing bug: MSI starts `AFK4.Agent.Service` during installation before
    the script had written the enrolled device credential and machine config.
    PR #33 moved that config write before `msiexec.exe`; post-merge `Package
@@ -216,8 +219,8 @@ Minimum bar:
    create approved or pending devices, issue device credentials, attach the
    selected seat, and apply both app-layer and documented Traefik rate-limit
    protection; the SPA now has separate admin/customer audience builds. The
-   customer `app.afk4.staging.mubi.dev` Coolify app deployment and
-   SetupWizard/MSI flow still need to ship before this replaces the scripted
+   customer `app.afk4.staging.mubi.dev` Coolify app is deployed; the
+   SetupWizard/MSI flow still needs to ship before this replaces the scripted
    pilot setup path.
 
 ## Commercial Production Blockers
@@ -229,8 +232,9 @@ Minimum bar:
 - Production environments are not codified.
 - Internal SaaS Control Plane and no-DB-edit tenant provisioning are partially
   implemented and smoke-tested in staging for platform-admin tenant creation,
-  owner invites, tenant status, support notes, and health. Customer-host
-  deployment plus the Windows SetupWizard/MSI flow remain onboarding blockers.
+  owner invites, tenant status, support notes, and health. The customer SPA
+  host is deployed; the Windows SetupWizard/MSI flow remains an onboarding
+  blocker.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
@@ -256,10 +260,11 @@ Minimum bar:
 - Certificate storage policy is undecided.
 - ECDSA update metadata signing key storage policy is undecided.
 - Earlier Coolify API token and staging database/session secrets used during
-  the first rehearsal were rotated. The Coolify API token used during the
-  2026-05-19 restore rehearsal was exposed in chat; rotating it remains
-  operational hygiene before sensitive staging operations, but it is not a
-  pilot or development blocker. Future secret exchange must stay out of chat.
+  the first rehearsal were rotated. Coolify API tokens used during the
+  2026-05-19 restore rehearsal and 2026-05-25 staging workflow tail fix were
+  exposed in chat; rotating/revoking them remains operational hygiene before
+  sensitive staging operations, but it is not a pilot or development blocker.
+  Future secret exchange must stay out of chat.
 - Staging update artifacts now use Coolify-hosted MinIO. Production
   object-store/CDN provider, public-read policy, retention, and presigned
   upload automation are undecided.

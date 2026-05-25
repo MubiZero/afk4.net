@@ -1760,10 +1760,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   Coolify staging restore rehearsal completed on 2026-05-19. Production backup
   encryption, retention, off-host storage, and restore ownership are still
   launch decisions.
-- The Coolify API token used during the 2026-05-19 restore rehearsal was
-  exposed in chat. Rotate it before sensitive staging operations; it is tracked
-  as staging secret hygiene, not as a blocker for Operator App testing or
-  continued development.
+- The Coolify API tokens used during the 2026-05-19 restore rehearsal and the
+  2026-05-25 staging workflow tail fix were exposed in chat. Rotate/revoke
+  them before sensitive staging operations; this is tracked as staging secret
+  hygiene, not as a blocker for Operator App testing or continued development.
 - Production lease duration and heartbeat refresh threshold need tuning after
   real Agent telemetry.
 
@@ -1793,8 +1793,9 @@ Operator App redesign branch-local verification on 2026-05-20:
 4. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
-   staging credentials that were exposed during manual smoke setup as
-   operational hygiene before sensitive staging operations.
+   staging credentials or Coolify API tokens that were exposed during manual
+   smoke/setup operations as operational hygiene before sensitive staging
+   operations.
 5. Harden Agent production behavior outside the update epic: rotated credential
    consumption, reboot/lock recovery, and lease timing telemetry.
 6. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
@@ -1824,9 +1825,9 @@ Operator App redesign branch-local verification on 2026-05-20:
   verified unsigned MSI packages and published staging update metadata/
   bootstrapper to MinIO, but failed during "Register staging update packages
   and create rollout" because staging update staff sign-in returned HTTP 401.
-  A rerun after the successful staging deploy failed at the same sign-in step,
-  so the remaining follow-up is staging update registration credential/data
-  synchronization, not package build output.
+  A rerun after the successful staging deploy failed at the same sign-in step;
+  this was later resolved on 2026-05-25 by synchronizing the staging update
+  registration staff user/data and GitHub secrets.
 - On 2026-05-22, `codex/operator-app-redesign` added read-only stock movement
   history for Settings `POS и склад`. The Platform API now exposes
   `GET /api/branches/{branchId}/inventory/stock-movements` with
@@ -3501,6 +3502,34 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `Package Smoke` run `26400064731` built/published artifacts but failed update
   registration on staging staff sign-in with HTTP 401. Neither failure was
   retried in this session.
+
+- 2026-05-25: fixed the staging workflow tail left after the accumulated Slice
+  2.5 pushes. Created a Coolify PostgreSQL backup configuration
+  `xxiyopnpwfzd7l4ksizehsh0` and verified backup execution
+  `otblj9xyhjzn8ry34cbv81uo` completed with `status=success` for
+  `afk4_staging`, then temporarily opened the staging PostgreSQL public port,
+  applied pending EF migrations
+  `20260524160022_AddOwnerCodes`,
+  `20260524161954_AddBranchRequireManualDeviceApproval`,
+  `20260525103000_MakeActiveOwnerCodeUnique`,
+  `20260525112000_AddInstallDeviceEnrollmentFields`, and
+  `20260525133000_HardenInstallAndOwnerCodes`, confirmed no pending migrations
+  remained, and closed public database access again (`is_public=false`,
+  healthy). Created/updated the staging update registration staff user
+  `package-smoke-updates@afk4.test` in organization
+  `0c04d6c0-bfa8-4e26-9263-fc0d307d0f08` / branch
+  `acfc0212-967f-4d84-94be-9003387b09c2` with the `technician` role, rotated
+  GitHub secrets `AFK4_STAGING_UPDATE_STAFF_USERNAME` and
+  `AFK4_STAGING_UPDATE_STAFF_PASSWORD`, and verified staff sign-in returned an
+  access token. Manual `Coolify Staging Deploy` workflow run `26404538332`
+  (`workflow_dispatch`, head `7b61521`) passed migration guard, Coolify deploy
+  wait, and staging health. Manual `Package Smoke` workflow run `26404714472`
+  (`workflow_dispatch`, head `7b61521`) passed end to end: built unsigned MSI
+  packages, published staging update metadata/bootstrapper version `0.1.23` to
+  MinIO, registered update package requests, created agent-service rollout
+  `3e804f73-ef87-41ae-b7b3-d0c76b22c61d`, and uploaded MSI/bootstrapper/request
+  artifacts. The earlier red runs `26400064761` and `26400064731` are closed as
+  staging operations/credential fallout, not Slice 2.5 implementation gaps.
 
 ## Historical Reference
 
