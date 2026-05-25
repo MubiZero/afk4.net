@@ -9,6 +9,7 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Identity.OwnerCodes;
+using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Idempotency;
@@ -29,6 +30,7 @@ using AFK4.Shared.Contracts.Diagnostics;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Layout;
 using AFK4.Shared.Contracts.Operator;
@@ -163,6 +165,10 @@ builder.Services.Configure<OwnerCodeOptions>(
 builder.Services.AddSingleton<IOwnerCodeGenerator, RandomOwnerCodeGenerator>();
 builder.Services.AddSingleton<IOwnerCodeHasher, Sha256OwnerCodeHasher>();
 builder.Services.AddScoped<IOwnerCodeService, OwnerCodeService>();
+builder.Services.Configure<InstallOptions>(
+    builder.Configuration.GetSection(InstallOptions.SectionName));
+builder.Services.AddScoped<IInstallService, EfInstallService>();
+builder.Services.AddSingleton<IInstallRequestThrottle, InMemoryInstallRequestThrottle>();
 builder.Services.AddScoped<IPlatformTenantService, EfPlatformTenantService>();
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
 builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore>();
@@ -204,6 +210,18 @@ var app = builder.Build();
 // one preflight handler; the per-SPA named policies remain registered for
 // endpoint-scoped RequireCors usage if we ever need to split them again.
 app.UseCors(CombinedWebCorsPolicyName);
+app.Use(async (httpContext, next) =>
+{
+    if (httpContext.Request.Path.StartsWithSegments("/api/install") &&
+        HttpMethods.IsPost(httpContext.Request.Method))
+    {
+        var sourceIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var throttle = httpContext.RequestServices.GetRequiredService<IInstallRequestThrottle>();
+        await throttle.ApplyAsync(sourceIp, httpContext.RequestAborted);
+    }
+
+    await next(httpContext);
+});
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<TenantSuspensionMiddleware>();
@@ -3633,6 +3651,79 @@ app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
         cancellationToken);
 
     return Results.Ok(code);
+});
+
+app.MapPost("/api/install/discover", async (
+    InstallDiscoverRequest request,
+    IInstallService installService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var result = await installService.DiscoverAsync(request, cancellationToken);
+    if (!result.Succeeded)
+    {
+        await WriteInstallAuditAsync(
+            auditRecordWriter,
+            result.OrganizationId ?? Guid.Empty,
+            result.BranchId,
+            AuditActionNames.InstallDiscoverInvoked,
+            "OwnerCode",
+            result.OwnerCodeId?.ToString("D"),
+            AuditOutcome.Denied,
+            new { result.Error },
+            cancellationToken);
+    }
+
+    return ToInstallHttpResult(result);
+});
+
+app.MapPost("/api/install/enroll", async (
+    InstallEnrollRequest request,
+    IInstallService installService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var result = await installService.EnrollAsync(request, cancellationToken);
+    if (result.Succeeded)
+    {
+        await WriteInstallAuditAsync(
+            auditRecordWriter,
+            result.OrganizationId!.Value,
+            result.BranchId,
+            AuditActionNames.InstallEnrollSucceeded,
+            "Device",
+            result.Value!.DeviceId.ToString("D"),
+            AuditOutcome.Succeeded,
+            new
+            {
+                request.SeatId,
+                request.Role,
+                request.DisplayName,
+                result.Value.EnrollmentState
+            },
+            cancellationToken);
+    }
+    else
+    {
+        await WriteInstallAuditAsync(
+            auditRecordWriter,
+            result.OrganizationId ?? Guid.Empty,
+            result.BranchId,
+            AuditActionNames.InstallEnrollRejected,
+            "OwnerCode",
+            result.OwnerCodeId?.ToString("D"),
+            AuditOutcome.Denied,
+            new
+            {
+                request.BranchId,
+                request.SeatId,
+                request.Role,
+                result.Error
+            },
+            cancellationToken);
+    }
+
+    return ToInstallHttpResult(result);
 });
 
 app.MapPost("/api/devices/enroll", async (
@@ -8384,6 +8475,41 @@ static IResult ToReservationHttpResult<TResponse>(ReservationServiceResult<TResp
     }
 
     return Results.Ok(result.Response);
+}
+
+static IResult ToInstallHttpResult<TResponse>(InstallOperationResult<TResponse> result)
+{
+    return result.Status switch
+    {
+        InstallOperationStatus.Succeeded => Results.Ok(result.Value),
+        InstallOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+        InstallOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+        _ => Results.BadRequest(new { Error = result.Error })
+    };
+}
+
+static async Task WriteInstallAuditAsync(
+    IAuditRecordWriter auditRecordWriter,
+    Guid organizationId,
+    Guid? branchId,
+    string action,
+    string targetType,
+    string? targetId,
+    string outcome,
+    object details,
+    CancellationToken cancellationToken)
+{
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        organizationId,
+        branchId,
+        null,
+        action,
+        targetType,
+        targetId,
+        outcome,
+        "PlatformApi",
+        JsonSerializer.Serialize(details)),
+        cancellationToken);
 }
 
 static async Task WriteOwnerCodeAuditAsync(

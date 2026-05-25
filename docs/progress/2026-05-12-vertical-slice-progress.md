@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-23
+Last updated: 2026-05-25
 
 ## Purpose
 
@@ -27,6 +27,10 @@ implementation evidence are needed.
   `docs/superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md`.
   Older focused plans that say "no web admin" should be read as historical
   scope for their slice, not as the current product decision.
+- The active follow-on onboarding plan is
+  `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
+  Slices 1.1 through 1.3 now cover owner codes, ETag floor-map editing, and the
+  backend install discover/enroll path.
 
 ## Implemented Capabilities
 
@@ -54,6 +58,17 @@ implementation evidence are needed.
   reads, ETag-aware floor-map bulk PUT, installed app reporting, and device
   detail projections. Bulk floor-map deletion now preserves seats that have
   active device assignments or session history.
+- Club self-service onboarding backend Slice 1.3 adds unauthenticated
+  `POST /api/install/discover` and `POST /api/install/enroll` endpoints where
+  the 8-digit owner code is the credential. Discover returns only branches and
+  floor-map/free-seat data from the owner staff user's organization. Enroll
+  creates a device credential and seat assignment, stores device role/display
+  name/enrollment state, supports `approved` vs `pending` through branch
+  `RequireManualDeviceApproval`, rejects revoked owner codes, audits rejected
+  enroll attempts and successful enrolls, and revokes an owner code after five
+  resolved per-code install failures. `/api/install/*` also has in-process
+  per-source-IP backoff, and the Coolify Traefik ingress recipe now includes
+  the install endpoints.
 - Session start, extend, transfer, end, signed leases, reconciliation, and
   heartbeat-driven lock/unlock/lease-refresh command planning. Repeated
   session-end requests against an already `ending` session now return the
@@ -1707,12 +1722,12 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Start the SaaS Control Plane and tenant onboarding slice from
-   `docs/superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md`:
-   platform-admin auth boundary, organization/branch slug provisioning, owner
-   invites, plan/status/limit metadata, tenant health, support notes,
-   suspend/reactivate enforcement, and staging smoke that proves tenant setup
-   no longer requires direct PostgreSQL edits.
+2. Continue the club self-service onboarding plan from
+   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`
+   with Slice 1.4: devices admin surface API for pending queue, approve/reject,
+   rename, move-seat, remove, and SignalR/device projection updates. Then move
+   into the SPA route/customer dashboard slices before the SetupWizard/MSI
+   slices.
 3. Continue `codex/operator-app-redesign` from the backend-connected React
    shell by working through the new "Backend Connectivity TODO From Current
    React UI Copy" checklist in

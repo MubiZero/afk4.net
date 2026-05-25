@@ -662,6 +662,21 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
     meta), final screenshot pass after Slices 1-3 ship so visuals
     match the real product, polish RU + EN copy.
 
+### Slice Status
+
+- **Slice 1.1** — completed on `main`: owner-code entity, generate/rotate/
+  summary endpoints, active lookup service, hashed storage, expiry/last-used,
+  audit, and DB one-active-code-per-staff invariant.
+- **Slice 1.2** — completed on `main`: floor-map ETag reads and bulk PUT,
+  branch `RequireManualDeviceApproval` settings, default-zone provisioning, and
+  bulk-delete protection for seats with active device assignments or session
+  history.
+- **Slice 1.3** — completed on `main`: install discover/enroll endpoints,
+  device role/display/enrollment-state persistence, owner-code scoped branch
+  discovery, auto-approved vs pending enrollment, rejected/success audit,
+  per-code five-strike owner-code revocation for resolved install failures,
+  app-layer install backoff, and Coolify ingress rate-limit recipe updates.
+
 ## Testing
 
 - Unit + integration tests in `tests/AFK4.Platform.Api.Tests` for every

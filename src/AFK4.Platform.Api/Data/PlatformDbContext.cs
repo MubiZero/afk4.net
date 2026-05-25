@@ -214,9 +214,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.ToTable("devices");
             entity.HasKey(device => device.DeviceId);
             entity.Property(device => device.MachineName).HasMaxLength(128).IsRequired();
+            entity.Property(device => device.DisplayName).HasMaxLength(80).IsRequired();
+            entity.Property(device => device.Role).HasMaxLength(32).IsRequired();
+            entity.Property(device => device.EnrollmentState).HasMaxLength(32).IsRequired();
             entity.Property(device => device.AgentVersion).HasMaxLength(64).IsRequired();
             entity.Property(device => device.ShellVersion).HasMaxLength(64).IsRequired();
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId });
+            entity.HasIndex(device => new { device.OrganizationId, device.BranchId, device.EnrollmentState });
+            entity.HasIndex(device => device.EnrolledViaOwnerCodeId);
         });
 
         modelBuilder.Entity<DeviceSeatAssignmentEntity>(entity =>

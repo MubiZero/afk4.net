@@ -10,6 +10,14 @@ public sealed class DeviceEntity
 
     public string MachineName { get; set; } = string.Empty;
 
+    public string DisplayName { get; set; } = string.Empty;
+
+    public string Role { get; set; } = string.Empty;
+
+    public string EnrollmentState { get; set; } = string.Empty;
+
+    public Guid? EnrolledViaOwnerCodeId { get; set; }
+
     public string AgentVersion { get; set; } = string.Empty;
 
     public string ShellVersion { get; set; } = string.Empty;

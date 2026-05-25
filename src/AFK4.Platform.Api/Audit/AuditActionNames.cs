@@ -182,6 +182,12 @@ public static class AuditActionNames
 
     public const string RotateOwnerCode = "install.owner_code.rotated";
 
+    public const string InstallDiscoverInvoked = "install.discover.invoked";
+
+    public const string InstallEnrollSucceeded = "install.enroll.succeeded";
+
+    public const string InstallEnrollRejected = "install.enroll.rejected";
+
     public const string ViewBranchSettings = "branches.settings.view";
 
     public const string UpdateBranchSettings = "branches.settings.update";

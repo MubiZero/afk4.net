@@ -9,6 +9,8 @@ two ingress concerns that the SaaS Control Plane added in Slice 5–6:
    bearer-style invite / connection credentials with no auth in front of them:
    - `POST /api/operator-connections/resolve`
    - `POST /api/platform/owner-invites/accept`
+   - `POST /api/install/discover`
+   - `POST /api/install/enroll`
 
 Every recipe below is a Traefik label set you paste into the Coolify
 application's **Network ▸ Labels** field (or, for compose-based services, into
@@ -56,7 +58,7 @@ against a misbehaving operator app loop or a noisy scraper, and it caps the
 audit-log write rate on the `tenancy.operator_connection.resolve` action.
 
 Add the labels below to the **Platform API** Coolify application. They define
-two Traefik middlewares (one per endpoint) and attach each to a dedicated
+one shared Traefik middleware and attach it to dedicated
 router whose `rule` is restricted to the target path. The default Platform API
 router (which serves everything else) keeps its existing labels untouched.
 
@@ -86,6 +88,24 @@ router (which serves everything else) keeps its existing labels untouched.
 - traefik.http.routers.afk4-api-invite-accept.middlewares=afk4-public-ratelimit
 - traefik.http.routers.afk4-api-invite-accept.service=afk4-platform-api
 - traefik.http.routers.afk4-api-invite-accept.priority=200
+
+# Router 3: /api/install/discover
+- traefik.http.routers.afk4-api-install-discover.rule=Host(`api.afk4.staging.mubi.dev`) && Path(`/api/install/discover`) && Method(`POST`)
+- traefik.http.routers.afk4-api-install-discover.entrypoints=https
+- traefik.http.routers.afk4-api-install-discover.tls=true
+- traefik.http.routers.afk4-api-install-discover.tls.certresolver=letsencrypt
+- traefik.http.routers.afk4-api-install-discover.middlewares=afk4-public-ratelimit
+- traefik.http.routers.afk4-api-install-discover.service=afk4-platform-api
+- traefik.http.routers.afk4-api-install-discover.priority=200
+
+# Router 4: /api/install/enroll
+- traefik.http.routers.afk4-api-install-enroll.rule=Host(`api.afk4.staging.mubi.dev`) && Path(`/api/install/enroll`) && Method(`POST`)
+- traefik.http.routers.afk4-api-install-enroll.entrypoints=https
+- traefik.http.routers.afk4-api-install-enroll.tls=true
+- traefik.http.routers.afk4-api-install-enroll.tls.certresolver=letsencrypt
+- traefik.http.routers.afk4-api-install-enroll.middlewares=afk4-public-ratelimit
+- traefik.http.routers.afk4-api-install-enroll.service=afk4-platform-api
+- traefik.http.routers.afk4-api-install-enroll.priority=200
 ```
 
 Notes:
@@ -118,3 +138,8 @@ After applying the labels:
    return 400 (validation), then the rest return 429 until the period rolls.
 4. The same pattern applied to `/api/platform/owner-invites/accept` should
    surface 429 after exhausting the burst.
+5. Repeat the same burst check for `/api/install/discover` and
+   `/api/install/enroll`; they should also return 429 after the shared burst is
+   exhausted. The Platform API also applies an in-process per-source-IP backoff
+   to `/api/install/*` so the public install flow still slows noisy callers if
+   ingress labels are missing during a staging rehearsal.

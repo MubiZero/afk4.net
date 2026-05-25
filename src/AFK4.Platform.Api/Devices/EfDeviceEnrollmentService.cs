@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Install;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Devices;
@@ -82,6 +83,10 @@ public sealed class EfDeviceEnrollmentService(
             OrganizationId = request.OrganizationId,
             BranchId = request.BranchId,
             MachineName = request.MachineName,
+            DisplayName = request.MachineName,
+            Role = DeviceRoleNames.GamingPc,
+            EnrollmentState = DeviceEnrollmentStateNames.Approved,
+            EnrolledViaOwnerCodeId = null,
             AgentVersion = request.AgentVersion,
             ShellVersion = request.ShellVersion,
             EnrolledAtUtc = now

@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-23
+Last updated: 2026-05-25
 
 ## Purpose
 
@@ -210,7 +210,13 @@ Minimum bar:
    creation/update/deactivation and package definition creation/update/
    deactivation, layout zone/seat creation/update, device command
    dispatch, and device credential rotation/revocation through existing backend
-   endpoints on `codex/operator-app-redesign`.
+   endpoints on `codex/operator-app-redesign`. Club self-service onboarding
+   now has the first backend install path: owner-code discover/enroll endpoints
+   can create approved or pending devices, issue device credentials, attach the
+   selected seat, and apply both app-layer and documented Traefik rate-limit
+   protection. The owner-facing SPA, SetupWizard/MSI flow, and device admin
+   approve/reject queue still need to ship before this replaces the scripted
+   pilot setup path.
 
 ## Commercial Production Blockers
 
