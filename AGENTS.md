@@ -182,6 +182,10 @@ full path above if `dotnet` is not recognized.
 - Keep domain models separate from transport DTOs.
 - Require idempotency for critical money, session, POS, and device commands.
 - Verify with fresh commands before claiming build, tests, or completion.
+- Before finalizing implementation work, do a brief self-review of the changed
+  diff for correctness, unintended scope, missing tests, stale docs, and
+  obvious product/security regressions. Fix blockers found in that pass before
+  declaring the task complete.
 - Commit coherent units of work with clear messages.
 - Do not revert user changes unless explicitly asked.
 - When the user asks to review, check, or assess existing work, default to
@@ -215,10 +219,15 @@ scale up only when the blast radius requires it.
 Before ending implementation work, make sure:
 
 - the requested behavior is implemented or the blocker is clearly stated;
+- a brief self-review of the final diff was performed and any blocker found in
+  that pass was addressed or explicitly reported;
 - focused verification passed, or the reason it could not run is explicit;
 - progress/roadmap/doc update needs were checked;
 - git status, branch/ahead state, and commit/push status are reported;
 - unrelated user changes were not reverted or mixed into the work.
+- the final response suggests the next useful task when it is known from the
+  progress snapshot, focused plan, or current slice sequence, unless the user
+  asked for only a narrow answer.
 
 ## Fast Slice Workflow
 
@@ -273,6 +282,8 @@ validation.
   summary so unrelated files are not accidentally included.
 - Report whether changes were committed, pushed, or left local. Do not push
   unless the user asks or the workflow explicitly requires remote validation.
+- When a task branch has been merged into `main`, delete the now-merged local
+  feature branch before ending the session unless the user asks to keep it.
 
 ## GitHub Actions And PR Merge Discipline
 
@@ -289,6 +300,11 @@ be used carefully.
 - Treat `PR Verification Result` as the required PR gate for normal merges.
 - Do not merge a PR until the latest commit on the PR branch has a green remote
   `PR Verification Result` check.
+- For PRs created by the agent, complete the cleanup once the merge gate is
+  green and the user wants the work closed: merge the PR into `main`, sync the
+  local `main`, delete the merged local branch, and delete the remote PR branch
+  when GitHub/repository policy allows. Do not leave merged PR branches around
+  as routine workspace clutter.
 - If GitHub branch protection or rulesets are unavailable for the current
   private repository plan, enforce the same rule manually: inspect the PR checks
   and wait for green CI before merge.
