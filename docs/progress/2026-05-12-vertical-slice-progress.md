@@ -3780,6 +3780,13 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.25/afk4-agent-0.1.25-internal.msi`;
   a release-workstation `curl -I -L --fail` returned HTTP 200 with
   `Content-Length: 56175894`.
+  Manual repair evidence for the already-enrolled VM then passed: after setting
+  `Agent__PlatformBaseUrl=https://afk4.staging.mubi.dev` and restarting
+  `AFK4.Agent.Service`, dashboard device `VM2` showed `APPROVED online` with a
+  fresh heartbeat at 2026-05-26 11:03:39 local time. The local
+  `runtime-state.json` still showed the prior locked timestamp because no
+  lock-state transition had occurred; heartbeat online status is the backend
+  evidence for this repair.
 
 ## Historical Reference
 
