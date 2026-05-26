@@ -1812,12 +1812,13 @@ Operator App redesign branch-local verification on 2026-05-20:
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
 2. Continue Slice 3.4 clean Windows VM smoke from
-   `docs/operations/real-device-windows-pc-smoke.md` after rebuilding/publishing
-   an Agent MSI that contains the 2026-05-26 Agent heartbeat retry and Setup
-   Wizard `Done` button fix. Existing already-enrolled staging VMs can be
-   repaired by setting `Agent__PlatformBaseUrl=https://afk4.staging.mubi.dev`
-   before restarting `AFK4.Agent.Service`, but pass evidence should come from
-   the corrected package path.
+   `docs/operations/real-device-windows-pc-smoke.md` using the corrected
+   internal Agent MSI version `0.1.25`, published by `Package Smoke` run
+   `26434838738` from head `a8d242e`. Existing already-enrolled staging VMs can
+   be repaired by setting
+   `Agent__PlatformBaseUrl=https://afk4.staging.mubi.dev` before restarting
+   `AFK4.Agent.Service`, but pass evidence should come from the corrected
+   package path.
 3. After Slice 3.4 passes, proceed to Slice 3.5: retire the legacy
    `gaming-pc-bootstrap`/coordinated gaming-PC MSI path from the default
    publishing/onboarding flow while preserving any needed migration notes for
@@ -3773,6 +3774,12 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `dotnet test tests\AFK4.SetupWizard.Tests\AFK4.SetupWizard.Tests.csproj`,
   `dotnet build src\AFK4.SetupWizard\AFK4.SetupWizard.csproj`,
   `dotnet build AFK4.sln`, and `dotnet test AFK4.sln --no-restore`.
+  Remote validation on pushed head `a8d242e` passed: `Coolify Staging Deploy`
+  run `26434838760` verified staging health, and `Package Smoke` run
+  `26434838738` published internal Agent MSI `0.1.25` at
+  `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.25/afk4-agent-0.1.25-internal.msi`;
+  a release-workstation `curl -I -L --fail` returned HTTP 200 with
+  `Content-Length: 56175894`.
 
 ## Historical Reference
 
