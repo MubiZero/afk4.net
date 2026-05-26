@@ -3822,7 +3822,11 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `26440557787` passed, published internal Agent MSI `0.1.27` at
   `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.27/afk4-agent-0.1.27-internal.msi`,
   and created staging Agent rollout
-  `0e9d0cfc-0b26-4812-af33-c47c0da3d3a7` targeting VM2.
+  `0e9d0cfc-0b26-4812-af33-c47c0da3d3a7` targeting VM2. VM2 live evidence
+  after `sc.exe config AFK4.Agent.Service start= auto` and `Start-Service`
+  showed `AFK4.Agent.Service` `RUNNING`, `sc.exe qc` `START_TYPE` `AUTO_START`,
+  and `Agent__AgentVersion=0.1.27`; the remaining live check is a final VM
+  reboot proving the service starts automatically from cold boot.
 
 ## Historical Reference
 
