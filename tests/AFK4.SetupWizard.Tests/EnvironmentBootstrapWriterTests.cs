@@ -25,7 +25,9 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
         "Agent__UpdateRestartExecutablePath",
         "Agent__UpdateRestartArgumentsTemplate",
         "Agent__UpdatePackageSigningPublicKeyPem",
-        "AFK4_OPERATOR_PLATFORM_BASE_URL"
+        "AFK4_OPERATOR_PLATFORM_BASE_URL",
+        "AFK4_OPERATOR_ORGANIZATION_ID",
+        "AFK4_OPERATOR_BRANCH_ID"
     ];
 
     [Fact]
@@ -50,6 +52,12 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
         Assert.Equal(
             "https://afk4.staging.mubi.dev",
             Environment.GetEnvironmentVariable("AFK4_OPERATOR_PLATFORM_BASE_URL"));
+        Assert.Equal(
+            config.OrganizationId.ToString("D"),
+            Environment.GetEnvironmentVariable("AFK4_OPERATOR_ORGANIZATION_ID"));
+        Assert.Equal(
+            config.BranchId.ToString("D"),
+            Environment.GetEnvironmentVariable("AFK4_OPERATOR_BRANCH_ID"));
         Assert.Equal(config.OrganizationId.ToString("D"), Environment.GetEnvironmentVariable("Agent__OrganizationId"));
         Assert.Equal(config.BranchId.ToString("D"), Environment.GetEnvironmentVariable("Agent__BranchId"));
         Assert.Equal(config.DeviceId.ToString("D"), Environment.GetEnvironmentVariable("Agent__DeviceId"));

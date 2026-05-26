@@ -98,8 +98,8 @@ needed.
   first-run marker, RunOnce wizard launch, and service registration.
 - Setup Wizard supports owner-code discovery/enrollment, branch/floor-map/free
   seat selection, missing-seat creation, role choice, stable device key,
-  machine bootstrap environment writing, Operator App platform URL bootstrap,
-  and service start after enrollment.
+  machine bootstrap environment writing, Operator App base URL and branch
+  context bootstrap, and service start after enrollment.
 - Agent role-aware update flow installs Player Shell for `gaming_pc` and
   Operator App for `manager_workstation`; Operator App install checks WebView2.
 - Standalone Operator App MSI and Player Shell MSI exist; Operator App package
@@ -130,23 +130,27 @@ needed.
   `codex/manager-workstation-operator-env`:
   - Clean Windows 11 enrollment as `manager_workstation` completed, Agent
     Service ran, and staging rollout installed Operator App, but smoke exposed
-    three local blockers: missing Operator App platform URL bootstrap, a
-    framework-dependent Operator App MSI, and WebView2 data directory creation
-    under Program Files.
+    four local blockers: missing Operator App platform URL/bootstrap context, a
+    framework-dependent Operator App MSI, WebView2 data directory creation under
+    Program Files, and Operator App reaching connection resolution without the
+    organization/branch IDs written by Setup Wizard.
   - Focused verification passed:
-    `AFK4.Operator.App.Tests` 206/206,
-    `AFK4.SetupWizard.Tests` 11/11, and focused
+    `AFK4.Operator.App.Tests` 206/206, targeted Operator App bootstrap/options
+    checks 12/12, `AFK4.SetupWizard.Tests` 11/11, and focused
     `AFK4.Agent.Service.Tests` packaging/update checks 3/3.
   - Local package build
-    `scripts/build-client-packages.ps1 -Version 0.1.32-manager-env -Channel internal`
-    produced `afk4-operator-app-0.1.32-manager-env-internal.msi`
-    (`54149184` bytes,
-    SHA256 `44D027F2FF5B42F7E3BC26B6FE54C892EE9A8AEDC5F2CB3A235F909E16CE9BFD`)
-    plus Agent and Player Shell MSI artifacts.
+    `scripts/build-client-packages.ps1 -Version 0.1.33-manager-env -Channel internal`
+    produced `afk4-agent-0.1.33-manager-env-internal.msi`
+    (`57191741` bytes,
+    SHA256 `4DFA43E3994ADA195B0748C3FF05CD5CB9D354045EAC009252E4FB436FCEC393`)
+    and `afk4-operator-app-0.1.33-manager-env-internal.msi`
+    (`54165568` bytes,
+    SHA256 `8013D8DDF1BC9CB8CDFB6D4247276D366C93B1C259FC755AB97C04E9338E5635`),
+    plus Player Shell MSI artifacts.
 
 ## Known Gaps
 
-- `manager_workstation` role smoke has local fixes and a `0.1.32-manager-env`
+- `manager_workstation` role smoke has local fixes and a `0.1.33-manager-env`
   MSI for the first clean-VM blockers; it still needs final VM evidence for
   upgraded Operator App launch and staff sign-in against staging before the gap
   can be closed.
