@@ -3831,7 +3831,14 @@ Operator App WebView2/React first implementation on 2026-05-20:
   Agent MSI major upgrade re-registered first-run `RunOnce`. The Agent MSI now
   skips first-run wizard registration/launch on upgrades, and the wizard
   completion path clears `FirstRunPending` plus the HKLM `RunOnce` entry after
-  successful enrollment.
+  successful enrollment. The first push used an invalid WiX v4 child
+  `Condition` and failed `Package Smoke` run `26442148674` with WIX0005; commit
+  `8019013` moved the condition to the component attribute, and remote
+  `Package Smoke` run `26442315418` passed, published internal Agent MSI
+  `0.1.29` at
+  `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.29/afk4-agent-0.1.29-internal.msi`,
+  and created staging Agent rollout
+  `d0e425d6-98aa-4741-a8b6-532bff1fd87b` targeting VM2.
 
 ## Historical Reference
 
