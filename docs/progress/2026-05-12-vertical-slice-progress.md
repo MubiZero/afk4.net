@@ -3713,6 +3713,27 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `f3092ab`; those artifacts are still the Slice 3.4 smoke inputs because
   `09e7cab` did not change packaged binaries.
 
+- 2026-05-26: live Slice 3.4 staging preparation continued after the clean
+  Windows 11 VM was opened. The fixed club smoke tenant still existed, but its
+  `real-device-smoke@afk4.test` staff user and fixed smoke zone/seat were
+  missing, so the seed was restored directly in staging PostgreSQL and a new
+  one-time staff password was set outside repository files. Staging PostgreSQL
+  public access was opened only for the reset/seed window and closed again
+  afterward; `Test-NetConnection 207.180.237.97:55432` then returned closed.
+  Customer SPA sign-in initially failed with browser CORS because the Platform
+  API allowed `https://platform.afk4.staging.mubi.dev` but not
+  `https://app.afk4.staging.mubi.dev`. Added
+  `Cors__PlatformWebOrigins__1=https://app.afk4.staging.mubi.dev` to the live
+  API app environment and restarted `afk4-platform-api-staging`.
+
+  Verification: `OPTIONS
+  https://afk4.staging.mubi.dev/api/auth/staff/sign-in` with origin
+  `https://app.afk4.staging.mubi.dev` returned 204 with
+  `Access-Control-Allow-Origin: https://app.afk4.staging.mubi.dev`, and a POST
+  staff sign-in from that origin returned HTTP 200 with an access token. The
+  Coolify token used for this live staging repair should be revoked by the
+  owner after the smoke.
+
 ## Historical Reference
 
 Long phase-by-phase notes, earlier test output, and old smoke evidence were

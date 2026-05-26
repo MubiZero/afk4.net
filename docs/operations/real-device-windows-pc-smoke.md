@@ -153,6 +153,10 @@ Use this path for the clean Windows 11 VM gate.
    Open `/club/install`, generate or rotate the owner code, and keep the full
    8-digit code only in the live smoke terminal/session notes. Do not paste it
    into repository files or chat.
+   If browser sign-in fails with a CORS `NetworkError`, confirm the staging
+   Platform API has runtime env
+   `Cors__PlatformWebOrigins__1=https://app.afk4.staging.mubi.dev`, restart
+   the API app, and verify the preflight before retrying.
 
 3. On the clean VM, install `afk4-agent-<version>-internal.msi`
    interactively. The Setup Wizard should open after install. If it does not,

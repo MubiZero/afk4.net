@@ -97,9 +97,17 @@ ASPNETCORE_ENVIRONMENT=Staging
 ASPNETCORE_URLS=http://+:8080
 AllowedHosts=<coolify-staging-domain>;localhost;127.0.0.1
 AFK4_STAGING_PUBLIC_BASE_URL=https://<coolify-staging-domain>
+Cors__PlatformWebOrigins__0=https://platform.afk4.staging.mubi.dev
+Cors__PlatformWebOrigins__1=https://app.afk4.staging.mubi.dev
 ConnectionStrings__PlatformDatabase=<Coolify PostgreSQL connection string>
 Sessions__SigningPrivateKeyPem=<Coolify secret PEM>
 ```
+
+The `Cors__PlatformWebOrigins__*` entries are required for the browser-hosted
+admin and customer SPAs. Without the customer `app.afk4.staging.mubi.dev`
+origin, `/auth/sign-in` fails in the browser even when the staff credentials
+are valid because the preflight response does not include
+`Access-Control-Allow-Origin`.
 
 For Coolify internal PostgreSQL, include `SSL Mode=Disable` unless SSL has been
 explicitly configured for that database. For Linux containers, include
