@@ -3804,7 +3804,11 @@ Operator App WebView2/React first implementation on 2026-05-20:
   its in-process restart scheduler can run. The update helper now starts
   `AFK4.Agent.Service` after a successful `agent-service` MSI, and the smoke
   runbook records the recovery command/evidence to collect for affected
-  pre-fix installs.
+  pre-fix installs. Commit `02f89c9` pushed this helper fix; remote
+  `Package Smoke` run `26436888188` passed, published internal packages
+  `0.1.26`, and created staging Agent rollout
+  `7aa2f099-8034-4dd9-942d-22bebcc9b6f3` targeting VM2
+  `c3d82b36-4b11-40bb-8ad8-f270d6078bb0`.
 
 ## Historical Reference
 
