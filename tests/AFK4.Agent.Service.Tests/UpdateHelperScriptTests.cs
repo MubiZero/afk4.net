@@ -113,6 +113,19 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
+    public void ClientPackageBuildScript_BuildsStandaloneX64OperatorAppMsi()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
+        var script = File.ReadAllText(scriptPath);
+        var operatorAppBuild = script[
+            script.IndexOf("installers/operator-app/Package.wxs", StringComparison.Ordinal)..];
+
+        Assert.Contains("@{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true }", script, StringComparison.Ordinal);
+        Assert.Contains("-arch x64", operatorAppBuild, StringComparison.Ordinal);
+        Assert.Contains("-d \"OperatorAppPublishDir=$(Join-Path $publishRoot \"operator-app-$Version-$Channel\")\"", operatorAppBuild, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ClientPackageBuildScript_BuildsAndPublishesOperatorFrontendAssets()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");

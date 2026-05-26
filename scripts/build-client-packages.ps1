@@ -184,7 +184,7 @@ if (-not (Test-Path -LiteralPath $operatorWebDistIndex)) {
 }
 
 $projects = @(
-    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
+    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true },
     @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $true },
     @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $true },
     @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $true }
@@ -271,6 +271,7 @@ $legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Versio
     ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
+    -arch x64 `
     -d "PackageVersion=$msiVersion" `
     -d "OperatorAppPublishDir=$(Join-Path $publishRoot "operator-app-$Version-$Channel")" `
     -o $operatorMsiPath

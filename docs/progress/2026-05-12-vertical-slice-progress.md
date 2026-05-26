@@ -81,6 +81,8 @@ needed.
 - Native .NET shell with WebView2/React direction is approved and partly
   implemented.
 - Native host owns protected token storage and auth bridge messages.
+- WebView2 host now uses a per-user LocalAppData profile folder instead of
+  creating browser data beside the installed executable under Program Files.
 - React UI gates the console behind staff sign-in, uses typed API clients, and
   avoids browser storage for tokens.
 - Primary floor-map UI has backend loading, selected-seat actions,
@@ -96,10 +98,12 @@ needed.
   first-run marker, RunOnce wizard launch, and service registration.
 - Setup Wizard supports owner-code discovery/enrollment, branch/floor-map/free
   seat selection, missing-seat creation, role choice, stable device key,
-  machine bootstrap environment writing, and service start after enrollment.
+  machine bootstrap environment writing, Operator App platform URL bootstrap,
+  and service start after enrollment.
 - Agent role-aware update flow installs Player Shell for `gaming_pc` and
   Operator App for `manager_workstation`; Operator App install checks WebView2.
-- Standalone Operator App MSI and Player Shell MSI exist.
+- Standalone Operator App MSI and Player Shell MSI exist; Operator App package
+  builds as self-contained x64 for clean Windows manager-workstation installs.
 - Default package build now produces only Operator App, Agent, and Player Shell
   MSI artifacts. The legacy coordinated `afk4-gaming-pc` MSI and staging setup
   executable require explicit fallback switches and are not part of the default
@@ -122,13 +126,30 @@ needed.
   - default package build for `0.1.35-slice35` produced Operator App, Agent,
     and Player Shell MSI artifacts only; legacy gaming-PC MSI/setup executable
     were absent.
+- 2026-05-26 `manager_workstation` VM smoke follow-up on branch
+  `codex/manager-workstation-operator-env`:
+  - Clean Windows 11 enrollment as `manager_workstation` completed, Agent
+    Service ran, and staging rollout installed Operator App, but smoke exposed
+    three local blockers: missing Operator App platform URL bootstrap, a
+    framework-dependent Operator App MSI, and WebView2 data directory creation
+    under Program Files.
+  - Focused verification passed:
+    `AFK4.Operator.App.Tests` 206/206,
+    `AFK4.SetupWizard.Tests` 11/11, and focused
+    `AFK4.Agent.Service.Tests` packaging/update checks 3/3.
+  - Local package build
+    `scripts/build-client-packages.ps1 -Version 0.1.32-manager-env -Channel internal`
+    produced `afk4-operator-app-0.1.32-manager-env-internal.msi`
+    (`54149184` bytes,
+    SHA256 `44D027F2FF5B42F7E3BC26B6FE54C892EE9A8AEDC5F2CB3A235F909E16CE9BFD`)
+    plus Agent and Player Shell MSI artifacts.
 
 ## Known Gaps
 
-- `manager_workstation` role smoke still needs strict evidence: clean Windows
-  VM enrollment as `manager_workstation`, WebView2 prerequisite handling,
-  Operator App role-aware install, Agent restart/env reload, and staff sign-in
-  against staging.
+- `manager_workstation` role smoke has local fixes and a `0.1.32-manager-env`
+  MSI for the first clean-VM blockers; it still needs final VM evidence for
+  upgraded Operator App launch and staff sign-in against staging before the gap
+  can be closed.
 - Operator App staging hardening remains the highest product-value work after
   onboarding packaging cleanup: run backend-backed staging day flows and remove
   remaining production-visible fixtures/placeholders/raw GUID forms from normal

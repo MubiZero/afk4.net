@@ -107,7 +107,9 @@ public partial class WebViewOperatorWindow : Window
             var launchTarget = assetResolver.Resolve(shellOptions);
             StatusText.Text = $"Loading {launchTarget.Mode}...";
 
-            await Browser.EnsureCoreWebView2Async();
+            var userDataFolder = OperatorWebView2UserDataFolder.EnsureExists();
+            var webViewEnvironment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
+            await Browser.EnsureCoreWebView2Async(webViewEnvironment);
             Browser.NavigationCompleted += OnNavigationCompleted;
             Browser.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 

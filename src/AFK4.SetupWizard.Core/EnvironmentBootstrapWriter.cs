@@ -8,10 +8,14 @@ public sealed class EnvironmentBootstrapWriter(
 {
     private const string UpdateHelperRoot = @"AFK4\Update Helpers";
     private const string PlayerShellExecutableRelativePath = @"AFK4\Player Shell\AFK4.Player.Shell.exe";
+    private const string OperatorPlatformBaseUrlEnvironmentVariable = "AFK4_OPERATOR_PLATFORM_BASE_URL";
 
     public void Write(SetupWizardBootstrapConfig config)
     {
-        Write("Agent__PlatformBaseUrl", config.ApiBaseUrl.TrimEnd('/'));
+        var platformBaseUrl = config.ApiBaseUrl.TrimEnd('/');
+
+        Write("Agent__PlatformBaseUrl", platformBaseUrl);
+        Write(OperatorPlatformBaseUrlEnvironmentVariable, platformBaseUrl);
         Write("Agent__OrganizationId", config.OrganizationId.ToString("D"));
         Write("Agent__BranchId", config.BranchId.ToString("D"));
         Write("Agent__DeviceId", config.DeviceId.ToString("D"));
