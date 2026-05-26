@@ -154,7 +154,8 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("ProgramMenuFolder", package, StringComparison.Ordinal);
         Assert.Contains("LaunchSetupWizard", package, StringComparison.Ordinal);
         Assert.Contains("asyncNoWait", package, StringComparison.Ordinal);
-        Assert.Contains("<Condition>NOT WIX_UPGRADE_DETECTED</Condition>", package, StringComparison.Ordinal);
+        Assert.Contains("Id=\"SetupWizardRegistration\"", package, StringComparison.Ordinal);
+        Assert.Contains("Condition=\"NOT WIX_UPGRADE_DETECTED\"", package, StringComparison.Ordinal);
         Assert.Contains(
             "Condition=\"NOT Installed AND NOT WIX_UPGRADE_DETECTED AND UILevel &gt;= 3\"",
             package,

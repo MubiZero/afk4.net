@@ -68,8 +68,7 @@
       <File Id="SetupWizardExe" Source="$(var.SetupWizardPublishDir)\AFK4.SetupWizard.exe" KeyPath="yes" />
     </Component>
 
-    <Component Id="SetupWizardRegistration" Directory="SetupWizardFolder" Guid="{188D2198-DC3D-4B1C-8D53-9E7151226367}">
-      <Condition>NOT WIX_UPGRADE_DETECTED</Condition>
+    <Component Id="SetupWizardRegistration" Directory="SetupWizardFolder" Guid="{188D2198-DC3D-4B1C-8D53-9E7151226367}" Condition="NOT WIX_UPGRADE_DETECTED">
       <RegistryValue
           Id="AFK4SetupWizardFirstRunPending"
           Root="HKLM"
