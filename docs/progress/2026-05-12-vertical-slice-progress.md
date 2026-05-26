@@ -3846,8 +3846,9 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `AFK4.Agent.Service` `RUNNING`, `Agent__AgentVersion=0.1.29`, and a fresh
   local update-state file
   `d0e425d698aa4741a8b6532bff1fd87b-41711444fa3f41f0bd33a47e41f6a633.json`.
-  The remaining final live check is one more VM reboot proving `0.1.29`
-  starts Agent/Player Shell and does not reopen Setup Wizard.
+  The final VM reboot check passed for the fixed package: PowerShell after
+  reboot reported `AFK4.Agent.Service` `RUNNING` and
+  `Agent__AgentVersion=0.1.29`, with no Setup Wizard rerun reported.
 
 ## Historical Reference
 
