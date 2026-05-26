@@ -3787,6 +3787,18 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `runtime-state.json` still showed the prior locked timestamp because no
   lock-state transition had occurred; heartbeat online status is the backend
   evidence for this repair.
+  Follow-up staging rollout state: the automated `Package Smoke` rollout for
+  `0.1.25` targeted stale device
+  `0588fb59-3edb-4704-bbdb-094e12417cf1`, so VM2 would not self-update from
+  that rollout. A new active rollout
+  `70aa526a-93ae-4806-ac2a-059e8be52a95` was created through the Platform API
+  for package `41da556b-ef90-4705-82ad-ce7c265dd71a` (`agent-service`
+  `0.1.25`, internal) targeting VM2
+  `c3d82b36-4b11-40bb-8ad8-f270d6078bb0`, and GitHub variable
+  `AFK4_STAGING_UPDATE_TARGET_DEVICE_ID` was updated to that VM2 id for future
+  package-smoke rollouts. As of the immediate post-create poll, the rollout was
+  active but had not yet received a device update-status row; inspect VM Agent
+  Application logs if it remains empty after the next update-check interval.
 
 ## Historical Reference
 
