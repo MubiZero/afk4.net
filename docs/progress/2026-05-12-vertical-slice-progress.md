@@ -3704,10 +3704,14 @@ Operator App WebView2/React first implementation on 2026-05-20:
   ```
 
   Result: `actionlint` passed with no findings, and targeted Agent Service
-  release automation tests passed 40/40. Remote validation of the manual
-  `Client Packages` workflow still requires pushing this branch or merging it
-  into `main`; no remote workflow rerun was triggered during the local
-  readiness pass.
+  release automation tests passed 40/40. The fix was pushed directly to
+  `origin/main` as commit `09e7cab`; GitHub did not create new check-runs for
+  that docs/test/manual-workflow-only commit, and the stale red `Client
+  Packages` validation run remains attached to prior head `f3092ab`. The
+  latest successful remote package/deploy evidence therefore remains `Package
+  Smoke` run `26412508270` and `Coolify Staging Deploy` run `26412508269` on
+  `f3092ab`; those artifacts are still the Slice 3.4 smoke inputs because
+  `09e7cab` did not change packaged binaries.
 
 ## Historical Reference
 
