@@ -16,6 +16,8 @@ param(
 
     [string] $WebView2BootstrapperPath = "$env:ProgramData\AFK4\Agent\Prerequisites\MicrosoftEdgeWebView2Setup.exe",
 
+    [string] $AgentServiceName = 'AFK4.Agent.Service',
+
     [switch] $SkipWebView2Prerequisite
 )
 
@@ -75,6 +77,22 @@ function Install-WebView2Runtime {
     }
 }
 
+function Start-AgentServiceAfterSelfUpdate {
+    param(
+        [string] $Name
+    )
+
+    if ($Component -ne 'agent-service') {
+        return
+    }
+
+    Start-Sleep -Seconds 5
+    $service = Get-Service -Name $Name -ErrorAction Stop
+    if ($service.Status -ne 'Running') {
+        Start-Service -Name $Name -ErrorAction Stop
+    }
+}
+
 if (-not (Test-Path -LiteralPath $PackagePath)) {
     throw "MSI package was not found at '$PackagePath'."
 }
@@ -99,6 +117,7 @@ $arguments = @('/i', $PackagePath, '/qn', '/norestart', '/l*v', $logPath)
 
 $process = Start-Process -FilePath $MsiexecPath -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
 if ($process.ExitCode -eq 0 -or $process.ExitCode -eq 3010) {
+    Start-AgentServiceAfterSelfUpdate -Name $AgentServiceName
     exit 0
 }
 

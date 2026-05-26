@@ -39,6 +39,24 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
+    public void InstallUpdateMsiScript_StartsAgentServiceAfterAgentServiceSelfUpdate()
+    {
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "install-afk4-update-msi.ps1");
+        var script = File.ReadAllText(scriptPath);
+
+        var successBranchIndex = script.IndexOf("$process.ExitCode -eq 0", StringComparison.Ordinal);
+        var startCallIndex = script.IndexOf("Start-AgentServiceAfterSelfUpdate -Name $AgentServiceName", StringComparison.Ordinal);
+        var successExitIndex = script.IndexOf("exit 0", successBranchIndex, StringComparison.Ordinal);
+
+        Assert.Contains("[string] $AgentServiceName = 'AFK4.Agent.Service'", script, StringComparison.Ordinal);
+        Assert.Contains("function Start-AgentServiceAfterSelfUpdate", script, StringComparison.Ordinal);
+        Assert.Contains("$Component -ne 'agent-service'", script, StringComparison.Ordinal);
+        Assert.Contains("Start-Service -Name $Name -ErrorAction Stop", script, StringComparison.Ordinal);
+        Assert.True(startCallIndex > successBranchIndex, "The helper should start AFK4.Agent.Service only after msiexec succeeds.");
+        Assert.True(startCallIndex < successExitIndex, "The helper should attempt service startup before returning success.");
+    }
+
+    [Fact]
     public void ClientPackageBuildScript_ExplicitlyAcceptsWix7EulaForCiBuilds()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");

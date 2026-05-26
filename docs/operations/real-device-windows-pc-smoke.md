@@ -864,6 +864,14 @@ Expected for a passing Agent-side update smoke:
 - backend rollout status for this device reaches `installed`;
 - device detail reports the target Agent/Shell versions.
 
+If an Agent Service update advances `Agent__AgentVersion` but
+`AFK4.Agent.Service` remains stopped, collect the current update-state JSON and
+Windows Installer log, then start the service once so recovery can report the
+interrupted install as `installed`. Agent MSI helper builds after the VM2
+staging repair start `AFK4.Agent.Service` directly after a successful
+`agent-service` MSI because Windows Installer can stop the old Agent process
+before its in-process restart scheduler runs.
+
 Do not create a fake successful `POST /api/devices/{deviceId}/updates/status`
 for a package that was not actually offered to the Agent.
 

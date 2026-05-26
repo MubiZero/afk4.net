@@ -3796,9 +3796,15 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `0.1.25`, internal) targeting VM2
   `c3d82b36-4b11-40bb-8ad8-f270d6078bb0`, and GitHub variable
   `AFK4_STAGING_UPDATE_TARGET_DEVICE_ID` was updated to that VM2 id for future
-  package-smoke rollouts. As of the immediate post-create poll, the rollout was
-  active but had not yet received a device update-status row; inspect VM Agent
-  Application logs if it remains empty after the next update-check interval.
+  package-smoke rollouts. VM2 later downloaded the `0.1.25` MSI, confirming
+  the rollout target/channel/backend path, but the already-enrolled VM still
+  lacked `Agent__UpdatePackageSigningPublicKeyPem`; after setting the staging
+  public update key, the Agent installed `0.1.25`. The service then remained
+  stopped because the Agent MSI self-update stops the old Agent process before
+  its in-process restart scheduler can run. The update helper now starts
+  `AFK4.Agent.Service` after a successful `agent-service` MSI, and the smoke
+  runbook records the recovery command/evidence to collect for affected
+  pre-fix installs.
 
 ## Historical Reference
 
