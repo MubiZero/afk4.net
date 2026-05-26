@@ -474,8 +474,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("publish_update_metadata:", workflow, StringComparison.Ordinal);
         Assert.Contains("register_update_packages:", workflow, StringComparison.Ordinal);
         Assert.Contains("platform_base_url:", workflow, StringComparison.Ordinal);
+        Assert.Contains("http_put_artifact_uris_json:", workflow, StringComparison.Ordinal);
         Assert.Contains("Stable releases require signing and update metadata publishing.", workflow, StringComparison.Ordinal);
         Assert.Contains("Backend registration requires publish_update_metadata=true.", workflow, StringComparison.Ordinal);
+        Assert.Contains("http_put_artifact_uris_json is required when artifact_store=http-put.", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/sign-client-packages.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/publish-client-msi-updates.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/register-update-package-requests.ps1", workflow, StringComparison.Ordinal);
@@ -505,16 +507,17 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("INPUT_PUBLIC_BASE_URI: ${{ inputs.public_base_uri }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_S3_ENDPOINT: ${{ inputs.s3_endpoint }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("INPUT_S3_BUCKET: ${{ inputs.s3_bucket }}", publishStep, StringComparison.Ordinal);
-        Assert.Contains("INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
-        Assert.Contains("INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
-        Assert.Contains("INPUT_AGENT_ARTIFACT_UPLOAD_URI: ${{ inputs.agent_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
-        Assert.Contains("INPUT_AGENT_ARTIFACT_PUBLIC_URI: ${{ inputs.agent_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
-        Assert.Contains("INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI: ${{ inputs.player_shell_artifact_upload_uri }}", publishStep, StringComparison.Ordinal);
-        Assert.Contains("INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI: ${{ inputs.player_shell_artifact_public_uri }}", publishStep, StringComparison.Ordinal);
+        Assert.Contains("INPUT_HTTP_PUT_ARTIFACT_URIS_JSON: ${{ inputs.http_put_artifact_uris_json }}", publishStep, StringComparison.Ordinal);
         Assert.Contains("$env:INPUT_VERSION", publishStep, StringComparison.Ordinal);
         Assert.Contains("$env:INPUT_CHANNEL", publishStep, StringComparison.Ordinal);
         Assert.Contains("$env:INPUT_ORGANIZATION_ID", publishStep, StringComparison.Ordinal);
         Assert.Contains("-SigningKeyEnvVar', 'AFK4_UPDATE_SIGNING_KEY_PEM'", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$httpPutUris.operator.uploadUri", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$httpPutUris.operator.publicUri", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$httpPutUris.agent.uploadUri", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$httpPutUris.agent.publicUri", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$httpPutUris.playerShell.uploadUri", publishStep, StringComparison.Ordinal);
+        Assert.Contains("$httpPutUris.playerShell.publicUri", publishStep, StringComparison.Ordinal);
         Assert.Contains("-S3AccessKeyEnvVar', 'AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY'", publishStep, StringComparison.Ordinal);
         Assert.Contains("-S3SecretKeyEnvVar', 'AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY'", publishStep, StringComparison.Ordinal);
         Assert.DoesNotContain("${{ inputs.", publishRunBlock, StringComparison.Ordinal);
@@ -529,6 +532,26 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         var workflowWithoutAccessTokenEnvVar = workflow.Replace("-AccessTokenEnvVar", string.Empty, StringComparison.Ordinal);
         Assert.DoesNotContain("-AccessToken", workflowWithoutAccessTokenEnvVar, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ClientPackagesWorkflow_StaysUnderGitHubDispatchInputLimit()
+    {
+        var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml")));
+        var inputsStart = workflow.IndexOf("    inputs:\n", StringComparison.Ordinal);
+        Assert.True(inputsStart >= 0, "workflow_dispatch inputs block was not found.");
+        var permissionsStart = workflow.IndexOf("\npermissions:", inputsStart, StringComparison.Ordinal);
+        Assert.True(permissionsStart > inputsStart, "permissions block was not found after workflow_dispatch inputs.");
+
+        var inputsBlock = workflow[inputsStart..permissionsStart];
+        var inputCount = inputsBlock
+            .Split('\n')
+            .Count(line =>
+                line.StartsWith("      ", StringComparison.Ordinal) &&
+                !line.StartsWith("        ", StringComparison.Ordinal) &&
+                line.TrimEnd().EndsWith(":", StringComparison.Ordinal));
+
+        Assert.True(inputCount <= 25, $"workflow_dispatch supports at most 25 top-level inputs, but client-packages.yml defines {inputCount}.");
     }
 
     [Fact]

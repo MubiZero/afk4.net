@@ -4,7 +4,7 @@ Status: the first MVP-oriented vertical slice is implemented through client
 packaging, signed update metadata registration automation, diagnostics, reports,
 audit search, and backup/restore runbooks.
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ## Purpose
 
@@ -1811,12 +1811,17 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Continue the club self-service onboarding plan from
-   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`
-   by creating/deploying the documented `app.afk4.staging.mubi.dev` customer
-   Coolify app when DNS/Coolify credentials are available, then proceed to
-   Slice 3.1 SetupWizard before the MSI slices.
-3. Continue `codex/operator-app-redesign` from the backend-connected React
+2. Run Slice 3.4 clean Windows VM smoke from
+   `docs/operations/real-device-windows-pc-smoke.md`: owner generates an owner
+   code in the customer dashboard, installs the single `AFK4 Agent` MSI, uses
+   Setup Wizard to enroll as `gaming_pc`, verifies Player Shell role-aware
+   install/session lifecycle, then repeats or extends for `manager_workstation`
+   to verify WebView2/Operator App install.
+3. After Slice 3.4 passes, proceed to Slice 3.5: retire the legacy
+   `gaming-pc-bootstrap`/coordinated gaming-PC MSI path from the default
+   publishing/onboarding flow while preserving any needed migration notes for
+   existing test devices.
+4. Continue `codex/operator-app-redesign` from the backend-connected React
    shell by working through the new "Backend Connectivity TODO From Current
    React UI Copy" checklist in
    `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
@@ -1830,21 +1835,20 @@ Operator App redesign branch-local verification on 2026-05-20:
    while replacing local state with backend-backed behavior. Treat any
    remaining raw GUID/form surfaces as usability bugs unless they are
    explicitly advanced technician tools.
-4. Choose production Authenticode certificate authority/storage, production
+5. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
    staging credentials or Coolify API tokens that were exposed during manual
    smoke/setup operations as operational hygiene before sensitive staging
    operations.
-5. Harden Agent production behavior outside the update epic: rotated credential
+6. Harden Agent production behavior outside the update epic: rotated credential
    consumption, reboot/lock recovery, and lease timing telemetry.
-6. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
+7. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
    role editing, layout management, device-seat management, tariff/POS
    management, and runtime/staging configuration as needed.
-7. Continue physical Windows PC validation for lock/unlock, reboot recovery,
-   and remote bootstrap/update behavior now that the VM duplicate-lock
-   regression is closed. Treat findings as hardening unless they block the
-   current Operator App staging test.
+8. Continue physical Windows PC validation for lock/unlock, reboot recovery,
+   Setup Wizard onboarding, and role-aware update behavior. Treat findings as
+   hardening unless they block the current Operator App staging test.
 
 ## Recent Integration Notes
 
@@ -3673,6 +3677,37 @@ Operator App WebView2/React first implementation on 2026-05-20:
   0 warnings / 0 errors, full solution tests passed 1049/1049, and
   `git diff --check` was clean apart from expected LF-to-CRLF working-copy
   warnings.
+
+- 2026-05-26: local Slice 3.4 readiness pass on
+  `codex/slice-3.4-smoke-readiness` after pulling current `main` at
+  `f3092ab`. GitHub status for current head is now understood: `Coolify
+  Staging Deploy` run `26412508269` passed, and `Package Smoke` run
+  `26412508270` passed end to end, publishing internal version `0.1.24` and
+  upload artifacts. The public staging Agent MSI URL
+  `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.24/afk4-agent-0.1.24-internal.msi`
+  returned HTTP 200 with `Content-Length: 56175894`. The separate red
+  `.github/workflows/client-packages.yml` run `26412507631` had no jobs/logs
+  because GitHub rejected the manual workflow at validation time:
+  `workflow_dispatch` had 27 top-level inputs, above GitHub's 25-input limit.
+  Local fix: consolidated the six HTTP PUT upload/public URI inputs into one
+  `http_put_artifact_uris_json` input, added workflow-content coverage that
+  keeps the manual workflow under the dispatch input limit, updated
+  `docs/operations/client-packaging.md`, and updated
+  `docs/operations/real-device-windows-pc-smoke.md` so Slice 3.4 uses the
+  single `AFK4 Agent` MSI + owner-code Setup Wizard path instead of the legacy
+  PC enrollment/bootstrap path as pass evidence. Clean Windows VM smoke has not
+  been run yet in this session.
+
+  ```powershell
+  & "$env:USERPROFILE\go\bin\actionlint.exe" .github/workflows/client-packages.yml .github/workflows/package-smoke.yml .github/workflows/coolify-staging-deploy.yml .github/workflows/pr-verification.yml
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~ClientReleaseAutomationTests" --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  ```
+
+  Result: `actionlint` passed with no findings, and targeted Agent Service
+  release automation tests passed 40/40. Remote validation of the manual
+  `Client Packages` workflow still requires pushing this branch or merging it
+  into `main`; no remote workflow rerun was triggered during the local
+  readiness pass.
 
 ## Historical Reference
 

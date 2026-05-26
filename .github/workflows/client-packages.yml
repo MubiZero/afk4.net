@@ -85,28 +85,8 @@ on:
         description: Optional S3/MinIO key prefix used when artifact_store is s3
         required: false
         type: string
-      operator_artifact_upload_uri:
-        description: Presigned upload URI for the Operator App MSI
-        required: false
-        type: string
-      operator_artifact_public_uri:
-        description: Public download URI for the Operator App MSI
-        required: false
-        type: string
-      agent_artifact_upload_uri:
-        description: Presigned upload URI for the AFK4 Agent MSI
-        required: false
-        type: string
-      agent_artifact_public_uri:
-        description: Public download URI for the AFK4 Agent MSI
-        required: false
-        type: string
-      player_shell_artifact_upload_uri:
-        description: Presigned upload URI for the Player Shell MSI
-        required: false
-        type: string
-      player_shell_artifact_public_uri:
-        description: Public download URI for the Player Shell MSI
+      http_put_artifact_uris_json:
+        description: JSON artifact URI map for http-put publishing
         required: false
         type: string
       release_notes:
@@ -170,12 +150,7 @@ jobs:
           INPUT_PUBLIC_BASE_URI: ${{ inputs.public_base_uri }}
           INPUT_S3_ENDPOINT: ${{ inputs.s3_endpoint }}
           INPUT_S3_BUCKET: ${{ inputs.s3_bucket }}
-          INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}
-          INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}
-          INPUT_AGENT_ARTIFACT_UPLOAD_URI: ${{ inputs.agent_artifact_upload_uri }}
-          INPUT_AGENT_ARTIFACT_PUBLIC_URI: ${{ inputs.agent_artifact_public_uri }}
-          INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI: ${{ inputs.player_shell_artifact_upload_uri }}
-          INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI: ${{ inputs.player_shell_artifact_public_uri }}
+          INPUT_HTTP_PUT_ARTIFACT_URIS_JSON: ${{ inputs.http_put_artifact_uris_json }}
           INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
           INPUT_ROLLOUT_TARGET_KIND: ${{ inputs.rollout_target_kind }}
           INPUT_ROLLOUT_TARGET_DEVICE_ID: ${{ inputs.rollout_target_device_id }}
@@ -185,6 +160,41 @@ jobs:
           SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.AFK4_SIGNPATH_SIGNING_POLICY_SLUG }}
           SIGNPATH_API_TOKEN: ${{ secrets.AFK4_SIGNPATH_API_TOKEN }}
         run: |
+          function Get-HttpPutArtifactUris {
+            param([string] $Json)
+
+            if ([string]::IsNullOrWhiteSpace($Json)) {
+              throw "http_put_artifact_uris_json is required when artifact_store=http-put."
+            }
+
+            try {
+              $uris = $Json | ConvertFrom-Json -ErrorAction Stop
+            }
+            catch {
+              throw "http_put_artifact_uris_json must be valid JSON with operator, agent, and playerShell uploadUri/publicUri values."
+            }
+
+            $requiredValues = @(
+              @('operator', 'uploadUri'),
+              @('operator', 'publicUri'),
+              @('agent', 'uploadUri'),
+              @('agent', 'publicUri'),
+              @('playerShell', 'uploadUri'),
+              @('playerShell', 'publicUri')
+            )
+
+            foreach ($requiredValue in $requiredValues) {
+              $component = $requiredValue[0]
+              $field = $requiredValue[1]
+              $value = $uris.$component.$field
+              if ([string]::IsNullOrWhiteSpace([string] $value)) {
+                throw "http_put_artifact_uris_json must include $component.$field."
+              }
+            }
+
+            return $uris
+          }
+
           if ($env:INPUT_CHANNEL -eq 'stable' -and ($env:INPUT_SIGN_PACKAGES -ne 'true' -or $env:INPUT_PUBLISH_UPDATE_METADATA -ne 'true')) {
             throw "Stable releases require signing and update metadata publishing."
           }
@@ -216,8 +226,8 @@ jobs:
             throw "hosting_root and public_base_uri are required when artifact_store=file-system."
           }
 
-          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 'http-put' -and ([string]::IsNullOrWhiteSpace($env:INPUT_OPERATOR_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_OPERATOR_ARTIFACT_PUBLIC_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_AGENT_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_AGENT_ARTIFACT_PUBLIC_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI) -or [string]::IsNullOrWhiteSpace($env:INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI))) {
-            throw "operator, agent, and Player Shell upload/public URIs are required when artifact_store=http-put."
+          if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 'http-put') {
+            $null = Get-HttpPutArtifactUris -Json $env:INPUT_HTTP_PUT_ARTIFACT_URIS_JSON
           }
 
           if ($env:INPUT_PUBLISH_UPDATE_METADATA -eq 'true' -and $env:INPUT_ARTIFACT_STORE -eq 's3' -and ([string]::IsNullOrWhiteSpace($env:INPUT_S3_ENDPOINT) -or [string]::IsNullOrWhiteSpace($env:INPUT_S3_BUCKET) -or [string]::IsNullOrWhiteSpace($env:INPUT_PUBLIC_BASE_URI))) {
@@ -357,12 +367,7 @@ jobs:
           INPUT_S3_ENDPOINT: ${{ inputs.s3_endpoint }}
           INPUT_S3_BUCKET: ${{ inputs.s3_bucket }}
           INPUT_S3_KEY_PREFIX: ${{ inputs.s3_key_prefix }}
-          INPUT_OPERATOR_ARTIFACT_UPLOAD_URI: ${{ inputs.operator_artifact_upload_uri }}
-          INPUT_OPERATOR_ARTIFACT_PUBLIC_URI: ${{ inputs.operator_artifact_public_uri }}
-          INPUT_AGENT_ARTIFACT_UPLOAD_URI: ${{ inputs.agent_artifact_upload_uri }}
-          INPUT_AGENT_ARTIFACT_PUBLIC_URI: ${{ inputs.agent_artifact_public_uri }}
-          INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI: ${{ inputs.player_shell_artifact_upload_uri }}
-          INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI: ${{ inputs.player_shell_artifact_public_uri }}
+          INPUT_HTTP_PUT_ARTIFACT_URIS_JSON: ${{ inputs.http_put_artifact_uris_json }}
           INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
           AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY: ${{ secrets.AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY }}
           AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY: ${{ secrets.AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY }}
@@ -386,12 +391,19 @@ jobs:
             $arguments += @('-PublicBaseUri', $env:INPUT_PUBLIC_BASE_URI)
           }
           elseif ($env:INPUT_ARTIFACT_STORE -eq 'http-put') {
-            $arguments += @('-OperatorArtifactUploadUri', $env:INPUT_OPERATOR_ARTIFACT_UPLOAD_URI)
-            $arguments += @('-OperatorArtifactPublicUri', $env:INPUT_OPERATOR_ARTIFACT_PUBLIC_URI)
-            $arguments += @('-AgentArtifactUploadUri', $env:INPUT_AGENT_ARTIFACT_UPLOAD_URI)
-            $arguments += @('-AgentArtifactPublicUri', $env:INPUT_AGENT_ARTIFACT_PUBLIC_URI)
-            $arguments += @('-PlayerShellArtifactUploadUri', $env:INPUT_PLAYER_SHELL_ARTIFACT_UPLOAD_URI)
-            $arguments += @('-PlayerShellArtifactPublicUri', $env:INPUT_PLAYER_SHELL_ARTIFACT_PUBLIC_URI)
+            try {
+              $httpPutUris = $env:INPUT_HTTP_PUT_ARTIFACT_URIS_JSON | ConvertFrom-Json -ErrorAction Stop
+            }
+            catch {
+              throw "http_put_artifact_uris_json must be valid JSON with operator, agent, and playerShell uploadUri/publicUri values."
+            }
+
+            $arguments += @('-OperatorArtifactUploadUri', $httpPutUris.operator.uploadUri)
+            $arguments += @('-OperatorArtifactPublicUri', $httpPutUris.operator.publicUri)
+            $arguments += @('-AgentArtifactUploadUri', $httpPutUris.agent.uploadUri)
+            $arguments += @('-AgentArtifactPublicUri', $httpPutUris.agent.publicUri)
+            $arguments += @('-PlayerShellArtifactUploadUri', $httpPutUris.playerShell.uploadUri)
+            $arguments += @('-PlayerShellArtifactPublicUri', $httpPutUris.playerShell.publicUri)
           }
           else {
             if ([string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_ARTIFACTS_S3_ACCESS_KEY) -or [string]::IsNullOrWhiteSpace($env:AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY)) {

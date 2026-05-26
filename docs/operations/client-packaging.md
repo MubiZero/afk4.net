@@ -1,7 +1,7 @@
 # Client Packaging Runbook
 
 Status: Slice 3.3 Windows client packaging runbook
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ## Purpose
 
@@ -219,6 +219,29 @@ The workflow restores .NET tools, builds and tests the solution, runs
 Guarded workflow switches can also sign MSI artifacts, publish update metadata,
 upload generated request JSON, and register requests with the Platform API when
 release inputs and protected secrets are supplied.
+
+GitHub validates `workflow_dispatch` files on push and currently allows at most
+25 top-level inputs. The manual release workflow stays below that limit by
+using one JSON input for production-style HTTP PUT artifact URIs instead of six
+separate upload/public URI fields. When `artifact_store=http-put`, pass
+`http_put_artifact_uris_json` in this shape:
+
+```json
+{
+  "operator": {
+    "uploadUri": "https://storage-provider.example/operator-upload-token",
+    "publicUri": "https://cdn.afk4.example/operator-app/stable/1.2.3/afk4-operator-app-1.2.3-stable.msi"
+  },
+  "agent": {
+    "uploadUri": "https://storage-provider.example/agent-upload-token",
+    "publicUri": "https://cdn.afk4.example/agent/stable/1.2.3/afk4-agent-1.2.3-stable.msi"
+  },
+  "playerShell": {
+    "uploadUri": "https://storage-provider.example/player-shell-upload-token",
+    "publicUri": "https://cdn.afk4.example/player-shell/stable/1.2.3/afk4-player-shell-1.2.3-stable.msi"
+  }
+}
+```
 
 The `signing_provider` workflow input selects between `authenticode-pfx` and
 `signpath`. The provider-specific repository settings the guard step checks

@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ## Purpose
 
@@ -102,7 +102,13 @@ Minimum bar:
    gate, and PR #12 opted GitHub JavaScript actions into Node 24 execution.
    GitHub rulesets are not enforced on the current private repository plan, so
    merges must manually follow `AGENTS.md`: the current PR head commit needs a
-   green remote `PR Verification Result` before merge.
+   green remote `PR Verification Result` before merge. A local 2026-05-26
+   readiness pass found that the manual `Client Packages` workflow was rejected
+   by GitHub before job creation because `workflow_dispatch` had 27 top-level
+   inputs. The local fix keeps it under GitHub's 25-input limit by replacing
+   the six HTTP PUT artifact URI inputs with one JSON input; `actionlint` and
+   focused release-automation tests pass locally, but the manual workflow still
+   needs remote validation after the fix is pushed.
 
 4. **Windows Endpoint Smoke**
 

@@ -1,7 +1,7 @@
 # Real Device Windows PC Smoke Runbook
 
 Status: manual staging smoke path  
-Last updated: 2026-05-18
+Last updated: 2026-05-26
 
 ## Purpose
 
@@ -23,8 +23,10 @@ Included:
 - staging Platform API health and PostgreSQL-backed operations;
 - staging organization, branch, staff, player, tariff, shift, seat, and device
   preparation;
-- Windows 10/11 gaming PC install and Agent configuration;
-- device enrollment and credential authentication;
+- Windows 10/11 clean VM or gaming PC install through the single AFK4 Agent
+  MSI and Setup Wizard;
+- owner-code enrollment, device credential issuance, and credential
+  authentication;
 - heartbeat and SignalR connectivity through `/hubs/devices`;
 - session start, lease refresh, session end, lease expiry behavior, and
   lock/unlock command handling;
@@ -37,19 +39,26 @@ Not included:
 - production rollout automation;
 - stable-channel update rollout;
 - production signing, CDN, or object-store decisions;
-- any branch-local authority or browser-based administration surface;
+- production customer self-signup or payment provider flows;
+- legacy PC enrollment code/bootstrap as the primary onboarding path;
 - non-Windows client runtime validation.
 
 ## Current Caveats
 
-- Operator App currently constructs `OperatorAppOptions` with the default
-  `http://localhost:5074` base URL. Use it in this staging smoke only if a
-  staging-configured build is prepared; otherwise use the API commands below
-  and treat Operator App as optional observation only.
-- The preferred Windows 11 VM install path is now the staging Gaming PC remote
-  bootstrap script published by `Package Smoke` to MinIO. The VM does not need
-  the repository, .NET SDK, local file sharing, or manual Agent
-  environment-variable commands.
+- The preferred Slice 3.4 clean-VM path is the single `AFK4 Agent` MSI. It
+  installs the Agent Service, Setup Wizard, update helpers, Start Menu
+  shortcut, first-run marker, and HKLM `RunOnce`; Player Shell and Operator App
+  are installed later by the Agent through role-aware update rollouts.
+- The older staging `gaming-pc-bootstrap` MinIO script remains a legacy
+  fallback until Slice 3.5 retires it. Do not use that path as Slice 3.4 pass
+  evidence unless the new Agent MSI path is unavailable and the run is marked
+  partial.
+- The customer dashboard at `https://app.afk4.staging.mubi.dev/club/install`
+  is now the preferred owner-code source. The raw staff API fallback below is
+  only for diagnosing dashboard/auth problems.
+- A `manager_workstation` enrollment must prove the role-aware update path:
+  WebView2 Runtime check/install, Operator App MSI install, Agent restart, and
+  an Operator App sign-in screen pointing at staging.
 - `WorkstationLockController` currently records lock/unlock requests through
   the enforcement adapter. If the physical Windows desktop does not actually
   lock or unlock, record that as a real enforcement gap rather than inventing a
@@ -74,9 +83,12 @@ The smoke exercises these API boundaries:
 | --- | --- |
 | Health | `GET /api/health` |
 | Staff auth | `POST /api/auth/staff/sign-in` |
-| PC enrollment code | `POST /api/branches/{branchId}/device-enrollment-codes` |
-| Device enrollment | `POST /api/devices/enroll` |
-| Device assignment | `POST /api/branches/{branchId}/devices/{deviceId}/seat-assignment` |
+| Owner code | `GET /api/staff/me/owner-code` |
+| Owner code | `POST /api/staff/me/owner-code/generate` |
+| Owner code | `POST /api/staff/me/owner-code/rotate` |
+| Install discover | `POST /api/install/discover` |
+| Install seat create | `POST /api/install/seats` |
+| Install enroll | `POST /api/install/enroll` |
 | Heartbeat | `POST /api/devices/{deviceId}/heartbeat` |
 | SignalR | `/hubs/devices` |
 | Installed apps | `POST /api/devices/{deviceId}/installed-apps/report` |
@@ -95,10 +107,12 @@ Release workstation:
 - PowerShell.
 - Git for Windows.
 - .NET SDK `10.0.203`.
+- GitHub CLI authenticated with `repo` scope when downloading a short-retention
+  `Package Smoke` MSI artifact instead of building locally.
 - `psql` access to staging through a trusted shell, private network path, or
   temporary approved tunnel only when bootstrapping a completely fresh staging
   organization/branch/seat dataset. Existing staging smoke data should use the
-  API path below and should not require direct database edits.
+  dashboard/API path below and should not require direct database edits.
 - Staging database URL available only in the current shell as
   `AFK4_STAGING_DATABASE_URL` when the one-time seed step is required.
 - Staging session lease public key PEM available outside the repository.
@@ -108,15 +122,76 @@ Windows gaming PC:
 - Windows 10/11 x64.
 - Local Administrator access.
 - Outbound HTTPS access to `https://afk4.staging.mubi.dev`.
-- The current internal Gaming PC MSI publishes Agent Service and Player Shell
+- Outbound HTTPS access to `https://updates.afk4.staging.mubi.dev`.
+- The current internal Agent MSI publishes the Agent Service and Setup Wizard
   as self-contained `win-x64` outputs, so a separate .NET Desktop Runtime
   install is not required for the MSI smoke path.
 - A clean test Windows user session where Player Shell can be observed.
 
+## Slice 3.4 Preferred Flow
+
+Use this path for the clean Windows 11 VM gate.
+
+1. Confirm the current `main` package evidence:
+
+   - `Package Smoke` run `26412508270` passed on head
+     `f3092abc6960b53285e77ebdf83b61fdca6759b5`.
+   - It produced internal package version `0.1.24`.
+   - The public Agent MSI URL returned HTTP 200 with non-zero
+     `Content-Length` during this runbook update:
+
+     ```text
+     https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.24/afk4-agent-0.1.24-internal.msi
+     ```
+
+2. In the customer dashboard, sign in at:
+
+   ```text
+   https://app.afk4.staging.mubi.dev/auth/sign-in
+   ```
+
+   Open `/club/install`, generate or rotate the owner code, and keep the full
+   8-digit code only in the live smoke terminal/session notes. Do not paste it
+   into repository files or chat.
+
+3. On the clean VM, install `afk4-agent-<version>-internal.msi`
+   interactively. The Setup Wizard should open after install. If it does not,
+   launch it from Start Menu -> AFK4 -> AFK4 Setup Wizard, or run:
+
+   ```powershell
+   & 'C:\Program Files\AFK4\Setup Wizard\AFK4.SetupWizard.exe'
+   ```
+
+4. In the wizard, enter the owner code, choose the branch, choose or create a
+   seat, select the role, and finish enrollment:
+
+   - `gaming_pc` for a player PC. Expected follow-on: Agent installs Player
+     Shell from the internal update channel and supervises it in the active
+     desktop session.
+   - `manager_workstation` for an operator PC. Expected follow-on: Agent checks
+     or installs WebView2 Runtime, installs Operator App, restarts, and leaves
+     Operator App ready for staff sign-in against staging.
+
+5. Confirm in `/club/branches/{branchId}/devices` that the device appears with
+   the selected display name, role, seat, enrollment state, and recent
+   heartbeat. If the branch requires manual approval, approve it in the pending
+   device queue before expecting command delivery or role-aware component
+   installation.
+
 ## Prepare Staging Data
 
-Use one PowerShell session on the release workstation. Do not paste real
-secrets into chat or repository files.
+Preferred setup is through the Mubi admin SPA plus customer dashboard:
+
+1. Mubi creates the tenant and owner invite under
+   `https://platform.afk4.staging.mubi.dev/admin`.
+2. The owner accepts the setup code, signs in at
+   `https://app.afk4.staging.mubi.dev`, creates/edits the branch floor map,
+   and generates the owner code from `/club/install`.
+3. The smoke then uses the owner code only in the Setup Wizard.
+
+Use the PowerShell/API fallback below only when the dashboard path is blocked
+or when reusing the fixed staging smoke tenant from earlier runs. Do not paste
+real secrets into chat or repository files.
 
 ```powershell
 Set-Location D:\afk4.net
@@ -173,9 +248,10 @@ Console.WriteLine(new PasswordHasher<object>().HashPassword(new object(), passwo
 $env:AFK4_SMOKE_STAFF_PASSWORD_HASH = (& 'C:\Program Files\dotnet\dotnet.exe' run --project $hashTool --no-restore).Trim()
 ```
 
-Seed the staging smoke organization, branch, staff user, and seat. This uses
-direct SQL because the current MVP does not yet include operator-safe staff or
-layout management screens.
+Seed the fixed staging smoke organization, branch, staff user, and seat only
+when the dashboard/API path is unavailable or when rebuilding the historical
+smoke tenant. This direct SQL path is a fallback, not the preferred onboarding
+flow.
 
 ```powershell
 $seedSql = @"
@@ -331,52 +407,37 @@ $tariffVersion = Invoke-RestMethod `
     -Body $tariffVersionBody
 ```
 
-## Download Or Build The Gaming PC Package
+## Download Or Build The Agent Package
 
 Use an internal package only. Do not use this runbook to create a stable
 release.
 
-Preferred path for clean Windows 11 VMs and clean gaming PCs: download the
-latest staging bootstrapper manifest from MinIO, verify the published SHA-256,
-and run the remote bootstrap script from an elevated Administrator PowerShell
-session:
+Preferred path for the current Slice 3.4 smoke: download the Agent MSI that the
+latest green `Package Smoke` published to staging MinIO. For the current
+verified head this is `0.1.24`:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 
 New-Item -ItemType Directory -Force C:\AFK4-Smoke | Out-Null
 
-$manifestUri = 'https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json'
-$manifestPath = 'C:\AFK4-Smoke\afk4-gaming-pc-bootstrap-latest.json'
-$bootstrapPath = 'C:\AFK4-Smoke\install-afk4-gaming-pc.ps1'
+$packageVersion = '0.1.24'
+$agentMsiUri = "https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/$packageVersion/afk4-agent-$packageVersion-internal.msi"
+$agentMsiPath = "C:\AFK4-Smoke\afk4-agent-$packageVersion-internal.msi"
 
-curl.exe -L --fail --retry 5 --retry-delay 5 -o $manifestPath $manifestUri
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-
-curl.exe -L --fail --retry 5 --retry-delay 5 -o $bootstrapPath $manifest.artifactUri
-$actualSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $bootstrapPath).Hash.ToLowerInvariant()
-if ($actualSha -ne $manifest.sha256) {
-    throw "SHA mismatch for bootstrap script. Expected $($manifest.sha256), got $actualSha."
-}
-
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $bootstrapPath
+curl.exe -I -L --fail $agentMsiUri
+curl.exe -L --fail --retry 5 --retry-delay 5 -o $agentMsiPath $agentMsiUri
+Get-Item -LiteralPath $agentMsiPath | Select-Object FullName, Length
 ```
 
-The bootstrap script is staging-only for now. It has the staging Platform API,
-organization, branch, smoke seat, session lease verification public key, and
-internal update package verification public key fixed at publish time. It asks
-for staff username and password, downloads the current internal Gaming PC MSI
-from MinIO, verifies the MSI SHA-256 from the bootstrap manifest, creates the
-PC enrollment code, enrolls the VM, assigns the device to the smoke seat through
-the Platform API, installs the MSI, writes Agent machine configuration, starts
-`AFK4.Agent.Service`, and waits for backend heartbeat evidence.
+Optional GitHub artifact path, useful when validating the exact run artifacts
+before they expire:
 
-The latest manifest is produced by the `Package Smoke` workflow on `main` and
-is versioned under the same MinIO bootstrap prefix. The remote bootstrap script
-is only for clean-machine bootstrap. Do not use bootstrap scripts as the update
-path for already enrolled PCs; those machines must be updated through the
-signed/internal MSI update rollout flow so the Agent downloads, verifies,
-installs, reports status, and can roll back without manual file copying.
+```powershell
+gh run download 26412508270 `
+  --name afk4-package-smoke-msi-0.1.24-internal `
+  --dir C:\AFK4-Smoke\package-smoke
+```
 
 Fallback release-workstation build path:
 
@@ -385,157 +446,80 @@ Fallback release-workstation build path:
 
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
   -Version 0.1.0-ci `
-  -Channel internal `
-  -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem `
-  -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem
+  -Channel internal
 ```
 
 This produces:
 
 ```text
-artifacts/client-packages/afk4-gaming-pc-setup-0.1.0-ci-internal.exe
-```
-
-If a machine was enrolled with an older staging setup executable that did not
-write `Agent__UpdatePackageSigningPublicKeyPem`, the first rollout cannot be
-verified by that Agent. Treat that as a one-time trust-anchor repair for that
-device, then use the update rollout path for subsequent changes.
-
-Fallback/manual path: copy this MSI to the Windows gaming PC through a secure
-internal channel and follow the explicit configuration commands below.
-
-```text
+artifacts/client-packages/afk4-agent-0.1.0-ci-internal.msi
+artifacts/client-packages/afk4-player-shell-0.1.0-ci-internal.msi
+artifacts/client-packages/afk4-operator-app-0.1.0-ci-internal.msi
 artifacts/client-packages/afk4-gaming-pc-0.1.0-ci-internal.msi
 ```
 
-## Enroll The Device
+The standalone `afk4-gaming-pc` MSI remains in the build for legacy bootstrap
+compatibility only. Do not use it as Slice 3.4 pass evidence.
 
-Create a short-lived PC enrollment code:
+## Enroll With Setup Wizard
 
-```powershell
-$codeBody = @{
-    organizationId = $organizationId
-    expiresInSeconds = 300
-} | ConvertTo-Json -Depth 4
-
-$code = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/device-enrollment-codes" `
-    -Method Post `
-    -Headers $staffHeaders `
-    -ContentType 'application/json' `
-    -Body $codeBody
-```
-
-Enroll the PC from the release workstation or from the PC. Use the real PC name
-in `machineName`.
+Run the Agent MSI from an elevated PowerShell prompt or by double-clicking it
+as a local administrator. Keep the install log for evidence:
 
 ```powershell
-$machineName = 'REAL-PC-SMOKE-001'
-
-$enrollBody = @{
-    organizationId = $organizationId
-    branchId = $branchId
-    enrollmentCode = $code.code
-    machineName = $machineName
-    agentVersion = '0.1.0'
-    shellVersion = '0.1.0'
-    requestedAtUtc = (Get-Date).ToUniversalTime().ToString('O')
-} | ConvertTo-Json -Depth 4
-
-$enrollment = Invoke-RestMethod `
-    "$baseUrl/api/devices/enroll" `
-    -Method Post `
-    -ContentType 'application/json' `
-    -Body $enrollBody
-```
-
-Assign the enrolled device to the smoke seat:
-
-Skip this manual API call when using
-`afk4-gaming-pc-setup-0.1.0-ci-internal.exe`; the setup executable assigns the
-enrolled device to the staging smoke seat automatically.
-
-```powershell
-$assignDeviceSeatBody = @{
-    organizationId = $organizationId
-    seatId = $seatId
-} | ConvertTo-Json -Depth 4
-
-$assignment = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/devices/$($enrollment.deviceId)/seat-assignment" `
-    -Method Post `
-    -Headers $staffHeaders `
-    -ContentType 'application/json' `
-    -Body $assignDeviceSeatBody
-
-$assignment
-```
-
-## Configure The Windows Gaming PC
-
-Skip this section when using
-`afk4-gaming-pc-setup-0.1.0-ci-internal.exe`; the setup executable performs
-these actions itself.
-
-Run these commands from an elevated PowerShell prompt on the Windows gaming PC
-only when using the fallback MSI path.
-Replace placeholders with values from the enrollment response, the staging
-lease public key, and the update verification public key.
-
-```powershell
-$packagePath = 'C:\AFK4-Smoke\afk4-gaming-pc-0.1.0-ci-internal.msi'
-$leasePublicKeyPath = 'C:\AFK4-Smoke\staging-session-signing-public.pem'
-$updatePublicKeyPath = 'C:\AFK4-Smoke\staging-update-signing-public.pem'
-$deviceCredentialSecret = '<credentialSecret-from-enrollment-response>'
-$organizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08'
-$branchId = 'acfc0212-967f-4d84-94be-9003387b09c2'
-$deviceId = '<deviceId-from-enrollment-response>'
-
 New-Item -ItemType Directory -Force -Path 'C:\ProgramData\AFK4\Agent\InstallLogs' | Out-Null
-msiexec.exe /i $packagePath /qn /norestart /l*v C:\ProgramData\AFK4\Agent\InstallLogs\gaming-pc-install.log
-
-Stop-Service -Name AFK4.Agent.Service -ErrorAction SilentlyContinue
-
-$leasePublicKeyPem = Get-Content -Raw -LiteralPath $leasePublicKeyPath
-$updatePublicKeyPem = Get-Content -Raw -LiteralPath $updatePublicKeyPath
-
-[Environment]::SetEnvironmentVariable('Agent__PlatformBaseUrl', 'https://afk4.staging.mubi.dev', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__OrganizationId', $organizationId, 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__BranchId', $branchId, 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__DeviceId', $deviceId, 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__MachineName', $env:COMPUTERNAME, 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__AgentVersion', '0.1.0', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__ShellVersion', '0.1.0', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__DeviceCredentialSecret', $deviceCredentialSecret, 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__LeaseSigningPublicKeyPem', $leasePublicKeyPem, 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__PlayerShellExecutablePath', 'C:\Program Files\AFK4\Player Shell\AFK4.Player.Shell.exe', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__PlayerShellAutoStartEnabled', 'True', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateChannel', 'internal', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateInstallerExecutablePath', 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateInstallerArgumentsTemplate', '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\install-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateRollbackExecutablePath', 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateRollbackArgumentsTemplate', '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\rollback-afk4-update-msi.ps1" -PackagePath "{PackagePath}" -Component "{Component}" -Version "{Version}"', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateRestartExecutablePath', 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdateRestartArgumentsTemplate', '-NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\AFK4\Update Helpers\restart-afk4-agent-service.ps1"', 'Machine')
-[Environment]::SetEnvironmentVariable('Agent__UpdatePackageSigningPublicKeyPem', $updatePublicKeyPem, 'Machine')
-
-Start-Service -Name AFK4.Agent.Service
-sc.exe query AFK4.Agent.Service
+Start-Process msiexec.exe `
+  -Wait `
+  -ArgumentList @(
+    '/i',
+    $agentMsiPath,
+    '/norestart',
+    '/l*v',
+    'C:\ProgramData\AFK4\Agent\InstallLogs\agent-install.log')
 ```
 
-Expected:
+Expected immediately after install:
 
-- service state becomes `RUNNING`;
-- install log exists under `C:\ProgramData\AFK4\Agent\InstallLogs`;
-- `C:\ProgramData\AFK4\Agent\runtime-state.json` exists after the first
+- `AFK4.Agent.Service` is installed with demand start and is not expected to
+  run before wizard enrollment;
+- `C:\Program Files\AFK4\Setup Wizard\AFK4.SetupWizard.exe` exists;
+- a Start Menu shortcut exists under AFK4;
+- HKLM `RunOnce` has an `AFK4 Setup Wizard` entry until the wizard runs;
+- the Setup Wizard opens in the interactive desktop when the installer can
+  launch it.
+
+If the wizard does not open automatically, run:
+
+```powershell
+& 'C:\Program Files\AFK4\Setup Wizard\AFK4.SetupWizard.exe'
+```
+
+In the wizard:
+
+1. Enter the 8-digit owner code from `/club/install`.
+2. Choose the branch.
+3. Choose a free seat, or create a new seat from the wizard.
+4. Select `Gaming PC` or `Manager workstation`.
+5. Finish enrollment.
+
+Expected after successful wizard enrollment:
+
+- machine environment contains `Agent__PlatformBaseUrl`,
+  `Agent__OrganizationId`, `Agent__BranchId`, `Agent__DeviceId`,
+  `Agent__DeviceRole`, `Agent__DeviceCredentialSecret`,
+  `Agent__LeaseSigningPublicKeyPem`, `Agent__UpdateChannel`, and
+  `Agent__UpdatePackageSigningPublicKeyPem`;
+- `AFK4.Agent.Service` is switched to automatic startup and is running;
+- `C:\ProgramData\AFK4\Agent\runtime-state.json` appears after the first
   heartbeat loop;
-- the backend device detail shows a recent heartbeat.
+- the dashboard/API device detail shows the selected role, enrollment state,
+  seat assignment, and recent heartbeat.
 
 If the service does not start, capture:
 
 ```powershell
 sc.exe query AFK4.Agent.Service
-Get-Content -LiteralPath C:\ProgramData\AFK4\Agent\InstallLogs\gaming-pc-install.log -Tail 120
+Get-Content -LiteralPath C:\ProgramData\AFK4\Agent\InstallLogs\agent-install.log -Tail 120
 Get-WinEvent -LogName Application -MaxEvents 100 |
   Where-Object { $_.ProviderName -like '*AFK4*' -or $_.Message -like '*AFK4*' } |
   Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message
@@ -547,7 +531,7 @@ On the release workstation, verify heartbeat, installed apps, diagnostics, and
 SignalR registration evidence.
 
 ```powershell
-$deviceId = $enrollment.deviceId
+$deviceId = '<deviceId-from-Setup-Wizard-machine-env-or-dashboard>'
 
 $deviceDetail = Invoke-RestMethod `
     "$baseUrl/api/devices/$deviceId" `
@@ -689,6 +673,7 @@ $deviceDetail.recentCommands | Select-Object commandId,type,status,message,updat
 On the PC:
 
 ```powershell
+[Environment]::GetEnvironmentVariable('Agent__DeviceId', 'Machine')
 Get-Content -LiteralPath C:\ProgramData\AFK4\Agent\runtime-state.json -Raw
 Get-Content -LiteralPath C:\ProgramData\AFK4\Agent\session-lease.json -Raw
 ```
@@ -788,7 +773,13 @@ $restartedSession = Invoke-RestMethod `
 Run this baseline check even when no package is being offered. It verifies the
 device-authenticated update boundary without installing anything.
 
+For a `gaming_pc`, report `agent-service` and `player-shell`. For a
+`manager_workstation`, report `agent-service` and `operator-app` instead.
+The example below is the gaming-PC shape.
+
 ```powershell
+$deviceCredentialSecret = '<device-credential-secret-from-Setup-Wizard-machine-env>'
+
 $updateCheckBody = @{
     organizationId = $organizationId
     branchId = $branchId
@@ -810,7 +801,7 @@ $updateCheckBody = @{
 $updateCheck = Invoke-RestMethod `
     "$baseUrl/api/devices/$deviceId/updates/check" `
     -Method Post `
-    -Headers @{ 'X-AFK4-Device-Credential' = $enrollment.credentialSecret } `
+    -Headers @{ 'X-AFK4-Device-Credential' = $deviceCredentialSecret } `
     -ContentType 'application/json' `
     -Body $updateCheckBody
 ```
@@ -833,7 +824,8 @@ Expected for a passing Agent-side update smoke:
   `C:\ProgramData\AFK4\Agent\Updates`;
 - the update log is written under
   `C:\ProgramData\AFK4\Agent\UpdateLogs`;
-- Windows Installer logs a successful AFK4 Gaming PC Client install;
+- Windows Installer logs successful Agent, Player Shell, or Operator App MSI
+  installs for the components intentionally offered to this device;
 - the Agent service restarts and continues heartbeats;
 - backend rollout status for this device reaches `installed`;
 - device detail reports the target Agent/Shell versions.
@@ -874,7 +866,7 @@ Evidence to collect:
 - staging health response time and status;
 - migration state if DB access is available;
 - staff sign-in success without recording token values;
-- PC enrollment code creation timestamp, not the code value;
+- owner-code generation/rotation timestamp and suffix, not the full code;
 - enrolled `deviceId`, not the credential secret;
 - service install log;
 - `sc.exe query` output;
@@ -894,12 +886,21 @@ Overall pass requires:
 
 - staging `GET /api/health` returns `status = ok` without insecure TLS flags;
 - staging staff sign-in succeeds for the smoke staff user;
-- a short-lived PC enrollment code enrolls one Windows 10/11 PC;
+- the customer dashboard displays/generates an owner code without direct
+  database edits;
+- the single `AFK4 Agent` MSI installs on one clean Windows 10/11 PC;
+- Setup Wizard discovers branches/floor-map data with the owner code and
+  enrolls the device into the selected branch, seat, and role;
 - the Agent Service runs as `AFK4.Agent.Service`;
 - authenticated heartbeat succeeds repeatedly;
 - SignalR connects and registers the device, or the fallback heartbeat command
   path is explicitly observed;
 - installed apps are reported and visible in device detail;
+- `gaming_pc` role installs Player Shell through the update channel, or a
+  concrete role-aware update blocker is recorded;
+- `manager_workstation` role installs or verifies WebView2 and installs
+  Operator App through the update channel, or a concrete role-aware update
+  blocker is recorded;
 - session start returns backend approval and creates an unlock command;
 - Agent accepts the signed lease and records active runtime state;
 - Player Shell is auto-started by the Agent into the interactive desktop
