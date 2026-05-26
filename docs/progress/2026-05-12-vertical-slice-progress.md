@@ -3817,7 +3817,12 @@ Operator App WebView2/React first implementation on 2026-05-20:
   showed `Agent__AgentVersion=0.1.26` but `AFK4.Agent.Service` stayed stopped,
   exposing that the single Agent MSI registered the service as demand-start.
   The Agent MSI now registers `AFK4.Agent.Service` with automatic startup while
-  still avoiding `Start="install"` before owner-code enrollment.
+  still avoiding `Start="install"` before owner-code enrollment. Commit
+  `afe9682` pushed the auto-start MSI fix; remote `Package Smoke` run
+  `26440557787` passed, published internal Agent MSI `0.1.27` at
+  `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.27/afk4-agent-0.1.27-internal.msi`,
+  and created staging Agent rollout
+  `0e9d0cfc-0b26-4812-af33-c47c0da3d3a7` targeting VM2.
 
 ## Historical Reference
 
