@@ -32,7 +32,15 @@
                     Padding="12,8"
                     CornerRadius="6"
                     HorizontalAlignment="Right">
-                <TextBlock x:Name="StepLabel" FontWeight="SemiBold" />
+                <Grid>
+                    <TextBlock x:Name="StepLabel" FontWeight="SemiBold" />
+                    <Button x:Name="DoneButton"
+                            Content="Done"
+                            MinWidth="52"
+                            Padding="8,3"
+                            Visibility="Collapsed"
+                            Click="Done_OnClick" />
+                </Grid>
             </Border>
         </DockPanel>
 

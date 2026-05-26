@@ -248,6 +248,46 @@ public sealed class WorkerTests
         Assert.Equal("Accepted", handler.ResultBody.Status);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_RetriesHeartbeatWithoutStoppingWhenPlatformIsUnavailable()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var recoveredHeartbeat = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new FailingThenCapturingHeartbeatHandler(recoveredHeartbeat, stopping);
+        var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
+        });
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            httpClientFactory,
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter());
+
+        await worker.StartAsync(stopping.Token);
+        await recoveredHeartbeat.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal(2, handler.AttemptCount);
+        Assert.Equal($"/api/devices/{options.Value.DeviceId:D}/heartbeat", handler.RecoveredRequestUri?.PathAndQuery);
+    }
+
     private sealed class ThrowingRealtimeClient(Exception exception) : IDeviceRealtimeClient
     {
         public Task StartAsync(CancellationToken cancellationToken)
@@ -502,6 +542,40 @@ public sealed class WorkerTests
             stopping.Cancel();
 
             return new HttpResponseMessage(HttpStatusCode.OK);
+        }
+    }
+
+    private sealed class FailingThenCapturingHeartbeatHandler(
+        TaskCompletionSource recoveredHeartbeat,
+        CancellationTokenSource stopping) : HttpMessageHandler
+    {
+        public int AttemptCount { get; private set; }
+
+        public Uri? RecoveredRequestUri { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            AttemptCount++;
+            if (AttemptCount == 1)
+            {
+                throw new HttpRequestException("platform unavailable");
+            }
+
+            RecoveredRequestUri = request.RequestUri;
+            recoveredHeartbeat.TrySetResult();
+            stopping.Cancel();
+
+            var response = new DeviceHeartbeatResponse(
+                ServerTimeUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                HeartbeatIntervalSeconds: 10,
+                Commands: []);
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(response)
+            });
         }
     }
 }

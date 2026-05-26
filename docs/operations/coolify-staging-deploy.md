@@ -96,12 +96,23 @@ Required Platform API variables:
 ASPNETCORE_ENVIRONMENT=Staging
 ASPNETCORE_URLS=http://+:8080
 AllowedHosts=<coolify-staging-domain>;localhost;127.0.0.1
-AFK4_STAGING_PUBLIC_BASE_URL=https://<coolify-staging-domain>
+Install__ApiBaseUrl=https://<coolify-staging-domain>
+Install__UpdateChannel=internal
+Install__UpdatePackageSigningPublicKeyPem=<public PEM from deploy/coolify/staging-update-signing-public.pem>
 Cors__PlatformWebOrigins__0=https://platform.afk4.staging.mubi.dev
 Cors__PlatformWebOrigins__1=https://app.afk4.staging.mubi.dev
 ConnectionStrings__PlatformDatabase=<Coolify PostgreSQL connection string>
 Sessions__SigningPrivateKeyPem=<Coolify secret PEM>
 ```
+
+The `Install__*` entries are returned by `/api/install/enroll` and then written
+by the Setup Wizard into Agent machine environment variables. If
+`Install__ApiBaseUrl` is missing, the API falls back to the local development
+default `http://localhost:5074`, causing clean staging VMs to enroll
+successfully but then send Agent heartbeat/update traffic to localhost. Use the
+contents of `deploy/coolify/staging-update-signing-public.pem` for
+`Install__UpdatePackageSigningPublicKeyPem`; it is a public verification key,
+but it must be preserved as multiline text.
 
 The `Cors__PlatformWebOrigins__*` entries are required for the browser-hosted
 admin and customer SPAs. Without the customer `app.afk4.staging.mubi.dev`

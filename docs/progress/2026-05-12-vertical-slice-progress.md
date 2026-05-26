@@ -1811,12 +1811,13 @@ Operator App redesign branch-local verification on 2026-05-20:
 
 1. Keep enforcing the manual PR merge rule from `AGENTS.md`: current head
    commit must have a green remote `PR Verification Result`.
-2. Run Slice 3.4 clean Windows VM smoke from
-   `docs/operations/real-device-windows-pc-smoke.md`: owner generates an owner
-   code in the customer dashboard, installs the single `AFK4 Agent` MSI, uses
-   Setup Wizard to enroll as `gaming_pc`, verifies Player Shell role-aware
-   install/session lifecycle, then repeats or extends for `manager_workstation`
-   to verify WebView2/Operator App install.
+2. Continue Slice 3.4 clean Windows VM smoke from
+   `docs/operations/real-device-windows-pc-smoke.md` after rebuilding/publishing
+   an Agent MSI that contains the 2026-05-26 Agent heartbeat retry and Setup
+   Wizard `Done` button fix. Existing already-enrolled staging VMs can be
+   repaired by setting `Agent__PlatformBaseUrl=https://afk4.staging.mubi.dev`
+   before restarting `AFK4.Agent.Service`, but pass evidence should come from
+   the corrected package path.
 3. After Slice 3.4 passes, proceed to Slice 3.5: retire the legacy
    `gaming-pc-bootstrap`/coordinated gaming-PC MSI path from the default
    publishing/onboarding flow while preserving any needed migration notes for
@@ -3750,6 +3751,28 @@ Operator App WebView2/React first implementation on 2026-05-20:
   instead of 403 when no active code exists, and staging PostgreSQL public
   access was closed again after the direct role repair. The smoke runbook
   fallback seed now assigns `owner` for this fixed staging account.
+
+- 2026-05-26: the first clean Windows 11 VM owner-code enrollment with the
+  single Agent MSI reached Setup Wizard `Finished` and created device
+  `c3d82b36-4b11-40bb-8ad8-f270d6078bb0`, but the device stayed offline.
+  VM evidence showed `Agent__PlatformBaseUrl=http://localhost:5074`, so the
+  Agent was calling the VM-local development URL and the heartbeat
+  `HttpRequestException` escaped the main heartbeat loop, stopping
+  `AFK4.Agent.Service`. Live Coolify staging was corrected by adding
+  `Install__ApiBaseUrl=https://afk4.staging.mubi.dev`,
+  `Install__UpdateChannel=internal`, and
+  `Install__UpdatePackageSigningPublicKeyPem` to the Platform API app
+  environment, then restarting the API; `GET /api/health` returned `ok`
+  afterward. Code now keeps the Agent Service alive and retrying when heartbeat
+  delivery fails, and the Setup Wizard finished-state header uses a real
+  clickable `Done` button instead of a non-interactive label. The smoke
+  runbook and Coolify staging env template now call out the required
+  `Install__*` settings and the VM hotfix for already-enrolled machines.
+  Local verification passed:
+  `dotnet test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~WorkerTests|FullyQualifiedName~CoolifyContainerDeploymentTests|FullyQualifiedName~RealDeviceSmokeRunbookTests"`,
+  `dotnet test tests\AFK4.SetupWizard.Tests\AFK4.SetupWizard.Tests.csproj`,
+  `dotnet build src\AFK4.SetupWizard\AFK4.SetupWizard.csproj`,
+  `dotnet build AFK4.sln`, and `dotnet test AFK4.sln --no-restore`.
 
 ## Historical Reference
 

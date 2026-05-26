@@ -69,7 +69,9 @@ public sealed class CoolifyContainerDeploymentTests
         Assert.Contains("SSL Mode=Disable", envTemplate, StringComparison.Ordinal);
         Assert.Contains("GSS Encryption Mode=Disable", envTemplate, StringComparison.Ordinal);
         Assert.Contains("Sessions__SigningPrivateKeyPem=", envTemplate, StringComparison.Ordinal);
-        Assert.Contains("AFK4_STAGING_PUBLIC_BASE_URL=", envTemplate, StringComparison.Ordinal);
+        Assert.Contains("Install__ApiBaseUrl=https://<coolify-staging-domain>", envTemplate, StringComparison.Ordinal);
+        Assert.Contains("Install__UpdateChannel=internal", envTemplate, StringComparison.Ordinal);
+        Assert.Contains("Install__UpdatePackageSigningPublicKeyPem=", envTemplate, StringComparison.Ordinal);
         Assert.Contains("runtime-only", envTemplate, StringComparison.Ordinal);
         Assert.Contains("<coolify", envTemplate, StringComparison.OrdinalIgnoreCase);
 
@@ -105,6 +107,8 @@ public sealed class CoolifyContainerDeploymentTests
         Assert.Contains("src/AFK4.Platform.Api/Dockerfile", runbook, StringComparison.Ordinal);
         Assert.Contains("deploy/coolify/staging.env.template", runbook, StringComparison.Ordinal);
         Assert.Contains("ConnectionStrings__PlatformDatabase", runbook, StringComparison.Ordinal);
+        Assert.Contains("Install__ApiBaseUrl=https://<coolify-staging-domain>", runbook, StringComparison.Ordinal);
+        Assert.Contains("Install__UpdatePackageSigningPublicKeyPem", runbook, StringComparison.Ordinal);
         Assert.Contains("AllowedHosts=<coolify-staging-domain>;localhost;127.0.0.1", runbook, StringComparison.Ordinal);
         Assert.Contains("http://localhost:8080/api/health", runbook, StringComparison.Ordinal);
         Assert.Contains("runtime-only", runbook, StringComparison.Ordinal);

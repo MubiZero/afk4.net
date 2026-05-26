@@ -68,6 +68,11 @@ public partial class MainWindow : Window
         await RunAsync(() => viewModel.EnrollAsync(CancellationToken.None));
     }
 
+    private void Done_OnClick(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
     private async Task RunAsync(Func<Task> action)
     {
         IsEnabled = false;
@@ -111,5 +116,11 @@ public partial class MainWindow : Window
             SetupWizardStep.RoleSelection => "Step 4 of 4",
             _ => "Done"
         };
+        StepLabel.Visibility = viewModel.CurrentStep == SetupWizardStep.Finished
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        DoneButton.Visibility = viewModel.CurrentStep == SetupWizardStep.Finished
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 }

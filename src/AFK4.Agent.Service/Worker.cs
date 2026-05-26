@@ -22,6 +22,8 @@ public sealed class Worker(
     IInstalledAppInventoryCollector installedAppInventoryCollector,
     IInstalledAppReporter installedAppReporter) : BackgroundService
 {
+    private const int HeartbeatRetryIntervalSeconds = 10;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var agentOptions = options.Value;
@@ -50,6 +52,16 @@ public sealed class Worker(
         {
             await TryEnforceGraceModeAsync(stoppingToken);
             await TryMaintainPlayerShellAsync(stoppingToken);
+            var intervalSeconds = await TrySendHeartbeatAsync(client, stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+        }
+    }
+
+    private async Task<int> TrySendHeartbeatAsync(HttpClient client, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var agentOptions = options.Value;
             var runtimeState = runtimeStateStore.Current;
             var request = HeartbeatPayloadFactory.Create(
                 agentOptions,
@@ -66,19 +78,28 @@ public sealed class Worker(
                 message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, agentOptions.DeviceCredentialSecret);
             }
 
-            var response = await client.SendAsync(message, stoppingToken);
+            var response = await client.SendAsync(message, cancellationToken);
 
             response.EnsureSuccessStatusCode();
-            var heartbeat = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>(cancellationToken: stoppingToken);
+            var heartbeat = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>(cancellationToken: cancellationToken);
             if (heartbeat is not null)
             {
-                await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, stoppingToken);
+                await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
             }
 
-            var intervalSeconds = heartbeat?.HeartbeatIntervalSeconds ?? 10;
+            var intervalSeconds = heartbeat?.HeartbeatIntervalSeconds ?? HeartbeatRetryIntervalSeconds;
 
             logger.LogInformation("Heartbeat sent for {DeviceId}. Next heartbeat in {IntervalSeconds}s.", agentOptions.DeviceId, intervalSeconds);
-            await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+            return intervalSeconds;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Heartbeat failed. Retrying without stopping the Agent Service.");
+            return HeartbeatRetryIntervalSeconds;
         }
     }
 

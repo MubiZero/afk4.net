@@ -506,6 +506,11 @@ In the wizard:
 4. Select `Gaming PC` or `Manager workstation`.
 5. Finish enrollment.
 
+The finished page should expose a clickable `Done` button that closes the
+wizard. If an older MSI shows `Done` as a non-clickable label, close the wizard
+window or stop `AFK4.SetupWizard.exe` after confirming the bootstrap
+environment and Agent Service state.
+
 Expected after successful wizard enrollment:
 
 - machine environment contains `Agent__PlatformBaseUrl`,
@@ -513,6 +518,8 @@ Expected after successful wizard enrollment:
   `Agent__DeviceRole`, `Agent__DeviceCredentialSecret`,
   `Agent__LeaseSigningPublicKeyPem`, `Agent__UpdateChannel`, and
   `Agent__UpdatePackageSigningPublicKeyPem`;
+- `Agent__PlatformBaseUrl` is exactly `https://afk4.staging.mubi.dev`, not
+  `http://localhost:5074`;
 - `AFK4.Agent.Service` is switched to automatic startup and is running;
 - `C:\ProgramData\AFK4\Agent\runtime-state.json` appears after the first
   heartbeat loop;
@@ -527,6 +534,29 @@ Get-Content -LiteralPath C:\ProgramData\AFK4\Agent\InstallLogs\agent-install.log
 Get-WinEvent -LogName Application -MaxEvents 100 |
   Where-Object { $_.ProviderName -like '*AFK4*' -or $_.Message -like '*AFK4*' } |
   Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message
+```
+
+If the service starts and then stops with `HttpRequestException` for
+`localhost:5074`, the VM was enrolled while the staging API was missing
+`Install__ApiBaseUrl`. Confirm the live Coolify Platform API environment has:
+
+```text
+Install__ApiBaseUrl=https://afk4.staging.mubi.dev
+Install__UpdateChannel=internal
+Install__UpdatePackageSigningPublicKeyPem=<staging update signing public PEM>
+```
+
+After fixing the live API and restarting it, repair the already-enrolled VM
+without reinstalling:
+
+```powershell
+[Environment]::SetEnvironmentVariable('Agent__PlatformBaseUrl', 'https://afk4.staging.mubi.dev', 'Machine')
+Stop-Service AFK4.Agent.Service -Force -ErrorAction SilentlyContinue
+Start-Service AFK4.Agent.Service
+Start-Sleep 20
+sc.exe query AFK4.Agent.Service
+[Environment]::GetEnvironmentVariable('Agent__PlatformBaseUrl', 'Machine')
+Get-Content C:\ProgramData\AFK4\Agent\runtime-state.json
 ```
 
 ## Baseline Device Evidence
