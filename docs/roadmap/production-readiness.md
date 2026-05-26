@@ -105,10 +105,11 @@ Minimum bar:
    green remote `PR Verification Result` before merge. A local 2026-05-26
    readiness pass found that the manual `Client Packages` workflow was rejected
    by GitHub before job creation because `workflow_dispatch` had 27 top-level
-   inputs. The local fix keeps it under GitHub's 25-input limit by replacing
+   inputs. The pushed fix keeps it under GitHub's 25-input limit by replacing
    the six HTTP PUT artifact URI inputs with one JSON input; `actionlint` and
-   focused release-automation tests pass locally, but the manual workflow still
-   needs remote validation after the fix is pushed.
+   focused release-automation tests passed locally. Later `Package Smoke` runs
+   are green, but a successful remote manual `Client Packages` dispatch is not
+   yet recorded.
 
 4. **Windows Endpoint Smoke**
 
@@ -176,9 +177,10 @@ Minimum bar:
    `gaming_pc` devices pull a standalone Player Shell MSI, `manager_workstation`
    devices pull the Operator App MSI after a WebView2 runtime check/install,
    and update metadata publishing now uses separate Operator App, Agent, and
-   Player Shell MSI artifacts. The legacy coordinated `afk4-gaming-pc` MSI
-   remains in the build/staging-bootstrap path until clean-VM smoke and
-   deprecation slices retire it.
+   Player Shell MSI artifacts. The corrected single Agent MSI path now has
+   Windows 11 VM evidence through internal Agent version `0.1.29`; the legacy
+   coordinated `afk4-gaming-pc` MSI remains only as a staging fallback until
+   Slice 3.5 retires it from the default flow.
    On 2026-05-18, an already enrolled Windows 11 VM installed
    Agent/Shell `0.1.3` through the Agent update pipeline and reported
    `installed` to the backend. Follow-up staging rollouts brought that VM to
@@ -233,15 +235,18 @@ Minimum bar:
    dispatch, and device credential rotation/revocation through existing backend
    endpoints on `codex/operator-app-redesign`. Club self-service onboarding
    now has the backend install path, branch device admin APIs, and first
-   owner-facing Platform.Web screens locally: owner-code discover/enroll can
+   owner-facing Platform.Web screens on `main` and staging: owner-code
+   discover/enroll can
    create approved or pending devices, issue device credentials, attach the
    selected seat, and apply both app-layer and documented Traefik rate-limit
    protection; the SPA now has separate admin/customer audience builds. The
-  customer `app.afk4.staging.mubi.dev` Coolify app is deployed; the
-  Setup Wizard now ships inside a single Agent MSI locally, and Agent
-  role-aware Player Shell / Operator App component install exists locally, but
-  clean Windows VM smoke still needs to pass before this replaces the scripted
-  pilot setup path.
+   customer `app.afk4.staging.mubi.dev` Coolify app is deployed. The Setup
+  Wizard now ships inside the single Agent MSI, Agent role-aware Player Shell /
+  Operator App component install exists, and the Windows 11 VM Agent MSI path
+  has reached version `0.1.29` with reboot/service-start evidence. The remaining
+  cleanup is retiring the legacy scripted/coordinated MSI path in Slice 3.5,
+  with `manager_workstation` evidence collected as needed for strict Slice 3.4
+  sign-off.
 
 ## Commercial Production Blockers
 
@@ -253,9 +258,10 @@ Minimum bar:
 - Internal SaaS Control Plane and no-DB-edit tenant provisioning are partially
   implemented and smoke-tested in staging for platform-admin tenant creation,
   owner invites, tenant status, support notes, and health. The customer SPA
-  host is deployed; the Windows SetupWizard/MSI packaging path exists locally,
-  including role-aware component installation, but clean-VM smoke remains an
-  onboarding blocker.
+  host is deployed, and the Windows SetupWizard/single Agent MSI path has
+  Windows 11 VM evidence through Agent `0.1.29`. Remaining onboarding work is
+  Slice 3.5 legacy installer retirement plus any strict `manager_workstation`
+  role smoke not yet captured.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
@@ -299,12 +305,12 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring and Windows 11 VM smoke evidence. Physical service startup validation
   remains hardening through the real-device smoke runbook.
-- A staging-only Gaming PC bootstrap path exists, and Slices 3.2/3.3 add the
-  local single `afk4-agent` MSI artifact plus role-aware Player Shell/Operator
-  App installation for owner-code Setup Wizard onboarding. The
-  older release-workstation
-  setup executable path remains in code, but the preferred clean VM path is now
-  the MinIO-hosted remote bootstrap script from `Package Smoke`:
+- A staging-only Gaming PC bootstrap path exists as a legacy fallback, and the
+  preferred onboarding path is now the single `afk4-agent` MSI with the
+  owner-code Setup Wizard plus role-aware Player Shell/Operator App
+  installation. The older release-workstation setup executable path remains in
+  code until Slice 3.5 cleanup; the MinIO-hosted remote bootstrap script from
+  `Package Smoke` is no longer the current pass-evidence path:
   `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json`.
   A first Windows 11 VM passed rebuilt x64 install/enroll/heartbeat, session
   start/end, signed lease, local runtime state, and visible Player Shell
@@ -315,10 +321,11 @@ Minimum bar:
   because service startup happened before machine config was written. Corrected
   bootstrap version `0.1.14` passed clean Windows 11 VM install/enroll/
   seat-assignment/heartbeat/locked-Shell smoke, then passed two session
-  start/end cycles with no-SQL seat/device reuse. The new `afk4-agent` MSI has
-  not yet replaced the remote bootstrap path because clean-VM end-to-end smoke
-  is Slice 3.4. Repeat that remote bootstrap path on physical Windows hardware
-  as hardening before wider rollout.
+  start/end cycles with no-SQL seat/device reuse. The single `afk4-agent` MSI
+  path then reached internal Agent `0.1.29` on VM2 with update, automatic
+  service-start after reboot, and no Setup Wizard rerun after upgrade. Repeat
+  the current Agent MSI path on physical Windows hardware as hardening before
+  wider rollout.
 - Lock/unlock enforcement has adapter coverage and Windows 11 VM smoke
   evidence. Physical Windows validation remains hardening before wider rollout.
 - Player Shell service-session competition is mitigated in code by
@@ -351,7 +358,7 @@ Minimum bar:
   where older active rollouts could still be offered after a newer version was
   installed; PR #22 fixed the offer filter and staging was redeployed. Manual
   copying of rebuilt client packages is no longer the preferred clean-machine
-  path; use the remote bootstrap manifest/script for clean staging PCs and the
+  path; use the current single Agent MSI for clean staging PCs and the
   signed/internal MSI rollout path for already enrolled PCs. No separate update
   development branch is planned now; repeat update and rollback evidence on
   physical hardware as broader release hardening.
@@ -514,7 +521,15 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. Operator App WebView2/React migration
+1. Slice 3.5 legacy installer retirement
+
+   Remove the legacy `gaming-pc-bootstrap`/coordinated gaming-PC MSI path from
+   the default publishing and onboarding flow now that the single Agent MSI has
+   Windows 11 VM evidence through `0.1.29`. Preserve migration notes for
+   already-enrolled staging devices and keep any fallback code only where it is
+   explicitly still needed.
+
+2. Operator App WebView2/React migration
 
    Continue
    `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
@@ -566,19 +581,19 @@ Minimum bar:
    GUID/form surfaces in the main operator path as usability defects unless
    they are explicitly advanced technician tools.
 
-2. Operator-facing management expansion
+3. Operator-facing management expansion
 
    The one-shot Pilot Setup panel is enough for pilot setup. Next development
    should expand toward general staff/role, layout, device-seat, tariff, POS,
    and runtime/staging configuration screens as pilot usability requires.
 
-3. Physical Windows hardening
+4. Physical Windows hardening
 
    Repeat `docs/operations/real-device-windows-pc-smoke.md` on physical
    Windows 10/11 hardware when hardware is available. Treat findings as
    hardening work unless they block the current Operator App staging test.
 
-4. Staging secret hygiene
+5. Staging secret hygiene
 
    Rotate the exposed restore-rehearsal Coolify token before sensitive staging
    operations, then keep future tokens in a secret manager or local

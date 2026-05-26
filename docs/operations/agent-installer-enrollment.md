@@ -1,7 +1,7 @@
 # Agent Installer Enrollment Runbook
 
-Status: Slice 3.3 role-aware Setup Wizard MSI runbook
-Last updated: 2026-05-25
+Status: current Setup Wizard MSI runbook after Slice 3.4 VM evidence
+Last updated: 2026-05-26
 
 ## Purpose
 
@@ -73,8 +73,8 @@ update channel according to the enrolled device role.
     loaded by the running service.
 
 The legacy PC enrollment code path and coordinated `afk4-gaming-pc` MSI remain
-available for staging smoke until the clean-VM smoke and deprecation slices
-replace them.
+available only as staging fallback paths until Slice 3.5 retires them from the
+default onboarding/publishing flow.
 
 ## Safety Rules
 

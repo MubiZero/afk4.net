@@ -1,6 +1,6 @@
 # AFK4 Club Self-Service Onboarding Plan
 
-Status: Draft for implementation
+Status: active; Slices 1.1-3.4 implemented/evidenced, Slice 3.5 next
 Date: 2026-05-24
 Owner: AFK4 platform
 
@@ -283,9 +283,10 @@ These are agreed and should not be re-litigated during implementation.
 
 1. **Single MSI now, signed later.** Pilot 1-2 ship unsigned. SmartScreen
    "Unverified publisher" warning is accepted as a known issue until
-   SignPath Foundation approves. `bootstrap.ps1` is retired in Slice 3.5
-   contingent on a clean Slice 3.4 VM smoke pass; it stays in the repo
-   until then so VM tests aren't suddenly broken mid-cycle.
+   SignPath Foundation approves. The single Agent MSI path has Windows 11 VM
+   evidence through Agent `0.1.29`; `bootstrap.ps1` and the coordinated legacy
+   MSI path stay only until Slice 3.5 removes them from the default
+   publishing/onboarding flow with migration notes for existing test devices.
 2. **One owner-code, not a per-device enrollment code, drives installer
    auth.** Code is 8 digits numeric (decision anchored — see Risk #1),
    rotatable, audit-logged, and only valid for the install/* endpoints
@@ -676,14 +677,15 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   discovery, auto-approved vs pending enrollment, rejected/success audit,
   per-code five-strike owner-code revocation for resolved install failures,
   app-layer install backoff, and Coolify ingress rate-limit recipe updates.
-- **Slice 1.4** - completed locally on `codex/slice-1.4-devices-admin`:
+- **Slice 1.4** - completed on `main` (original branch
+  `codex/slice-1.4-devices-admin`):
   branch device inventory now carries display name, role, and enrollment
   state; pending-device queue plus approve/reject/rename/move-seat/remove
   staff APIs are implemented with audit records, credential revocation on
   reject/remove, active-session remove protection, removed-device list hiding,
   and `deviceStatusChanged` notifications for admin state changes.
-- **Slice 2.1** - completed locally on
-  `codex/slice-2.1-platform-web-routes`: the existing `Platform.Web`
+- **Slice 2.1** - completed on `main` (original branch
+  `codex/slice-2.1-platform-web-routes`): the existing `Platform.Web`
   platform-admin tenant list/create/detail screens now resolve under
   `/admin`, `/admin/tenants`, `/admin/tenants/new`, and
   `/admin/tenants/{organizationId}`. Legacy root-level admin bookmarks
@@ -691,15 +693,16 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   `history.replaceState`; in-app transitions use admin-prefixed URLs and
   `popstate` handles browser back/forward. No new `/auth` or `/club` screens
   are included in this slice.
-- **Slice 2.2** - completed locally on `codex/slice-2.2-auth-pages`:
+- **Slice 2.2** - completed on `main` (original branch
+  `codex/slice-2.2-auth-pages`):
   `Platform.Web` now has public `/auth/accept-invite` and `/auth/sign-in`
   pages wired to the existing accept-invite and staff sign-in endpoints.
   Staff auth uses a separate session store from platform-admin auth, successful
   accept/sign-in redirects to `/club`, `/auth/forgot-password` and
   `/auth/reset-password` are reserved, and `/club` is only a minimal signed-in
   handoff until the Slice 2.3 customer dashboard screens land.
-- **Slice 2.3** - completed locally on
-  `codex/slice-2.3-club-dashboard`: `Platform.Web` now resolves the first
+- **Slice 2.3** - completed on `main` (original branch
+  `codex/slice-2.3-club-dashboard`): `Platform.Web` now resolves the first
   customer dashboard MVP routes under `/club/*`. Successful accept-invite and
   staff sign-in redirect to `/club/install`; the signed-in club shell has
   install/owner-code generate-rotate, overview KPI, branch list/detail,
@@ -714,42 +717,43 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   pilot evidence: resolve by invite/session/host/slug or by unique staff login,
   and show a controlled tenant-picker or support error only when a staff login
   is legitimately ambiguous across organizations.
-- **Slice 2.4** - completed locally on
-  `codex/slice-2.4-terminology`: Platform Web visible copy now uses setup
+- **Slice 2.4** - completed on `main` (original branch
+  `codex/slice-2.4-terminology`): Platform Web visible copy now uses setup
   codes for owner onboarding, owner codes for the Windows setup wizard, and
   tenant/branch keys instead of visible slug labels. Public
   operations docs now call the legacy `/device-enrollment-codes` path PC
   enrollment codes while preserving endpoint names.
-- **Slice 2.5** - completed locally on
-  `codex/slice-2.5-platform-web-audience`: Platform Web now reads
+- **Slice 2.5** - completed on `main` (original branch
+  `codex/slice-2.5-platform-web-audience`): Platform Web now reads
   `VITE_AUDIENCE=admin|club|all`, gates route resolution/rendering so the admin
   build exposes `/admin/*` + `/auth/*` and the customer build exposes
   `/club/*` + `/auth/*`, redirects the customer host root to `/club/install`,
   and builds both audience variants. The shared Dockerfile accepts
   `VITE_AUDIENCE`, and Coolify ingress/runbook docs define the existing
   `platform.afk4.staging.mubi.dev` admin app plus the new
-  `app.afk4.staging.mubi.dev` customer app. Remote Coolify app creation remains
-  an operational follow-up when DNS/Coolify credentials are available.
-- **Slice 3.1** - completed locally on
-  `codex/slice-3.1-setup-wizard`: added `AFK4.SetupWizard.exe` as a direct-
+  `app.afk4.staging.mubi.dev` customer app; the customer app is now deployed in
+  staging.
+- **Slice 3.1** - completed on `main` (original branch
+  `codex/slice-3.1-setup-wizard`): added `AFK4.SetupWizard.exe` as a direct-
   debug WPF first-run wizard plus a tested `AFK4.SetupWizard.Core`. The wizard
   uses the staging install APIs to discover branches/floor maps by owner code,
   pick a free seat, add a missing seat through the new owner-code-scoped
   `/api/install/seats` endpoint, choose `gaming_pc` or
   `manager_workstation`, enroll with a stable local device public key, and
   write Agent bootstrap environment values.
-- **Slice 3.2** - completed locally on `codex/slice-3-2`: added the single
+- **Slice 3.2** - completed on `main` (original branch `codex/slice-3-2`):
+  added the single
   `afk4-agent-<version>-<channel>.msi` WiX package. The package publishes
   `AFK4.SetupWizard`, installs Agent Service + Setup Wizard + update helper
   scripts, adds a Start Menu shortcut, writes a first-run pending marker and
   HKLM `RunOnce` entry, attempts interactive postinstall wizard launch, starts
   the Agent Service after successful wizard enrollment, and is verified by the
   local package build script. The legacy coordinated
-  `afk4-gaming-pc` MSI remains in the build/update-smoke path until Agent
-  role-aware component install and legacy deprecation land. Agent role-aware
-  component install and clean-VM smoke remain Slices 3.3 and 3.4.
-- **Slice 3.3** - completed locally on `codex/slice-3-3`: Agent component
-  version reporting and Platform API update checks are now role-aware, so
+  `afk4-gaming-pc` MSI remains in the build/update-smoke path only as a staging
+  fallback until Slice 3.5 legacy deprecation lands.
+- **Slice 3.3** - completed on `main` (original branch `codex/slice-3-3`):
+  Agent component version reporting and Platform API update checks are
+  now role-aware, so
   `gaming_pc` devices pull `player-shell` and `manager_workstation` devices
   pull `operator-app` from the existing update channel while `agent-service`
   stays common. The build now produces a standalone
@@ -758,8 +762,14 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   Wizard writes update-helper configuration after owner-code enrollment; and
   the MSI helper installs WebView2 before applying the Operator App MSI when
   needed. Agent restarts after Agent, Player Shell, and Operator App component
-  installs so it reloads machine environment values written by the MSIs. Clean
-  Windows VM end-to-end smoke remains Slice 3.4.
+  installs so it reloads machine environment values written by the MSIs.
+- **Slice 3.4** - current staging evidence: the single Agent MSI owner-code
+  path reached internal Agent `0.1.29` on Windows 11 VM2. The run covered
+  enrollment, update rollout, service restart/reboot recovery, automatic
+  service startup after reboot, and no Setup Wizard rerun after upgrade. If
+  strict slice sign-off requires the second `manager_workstation` role path,
+  collect that from `0.1.29` or a newer green package; otherwise proceed to
+  Slice 3.5 legacy installer retirement.
 
 ## Testing
 
@@ -851,9 +861,10 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
    `MicrosoftEdgeWebView2Setup.exe /silent /install` if missing,
    surfaces install failure via heartbeat for the dashboard to show.
    Specified in Slice 3 step 4.
-10. **Removing `bootstrap.ps1`** breaks any in-flight VM tests. Slice 3.5
-    only runs after Slice 3.4 confirms the new path works on a clean
-    VM end-to-end. Until 3.5 lands, both paths exist side-by-side.
+10. **Removing `bootstrap.ps1`** can break any in-flight legacy VM tests.
+    Slice 3.5 should preserve migration/recovery notes for existing staging
+    devices while removing the legacy bootstrap/coordinated MSI path from the
+    default flow. Until 3.5 lands, both paths exist side-by-side.
 11. **`install.discover` audit noise.** Each wizard launch (30 PCs in
     a single onboarding) produces a discover call. Decision: audit
     **failed** discover lookups only (security signal), do not audit

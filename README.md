@@ -177,11 +177,11 @@ This produces the Operator App MSI, the new Agent + Setup Wizard onboarding
 MSI (`afk4-agent-<version>-<channel>.msi`), the standalone Player Shell MSI
 (`afk4-player-shell-<version>-<channel>.msi`), and the legacy coordinated
 gaming-PC MSI that remains only for staging bootstrap compatibility until the
-clean-VM smoke and deprecation slices replace it.
+Slice 3.5 deprecation cleanup removes it from the default flow.
 
-Build the staging one-click Gaming PC setup executable for clean Windows 11
-smoke VMs by supplying the committed staging session lease and update
-verification public keys:
+Build the legacy staging one-click Gaming PC setup executable only for
+fallback/recovery work by supplying the committed staging session lease and
+update verification public keys:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem

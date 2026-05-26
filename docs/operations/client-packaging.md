@@ -1,6 +1,6 @@
 # Client Packaging Runbook
 
-Status: Slice 3.3 Windows client packaging runbook
+Status: current Windows client packaging runbook after Slice 3.4 VM evidence
 Last updated: 2026-05-26
 
 ## Purpose
@@ -36,8 +36,8 @@ AFK4 uses WiX-authored MSI packages as the MVP packaging baseline:
 - Agent, Player Shell, and Operator App component installs schedule an Agent
   Service restart so machine environment values written by MSIs are reloaded.
 - The older coordinated gaming-PC MSI that contains Agent Service and Player
-  Shell remains in the package build and staging bootstrap path until Slice
-  3.4 clean-VM smoke passes and Slice 3.5 retires it.
+  Shell remains in the package build only as a legacy staging fallback until
+  Slice 3.5 retires it from the default publishing/onboarding flow.
 - MSIX is deferred as a future optional Operator App distribution channel.
 
 This matches the current runtime model: the Agent is an elevated Windows
@@ -138,11 +138,12 @@ afk4-player-shell-<version>-<channel>.msi
 afk4-gaming-pc-<version>-<channel>.msi
 ```
 
-`afk4-agent-<version>-<channel>.msi` is the new owner-code Setup Wizard
+`afk4-agent-<version>-<channel>.msi` is the owner-code Setup Wizard
 onboarding artifact. `scripts/publish-client-msi-updates.ps1` now publishes
 role-aware update metadata from the Operator App MSI, Agent MSI, and Player
-Shell MSI. The legacy `afk4-gaming-pc` MSI is still built for the old staging
-bootstrap path but is no longer used for generated update package metadata.
+Shell MSI. The legacy `afk4-gaming-pc` MSI is still built only for the staging
+fallback path until Slice 3.5 removes it, and it is no longer used for
+generated update package metadata.
 
 ## Authenticode Signing
 

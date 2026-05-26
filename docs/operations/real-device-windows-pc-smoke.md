@@ -45,8 +45,10 @@ Not included:
 
 ## Current Caveats
 
-- The preferred Slice 3.4 clean-VM path is the single `AFK4 Agent` MSI. It
-  installs the Agent Service, Setup Wizard, update helpers, Start Menu
+- The corrected single `AFK4 Agent` MSI path has current Windows 11 VM evidence
+  through internal version `0.1.29`: owner-code enrollment, Agent update,
+  service automatic start after reboot, and no Setup Wizard rerun after upgrade.
+  It installs the Agent Service, Setup Wizard, update helpers, Start Menu
   shortcut, first-run marker, and HKLM `RunOnce`; Player Shell and Operator App
   are installed later by the Agent through role-aware update rollouts.
 - The older staging `gaming-pc-bootstrap` MinIO script remains a legacy
@@ -134,14 +136,13 @@ Use this path for the clean Windows 11 VM gate.
 
 1. Confirm the current `main` package evidence:
 
-   - `Package Smoke` run `26412508270` passed on head
-     `f3092abc6960b53285e77ebdf83b61fdca6759b5`.
-   - It produced internal package version `0.1.24`.
+   - `Package Smoke` run `26442315418` passed after commit `8019013`.
+   - It produced internal package version `0.1.29`.
    - The public Agent MSI URL returned HTTP 200 with non-zero
-     `Content-Length` during this runbook update:
+     `Content-Length` during the smoke follow-up:
 
      ```text
-     https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.24/afk4-agent-0.1.24-internal.msi
+     https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.29/afk4-agent-0.1.29-internal.msi
      ```
 
 2. In the customer dashboard, sign in at:
@@ -416,16 +417,16 @@ $tariffVersion = Invoke-RestMethod `
 Use an internal package only. Do not use this runbook to create a stable
 release.
 
-Preferred path for the current Slice 3.4 smoke: download the Agent MSI that the
-latest green `Package Smoke` published to staging MinIO. For the current
-verified head this is `0.1.24`:
+Preferred path for any remaining Slice 3.4 smoke: download the Agent MSI that
+the latest green `Package Smoke` published to staging MinIO. The current
+verified package is `0.1.29`:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 
 New-Item -ItemType Directory -Force C:\AFK4-Smoke | Out-Null
 
-$packageVersion = '0.1.24'
+$packageVersion = '0.1.29'
 $agentMsiUri = "https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/$packageVersion/afk4-agent-$packageVersion-internal.msi"
 $agentMsiPath = "C:\AFK4-Smoke\afk4-agent-$packageVersion-internal.msi"
 
@@ -438,8 +439,8 @@ Optional GitHub artifact path, useful when validating the exact run artifacts
 before they expire:
 
 ```powershell
-gh run download 26412508270 `
-  --name afk4-package-smoke-msi-0.1.24-internal `
+gh run download 26442315418 `
+  --name afk4-package-smoke-msi-0.1.29-internal `
   --dir C:\AFK4-Smoke\package-smoke
 ```
 
