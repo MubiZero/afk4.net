@@ -3838,7 +3838,11 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `0.1.29` at
   `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.29/afk4-agent-0.1.29-internal.msi`,
   and created staging Agent rollout
-  `d0e425d6-98aa-4741-a8b6-532bff1fd87b` targeting VM2.
+  `d0e425d6-98aa-4741-a8b6-532bff1fd87b` targeting VM2. User-reported live
+  reboot evidence then showed the wizard did not reopen and PowerShell reported
+  `Agent__AgentVersion=0.1.27`, confirming the service/reboot path for the
+  auto-start MSI. The `0.1.29` rollout remains the next live check because VM2
+  had not yet reported the version containing the first-run rerun fix.
 
 ## Historical Reference
 
