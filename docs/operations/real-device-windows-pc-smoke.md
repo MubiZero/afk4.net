@@ -304,7 +304,7 @@ VALUES (
     '$staffUserId',
     '$organizationId',
     '$branchId',
-    'branch_manager')
+    'owner')
 ON CONFLICT ("StaffUserId", "OrganizationId", "BranchId", "RoleName")
 DO NOTHING;
 

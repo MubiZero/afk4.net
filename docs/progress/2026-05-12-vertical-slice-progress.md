@@ -3741,6 +3741,16 @@ Operator App WebView2/React first implementation on 2026-05-20:
   unique staff login, and use a controlled non-GUID disambiguation flow only
   for legitimate multi-organization staff accounts.
 
+  Additional live fix: `/club/install` showed `Your staff account cannot
+  generate owner codes` because the restored smoke staff user was assigned only
+  `branch_manager`, while owner-code endpoints require
+  `identity.owner_code.manage` from the `owner` role. The staging smoke staff
+  role assignment was changed to `owner`; fresh sign-in now includes
+  `identity.owner_code.manage`, `GET /api/staff/me/owner-code` returns 204
+  instead of 403 when no active code exists, and staging PostgreSQL public
+  access was closed again after the direct role repair. The smoke runbook
+  fallback seed now assigns `owner` for this fixed staging account.
+
 ## Historical Reference
 
 Long phase-by-phase notes, earlier test output, and old smoke evidence were
