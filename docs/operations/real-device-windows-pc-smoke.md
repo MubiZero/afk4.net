@@ -896,6 +896,7 @@ Collect PC evidence:
 
 ```powershell
 sc.exe query AFK4.Agent.Service
+sc.exe qc AFK4.Agent.Service
 Get-ChildItem -LiteralPath C:\ProgramData\AFK4\Agent -Force
 Get-Content -LiteralPath C:\ProgramData\AFK4\Agent\runtime-state.json -Raw
 Get-WinEvent -LogName Application -MaxEvents 200 |
@@ -911,7 +912,8 @@ Evidence to collect:
 - owner-code generation/rotation timestamp and suffix, not the full code;
 - enrolled `deviceId`, not the credential secret;
 - service install log;
-- `sc.exe query` output;
+- `sc.exe query` and `sc.exe qc` output, including `START_TYPE` automatic
+  startup after enrollment;
 - first successful heartbeat timestamp;
 - SignalR registration or Agent realtime connection log;
 - installed app count and sample non-sensitive app names;

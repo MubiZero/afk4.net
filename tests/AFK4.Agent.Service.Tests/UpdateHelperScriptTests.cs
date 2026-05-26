@@ -154,7 +154,8 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("ProgramMenuFolder", package, StringComparison.Ordinal);
         Assert.Contains("LaunchSetupWizard", package, StringComparison.Ordinal);
         Assert.Contains("asyncNoWait", package, StringComparison.Ordinal);
-        Assert.Contains("Start=\"demand\"", package, StringComparison.Ordinal);
+        Assert.Contains("Start=\"auto\"", package, StringComparison.Ordinal);
+        Assert.DoesNotContain("Start=\"demand\"", package, StringComparison.Ordinal);
         Assert.DoesNotContain("Start=\"install\"", package, StringComparison.Ordinal);
         Assert.DoesNotContain("PlayerShell", package, StringComparison.Ordinal);
         Assert.DoesNotContain("Player Shell", package, StringComparison.Ordinal);

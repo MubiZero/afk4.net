@@ -42,7 +42,7 @@
           DisplayName="AFK4 Agent Service"
           Description="AFK4 endpoint control and update service."
           Type="ownProcess"
-          Start="demand"
+          Start="auto"
           ErrorControl="normal"
           Account="LocalSystem" />
       <ServiceControl

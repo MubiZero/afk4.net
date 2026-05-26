@@ -3813,7 +3813,11 @@ Operator App WebView2/React first implementation on 2026-05-20:
   returned the service to `RUNNING`, and local state
   `70aa526a93ae4806ac2a059e8be52a95-41da556bef90470582adce7c265dd71a.json`
   changed to `installed` with message
-  `Interrupted update completed before Agent restart.`
+  `Interrupted update completed before Agent restart.` After VM reboot, VM2
+  showed `Agent__AgentVersion=0.1.26` but `AFK4.Agent.Service` stayed stopped,
+  exposing that the single Agent MSI registered the service as demand-start.
+  The Agent MSI now registers `AFK4.Agent.Service` with automatic startup while
+  still avoiding `Start="install"` before owner-code enrollment.
 
 ## Historical Reference
 
