@@ -3734,6 +3734,13 @@ Operator App WebView2/React first implementation on 2026-05-20:
   Coolify token used for this live staging repair should be revoked by the
   owner after the smoke.
 
+  Follow-up recorded in the active club self-service onboarding plan:
+  `/auth/sign-in` must stop requiring raw Organization GUID input before pilot.
+  The current field is acceptable only as a smoke workaround. The product path
+  should resolve tenant context server-side from invite/session/host/slug or a
+  unique staff login, and use a controlled non-GUID disambiguation flow only
+  for legitimate multi-organization staff accounts.
+
 ## Historical Reference
 
 Long phase-by-phase notes, earlier test output, and old smoke evidence were
