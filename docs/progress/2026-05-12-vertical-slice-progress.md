@@ -3808,7 +3808,12 @@ Operator App WebView2/React first implementation on 2026-05-20:
   `Package Smoke` run `26436888188` passed, published internal packages
   `0.1.26`, and created staging Agent rollout
   `7aa2f099-8034-4dd9-942d-22bebcc9b6f3` targeting VM2
-  `c3d82b36-4b11-40bb-8ad8-f270d6078bb0`.
+  `c3d82b36-4b11-40bb-8ad8-f270d6078bb0`. Manual VM2 recovery for the
+  pre-fix `0.1.25` install then succeeded: `Start-Service AFK4.Agent.Service`
+  returned the service to `RUNNING`, and local state
+  `70aa526a93ae4806ac2a059e8be52a95-41da556bef90470582adce7c265dd71a.json`
+  changed to `installed` with message
+  `Interrupted update completed before Agent restart.`
 
 ## Historical Reference
 
