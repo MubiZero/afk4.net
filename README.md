@@ -175,16 +175,15 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Vers
 
 This produces the Operator App MSI, the new Agent + Setup Wizard onboarding
 MSI (`afk4-agent-<version>-<channel>.msi`), the standalone Player Shell MSI
-(`afk4-player-shell-<version>-<channel>.msi`), and the legacy coordinated
-gaming-PC MSI that remains only for staging bootstrap compatibility until the
-Slice 3.5 deprecation cleanup removes it from the default flow.
+(`afk4-player-shell-<version>-<channel>.msi`). The legacy coordinated
+gaming-PC MSI is no longer part of the default package build.
 
 Build the legacy staging one-click Gaming PC setup executable only for
 fallback/recovery work by supplying the committed staging session lease and
 update verification public keys:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem
+powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal -BuildLegacyStagingBootstrapper -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem
 ```
 
 Signed release jobs then use:

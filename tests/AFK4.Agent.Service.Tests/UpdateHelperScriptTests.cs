@@ -67,13 +67,18 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
-    public void ClientPackageBuildScript_BuildsGamingPcMsiAsX64Package()
+    public void ClientPackageBuildScript_BuildsLegacyGamingPcMsiOnlyWhenRequested()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
         var script = File.ReadAllText(scriptPath);
+        var legacyMsiConditionIndex = script.IndexOf("if ($includeLegacyGamingPcPackage)", StringComparison.Ordinal);
+        var legacyMsiBuildIndex = script.IndexOf("installers/gaming-pc/Package.wxs", StringComparison.Ordinal);
         var gamingPcBuild = script[
-            script.IndexOf("installers/gaming-pc/Package.wxs", StringComparison.Ordinal)..];
+            legacyMsiBuildIndex..];
 
+        Assert.Contains("IncludeLegacyGamingPcPackage", script, StringComparison.Ordinal);
+        Assert.Contains("BuildLegacyStagingBootstrapper", script, StringComparison.Ordinal);
+        Assert.True(legacyMsiBuildIndex > legacyMsiConditionIndex, "The coordinated gaming-PC MSI must not be built by default.");
         Assert.Contains("-arch x64", gamingPcBuild, StringComparison.Ordinal);
     }
 

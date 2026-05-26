@@ -72,9 +72,9 @@ update channel according to the enrolled device role.
     environment values, component versions, and Shell executable paths are
     loaded by the running service.
 
-The legacy PC enrollment code path and coordinated `afk4-gaming-pc` MSI remain
-available only as staging fallback paths until Slice 3.5 retires them from the
-default onboarding/publishing flow.
+The legacy PC enrollment code path and coordinated `afk4-gaming-pc` MSI are
+retired from the default onboarding/publishing flow. Use them only as explicit
+staging recovery fallbacks for old test devices.
 
 ## Safety Rules
 

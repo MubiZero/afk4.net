@@ -51,10 +51,9 @@ Not included:
   It installs the Agent Service, Setup Wizard, update helpers, Start Menu
   shortcut, first-run marker, and HKLM `RunOnce`; Player Shell and Operator App
   are installed later by the Agent through role-aware update rollouts.
-- The older staging `gaming-pc-bootstrap` MinIO script remains a legacy
-  fallback until Slice 3.5 retires it. Do not use that path as Slice 3.4 pass
-  evidence unless the new Agent MSI path is unavailable and the run is marked
-  partial.
+- The older staging `gaming-pc-bootstrap` MinIO script is retired from the
+  default smoke path. Use it only as a legacy recovery fallback for old staging
+  devices, and mark any such run as partial/non-current evidence.
 - The customer dashboard at `https://app.afk4.staging.mubi.dev/club/install`
   is now the preferred owner-code source. The raw staff API fallback below is
   only for diagnosing dashboard/auth problems.
@@ -460,11 +459,12 @@ This produces:
 artifacts/client-packages/afk4-agent-0.1.0-ci-internal.msi
 artifacts/client-packages/afk4-player-shell-0.1.0-ci-internal.msi
 artifacts/client-packages/afk4-operator-app-0.1.0-ci-internal.msi
-artifacts/client-packages/afk4-gaming-pc-0.1.0-ci-internal.msi
 ```
 
-The standalone `afk4-gaming-pc` MSI remains in the build for legacy bootstrap
-compatibility only. Do not use it as Slice 3.4 pass evidence.
+The legacy `afk4-gaming-pc` MSI is not part of the default build. If old
+staging-device recovery requires it, rebuild with
+`-IncludeLegacyGamingPcPackage` and do not use that output as current Slice 3.4
+pass evidence.
 
 ## Enroll With Setup Wizard
 

@@ -179,8 +179,8 @@ Minimum bar:
    and update metadata publishing now uses separate Operator App, Agent, and
    Player Shell MSI artifacts. The corrected single Agent MSI path now has
    Windows 11 VM evidence through internal Agent version `0.1.29`; the legacy
-   coordinated `afk4-gaming-pc` MSI remains only as a staging fallback until
-   Slice 3.5 retires it from the default flow.
+   coordinated `afk4-gaming-pc` MSI is retired from the default flow and
+   remains only as an explicit staging fallback.
    On 2026-05-18, an already enrolled Windows 11 VM installed
    Agent/Shell `0.1.3` through the Agent update pipeline and reported
    `installed` to the backend. Follow-up staging rollouts brought that VM to
@@ -259,9 +259,10 @@ Minimum bar:
   implemented and smoke-tested in staging for platform-admin tenant creation,
   owner invites, tenant status, support notes, and health. The customer SPA
   host is deployed, and the Windows SetupWizard/single Agent MSI path has
-  Windows 11 VM evidence through Agent `0.1.29`. Remaining onboarding work is
-  Slice 3.5 legacy installer retirement plus any strict `manager_workstation`
-  role smoke not yet captured.
+  Windows 11 VM evidence through Agent `0.1.29`. The legacy bootstrap/
+  coordinated gaming-PC MSI path is retired from the default publishing flow;
+  remaining onboarding evidence is any strict `manager_workstation` role smoke
+  not yet captured.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
@@ -305,12 +306,13 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring and Windows 11 VM smoke evidence. Physical service startup validation
   remains hardening through the real-device smoke runbook.
-- A staging-only Gaming PC bootstrap path exists as a legacy fallback, and the
+- A staging-only Gaming PC bootstrap path exists only as a legacy fallback, and the
   preferred onboarding path is now the single `afk4-agent` MSI with the
   owner-code Setup Wizard plus role-aware Player Shell/Operator App
   installation. The older release-workstation setup executable path remains in
-  code until Slice 3.5 cleanup; the MinIO-hosted remote bootstrap script from
-  `Package Smoke` is no longer the current pass-evidence path:
+  code behind explicit fallback switches; the MinIO-hosted remote bootstrap
+  script is no longer published by default `Package Smoke` and is no longer the
+  current pass-evidence path:
   `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json`.
   A first Windows 11 VM passed rebuilt x64 install/enroll/heartbeat, session
   start/end, signed lease, local runtime state, and visible Player Shell
@@ -521,15 +523,7 @@ Minimum bar:
 
 ## Recommended Next Branches
 
-1. Slice 3.5 legacy installer retirement
-
-   Remove the legacy `gaming-pc-bootstrap`/coordinated gaming-PC MSI path from
-   the default publishing and onboarding flow now that the single Agent MSI has
-   Windows 11 VM evidence through `0.1.29`. Preserve migration notes for
-   already-enrolled staging devices and keep any fallback code only where it is
-   explicitly still needed.
-
-2. Operator App WebView2/React migration
+1. Operator App WebView2/React migration
 
    Continue
    `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
@@ -581,19 +575,19 @@ Minimum bar:
    GUID/form surfaces in the main operator path as usability defects unless
    they are explicitly advanced technician tools.
 
-3. Operator-facing management expansion
+2. Operator-facing management expansion
 
    The one-shot Pilot Setup panel is enough for pilot setup. Next development
    should expand toward general staff/role, layout, device-seat, tariff, POS,
    and runtime/staging configuration screens as pilot usability requires.
 
-4. Physical Windows hardening
+3. Physical Windows hardening
 
    Repeat `docs/operations/real-device-windows-pc-smoke.md` on physical
    Windows 10/11 hardware when hardware is available. Treat findings as
    hardening work unless they block the current Operator App staging test.
 
-5. Staging secret hygiene
+4. Staging secret hygiene
 
    Rotate the exposed restore-rehearsal Coolify token before sensitive staging
    operations, then keep future tokens in a secret manager or local

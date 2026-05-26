@@ -1,6 +1,6 @@
 # AFK4 Club Self-Service Onboarding Plan
 
-Status: active; Slices 1.1-3.4 implemented/evidenced, Slice 3.5 next
+Status: active; Slices 1.1-3.5 implemented locally, Slice 4 next
 Date: 2026-05-24
 Owner: AFK4 platform
 
@@ -285,8 +285,8 @@ These are agreed and should not be re-litigated during implementation.
    "Unverified publisher" warning is accepted as a known issue until
    SignPath Foundation approves. The single Agent MSI path has Windows 11 VM
    evidence through Agent `0.1.29`; `bootstrap.ps1` and the coordinated legacy
-   MSI path stay only until Slice 3.5 removes them from the default
-   publishing/onboarding flow with migration notes for existing test devices.
+   MSI path are retired from the default publishing/onboarding flow, with
+   explicit fallback switches and migration notes for existing test devices.
 2. **One owner-code, not a per-device enrollment code, drives installer
    auth.** Code is 8 digits numeric (decision anchored — see Risk #1),
    rotatable, audit-logged, and only valid for the install/* endpoints
@@ -749,8 +749,8 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   HKLM `RunOnce` entry, attempts interactive postinstall wizard launch, starts
   the Agent Service after successful wizard enrollment, and is verified by the
   local package build script. The legacy coordinated
-  `afk4-gaming-pc` MSI remains in the build/update-smoke path only as a staging
-  fallback until Slice 3.5 legacy deprecation lands.
+  `afk4-gaming-pc` MSI has since been removed from the default package/update
+  smoke path and remains only as an explicit staging fallback.
 - **Slice 3.3** - completed on `main` (original branch `codex/slice-3-3`):
   Agent component version reporting and Platform API update checks are
   now role-aware, so
@@ -770,6 +770,13 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   strict slice sign-off requires the second `manager_workstation` role path,
   collect that from `0.1.29` or a newer green package; otherwise proceed to
   Slice 3.5 legacy installer retirement.
+- **Slice 3.5** - implemented locally on
+  `codex/slice-3-5-legacy-retirement`: the default client package build and
+  `Package Smoke` workflow now produce/publish only the role-aware Operator
+  App, Agent, and Player Shell MSI artifacts. The legacy coordinated
+  `afk4-gaming-pc` MSI and staging bootstrapper stay behind explicit fallback
+  switches for old staging device recovery and are no longer current pass
+  evidence.
 
 ## Testing
 
@@ -862,9 +869,9 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
    surfaces install failure via heartbeat for the dashboard to show.
    Specified in Slice 3 step 4.
 10. **Removing `bootstrap.ps1`** can break any in-flight legacy VM tests.
-    Slice 3.5 should preserve migration/recovery notes for existing staging
-    devices while removing the legacy bootstrap/coordinated MSI path from the
-    default flow. Until 3.5 lands, both paths exist side-by-side.
+    Slice 3.5 preserves migration/recovery notes and explicit fallback
+    switches for existing staging devices while removing the legacy bootstrap/
+    coordinated MSI path from the default flow.
 11. **`install.discover` audit noise.** Each wizard launch (30 PCs in
     a single onboarding) produces a discover call. Decision: audit
     **failed** discover lookups only (security signal), do not audit

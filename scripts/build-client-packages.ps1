@@ -15,12 +15,18 @@ param(
 
     [switch] $SkipOperatorWebRestore,
 
+    [switch] $IncludeLegacyGamingPcPackage,
+
+    [switch] $BuildLegacyStagingBootstrapper,
+
     [string] $StagingLeasePublicKeyPath = '',
 
     [string] $StagingUpdateSigningPublicKeyPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
+$includeLegacyGamingPcPackage = $IncludeLegacyGamingPcPackage.IsPresent -or $BuildLegacyStagingBootstrapper.IsPresent
+$buildLegacyStagingBootstrapper = $BuildLegacyStagingBootstrapper.IsPresent
 
 function ConvertTo-MsiVersion {
     param(
@@ -91,25 +97,35 @@ if (-not (Test-Path -LiteralPath $NpmPath)) {
     throw "npm executable was not found at '$NpmPath'."
 }
 
-if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -and -not (Test-Path -LiteralPath $StagingLeasePublicKeyPath)) {
+if (-not $buildLegacyStagingBootstrapper -and
+    (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -or
+        -not [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath))) {
+    throw "Staging lease/update signing public key paths are only used when BuildLegacyStagingBootstrapper is set."
+}
+
+if ($buildLegacyStagingBootstrapper -and [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
+    throw "StagingLeasePublicKeyPath is required when BuildLegacyStagingBootstrapper is set."
+}
+
+if ($buildLegacyStagingBootstrapper -and [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath)) {
+    throw "StagingUpdateSigningPublicKeyPath is required when BuildLegacyStagingBootstrapper is set."
+}
+
+if ($buildLegacyStagingBootstrapper -and -not (Test-Path -LiteralPath $StagingLeasePublicKeyPath)) {
     throw "Staging lease public key file was not found at '$StagingLeasePublicKeyPath'."
 }
 
-if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -and [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath)) {
-    throw "StagingUpdateSigningPublicKeyPath is required when building the staging Gaming PC setup executable."
-}
-
-if (-not [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath) -and -not (Test-Path -LiteralPath $StagingUpdateSigningPublicKeyPath)) {
+if ($buildLegacyStagingBootstrapper -and -not (Test-Path -LiteralPath $StagingUpdateSigningPublicKeyPath)) {
     throw "Staging update signing public key file was not found at '$StagingUpdateSigningPublicKeyPath'."
 }
 
 $resolvedStagingLeasePublicKeyPath = ''
-if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
+if ($buildLegacyStagingBootstrapper) {
     $resolvedStagingLeasePublicKeyPath = (Resolve-Path -LiteralPath $StagingLeasePublicKeyPath).Path
 }
 
 $resolvedStagingUpdateSigningPublicKeyPath = ''
-if (-not [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath)) {
+if ($buildLegacyStagingBootstrapper) {
     $resolvedStagingUpdateSigningPublicKeyPath = (Resolve-Path -LiteralPath $StagingUpdateSigningPublicKeyPath).Path
 }
 
@@ -248,6 +264,11 @@ $operatorMsiPath = Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.
 $agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
 $playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Channel.msi"
 $gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi"
+$legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe"
+
+@($operatorMsiPath, $agentMsiPath, $playerShellMsiPath, $gamingPcMsiPath, $legacySetupArtifactPath) |
+    Where-Object { Test-Path -LiteralPath $_ } |
+    ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
     -d "PackageVersion=$msiVersion" `
@@ -284,22 +305,24 @@ if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for Player Shell MSI with exit code $LASTEXITCODE."
 }
 
-& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
-    -arch x64 `
-    -d "PackageVersion=$msiVersion" `
-    -d "AgentServicePublishDir=$agentServicePublishDir" `
-    -d "AgentServiceSupportDir=$agentServiceSupportDir" `
-    -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
-    -d "UpdateHelperDir=$updateHelperDir" `
-    -o $gamingPcMsiPath
+if ($includeLegacyGamingPcPackage) {
+    & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
+        -arch x64 `
+        -d "PackageVersion=$msiVersion" `
+        -d "AgentServicePublishDir=$agentServicePublishDir" `
+        -d "AgentServiceSupportDir=$agentServiceSupportDir" `
+        -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
+        -d "UpdateHelperDir=$updateHelperDir" `
+        -o $gamingPcMsiPath
 
-if ($LASTEXITCODE -ne 0) {
-    throw "WiX build failed for gaming-PC MSI with exit code $LASTEXITCODE."
+    if ($LASTEXITCODE -ne 0) {
+        throw "WiX build failed for legacy gaming-PC MSI with exit code $LASTEXITCODE."
+    }
 }
 
-if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
+if ($buildLegacyStagingBootstrapper) {
     $setupPublishDir = Join-Path $publishRoot "gaming-pc-setup-$Version-$Channel"
-    $setupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe"
+    $setupArtifactPath = $legacySetupArtifactPath
 
     if (Test-Path -LiteralPath $setupPublishDir) {
         Remove-Item -LiteralPath $setupPublishDir -Recurse -Force
@@ -332,9 +355,13 @@ Write-Host "MSI artifacts:"
 Write-Host $operatorMsiPath
 Write-Host $agentMsiPath
 Write-Host $playerShellMsiPath
-Write-Host $gamingPcMsiPath
 
-if (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
-    Write-Host "Setup artifact:"
-    Write-Host (Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe")
+if ($includeLegacyGamingPcPackage) {
+    Write-Host "Legacy gaming-PC MSI artifact:"
+    Write-Host $gamingPcMsiPath
+}
+
+if ($buildLegacyStagingBootstrapper) {
+    Write-Host "Legacy setup artifact:"
+    Write-Host $legacySetupArtifactPath
 }

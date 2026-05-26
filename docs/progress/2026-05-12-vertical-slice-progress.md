@@ -29,7 +29,7 @@ implementation evidence are needed.
   scope for their slice, not as the current product decision.
 - The active follow-on onboarding plan is
   `docs/superpowers/plans/2026-05-24-afk4-club-self-service-onboarding.md`.
-  Slices 1.1 through 3.4 now cover owner codes, ETag floor-map editing,
+  Slices 1.1 through 3.5 now cover owner codes, ETag floor-map editing,
   backend install discover/enroll, the branch device admin surface, the
   Platform Web admin route split under `/admin/*`, and the first public
   `/auth/*` accept-invite/staff sign-in pages, plus first customer
@@ -37,8 +37,9 @@ implementation evidence are needed.
   across the SPA and public operations docs, audience-split admin/customer SPA
   builds, the first Windows Setup Wizard path, a single Agent MSI that carries
   the Agent Service plus that wizard for owner-code onboarding, role-aware
-  Agent component installation, and Windows 11 VM evidence through internal
-  Agent MSI version `0.1.29`.
+  Agent component installation, Windows 11 VM evidence through internal Agent
+  MSI version `0.1.29`, and retirement of the legacy coordinated gaming-PC MSI
+  and bootstrapper from the default publishing/onboarding flow.
 
 ## Implemented Capabilities
 
@@ -481,9 +482,9 @@ implementation evidence are needed.
   - Operator App MSI.
   - Standalone Player Shell MSI for Agent-pulled `gaming_pc` component
     installation.
-  - Legacy coordinated gaming-PC MSI for Agent Service + Player Shell, kept
-    only as a staging fallback until Slice 3.5 removes it from the default
-    publishing/onboarding flow.
+  - Legacy coordinated gaming-PC MSI for Agent Service + Player Shell is
+    retired from the default package build and available only through explicit
+    fallback switches for old staging device recovery.
 - Local package build script:
   - `scripts/build-client-packages.ps1`
 - Provider-neutral Authenticode signing script:
@@ -492,9 +493,10 @@ implementation evidence are needed.
   - `scripts/publish-client-msi-updates.ps1`
 - Legacy staging clean-machine Gaming PC remote bootstrap publishing:
   - `scripts/publish-staging-bootstrapper.ps1`
-  - `Package Smoke` publishes a small `install-afk4-gaming-pc.ps1` script and
-    `latest.json` manifest to staging MinIO for fallback compatibility until
-    Slice 3.5 retires the path. The script downloads the internal
+  - The script is no longer part of the default `Package Smoke` workflow. It
+    remains as an explicit legacy fallback that can publish a small
+    `install-afk4-gaming-pc.ps1` script and `latest.json` manifest to staging
+    MinIO for old staging device recovery. The script downloads the internal
     Gaming PC MSI from MinIO, verifies SHA-256, enrolls the device through the
     staging API, assigns the smoke seat, installs the MSI, writes Agent machine
     configuration, starts the service, and waits for heartbeat evidence.
@@ -547,6 +549,16 @@ final reboot still reported the service `RUNNING` with no Setup Wizard rerun.
 This supersedes older `0.1.24`/`0.1.25` pointers as the current single Agent
 MSI smoke baseline; historical dated entries below keep the intermediate
 failure/fix evidence.
+
+Current Slice 3.5 packaging verification on 2026-05-26 from
+`codex/slice-3-5-legacy-retirement`: local `actionlint` passed for the GitHub
+workflow set, focused `AFK4.Agent.Service.Tests` release automation tests
+passed 59/59, the default `scripts/build-client-packages.ps1` run for
+`0.1.35-slice35` succeeded, and the generated artifact directory contained
+only `afk4-operator-app`, `afk4-agent`, and `afk4-player-shell` MSI artifacts
+for that version. No `afk4-gaming-pc` MSI or legacy setup executable was
+produced by the default path. Remote `Package Smoke` has not been triggered for
+this local cleanup branch.
 
 Current frontend verification on 2026-05-22 from `D:\projects\afk4.net` after
 the WebView2/React auth/token, typed API client, SignalR realtime,
@@ -1767,11 +1779,10 @@ Operator App redesign branch-local verification on 2026-05-20:
   Physical Windows 10/11 hardware execution remains recommended hardening
   before wider rollout, but it is no longer treated as a blocker for the
   current pilot/dev cycle.
-- The older staging clean-machine `gaming-pc-bootstrap` path is now a legacy
-  fallback only. It remains useful as historical/staging compatibility evidence
-  until Slice 3.5 removes it from the default publishing/onboarding flow; do
-  not use older `0.1.24` or `0.1.25` package pointers as the current Agent MSI
-  smoke baseline.
+- The older staging clean-machine `gaming-pc-bootstrap` path is retired from
+  the default publishing/onboarding flow. It remains useful only as an explicit
+  historical/staging recovery fallback; do not use older `0.1.24` or `0.1.25`
+  package pointers as the current Agent MSI smoke baseline.
 - Staging MinIO/internal MSI update rollouts have passed on Windows 11 VM
   evidence through Agent `0.1.29`, including recovery from stale update state,
   suppression of superseded older rollout offers, helper restart after
@@ -1826,10 +1837,7 @@ Operator App redesign branch-local verification on 2026-05-20:
    older `0.1.24` or `0.1.25` pointers. If strict Slice 3.4 sign-off still
    requires it, collect the remaining `manager_workstation` role-aware Operator
    App install/sign-in evidence from `0.1.29` or a newer green package.
-3. Proceed to Slice 3.5 cleanup: retire the legacy `gaming-pc-bootstrap` and
-   coordinated gaming-PC MSI path from the default publishing/onboarding flow
-   while preserving any needed migration notes for existing test devices.
-4. Continue `codex/operator-app-redesign` from the backend-connected React
+3. Continue `codex/operator-app-redesign` from the backend-connected React
    shell by working through the new "Backend Connectivity TODO From Current
    React UI Copy" checklist in
    `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
@@ -1843,18 +1851,18 @@ Operator App redesign branch-local verification on 2026-05-20:
    while replacing local state with backend-backed behavior. Treat any
    remaining raw GUID/form surfaces as usability bugs unless they are
    explicitly advanced technician tools.
-5. Choose production Authenticode certificate authority/storage, production
+4. Choose production Authenticode certificate authority/storage, production
    object-store or CDN provider, presigned URL automation, and update
    registration credential policy before commercial release. Rotate any
    staging credentials or Coolify API tokens that were exposed during manual
    smoke/setup operations as operational hygiene before sensitive staging
    operations.
-6. Harden Agent production behavior outside the update epic: rotated credential
+5. Harden Agent production behavior outside the update epic: rotated credential
    consumption, reboot/lock recovery, and lease timing telemetry.
-7. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
+6. Harden and expand beyond the one-shot Pilot Setup panel into full staff and
    role editing, layout management, device-seat management, tariff/POS
    management, and runtime/staging configuration as needed.
-8. Continue physical Windows PC validation for lock/unlock, reboot recovery,
+7. Continue physical Windows PC validation for lock/unlock, reboot recovery,
    Setup Wizard onboarding, and role-aware update behavior. Treat findings as
    hardening unless they block the current Operator App staging test.
 
@@ -3652,9 +3660,9 @@ Operator App WebView2/React first implementation on 2026-05-20:
   WebView2 before applying the Operator App MSI. Agent Service restarts are now
   scheduled after Agent, Player Shell, and Operator App component installs so
   the running service reloads component versions and executable paths written
-  to machine environment variables. Clean Windows VM end-to-end owner-code
-  smoke remains Slice 3.4; the legacy gaming-PC MSI still builds for staging
-  bootstrap compatibility until Slice 3.5 deprecation.
+  to machine environment variables. At that point, clean Windows VM
+  end-to-end owner-code smoke remained Slice 3.4 and the legacy gaming-PC MSI
+  was still produced for staging bootstrap compatibility pending Slice 3.5.
 
   ```powershell
   & 'C:\Program Files\dotnet\dotnet.exe' test .\tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "AgentComponentVersionProvider" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
@@ -3855,6 +3863,31 @@ Operator App WebView2/React first implementation on 2026-05-20:
   The final VM reboot check passed for the fixed package: PowerShell after
   reboot reported `AFK4.Agent.Service` `RUNNING` and
   `Agent__AgentVersion=0.1.29`, with no Setup Wizard rerun reported.
+
+- 2026-05-26: local Slice 3.5 implementation on
+  `codex/slice-3-5-legacy-retirement`. Retired the legacy coordinated
+  `afk4-gaming-pc` MSI and staging bootstrapper from the default
+  publishing/onboarding flow. `scripts/build-client-packages.ps1` now builds
+  only Operator App, Agent, and Player Shell MSI artifacts by default; legacy
+  gaming-PC MSI/setup bootstrapper output requires explicit fallback switches.
+  `Package Smoke` no longer expects or publishes the legacy MSI/bootstrapper,
+  and runbooks/roadmap/active plan now point current onboarding at the single
+  Agent MSI path while preserving old-device recovery notes.
+
+  ```powershell
+  & "$env:USERPROFILE\go\bin\actionlint.exe" .github/workflows/client-packages.yml .github/workflows/package-smoke.yml .github/workflows/coolify-staging-deploy.yml .github/workflows/pr-verification.yml
+  & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj --filter "FullyQualifiedName~ClientReleaseAutomationTests|FullyQualifiedName~UpdateHelperScriptTests" -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+  powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.35-slice35 -Channel internal
+  ```
+
+  Result: actionlint passed with no findings; focused release automation tests
+  passed 59/59; the default package build produced
+  `afk4-operator-app-0.1.35-slice35-internal.msi`,
+  `afk4-agent-0.1.35-slice35-internal.msi`, and
+  `afk4-player-shell-0.1.35-slice35-internal.msi`; checks confirmed
+  `afk4-gaming-pc-0.1.35-slice35-internal.msi` and
+  `afk4-gaming-pc-setup-0.1.35-slice35-internal.exe` were absent. No remote
+  Package Smoke run was triggered for this local branch.
 
 ## Historical Reference
 

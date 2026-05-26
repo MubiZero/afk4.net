@@ -1,7 +1,7 @@
 # Update Package Publishing Runbook
 
-Status: Slice 3.3 role-aware MSI publishing runbook
-Last updated: 2026-05-25
+Status: role-aware MSI publishing runbook after Slice 3.5 legacy cleanup
+Last updated: 2026-05-26
 
 ## Purpose
 
@@ -112,7 +112,7 @@ $env:AFK4_UPDATE_ARTIFACTS_S3_SECRET_KEY = '<minio-secret-key>'
   --component agent-service `
   --version 1.2.3 `
   --channel internal `
-  --artifact C:\builds\afk4-gaming-pc-1.2.3-internal.msi `
+  --artifact C:\builds\afk4-agent-1.2.3-internal.msi `
   --artifact-store s3 `
   --s3-endpoint https://updates.afk4.staging.mubi.dev `
   --s3-bucket afk4-updates-staging `
@@ -203,9 +203,8 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
 The Operator App MSI generates one request JSON for `operator-app`, the Agent
 MSI generates one request JSON for `agent-service`, and the standalone Player
 Shell MSI generates one request JSON for `player-shell`. The legacy coordinated
-gaming-PC MSI is still built for staging bootstrap compatibility, but
-`scripts/publish-client-msi-updates.ps1` no longer uses it for update package
-metadata.
+gaming-PC MSI is retired from the default build and is not used for update
+package metadata.
 
 For production-style object storage/CDN publishing:
 
@@ -325,10 +324,10 @@ verifies the artifact SHA-256 and the ECDSA P-256 signature before invoking
 the configured installer adapter. If the public key is missing, the Agent
 reports the update as failed and does not install the package.
 
-The staging Gaming PC setup executable embeds
-`deploy/coolify/staging-update-signing-public.pem` when
-`scripts/build-client-packages.ps1` is called with
-`-StagingUpdateSigningPublicKeyPath`. Keep the matching private key outside the
+The current owner-code Setup Wizard receives the staging update verification
+public key from the install enrollment response. The older staging Gaming PC
+setup executable path is legacy fallback only and is not part of the default
+package smoke or onboarding flow. Keep the matching private key outside the
 repository and use it only from a release workstation or secret-injected
 runner.
 

@@ -619,21 +619,20 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_PACKAGE_VERSION=$version", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"scripts/publish-client-msi-updates.ps1\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("scripts/publish-staging-bootstrapper.ps1", workflow, StringComparison.Ordinal);
-        Assert.Contains("LeaseSigningPublicKeyPath deploy/coolify/staging-session-signing-public.pem", workflow, StringComparison.Ordinal);
-        Assert.Contains("UpdateSigningPublicKeyPath deploy/coolify/staging-update-signing-public.pem", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-agent-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-player-shell-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
-        Assert.Contains("afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("scripts/publish-staging-bootstrapper.ps1", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("LeaseSigningPublicKeyPath deploy/coolify/staging-session-signing-public.pem", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("UpdateSigningPublicKeyPath deploy/coolify/staging-update-signing-public.pem", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("afk4-gaming-pc-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("afk4-gaming-pc-setup-$env:AFK4_PACKAGE_VERSION-internal.exe", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("$env:GITHUB_RUN_NUMBER-ci", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/publish-client-msi-updates.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("ArtifactStore s3", workflow, StringComparison.Ordinal);
-        Assert.Contains("Publish staging bootstrapper to MinIO", workflow, StringComparison.Ordinal);
-        Assert.Contains("artifacts/bootstrapper", workflow, StringComparison.Ordinal);
-        Assert.Contains("artifacts/bootstrapper/*.ps1", workflow, StringComparison.Ordinal);
-        Assert.Contains("afk4-package-smoke-bootstrapper-0.1.${{ github.run_number }}-internal", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("Publish staging bootstrapper to MinIO", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("artifacts/bootstrapper", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("afk4-package-smoke-bootstrapper-0.1.${{ github.run_number }}-internal", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_STAGING_UPDATE_STAFF_USERNAME", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_STAGING_UPDATE_STAFF_PASSWORD", workflow, StringComparison.Ordinal);
         Assert.Contains("/api/auth/staff/sign-in", workflow, StringComparison.Ordinal);
@@ -689,13 +688,25 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
-    public void BuildClientPackagesScript_PublishesStagingGamingPcSetupExeWithEmbeddedMsi()
+    public void BuildClientPackagesScript_KeepsLegacyGamingPcArtifactsBehindExplicitSwitches()
     {
         var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
 
+        var legacyMsiSwitchIndex = script.IndexOf("IncludeLegacyGamingPcPackage", StringComparison.Ordinal);
+        var legacyBootstrapperSwitchIndex = script.IndexOf("BuildLegacyStagingBootstrapper", StringComparison.Ordinal);
+        var legacyMsiConditionIndex = script.IndexOf("if ($includeLegacyGamingPcPackage)", StringComparison.Ordinal);
+        var legacyMsiBuildIndex = script.IndexOf("installers/gaming-pc/Package.wxs", StringComparison.Ordinal);
+        var legacyBootstrapperConditionIndex = script.IndexOf("if ($buildLegacyStagingBootstrapper)", StringComparison.Ordinal);
+        var legacyBootstrapperBuildIndex = script.IndexOf("AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj", StringComparison.Ordinal);
+
+        Assert.True(legacyMsiSwitchIndex >= 0, "The legacy gaming-PC MSI should require an explicit switch.");
+        Assert.True(legacyBootstrapperSwitchIndex >= 0, "The legacy staging bootstrapper should require an explicit switch.");
+        Assert.True(legacyMsiBuildIndex > legacyMsiConditionIndex, "The legacy gaming-PC MSI build must stay behind IncludeLegacyGamingPcPackage.");
+        Assert.True(legacyBootstrapperBuildIndex > legacyBootstrapperConditionIndex, "The legacy staging bootstrapper build must stay behind BuildLegacyStagingBootstrapper.");
         Assert.Contains("StagingLeasePublicKeyPath", script, StringComparison.Ordinal);
         Assert.Contains("StagingUpdateSigningPublicKeyPath", script, StringComparison.Ordinal);
-        Assert.Contains("AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj", script, StringComparison.Ordinal);
+        Assert.Contains("Staging lease/update signing public key paths are only used when BuildLegacyStagingBootstrapper is set.", script, StringComparison.Ordinal);
+        Assert.Contains("StagingLeasePublicKeyPath is required when BuildLegacyStagingBootstrapper is set.", script, StringComparison.Ordinal);
         Assert.Contains("GamingPcMsiPath=", script, StringComparison.Ordinal);
         Assert.Contains("$resolvedStagingLeasePublicKeyPath", script, StringComparison.Ordinal);
         Assert.Contains("$resolvedStagingUpdateSigningPublicKeyPath", script, StringComparison.Ordinal);
@@ -708,6 +719,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("afk4-gaming-pc-setup-$Version-$Channel.exe", script, StringComparison.Ordinal);
         Assert.Contains("agent-service", script, StringComparison.Ordinal);
         Assert.Contains("player-shell", script, StringComparison.Ordinal);
+        Assert.Contains("Legacy gaming-PC MSI artifact:", script, StringComparison.Ordinal);
+        Assert.Contains("Legacy setup artifact:", script, StringComparison.Ordinal);
     }
 
     [Fact]
