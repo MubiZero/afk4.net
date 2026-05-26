@@ -9,13 +9,13 @@ This runbook records the approved MVP packaging direction for AFK4 Windows
 clients and links the operational package flow to the existing update rollout
 system.
 
-Detailed design:
+Historical design note:
 
-- `docs/superpowers/specs/2026-05-14-afk4-client-packaging-design.md`
+- `docs/archive/superpowers/specs/2026-05-14-afk4-client-packaging-design.md`
 
-Implementation plan:
+Historical implementation plan:
 
-- `docs/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
+- `docs/archive/superpowers/plans/2026-05-14-afk4-phase13-client-packaging-ci.md`
 
 ## Packaging Decision
 
@@ -25,9 +25,10 @@ AFK4 uses WiX-authored MSI packages as the MVP packaging baseline:
   Service, the WPF Setup Wizard, update helper scripts, a Start Menu shortcut,
   a per-machine first-run pending marker, and a HKLM `RunOnce` entry for the
   wizard. The MSI also attempts to launch the wizard after an interactive
-  install. The service is installed demand-start so it does not start before
-  owner-code enrollment writes bootstrap configuration; the wizard switches it
-  to automatic startup and starts it after successful enrollment. It does not
+  install. The service is registered for automatic startup but is not started
+  by the MSI before owner-code enrollment writes bootstrap configuration; the
+  wizard starts it after successful enrollment. Agent MSI upgrades skip
+  first-run wizard registration for already enrolled machines. It does not
   carry Player Shell or Operator App payloads.
 - Operator App has its own MSI.
 - Player Shell has its own MSI for `gaming_pc` devices. It installs the Shell

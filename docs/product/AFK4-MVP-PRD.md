@@ -734,5 +734,5 @@ state flow. This needs a dedicated follow-up plan.
 - [Architecture spec](../superpowers/specs/2026-05-12-afk4-platform-architecture-design.md)
 - [SaaS Control Plane and tenant onboarding plan](../superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md)
 - [Operator App WebView2 React migration plan](../superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md)
-- [Vertical slice implementation plan](../superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md)
+- [Archived vertical slice implementation plan](../archive/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md)
 - [Agent instructions](../../AGENTS.md)

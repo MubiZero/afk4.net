@@ -119,25 +119,15 @@ Minimum bar:
    manual staging runbook for physical hardware still exists at
    `docs/operations/real-device-windows-pc-smoke.md`, and the Agent host is
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
-   A staging-only one-click Gaming PC setup executable path now exists for clean
-   Windows 11 smoke VMs, and the staging public lease verification key is
-   committed for reproducible packaging. One Windows 11 VM passed rebuilt x64
-   install/enroll/heartbeat plus session start/end, signed lease, local runtime
-   state, and visible Player Shell active/locked evidence. The smoke also
-   exposed two hardening gaps: service-started session-0 Shell competition and
-   missing `ending` session finalization after accepted lock. Both are now
-   mitigated in code on `codex/staging-gaming-pc-bootstrapper`: Agent Service
-   Shell auto-start targets the active interactive Windows session with
-   session-aware process detection, and accepted/completed lock command results
-   or the next heartbeat finalization fallback move sessions to `ended` so the
-   seat/device can be reused. After staging was redeployed from that branch,
-   the Windows 11 VM reuse smoke passed without SQL cleanup. Corrected remote
-   bootstrap `0.1.14` then passed clean Windows 11 VM install/enroll/
-   seat-assignment/heartbeat/locked-Shell smoke plus two session start/end
-   cycles with seat/device reuse. This is enough to proceed with pilot Operator
-   App testing and continued development. Physical Windows 10/11 hardware,
-   reboot recovery, and update/rollback repeats remain hardening work before
-   wider operational rollout, not blockers for the current pilot/dev cycle.
+   The current clean-machine path is the single `AFK4 Agent` MSI plus owner-code
+   Setup Wizard. The older one-click Gaming PC setup executable and coordinated
+   `afk4-gaming-pc` MSI are explicit recovery fallbacks only. Windows 11 VM
+   smoke reached internal Agent `0.1.29`: VM2 applied the rollout, rebooted,
+   kept `AFK4.Agent.Service` running, and did not reopen Setup Wizard. This is
+   enough to proceed with pilot Operator App testing and continued development.
+   `manager_workstation` role evidence, physical Windows 10/11 hardware,
+   reboot recovery repeats, and update/rollback repeats remain hardening work
+   before wider operational rollout.
 
 5. **Backup And Restore Rehearsal**
 
@@ -171,51 +161,22 @@ Minimum bar:
    `afk4-agent-<version>-<channel>.msi` onboarding artifact that contains the
    Agent Service, WPF Setup Wizard, update helpers, Start Menu shortcut,
    first-run marker, HKLM `RunOnce`, and an interactive postinstall wizard
-   launch attempt. The service is installed demand-start and the wizard sets it
-   to automatic startup after owner-code enrollment writes machine
-   configuration. Slice 3.3 adds role-aware Agent component installation:
+   launch attempt. The service is registered for automatic startup but is not
+   started by the MSI before owner-code enrollment writes machine
+   configuration; the wizard starts it after successful enrollment. Slice 3.3
+   adds role-aware Agent component installation:
    `gaming_pc` devices pull a standalone Player Shell MSI, `manager_workstation`
    devices pull the Operator App MSI after a WebView2 runtime check/install,
    and update metadata publishing now uses separate Operator App, Agent, and
    Player Shell MSI artifacts. The corrected single Agent MSI path now has
    Windows 11 VM evidence through internal Agent version `0.1.29`; the legacy
    coordinated `afk4-gaming-pc` MSI is retired from the default flow and
-   remains only as an explicit staging fallback.
-   On 2026-05-18, an already enrolled Windows 11 VM installed
-   Agent/Shell `0.1.3` through the Agent update pipeline and reported
-   `installed` to the backend. Follow-up staging rollouts brought that VM to
-   `0.1.7`, verified atomic artifact download/recovery behavior, and fixed the
-   backend so older active rollouts are not re-offered to devices that already
-   report a newer installed MSI-compatible version. The update epic is closed
-   for the current pilot/dev cycle. The staging Gaming PC setup executable
-   remains only a bootstrap path for clean machines; commercial production
-   still needs final Authenticode/signing custody, production storage/CDN
-   policy, and service credentials for package registration. Physical PC
-   update/rollback evidence remains broader release hardening. On 2026-05-19,
-   `Package Smoke` also began publishing a remote
-   clean-machine Gaming PC bootstrap script and `latest.json` manifest to
-   staging MinIO. The public latest manifest URL now points to the latest
-   successful package-smoke build; workflow run `26404714472` published version
-   `0.1.23`, registered update packages with the staging Platform API, and
-   created an internal agent-service rollout after the staging update staff
-   credential/data sync was repaired. This removes local file copying for clean
-   staging VM bootstrap while keeping already enrolled PCs on the signed/
-   internal MSI update rollout path. The first clean VM run against version
-   `0.1.13` enrolled and assigned the seat, but exposed a bootstrap/MSI
-   sequencing bug: MSI starts `AFK4.Agent.Service` during installation before
-   the script had written the enrolled device credential and machine config.
-   PR #33 moved that config write before `msiexec.exe`; post-merge `Package
-   Smoke` run `26091453388` published corrected bootstrap version `0.1.14`.
-   A clean Windows 11 VM then passed remote bootstrap install/enroll/
-   seat-assignment/heartbeat/locked-Shell smoke against `0.1.14`, followed by
-   two session start/end cycles with visible Player Shell active/locked state
-   and seat/device reuse without SQL cleanup. The second session end exposed a
-   follow-up backend issue: duplicate lock commands can be planned for one
-   session end. PR #38 fixed issue #36 by suppressing duplicate heartbeat and
-   reconciliation lock planning when a lock already exists for the same
-   device/session. Coolify staging was redeployed to commit
-   `ccf938354d7cb86edf2349cf5696a7dd51332136`, and the VM recheck confirmed
-   one fresh lock command for one session end before issue #36 was closed.
+   remains only as an explicit staging fallback. Slice 3.5 removed that legacy
+   MSI/bootstrapper from the default package-smoke and publishing flow.
+   Commercial production still needs final Authenticode/signing custody,
+   production storage/CDN policy, and service credentials for package
+   registration. Physical PC update/rollback evidence remains broader release
+   hardening.
 
 7. **Pilot Setup Runbook**
 
@@ -306,28 +267,14 @@ Minimum bar:
 - Agent service registration now has matching Windows Service host lifetime
   wiring and Windows 11 VM smoke evidence. Physical service startup validation
   remains hardening through the real-device smoke runbook.
-- A staging-only Gaming PC bootstrap path exists only as a legacy fallback, and the
-  preferred onboarding path is now the single `afk4-agent` MSI with the
+- The preferred onboarding path is now the single `afk4-agent` MSI with the
   owner-code Setup Wizard plus role-aware Player Shell/Operator App
-  installation. The older release-workstation setup executable path remains in
-  code behind explicit fallback switches; the MinIO-hosted remote bootstrap
-  script is no longer published by default `Package Smoke` and is no longer the
-  current pass-evidence path:
-  `https://updates.afk4.staging.mubi.dev/afk4-updates-staging/bootstrap/gaming-pc/internal/latest.json`.
-  A first Windows 11 VM passed rebuilt x64 install/enroll/heartbeat, session
-  start/end, signed lease, local runtime state, and visible Player Shell
-  active/locked evidence. A second Windows 11 VM smoke confirmed
-  interactive-session Shell auto-start and active-state delivery without manual
-  Shell restart after the long-lived state pipe fix. The first remote bootstrap
-  run reached enroll/seat assignment but failed MSI install with 1920/1603
-  because service startup happened before machine config was written. Corrected
-  bootstrap version `0.1.14` passed clean Windows 11 VM install/enroll/
-  seat-assignment/heartbeat/locked-Shell smoke, then passed two session
-  start/end cycles with no-SQL seat/device reuse. The single `afk4-agent` MSI
-  path then reached internal Agent `0.1.29` on VM2 with update, automatic
-  service-start after reboot, and no Setup Wizard rerun after upgrade. Repeat
-  the current Agent MSI path on physical Windows hardware as hardening before
-  wider rollout.
+  installation. The older release-workstation setup executable and coordinated
+  gaming-PC MSI remain in code behind explicit fallback switches only. The
+  single Agent MSI path reached internal Agent `0.1.29` on VM2 with update,
+  automatic service-start after reboot, and no Setup Wizard rerun after
+  upgrade. Repeat the current Agent MSI path on physical Windows hardware as
+  hardening before wider rollout.
 - Lock/unlock enforcement has adapter coverage and Windows 11 VM smoke
   evidence. Physical Windows validation remains hardening before wider rollout.
 - Player Shell service-session competition is mitigated in code by
@@ -337,33 +284,21 @@ Minimum bar:
   publish timing window. A rebuilt Windows 11 staging VM confirmed active-state
   delivery without manual Shell restart; physical PC smoke remains recommended
   hardening.
-- Session end/finalization is implemented in code for accepted/completed lock
-  command results and heartbeat recovery when accepted lock results were
-  already persisted for an `ending` session, including duplicate-result
-  idempotency and seat/device reuse tests. After staging was redeployed from
-  `codex/staging-gaming-pc-bootstrapper`, Windows 11 VM smoke confirmed an
-  ended session returned the seat/device to locked and a second session started
-  on the same seat without SQL cleanup. A later remote bootstrap `0.1.14` VM
-  smoke also confirmed reuse, but exposed duplicate backend lock command
-  creation on the final session end. Issue #36 is now fixed, redeployed, and
-  closed: the staging VM recheck on 2026-05-19 confirmed session
-  `1df4e315-9585-47af-9c74-02c2ebe423de` produced exactly one fresh lock
-  command, then returned the seat/device to locked with no active session.
+- Session end/finalization is implemented for accepted/completed lock command
+  results and heartbeat recovery when accepted lock results were already
+  persisted for an `ending` session, including duplicate-result idempotency and
+  seat/device reuse tests. Issue #36 duplicate lock planning is fixed and
+  staging-rechecked.
 - Reboot recovery should be exercised on physical PCs as hardening before wider
   rollout.
 - Already enrolled PCs are updateable through signed/internal MSI update
-  rollouts in staging: the Windows 11 VM device
-  `0588fb59-3edb-4704-bbdb-094e12417cf1` installed Agent/Shell `0.1.3` and
-  then `0.1.6` and `0.1.7` from MinIO. The `0.1.7` rollout adds stale recovery
-  state handling and atomic artifact download behavior for partial downloads,
-  sleep, reboot, and network loss. The `0.1.7` VM run exposed a backend bug
-  where older active rollouts could still be offered after a newer version was
-  installed; PR #22 fixed the offer filter and staging was redeployed. Manual
-  copying of rebuilt client packages is no longer the preferred clean-machine
-  path; use the current single Agent MSI for clean staging PCs and the
-  signed/internal MSI rollout path for already enrolled PCs. No separate update
-  development branch is planned now; repeat update and rollback evidence on
-  physical hardware as broader release hardening.
+  rollouts in staging. VM2 applied the `0.1.29` Agent rollout and survived the
+  final reboot with `AFK4.Agent.Service` running. Manual copying of rebuilt
+  client packages is no longer the preferred clean-machine path; use the
+  current single Agent MSI for clean staging PCs and the signed/internal MSI
+  rollout path for already enrolled PCs. No separate update development branch
+  is planned now; repeat update and rollback evidence on physical hardware as
+  broader release hardening.
 - Production lease duration and heartbeat refresh threshold need telemetry.
 
 ### Operator Workflows

@@ -27,8 +27,9 @@ Read these files first in new sessions:
 - [Production Readiness Roadmap](docs/roadmap/production-readiness.md) - what
   separates the project from pilot and commercial production.
 
-Historical phase plans and old progress logs are reference material, not
-required reading for every new session.
+Historical phase plans, superseded design notes, and old progress logs are
+archived under `docs/archive/` and are not required reading for every new
+session.
 
 ## Fixed MVP Decisions
 
@@ -137,7 +138,7 @@ From the repository root:
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 ```
 
-The latest recorded full verification passed 1049 tests with 0 failures. See
+The latest recorded full verification passed 1053 tests with 0 failures. See
 [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) for the
 exact current verification notes.
 

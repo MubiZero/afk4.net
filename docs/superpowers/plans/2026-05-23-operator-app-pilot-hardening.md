@@ -19,8 +19,8 @@ Implemented slices:
 This plan turns the current Operator App critique into actionable pilot
 hardening work. It does not reopen the approved product or architecture
 decisions: AFK4 remains a native Windows Operator App with a WebView2 shell and
-React/TypeScript UI, backend-authoritative critical actions, no web admin
-panel, and no local club server.
+React/TypeScript UI, backend-authoritative critical actions, no browser web
+admin as the primary club UI, and no local club server.
 
 The goal is to make the React Operator App safe enough for a supervised pilot
 day flow: sign in, open/observe shift, use the floor map, start/extend/end
