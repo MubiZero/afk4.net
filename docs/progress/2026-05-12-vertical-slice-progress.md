@@ -3826,7 +3826,12 @@ Operator App WebView2/React first implementation on 2026-05-20:
   after `sc.exe config AFK4.Agent.Service start= auto` and `Start-Service`
   showed `AFK4.Agent.Service` `RUNNING`, `sc.exe qc` `START_TYPE` `AUTO_START`,
   and `Agent__AgentVersion=0.1.27`; the remaining live check is a final VM
-  reboot proving the service starts automatically from cold boot.
+  reboot proving the service starts automatically from cold boot. The reboot
+  did start Player Shell/Agent, but also reopened the Setup Wizard because the
+  Agent MSI major upgrade re-registered first-run `RunOnce`. The Agent MSI now
+  skips first-run wizard registration/launch on upgrades, and the wizard
+  completion path clears `FirstRunPending` plus the HKLM `RunOnce` entry after
+  successful enrollment.
 
 ## Historical Reference
 

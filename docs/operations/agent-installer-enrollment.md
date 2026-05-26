@@ -60,7 +60,8 @@ update channel according to the enrolled device role.
 11. After writing bootstrap configuration, the wizard switches
     `AFK4.Agent.Service` to automatic startup and starts it. Then verify
     heartbeat succeeds and the device appears in the customer dashboard/device
-    workflow.
+    workflow. Successful completion also clears the first-run marker and HKLM
+    `RunOnce` entry so later Agent MSI upgrades do not reopen the wizard.
 12. On its update loop the Agent requests role-compatible update packages:
     `gaming_pc` devices install `player-shell`, and `manager_workstation`
     devices install `operator-app`. Operator App installation checks for the

@@ -28,6 +28,8 @@ public sealed class AgentServiceCompletionAction(string serviceName = "AFK4.Agen
         {
             throw new InvalidOperationException($"AFK4 Agent Service could not be started. sc.exe exited with code {startResult}.");
         }
+
+        SetupWizardFirstRunRegistration.Clear();
     }
 
     private static int RunScCommand(IReadOnlyList<string> arguments, bool throwOnFailure)

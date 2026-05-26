@@ -484,11 +484,12 @@ Start-Process msiexec.exe `
 
 Expected immediately after install:
 
-- `AFK4.Agent.Service` is installed with demand start and is not expected to
-  run before wizard enrollment;
+- `AFK4.Agent.Service` is installed with automatic startup, but the MSI does
+  not start it before wizard enrollment;
 - `C:\Program Files\AFK4\Setup Wizard\AFK4.SetupWizard.exe` exists;
 - a Start Menu shortcut exists under AFK4;
-- HKLM `RunOnce` has an `AFK4 Setup Wizard` entry until the wizard runs;
+- HKLM `RunOnce` has an `AFK4 Setup Wizard` entry until successful enrollment
+  clears the first-run state;
 - the Setup Wizard opens in the interactive desktop when the installer can
   launch it.
 
@@ -518,6 +519,8 @@ Expected after successful wizard enrollment:
   `Agent__DeviceRole`, `Agent__DeviceCredentialSecret`,
   `Agent__LeaseSigningPublicKeyPem`, `Agent__UpdateChannel`, and
   `Agent__UpdatePackageSigningPublicKeyPem`;
+- HKLM `RunOnce` no longer has an `AFK4 Setup Wizard` entry, and Agent MSI
+  upgrades do not re-register first-run wizard launch;
 - `Agent__PlatformBaseUrl` is exactly `https://afk4.staging.mubi.dev`, not
   `http://localhost:5074`;
 - `AFK4.Agent.Service` is switched to automatic startup and is running;

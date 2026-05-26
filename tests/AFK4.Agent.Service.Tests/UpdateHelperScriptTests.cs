@@ -154,11 +154,33 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("ProgramMenuFolder", package, StringComparison.Ordinal);
         Assert.Contains("LaunchSetupWizard", package, StringComparison.Ordinal);
         Assert.Contains("asyncNoWait", package, StringComparison.Ordinal);
+        Assert.Contains("<Condition>NOT WIX_UPGRADE_DETECTED</Condition>", package, StringComparison.Ordinal);
+        Assert.Contains(
+            "Condition=\"NOT Installed AND NOT WIX_UPGRADE_DETECTED AND UILevel &gt;= 3\"",
+            package,
+            StringComparison.Ordinal);
         Assert.Contains("Start=\"auto\"", package, StringComparison.Ordinal);
         Assert.DoesNotContain("Start=\"demand\"", package, StringComparison.Ordinal);
         Assert.DoesNotContain("Start=\"install\"", package, StringComparison.Ordinal);
         Assert.DoesNotContain("PlayerShell", package, StringComparison.Ordinal);
         Assert.DoesNotContain("Player Shell", package, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetupWizardCompletionAction_ClearsFirstRunRegistryStateAfterEnrollment()
+    {
+        var action = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "src", "AFK4.SetupWizard", "AgentServiceCompletionAction.cs"));
+        var registration = File.ReadAllText(Path.Combine(GetRepositoryRoot(), "src", "AFK4.SetupWizard", "SetupWizardFirstRunRegistration.cs"));
+
+        var startCheckIndex = action.IndexOf("if (startResult is not 0 and not ServiceAlreadyRunning)", StringComparison.Ordinal);
+        var clearIndex = action.IndexOf("SetupWizardFirstRunRegistration.Clear();", StringComparison.Ordinal);
+
+        Assert.True(clearIndex > startCheckIndex, "The first-run marker should be cleared only after Agent service startup succeeds.");
+        Assert.Contains(@"Software\AFK4\SetupWizard", registration, StringComparison.Ordinal);
+        Assert.Contains(@"Software\Microsoft\Windows\CurrentVersion\RunOnce", registration, StringComparison.Ordinal);
+        Assert.Contains("FirstRunPending", registration, StringComparison.Ordinal);
+        Assert.Contains("AFK4 Setup Wizard", registration, StringComparison.Ordinal);
+        Assert.Contains("DeleteValue(valueName, throwOnMissingValue: false)", registration, StringComparison.Ordinal);
     }
 
     [Fact]
