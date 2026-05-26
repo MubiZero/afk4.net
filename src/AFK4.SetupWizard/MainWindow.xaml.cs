@@ -61,6 +61,13 @@ public partial class MainWindow : Window
         viewModel.SelectedRole = ManagerRadio.IsChecked == true
             ? DeviceRoleNames.ManagerWorkstation
             : DeviceRoleNames.GamingPc;
+        UpdatePanels();
+    }
+
+    private void ChooseSeat_OnClick(object sender, RoutedEventArgs e)
+    {
+        viewModel.ContinueFromRole();
+        UpdatePanels();
     }
 
     private async void Enroll_OnClick(object sender, RoutedEventArgs e)
@@ -112,10 +119,19 @@ public partial class MainWindow : Window
         {
             SetupWizardStep.OwnerCode => "Step 1 of 4",
             SetupWizardStep.BranchSelection => "Step 2 of 4",
-            SetupWizardStep.SeatSelection => "Step 3 of 4",
-            SetupWizardStep.RoleSelection => "Step 4 of 4",
+            SetupWizardStep.RoleSelection => "Step 3 of 4",
+            SetupWizardStep.SeatSelection => "Step 4 of 4",
             _ => "Done"
         };
+        ChooseSeatButton.Visibility = viewModel.CurrentStep == SetupWizardStep.RoleSelection &&
+                                      viewModel.SelectedRoleRequiresSeat &&
+                                      viewModel.SelectedSeat is null
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        EnrollButton.Visibility = viewModel.CurrentStep == SetupWizardStep.RoleSelection &&
+                                  viewModel.CanEnrollSelectedRole
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         StepLabel.Visibility = viewModel.CurrentStep == SetupWizardStep.Finished
             ? Visibility.Collapsed
             : Visibility.Visible;

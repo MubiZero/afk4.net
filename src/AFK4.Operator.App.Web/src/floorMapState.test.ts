@@ -110,6 +110,27 @@ describe('floor-map state', () => {
     });
   });
 
+  it('ignores manager workstation realtime status even when the machine name matches a seat', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [createSeat({ state: 'Locked', isDeviceLocked: true })]
+    });
+
+    const nextSeats = applyDeviceStatusToSeats(state.seats, {
+      organizationId,
+      branchId,
+      deviceId: '22222222-2222-2222-2222-222222222222',
+      machineName: 'PC-01',
+      isOnline: true,
+      isLocked: false,
+      observedAtUtc: '2026-05-21T10:00:00Z',
+      role: 'manager_workstation'
+    });
+
+    expect(nextSeats).toBe(state.seats);
+  });
+
   it('ticks active session remaining time from the backend snapshot deadline', () => {
     const loadedAtMs = 1000;
     const state = mapFloorMapDtoToState({

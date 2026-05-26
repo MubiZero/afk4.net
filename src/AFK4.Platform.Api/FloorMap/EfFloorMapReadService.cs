@@ -51,6 +51,11 @@ public sealed class EfFloorMapReadService(PlatformDbContext dbContext, TimeProvi
             .AsNoTracking()
             .Where(device => assignedDeviceIds.Contains(device.DeviceId))
             .ToDictionaryAsync(device => device.DeviceId, cancellationToken);
+        activeAssignments = activeAssignments
+            .Where(assignment =>
+                devices.TryGetValue(assignment.DeviceId, out var device) &&
+                device.Role == DeviceRoleNames.GamingPc)
+            .ToList();
         var sessions = await dbContext.Sessions
             .AsNoTracking()
             .Where(session => session.BranchId == branchId && ProjectedSessionStates.Contains(session.State))

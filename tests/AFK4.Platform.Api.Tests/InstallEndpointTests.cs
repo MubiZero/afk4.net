@@ -96,6 +96,50 @@ public sealed class InstallEndpointTests
     }
 
     [Fact]
+    public async Task Enroll_ManagerWorkstationWithoutSeat_CreatesApprovedDeviceWithoutSeatAssignment()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        var ownerAuthorization = client.DefaultRequestHeaders.Authorization;
+        var ownerCode = await GenerateOwnerCodeAsync(client);
+        await SeedLayoutAsync(factory);
+        client.DefaultRequestHeaders.Authorization = null;
+
+        var response = await client.PostAsJsonAsync(
+            "/api/install/enroll",
+            new
+            {
+                OwnerCode = ownerCode,
+                BranchId = TestIds.BranchId,
+                SeatId = (Guid?)null,
+                Role = DeviceRoleNames.ManagerWorkstation,
+                DisplayName = "Manager desk",
+                MachineName = "MANAGER-01",
+                DevicePublicKey = "device-public-key"
+            });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<InstallEnrollResponse>();
+        Assert.NotNull(body);
+        Assert.Equal(DeviceEnrollmentStateNames.Approved, body.EnrollmentState);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var device = await dbContext.Devices.SingleAsync(candidate => candidate.DeviceId == body.DeviceId);
+        Assert.Equal(DeviceRoleNames.ManagerWorkstation, device.Role);
+        Assert.Equal("Manager desk", device.DisplayName);
+        Assert.Empty(await dbContext.DeviceSeatAssignments.Where(assignment => assignment.DeviceId == body.DeviceId).ToListAsync());
+
+        client.DefaultRequestHeaders.Authorization = ownerAuthorization;
+        var floorMapResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var floorMap = await floorMapResponse.Content.ReadFromJsonAsync<FloorMapDto>();
+        Assert.Equal(HttpStatusCode.OK, floorMapResponse.StatusCode);
+        Assert.NotNull(floorMap);
+        var seat = Assert.Single(floorMap.Seats, candidate => candidate.SeatId == TestIds.SeatId);
+        Assert.Null(seat.DeviceId);
+    }
+
+    [Fact]
     public async Task Enroll_WhenBranchRequiresManualApproval_CreatesPendingDevice()
     {
         await using var factory = new PlatformApiFactory();
@@ -108,14 +152,16 @@ public sealed class InstallEndpointTests
 
         var response = await client.PostAsJsonAsync(
             "/api/install/enroll",
-            new InstallEnrollRequest(
-                ownerCode,
-                TestIds.BranchId,
-                TestIds.SeatId,
-                DeviceRoleNames.ManagerWorkstation,
-                "Manager desk",
-                "MANAGER-01",
-                "device-public-key"));
+            new
+            {
+                OwnerCode = ownerCode,
+                BranchId = TestIds.BranchId,
+                SeatId = (Guid?)null,
+                Role = DeviceRoleNames.ManagerWorkstation,
+                DisplayName = "Manager desk",
+                MachineName = "MANAGER-01",
+                DevicePublicKey = "device-public-key"
+            });
         var body = await response.Content.ReadFromJsonAsync<InstallEnrollResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -190,8 +236,8 @@ public sealed class InstallEndpointTests
         Assert.NotNull(floorMap);
         var seat = Assert.Single(floorMap.Seats, candidate => candidate.SeatId == TestIds.SeatId);
         Assert.Equal("Maintenance", seat.State);
-        Assert.True(seat.IsDeviceOnline);
-        Assert.Equal(body.DeviceId, seat.DeviceId);
+        Assert.Null(seat.DeviceId);
+        Assert.Null(seat.IsDeviceOnline);
     }
 
     [Fact]

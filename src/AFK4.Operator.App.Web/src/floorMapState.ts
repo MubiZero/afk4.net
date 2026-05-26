@@ -66,6 +66,10 @@ export function applyDeviceStatusToSeats(
   currentSeats: SeatSummary[],
   status: DeviceStatusChangedDto
 ): SeatSummary[] {
+  if (!isGamingPcStatus(status)) {
+    return currentSeats;
+  }
+
   let applied = false;
   const nextSeats = currentSeats.map((seat) => {
     if (!matchesDeviceStatus(seat, status)) {
@@ -180,8 +184,13 @@ function refreshSeatRemaining(seat: SeatSummary, nowMs: number): SeatSummary {
 }
 
 function matchesDeviceStatus(seat: SeatSummary, status: DeviceStatusChangedDto): boolean {
-  return equalsIgnoreCase(seat.deviceId ?? '', status.deviceId)
+  return equalsIgnoreCase(seat.id, status.seatId ?? '')
+    || equalsIgnoreCase(seat.deviceId ?? '', status.deviceId)
     || equalsIgnoreCase(seat.name, status.machineName);
+}
+
+function isGamingPcStatus(status: DeviceStatusChangedDto): boolean {
+  return !status.role || status.role.trim().toLowerCase() === 'gaming_pc';
 }
 
 function resolveTone(

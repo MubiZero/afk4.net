@@ -141,13 +141,16 @@ public sealed class EfInstallService(
                 ownerCodeId);
         }
 
-        if (!IsValidDeviceRole(request.Role))
+        var normalizedRole = request.Role.Trim();
+        if (!IsValidDeviceRole(normalizedRole))
         {
             await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
                 "Device role is invalid.",
                 ownerCodeId);
         }
+
+        var requiresSeatAssignment = normalizedRole == DeviceRoleNames.GamingPc;
 
         var machineName = request.MachineName.Trim();
         if (machineName.Length == 0)
@@ -194,38 +197,59 @@ public sealed class EfInstallService(
                 ownerCodeId);
         }
 
-        var seat = await dbContext.Seats
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                candidate =>
-                    candidate.OrganizationId == organizationId &&
-                    candidate.BranchId == request.BranchId &&
-                    candidate.SeatId == request.SeatId,
-                cancellationToken);
-        if (seat is null)
+        if (requiresSeatAssignment && (request.SeatId is null || request.SeatId == Guid.Empty))
         {
             await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                "Seat was not found in this branch.",
+                "Seat is required for gaming PC enrollment.",
                 ownerCodeId);
         }
 
-        var hasActiveAssignment = await dbContext.DeviceSeatAssignments
-            .AnyAsync(
-                assignment =>
-                    assignment.OrganizationId == organizationId &&
-                    assignment.BranchId == request.BranchId &&
-                    assignment.SeatId == request.SeatId &&
-                    assignment.DetachedAtUtc == null,
-                cancellationToken);
-        if (hasActiveAssignment)
+        if (!requiresSeatAssignment && request.SeatId is not null && request.SeatId != Guid.Empty)
         {
             await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
-            return InstallOperationResult<InstallEnrollResponse>.Conflict(
-                "Seat already has an active device assignment.",
-                organizationId,
-                request.BranchId,
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
+                "Manager workstation enrollment must not target a seat.",
                 ownerCodeId);
+        }
+
+        SeatEntity? seat = null;
+        if (requiresSeatAssignment)
+        {
+            var seatId = request.SeatId!.Value;
+            seat = await dbContext.Seats
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    candidate =>
+                        candidate.OrganizationId == organizationId &&
+                        candidate.BranchId == request.BranchId &&
+                        candidate.SeatId == seatId,
+                    cancellationToken);
+            if (seat is null)
+            {
+                await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
+                return InstallOperationResult<InstallEnrollResponse>.BadRequest(
+                    "Seat was not found in this branch.",
+                    ownerCodeId);
+            }
+
+            var hasActiveAssignment = await dbContext.DeviceSeatAssignments
+                .AnyAsync(
+                    assignment =>
+                        assignment.OrganizationId == organizationId &&
+                        assignment.BranchId == request.BranchId &&
+                        assignment.SeatId == seatId &&
+                        assignment.DetachedAtUtc == null,
+                    cancellationToken);
+            if (hasActiveAssignment)
+            {
+                await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
+                return InstallOperationResult<InstallEnrollResponse>.Conflict(
+                    "Seat already has an active device assignment.",
+                    organizationId,
+                    request.BranchId,
+                    ownerCodeId);
+            }
         }
 
         var now = timeProvider.GetUtcNow();
@@ -243,7 +267,7 @@ public sealed class EfInstallService(
             MachineName = machineName,
             DisplayName = displayName,
             DevicePublicKey = devicePublicKey,
-            Role = request.Role.Trim(),
+            Role = normalizedRole,
             EnrollmentState = enrollmentState,
             EnrolledViaOwnerCodeId = ownerCodeId,
             AgentVersion = string.Empty,
@@ -261,15 +285,18 @@ public sealed class EfInstallService(
             CreatedAtUtc = now
         });
 
-        dbContext.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+        if (requiresSeatAssignment)
         {
-            DeviceSeatAssignmentId = Guid.NewGuid(),
-            OrganizationId = organizationId,
-            BranchId = request.BranchId,
-            SeatId = request.SeatId,
-            DeviceId = deviceId,
-            AttachedAtUtc = now
-        });
+            dbContext.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+            {
+                DeviceSeatAssignmentId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = request.BranchId,
+                SeatId = seat!.SeatId,
+                DeviceId = deviceId,
+                AttachedAtUtc = now
+            });
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -453,11 +480,8 @@ public sealed class EfInstallService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private static bool IsValidDeviceRole(string role)
-    {
-        var normalized = role.Trim();
-        return normalized is DeviceRoleNames.GamingPc or DeviceRoleNames.ManagerWorkstation;
-    }
+    private static bool IsValidDeviceRole(string role) =>
+        role is DeviceRoleNames.GamingPc or DeviceRoleNames.ManagerWorkstation;
 
     private string ResolveLeaseSigningPublicKeyPem()
     {

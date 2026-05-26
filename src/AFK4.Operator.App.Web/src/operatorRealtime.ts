@@ -10,6 +10,10 @@ export interface DeviceStatusChangedDto {
   isOnline: boolean;
   isLocked: boolean;
   observedAtUtc: string;
+  displayName?: string;
+  role?: string;
+  enrollmentState?: string;
+  seatId?: string | null;
 }
 
 export interface DeviceCommandResultDto {

@@ -156,10 +156,18 @@
                     <TextBox Text="{Binding DisplayName, UpdateSourceTrigger=PropertyChanged}" Width="280" HorizontalAlignment="Left" Margin="0,4,0,16" />
                     <RadioButton x:Name="GamingPcRadio" Content="Gaming PC" IsChecked="True" Margin="0,0,0,8" Checked="Role_OnChecked" />
                     <RadioButton x:Name="ManagerRadio" Content="Manager workstation" Checked="Role_OnChecked" />
-                    <Button Content="Enroll"
+                    <Button x:Name="ChooseSeatButton"
+                            Content="Choose seat"
                             Style="{StaticResource StepButton}"
                             Width="120"
                             Margin="0,22,0,0"
+                            HorizontalAlignment="Left"
+                            Click="ChooseSeat_OnClick" />
+                    <Button x:Name="EnrollButton"
+                            Content="Enroll"
+                            Style="{StaticResource StepButton}"
+                            Width="120"
+                            Margin="0,8,0,0"
                             HorizontalAlignment="Left"
                             Click="Enroll_OnClick" />
                 </StackPanel>

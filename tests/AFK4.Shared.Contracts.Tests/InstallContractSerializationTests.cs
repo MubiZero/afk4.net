@@ -93,6 +93,25 @@ public sealed class InstallContractSerializationTests
     }
 
     [Fact]
+    public void InstallEnroll_AllowsManagerWorkstationWithoutSeat()
+    {
+        var request = new InstallEnrollRequest(
+            "12345678",
+            Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            null,
+            DeviceRoleNames.ManagerWorkstation,
+            "Manager desk",
+            "MANAGER-01",
+            "device-public-key");
+
+        var copy = JsonSerializer.Deserialize<InstallEnrollRequest>(JsonSerializer.Serialize(request));
+
+        Assert.NotNull(copy);
+        Assert.Equal(DeviceRoleNames.ManagerWorkstation, copy.Role);
+        Assert.Null(copy.SeatId);
+    }
+
+    [Fact]
     public void InstallCreateSeat_RoundTripsOwnerCodeScopedSeat()
     {
         var request = new InstallCreateSeatRequest(

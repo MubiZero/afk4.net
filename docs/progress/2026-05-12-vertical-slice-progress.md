@@ -96,8 +96,9 @@ needed.
 
 - Single `AFK4 Agent` MSI installs Agent Service, Setup Wizard, update helpers,
   first-run marker, RunOnce wizard launch, and service registration.
-- Setup Wizard supports owner-code discovery/enrollment, branch/floor-map/free
-  seat selection, missing-seat creation, role choice, stable device key,
+- Setup Wizard supports owner-code discovery/enrollment, branch/floor-map
+  discovery, role choice before optional seat selection, missing-seat creation
+  for gaming PCs, seatless manager-workstation enrollment, stable device key,
   machine bootstrap environment writing, Operator App base URL and branch
   context bootstrap, and service start after enrollment.
 - Agent role-aware update flow installs Player Shell for `gaming_pc` and
@@ -147,13 +148,43 @@ needed.
     (`54165568` bytes,
     SHA256 `8013D8DDF1BC9CB8CDFB6D4247276D366C93B1C259FC755AB97C04E9338E5635`),
     plus Player Shell MSI artifacts.
+- 2026-05-26 `manager_workstation` seatless-enrollment follow-up on branch
+  `codex/manager-workstation-seatless-enroll`:
+  - Fixed the remaining clean-VM model bug: `manager_workstation` enrollment no
+    longer requires or creates a floor-map seat assignment. Gaming PCs still
+    require a free seat.
+  - Setup Wizard now selects role before optional seat selection; manager
+    workstations enroll directly after branch selection, while gaming PCs move
+    to free-seat selection or missing-seat creation.
+  - Floor-map projection and React realtime state now ignore
+    non-`gaming_pc` device assignments/statuses so old manager assignments do
+    not appear as ready gaming PCs.
+  - Focused verification passed:
+    `AFK4.SetupWizard.Tests` 13/13, install contract serialization 4/4,
+    install/floor-map Platform API tests 19/19, Operator App Web
+    `floorMapState`/`operatorRealtime` tests 8/8, Operator App Web production
+    build, and local client package build.
+  - Full solution verification also passed: `dotnet build .\AFK4.sln` with
+    0 warnings/0 errors and `dotnet test .\AFK4.sln --no-restore` with
+    1061/1061 tests passing.
+  - Local package build
+    `scripts/build-client-packages.ps1 -Version 0.1.36-manager-seatless -Channel internal`
+    produced `afk4-agent-0.1.36-manager-seatless-internal.msi`
+    (`57195837` bytes,
+    SHA256 `3270DF1D85F84DA3CACC1EAE0922D1DB6862279BD904D44856BF8BF5DC4622E3`)
+    and `afk4-operator-app-0.1.36-manager-seatless-internal.msi`
+    (`54145088` bytes,
+    SHA256 `02ECD90E788F4F0869C7B1559F366E11848BDC9613F77F2EF6B80D2E5F467B0D`),
+    plus Player Shell MSI artifacts.
 
 ## Known Gaps
 
-- `manager_workstation` role smoke has local fixes and a `0.1.33-manager-env`
-  MSI for the first clean-VM blockers; it still needs final VM evidence for
-  upgraded Operator App launch and staff sign-in against staging before the gap
-  can be closed.
+- `manager_workstation` role smoke has local fixes and a
+  `0.1.36-manager-seatless` MSI for the clean-VM blockers; staging backend must
+  be updated for nullable install `SeatId` before the new Wizard flow can be
+  smoked against `afk4.staging.mubi.dev`. Existing staging smoke data also
+  needs cleanup of mistakenly created manager seats/assignments, and stale
+  deleted-VM devices still need heartbeat/offline threshold hardening.
 - Operator App staging hardening remains the highest product-value work after
   onboarding packaging cleanup: run backend-backed staging day flows and remove
   remaining production-visible fixtures/placeholders/raw GUID forms from normal
@@ -170,8 +201,10 @@ needed.
 
 ## Recommended Next Work
 
-1. Run the `manager_workstation` clean Windows VM smoke to close the remaining
-   onboarding role evidence.
+1. Deploy the seatless install-enrollment backend to staging, clean mistaken
+   manager-workstation seat data from the smoke branch, then rerun the
+   `manager_workstation` clean Windows VM smoke with the
+   `0.1.36-manager-seatless` Agent MSI.
 2. Continue Operator App staging hardening using
    `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`.
 3. Repeat real-device Windows smoke on physical hardware when available.

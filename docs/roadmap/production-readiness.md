@@ -125,9 +125,14 @@ Minimum bar:
    smoke reached internal Agent `0.1.29`: VM2 applied the rollout, rebooted,
    kept `AFK4.Agent.Service` running, and did not reopen Setup Wizard. This is
    enough to proceed with pilot Operator App testing and continued development.
-   `manager_workstation` role evidence, physical Windows 10/11 hardware,
-   reboot recovery repeats, and update/rollback repeats remain hardening work
-   before wider operational rollout.
+   A 2026-05-26 `manager_workstation` smoke found and fixed the local
+   seat-assignment model bug: manager workstations must enroll without a
+   floor-map seat. Staging still needs the nullable install-enrollment backend
+   update, cleanup of mistakenly created smoke seats/assignments, and a repeat
+   clean-VM manager-workstation run before that evidence can be closed.
+   Physical Windows 10/11 hardware, reboot recovery repeats, and
+   update/rollback repeats remain hardening work before wider operational
+   rollout.
 
 5. **Backup And Restore Rehearsal**
 

@@ -59,7 +59,7 @@ public sealed class SetupWizardViewModelTests
     }
 
     [Fact]
-    public async Task SelectBranch_ExposesOnlyFreeSeatsAsSelectable()
+    public async Task SelectBranch_LoadsSeatsAndMovesToRoleSelection()
     {
         var viewModel = CreateViewModel(new RecordingSetupWizardApiClient
         {
@@ -70,12 +70,30 @@ public sealed class SetupWizardViewModelTests
 
         viewModel.SelectBranch(viewModel.Branches.Single());
 
-        Assert.Equal(SetupWizardStep.SeatSelection, viewModel.CurrentStep);
+        Assert.Equal(SetupWizardStep.RoleSelection, viewModel.CurrentStep);
         Assert.Equal(2, viewModel.Seats.Count);
         var free = Assert.Single(viewModel.Seats, seat => seat.SeatId == FreeSeatId);
         var occupied = Assert.Single(viewModel.Seats, seat => seat.SeatId == OccupiedSeatId);
         Assert.True(free.IsSelectable);
         Assert.False(occupied.IsSelectable);
+    }
+
+    [Fact]
+    public async Task ContinueFromRole_WithGamingPcMovesToSeatSelection()
+    {
+        var viewModel = CreateViewModel(new RecordingSetupWizardApiClient
+        {
+            DiscoverResponse = CreateDiscoverResponse()
+        });
+        viewModel.OwnerCode = "12345678";
+        await viewModel.DiscoverAsync(CancellationToken.None);
+        viewModel.SelectBranch(viewModel.Branches.Single());
+
+        viewModel.SelectedRole = DeviceRoleNames.GamingPc;
+        viewModel.ContinueFromRole();
+
+        Assert.Equal(SetupWizardStep.SeatSelection, viewModel.CurrentStep);
+        Assert.Null(viewModel.ErrorMessage);
     }
 
     [Fact]
@@ -108,7 +126,7 @@ public sealed class SetupWizardViewModelTests
     }
 
     [Fact]
-    public async Task EnrollAsync_UsesSelectedValuesStableDeviceKeyAndWritesBootstrap()
+    public async Task EnrollAsync_ManagerWorkstationUsesBranchOnlyAndWritesBootstrap()
     {
         var apiClient = new RecordingSetupWizardApiClient
         {
@@ -137,13 +155,12 @@ public sealed class SetupWizardViewModelTests
         viewModel.SelectedRole = DeviceRoleNames.ManagerWorkstation;
         await viewModel.DiscoverAsync(CancellationToken.None);
         viewModel.SelectBranch(viewModel.Branches.Single());
-        viewModel.SelectSeat(viewModel.Seats.Single(seat => seat.SeatId == FreeSeatId));
 
         await viewModel.EnrollAsync(CancellationToken.None);
 
         Assert.Equal("12345678", apiClient.EnrollRequest!.OwnerCode);
         Assert.Equal(BranchId, apiClient.EnrollRequest.BranchId);
-        Assert.Equal(FreeSeatId, apiClient.EnrollRequest.SeatId);
+        Assert.Null((Guid?)apiClient.EnrollRequest.SeatId);
         Assert.Equal(DeviceRoleNames.ManagerWorkstation, apiClient.EnrollRequest.Role);
         Assert.Equal("Manager desk", apiClient.EnrollRequest.DisplayName);
         Assert.Equal(Environment.MachineName, apiClient.EnrollRequest.MachineName);
@@ -155,6 +172,26 @@ public sealed class SetupWizardViewModelTests
         Assert.Equal(1, completionAction.CallCount);
         Assert.Equal("Enrollment pending approval in the club dashboard.", viewModel.StatusMessage);
         Assert.Equal(SetupWizardStep.Finished, viewModel.CurrentStep);
+    }
+
+    [Fact]
+    public async Task EnrollAsync_GamingPcWithoutSeatRequiresSeatBeforeApiCall()
+    {
+        var apiClient = new RecordingSetupWizardApiClient
+        {
+            DiscoverResponse = CreateDiscoverResponse()
+        };
+        var viewModel = CreateViewModel(apiClient);
+        viewModel.OwnerCode = "12345678";
+        viewModel.SelectedRole = DeviceRoleNames.GamingPc;
+        await viewModel.DiscoverAsync(CancellationToken.None);
+        viewModel.SelectBranch(viewModel.Branches.Single());
+
+        await viewModel.EnrollAsync(CancellationToken.None);
+
+        Assert.Null(apiClient.EnrollRequest);
+        Assert.Equal(SetupWizardStep.SeatSelection, viewModel.CurrentStep);
+        Assert.Equal("Choose a free seat before enrolling a gaming PC.", viewModel.ErrorMessage);
     }
 
     private static SetupWizardViewModel CreateViewModel(

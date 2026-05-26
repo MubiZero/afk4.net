@@ -45,8 +45,19 @@ public sealed class SetupWizardViewModel(
     public string SelectedRole
     {
         get => selectedRole;
-        set => SetField(ref selectedRole, value);
+        set
+        {
+            if (SetField(ref selectedRole, value))
+            {
+                OnPropertyChanged(nameof(SelectedRoleRequiresSeat));
+                OnPropertyChanged(nameof(CanEnrollSelectedRole));
+            }
+        }
     }
+
+    public bool SelectedRoleRequiresSeat => RoleRequiresSeat(SelectedRole);
+
+    public bool CanEnrollSelectedRole => !SelectedRoleRequiresSeat || SelectedSeat is not null;
 
     public SetupWizardStep CurrentStep
     {
@@ -79,7 +90,13 @@ public sealed class SetupWizardViewModel(
     public SetupWizardSeatViewModel? SelectedSeat
     {
         get => selectedSeat;
-        private set => SetField(ref selectedSeat, value);
+        private set
+        {
+            if (SetField(ref selectedSeat, value))
+            {
+                OnPropertyChanged(nameof(CanEnrollSelectedRole));
+            }
+        }
     }
 
     public async Task DiscoverAsync(CancellationToken cancellationToken)
@@ -137,12 +154,44 @@ public sealed class SetupWizardViewModel(
                 freeSeatIds.Contains(seat.SeatId)));
         }
 
-        CurrentStep = SetupWizardStep.SeatSelection;
+        CurrentStep = SetupWizardStep.RoleSelection;
         StatusMessage = $"Branch: {branch.Name}";
+    }
+
+    public void ContinueFromRole()
+    {
+        ErrorMessage = null;
+        if (SelectedBranch is null)
+        {
+            ErrorMessage = "Choose a branch first.";
+            CurrentStep = SetupWizardStep.BranchSelection;
+            return;
+        }
+
+        if (!IsValidRole(SelectedRole))
+        {
+            ErrorMessage = "Choose a valid device role.";
+            return;
+        }
+
+        if (SelectedRoleRequiresSeat)
+        {
+            CurrentStep = SetupWizardStep.SeatSelection;
+            StatusMessage = "Choose a free seat for this gaming PC.";
+            return;
+        }
+
+        StatusMessage = "Manager workstation will enroll without a floor-map seat.";
     }
 
     public void SelectSeat(SetupWizardSeatViewModel seat)
     {
+        if (!SelectedRoleRequiresSeat)
+        {
+            ErrorMessage = "Manager workstation enrollment does not use a seat.";
+            return;
+        }
+
         if (!seat.IsSelectable)
         {
             ErrorMessage = "Choose a free seat.";
@@ -161,6 +210,12 @@ public sealed class SetupWizardViewModel(
         if (SelectedBranch is null)
         {
             ErrorMessage = "Choose a branch first.";
+            return;
+        }
+
+        if (!SelectedRoleRequiresSeat)
+        {
+            ErrorMessage = "Seats are only needed for gaming PC enrollment.";
             return;
         }
 
@@ -202,12 +257,29 @@ public sealed class SetupWizardViewModel(
     public async Task EnrollAsync(CancellationToken cancellationToken)
     {
         ErrorMessage = null;
-        if (SelectedBranch is null || SelectedSeat is null)
+        if (SelectedBranch is null)
         {
-            ErrorMessage = "Choose a branch and free seat before enrolling.";
+            ErrorMessage = "Choose a branch before enrolling.";
+            CurrentStep = SetupWizardStep.BranchSelection;
             return;
         }
 
+        if (!IsValidRole(SelectedRole))
+        {
+            ErrorMessage = "Choose a valid device role.";
+            CurrentStep = SetupWizardStep.RoleSelection;
+            return;
+        }
+
+        if (SelectedRoleRequiresSeat && SelectedSeat is null)
+        {
+            ErrorMessage = "Choose a free seat before enrolling a gaming PC.";
+            CurrentStep = SetupWizardStep.SeatSelection;
+            return;
+        }
+
+        var normalizedRole = SelectedRole.Trim();
+        var seatId = RoleRequiresSeat(normalizedRole) ? SelectedSeat!.SeatId : (Guid?)null;
         var displayNameValue = string.IsNullOrWhiteSpace(DisplayName)
             ? machineInfo.MachineName
             : DisplayName.Trim();
@@ -216,8 +288,8 @@ public sealed class SetupWizardViewModel(
             new InstallEnrollRequest(
                 normalizedOwnerCode,
                 SelectedBranch.BranchId,
-                SelectedSeat.SeatId,
-                SelectedRole,
+                seatId,
+                normalizedRole,
                 displayNameValue,
                 machineInfo.MachineName,
                 publicKey),
@@ -229,7 +301,7 @@ public sealed class SetupWizardViewModel(
             response.DeviceId,
             response.CredentialId,
             response.CredentialSecret,
-            SelectedRole,
+            normalizedRole,
             response.ApiBaseUrl,
             response.UpdateChannel,
             response.LeaseSigningPublicKeyPem,
@@ -277,6 +349,20 @@ public sealed class SetupWizardViewModel(
     private static int ZoneSortOrder(FloorMapDto floorMap, Guid zoneId) =>
         floorMap.Zones.FirstOrDefault(zone => zone.ZoneId == zoneId)?.SortOrder ?? int.MaxValue;
 
+    private static bool RoleRequiresSeat(string role) =>
+        role.Trim() == DeviceRoleNames.GamingPc;
+
+    private static bool IsValidRole(string role)
+    {
+        var normalized = role.Trim();
+        return normalized is DeviceRoleNames.GamingPc or DeviceRoleNames.ManagerWorkstation;
+    }
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
@@ -285,7 +371,7 @@ public sealed class SetupWizardViewModel(
         }
 
         field = value;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        OnPropertyChanged(propertyName);
         return true;
     }
 }

@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.FloorMap;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
@@ -171,6 +172,89 @@ public sealed class EfFloorMapReadServiceTests
         Assert.Equal(zoneId, zone.ZoneId);
         Assert.Equal("Empty VIP", zone.Name);
         Assert.Equal(2, zone.SortOrder);
+    }
+
+    [Fact]
+    public async Task GetFloorMapAsync_DoesNotProjectManagerWorkstationAssignmentsAsPlayableSeats()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var zoneId = Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
+        var seatId = Guid.Parse("e5edae8b-a833-4d92-ad8c-5864376d0414");
+        var now = DateTimeOffset.Parse("2026-05-13T10:00:00Z");
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.Organizations.Add(new OrganizationEntity
+            {
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Demo Org",
+                CreatedAtUtc = now
+            });
+            db.Branches.Add(new BranchEntity
+            {
+                BranchId = TestIds.BranchId,
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Downtown Branch",
+                CreatedAtUtc = now
+            });
+            db.Zones.Add(new ZoneEntity
+            {
+                ZoneId = zoneId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                Name = "Main Hall",
+                SortOrder = 1,
+                CreatedAtUtc = now
+            });
+            db.Seats.Add(new SeatEntity
+            {
+                SeatId = seatId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                ZoneId = zoneId,
+                Name = "Manager-created seat",
+                SortOrder = 10,
+                CreatedAtUtc = now
+            });
+            db.Devices.Add(new DeviceEntity
+            {
+                DeviceId = TestIds.DeviceId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                MachineName = "MANAGER-01",
+                AgentVersion = "0.1.33",
+                ShellVersion = string.Empty,
+                Role = DeviceRoleNames.ManagerWorkstation,
+                EnrollmentState = DeviceEnrollmentStateNames.Approved,
+                EnrolledAtUtc = now,
+                LastHeartbeatAtUtc = now,
+                IsOnline = true,
+                IsLocked = false
+            });
+            db.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+            {
+                DeviceSeatAssignmentId = Guid.Parse("9a4ad2f7-b74f-4d31-a5c5-7a3d7e2e9921"),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                SeatId = seatId,
+                DeviceId = TestIds.DeviceId,
+                AttachedAtUtc = now
+            });
+            await db.SaveChangesAsync();
+        }
+
+        await using var readDb = new PlatformDbContext(options);
+        var service = new EfFloorMapReadService(readDb);
+
+        var result = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        var seat = Assert.Single(result.FloorMap.Seats);
+        Assert.Equal("Maintenance", seat.State);
+        Assert.Null(seat.DeviceId);
+        Assert.Null(seat.IsDeviceOnline);
     }
 
     [Fact]
