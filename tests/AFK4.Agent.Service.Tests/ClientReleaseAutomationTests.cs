@@ -694,6 +694,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.DoesNotContain("afk4-gaming-pc-setup-$env:AFK4_PACKAGE_VERSION-internal.exe", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("$env:GITHUB_RUN_NUMBER-ci", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/publish-client-msi-updates.ps1", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"scripts/register-update-package-requests.ps1\"", workflow, StringComparison.Ordinal);
         Assert.Contains("ArtifactStore s3", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("Publish staging bootstrapper to MinIO", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("artifacts/bootstrapper", workflow, StringComparison.Ordinal);
