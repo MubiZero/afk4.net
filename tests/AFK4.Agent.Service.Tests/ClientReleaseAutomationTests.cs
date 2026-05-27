@@ -273,6 +273,71 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("0588fb59-3edb-4704-bbdb-094e12417cf1", capturedRequests[1].Body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task RegisterUpdatePackageRequests_WithBranchRollout_PostsRolloutWithoutDeviceTargets()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var requestPath = Path.Combine(tempRoot, "operator-app-1.2.3-internal-request.json");
+        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"operator-app","channel":"internal"}""";
+        await File.WriteAllTextAsync(requestPath, requestBody);
+        var port = GetFreeTcpPort();
+        var baseUrl = $"http://127.0.0.1:{port}/";
+        using var listener = new HttpListener();
+        listener.Prefixes.Add(baseUrl);
+        listener.Start();
+
+        var capturedRequestsTask = Task.Run(async () =>
+        {
+            var requests = new List<CapturedHttpRequest>();
+            for (var index = 0; index < 2; index++)
+            {
+                var context = await listener.GetContextAsync();
+                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+                var body = await reader.ReadToEndAsync();
+                context.Response.StatusCode = 201;
+                context.Response.ContentType = "application/json";
+                var responseBody = index == 0
+                    ? Encoding.UTF8.GetBytes("""{"updatePackageId":"4a8f4f55-cc8e-49ce-9f69-98e9db9c8be7"}""")
+                    : Encoding.UTF8.GetBytes("""{"updateRolloutId":"7c62965e-fc6b-4e7d-a40a-11dac4a3c544"}""");
+                await context.Response.OutputStream.WriteAsync(responseBody);
+                context.Response.Close();
+                requests.Add(new CapturedHttpRequest(
+                    context.Request.HttpMethod,
+                    context.Request.Url?.AbsolutePath ?? string.Empty,
+                    context.Request.Headers["Authorization"] ?? string.Empty,
+                    body));
+            }
+
+            return requests;
+        });
+
+        var result = RunPowerShell(
+            environment: null,
+            "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
+            "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
+            "-RequestPath", requestPath,
+            "-AccessToken", "test-token",
+            "-CreateRollouts",
+            "-RolloutComponent", "operator-app",
+            "-RolloutTargetKind", "branch",
+            "-RolloutReason", "Automated smoke operator rollout.");
+
+        if (result.ExitCode != 0)
+        {
+            listener.Stop();
+        }
+
+        Assert.Equal(0, result.ExitCode);
+        var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequests[0].Path);
+        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts", capturedRequests[1].Path);
+        Assert.Contains("\"targetKind\":", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.Contains("\"branch\"", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.Contains("\"targetDeviceIds\":", capturedRequests[1].Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("0588fb59-3edb-4704-bbdb-094e12417cf1", capturedRequests[1].Body, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(500)]
     [InlineData(401)]

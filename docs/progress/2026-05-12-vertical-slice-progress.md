@@ -182,15 +182,16 @@ needed.
     `https://afk4.staging.mubi.dev/api/health` returned `status = ok`.
   - Local follow-up fixes the package-smoke tail found by that run: staging
     package smoke now registers Operator App, Agent Service, and Player Shell
-    requests exactly once, creates a branch rollout for `operator-app`, and
-    keeps the Agent Service rollout device-targeted.
+    requests exactly once, creates a branch rollout for `operator-app`, keeps
+    the Agent Service rollout device-targeted, and the registration script now
+    handles branch rollouts without device targets.
   - Floor-map reads now apply the branch stale-heartbeat threshold when
     projecting device online/free state, so a deleted VM with an old heartbeat
     no longer remains `Free`/ready after the map refreshes.
   - Verification passed locally:
-    `ClientReleaseAutomationTests` 41/41, floor-map Platform API tests 8/8,
+    `ClientReleaseAutomationTests` 42/42, floor-map Platform API tests 8/8,
     full `dotnet build .\AFK4.sln` with 0 warnings/0 errors, and full
-    `dotnet test .\AFK4.sln --no-restore` with 1063/1063 tests passing.
+    `dotnet test .\AFK4.sln --no-restore` with 1064/1064 tests passing.
 
 ## Known Gaps
 

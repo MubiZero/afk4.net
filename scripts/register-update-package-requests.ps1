@@ -151,12 +151,19 @@ foreach ($requestFile in $requestFiles) {
             throw "Platform registration response did not include updatePackageId for '$requestFile'."
         }
 
+        $targetDeviceIds = @()
+        if ($RolloutTargetKind -eq 'device') {
+            $targetDeviceIds = @($RolloutTargetDeviceId |
+                Where-Object { $null -ne $_ } |
+                ForEach-Object { $_.ToString('D') })
+        }
+
         $rolloutBody = @{
             organizationId = $organizationId
             updatePackageId = $updatePackageId
             channel = $channel
             targetKind = $RolloutTargetKind
-            targetDeviceIds = @($RolloutTargetDeviceId | ForEach-Object { $_.ToString('D') })
+            targetDeviceIds = $targetDeviceIds
             batchPercent = $RolloutBatchPercent
             startsAtUtc = $RolloutStartsAtUtc.ToUniversalTime().ToString('O')
             reason = $RolloutReason

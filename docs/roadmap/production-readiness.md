@@ -183,7 +183,8 @@ Minimum bar:
    package-smoke follow-up now creates a staging branch rollout for
    `operator-app` while keeping the Agent Service rollout device-targeted, so
    clean manager-workstation smoke no longer depends on manually installing the
-   Operator App MSI once that workflow has run on `main`.
+   Operator App MSI once that workflow has run on `main`; the registration
+   script also handles branch rollouts without device targets.
    Commercial production still needs final Authenticode/signing custody,
    production storage/CDN policy, and service credentials for package
    registration. Physical PC update/rollback evidence remains broader release
