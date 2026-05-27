@@ -132,7 +132,7 @@ jobs:
             -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
             -ReleaseNotes "Package smoke build $env:AFK4_PACKAGE_VERSION."
 
-      - name: Register staging update packages and create rollout
+      - name: Register staging update packages and create rollouts
         shell: pwsh
         env:
           AFK4_STAGING_UPDATE_STAFF_USERNAME: ${{ secrets.AFK4_STAGING_UPDATE_STAFF_USERNAME }}
@@ -175,16 +175,41 @@ jobs:
 
           $env:AFK4_UPDATE_REGISTRATION_TOKEN = [string]$signInResponse.accessToken
 
+          $operatorPackageRequestPath = "artifacts/update-packages/operator-app-$env:AFK4_PACKAGE_VERSION-internal-request.json"
+          $agentPackageRequestPath = "artifacts/update-packages/agent-service-$env:AFK4_PACKAGE_VERSION-internal-request.json"
+          $playerShellPackageRequestPath = "artifacts/update-packages/player-shell-$env:AFK4_PACKAGE_VERSION-internal-request.json"
+          foreach ($requestPath in @($operatorPackageRequestPath, $agentPackageRequestPath, $playerShellPackageRequestPath)) {
+            if (-not (Test-Path -LiteralPath $requestPath -PathType Leaf)) {
+              throw "Expected update package request was not produced: $requestPath"
+            }
+          }
+
           powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
             -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
             -BranchId $env:AFK4_STAGING_BRANCH_ID `
-            -RequestDirectory artifacts/update-packages `
+            -RequestPath $operatorPackageRequestPath `
+            -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
+            -CreateRollouts `
+            -RolloutComponent operator-app `
+            -RolloutTargetKind branch `
+            -RolloutReason "Automated package smoke operator rollout $env:AFK4_PACKAGE_VERSION."
+
+          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
+            -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
+            -BranchId $env:AFK4_STAGING_BRANCH_ID `
+            -RequestPath $agentPackageRequestPath `
             -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
             -CreateRollouts `
             -RolloutComponent agent-service `
             -RolloutTargetKind device `
             -RolloutTargetDeviceId $env:AFK4_STAGING_UPDATE_TARGET_DEVICE_ID `
-            -RolloutReason "Automated package smoke rollout $env:AFK4_PACKAGE_VERSION."
+            -RolloutReason "Automated package smoke agent rollout $env:AFK4_PACKAGE_VERSION."
+
+          powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
+            -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
+            -BranchId $env:AFK4_STAGING_BRANCH_ID `
+            -RequestPath $playerShellPackageRequestPath `
+            -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
 
       - name: Upload MSI artifacts
         uses: actions/upload-artifact@v4

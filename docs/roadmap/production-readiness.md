@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 ## Purpose
 
@@ -127,9 +127,11 @@ Minimum bar:
    enough to proceed with pilot Operator App testing and continued development.
    A 2026-05-26 `manager_workstation` smoke found and fixed the local
    seat-assignment model bug: manager workstations must enroll without a
-   floor-map seat. Staging still needs the nullable install-enrollment backend
-   update, cleanup of mistakenly created smoke seats/assignments, and a repeat
-   clean-VM manager-workstation run before that evidence can be closed.
+   floor-map seat. The nullable manager-workstation install-enrollment backend
+   deployed to staging on 2026-05-27 from `cac13da`; staging still needs the
+   next package-smoke run to publish the Operator App branch rollout, cleanup
+   of mistakenly created smoke seats/assignments, and a repeat clean-VM
+   manager-workstation run before that evidence can be closed.
    Physical Windows 10/11 hardware, reboot recovery repeats, and
    update/rollback repeats remain hardening work before wider operational
    rollout.
@@ -177,7 +179,11 @@ Minimum bar:
    Windows 11 VM evidence through internal Agent version `0.1.29`; the legacy
    coordinated `afk4-gaming-pc` MSI is retired from the default flow and
    remains only as an explicit staging fallback. Slice 3.5 removed that legacy
-   MSI/bootstrapper from the default package-smoke and publishing flow.
+   MSI/bootstrapper from the default package-smoke and publishing flow. The
+   package-smoke follow-up now creates a staging branch rollout for
+   `operator-app` while keeping the Agent Service rollout device-targeted, so
+   clean manager-workstation smoke no longer depends on manually installing the
+   Operator App MSI once that workflow has run on `main`.
    Commercial production still needs final Authenticode/signing custody,
    production storage/CDN policy, and service credentials for package
    registration. Physical PC update/rollback evidence remains broader release

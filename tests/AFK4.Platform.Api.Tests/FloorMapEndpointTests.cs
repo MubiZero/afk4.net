@@ -57,7 +57,7 @@ public sealed class FloorMapEndpointTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var now = DateTimeOffset.Parse("2026-05-12T00:00:00Z");
+        var now = DateTimeOffset.UtcNow.AddMinutes(1);
         var zoneId = Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
         var seatId = Guid.Parse("e5edae8b-a833-4d92-ad8c-5864376d0414");
 

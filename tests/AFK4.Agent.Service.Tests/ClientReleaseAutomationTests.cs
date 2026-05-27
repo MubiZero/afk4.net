@@ -644,6 +644,22 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void PackageSmokeWorkflow_CreatesAgentDeviceAndOperatorBranchRollouts()
+    {
+        var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/package-smoke.yml")));
+        var registrationStep = ExtractWorkflowStep(workflow, "Register staging update packages and create rollouts");
+
+        Assert.Contains("operator-app-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("agent-service-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("player-shell-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-RolloutComponent operator-app", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-RolloutTargetKind branch", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-RolloutComponent agent-service", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-RolloutTargetKind device", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-RolloutTargetDeviceId $env:AFK4_STAGING_UPDATE_TARGET_DEVICE_ID", registrationStep, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CoolifyStagingDeployWorkflow_TriggersDeployAndFailsClosedForMigrations()
     {
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/coolify-staging-deploy.yml")));

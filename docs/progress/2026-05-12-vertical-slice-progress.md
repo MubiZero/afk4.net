@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 ## Purpose
 
@@ -176,15 +176,32 @@ needed.
     (`54145088` bytes,
     SHA256 `02ECD90E788F4F0869C7B1559F366E11848BDC9613F77F2EF6B80D2E5F467B0D`),
     plus Player Shell MSI artifacts.
+- 2026-05-27 staging/backend tail follow-up:
+  - `main` commit `cac13da` deployed to staging through `Coolify Staging
+    Deploy` run `26461039901`; Coolify reported `finished`, and
+    `https://afk4.staging.mubi.dev/api/health` returned `status = ok`.
+  - Local follow-up fixes the package-smoke tail found by that run: staging
+    package smoke now registers Operator App, Agent Service, and Player Shell
+    requests exactly once, creates a branch rollout for `operator-app`, and
+    keeps the Agent Service rollout device-targeted.
+  - Floor-map reads now apply the branch stale-heartbeat threshold when
+    projecting device online/free state, so a deleted VM with an old heartbeat
+    no longer remains `Free`/ready after the map refreshes.
+  - Verification passed locally:
+    `ClientReleaseAutomationTests` 41/41, floor-map Platform API tests 8/8,
+    full `dotnet build .\AFK4.sln` with 0 warnings/0 errors, and full
+    `dotnet test .\AFK4.sln --no-restore` with 1063/1063 tests passing.
 
 ## Known Gaps
 
 - `manager_workstation` role smoke has local fixes and a
-  `0.1.36-manager-seatless` MSI for the clean-VM blockers; staging backend must
-  be updated for nullable install `SeatId` before the new Wizard flow can be
-  smoked against `afk4.staging.mubi.dev`. Existing staging smoke data also
-  needs cleanup of mistakenly created manager seats/assignments, and stale
-  deleted-VM devices still need heartbeat/offline threshold hardening.
+  `0.1.36-manager-seatless` MSI for the clean-VM blockers; staging backend is
+  updated for nullable install `SeatId`. The remaining smoke work is to let the
+  package-smoke rollout fix run on staging, confirm the Operator App branch
+  rollout, clean mistakenly created manager smoke seats/assignments, and rerun
+  the clean Windows manager-workstation path. Floor-map reads now apply a stale
+  heartbeat threshold after refresh; proactive realtime offline broadcasts and
+  broader inventory/detail stale-state cleanup remain hardening.
 - Operator App staging hardening remains the highest product-value work after
   onboarding packaging cleanup: run backend-backed staging day flows and remove
   remaining production-visible fixtures/placeholders/raw GUID forms from normal
@@ -201,10 +218,9 @@ needed.
 
 ## Recommended Next Work
 
-1. Deploy the seatless install-enrollment backend to staging, clean mistaken
-   manager-workstation seat data from the smoke branch, then rerun the
-   `manager_workstation` clean Windows VM smoke with the
-   `0.1.36-manager-seatless` Agent MSI.
+1. Wait for the staging package run to publish the Operator App branch rollout,
+   clean mistaken manager-workstation smoke seat data, then rerun the
+   `manager_workstation` clean Windows VM smoke with the current Agent MSI.
 2. Continue Operator App staging hardening using
    `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`.
 3. Repeat real-device Windows smoke on physical hardware when available.
