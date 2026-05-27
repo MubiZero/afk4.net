@@ -1,6 +1,6 @@
 # AFK4 Club Self-Service Onboarding Plan
 
-Status: active; Slices 1.1-3.5 implemented locally, Slice 4 next
+Status: active; Slices 1.1-3.5 implemented on `main`, Slice 4 next
 Date: 2026-05-24
 Owner: AFK4 platform
 
@@ -763,15 +763,13 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   the MSI helper installs WebView2 before applying the Operator App MSI when
   needed. Agent restarts after Agent, Player Shell, and Operator App component
   installs so it reloads machine environment values written by the MSIs.
-- **Slice 3.4** - current staging evidence: the single Agent MSI owner-code
-  path reached internal Agent `0.1.29` on Windows 11 VM2. The run covered
+- **Slice 3.4** - completed on `main`: the single Agent MSI owner-code path
+  reached internal Agent `0.1.29` on Windows 11 VM2. The run covered
   enrollment, update rollout, service restart/reboot recovery, automatic
-  service startup after reboot, and no Setup Wizard rerun after upgrade. If
-  strict slice sign-off requires the second `manager_workstation` role path,
-  collect that from `0.1.29` or a newer green package; otherwise proceed to
-  Slice 3.5 legacy installer retirement.
-- **Slice 3.5** - implemented locally on
-  `codex/slice-3-5-legacy-retirement`: the default client package build and
+  service startup after reboot, and no Setup Wizard rerun after upgrade.
+  `manager_workstation` role fixes are implemented and staged; the remaining
+  clean-VM repeat is tracked in the current progress snapshot.
+- **Slice 3.5** - completed on `main`: the default client package build and
   `Package Smoke` workflow now produce/publish only the role-aware Operator
   App, Agent, and Player Shell MSI artifacts. The legacy coordinated
   `afk4-gaming-pc` MSI and staging bootstrapper stay behind explicit fallback

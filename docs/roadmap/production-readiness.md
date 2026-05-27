@@ -6,7 +6,8 @@ Last updated: 2026-05-27
 
 This roadmap tracks what separates the current AFK4 codebase from production.
 It is intentionally operational: infrastructure, release gates, security,
-backups, device validation, and pilot readiness.
+backups, device validation, and pilot readiness. Keep it gate-level; detailed
+run history belongs in the progress snapshot or archive notes.
 
 The product scope and architecture decisions remain in:
 
@@ -195,32 +196,17 @@ Minimum bar:
 
    Document exactly how to create the first organization, branch, staff users,
    roles, zones, seats, devices, tariffs, POS products, and update channels for
-   a pilot club. Device-seat assignment now has a staff-authorized Platform API
-   path and staging setup integration. PRs #23 and #24 added staff user/role
-   and layout setup APIs plus a PowerShell pilot setup script that composes
-   existing tariff, POS, and device assignment endpoints. The script completed
-   against staging on 2026-05-19 using a branch manager account and no direct
-   PostgreSQL edits. PR #41 added the minimum Operator App `Settings` ->
-   `Pilot Setup` panel for staff, one zone/seats, one tariff/version, one POS
-   category/product, and optional already-enrolled device assignment. The
-   WebView2/React Settings work has since added tariff/version
-   creation/update/deactivation and package definition creation/update/
-   deactivation, layout zone/seat creation/update, device command
-   dispatch, and device credential rotation/revocation through existing backend
-   endpoints on `codex/operator-app-redesign`. Club self-service onboarding
-   now has the backend install path, branch device admin APIs, and first
-   owner-facing Platform.Web screens on `main` and staging: owner-code
-   discover/enroll can
-   create approved or pending devices, issue device credentials, attach the
-   selected seat, and apply both app-layer and documented Traefik rate-limit
-   protection; the SPA now has separate admin/customer audience builds. The
-   customer `app.afk4.staging.mubi.dev` Coolify app is deployed. The Setup
-  Wizard now ships inside the single Agent MSI, Agent role-aware Player Shell /
-  Operator App component install exists, and the Windows 11 VM Agent MSI path
-  has reached version `0.1.29` with reboot/service-start evidence. The remaining
-  cleanup is retiring the legacy scripted/coordinated MSI path in Slice 3.5,
-  with `manager_workstation` evidence collected as needed for strict Slice 3.4
-  sign-off.
+   a pilot club. Staff-authorized setup APIs, the pilot setup script, and the
+   minimum Operator App setup panel exist. Club self-service onboarding now has
+   backend install APIs, branch device admin APIs, owner-facing Platform.Web
+   screens on `main` and staging, separate admin/customer SPA builds, and a
+   deployed customer staging app. The single `AFK4 Agent` MSI includes Setup
+   Wizard, role-aware Player Shell / Operator App component install, and
+   Windows 11 VM reboot/service-start evidence. The legacy coordinated
+   gaming-PC MSI path is retired from the default onboarding/package flow and
+   remains a fallback. Remaining pilot setup evidence is the repeat
+   `manager_workstation` clean-VM smoke after cleanup of mistaken smoke seats
+   and assignments.
 
 ## Commercial Production Blockers
 

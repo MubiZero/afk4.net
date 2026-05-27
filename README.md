@@ -9,10 +9,10 @@ billing, POS, audit, reports, and centralized client updates.
 The current codebase is no longer just a scaffold. It contains an implemented
 MVP-oriented vertical slice with tested backend modules, Windows client
 surfaces, Agent/Shell foundations, update packaging, and operational runbooks.
-The main remaining gap is production readiness: staging/prod infrastructure,
-SaaS tenant onboarding/control-plane UI, secrets, real Windows device smoke
-tests, backup rehearsal, signing/CDN decisions, Operator App UI migration, and
-Agent hardening.
+Current work is concentrated around pilot/production readiness, Operator App
+hardening, Windows endpoint smoke, and onboarding/release polish; use the
+progress snapshot and production-readiness roadmap below for the exact current
+state.
 
 ## Source Of Truth
 
@@ -73,11 +73,12 @@ separate platform-admin authorization boundary, not branch staff tokens.
 managers, technicians, accountants, and owners depending on permissions. The
 approved target is a .NET desktop host with WebView2 and a React/TypeScript
 operator UI. It is distinct from the SaaS Control Plane; the main working
-screen is the floor map. The first WebView2/React increment now launches a local
-floor-map console; auth, floor map/session actions, players, POS, shifts,
-reports, settings, device tools, updates, audit search, diagnostics, and CSV
-exports still exist in the legacy WPF parity code and are being ported to the
-new UI.
+screen is the floor map. The WebView2/React console now has staff sign-in,
+backend-loaded floor-map state, selected-seat session actions, billing-mode
+selection, filters/table view, SignalR reloads, active-session ticking, and
+backend-confirmed critical commands. The legacy WPF/MVVM implementation remains
+the migration source for parity areas and operator workflows that are still
+being hardened or ported.
 
 The accepted UI/UX direction for this native operator console is recorded in
 [Operator App UI/UX Target](docs/product/operator-app-ui-target.md).
@@ -92,12 +93,12 @@ and installer adapter execution.
 ### Setup Wizard
 
 `src/AFK4.SetupWizard` is the first-run WPF enrollment wizard for the single
-Agent MSI flow. It runs as `AFK4.SetupWizard.exe` against staging install APIs:
-owner code, branch/floor-map discovery, free-seat selection or seat creation,
-role choice, device enrollment, stable device key, and Agent bootstrap
-environment writing. Slice 3.2 packages it into the new `AFK4 Agent` MSI with
-RunOnce/start-menu launch affordances and Agent Service startup after
-successful enrollment.
+Agent MSI flow. It runs as `AFK4.SetupWizard.exe` against install APIs: owner
+code discovery, branch/floor-map discovery, role choice, optional gaming-PC
+seat selection or seat creation, seatless manager-workstation enrollment,
+device enrollment, stable device key, and Agent bootstrap environment writing.
+The `AFK4 Agent` MSI packages the wizard with RunOnce/start-menu launch
+affordances and starts Agent Service after successful enrollment.
 
 ### Player Shell
 
@@ -138,9 +139,9 @@ From the repository root:
 & 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
 ```
 
-The latest recorded full verification passed 1053 tests with 0 failures. See
+The latest recorded verification can move quickly. See
 [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) for the
-exact current verification notes.
+current build/test counts, smoke evidence, known gaps, and next work.
 
 ## Operator App Staging Smoke
 
@@ -168,30 +169,24 @@ $env:AFK4_OPERATOR_PLATFORM_BASE_URL = 'https://afk4.staging.mubi.dev'
 
 ## Packaging Snapshot
 
-Build local MSI packages:
+Build the default local MSI package set:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
 ```
 
-This produces the Operator App MSI, the new Agent + Setup Wizard onboarding
-MSI (`afk4-agent-<version>-<channel>.msi`), the standalone Player Shell MSI
+This produces the Operator App MSI, the Agent + Setup Wizard onboarding MSI
+(`afk4-agent-<version>-<channel>.msi`), and the standalone Player Shell MSI
 (`afk4-player-shell-<version>-<channel>.msi`). The legacy coordinated
-gaming-PC MSI is no longer part of the default package build.
+gaming-PC MSI and one-click staging bootstrapper are fallback/recovery paths
+only; see [Client Packaging](docs/operations/client-packaging.md) for those
+switches.
 
-Build the legacy staging one-click Gaming PC setup executable only for
-fallback/recovery work by supplying the committed staging session lease and
-update verification public keys:
+Signing, upload, package registration, and rollout are covered by:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal -BuildLegacyStagingBootstrapper -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem
-```
-
-Signed release jobs then use:
-
-- `scripts/sign-client-packages.ps1`
-- `scripts/publish-client-msi-updates.ps1`
-- `scripts/register-update-package-requests.ps1`
+- [Client Packaging](docs/operations/client-packaging.md)
+- [Update Package Publishing](docs/operations/update-package-publishing.md)
+- [Client Update Rollout](docs/operations/client-update-rollout.md)
 
 Secrets, certificates, presigned upload URLs, generated request JSON, and MSI
 artifacts must stay outside source control or under ignored `artifacts/`.

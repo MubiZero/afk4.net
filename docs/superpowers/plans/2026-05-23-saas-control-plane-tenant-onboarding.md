@@ -1,6 +1,7 @@
 # AFK4 SaaS Control Plane And Tenant Onboarding Plan
 
-Status: Draft for implementation
+Status: Completed implementation record; use as deferred-hardening reference,
+not an active implementation plan.
 Date: 2026-05-23
 Owner: AFK4 platform
 
