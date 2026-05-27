@@ -192,17 +192,23 @@ needed.
     `ClientReleaseAutomationTests` 42/42, floor-map Platform API tests 8/8,
     full `dotnet build .\AFK4.sln` with 0 warnings/0 errors, and full
     `dotnet test .\AFK4.sln --no-restore` with 1064/1064 tests passing.
+  - Remote Package Smoke run `26507696459` on `120a5a1` passed and published
+    internal package version `0.1.33`. It created the expected
+    `operator-app` branch rollout `a9f01170-0171-4fbd-988b-e35076c30598` and
+    kept the Agent Service rollout device-targeted with rollout
+    `17c14c5b-35f4-4783-88e8-0ef29feec702`.
 
 ## Known Gaps
 
 - `manager_workstation` role smoke has local fixes and a
   `0.1.36-manager-seatless` MSI for the clean-VM blockers; staging backend is
-  updated for nullable install `SeatId`. The remaining smoke work is to let the
-  package-smoke rollout fix run on staging, confirm the Operator App branch
-  rollout, clean mistakenly created manager smoke seats/assignments, and rerun
-  the clean Windows manager-workstation path. Floor-map reads now apply a stale
-  heartbeat threshold after refresh; proactive realtime offline broadcasts and
-  broader inventory/detail stale-state cleanup remain hardening.
+  updated for nullable install `SeatId`, and Package Smoke has published an
+  Operator App branch rollout for internal package version `0.1.33`. The
+  remaining smoke work is to clean mistakenly created manager smoke
+  seats/assignments and rerun the clean Windows manager-workstation path.
+  Floor-map reads now apply a stale heartbeat threshold after refresh;
+  proactive realtime offline broadcasts and broader inventory/detail
+  stale-state cleanup remain hardening.
 - Operator App staging hardening remains the highest product-value work after
   onboarding packaging cleanup: run backend-backed staging day flows and remove
   remaining production-visible fixtures/placeholders/raw GUID forms from normal
@@ -219,9 +225,9 @@ needed.
 
 ## Recommended Next Work
 
-1. Wait for the staging package run to publish the Operator App branch rollout,
-   clean mistaken manager-workstation smoke seat data, then rerun the
-   `manager_workstation` clean Windows VM smoke with the current Agent MSI.
+1. Clean mistaken manager-workstation smoke seat data, then rerun the
+   `manager_workstation` clean Windows VM smoke with the current Agent MSI and
+   the published internal `0.1.33` Operator App rollout.
 2. Continue Operator App staging hardening using
    `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`.
 3. Repeat real-device Windows smoke on physical hardware when available.
