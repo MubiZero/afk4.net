@@ -57,7 +57,7 @@ describe('StaffAuthApiClient', () => {
     );
   });
 
-  it('signs in staff users through the staff auth endpoint', async () => {
+  it('signs in staff users through the tenant-key staff auth endpoint', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(200, buildResponse()));
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
@@ -67,15 +67,15 @@ describe('StaffAuthApiClient', () => {
     });
 
     await client.signIn(
-      '22222222-2222-2222-2222-222222222222',
+      'demo-club',
       'owner@demo.test',
       'Passw0rd!Real'
     );
 
     const call = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in');
+    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-tenant-key');
     expect(JSON.parse(call[1].body as string)).toEqual({
-      organizationId: '22222222-2222-2222-2222-222222222222',
+      tenantKey: 'demo-club',
       userName: 'owner@demo.test',
       password: 'Passw0rd!Real'
     });

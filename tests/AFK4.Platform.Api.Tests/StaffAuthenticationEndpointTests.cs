@@ -37,6 +37,46 @@ public sealed class StaffAuthenticationEndpointTests
     }
 
     [Fact]
+    public async Task PostStaffSignInByTenantKey_WithValidTenantSlug_ReturnsAccessTokenAndPermissions()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-tenant-key",
+            new StaffSignInByTenantKeyRequest(
+                TenantKey: "Demo-Club",
+                UserName: "tech@afk4.test",
+                Password: "Passw0rd!"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
+        Assert.Equal("Tech One", body.DisplayName);
+        Assert.Contains(TestIds.BranchId, body.BranchIds);
+        Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByTenantKey_WithOrganizationGuid_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-tenant-key",
+            new StaffSignInByTenantKeyRequest(
+                TenantKey: TestIds.OrganizationId.ToString("D"),
+                UserName: "tech@afk4.test",
+                Password: "Passw0rd!"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PostStaffRefresh_WithValidRefreshToken_RotatesTokenAndRejectsOriginalRefreshToken()
     {
         await using var factory = new PlatformApiFactory();
@@ -93,6 +133,7 @@ public sealed class StaffAuthenticationEndpointTests
         dbContext.Organizations.Add(new OrganizationEntity
         {
             OrganizationId = TestIds.OrganizationId,
+            Slug = "demo-club",
             Name = "Demo Org",
             CreatedAtUtc = createdAt
         });
@@ -100,6 +141,7 @@ public sealed class StaffAuthenticationEndpointTests
         {
             BranchId = TestIds.BranchId,
             OrganizationId = TestIds.OrganizationId,
+            Slug = "main",
             Name = "Demo Branch",
             CreatedAtUtc = createdAt
         });

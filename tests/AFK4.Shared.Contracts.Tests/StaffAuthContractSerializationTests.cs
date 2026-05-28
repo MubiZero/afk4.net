@@ -6,6 +6,23 @@ namespace AFK4.Shared.Contracts.Tests;
 public sealed class StaffAuthContractSerializationTests
 {
     [Fact]
+    public void StaffSignInByTenantKeyRequest_RoundTripsThroughJson()
+    {
+        var request = new StaffSignInByTenantKeyRequest(
+            TenantKey: "demo-club",
+            UserName: "owner@afk4.test",
+            Password: "Passw0rd!");
+
+        var json = JsonSerializer.Serialize(request);
+        var copy = JsonSerializer.Deserialize<StaffSignInByTenantKeyRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(request.TenantKey, copy.TenantKey);
+        Assert.Equal(request.UserName, copy.UserName);
+        Assert.Equal(request.Password, copy.Password);
+    }
+
+    [Fact]
     public void StaffSignInResponse_RoundTripsPermissionsAndBranches()
     {
         var response = new StaffSignInResponse(

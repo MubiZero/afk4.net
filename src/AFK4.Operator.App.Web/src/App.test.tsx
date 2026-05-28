@@ -270,8 +270,8 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Organisation slug'), { target: { value: 'afk4-dushanbe' } });
-    fireEvent.change(screen.getByLabelText('Branch slug'), { target: { value: 'central' } });
+    fireEvent.change(screen.getByLabelText('Club key'), { target: { value: 'afk4-dushanbe' } });
+    fireEvent.change(screen.getByLabelText('Branch key'), { target: { value: 'central' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
@@ -307,8 +307,8 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Organisation slug'), { target: { value: 'afk4-dushanbe' } });
-    fireEvent.change(screen.getByLabelText('Branch slug'), { target: { value: 'central' } });
+    fireEvent.change(screen.getByLabelText('Club key'), { target: { value: 'afk4-dushanbe' } });
+    fireEvent.change(screen.getByLabelText('Branch key'), { target: { value: 'central' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByRole('heading', { name: 'Подписка приостановлена' })).toBeInTheDocument();
@@ -1839,7 +1839,7 @@ describe('App', () => {
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
     fireEvent.change(screen.getByLabelText('Название зала'), { target: { value: 'VIP Hall' } });
-    fireEvent.change(screen.getByLabelText('Сортировка зала'), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText('Порядок зала'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать зал' }));
 
     expect(await screen.findByText('Добавить зал: подтверждено')).toBeInTheDocument();
@@ -1854,7 +1854,7 @@ describe('App', () => {
     });
 
     fireEvent.change(screen.getByLabelText('Название ПК'), { target: { value: 'VIP-01' } });
-    fireEvent.change(screen.getByLabelText('Сортировка ПК'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Порядок ПК'), { target: { value: '40' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать ПК' }));
 
     expect(await screen.findByText('Добавить ПК: подтверждено')).toBeInTheDocument();
@@ -1882,7 +1882,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
     fireEvent.click(screen.getAllByRole('button', { name: /Зал A/ })[0]);
     fireEvent.change(screen.getByLabelText('Название зала'), { target: { value: 'VIP Hall' } });
-    fireEvent.change(screen.getByLabelText('Сортировка зала'), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText('Порядок зала'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Обновить зал' }));
 
     expect(await screen.findByText('Обновить зал: подтверждено')).toBeInTheDocument();
@@ -1898,7 +1898,7 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /PC-01/ }));
     fireEvent.change(screen.getByLabelText('Название ПК'), { target: { value: 'VIP-01' } });
-    fireEvent.change(screen.getByLabelText('Сортировка ПК'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Порядок ПК'), { target: { value: '40' } });
     fireEvent.click(screen.getByRole('button', { name: 'Обновить ПК' }));
 
     expect(await screen.findByText('Обновить ПК: подтверждено')).toBeInTheDocument();
@@ -1979,7 +1979,7 @@ describe('App', () => {
       expiresInSeconds: 600
     });
 
-    fireEvent.change(screen.getByLabelText('ID устройства'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
+    fireEvent.change(screen.getByLabelText('Устройство'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
     fireEvent.click(screen.getByRole('button', { name: 'Назначить устройство' }));
 
     expect(await screen.findByText('Назначить устройство: подтверждено')).toBeInTheDocument();
@@ -2005,7 +2005,8 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Сменить ключ' }));
     expect(await screen.findByText('Сменить ключ: подтверждено')).toBeInTheDocument();
-    expect(screen.getAllByDisplayValue('23232323-2323-2323-2323-232323232323').length).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue('готов к отзыву для PC-02')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('создан')).toBeInTheDocument();
     expect(screen.getByDisplayValue('device-secret-after-rotation')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/rotate') &&
@@ -2047,7 +2048,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('button', { name: /PC-03/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /PC-03/ }));
-    expect(screen.getByLabelText('ID устройства')).toHaveValue('44444444-4444-4444-8444-444444444444');
+    expect(screen.getByLabelText('Устройство')).toHaveValue('44444444-4444-4444-8444-444444444444');
     expect(screen.getByText(/в работе 1/)).toBeInTheDocument();
     expect(screen.getByText(/ошибок 1/)).toBeInTheDocument();
 
@@ -2076,7 +2077,7 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-    fireEvent.change(screen.getByLabelText('ID устройства'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
+    fireEvent.change(screen.getByLabelText('Устройство'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
     fireEvent.change(screen.getByLabelText('Команда'), { target: { value: 'unlock' } });
     fireEvent.change(screen.getByLabelText('Причина команды'), { target: { value: 'manual unlock check' } });
     fireEvent.click(screen.getByRole('button', { name: 'Отправить команду' }));
@@ -2090,7 +2091,7 @@ describe('App', () => {
       type: 'unlock',
       payload: { reason: 'manual unlock check', source: 'operator-settings' }
     });
-    expect(screen.getByDisplayValue('Разблокировка · 56565656')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Разблокировка · отправлена')).toBeInTheDocument();
   });
 
   it('creates a POS category and product from Settings', async () => {
@@ -2441,7 +2442,7 @@ describe('App', () => {
     });
 
     fireEvent.change(screen.getByLabelText('Доля %'), { target: { value: '25' } });
-    fireEvent.change(screen.getByLabelText('ID пакета раскатки'), { target: { value: '19191919-1919-1919-1919-191919191919' } });
+    await waitFor(() => expect(screen.getByLabelText('Пакет для раскатки')).toHaveValue('19191919-1919-1919-1919-191919191919'));
     fireEvent.change(screen.getByLabelText('Старт UTC'), { target: { value: '2026-05-21T10:00:00Z' } });
     fireEvent.change(screen.getAllByLabelText('Причина раскатки')[0], { target: { value: 'Пилотная раскатка.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать раскатку' }));
@@ -2476,7 +2477,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
     expect(screen.getByText('цель достигнута')).toBeInTheDocument();
     expect(screen.getByText('Установлено')).toBeInTheDocument();
-    expect(screen.getByText('33333333')).toBeInTheDocument();
+    expect(screen.getByText('PC-02')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Состояние пакета'), { target: { value: 'validated' } });
     fireEvent.change(screen.getByLabelText('Причина пакета'), { target: { value: 'Подпись проверена.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние пакета' }));
@@ -2749,18 +2750,18 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPlayerPackage(body));
   }
 
-  if (pathname.includes('/branches/') && pathname.includes('/packages/') && init?.method === 'PATCH') {
+  if (pathname.includes('/branches/') && !pathname.includes('/updates/') && pathname.includes('/packages/') && init?.method === 'PATCH') {
     const body = JSON.parse(String(init.body));
     const packageDefinitionId = pathname.split('/').at(-1);
     return jsonResponse(createPackageDefinition({ ...body, packageDefinitionId }));
   }
 
-  if (pathname.includes('/branches/') && pathname.endsWith('/packages') && init?.method === 'POST') {
+  if (pathname.includes('/branches/') && !pathname.includes('/updates/') && pathname.endsWith('/packages') && init?.method === 'POST') {
     const body = JSON.parse(String(init.body));
     return jsonResponse(createPackageDefinition(body));
   }
 
-  if (pathname.endsWith('/packages')) {
+  if (!pathname.includes('/updates/') && pathname.endsWith('/packages')) {
     return jsonResponse(createPlayerPackages());
   }
 
@@ -3996,8 +3997,12 @@ function createRollouts() {
 }
 
 function createUpdatePackage(overrides: Record<string, unknown> = {}) {
+  const updatePackageId = typeof overrides.updatePackageId === 'string' && overrides.updatePackageId.length > 0
+    ? overrides.updatePackageId
+    : '19191919-1919-1919-1919-191919191919';
+  const { updatePackageId: _ignoredUpdatePackageId, ...remainingOverrides } = overrides;
+
   return {
-    updatePackageId: '19191919-1919-1919-1919-191919191919',
     organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
     branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
     component: 'operator-app',
@@ -4011,7 +4016,8 @@ function createUpdatePackage(overrides: Record<string, unknown> = {}) {
     state: 'registered',
     releaseNotes: 'Operator App update package.',
     createdAtUtc: '2026-05-21T09:10:00Z',
-    ...overrides
+    ...remainingOverrides,
+    updatePackageId
   };
 }
 

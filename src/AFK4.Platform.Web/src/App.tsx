@@ -22,7 +22,7 @@ export type AdminRoute =
 
 export type AuthRoute =
   | { kind: 'acceptInvite'; code: string | null }
-  | { kind: 'staffSignIn'; organizationId: string | null }
+  | { kind: 'staffSignIn'; tenantKey: string | null }
   | { kind: 'forgotPassword' }
   | { kind: 'resetPassword' };
 
@@ -150,7 +150,7 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
   );
 
   const navigateToStaffSignIn = useCallback(
-    () => navigate({ kind: 'staffSignIn', organizationId: null }, '/auth/sign-in'),
+    () => navigate({ kind: 'staffSignIn', tenantKey: null }, '/auth/sign-in'),
     [navigate]
   );
 
@@ -189,7 +189,7 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
     return (
       <StaffSignIn
         client={staffClient}
-        initialOrganizationId={route.organizationId}
+        initialTenantKey={route.tenantKey}
         onSignedIn={navigateToClubInstall}
       />
     );
@@ -204,7 +204,7 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
       return (
         <StaffSignIn
           client={staffClient}
-          initialOrganizationId={null}
+          initialTenantKey={null}
           onSignedIn={navigateToClubInstall}
         />
       );
@@ -322,10 +322,10 @@ export function resolvePlatformRoute(
   }
 
   if (path === '/auth') {
-    return { route: { kind: 'staffSignIn', organizationId: null }, redirectTo: '/auth/sign-in' };
+    return { route: { kind: 'staffSignIn', tenantKey: null }, redirectTo: '/auth/sign-in' };
   }
   if (path === '/auth/sign-in') {
-    return { route: { kind: 'staffSignIn', organizationId: readQueryValue(search, 'organizationId') } };
+    return { route: { kind: 'staffSignIn', tenantKey: readQueryValue(search, 'tenantKey') } };
   }
   if (path === '/auth/accept-invite') {
     return { route: { kind: 'acceptInvite', code: readQueryValue(search, 'code') } };

@@ -70,7 +70,7 @@ function buildClubFetchMock() {
     if (url.pathname === '/api/platform/owner-invites/accept' && method === 'POST') {
       return jsonResponse(200, buildStaffSignInResponse());
     }
-    if (url.pathname === '/api/auth/staff/sign-in' && method === 'POST') {
+    if (url.pathname === '/api/auth/staff/sign-in-by-tenant-key' && method === 'POST') {
       return jsonResponse(200, buildStaffSignInResponse());
     }
     if (url.pathname === '/api/staff/me/owner-code' && method === 'GET') {
@@ -211,10 +211,10 @@ describe('Platform Web routing', () => {
     expect(resolvePlatformRoute('/auth/accept-invite', null, '?code=setup-123')).toMatchObject({
       route: { kind: 'acceptInvite', code: 'setup-123' }
     });
-    expect(resolvePlatformRoute('/auth/sign-in', null, '?organizationId=22222222-2222-2222-2222-222222222222')).toMatchObject({
+    expect(resolvePlatformRoute('/auth/sign-in', null, '?tenantKey=demo-club')).toMatchObject({
       route: {
         kind: 'staffSignIn',
-        organizationId: '22222222-2222-2222-2222-222222222222'
+        tenantKey: 'demo-club'
       }
     });
     expect(resolvePlatformRoute('/auth/forgot-password')).toMatchObject({
@@ -378,7 +378,7 @@ describe('Platform Web routing', () => {
     window.history.replaceState(
       null,
       '',
-      '/auth/sign-in?organizationId=22222222-2222-2222-2222-222222222222'
+      '/auth/sign-in?tenantKey=demo-club'
     );
     const fetchMock = buildClubFetchMock();
     vi.stubGlobal('fetch', fetchMock);
@@ -386,7 +386,7 @@ describe('Platform Web routing', () => {
     render(<App apiBaseUrl="http://localhost" />);
 
     expect(screen.getByRole('heading', { name: 'Club sign in' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Organization')).toHaveValue('22222222-2222-2222-2222-222222222222');
+    expect(screen.getByLabelText('Club key')).toHaveValue('demo-club');
 
     fireEvent.change(screen.getByLabelText('User name'), { target: { value: 'owner@demo.test' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Passw0rd!Real' } });
@@ -396,9 +396,9 @@ describe('Platform Web routing', () => {
     expect(screen.getByRole('heading', { name: 'Install AFK4 on PCs' })).toBeInTheDocument();
 
     const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in');
+    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-tenant-key');
     expect(JSON.parse(call[1].body as string)).toEqual({
-      organizationId: '22222222-2222-2222-2222-222222222222',
+      tenantKey: 'demo-club',
       userName: 'owner@demo.test',
       password: 'Passw0rd!Real'
     });

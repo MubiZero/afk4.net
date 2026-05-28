@@ -47,7 +47,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
     <div className="operator-connection-screen">
       <h1>Connect to your club</h1>
       <p>
-        Sign in to your club by entering its organisation and branch slugs, or paste the setup
+        Sign in to your club by entering its club and branch keys, or paste the setup
         code your operator gave you.
       </p>
       <div className="operator-connection-modes">
@@ -57,7 +57,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           onClick={() => setMode('slug')}
           disabled={isResolving}
         >
-          Slug pair
+          Club + branch
         </button>
         <button
           type="button"
@@ -74,7 +74,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
         )}
         {mode === 'slug' ? (
           <>
-            <label htmlFor="org-slug">Organisation slug</label>
+            <label htmlFor="org-slug">Club key</label>
             <input
               id="org-slug"
               value={organizationSlug}
@@ -83,7 +83,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
               required
               disabled={isResolving}
             />
-            <label htmlFor="branch-slug">Branch slug</label>
+            <label htmlFor="branch-slug">Branch key</label>
             <input
               id="branch-slug"
               value={branchSlug}
@@ -117,7 +117,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
 function buildResolutionMessage(error: ConnectionResolutionError): string {
   switch (error.status) {
     case 404:
-      return 'No tenant matched the slugs / setup code. Double-check with your operator.';
+      return 'No club matched the keys / setup code. Double-check with your operator.';
     case 400:
       return error.message;
     default:

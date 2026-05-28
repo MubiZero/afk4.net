@@ -35,11 +35,11 @@ export class StaffAuthApiClient {
     return this.readAndApplySession(response, 'Setup code acceptance failed.');
   }
 
-  public async signIn(organizationId: string, userName: string, password: string): Promise<StaffSession> {
-    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/sign-in`, {
+  public async signIn(tenantKey: string, userName: string, password: string): Promise<StaffSession> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/sign-in-by-tenant-key`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId, userName, password })
+      body: JSON.stringify({ tenantKey, userName, password })
     });
     return this.readAndApplySession(response, 'Sign-in failed.');
   }

@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 ## Purpose
 
@@ -42,7 +42,7 @@ Active implementation plans:
 - `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md` -
   Operator App runtime migration and parity plan.
 - `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md` -
-  Operator App staging and pilot-hardening follow-up.
+  Operator App technical-surface cleanup, staging, and hardening follow-up.
 
 Roadmap/reference:
 
@@ -85,6 +85,8 @@ Roadmap/reference:
   owner-code generate/rotate, branch settings, ETag floor-map editor,
   devices/pending-device admin, and operators screens.
 - `VITE_AUDIENCE` supports separate admin and customer SPA builds.
+- Public staff sign-in now uses a user-facing club key/tenant slug endpoint
+  instead of asking club users to paste an organization GUID.
 
 ### Operator App
 
@@ -95,6 +97,11 @@ Roadmap/reference:
   creating browser data beside the installed executable under Program Files.
 - React UI gates the console behind staff sign-in, uses typed API clients, and
   avoids browser storage for tokens.
+- Operator App sign-in now uses the stored/resolved club connection and no
+  longer exposes an editable organization GUID field in the normal sign-in
+  screen.
+- Operator App Settings device/update paths now prefer operator-facing device,
+  package, and rollout selections over raw ID entry in the normal setup flow.
 - Primary floor-map UI has backend loading, selected-seat actions,
   permission-aware navigation, billing-mode selection, filters/table view,
   SignalR device status/command-result reloads, active-session ticking, and
@@ -144,6 +151,9 @@ Roadmap/reference:
     require a free seat.
 - Verbose branch, artifact, hash, and rollout-id evidence is archived in
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
+- Latest technical-surface cleanup verification on 2026-05-28:
+  `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web` passed
+  75/75 tests.
 
 ## Known Gaps
 
@@ -153,10 +163,10 @@ Roadmap/reference:
 - Floor-map reads now apply the branch stale-heartbeat threshold after refresh;
   proactive realtime offline broadcasts and broader inventory/detail
   stale-state cleanup remain hardening.
-- Operator App staging hardening remains the highest product-value work after
-  onboarding packaging cleanup: run backend-backed staging day flows and remove
-  remaining production-visible fixtures/placeholders/raw GUID forms from normal
-  operator paths.
+- Operator App technical-surface cleanup remains high-value, but the nearest
+  normal sign-in and Settings device/update raw-ID surfaces are now cleaned up.
+  Continue with support/diagnostic raw IDs, production-visible placeholders,
+  and broader backend-shaped forms before broadening staging day-flow smoke.
 - Physical Windows 10/11 smoke is still needed for wider rollout confidence:
   lock/unlock enforcement, reboot recovery, Setup Wizard, role-aware updates,
   and update/rollback.
@@ -169,9 +179,12 @@ Roadmap/reference:
 
 ## Recommended Next Work
 
-1. Clean mistaken manager-workstation smoke seat data, then rerun the
+1. Continue the harmful technical-surface cleanup before broad smoke:
+   remove remaining support/diagnostic raw IDs, backend-shaped forms, and
+   overly technical copy from customer/operator paths.
+2. Clean mistaken manager-workstation smoke seat data, then rerun the
    `manager_workstation` clean Windows VM smoke with the current Agent MSI and
    published internal Operator App rollout.
-2. Continue Operator App staging hardening using
+3. Continue Operator App staging hardening using
    `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`.
-3. Repeat real-device Windows smoke on physical hardware when available.
+4. Repeat real-device Windows smoke on physical hardware when available.

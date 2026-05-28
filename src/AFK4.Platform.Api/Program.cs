@@ -503,6 +503,18 @@ app.MapPost("/api/auth/staff/sign-in", async (
         : Results.Ok(response);
 });
 
+app.MapPost("/api/auth/staff/sign-in-by-tenant-key", async (
+    StaffSignInByTenantKeyRequest request,
+    IStaffCredentialService credentialService,
+    CancellationToken cancellationToken) =>
+{
+    var response = await credentialService.SignInByTenantKeyAsync(request, cancellationToken);
+
+    return response is null
+        ? Results.Unauthorized()
+        : Results.Ok(response);
+});
+
 app.MapPost("/api/auth/staff/refresh", async (
     StaffRefreshTokenRequest request,
     IStaffTokenService tokenService,
