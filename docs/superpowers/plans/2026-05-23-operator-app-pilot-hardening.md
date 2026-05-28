@@ -16,6 +16,9 @@ Implemented slices:
 - 2026-05-28: removed the normal Operator App sign-in organization GUID field
   and replaced Settings device/update raw-ID entry with operator-facing device,
   package, and rollout selections.
+- 2026-05-28: polished Operator App Logs/Diagnostics so the normal journal UI
+  uses operator-facing event/source/device/audit labels instead of raw audit
+  IDs, command IDs, rollout IDs, or backend source names.
 
 ## Purpose
 
@@ -41,9 +44,10 @@ actions leaking into the day flow.
    sign-in. Empty backend catalog, player, report, or device responses must be
    shown as explicit empty states, not replaced by demo data.
 3. The raw organization GUID has been removed from normal sign-in, and the
-   first Settings device/update raw-ID pass is complete. Remaining setup,
-   support, and diagnostics surfaces still need a pass for technical keys,
-   backend-shaped forms, and unclear operator copy.
+   first Settings device/update plus Logs/Diagnostics journal raw-ID passes are
+   complete. Remaining POS/Payments, setup, support/export, and diagnostics
+   surfaces still need a pass for technical keys, backend-shaped forms, and
+   unclear operator copy.
 4. Critical actions need stronger operator-safe UX: confirmation, reason where
    required, visible money/session/device impact, pending backend state, and
    final backend result.

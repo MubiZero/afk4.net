@@ -2736,11 +2736,11 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
   const [selectedSource, setSelectedSource] = useState('Агент');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const events = [
-    ['15:09', 'Настройки просмотрены', 'Настройки · техник', 'аудит', 'audit'],
-    ['15:06', 'Пополнение депозита', `Madina S. · 200 ${currencyCode}`, 'кассир', 'money'],
-    ['15:04', 'PC-23 не отвечает', 'Агент · нет связи 2 мин', 'warning', 'device'],
-    ['15:01', 'PC-01 сессия продлена', 'оператор · +15 мин', 'session', 'session'],
-    ['14:55', 'Возврат по чеку', `Yusuf A. · -20 ${currencyCode}`, 'refund', 'money']
+    ['15:09', 'Настройки просмотрены', 'Настройки · техник', 'Платформа', 'audit'],
+    ['15:06', 'Пополнение депозита', `Madina S. · 200 ${currencyCode}`, 'Касса', 'money'],
+    ['15:04', 'PC-23 не отвечает', 'нет связи 2 мин', 'Агент', 'device'],
+    ['15:01', 'PC-01 сессия продлена', 'оператор · +15 мин', 'Оператор', 'session'],
+    ['14:55', 'Возврат по чеку', `Yusuf A. · -20 ${currencyCode}`, 'Касса', 'money']
   ];
   const auditRows = [
     ['15:09', 'техник', 'Просмотр настроек', 'разрешено'],
@@ -2749,17 +2749,17 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
   ];
   const sourceCards: Array<[string, string, LucideIcon]> = [
     ['Агент', '23 онлайн · 1 офлайн', MonitorCheck],
-    ['POS', '9 чеков · 1 возврат', ReceiptText],
+    ['Касса', '9 чеков · 1 возврат', ReceiptText],
     ['Оператор', '14 действий смены', UserRoundPlus],
     ['Платформа', '3 предупреждения', ShieldAlert]
   ];
   const visibleEvents = events.filter(([time, title, detail, source, tone]) => {
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
-      || (activeLogFilter === 'ПК и агент' && (source === 'warning' || detail.includes('Агент')))
-      || (activeLogFilter === 'Касса и POS' && tone === 'money')
-      || (activeLogFilter === 'Оператор' && detail.includes('operator'))
-      || (activeLogFilter === 'Системные' && source === 'audit');
+      || (activeLogFilter === 'ПК и связь' && (source === 'Агент' || detail.includes('связь')))
+      || (activeLogFilter === 'Касса' && tone === 'money')
+      || (activeLogFilter === 'Оператор' && source === 'Оператор')
+      || (activeLogFilter === 'Системные' && source === 'Платформа');
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
     return filterMatches && searchMatches;
   });
@@ -2769,17 +2769,17 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
     <main className="workspace-screen logs-screen">
       <section className="screen-head logs-head">
         <div>
-          <span>Логи</span>
-          <h1>Логи · аудит и события смены</h1>
+          <span>Журнал</span>
+          <h1>Журнал · события смены</h1>
         </div>
       </section>
 
-      <section className="state-strip logs-state-strip" aria-label="Сводка логов">
+      <section className="state-strip logs-state-strip" aria-label="Сводка журнала">
         <StateFlag label="События" value="128" />
         <StateFlag label="Ошибки" value="3" critical />
-        <StateFlag label="Команды" value="12" />
+        <StateFlag label="Команды ПК" value="12" />
         <StateFlag label="Касса" value="9" />
-        <StateFlag label="Аудит" value="6" />
+        <StateFlag label="Записи" value="6" />
       </section>
 
       <section className="logs-layout">
@@ -2818,7 +2818,7 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
         <section className="logs-panel logs-detail-panel">
           <header className="logs-panel-title">
             <span>Детали события</span>
-            <strong>выбранная запись</strong>
+            <strong>без внутренних ID</strong>
           </header>
           <div className={`log-detail-card ${selectedEvent[4]}`}>
             <span>{selectedEvent[0]} · {selectedEvent[3]}</span>
@@ -2827,9 +2827,9 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
           </div>
           <div className="log-detail-list">
             <div><span>Источник</span><strong>{selectedEvent[3]}</strong></div>
-            <div><span>Объект</span><strong>{selectedEvent[1].includes('PC-') ? selectedEvent[1].split(' ')[0] : 'смена #24'}</strong></div>
-            <div><span>Оператор</span><strong>system</strong></div>
-            <div><span>Correlation</span><strong>evt-9f42</strong></div>
+            <div><span>Раздел</span><strong>{selectedEvent[1].includes('PC-') ? 'ПК' : 'Операция смены'}</strong></div>
+            <div><span>Оператор</span><strong>Оператор смены</strong></div>
+            <div><span>Результат</span><strong>{selectedEvent[2]}</strong></div>
           </div>
           <FeedbackNotice feedback={feedback} />
         </section>
@@ -2837,10 +2837,10 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
         <section className="logs-panel logs-filter-panel">
           <header className="logs-panel-title">
             <span>Фильтры</span>
-            <strong>сузить расследование</strong>
+            <strong>найти нужные записи</strong>
           </header>
           <div className="logs-filter-grid">
-            {['Все события', 'Только ошибки', 'ПК и агент', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
+            {['Все события', 'Только ошибки', 'ПК и связь', 'Касса', 'Оператор', 'Системные'].map((filter) => (
               <button
                 key={filter}
                 type="button"
@@ -2855,7 +2855,7 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
 
         <section className="logs-panel logs-audit-panel">
           <header className="logs-panel-title">
-            <span>Аудит смены</span>
+            <span>Операции смены</span>
             <strong>действия персонала</strong>
           </header>
           <div className="logs-audit-list">
@@ -2873,7 +2873,7 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
         <section className="logs-panel logs-sources-panel">
           <header className="logs-panel-title">
             <span>Источники</span>
-            <strong>откуда пришли события</strong>
+            <strong>каналы событий</strong>
           </header>
           <div className="logs-source-grid">
             {sourceCards.map(([label, detail, Icon]) => (
@@ -2899,8 +2899,8 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
           <div className="logs-export-grid">
             <button type="button" onClick={() => triggerFeedback(setFeedback, 'Журнал смены')}><ReceiptText size={16} />Журнал смены</button>
             <button type="button" onClick={() => triggerFeedback(setFeedback, 'Ошибки')}><AlertTriangle size={16} />Ошибки</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'CSV')}><ArrowRightLeft size={16} />CSV</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Аудит JSON')}><ShieldAlert size={16} />Аудит JSON</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Таблица')}><ArrowRightLeft size={16} />Таблица</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Полный журнал')}><ShieldAlert size={16} />Полный журнал</button>
           </div>
         </section>
       </section>
@@ -6015,15 +6015,269 @@ function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, h
 }
 
 function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[]): LogEventItem[] {
-  return auditRecords.map((record): LogEventItem => [
-    formatTime(readString(record, 'createdAtUtc')),
-    readString(record, 'action', 'audit'),
-    `${readString(record, 'targetType', 'target')} · ${readString(record, 'outcome', 'unknown')}`,
-    readString(record, 'sourceApp', 'Audit'),
-    readString(record, 'outcome').toLowerCase().includes('denied') || readString(record, 'outcome').toLowerCase().includes('failed') ? 'warning' : 'audit',
-    'audit',
-    record
-  ]);
+  return auditRecords.map((record): LogEventItem => {
+    const outcome = readString(record, 'outcome');
+
+    return [
+      formatTime(readString(record, 'createdAtUtc')),
+      auditActionLabel(readString(record, 'action')),
+      `${auditTargetLabel(readString(record, 'targetType'))} · ${auditOutcomeLabel(outcome)}`,
+      auditSourceLabel(readString(record, 'sourceApp')),
+      outcome.toLowerCase().includes('denied') || outcome.toLowerCase().includes('failed') ? 'warning' : 'audit',
+      'audit',
+      record
+    ];
+  });
+}
+
+function auditActionLabel(action: string): string {
+  const normalized = action.toLowerCase();
+  switch (normalized) {
+    case 'pos.sale.create':
+    case 'pos.sales.create':
+      return 'Продажа создана';
+    case 'pos.sale.refund':
+    case 'pos.sales.refund':
+      return 'Возврат по чеку';
+    case 'pos.sale.void':
+    case 'pos.sales.void':
+      return 'Чек аннулирован';
+    case 'sessions.start':
+    case 'session.start':
+      return 'Сессия запущена';
+    case 'sessions.extend':
+    case 'session.extend':
+      return 'Сессия продлена';
+    case 'sessions.end':
+    case 'session.end':
+      return 'Сессия завершена';
+    case 'identity.staff.create':
+      return 'Сотрудник добавлен';
+    case 'identity.staff.roles.update':
+      return 'Роли сотрудника изменены';
+    case 'updates.rollouts.view':
+      return 'Проверка раскаток';
+    case 'updates.rollouts.state.change':
+      return 'Состояние раскатки изменено';
+    default:
+      if (normalized.includes('pos')) {
+        return 'Операция кассы';
+      }
+
+      if (normalized.includes('session')) {
+        return 'Операция сессии';
+      }
+
+      if (normalized.includes('device')) {
+        return 'Операция ПК';
+      }
+
+      if (normalized.includes('shift')) {
+        return 'Операция смены';
+      }
+
+      if (normalized.includes('identity') || normalized.includes('staff')) {
+        return 'Операция сотрудника';
+      }
+
+      if (normalized.includes('update')) {
+        return 'Операция обновления';
+      }
+
+      return action ? 'Операция платформы' : 'Запись аудита';
+  }
+}
+
+function auditOutcomeLabel(outcome: string): string {
+  switch (outcome.toLowerCase()) {
+    case 'succeeded':
+    case 'success':
+    case 'ok':
+      return 'успешно';
+    case 'failed':
+    case 'failure':
+      return 'ошибка';
+    case 'denied':
+    case 'rejected':
+      return 'отказ';
+    case 'pending':
+      return 'ожидает';
+    default:
+      return outcome ? 'состояние неизвестно' : 'неизвестно';
+  }
+}
+
+function auditTargetLabel(targetType: string): string {
+  const normalized = targetType.toLowerCase();
+  if (normalized.includes('pos') || normalized.includes('sale') || normalized.includes('receipt')) {
+    return 'Чек';
+  }
+
+  if (normalized.includes('session')) {
+    return 'Сессия';
+  }
+
+  if (normalized.includes('device')) {
+    return 'ПК';
+  }
+
+  if (normalized.includes('staff') || normalized.includes('identity') || normalized.includes('user')) {
+    return 'Сотрудник';
+  }
+
+  if (normalized.includes('shift')) {
+    return 'Смена';
+  }
+
+  if (normalized.includes('payment') || normalized.includes('ledger') || normalized.includes('wallet')) {
+    return 'Платёж';
+  }
+
+  if (normalized.includes('tariff')) {
+    return 'Тариф';
+  }
+
+  if (normalized.includes('package')) {
+    return 'Пакет';
+  }
+
+  if (normalized.includes('update') || normalized.includes('rollout')) {
+    return 'Обновление';
+  }
+
+  if (normalized.includes('branch')) {
+    return 'Филиал';
+  }
+
+  return targetType ? 'Объект' : 'Объект';
+}
+
+function auditSourceLabel(sourceApp: string): string {
+  const normalized = sourceApp.toLowerCase();
+  if (!normalized || normalized === 'audit' || normalized.includes('platform')) {
+    return 'Платформа';
+  }
+
+  if (normalized.includes('operator')) {
+    return 'Приложение оператора';
+  }
+
+  if (normalized.includes('agent')) {
+    return 'Агент';
+  }
+
+  if (normalized.includes('setup')) {
+    return 'Мастер установки';
+  }
+
+  return 'Платформа';
+}
+
+function auditActorLabel(record: Record<string, unknown>, backend: OperatorBackendContext | null): string {
+  const actorStaffUserId = readString(record, 'actorStaffUserId');
+  if (!actorStaffUserId) {
+    return 'Система';
+  }
+
+  if (backend?.session.staffUserId.toLowerCase() === actorStaffUserId.toLowerCase()) {
+    return operatorDisplayNameLabel(backend.session.displayName);
+  }
+
+  return 'Сотрудник';
+}
+
+function auditDetailKeyLabel(key: string): string {
+  const normalized = key.toLowerCase();
+  if (normalized.includes('reason')) {
+    return 'Причина';
+  }
+
+  if (normalized.includes('amount') || normalized.includes('money') || normalized.includes('price')) {
+    return 'Сумма';
+  }
+
+  if (normalized.includes('currency')) {
+    return 'Валюта';
+  }
+
+  if (normalized.includes('status') || normalized.includes('state') || normalized.includes('outcome')) {
+    return 'Состояние';
+  }
+
+  if (normalized.includes('device') || normalized.includes('machine')) {
+    return 'ПК';
+  }
+
+  if (normalized.includes('session')) {
+    return 'Сессия';
+  }
+
+  if (normalized.includes('sale') || normalized.includes('receipt') || normalized.includes('pos')) {
+    return 'Чек';
+  }
+
+  if (normalized.includes('shift')) {
+    return 'Смена';
+  }
+
+  if (normalized.includes('tariff')) {
+    return 'Тариф';
+  }
+
+  if (normalized.includes('package')) {
+    return 'Пакет';
+  }
+
+  if (normalized.includes('staff') || normalized.includes('user')) {
+    return 'Сотрудник';
+  }
+
+  if (normalized.includes('branch')) {
+    return 'Филиал';
+  }
+
+  return 'Параметр';
+}
+
+function auditDetailValueLabel(value: unknown): string {
+  if (value === null || value === undefined) {
+    return 'не указано';
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'да' : 'нет';
+  }
+
+  if (typeof value === 'number') {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `${value.length} ${pluralRu(value.length, ['значение', 'значения', 'значений'])}`;
+  }
+
+  if (isRecord(value)) {
+    return 'заполнено';
+  }
+
+  const trimmed = String(value).trim();
+  if (trimmed.length === 0) {
+    return 'не указано';
+  }
+
+  if (isGuid(trimmed)) {
+    return 'указано';
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return 'ссылка';
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+    return formatTime(trimmed);
+  }
+
+  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
 }
 
 function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): LogEventItem[] {
@@ -6045,7 +6299,7 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
     ]),
     ...recentUpdateFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
-      `${readString(failure, 'component', 'Обновление')} ${readString(failure, 'targetVersion', '')}`,
+      `${updateComponentLabel(readString(failure, 'component', 'Обновление'))} ${readString(failure, 'targetVersion', '')}`.trim(),
       commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
       'Обновления',
       'warning',
@@ -6055,7 +6309,7 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
     ...staleDevices.map((device): LogEventItem => [
       formatTime(readString(device, 'lastHeartbeatAtUtc')),
       `${readString(device, 'machineName', 'Устройство')} не отвечает`,
-      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} сек. без пульса`,
+      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} сек. без сигнала`,
       'Агент',
       'warning',
       'staleDevice',
@@ -6064,19 +6318,10 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
   ];
 }
 
-function shortLogValue(value: string, fallback = '—'): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return fallback;
-  }
-
-  return trimmed.length > 8 ? trimmed.slice(0, 8) : trimmed;
-}
-
 function compactAuditDetails(detailsJson: string): string {
   const trimmed = detailsJson.trim();
   if (trimmed.length === 0 || trimmed === '{}') {
-    return 'нет деталей';
+    return 'нет подробностей';
   }
 
   try {
@@ -6088,9 +6333,9 @@ function compactAuditDetails(detailsJson: string): string {
     const entries = Object.entries(parsed)
       .filter(([, value]) => value !== null && value !== undefined && String(value).trim().length > 0)
       .slice(0, 3)
-      .map(([key, value]) => `${key}: ${String(value)}`);
+      .map(([key, value]) => `${auditDetailKeyLabel(key)}: ${auditDetailValueLabel(value)}`);
 
-    return entries.length > 0 ? entries.join(' · ') : 'нет деталей';
+    return entries.length > 0 ? entries.join(' · ') : 'нет подробностей';
   } catch {
     return trimmed.slice(0, 120);
   }
@@ -6112,23 +6357,21 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
 
   if (event[5] === 'audit' && record !== null) {
     const targetType = readString(record, 'targetType', 'target');
-    const targetId = readString(record, 'targetId');
 
     return [
-      ['ID аудита', shortLogValue(readString(record, 'auditRecordId'))],
-      ['Действие', readString(record, 'action', 'audit')],
-      ['Результат', readString(record, 'outcome', 'unknown')],
-      ['Объект', targetId ? `${targetType} ${shortLogValue(targetId)}` : targetType],
-      ['Исполнитель', shortLogValue(readString(record, 'actorStaffUserId'), 'система')],
-      ['Источник', readString(record, 'sourceApp', 'Audit')],
-      ['Детали', compactAuditDetails(readString(record, 'detailsJson'))]
+      ['Событие', auditActionLabel(readString(record, 'action'))],
+      ['Результат', auditOutcomeLabel(readString(record, 'outcome'))],
+      ['Раздел', auditTargetLabel(targetType)],
+      ['Исполнитель', auditActorLabel(record, backend)],
+      ['Источник', auditSourceLabel(readString(record, 'sourceApp'))],
+      ['Подробности', compactAuditDetails(readString(record, 'detailsJson'))]
     ];
   }
 
   if (event[5] === 'commandFailure' && record !== null) {
     return [
-      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
-      ['Команда', `${commandTypeLabel(readString(record, 'type', 'command'))} · ${shortLogValue(readString(record, 'commandId'))}`],
+      ['Устройство', readString(record, 'machineName', 'Устройство')],
+      ['Команда', commandTypeLabel(readString(record, 'type', 'command'))],
       ['Статус', commandStatusLabel(readString(record, 'status', 'failed'))],
       ['Сообщение', commandStatusMessageLabel(readString(record, 'message')) || 'нет сообщения'],
       ['Обновлено', readString(record, 'updatedAtUtc', event[0])]
@@ -6137,9 +6380,8 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
 
   if (event[5] === 'updateFailure' && record !== null) {
     return [
-      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
-      ['Rollout', shortLogValue(readString(record, 'updateRolloutId'))],
-      ['Компонент', `${readString(record, 'component', 'Обновление')} ${readString(record, 'targetVersion')}`.trim()],
+      ['Устройство', readString(record, 'machineName', 'Устройство')],
+      ['Компонент', `${updateComponentLabel(readString(record, 'component', 'Обновление'))} ${readString(record, 'targetVersion')}`.trim()],
       ['Статус', commandStatusLabel(readString(record, 'status', 'failed'))],
       ['Сообщение', commandStatusMessageLabel(readString(record, 'message')) || 'нет сообщения']
     ];
@@ -6147,19 +6389,19 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
 
   if (event[5] === 'staleDevice' && record !== null) {
     return [
-      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
-      ['Агент', readString(record, 'agentVersion', 'неизвестно')],
-      ['Оболочка', readString(record, 'shellVersion', 'неизвестно')],
-      ['Последний пульс', readString(record, 'lastHeartbeatAtUtc', event[0])],
-      ['Возраст', `${readNumber(record, 'lastHeartbeatAgeSeconds', 0)} сек.`]
+      ['Устройство', readString(record, 'machineName', 'Устройство')],
+      ['Версия агента', readString(record, 'agentVersion', 'неизвестно')],
+      ['Версия оболочки', readString(record, 'shellVersion', 'неизвестно')],
+      ['Последний сигнал', readString(record, 'lastHeartbeatAtUtc', event[0])],
+      ['Пауза связи', `${readNumber(record, 'lastHeartbeatAgeSeconds', 0)} сек.`]
     ];
   }
 
   return [
     ['Источник', event[3]],
-    ['Объект', event[1].split(' ')[0]],
+    ['Событие', event[1]],
     ['Оператор', operatorDisplayNameLabel(backend?.session.displayName ?? 'система')],
-    ['Филиал', backend?.branchId.slice(0, 8) ?? 'демо']
+    ['Результат', event[2]]
   ];
 }
 
@@ -6198,7 +6440,7 @@ function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
   const action = readString(record, 'action').toLowerCase();
   const targetType = readString(record, 'targetType').toLowerCase();
   const isAgent = source === 'Агент' || tone === 'device' || kind === 'commandFailure' || kind === 'staleDevice';
-  const isPos = normalizedTitle.includes('pos') || normalizedDetail.includes('pos') || action.includes('pos') || targetType.includes('pos');
+  const isPos = normalizedTitle.includes('касс') || normalizedTitle.includes('чек') || normalizedDetail.includes('касс') || normalizedDetail.includes('чек') || action.includes('pos') || targetType.includes('pos');
   const isOperator = normalizedSource.includes('operator') || normalizedSource.includes('оператор') || normalizedTitle.includes('identity') || normalizedDetail.includes('staff') || action.includes('identity') || targetType.includes('staff');
   const isPlatform = source === 'Обновления' || kind === 'updateFailure' || (!isAgent && !isPos && !isOperator);
 
@@ -6206,7 +6448,7 @@ function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
     return isAgent;
   }
 
-  if (sourceFilter === 'POS') {
+  if (sourceFilter === 'Касса') {
     return isPos;
   }
 
@@ -6328,10 +6570,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     const [time, title, detail, source, tone] = event;
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
-      || (activeLogFilter === 'ПК и агент' && (source === 'Агент' || tone === 'device' || detail.toLowerCase().includes('device')))
-      || (activeLogFilter === 'Касса и POS' && (title.toLowerCase().includes('pos') || detail.toLowerCase().includes('cash')))
-      || (activeLogFilter === 'Оператор' && (source.toLowerCase().includes('operator') || title.toLowerCase().includes('identity') || detail.toLowerCase().includes('staff')))
-      || (activeLogFilter === 'Системные' && (source !== 'Агент' || title.toLowerCase().includes('updates') || title.toLowerCase().includes('diagnostics')));
+      || (activeLogFilter === 'ПК и связь' && matchesLogSource(event, 'Агент'))
+      || (activeLogFilter === 'Касса' && matchesLogSource(event, 'Касса'))
+      || (activeLogFilter === 'Оператор' && matchesLogSource(event, 'Оператор'))
+      || (activeLogFilter === 'Системные' && matchesLogSource(event, 'Платформа'));
     const sourceMatches = matchesLogSource(event, selectedSource);
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
     return filterMatches && sourceMatches && searchMatches;
@@ -6346,7 +6588,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const sourceCards: Array<[string, string, LucideIcon]> = [
     ['Все', `${events.length} событий`, Search],
     ['Агент', `${events.filter((event) => matchesLogSource(event, 'Агент')).length} событий · зависших ${readNumber(deviceSummary, 'staleDevices', 0)}`, MonitorCheck],
-    ['POS', `${events.filter((event) => matchesLogSource(event, 'POS')).length} записей`, ReceiptText],
+    ['Касса', `${events.filter((event) => matchesLogSource(event, 'Касса')).length} записей`, ReceiptText],
     ['Оператор', `${events.filter((event) => matchesLogSource(event, 'Оператор')).length} действий`, UserRoundPlus],
     ['Платформа', `${events.filter((event) => matchesLogSource(event, 'Платформа')).length} событий`, ShieldAlert]
   ];
@@ -6379,8 +6621,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     const presets: Record<string, AuditSearchOverrides> = {
       'Все события': { action: '', outcome: '', targetType: '', limit: 30 },
       'Только ошибки': { action: '', outcome: 'denied', targetType: '', limit: 50 },
-      'ПК и агент': { action: '', outcome: '', targetType: 'Device', limit: 50 },
-      'Касса и POS': { action: 'pos.sales.create', outcome: '', targetType: '', limit: 50 },
+      'ПК и связь': { action: '', outcome: '', targetType: 'Device', limit: 50 },
+      'Касса': { action: 'pos.sale.create', outcome: '', targetType: '', limit: 50 },
       'Оператор': { action: 'identity.staff.create', outcome: '', targetType: '', limit: 50 },
       'Системные': { action: 'updates.rollouts.view', outcome: '', targetType: '', limit: 50 }
     };
@@ -6400,7 +6642,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      if (label === 'Аудит JSON') {
+      if (label === 'Полный журнал') {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', fromUtc: '', toUtc: '', limit: 100 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
@@ -6409,7 +6651,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
           buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)]),
           'application/json;charset=utf-8'
         );
-      } else if (label === 'CSV') {
+      } else if (label === 'Таблица') {
         const csv = await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
         downloadTextFile(`afk4-operator-actions-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       } else if (label === 'Ошибки') {
@@ -6437,19 +6679,19 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     <main className="workspace-screen logs-screen">
       <section className="screen-head logs-head">
         <div>
-          <span>Логи</span>
-          <h1>Логи · аудит и события смены</h1>
+          <span>Журнал</span>
+          <h1>Журнал · события смены</h1>
         </div>
         <div className="screen-actions">
           <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Журнал загружен')}</span>
         </div>
       </section>
 
-      <section className="state-strip logs-state-strip" aria-label="Сводка логов">
+      <section className="state-strip logs-state-strip" aria-label="Сводка журнала">
         <StateFlag label="События" value={String(events.length)} />
         <StateFlag label="Ошибки" value={String(events.filter((event) => event[4] === 'warning').length)} critical={events.some((event) => event[4] === 'warning')} />
-        <StateFlag label="Команды" value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
-        <StateFlag label="Аудит" value={String(auditRecords.length)} />
+        <StateFlag label="Команды ПК" value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
+        <StateFlag label="Записи" value={String(auditRecords.length)} />
         <StateFlag label="Источник" value={workspaceLoadStatusLabel(loadStatus, 'Платформа')} critical={loadStatus !== 'backend'} />
       </section>
 
@@ -6457,7 +6699,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <section className="logs-panel logs-events-panel">
           <header className="logs-panel-title">
             <span>Журнал событий</span>
-            <strong>поиск аудита и диагностика</strong>
+            <strong>события платформы и ПК</strong>
           </header>
           <label className="logs-search">
             <Search size={14} />
@@ -6493,7 +6735,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <section className="logs-panel logs-detail-panel">
           <header className="logs-panel-title">
             <span>Детали события</span>
-            <strong>выбранная запись</strong>
+            <strong>без внутренних ID</strong>
           </header>
           <div className={`log-detail-card ${selectedEvent[4]}`}>
             <span>{selectedEvent[0]} · {selectedEvent[3]}</span>
@@ -6511,10 +6753,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <section className="logs-panel logs-filter-panel">
           <header className="logs-panel-title">
             <span>Фильтры</span>
-            <strong>сузить расследование</strong>
+            <strong>найти нужные записи</strong>
           </header>
           <div className="logs-filter-grid">
-            {['Все события', 'Только ошибки', 'ПК и агент', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
+            {['Все события', 'Только ошибки', 'ПК и связь', 'Касса', 'Оператор', 'Системные'].map((filter) => (
               <button
                 key={filter}
                 type="button"
@@ -6531,28 +6773,28 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
                 <button key={preset} type="button" onClick={() => void applyAuditPeriodPreset(label, preset)}>{label}</button>
               ))}
             </div>
-            <label>Действие аудита<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="sessions.start" /></label>
+            <label>Событие<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="продажа / сессия / ПК" /></label>
             <label>Результат<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder="успешно / отказ" /></label>
-            <label>Тип объекта<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="Session" /></label>
-            <label>С UTC<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T00:00:00Z" /></label>
-            <label>До UTC<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T23:59:59Z" /></label>
-            <label>Лимит<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
-            <button type="button" onClick={() => applyAuditSearch('Применить аудит')}>Применить аудит</button>
+            <label>Раздел<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="сессии / касса / ПК" /></label>
+            <label>С<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder="2026-05-21 00:00" /></label>
+            <label>До<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder="2026-05-21 23:59" /></label>
+            <label>Записей<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
+            <button type="button" onClick={() => applyAuditSearch('Применить фильтр')}>Применить фильтр</button>
           </div>
         </section>
 
         <section className="logs-panel logs-audit-panel">
           <header className="logs-panel-title">
-            <span>Аудит смены</span>
-            <strong>последние записи платформы</strong>
+            <span>Операции смены</span>
+            <strong>последние действия</strong>
           </header>
           <div className="logs-audit-list">
             {auditRecords.slice(0, 4).map((record) => (
               <article key={readString(record, 'auditRecordId')} className="log-audit-row">
                 <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
-                <strong>{readString(record, 'actorStaffUserId', 'system').slice(0, 8)}</strong>
-                <em>{readString(record, 'action', 'audit')}</em>
-                <b>{readString(record, 'outcome', 'ok')}</b>
+                <strong>{auditActorLabel(record, backend)}</strong>
+                <em>{auditActionLabel(readString(record, 'action'))}</em>
+                <b>{auditOutcomeLabel(readString(record, 'outcome'))}</b>
               </article>
             ))}
           </div>
@@ -6561,7 +6803,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <section className="logs-panel logs-sources-panel">
           <header className="logs-panel-title">
             <span>Источники</span>
-            <strong>откуда пришли события</strong>
+            <strong>каналы событий</strong>
           </header>
           <div className="logs-source-grid">
             {sourceCards.map(([label, detail, Icon]) => (
@@ -6588,8 +6830,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
             {[
               ['Журнал смены', ReceiptText],
               ['Ошибки', AlertTriangle],
-              ['CSV', ArrowRightLeft],
-              ['Аудит JSON', ShieldAlert]
+              ['Таблица', ArrowRightLeft],
+              ['Полный журнал', ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runLogAction(label as string)}><Icon size={16} />{label as string}</button>
             ))}

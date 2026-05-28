@@ -605,18 +605,17 @@ describe('App', () => {
     expect(screen.getByText('Методы оплаты')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Логи'));
-    const logsHead = screen.getByRole('heading', { name: /Логи/ }).closest('.screen-head');
+    const logsHead = screen.getByRole('heading', { name: /Журнал/ }).closest('.screen-head');
     expect(logsHead).toBeInTheDocument();
     expect(logsHead).not.toHaveTextContent('Смена');
     expect(logsHead).not.toHaveTextContent('Ошибки');
-    expect(logsHead).not.toHaveTextContent('Аудит');
     expect(logsHead).not.toHaveTextContent('Экспорт');
     expect(screen.getByText('Журнал событий')).toBeInTheDocument();
     expect(screen.getByText('Детали события')).toBeInTheDocument();
     expect(screen.getByText('Фильтры')).toBeInTheDocument();
-    expect(screen.getByText('Аудит смены')).toBeInTheDocument();
+    expect(screen.getByText('Операции смены')).toBeInTheDocument();
     expect(screen.getByText('Источники')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Аудит JSON/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Полный журнал/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Настройки'));
     const settingsHead = screen.getByRole('heading', { name: /Настройки/ }).closest('.screen-head');
@@ -676,15 +675,15 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Логи'));
     expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Действие аудита'), { target: { value: 'sessions.start' } });
+    fireEvent.change(screen.getByLabelText('Событие'), { target: { value: 'sessions.start' } });
     fireEvent.change(screen.getByLabelText('Результат'), { target: { value: 'succeeded' } });
-    fireEvent.change(screen.getByLabelText('Тип объекта'), { target: { value: 'Session' } });
-    fireEvent.change(screen.getByLabelText('С UTC'), { target: { value: '2026-05-21T00:00:00Z' } });
-    fireEvent.change(screen.getByLabelText('До UTC'), { target: { value: '2026-05-21T23:59:59Z' } });
-    fireEvent.change(screen.getByLabelText('Лимит'), { target: { value: '12' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Применить аудит' }));
+    fireEvent.change(screen.getByLabelText('Раздел'), { target: { value: 'Session' } });
+    fireEvent.change(screen.getByLabelText('С'), { target: { value: '2026-05-21T00:00:00Z' } });
+    fireEvent.change(screen.getByLabelText('До'), { target: { value: '2026-05-21T23:59:59Z' } });
+    fireEvent.change(screen.getByLabelText('Записей'), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
 
-    expect(await screen.findByText('Применить аудит: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Применить фильтр: подтверждено')).toBeInTheDocument();
     const auditCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
     const auditCall = auditCalls[auditCalls.length - 1];
     expect(auditCall).toBeDefined();
@@ -718,11 +717,17 @@ describe('App', () => {
     expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
 
     const detailPanel = document.querySelector('.logs-detail-panel') as HTMLElement;
-    expect(detailPanel).toHaveTextContent('ID аудита');
-    expect(detailPanel).toHaveTextContent('18181818');
-    expect(detailPanel).toHaveTextContent('pos.sale.create');
-    expect(detailPanel).toHaveTextContent('PosSale 99999999');
-    expect(detailPanel).toHaveTextContent('PlatformApi');
+    expect(detailPanel).toHaveTextContent('Продажа создана');
+    expect(detailPanel).toHaveTextContent('Чек');
+    expect(detailPanel).toHaveTextContent('успешно');
+    expect(detailPanel).toHaveTextContent('Оператор смены');
+    expect(detailPanel).toHaveTextContent('Платформа');
+    expect(detailPanel).not.toHaveTextContent('ID аудита');
+    expect(detailPanel).not.toHaveTextContent('18181818');
+    expect(detailPanel).not.toHaveTextContent('pos.sale.create');
+    expect(detailPanel).not.toHaveTextContent('PosSale');
+    expect(detailPanel).not.toHaveTextContent('99999999');
+    expect(detailPanel).not.toHaveTextContent('PlatformApi');
   });
 
   it('shows backend diagnostics failure detail in Logs', async () => {
@@ -762,15 +767,18 @@ describe('App', () => {
 
     const detailPanel = document.querySelector('.logs-detail-panel') as HTMLElement;
     expect(detailPanel).toHaveTextContent('Устройство');
-    expect(detailPanel).toHaveTextContent('PC-03 · 33333333');
-    expect(detailPanel).toHaveTextContent('Разблокировка · 44444444');
+    expect(detailPanel).toHaveTextContent('PC-03');
+    expect(detailPanel).toHaveTextContent('Разблокировка');
     expect(detailPanel).toHaveTextContent('не выполнена');
     expect(detailPanel).toHaveTextContent('Агент не ответил вовремя');
+    expect(detailPanel).not.toHaveTextContent('33333333');
+    expect(detailPanel).not.toHaveTextContent('44444444');
 
     const sourcePanel = document.querySelector('.logs-sources-panel') as HTMLElement;
-    fireEvent.click(within(sourcePanel).getByRole('button', { name: /POS/ }));
+    fireEvent.click(within(sourcePanel).getByRole('button', { name: /Касса/ }));
     expect(screen.queryByText('PC-03 Разблокировка')).not.toBeInTheDocument();
-    expect(screen.getAllByText('pos.sale.create').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Продажа создана').length).toBeGreaterThan(0);
+    expect(screen.queryByText('pos.sale.create')).not.toBeInTheDocument();
 
     fireEvent.click(within(sourcePanel).getByRole('button', { name: /Агент/ }));
     expect(screen.getAllByText('PC-03 Разблокировка').length).toBeGreaterThan(0);
@@ -803,14 +811,14 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Логи'));
     expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Таблица' }));
 
-    expect(await screen.findByText('CSV: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Таблица: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/operator-actions/export.csv'))).toBe(true);
     expect(downloads.some((download) => download.startsWith('afk4-operator-actions-') && download.endsWith('.csv'))).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: /Аудит JSON/ }));
-    expect(await screen.findByText('Аудит JSON: подтверждено')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Полный журнал/ }));
+    expect(await screen.findByText('Полный журнал: подтверждено')).toBeInTheDocument();
     expect(createObjectUrl).toHaveBeenCalledTimes(2);
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:logs');
     expect(downloads.some((download) => download.startsWith('afk4-audit-trail-') && download.endsWith('.json'))).toBe(true);
