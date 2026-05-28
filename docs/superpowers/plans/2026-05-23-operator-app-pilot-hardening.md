@@ -19,6 +19,9 @@ Implemented slices:
 - 2026-05-28: polished Operator App Logs/Diagnostics so the normal journal UI
   uses operator-facing event/source/device/audit labels instead of raw audit
   IDs, command IDs, rollout IDs, or backend source names.
+- 2026-05-28: polished Operator App POS/Payments money-flow copy so normal
+  sales, check, cash, shift, and report panels no longer show POS/backend/CSV
+  copy, raw sale or cash-operation IDs, or English payment states.
 
 ## Purpose
 
@@ -44,10 +47,10 @@ actions leaking into the day flow.
    sign-in. Empty backend catalog, player, report, or device responses must be
    shown as explicit empty states, not replaced by demo data.
 3. The raw organization GUID has been removed from normal sign-in, and the
-   first Settings device/update plus Logs/Diagnostics journal raw-ID passes are
-   complete. Remaining POS/Payments, setup, support/export, and diagnostics
-   surfaces still need a pass for technical keys, backend-shaped forms, and
-   unclear operator copy.
+   first Settings device/update, Logs/Diagnostics journal, and POS/Payments
+   money-flow passes are complete. Remaining setup, support/export, Settings
+   catalog/staff/tariff/package, and diagnostics surfaces still need a pass for
+   technical keys, backend-shaped forms, and unclear operator copy.
 4. Critical actions need stronger operator-safe UX: confirmation, reason where
    required, visible money/session/device impact, pending backend state, and
    final backend result.

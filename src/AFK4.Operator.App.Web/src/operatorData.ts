@@ -46,7 +46,7 @@ export const navItems: NavItem[] = [
   { label: 'Карта', icon: Monitor, active: true },
   { label: 'Дашборд', icon: LayoutDashboard },
   { label: 'Брони', icon: CalendarClock },
-  { label: 'POS', icon: ReceiptText },
+  { label: 'Продажи', icon: ReceiptText },
   { label: 'Клиенты', icon: Users },
   { label: 'Платежи', icon: CircleDollarSign },
   { label: 'Логи', icon: ScrollText },

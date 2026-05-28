@@ -122,7 +122,7 @@ const defaultSessionDurationMinutes = 60;
 const defaultTariffRuleVersionId = 'manual-v1';
 const shellOperationalRefreshMs = 30_000;
 const billingModeOptions: Array<{ id: SessionBillingModeId; label: string; detail: string }> = [
-  { id: 'guest', label: 'Гость', detail: 'без ledger' },
+  { id: 'guest', label: 'Гость', detail: 'без списания' },
   { id: 'prepaid_wallet', label: 'Депозит', detail: 'списать с баланса' },
   { id: 'package', label: 'Пакет', detail: 'списать минуты' },
   { id: 'postpaid_debt', label: 'Постоплата', detail: 'долг игрока' }
@@ -912,10 +912,10 @@ function shellPosLabel(summary: OperatorDashboardSummaryDto | null, status: Load
   if (summary !== null) {
     const revenue = readRecord(summary, 'revenue');
     const posChecks = readNumber(revenue, 'posCheckCount', 0);
-    return `POS: ${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])} сегодня`;
+    return `Касса: ${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])} сегодня`;
   }
 
-  return status === 'loading' ? 'POS: загрузка' : 'POS: нет данных';
+  return status === 'loading' ? 'Касса: загрузка' : 'Касса: нет данных';
 }
 
 function shellModeLabel(mode: string): string {
@@ -1276,28 +1276,117 @@ function downloadTextFile(fileName: string, contents: string, mimeType = 'text/p
   window.URL.revokeObjectURL(url);
 }
 
+function posSaleStateLabel(state: string): string {
+  switch (state.toLowerCase()) {
+    case 'paid':
+      return 'Оплачен';
+    case 'draft':
+      return 'Черновик';
+    case 'void':
+    case 'voided':
+      return 'Аннулирован';
+    case 'refund':
+    case 'refunded':
+      return 'Возврат';
+    case 'pending':
+      return 'Ожидает оплаты';
+    case 'sale':
+      return 'Продажа';
+    default:
+      return 'Чек';
+  }
+}
+
+function posReceiptTypeLabel(type: string): string {
+  switch (type.toLowerCase()) {
+    case 'sale':
+    case 'paid':
+      return 'Продажа';
+    case 'refund':
+    case 'refunded':
+      return 'Возврат';
+    case 'void':
+    case 'voided':
+      return 'Аннулирование';
+    default:
+      return 'Чек';
+  }
+}
+
+function posSaleLineSummary(row: unknown): string {
+  const lineCount = readNumber(row, 'lineCount', 0);
+  const itemQuantity = readNumber(row, 'itemQuantity', 0);
+  return `${lineCount} ${pluralRu(lineCount, ['строка', 'строки', 'строк'])} · ${itemQuantity} шт.`;
+}
+
+function shiftStateLabel(state: string): string {
+  switch (state.toLowerCase()) {
+    case 'open':
+      return 'Открыта';
+    case 'closed':
+      return 'Закрыта';
+    case 'closing':
+      return 'Закрывается';
+    case 'unknown':
+      return 'Неизвестно';
+    case 'нет смены':
+      return 'Нет';
+    default:
+      return state ? 'Неизвестно' : 'Нет';
+  }
+}
+
+function cashOperationTypeLabel(type: string): string {
+  switch (type.toLowerCase()) {
+    case 'opening':
+      return 'Открытие смены';
+    case 'closing':
+      return 'Закрытие смены';
+    case 'cash_in':
+      return 'Внесение';
+    case 'cash_out':
+      return 'Изъятие';
+    case 'refund':
+      return 'Возврат';
+    default:
+      return 'Движение кассы';
+  }
+}
+
+function paymentSourceLabel(source: string): string {
+  switch (source.toLowerCase()) {
+    case 'shift':
+      return 'Смена';
+    case 'cash':
+      return 'Наличные';
+    case 'pos':
+    case 'sale':
+      return 'Продажа';
+    default:
+      return 'Касса';
+  }
+}
+
 function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> | null, currencyCode: string): string {
-  const saleId = readString(sale, 'posSaleId');
-  const receiptNumber = readString(receipt, 'receiptNumber', saleId.slice(0, 8) || 'receipt');
-  const receiptType = readString(receipt, 'receiptType', readString(sale, 'state', 'sale'));
+  const receiptNumber = readString(receipt, 'receiptNumber', 'чек');
+  const receiptType = posReceiptTypeLabel(readString(receipt, 'receiptType', readString(sale, 'state', 'sale')));
   const createdAtUtc = readString(receipt, 'createdAtUtc', readString(sale, 'createdAtUtc'));
   const lines = readArray(sale, 'lines').map((line) => [
-    readString(line, 'productName', 'POS item'),
+    readString(line, 'productName', 'Товар'),
     `${readNumber(line, 'quantity', 0)} шт.`,
     formatMoney(readMoney(line, 'unitPrice'), currencyCode),
     formatMoney(readMoney(line, 'lineTotal'), currencyCode)
   ].join(' | '));
 
   return [
-    'AFK4 POS',
-    `Receipt: ${receiptNumber}`,
-    `Type: ${receiptType}`,
-    `Created: ${createdAtUtc || '—'}`,
-    `Sale: ${saleId || '—'}`,
+    'AFK4 Касса',
+    `Чек: ${receiptNumber}`,
+    `Тип: ${receiptType}`,
+    `Создан: ${createdAtUtc || '—'}`,
     '',
     ...lines,
     '',
-    `Total: ${formatMoney(readMoney(sale, 'total'), currencyCode)}`
+    `Итого: ${formatMoney(readMoney(sale, 'total'), currencyCode)}`
   ].join('\n');
 }
 
@@ -1870,7 +1959,7 @@ function DashboardWorkspace({
 
   const controlCards: Array<[WorkspaceId, string, string, string, LucideIcon]> = [
     ['map', 'Карта', `${totalPcs} ПК`, `${attentionCount} ${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])}`, MonitorCheck],
-    ['pos', 'POS', `${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])}`, `за ${activePeriodLabel}`, ReceiptText],
+    ['pos', 'Продажи', `${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])}`, `за ${activePeriodLabel}`, ReceiptText],
     ['payments', 'Касса', formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), `за ${activePeriodLabel}`, CircleDollarSign],
     ['players', 'Клиент', `${newClients} ${pluralRu(newClients, ['новый', 'новых', 'новых'])}`, `за ${activePeriodLabel}`, UserRoundPlus]
   ];
@@ -1970,7 +2059,7 @@ function DashboardWorkspace({
         <section className="dashboard-control-panel">
           <header className="dashboard-panel-title">
             <span>Управление</span>
-            <strong>карта, POS, депозит, клиент</strong>
+            <strong>карта, чек, депозит, клиент</strong>
           </header>
           <div className="dashboard-control-grid">
             {controlCards.map(([targetWorkspace, label, value, detail, Icon]) => (
@@ -2244,12 +2333,12 @@ function PosWorkspace({ currencyCode }: { currencyCode: string }) {
     <main className="workspace-screen pos-screen">
       <section className="screen-head pos-head">
         <div>
-          <span>POS</span>
-          <h1>POS · продажа и кассовые операции</h1>
+          <span>Продажи</span>
+          <h1>Продажи · чек и кассовые операции</h1>
         </div>
       </section>
 
-      <section className="state-strip pos-state-strip" aria-label="Сводка POS">
+      <section className="state-strip pos-state-strip" aria-label="Сводка продаж">
         <StateFlag label="Продажи" value={`2 чека · 145 ${currencyCode}`} />
         <StateFlag label="Возвраты" value={`1 · 20 ${currencyCode}`} critical />
         <StateFlag label="Наличные" value={`3 740 ${currencyCode}`} />
@@ -2271,7 +2360,7 @@ function PosWorkspace({ currencyCode }: { currencyCode: string }) {
               onChange={(event) => setProductSearch(event.currentTarget.value)}
             />
           </label>
-          <div className="pos-category-row" aria-label="Категории POS">
+          <div className="pos-category-row" aria-label="Категории товаров">
             {['Популярное', 'Еда', 'Напитки', 'Услуги'].map((category) => (
               <button
                 key={category}
@@ -2566,14 +2655,14 @@ function PlayersWorkspace({ currencyCode }: { currencyCode: string }) {
 
 function PaymentsWorkspace({ currencyCode }: { currencyCode: string }) {
   const [paymentSearch, setPaymentSearch] = useState('');
-  const [selectedOperationKey, setSelectedOperationKey] = useState('15:08-POS продажа-PC-06 · Madina S.');
+  const [selectedOperationKey, setSelectedOperationKey] = useState('15:08-Продажа по чеку-PC-06 · Madina S.');
   const [selectedMethod, setSelectedMethod] = useState('Наличные');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const operations = [
-    ['15:08', 'POS продажа', 'PC-06 · Madina S.', 'карта', `86 ${currencyCode}`, 'sale'],
+    ['15:08', 'Продажа по чеку', 'PC-06 · Madina S.', 'карта', `86 ${currencyCode}`, 'sale'],
     ['14:55', 'Возврат', 'Yusuf A.', 'наличные', `-20 ${currencyCode}`, 'refund'],
     ['14:41', 'Пополнение', 'Madina S.', 'карта', `200 ${currencyCode}`, 'deposit'],
-    ['14:30', 'POS продажа', 'Гость · стойка', 'наличные', `59 ${currencyCode}`, 'sale'],
+    ['14:30', 'Продажа по чеку', 'Гость · стойка', 'наличные', `59 ${currencyCode}`, 'sale'],
     ['14:22', 'Игровое время', 'Amir K.', 'депозит', `45 ${currencyCode}`, 'session']
   ];
   const methods = [
@@ -2720,7 +2809,7 @@ function PaymentsWorkspace({ currencyCode }: { currencyCode: string }) {
           <div className="payments-export-grid">
             <button type="button" onClick={() => triggerFeedback(setFeedback, 'Журнал смены')}><ReceiptText size={16} />Журнал смены</button>
             <button type="button" onClick={() => triggerFeedback(setFeedback, 'Кассовый отчёт')}><Banknote size={16} />Кассовый отчёт</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Экспорт CSV')}><ArrowRightLeft size={16} />Экспорт CSV</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Таблица продаж')}><ArrowRightLeft size={16} />Таблица продаж</button>
             <button type="button" onClick={() => triggerFeedback(setFeedback, 'Расхождения')}><ShieldAlert size={16} />Расхождения</button>
           </div>
         </section>
@@ -3617,7 +3706,7 @@ function projectPosProduct(product: PosProductDto, currencyCode: string): PosCat
   const price = readMoney(product, 'price');
   return {
     productId: readString(product, 'productId') || undefined,
-    name: readString(product, 'name', 'POS item'),
+    name: readString(product, 'name', 'Товар'),
     priceMinorUnits: price?.minorUnits ?? 0,
     category: readString(product, 'categoryName', readString(product, 'categoryId', 'Каталог')),
     note: `${readString(product, 'sku', 'SKU')} · ${readNumber(product, 'stockOnHand', 0)} шт.`,
@@ -3647,10 +3736,10 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [stockWriteOffProductId, setStockWriteOffProductId] = useState('');
   const [stockWriteOffQuantity, setStockWriteOffQuantity] = useState('1');
-  const [stockWriteOffReason, setStockWriteOffReason] = useState('операторское списание POS');
+  const [stockWriteOffReason, setStockWriteOffReason] = useState('операторское списание');
   const [criticalAction, setCriticalAction] = useState<'refund-sale' | 'void-draft' | null>(null);
   const [refundReason, setRefundReason] = useState('Возврат по запросу клиента');
-  const [voidReason, setVoidReason] = useState('Ошибка в черновике POS');
+  const [voidReason, setVoidReason] = useState('Ошибка в черновике чека');
   const [cartItems, setCartItems] = useState<PosCartItem[]>(() => backend === null
     ? [
         { ...fixturePosProducts[0], quantity: 1 },
@@ -3711,7 +3800,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     } catch (error) {
       setLoadStatus('failed');
       setFeedback({
-        label: 'POS',
+        label: 'Касса',
         state: 'failed',
         detail: projectOperatorError(error).detail
       });
@@ -3756,7 +3845,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         setPosPlayers([]);
         setSelectedPlayerId('');
         setPlayerLoadStatus('failed');
-        setFeedback({ label: 'Клиент POS', state: 'failed', detail: projectOperatorError(error).detail });
+        setFeedback({ label: 'Клиент', state: 'failed', detail: projectOperatorError(error).detail });
       });
 
     return () => {
@@ -3955,15 +4044,15 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     try {
       const nextBackend = requireBackend(backend);
       if (!hasPermission(nextBackend.session, permissionNames.createPosSale) || !hasPermission(nextBackend.session, permissionNames.payPosSale)) {
-        throw new Error('Нет прав на создание или оплату POS продажи.');
+        throw new Error('Нет прав на создание или оплату чека.');
       }
 
       if (!shiftId) {
-        throw new Error('Open shift is required before POS payment.');
+        throw new Error('Откройте смену перед оплатой.');
       }
 
       if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
-        throw new Error('POS-каталог платформы не загружен для текущей корзины.');
+        throw new Error('Каталог товаров не загружен для текущей корзины.');
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -3983,7 +4072,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       });
       const saleId = readString(sale, 'posSaleId');
       if (!saleId) {
-        throw new Error('Платформа вернула POS-продажу без идентификатора чека.');
+        throw new Error('Платформа не подтвердила номер чека. Повторите операцию или обратитесь в поддержку.');
       }
 
       const paidSale = await clients.pos.paySaleManual(saleId, {
@@ -4016,11 +4105,11 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     try {
       const nextBackend = requireBackend(backend);
       if (!hasPermission(nextBackend.session, permissionNames.refundPosSale)) {
-        throw new Error('Нет прав на возврат POS продажи.');
+        throw new Error('Нет прав на возврат по чеку.');
       }
 
       if (!selectedRefundableSaleId) {
-        throw new Error('Нет POS-продажи платформы для возврата.');
+        throw new Error('Выберите чек для возврата.');
       }
 
       const reason = refundReason.trim();
@@ -4054,7 +4143,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (!saleId) {
-        throw new Error('Для деталей чека нужен идентификатор POS-продажи платформы.');
+        throw new Error('Выберите чек из списка.');
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -4111,7 +4200,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
-      const receiptNumber = readString(selectedReceiptRecord, 'receiptNumber', readString(selectedSaleDetail, 'posSaleId').slice(0, 8));
+      const receiptNumber = readString(selectedReceiptRecord, 'receiptNumber', 'receipt');
       downloadTextFile(`${safeReceiptFileName(receiptNumber)}.txt`, receiptText);
       setFeedback({ label: 'Экспорт чека', state: 'confirmed' });
     } catch (error) {
@@ -4129,7 +4218,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     try {
       const nextBackend = requireBackend(backend);
       if (!hasPermission(nextBackend.session, permissionNames.createPosSale) || !hasPermission(nextBackend.session, permissionNames.voidPosSale)) {
-        throw new Error('Нет прав на создание или аннулирование POS продажи.');
+        throw new Error('Нет прав на создание или аннулирование чека.');
       }
 
       if (!shiftId) {
@@ -4137,7 +4226,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
-        throw new Error('POS-каталог платформы не загружен для текущей корзины.');
+        throw new Error('Каталог товаров не загружен для текущей корзины.');
       }
 
       const reason = voidReason.trim();
@@ -4162,7 +4251,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       });
       const saleId = readString(draft, 'posSaleId');
       if (!saleId) {
-        throw new Error('Платформа вернула POS-черновик без идентификатора чека.');
+        throw new Error('Платформа не подтвердила черновик чека. Повторите операцию или обратитесь в поддержку.');
       }
 
       const voidedSale = await clients.pos.voidSale(saleId, {
@@ -4188,27 +4277,27 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     <main className="workspace-screen pos-screen">
       <section className="screen-head pos-head">
         <div>
-          <span>POS</span>
-          <h1>POS · продажа и кассовые операции</h1>
+          <span>Продажи</span>
+          <h1>Продажи · чек и кассовые операции</h1>
         </div>
         <div className="screen-actions">
           <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Платформа подключена')}</span>
         </div>
       </section>
 
-      <section className="state-strip pos-state-strip" aria-label="Сводка POS">
+      <section className="state-strip pos-state-strip" aria-label="Сводка продаж">
         <StateFlag label="Продажи" value={`${salesRows.length} · ${grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`}`} />
         <StateFlag label="Возвраты" value={refundsTotal ? formatMinorUnits(refundsTotal.minorUnits, refundsTotal.currencyCode) : `0 ${currencyCode}`} critical={(refundsTotal?.minorUnits ?? 0) > 0} />
         <StateFlag label="Товары" value={`${catalog.length} поз.`} />
         <StateFlag label="Склад" value={`${lowStockCount} низко`} critical={lowStockCount > 0} />
-        <StateFlag label="Смена" value={shiftState} critical={!shiftId} />
+        <StateFlag label="Смена" value={shiftStateLabel(shiftState)} critical={!shiftId} />
       </section>
 
       <section className="pos-layout">
         <section className="pos-panel pos-catalog-panel">
           <header className="pos-panel-title">
             <span>Каталог</span>
-            <strong>каталог, остатки и поиск платформы</strong>
+            <strong>активные товары, остатки и поиск</strong>
           </header>
           <label className="pos-search">
             <Search size={14} />
@@ -4218,7 +4307,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               onChange={(event) => setProductSearch(event.currentTarget.value)}
             />
           </label>
-          <div className="pos-category-row" aria-label="Категории POS">
+          <div className="pos-category-row" aria-label="Категории товаров">
             {categories.map((category) => (
               <button
                 key={category}
@@ -4233,8 +4322,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <div className="pos-catalog-grid">
             {visibleProducts.length === 0 ? (
               <div className="pos-empty-state">
-                <strong>Каталог POS пуст</strong>
-                <span>{loadStatus === 'backend' ? 'Платформа не вернула активные товары для этого филиала.' : 'Загрузите каталог платформы.'}</span>
+                <strong>Каталог пуст</strong>
+                <span>{loadStatus === 'backend' ? 'Активных товаров для этого филиала нет.' : 'Загрузите каталог.'}</span>
               </div>
             ) : (
               visibleProducts.map((product) => (
@@ -4252,7 +4341,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-cart-panel">
           <header className="pos-panel-title">
             <span>Корзина</span>
-            <strong>{shiftId ? `смена ${shiftId.slice(0, 8)}` : 'откройте смену'}</strong>
+            <strong>{shiftId ? 'смена открыта' : 'откройте смену'}</strong>
           </header>
           <div className="pos-cart-client">
             <UserRoundPlus size={17} />
@@ -4277,7 +4366,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <label className="pos-search pos-client-search">
             <Search size={14} />
             <input
-              aria-label="Клиент POS"
+              aria-label="Клиент"
               value={playerSearch}
               disabled={backend !== null && !hasPermission(backend.session, permissionNames.viewPlayers)}
               placeholder="имя или телефон клиента"
@@ -4285,7 +4374,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             />
           </label>
           {playerSearchQuery.length > 1 && (
-            <div className="pos-client-candidates" aria-label="Клиенты POS">
+            <div className="pos-client-candidates" aria-label="Клиенты продажи">
               {posPlayers.map((player) => (
                 <button
                   key={player.playerAccountId ?? player.name}
@@ -4306,7 +4395,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label>
               <span>Новая карта</span>
               <input
-                aria-label="Имя клиента POS"
+                aria-label="Имя клиента"
                 value={newPlayerName}
                 disabled={backend !== null && !hasPermission(backend.session, permissionNames.createPlayerAccount)}
                 placeholder={playerSearchQuery || 'имя клиента'}
@@ -4316,7 +4405,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label>
               <span>Телефон</span>
               <input
-                aria-label="Телефон клиента POS"
+                aria-label="Телефон клиента"
                 value={newPlayerPhone}
                 disabled={backend !== null && !hasPermission(backend.session, permissionNames.createPlayerAccount)}
                 placeholder="+992..."
@@ -4333,7 +4422,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               <article className="pos-cart-row empty">
                 <div>
                   <strong>Корзина пуста</strong>
-                  <span>Добавьте товар из backend-каталога.</span>
+                  <span>Добавьте товар из каталога.</span>
                 </div>
                 <b>{formatMinorUnits(0, currencyCode)}</b>
               </article>
@@ -4352,7 +4441,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <div className="pos-total-card">
             <span>Итого к оплате</span>
             <strong>{formatMinorUnits(cartTotalMinorUnits, currencyCode)}</strong>
-            <em>{lastSale ? `последний чек ${readString(lastSale, 'posSaleId').slice(0, 8)}` : 'чек создаётся только после ответа платформы'}</em>
+            <em>{lastSale ? 'последний чек принят' : 'чек создаётся после подтверждения платформы'}</em>
           </div>
           <FeedbackNotice feedback={feedback} />
         </section>
@@ -4360,7 +4449,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-payment-panel">
           <header className="pos-panel-title">
             <span>Оплата</span>
-            <strong>чек платформы и ручное подтверждение</strong>
+            <strong>чек и подтверждение оплаты</strong>
           </header>
           <div className="pos-payment-methods">
             {['Наличные', 'Карта', 'Депозит'].map((method) => (
@@ -4369,7 +4458,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 type="button"
                 className={paymentMethod === method ? 'active' : undefined}
                 disabled={method === 'Депозит' || feedback.state === 'pending'}
-                title={method === 'Депозит' ? 'Оплата с депозита требует ledger-контракт платформы.' : undefined}
+                title={method === 'Депозит' ? 'Оплата с депозита будет включена после подключения депозитного платежа.' : undefined}
                 onClick={() => setPaymentMethod(method)}
               >
                 {method === 'Наличные' && <Banknote size={15} />}
@@ -4391,7 +4480,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-receipts-panel">
           <header className="pos-panel-title">
             <span>Последние чеки</span>
-            <strong>отчёт продаж из платформы</strong>
+            <strong>чеки за смену</strong>
           </header>
           <div className="pos-receipt-list">
             {salesRows.slice(0, 4).map((row) => (
@@ -4407,8 +4496,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 }}
               >
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{readString(row, 'state', 'sale')}</strong>
-                <em>{readNumber(row, 'lineCount', 0)} lines</em>
+                <strong>{posSaleStateLabel(readString(row, 'state', 'sale'))}</strong>
+                <em>{posSaleLineSummary(row)}</em>
                 <b>{formatMoney(readMoney(row, 'total'), currencyCode)}</b>
               </button>
             ))}
@@ -4424,21 +4513,21 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           {selectedSaleDetail !== null && (
             <div className="pos-sale-detail">
               <div>
-                <span>Детали продажи</span>
-                <strong>{readString(selectedSaleDetail, 'state', 'sale')} · {readString(selectedSaleDetail, 'posSaleId').slice(0, 8)}</strong>
+                <span>Детали чека</span>
+                <strong>{posSaleStateLabel(readString(selectedSaleDetail, 'state', 'sale'))}</strong>
                 <b>{formatMoney(readMoney(selectedSaleDetail, 'total'), currencyCode)}</b>
               </div>
               {readArray(selectedSaleDetail, 'lines').slice(0, 3).map((line) => (
                 <p key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}>
-                  {readString(line, 'productName', 'POS item')} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
+                  {readString(line, 'productName', 'Товар')} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
                 </p>
               ))}
               {selectedReceiptDetail !== null && (
                 <div className="pos-receipt-detail">
                   <span>Чек платформы</span>
-                  <strong>{readString(selectedReceiptDetail, 'receiptNumber', 'receipt')}</strong>
+                  <strong>{readString(selectedReceiptDetail, 'receiptNumber', 'чек')}</strong>
                   <b>{formatMoney(readMoney(selectedReceiptDetail, 'total'), currencyCode)}</b>
-                  <p>{readString(selectedReceiptDetail, 'receiptType', 'sale')}</p>
+                  <p>{posReceiptTypeLabel(readString(selectedReceiptDetail, 'receiptType', 'sale'))}</p>
                 </div>
               )}
               <div className="pos-receipt-actions">
@@ -4464,7 +4553,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label>
               <span>Списание</span>
               <select
-                aria-label="Товар для списания POS"
+                aria-label="Товар для списания"
                 value={selectedStockProduct?.productId ?? ''}
                 disabled={backendCatalogProducts.length === 0 || feedback.state === 'pending'}
                 onChange={(event) => setStockWriteOffProductId(event.currentTarget.value)}
@@ -4480,7 +4569,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label>
               <span>Кол-во</span>
               <input
-                aria-label="Количество списания POS"
+                aria-label="Количество списания"
                 inputMode="numeric"
                 value={stockWriteOffQuantity}
                 disabled={!canWriteOffStock || feedback.state === 'pending'}
@@ -4490,7 +4579,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label className="pos-stock-reason">
               <span>Причина</span>
               <input
-                aria-label="Причина списания POS"
+                aria-label="Причина списания"
                 value={stockWriteOffReason}
                 disabled={!canWriteOffStock || feedback.state === 'pending'}
                 onChange={(event) => setStockWriteOffReason(event.currentTarget.value)}
@@ -4505,7 +4594,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             {[
               ['Пополнить депозит', selectedPosPlayer ? `корзина ${formatMinorUnits(cartTotalMinorUnits, currencyCode)}` : 'выберите клиента', CircleDollarSign],
               ['Возврат по чеку', 'требует выбранный чек', ReceiptText],
-              ['Аннулировать черновик', 'создать и отменить draft', X],
+              ['Аннулировать черновик', 'создать и аннулировать чек', X],
               ['Списать склад', selectedStockProduct?.name ?? 'выберите товар', AlertTriangle],
               ['Новый клиент', newPlayerDisplayName || 'заполните имя', UserRoundPlus],
               ['Внести наличные', 'экран платежей', Banknote]
@@ -4545,8 +4634,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           </div>
           {criticalAction === 'refund-sale' && (
             <CriticalActionConfirmation
-              title="Подтвердите возврат POS"
-              detail={`Чек ${selectedRefundableSaleId.slice(0, 8)} · ${formatMoney(readMoney(selectedRefundableSale, 'total'), currencyCode)}`}
+              title="Подтвердите возврат"
+              detail={`Выбранный чек · ${formatMoney(readMoney(selectedRefundableSale, 'total'), currencyCode)}`}
               impact="Платформа создаст возврат по выбранному чеку и запишет причину в аудит."
               confirmLabel="Подтвердить возврат"
               disabled={feedback.state === 'pending'}
@@ -4567,7 +4656,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <CriticalActionConfirmation
               title="Подтвердите аннулирование"
               detail={`Корзина · ${cartItems.length} поз. · ${formatMinorUnits(cartTotalMinorUnits, currencyCode)}`}
-              impact="Будет создан draft-чек и сразу отправлена команда void в backend."
+              impact="Черновик чека будет создан и аннулирован после подтверждения платформы."
               confirmLabel="Подтвердить аннулирование"
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
@@ -5549,19 +5638,19 @@ function paymentOperationPlaceholder(
   hasSearchMiss: boolean
 ): PaymentOperationItem {
   if (hasSearchMiss) {
-    return ['—', 'Нет совпадений', 'измените поиск или период', 'filter', `0 ${currencyCode}`, 'session', null];
+    return ['—', 'Нет совпадений', 'измените поиск или период', 'Поиск', `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', 'Загружаем операции', 'ждём отчёты платформы', 'платформа', `0 ${currencyCode}`, 'session', null];
+    return ['—', 'Загружаем операции', 'ждём отчёты', 'Отчёты', `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'платформа', `0 ${currencyCode}`, 'refund', null];
+    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Отчёты', `0 ${currencyCode}`, 'refund', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', 'Операций за период нет', 'платформа вернула пустой отчёт', 'платформа', `0 ${currencyCode}`, 'session', null];
+    return ['—', 'Операций за период нет', 'в отчёте пусто', 'Отчёты', `0 ${currencyCode}`, 'session', null];
   }
 
   return ['—', 'Демо: операций нет', 'локальные данные без платформы', 'демо', `0 ${currencyCode}`, 'session', null];
@@ -5636,18 +5725,18 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const operations: PaymentOperationItem[] = [
     ...salesRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
-      readString(row, 'state', 'POS sale'),
-      readString(row, 'posSaleId').slice(0, 8),
-      'POS',
+      posSaleStateLabel(readString(row, 'state', 'sale')),
+      `Чек · ${posSaleLineSummary(row)}`,
+      'Продажа',
       formatMoney(readMoney(row, 'total'), currencyCode),
       readString(row, 'state', 'sale').toLowerCase().includes('refund') ? 'refund' : 'sale',
       row
     ]),
     ...cashRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
-      readString(row, 'operationType', 'Cash'),
+      cashOperationTypeLabel(readString(row, 'operationType', 'cash')),
       readString(row, 'reason', readString(row, 'sourceType', 'cash')),
-      readString(row, 'sourceType', 'cash'),
+      paymentSourceLabel(readString(row, 'sourceType', 'cash')),
       formatMoney(readMoney(row, 'cashImpact'), currencyCode),
       readNumber(readMoney(row, 'cashImpact'), 'minorUnits', 0) < 0 ? 'refund' : 'deposit',
       row
@@ -5664,14 +5753,17 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       : [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, operationSearch.length > 0)];
   const selectedOperation = visibleOperations.find(([time, type, client]) => `${time}-${type}-${client}` === selectedOperationKey) ?? visibleOperations[0];
   const selectedOperationSource = selectedOperation[6];
-  const selectedOperationId = selectedOperationSource === null
+  const selectedOperationIsSale = selectedOperationSource !== null && readString(selectedOperationSource, 'posSaleId').length > 0;
+  const selectedOperationScope = selectedOperationSource === null
     ? '—'
-    : (readString(selectedOperationSource, 'posSaleId') || readString(selectedOperationSource, 'operationId') || '—').slice(0, 8);
-  const selectedOperationShiftId = selectedOperationSource === null
-    ? '—'
-    : readString(selectedOperationSource, 'shiftId', '—').slice(0, 8);
-  const selectedOperationDetail = selectedOperation[3] === 'POS'
-    ? `${readNumber(selectedOperationSource, 'lineCount', 0)} строк · ${readNumber(selectedOperationSource, 'itemQuantity', 0)} шт.`
+    : readString(selectedOperationSource, 'shiftId') ? 'В отчёте смены' : 'Без смены';
+  const selectedOperationSourceLabel = selectedOperationSource === null
+    ? selectedOperation[3]
+    : selectedOperationIsSale
+      ? 'Продажа'
+      : 'Движение наличных';
+  const selectedOperationDetail = selectedOperationIsSale
+    ? posSaleLineSummary(selectedOperationSource)
     : readString(selectedOperationSource, 'reason', selectedOperation[2]);
   const grossSales = readMoney(salesReport, 'grossSalesTotal');
   const refunds = readMoney(salesReport, 'refundsTotal');
@@ -5698,8 +5790,8 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const methods = [
     ['Наличные', cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, 'кассовый отчёт', `${cashRows.length} операций`],
     ['Карта', netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, 'отчёт продаж', `${salesRows.length} чеков`],
-    ['Возвраты', refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, 'возвраты', 'платформа'],
-    ['Расхождения', difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, 'закрытие смены', 'платформа']
+    ['Возвраты', refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, 'возвраты', 'по отчёту'],
+    ['Расхождения', difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, 'закрытие смены', 'по сверке']
   ];
 
   const runReportAction = async (label: string) => {
@@ -5715,7 +5807,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       } else if (label === 'Кассовый отчёт') {
         const csv = await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
         downloadTextFile(`afk4-cash-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Экспорт CSV') {
+      } else if (label === 'Таблица продаж') {
         const csv = await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
         downloadTextFile(`afk4-sales-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       } else if (label === 'Открыть смену') {
@@ -5815,7 +5907,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <StateFlag label="Выручка" value={grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`} />
         <StateFlag label="Наличные" value={cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`} />
         <StateFlag label="Возвраты" value={refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`} critical={(refunds?.minorUnits ?? 0) > 0} />
-        <StateFlag label="Смена" value={readString(currentShift, 'state', 'нет')} critical={currentShift === null} />
+        <StateFlag label="Смена" value={shiftStateLabel(readString(currentShift, 'state', 'нет смены'))} critical={currentShift === null} />
         <StateFlag label="К сверке" value={difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`} critical={(difference?.minorUnits ?? 0) !== 0} />
       </section>
 
@@ -5823,7 +5915,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-ledger-panel">
           <header className="payments-panel-title">
             <span>Операции смены</span>
-            <strong>sales and cash report rows</strong>
+            <strong>продажи, возвраты и наличные</strong>
           </header>
           <label className="payments-search">
             <Search size={14} />
@@ -5856,7 +5948,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-summary-panel">
           <header className="payments-panel-title">
             <span>Итоги смены</span>
-            <strong>backend aggregates</strong>
+            <strong>выручка и выбранная операция</strong>
           </header>
           <div className="payments-total-card">
             <span>Всего · выбрано {selectedOperation[0]}</span>
@@ -5864,14 +5956,14 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
             <em>{selectedOperation[1]} · {selectedOperation[2]} · {selectedOperation[4]}</em>
           </div>
           <div className="payments-operation-detail" aria-label="Детали выбранной операции">
-            <div><span>ID</span><strong>{selectedOperationId}</strong></div>
-            <div><span>Смена</span><strong>{selectedOperationShiftId}</strong></div>
-            <div><span>Источник</span><strong>{selectedOperation[3]}</strong></div>
+            <div><span>Операция</span><strong>{selectedOperation[1]}</strong></div>
+            <div><span>Смена</span><strong>{selectedOperationScope}</strong></div>
+            <div><span>Тип</span><strong>{selectedOperationSourceLabel}</strong></div>
             <div><span>Деталь</span><strong>{selectedOperationDetail}</strong></div>
           </div>
           <div className="payments-metric-grid">
             <div><span>Чеков</span><strong>{salesRows.length}</strong></div>
-            <div><span>Cash rows</span><strong>{cashRows.length}</strong></div>
+            <div><span>Наличные</span><strong>{cashRows.length}</strong></div>
             <div><span>Возвраты</span><strong>{refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`}</strong></div>
             <div><span>Смены</span><strong>{shiftRows.length}</strong></div>
           </div>
@@ -5880,10 +5972,10 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-reconcile-panel">
           <header className="payments-panel-title">
             <span>Сверка кассы</span>
-            <strong>read model before close</strong>
+            <strong>проверка перед закрытием</strong>
           </header>
           <div className="payments-open-form">
-            <label>Старт cash<input inputMode="decimal" value={openStartingCash} disabled={!canOpenShift} onChange={(event) => setOpenStartingCash(event.currentTarget.value)} /></label>
+            <label>Старт наличных<input inputMode="decimal" value={openStartingCash} disabled={!canOpenShift} onChange={(event) => setOpenStartingCash(event.currentTarget.value)} /></label>
             <label>Открытие<input value={openingNote} disabled={!canOpenShift} onChange={(event) => setOpeningNote(event.currentTarget.value)} /></label>
             <button type="button" disabled={!canOpenShift} onClick={() => runReportAction('Открыть смену')}>Открыть смену</button>
           </div>
@@ -5924,7 +6016,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-methods-panel">
           <header className="payments-panel-title">
             <span>Методы оплаты</span>
-            <strong>backend report breakdown</strong>
+            <strong>структура отчёта</strong>
           </header>
           <div className="payments-method-grid">
             {methods.map(([label, total, share, detail]) => (
@@ -5945,13 +6037,13 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-cash-panel">
           <header className="payments-panel-title">
             <span>Движение наличных</span>
-            <strong>cash operation rows</strong>
+            <strong>кассовые движения</strong>
           </header>
           <div className="payments-cash-list">
             {cashRows.slice(0, 4).map((row) => (
               <article key={readString(row, 'operationId')} className="payment-cash-row">
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{readString(row, 'operationType', 'cash')}</strong>
+                <strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'))}</strong>
                 <b>{formatMoney(readMoney(row, 'cashImpact'), currencyCode)}</b>
               </article>
             ))}
@@ -5972,13 +6064,13 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-export-panel">
           <header className="payments-panel-title">
             <span>Отчёты</span>
-            <strong>CSV from backend</strong>
+            <strong>файлы для сверки</strong>
           </header>
           <div className="payments-export-grid">
             {[
               ['Журнал смены', ReceiptText],
               ['Кассовый отчёт', Banknote],
-              ['Экспорт CSV', ArrowRightLeft],
+              ['Таблица продаж', ArrowRightLeft],
               ['Расхождения', ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runReportAction(label as string)}><Icon size={16} />{label as string}</button>
