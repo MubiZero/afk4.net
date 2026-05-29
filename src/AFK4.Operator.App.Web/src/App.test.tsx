@@ -583,7 +583,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Неделя' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Месяц' })).toBeInTheDocument();
     expect(screen.getByLabelText('Начало периода')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Экспорт дашборда за/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Скачать продажи за/ })).toBeInTheDocument();
     expect(screen.getByText('Пульс смены')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Неделя' }));
     expect(screen.getByText('1 чек')).toBeInTheDocument();
@@ -666,7 +666,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Пригласить сотрудника/ })).toBeInTheDocument();
   });
 
-  it('downloads the Dashboard export CSV', async () => {
+  it('downloads the Overview sales export without dashboard copy', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
     const createObjectUrl = vi.fn(() => 'blob:dashboard');
@@ -691,11 +691,13 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Дашборд'));
-    fireEvent.click(screen.getByRole('button', { name: /Экспорт дашборда за/ }));
+    expect(screen.getByText('Обзор')).toBeInTheDocument();
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Скачать продажи за/ }));
 
     expect(await screen.findByText('Экспорт: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/sales/export.csv'))).toBe(true);
-    expect(downloads.some((download) => download.startsWith('afk4-dashboard-sales-') && download.endsWith('.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-overview-sales-') && download.endsWith('.csv'))).toBe(true);
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:dashboard');
     createElementSpy.mockRestore();

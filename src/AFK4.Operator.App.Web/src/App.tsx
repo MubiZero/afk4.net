@@ -1948,7 +1948,7 @@ function DashboardWorkspace({
       'ready',
       '-',
       dashboardLoadStatus === 'failed' ? 'Данные не загружены' : 'Нет срочных сигналов',
-      dashboardLoadStatus === 'failed' ? dashboardLoadError ?? 'Повторите загрузку dashboard.' : 'Платформа не вернула срочных задач за выбранный период.',
+      dashboardLoadStatus === 'failed' ? dashboardLoadError ?? 'Повторите загрузку обзора.' : 'Срочных задач за выбранный период нет.',
       ''
     ] as const];
   const selectedFocus = focusItems[selectedFocusIndex] ?? focusItems[0];
@@ -1977,7 +1977,7 @@ function DashboardWorkspace({
         clients.shifts.exportSalesReportCsv(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to))
       ]);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      downloadTextFile(`afk4-dashboard-sales-${exportStamp}.csv`, salesCsv, 'text/csv;charset=utf-8');
+      downloadTextFile(`afk4-overview-sales-${exportStamp}.csv`, salesCsv, 'text/csv;charset=utf-8');
       setFeedback({ label: 'Экспорт', state: 'confirmed' });
     } catch (error) {
       setFeedback({ label: 'Экспорт', state: 'failed', detail: projectOperatorError(error).detail });
@@ -2002,10 +2002,10 @@ function DashboardWorkspace({
     <main className="workspace-screen dashboard-screen">
       <section className="screen-head dashboard-head">
         <div>
-          <span>Dashboard</span>
+          <span>Обзор</span>
           <h1>Что требует внимания · {activeRange.label}</h1>
         </div>
-        <div className="filter-row dashboard-period-filter" aria-label="Период данных дашборда">
+        <div className="filter-row dashboard-period-filter" aria-label="Период обзора">
           <div className="period-segment">
             <button type="button" className={period === 'today' ? 'active' : undefined} onClick={() => setPeriod('today')}>Сегодня</button>
             <button type="button" className={period === 'week' ? 'active' : undefined} onClick={() => setPeriod('week')}>Неделя</button>
@@ -2037,7 +2037,7 @@ function DashboardWorkspace({
             <span className="date-range-days" aria-label={`Длина периода: ${periodDaysShort}`}>{periodDaysShort}</span>
           </div>
           <span className={`map-load-state ${dashboardLoadStatus === 'backend' ? 'ready' : dashboardLoadStatus}`}>{dashboardStatusText}</span>
-          <button type="button" className="export-button" aria-label={`Экспорт дашборда за ${exportLabel}`} onClick={exportDashboard}>
+          <button type="button" className="export-button" aria-label={`Скачать продажи за ${exportLabel}`} onClick={exportDashboard}>
             Экспорт
           </button>
         </div>
@@ -2059,7 +2059,7 @@ function DashboardWorkspace({
             <button type="button" onClick={() => openSelectedFocusSeat('Разобрать')}><AlertTriangle size={15} /> Разобрать</button>
             <button type="button" onClick={() => openSelectedFocusSeat(pcControlLabel)}><Wrench size={15} /> {pcControlLabel}</button>
           </div>
-          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: 'Dashboard', state: 'failed', detail: dashboardLoadError ?? 'Dashboard data is unavailable.' }} />}
+          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: 'Обзор', state: 'failed', detail: dashboardLoadError ?? 'Данные обзора недоступны.' }} />}
           <FeedbackNotice feedback={feedback} />
         </article>
 
