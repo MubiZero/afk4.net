@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
 ## Purpose
 
@@ -121,6 +121,9 @@ Roadmap/reference:
 - Operator App Settings staff, tariff, package, and journal support-export
   edges now avoid default technical passwords, rule/version labels, terse
   package fields, and raw audit/diagnostics records in normal support exports.
+- Operator App Logs support exports now use operator/support-facing package,
+  action-list, problem, and shift-summary labels and filenames instead of
+  CSV/JSON/audit-trail copy in normal export flows.
 - Operator App production-visible placeholder pass now avoids demo/dev/raw
   fixture command copy in the top shell, fallback data states, fixture
   floor-map/POS/player placeholders, and Settings update publication forms.
@@ -175,7 +178,7 @@ Roadmap/reference:
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
 - Latest technical-surface cleanup verification on 2026-05-29 after the
   connection setup, Settings device/update setup, production-visible
-  placeholder, and update-publication copy pass:
+  placeholder, update-publication, and Logs support-export copy pass:
   - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
     passed 76/76 tests.
   - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns

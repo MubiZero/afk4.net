@@ -647,7 +647,7 @@ describe('App', () => {
     expect(screen.getByText('Фильтры')).toBeInTheDocument();
     expect(screen.getByText('Операции смены')).toBeInTheDocument();
     expect(screen.getByText('Источники')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Полный журнал/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Пакет для поддержки/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Настройки'));
     const settingsHead = screen.getByRole('heading', { name: /Настройки/ }).closest('.screen-head');
@@ -817,7 +817,7 @@ describe('App', () => {
     expect(detailPanel).not.toHaveTextContent('pos.sale.create');
   });
 
-  it('downloads Logs CSV and audit trail exports', async () => {
+  it('downloads Logs support exports without technical labels', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
     const exportedBlobs: Blob[] = [];
@@ -847,17 +847,19 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Логи'));
     expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Таблица' }));
+    expect(screen.queryByRole('button', { name: 'Таблица' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Полный журнал/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Список действий' }));
 
-    expect(await screen.findByText('Таблица: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Список действий: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/operator-actions/export.csv'))).toBe(true);
-    expect(downloads.some((download) => download.startsWith('afk4-operator-actions-') && download.endsWith('.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-operator-action-list-') && download.endsWith('.csv'))).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: /Полный журнал/ }));
-    expect(await screen.findByText('Полный журнал: подтверждено')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Пакет для поддержки/ }));
+    expect(await screen.findByText('Пакет для поддержки: подтверждено')).toBeInTheDocument();
     expect(createObjectUrl).toHaveBeenCalledTimes(2);
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:logs');
-    expect(downloads.some((download) => download.startsWith('afk4-audit-trail-') && download.endsWith('.json'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-support-journal-') && download.endsWith('.json'))).toBe(true);
     const supportBlob = exportedBlobs.at(-1);
     expect(supportBlob).toBeDefined();
     const supportText = await supportBlob!.text();

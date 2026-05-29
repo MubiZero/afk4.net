@@ -3001,10 +3001,10 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
             <strong>для проверки и поддержки</strong>
           </header>
           <div className="logs-export-grid">
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Журнал смены')}><ReceiptText size={16} />Журнал смены</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Ошибки')}><AlertTriangle size={16} />Ошибки</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Таблица')}><ArrowRightLeft size={16} />Таблица</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Полный журнал')}><ShieldAlert size={16} />Полный журнал</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Сводка смены')}><ReceiptText size={16} />Сводка смены</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Только проблемы')}><AlertTriangle size={16} />Только проблемы</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Список действий')}><ArrowRightLeft size={16} />Список действий</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Пакет для поддержки')}><ShieldAlert size={16} />Пакет для поддержки</button>
           </div>
         </section>
       </section>
@@ -6799,32 +6799,32 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      if (label === 'Полный журнал') {
+      if (label === 'Пакет для поддержки') {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', fromUtc: '', toUtc: '', limit: 100 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
         downloadTextFile(
-          `afk4-audit-trail-${exportStamp}.json`,
+          `afk4-support-journal-${exportStamp}.json`,
           buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)], nextBackend),
           'application/json;charset=utf-8'
         );
-      } else if (label === 'Таблица') {
+      } else if (label === 'Список действий') {
         const csv = await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
-        downloadTextFile(`afk4-operator-actions-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Ошибки') {
+        downloadTextFile(`afk4-operator-action-list-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+      } else if (label === 'Только проблемы') {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: 'denied', targetType: '', fromUtc: '', toUtc: '', limit: 50 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
         const failureEvents = [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)]
           .filter((event) => event[4] === 'warning');
         downloadTextFile(
-          `afk4-log-errors-${exportStamp}.json`,
+          `afk4-support-problems-${exportStamp}.json`,
           buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, failureEvents, nextBackend),
           'application/json;charset=utf-8'
         );
       } else {
         const csv = await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
-        downloadTextFile(`afk4-shift-log-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+        downloadTextFile(`afk4-shift-summary-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       }
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {
@@ -6985,10 +6985,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
           </header>
           <div className="logs-export-grid">
             {[
-              ['Журнал смены', ReceiptText],
-              ['Ошибки', AlertTriangle],
-              ['Таблица', ArrowRightLeft],
-              ['Полный журнал', ShieldAlert]
+              ['Сводка смены', ReceiptText],
+              ['Только проблемы', AlertTriangle],
+              ['Список действий', ArrowRightLeft],
+              ['Пакет для поддержки', ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runLogAction(label as string)}><Icon size={16} />{label as string}</button>
             ))}
