@@ -426,7 +426,7 @@ describe('Platform Web routing', () => {
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     // Sidebar nav (new shell) renders the overview item by its i18n label.
-    expect(screen.getByText('Обзор')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Обзор' })).toBeInTheDocument();
 
     // The Overview KPIs resolve from the branch dashboard summary API.
     await waitFor(() => expect(screen.getByText('Активные сессии')).toBeInTheDocument());

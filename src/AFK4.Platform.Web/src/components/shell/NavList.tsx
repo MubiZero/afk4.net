@@ -37,7 +37,9 @@ export function NavList({ role, activePath, counts = {}, onNavigate }: NavListPr
                 {typeof count === 'number' && count > 0 && (
                   <Badge variant="secondary" className="ml-auto">{count}</Badge>
                 )}
-                {item.soon && <span className="ml-auto text-[10px] text-muted">{t('shell.soon')}</span>}
+                {item.soon && !(typeof count === 'number' && count > 0) && (
+                  <span className="ml-auto text-[10px] text-muted">{t('shell.soon')}</span>
+                )}
               </button>
             );
           })}

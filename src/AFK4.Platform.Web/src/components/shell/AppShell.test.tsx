@@ -40,7 +40,7 @@ describe('AppShell', () => {
     renderShell('manager');
     expect(screen.queryByText('Настройки')).not.toBeInTheDocument();
     expect(screen.queryByText('Биллинг')).not.toBeInTheDocument();
-    expect(screen.getByText('Обзор')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Обзор' })).toBeInTheDocument();
   });
 
   it('fires navigation on item click', () => {
@@ -54,7 +54,7 @@ describe('AppShell', () => {
         </AppShell>
       </I18nProvider></ThemeProvider>
     );
-    fireEvent.click(screen.getByText('Обзор'));
+    fireEvent.click(screen.getByRole('button', { name: 'Обзор' }));
     expect(onNavigate).toHaveBeenCalledWith('/club');
   });
 });

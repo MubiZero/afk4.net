@@ -11,8 +11,9 @@ export function Topbar({ branchName, screenTitle, onOpenSidebar, right }: Topbar
         <Button variant="ghost" size="icon" className="md:hidden" aria-label="menu" onClick={onOpenSidebar}>
           <Menu className="size-4" />
         </Button>
-        <div className="text-sm font-semibold text-foreground" aria-label={screenTitle}>
-          {branchName ? `${branchName} · ${screenTitle}` : screenTitle}
+        <div className="text-sm text-muted">
+          {branchName && <>{branchName} · </>}
+          <b className="text-base text-foreground">{screenTitle}</b>
         </div>
       </div>
       {right}
