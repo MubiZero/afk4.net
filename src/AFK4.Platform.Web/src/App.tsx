@@ -6,7 +6,11 @@ import type { OwnerInvite } from './api/types';
 import { readStaffSession, type StaffSession } from './auth/staffTokenStore';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { AcceptInvite } from './components/AcceptInvite';
-import { ClubDashboard } from './components/ClubDashboard';
+import { LegacyClubScreen } from './components/ClubDashboard';
+import { AppShell } from './components/shell/AppShell';
+import { OverviewScreen } from './club/overview/OverviewScreen';
+import { useOverview } from './club/overview/useOverview';
+import { roleFromPermissions } from './club/nav';
 import { SignIn } from './components/SignIn';
 import { StaffSignIn } from './components/StaffSignIn';
 import { TenantList } from './components/TenantList';
@@ -210,8 +214,8 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
       );
     }
     return (
-      <ClubDashboard
-        client={clubClient}
+      <ClubArea
+        clubClient={clubClient}
         route={route}
         session={staffSession}
         onSignOut={() => staffClient.signOutLocal()}
@@ -269,6 +273,97 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
         )}
       </main>
     </>
+  );
+}
+
+interface ClubAreaProps {
+  clubClient: ClubApiClient;
+  route: ClubRoute;
+  session: StaffSession;
+  onNavigate: (route: ClubRoute, path: string) => void;
+  onSignOut: () => void;
+}
+
+const ROLE_LABEL: Record<'owner' | 'manager', string> = {
+  owner: 'Владелец',
+  manager: 'Менеджер'
+};
+
+const CLUB_SCREEN_TITLE: Partial<Record<ClubRoute['kind'], string>> = {
+  clubDashboard: 'Обзор',
+  clubInstall: 'Установка',
+  clubBranches: 'Все филиалы',
+  clubBranchDetail: 'Филиал',
+  clubBranchFloorMap: 'Зал и ПК',
+  clubBranchDevices: 'Устройства',
+  clubBranchPendingDevices: 'Устройства',
+  clubBranchOperators: 'Операторы'
+};
+
+/**
+ * Maps a {@link ClubRoute} to the nav `path` used by the new AppShell sidebar
+ * for highlighting the active item. Branch-scoped legacy routes do not have a
+ * dedicated nav item yet, so they fall back to the overview path.
+ */
+export function pathForRoute(route: ClubRoute): string {
+  switch (route.kind) {
+    case 'clubDashboard':
+      return '/club';
+    case 'clubInstall':
+      return '/club/install';
+    case 'clubBranches':
+      return '/club/branches';
+    case 'clubBranchDetail':
+    case 'clubBranchFloorMap':
+    case 'clubBranchDevices':
+    case 'clubBranchPendingDevices':
+    case 'clubBranchOperators':
+      return '/club/branches';
+    default:
+      return '/club';
+  }
+}
+
+function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAreaProps) {
+  const role = roleFromPermissions(session.permissions);
+  const branchId = session.branchIds[0] ?? '';
+  const branches = session.branchIds.map(id => ({ branchId: id, name: 'Филиал' }));
+  const overviewState = useOverview(clubClient, branchId);
+
+  const handleNavigate = (path: string) => {
+    const resolution = resolvePlatformRoute(path, null, '');
+    if (isClubRoute(resolution.route)) {
+      onNavigate(resolution.route, resolution.redirectTo ?? path);
+    }
+    // Not-yet-built nav targets (e.g. /club/venue) resolve to notFound and are
+    // intentionally ignored here so the shell stays put until those screens land.
+  };
+
+  return (
+    <AppShell
+      role={role}
+      orgName={session.displayName}
+      branches={branches}
+      activeBranchId={branchId}
+      activePath={pathForRoute(route)}
+      screenTitle={CLUB_SCREEN_TITLE[route.kind] ?? ''}
+      userName={session.displayName}
+      roleLabel={ROLE_LABEL[role]}
+      onNavigate={handleNavigate}
+      onSelectBranch={() => { /* single-branch pilot: no-op */ }}
+      onSignOut={onSignOut}
+    >
+      {route.kind === 'clubDashboard' ? (
+        <OverviewScreen state={overviewState} />
+      ) : (
+        <LegacyClubScreen
+          client={clubClient}
+          route={route}
+          session={session}
+          onNavigate={onNavigate}
+        />
+      )}
+    </AppShell>
   );
 }
 

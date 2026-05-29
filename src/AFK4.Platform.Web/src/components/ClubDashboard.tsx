@@ -56,31 +56,23 @@ interface BranchSummary {
 
 export function ClubDashboard({ client, route, session, onNavigate, onSignOut }: ClubDashboardProps) {
   const [branches, setBranches] = useState<BranchSummary[]>([]);
-  const [branchLoadState, setBranchLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
-  const [branchError, setBranchError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       if (session.branchIds.length === 0) {
         setBranches([]);
-        setBranchLoadState('ready');
-        setBranchError(null);
         return;
       }
 
-      setBranchLoadState('loading');
-      setBranchError(null);
       try {
         const loaded = await Promise.all(session.branchIds.map(branchId => loadBranchSummary(client, branchId)));
         if (!cancelled) {
           setBranches(loaded);
-          setBranchLoadState('ready');
         }
-      } catch (cause) {
+      } catch {
         if (!cancelled) {
-          setBranchLoadState('failed');
-          setBranchError(projectError(cause));
+          setBranches([]);
         }
       }
     }
@@ -105,7 +97,7 @@ export function ClubDashboard({ client, route, session, onNavigate, onSignOut }:
 
   return (
     <>
-      <header className="app-header club-header">
+      <header className="app-header club-header" data-club-chrome>
         <div className="app-title">AFK4 Club</div>
         <nav className="club-nav" aria-label="Club navigation">
           <button type="button" className="link" onClick={() => onNavigate({ kind: 'clubInstall' }, installPath)}>
@@ -178,76 +170,135 @@ export function ClubDashboard({ client, route, session, onNavigate, onSignOut }:
         </div>
       </header>
       <main>
-        {branchLoadState === 'loading' && route.kind !== 'clubInstall' && (
-          <div className="page">
-            <Loading label="Loading club branches..." />
-          </div>
-        )}
-        {branchLoadState === 'failed' && (
-          <div className="page">
-            <ErrorBanner message={branchError} onDismiss={() => setBranchError(null)} />
-          </div>
-        )}
-        {route.kind === 'clubInstall' && (
-          <InstallScreen client={client} session={session} branches={branches} />
-        )}
-        {route.kind === 'clubDashboard' && branchLoadState === 'ready' && (
-          <DashboardHome
-            branches={branches}
-            onOpenInstall={() => onNavigate({ kind: 'clubInstall' }, installPath)}
-            onOpenBranch={branchId => onNavigate(
-              { kind: 'clubBranchDetail', branchId },
-              `/club/branches/${encodeURIComponent(branchId)}`
-            )}
-          />
-        )}
-        {route.kind === 'clubBranches' && branchLoadState === 'ready' && (
-          <BranchesScreen
-            branches={branches}
-            onOpenBranch={branchId => onNavigate(
-              { kind: 'clubBranchDetail', branchId },
-              `/club/branches/${encodeURIComponent(branchId)}`
-            )}
-          />
-        )}
-        {route.kind === 'clubBranchDetail' && (
-          <BranchDetailScreen
-            client={client}
-            session={session}
-            branchId={route.branchId}
-          />
-        )}
-        {route.kind === 'clubBranchFloorMap' && (
-          <FloorMapScreen
-            client={client}
-            session={session}
-            branchId={route.branchId}
-          />
-        )}
-        {route.kind === 'clubBranchDevices' && (
-          <DevicesScreen
-            client={client}
-            session={session}
-            branchId={route.branchId}
-            pendingOnly={false}
-          />
-        )}
-        {route.kind === 'clubBranchPendingDevices' && (
-          <DevicesScreen
-            client={client}
-            session={session}
-            branchId={route.branchId}
-            pendingOnly
-          />
-        )}
-        {route.kind === 'clubBranchOperators' && (
-          <OperatorsScreen
-            client={client}
-            session={session}
-            branchId={route.branchId}
-          />
-        )}
+        <LegacyClubScreen client={client} route={route} session={session} onNavigate={onNavigate} />
       </main>
+    </>
+  );
+}
+
+export interface LegacyClubScreenProps {
+  client: ClubApiClient;
+  route: ClubRoute;
+  session: StaffSession;
+  onNavigate: (route: ClubRoute, path: string) => void;
+}
+
+/**
+ * Renders the per-route body for the legacy club screens WITHOUT the legacy
+ * top chrome/nav. Reused both by {@link ClubDashboard} (which adds its own
+ * header) and by the new AppShell-based layout in App.tsx, which supplies its
+ * own chrome. This is the "reparented" body of the old monolithic dashboard.
+ */
+export function LegacyClubScreen({ client, route, session, onNavigate }: LegacyClubScreenProps) {
+  const [branches, setBranches] = useState<BranchSummary[]>([]);
+  const [branchLoadState, setBranchLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [branchError, setBranchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (session.branchIds.length === 0) {
+        setBranches([]);
+        setBranchLoadState('ready');
+        setBranchError(null);
+        return;
+      }
+
+      setBranchLoadState('loading');
+      setBranchError(null);
+      try {
+        const loaded = await Promise.all(session.branchIds.map(branchId => loadBranchSummary(client, branchId)));
+        if (!cancelled) {
+          setBranches(loaded);
+          setBranchLoadState('ready');
+        }
+      } catch (cause) {
+        if (!cancelled) {
+          setBranchLoadState('failed');
+          setBranchError(projectError(cause));
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [client, session.branchIds]);
+
+  const installPath = '/club/install';
+
+  return (
+    <>
+      {branchLoadState === 'loading' && route.kind !== 'clubInstall' && (
+        <div className="page">
+          <Loading label="Loading club branches..." />
+        </div>
+      )}
+      {branchLoadState === 'failed' && (
+        <div className="page">
+          <ErrorBanner message={branchError} onDismiss={() => setBranchError(null)} />
+        </div>
+      )}
+      {route.kind === 'clubInstall' && (
+        <InstallScreen client={client} session={session} branches={branches} />
+      )}
+      {route.kind === 'clubDashboard' && branchLoadState === 'ready' && (
+        <DashboardHome
+          branches={branches}
+          onOpenInstall={() => onNavigate({ kind: 'clubInstall' }, installPath)}
+          onOpenBranch={branchId => onNavigate(
+            { kind: 'clubBranchDetail', branchId },
+            `/club/branches/${encodeURIComponent(branchId)}`
+          )}
+        />
+      )}
+      {route.kind === 'clubBranches' && branchLoadState === 'ready' && (
+        <BranchesScreen
+          branches={branches}
+          onOpenBranch={branchId => onNavigate(
+            { kind: 'clubBranchDetail', branchId },
+            `/club/branches/${encodeURIComponent(branchId)}`
+          )}
+        />
+      )}
+      {route.kind === 'clubBranchDetail' && (
+        <BranchDetailScreen
+          client={client}
+          session={session}
+          branchId={route.branchId}
+        />
+      )}
+      {route.kind === 'clubBranchFloorMap' && (
+        <FloorMapScreen
+          client={client}
+          session={session}
+          branchId={route.branchId}
+        />
+      )}
+      {route.kind === 'clubBranchDevices' && (
+        <DevicesScreen
+          client={client}
+          session={session}
+          branchId={route.branchId}
+          pendingOnly={false}
+        />
+      )}
+      {route.kind === 'clubBranchPendingDevices' && (
+        <DevicesScreen
+          client={client}
+          session={session}
+          branchId={route.branchId}
+          pendingOnly
+        />
+      )}
+      {route.kind === 'clubBranchOperators' && (
+        <OperatorsScreen
+          client={client}
+          session={session}
+          branchId={route.branchId}
+        />
+      )}
     </>
   );
 }

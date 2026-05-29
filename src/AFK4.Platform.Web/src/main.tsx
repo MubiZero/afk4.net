@@ -1,6 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App, { readPlatformWebAudience, type PlatformWebAudience } from './App';
+import { ThemeProvider } from './theme/ThemeProvider';
+import { I18nProvider } from './i18n/I18nProvider';
 import './index.css';
 import './styles.css';
 
@@ -14,7 +16,11 @@ setDocumentTitle(audience);
 
 createRoot(container).render(
   <StrictMode>
-    <App apiBaseUrl={resolveApiBaseUrl()} audience={audience} />
+    <ThemeProvider>
+      <I18nProvider>
+        <App apiBaseUrl={resolveApiBaseUrl()} audience={audience} />
+      </I18nProvider>
+    </ThemeProvider>
   </StrictMode>
 );
 
