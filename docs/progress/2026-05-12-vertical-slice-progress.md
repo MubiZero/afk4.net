@@ -195,8 +195,11 @@ Roadmap/reference:
 ## Known Gaps
 
 - `manager_workstation` clean-VM smoke still needs one repeat after cleanup of
-  mistakenly created manager smoke seats/assignments. The staging backend and
-  Operator App rollout path are ready for that repeat.
+  mistakenly created manager smoke seats/assignments. A dry-run-first API helper
+  now exists at `scripts/cleanup-manager-workstation-smoke-data.ps1`; run it
+  with the staging smoke staff password before repeating the clean Windows VM
+  smoke. The staging backend and Operator App rollout path are ready for that
+  repeat.
 - Floor-map reads now apply the branch stale-heartbeat threshold after refresh;
   proactive realtime offline broadcasts and broader inventory/detail
   stale-state cleanup remain hardening.
@@ -222,9 +225,10 @@ Roadmap/reference:
    remove remaining lower-priority Settings/support/diagnostics raw IDs,
    backend-shaped forms, and overly technical copy from customer/operator
    paths.
-2. Clean mistaken manager-workstation smoke seat data, then rerun the
-   `manager_workstation` clean Windows VM smoke with the current Agent MSI and
-   published internal Operator App rollout.
+2. Run the cleanup helper with `-Apply -DeleteEmptySmokeSeats` and the staging
+   smoke staff password, then rerun the `manager_workstation` clean Windows VM
+   smoke with the current Agent MSI and published internal Operator App
+   rollout.
 3. Continue Operator App staging hardening using
    `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`.
 4. Repeat real-device Windows smoke on physical hardware when available.
