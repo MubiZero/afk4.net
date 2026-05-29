@@ -26,6 +26,10 @@ Implemented slices:
   update integration copy so normal setup forms no longer show POS item
   placeholders, raw stock movement names, artifact/rollout wording, or backend
   fallback labels.
+- 2026-05-29: polished Operator App Settings staff, tariff, package, and
+  journal support-export edges so normal setup/support paths avoid default
+  technical passwords, rule/version labels, terse package fields, and raw
+  audit/diagnostics records in exported support JSON.
 
 ## Purpose
 
@@ -51,11 +55,11 @@ actions leaking into the day flow.
    sign-in. Empty backend catalog, player, report, or device responses must be
    shown as explicit empty states, not replaced by demo data.
 3. The raw organization GUID has been removed from normal sign-in, and the
-   first Settings device/update/catalog/stock/update-integration,
-   Logs/Diagnostics journal, and POS/Payments money-flow passes are complete.
-   Remaining setup, support/export, Settings staff/tariff/package edges, and
-   diagnostics surfaces still need a pass for technical keys, backend-shaped
-   forms, and unclear operator copy.
+   first Settings device/update/catalog/stock/update-integration/staff/tariff/
+   package, Logs/Diagnostics journal/support-export, and POS/Payments
+   money-flow passes are complete. Remaining setup and diagnostics surfaces
+   still need a pass for technical keys, backend-shaped forms, and unclear
+   operator copy.
 4. Critical actions need stronger operator-safe UX: confirmation, reason where
    required, visible money/session/device impact, pending backend state, and
    final backend result.

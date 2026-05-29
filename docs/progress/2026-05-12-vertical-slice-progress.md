@@ -112,6 +112,9 @@ Roadmap/reference:
   forms now use operator-facing product/stock/update copy instead of POS item
   placeholders, raw stock movement names, artifact/rollout wording, or
   backend fallback labels in the normal setup flow.
+- Operator App Settings staff, tariff, package, and journal support-export
+  edges now avoid default technical passwords, rule/version labels, terse
+  package fields, and raw audit/diagnostics records in normal support exports.
 - Primary floor-map UI has backend loading, selected-seat actions,
   permission-aware navigation, billing-mode selection, filters/table view,
   SignalR device status/command-result reloads, active-session ticking, and
@@ -162,7 +165,7 @@ Roadmap/reference:
 - Verbose branch, artifact, hash, and rollout-id evidence is archived in
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
 - Latest technical-surface cleanup verification on 2026-05-29 after the
-  Settings catalog/stock/update copy pass:
+  Settings staff/tariff/package/support-export copy pass:
   - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
     passed 75/75 tests.
   - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns
@@ -178,10 +181,10 @@ Roadmap/reference:
   stale-state cleanup remain hardening.
 - Operator App technical-surface cleanup remains high-value, but the nearest
   normal sign-in, Settings device/update/catalog/stock/update-integration,
-  Logs/Diagnostics journal, and POS/Payments money-flow surfaces are now
-  cleaned up. Continue with remaining Settings staff/tariff/package edges,
-  support/export raw IDs, production-visible placeholders, and broader
-  backend-shaped forms before broadening staging day-flow smoke.
+  Settings staff/tariff/package, Logs/Diagnostics journal/support export, and
+  POS/Payments money-flow surfaces are now cleaned up. Continue with remaining
+  production-visible placeholders and broader backend-shaped forms before
+  broadening staging day-flow smoke.
 - Physical Windows 10/11 smoke is still needed for wider rollout confidence:
   lock/unlock enforcement, reboot recovery, Setup Wizard, role-aware updates,
   and update/rollback.

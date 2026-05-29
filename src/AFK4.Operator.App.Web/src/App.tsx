@@ -6434,7 +6434,7 @@ function compactAuditDetails(detailsJson: string): string {
   try {
     const parsed = JSON.parse(trimmed) as unknown;
     if (!isRecord(parsed)) {
-      return String(parsed).slice(0, 120);
+      return auditDetailValueLabel(parsed);
     }
 
     const entries = Object.entries(parsed)
@@ -6444,7 +6444,7 @@ function compactAuditDetails(detailsJson: string): string {
 
     return entries.length > 0 ? entries.join(' · ') : 'нет подробностей';
   } catch {
-    return trimmed.slice(0, 120);
+    return 'подробности в свободном формате';
   }
 }
 
@@ -6512,25 +6512,75 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
   ];
 }
 
+function logToneLabel(tone: LogEventTone): string {
+  switch (tone) {
+    case 'warning':
+      return 'требует внимания';
+    case 'device':
+      return 'ПК и связь';
+    case 'money':
+      return 'касса';
+    case 'session':
+      return 'сессия';
+    default:
+      return 'запись';
+  }
+}
+
+function logKindLabel(kind: LogEventKind): string {
+  switch (kind) {
+    case 'commandFailure':
+      return 'команда ПК';
+    case 'updateFailure':
+      return 'обновление';
+    case 'staleDevice':
+      return 'связь с ПК';
+    case 'placeholder':
+      return 'пустой результат';
+    default:
+      return 'аудит';
+  }
+}
+
 function buildLogsExportJson(
   branchId: string,
   auditRecords: Record<string, unknown>[],
   diagnostics: BranchDiagnosticsDto | null,
-  events: LogEventItem[]
+  events: LogEventItem[],
+  backend: OperatorBackendContext | null
 ): string {
+  const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
+  const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
+  const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
   return JSON.stringify({
     exportedAtUtc: new Date().toISOString(),
-    branchId,
-    auditRecords,
-    diagnostics,
+    branch: branchId ? 'текущий филиал' : 'филиал не выбран',
+    summary: {
+      events: events.length,
+      auditRecords: auditRecords.length,
+      warnings: events.filter((event) => event[4] === 'warning').length,
+      devices: {
+        total: readNumber(deviceSummary, 'totalDevices', 0),
+        online: readNumber(deviceSummary, 'onlineDevices', 0),
+        stale: readNumber(deviceSummary, 'staleDevices', 0)
+      },
+      commands: {
+        pending: readNumber(commandSummary, 'pendingCommands', 0),
+        failed: readNumber(commandSummary, 'failedCommands', 0)
+      },
+      updates: {
+        failedDevices: readNumber(updateSummary, 'failedDevices', 0),
+        rollbackDevices: readNumber(updateSummary, 'rollbackDevices', 0)
+      }
+    },
     events: events.map(([time, title, detail, source, tone, kind, record]) => ({
       time,
       title,
       detail,
       source,
-      tone,
-      kind,
-      record
+      result: logToneLabel(tone),
+      section: logKindLabel(kind),
+      details: Object.fromEntries(buildLogEventDetailRows([time, title, detail, source, tone, kind, record], backend))
     }))
   }, null, 2);
 }
@@ -6755,7 +6805,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         setAuditResult(audit);
         downloadTextFile(
           `afk4-audit-trail-${exportStamp}.json`,
-          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)]),
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)], nextBackend),
           'application/json;charset=utf-8'
         );
       } else if (label === 'Таблица') {
@@ -6769,7 +6819,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
           .filter((event) => event[4] === 'warning');
         downloadTextFile(
           `afk4-log-errors-${exportStamp}.json`,
-          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, failureEvents),
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, failureEvents, nextBackend),
           'application/json;charset=utf-8'
         );
       } else {
@@ -6995,8 +7045,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [selectedLayoutSeatId, setSelectedLayoutSeatId] = useState('');
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
-  const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
-  const [resetPassword, setResetPassword] = useState('ChangeMe123!');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
   const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
   const [selectedStaffUserId, setSelectedStaffUserId] = useState('');
   const [staffProfileUserName, setStaffProfileUserName] = useState('');
@@ -7139,7 +7189,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
   useEffect(() => {
     setCriticalAction(null);
-  }, [deviceAssignmentDeviceId, credentialIdToRevoke]);
+  }, [deviceAssignmentDeviceId]);
 
   const sections = [
     ['Профиль клуба', 'название, город, валюта'],
@@ -7671,7 +7721,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? 'cashier_operator');
         setInviteUserName(`operator${staffUsers.length + 2}`);
         setInviteDisplayName('Новый оператор');
-        setInvitePassword('ChangeMe123!');
+        setInvitePassword('');
       } else if (label === 'Обновить профиль сотрудника') {
         if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
           throw new Error('Нет прав на управление сотрудниками.');
@@ -7746,7 +7796,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
         setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
-        setResetPassword('ChangeMe123!');
+        setResetPassword('');
       } else if (label === 'Создать товар') {
         if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
           throw new Error('Нет прав на управление каталогом товаров.');
@@ -8225,16 +8275,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
           <div className="settings-form-grid settings-tariff-form">
             <label>Название тарифа<input value={tariffName} disabled={!canManageTariffs} onChange={(event) => setTariffName(event.currentTarget.value)} /></label>
-            <label>Цена/час<input inputMode="decimal" value={tariffPricePerHour} disabled={!canManageTariffs} onChange={(event) => setTariffPricePerHour(event.currentTarget.value)} /></label>
-            <label>Минимум мин<input inputMode="numeric" value={tariffMinimumMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffMinimumMinutes(event.currentTarget.value)} /></label>
-            <label>Округление мин<input inputMode="numeric" value={tariffRoundingMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffRoundingMinutes(event.currentTarget.value)} /></label>
+            <label>Цена за час<input inputMode="decimal" value={tariffPricePerHour} disabled={!canManageTariffs} onChange={(event) => setTariffPricePerHour(event.currentTarget.value)} /></label>
+            <label>Минимум, мин<input inputMode="numeric" value={tariffMinimumMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffMinimumMinutes(event.currentTarget.value)} /></label>
+            <label>Шаг округления, мин<input inputMode="numeric" value={tariffRoundingMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffRoundingMinutes(event.currentTarget.value)} /></label>
           </div>
           <div className="settings-tariff-list">
             {tariffs.map((tariff) => (
               <button key={readString(tariff, 'tariffVersionId')} type="button" className={`settings-tariff-row ${readString(tariff, 'tariffVersionId') === selectedTariffVersionId ? 'active' : ''}`} onClick={() => selectTariffOption(tariff)}>
                 <strong>{readString(tariff, 'name', 'Тариф')}</strong>
                 <b>{formatMinorUnits(readNumber(tariff, 'pricePerMinuteMinorUnits', 0) * 60, readString(tariff, 'currencyCode', currencyCode))} / час</b>
-                <span>версия {readNumber(tariff, 'versionNumber', 0)} · {readBoolean(tariff, 'isActive', true) ? 'активен' : 'снят'}</span>
+                <span>минимум {readNumber(tariff, 'minimumBillableMinutes', 0)} мин · шаг {readNumber(tariff, 'roundingIncrementMinutes', 0)} мин · {readBoolean(tariff, 'isActive', true) ? 'активен' : 'снят'}</span>
               </button>
             ))}
           </div>
@@ -8251,16 +8301,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <button key={readString(option, 'packageDefinitionId')} type="button" className={`settings-tariff-row ${readString(option, 'packageDefinitionId') === selectedPackageDefinitionId ? 'active' : ''}`} onClick={() => selectPackageOption(option)}>
                 <strong>{readString(option, 'name', 'Пакет')}</strong>
                 <b>{formatMinorUnits(readNumber(option, 'priceMinorUnits', 0), readString(option, 'currencyCode', currencyCode))}</b>
-                <span>{Math.round(readNumber(option, 'includedSeconds', 0) / 60)} мин · +{Math.round(readNumber(option, 'bonusSeconds', 0) / 60)} бонус · {readNumber(option, 'expiresAfterDays', 0)} дн.</span>
+                <span>{Math.round(readNumber(option, 'includedSeconds', 0) / 60)} мин · +{Math.round(readNumber(option, 'bonusSeconds', 0) / 60)} бонус · действует {readNumber(option, 'expiresAfterDays', 0)} дн.</span>
               </button>
             ))}
           </div>
           <div className="settings-form-grid settings-package-form">
-            <label>Пакет<input value={packageName} disabled={!canManagePackages} onChange={(event) => setPackageName(event.currentTarget.value)} /></label>
+            <label>Название пакета<input value={packageName} disabled={!canManagePackages} onChange={(event) => setPackageName(event.currentTarget.value)} /></label>
             <label>Цена<input inputMode="decimal" value={packagePrice} disabled={!canManagePackages} onChange={(event) => setPackagePrice(event.currentTarget.value)} /></label>
-            <label>Минуты<input inputMode="numeric" value={packageMinutes} disabled={!canManagePackages} onChange={(event) => setPackageMinutes(event.currentTarget.value)} /></label>
-            <label>Бонус<input inputMode="numeric" value={packageBonusMinutes} disabled={!canManagePackages} onChange={(event) => setPackageBonusMinutes(event.currentTarget.value)} /></label>
-            <label>Дней<input inputMode="numeric" value={packageExpiresDays} disabled={!canManagePackages} onChange={(event) => setPackageExpiresDays(event.currentTarget.value)} /></label>
+            <label>Включено, мин<input inputMode="numeric" value={packageMinutes} disabled={!canManagePackages} onChange={(event) => setPackageMinutes(event.currentTarget.value)} /></label>
+            <label>Бонус, мин<input inputMode="numeric" value={packageBonusMinutes} disabled={!canManagePackages} onChange={(event) => setPackageBonusMinutes(event.currentTarget.value)} /></label>
+            <label>Срок, дней<input inputMode="numeric" value={packageExpiresDays} disabled={!canManagePackages} onChange={(event) => setPackageExpiresDays(event.currentTarget.value)} /></label>
           </div>
         </>
       );
@@ -8301,10 +8351,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               ))}
             </div>
             <div className="settings-form-grid settings-staff-form">
-              <label>Логин<input value={inviteUserName} disabled={!canManageBranchStaff} onChange={(event) => setInviteUserName(event.currentTarget.value)} /></label>
-              <label>Имя<input value={inviteDisplayName} disabled={!canManageBranchStaff} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} /></label>
-              <label>Временный пароль<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
-              <label>Роль
+              <label>Логин для входа<input value={inviteUserName} disabled={!canManageBranchStaff} onChange={(event) => setInviteUserName(event.currentTarget.value)} /></label>
+              <label>Имя в смене<input value={inviteDisplayName} disabled={!canManageBranchStaff} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} /></label>
+              <label>Пароль на первый вход<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
+              <label>Роль доступа
                 <select value={inviteRoleName} disabled={!canManageBranchStaff} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
                 </select>
@@ -8312,12 +8362,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <label>Логин профиля<input value={staffProfileUserName} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setStaffProfileUserName(event.currentTarget.value)} /></label>
               <label>Имя профиля<input value={staffProfileDisplayName} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setStaffProfileDisplayName(event.currentTarget.value)} /></label>
               <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction('Обновить профиль сотрудника')}>Обновить профиль</button>
-              <label>Роль сотрудника
+              <label>Новая роль
                 <select value={staffRoleName} disabled={!canManageRoles || !selectedStaffUserId} onChange={(event) => setStaffRoleName(event.currentTarget.value)}>
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
                 </select>
               </label>
-              <label>Новый пароль<input type="password" value={resetPassword} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setResetPassword(event.currentTarget.value)} /></label>
+              <label>Новый пароль для входа<input type="password" value={resetPassword} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setResetPassword(event.currentTarget.value)} /></label>
               <button type="button" disabled={!canManageRoles || !selectedStaffUserId} onClick={() => runSettingsAction('Обновить роль')}>Обновить роль</button>
             </div>
           </div>

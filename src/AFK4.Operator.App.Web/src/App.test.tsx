@@ -788,7 +788,11 @@ describe('App', () => {
   it('downloads Logs CSV and audit trail exports', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
-    const createObjectUrl = vi.fn(() => 'blob:logs');
+    const exportedBlobs: Blob[] = [];
+    const createObjectUrl = vi.fn((blob: Blob) => {
+      exportedBlobs.push(blob);
+      return 'blob:logs';
+    });
     const revokeObjectUrl = vi.fn();
     Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
     Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
@@ -822,6 +826,15 @@ describe('App', () => {
     expect(createObjectUrl).toHaveBeenCalledTimes(2);
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:logs');
     expect(downloads.some((download) => download.startsWith('afk4-audit-trail-') && download.endsWith('.json'))).toBe(true);
+    const supportBlob = exportedBlobs.at(-1);
+    expect(supportBlob).toBeDefined();
+    const supportText = await supportBlob!.text();
+    expect(supportText).toContain('"summary"');
+    expect(supportText).toContain('"events"');
+    expect(supportText).not.toContain('branchId');
+    expect(supportText).not.toContain('auditRecordId');
+    expect(supportText).not.toContain('18181818-1818-1818-1818-181818181818');
+    expect(supportText).not.toContain('99999999-9999-9999-9999-999999999999');
     createElementSpy.mockRestore();
   });
 
@@ -1676,10 +1689,11 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'manager2' } });
-    fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Manager Two' } });
-    fireEvent.change(screen.getByLabelText('Временный пароль'), { target: { value: 'Secret123!' } });
-    fireEvent.change(screen.getByLabelText('Роль'), { target: { value: 'branch_manager' } });
+    expect(screen.queryByDisplayValue('ChangeMe123!')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Логин для входа'), { target: { value: 'manager2' } });
+    fireEvent.change(screen.getByLabelText('Имя в смене'), { target: { value: 'Manager Two' } });
+    fireEvent.change(screen.getByLabelText('Пароль на первый вход'), { target: { value: 'Secret123!' } });
+    fireEvent.change(screen.getByLabelText('Роль доступа'), { target: { value: 'branch_manager' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать сотрудника' }));
 
     expect(await screen.findByText('Пригласить сотрудника: подтверждено')).toBeInTheDocument();
@@ -1708,7 +1722,7 @@ describe('App', () => {
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
     fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
-    fireEvent.change(screen.getByLabelText('Роль сотрудника'), { target: { value: 'technician' } });
+    fireEvent.change(screen.getByLabelText('Новая роль'), { target: { value: 'technician' } });
     fireEvent.click(screen.getByRole('button', { name: 'Обновить роль' }));
 
     expect(await screen.findByText('Обновить роль: подтверждено')).toBeInTheDocument();
@@ -1788,7 +1802,7 @@ describe('App', () => {
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
     fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
-    fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'Reset123!' } });
+    fireEvent.change(screen.getByLabelText('Новый пароль для входа'), { target: { value: 'Reset123!' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить пароль' }));
 
     expect(await screen.findByText('Сбросить пароль: подтверждено')).toBeInTheDocument();
@@ -2253,11 +2267,11 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
-    fireEvent.change(screen.getByLabelText('Пакет'), { target: { value: 'Weekend 10h' } });
+    fireEvent.change(screen.getByLabelText('Название пакета'), { target: { value: 'Weekend 10h' } });
     fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '320.00' } });
-    fireEvent.change(screen.getByLabelText('Минуты'), { target: { value: '600' } });
-    fireEvent.change(screen.getByLabelText('Бонус'), { target: { value: '60' } });
-    fireEvent.change(screen.getByLabelText('Дней'), { target: { value: '45' } });
+    fireEvent.change(screen.getByLabelText('Включено, мин'), { target: { value: '600' } });
+    fireEvent.change(screen.getByLabelText('Бонус, мин'), { target: { value: '60' } });
+    fireEvent.change(screen.getByLabelText('Срок, дней'), { target: { value: '45' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать пакет' }));
 
     expect(await screen.findByText('Создать пакет: подтверждено')).toBeInTheDocument();
@@ -2288,11 +2302,11 @@ describe('App', () => {
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
     fireEvent.click(screen.getByRole('button', { name: /Night 5h/ }));
-    fireEvent.change(screen.getByLabelText('Пакет'), { target: { value: 'Night 6h' } });
+    fireEvent.change(screen.getByLabelText('Название пакета'), { target: { value: 'Night 6h' } });
     fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '300.00' } });
-    fireEvent.change(screen.getByLabelText('Минуты'), { target: { value: '360' } });
-    fireEvent.change(screen.getByLabelText('Бонус'), { target: { value: '40' } });
-    fireEvent.change(screen.getByLabelText('Дней'), { target: { value: '45' } });
+    fireEvent.change(screen.getByLabelText('Включено, мин'), { target: { value: '360' } });
+    fireEvent.change(screen.getByLabelText('Бонус, мин'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Срок, дней'), { target: { value: '45' } });
     fireEvent.click(screen.getByRole('button', { name: 'Обновить пакет' }));
 
     expect(await screen.findByText('Обновить пакет: подтверждено')).toBeInTheDocument();
@@ -2336,9 +2350,10 @@ describe('App', () => {
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
     fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Morning Hour' } });
-    fireEvent.change(screen.getByLabelText('Цена/час'), { target: { value: '96.00' } });
-    fireEvent.change(screen.getByLabelText('Минимум мин'), { target: { value: '20' } });
-    fireEvent.change(screen.getByLabelText('Округление мин'), { target: { value: '10' } });
+    expect(screen.queryByText(/standard-v1|rule|версия 1/i)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Цена за час'), { target: { value: '96.00' } });
+    fireEvent.change(screen.getByLabelText('Минимум, мин'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('Шаг округления, мин'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
 
     expect(await screen.findByText('Создать тариф: подтверждено')).toBeInTheDocument();
@@ -2382,9 +2397,9 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
     fireEvent.click(screen.getByRole('button', { name: /Standard/ }));
     fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Standard Plus' } });
-    fireEvent.change(screen.getByLabelText('Цена/час'), { target: { value: '120.00' } });
-    fireEvent.change(screen.getByLabelText('Минимум мин'), { target: { value: '20' } });
-    fireEvent.change(screen.getByLabelText('Округление мин'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Цена за час'), { target: { value: '120.00' } });
+    fireEvent.change(screen.getByLabelText('Минимум, мин'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('Шаг округления, мин'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Обновить тариф' }));
 
     expect(await screen.findByText('Обновить тариф: подтверждено')).toBeInTheDocument();
