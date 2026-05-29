@@ -115,6 +115,9 @@ Roadmap/reference:
 - Operator App Settings staff, tariff, package, and journal support-export
   edges now avoid default technical passwords, rule/version labels, terse
   package fields, and raw audit/diagnostics records in normal support exports.
+- Operator App production-visible placeholder pass now avoids demo/dev/raw
+  fixture command copy in the top shell, fallback data states, fixture
+  floor-map/POS/player placeholders, and Settings update publication forms.
 - Primary floor-map UI has backend loading, selected-seat actions,
   permission-aware navigation, billing-mode selection, filters/table view,
   SignalR device status/command-result reloads, active-session ticking, and
@@ -165,7 +168,7 @@ Roadmap/reference:
 - Verbose branch, artifact, hash, and rollout-id evidence is archived in
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
 - Latest technical-surface cleanup verification on 2026-05-29 after the
-  Settings staff/tariff/package/support-export copy pass:
+  production-visible placeholder and Settings update-publication copy pass:
   - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
     passed 75/75 tests.
   - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns
@@ -182,9 +185,9 @@ Roadmap/reference:
 - Operator App technical-surface cleanup remains high-value, but the nearest
   normal sign-in, Settings device/update/catalog/stock/update-integration,
   Settings staff/tariff/package, Logs/Diagnostics journal/support export, and
-  POS/Payments money-flow surfaces are now cleaned up. Continue with remaining
-  production-visible placeholders and broader backend-shaped forms before
-  broadening staging day-flow smoke.
+  POS/Payments money-flow surfaces, and production-visible placeholder paths
+  are now cleaned up. Continue with remaining lower-priority support/setup
+  backend-shaped forms before broadening staging day-flow smoke.
 - Physical Windows 10/11 smoke is still needed for wider rollout confidence:
   lock/unlock enforcement, reboot recovery, Setup Wizard, role-aware updates,
   and update/rollback.
@@ -198,8 +201,9 @@ Roadmap/reference:
 ## Recommended Next Work
 
 1. Continue the harmful technical-surface cleanup before broad smoke:
-   remove remaining Settings/support/export raw IDs, backend-shaped forms,
-   and overly technical copy from customer/operator paths.
+   remove remaining lower-priority Settings/support/setup raw IDs,
+   backend-shaped forms, and overly technical copy from customer/operator
+   paths.
 2. Clean mistaken manager-workstation smoke seat data, then rerun the
    `manager_workstation` clean Windows VM smoke with the current Agent MSI and
    published internal Operator App rollout.

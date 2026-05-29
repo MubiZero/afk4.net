@@ -585,7 +585,7 @@ function billingLabel(value: string) {
     return 'Пакет';
   }
 
-  if (normalized.includes('postpaid')) {
+  if (normalized.includes('postpaid') || normalized.includes('постоплата')) {
     return 'Постоплата';
   }
 
@@ -622,7 +622,7 @@ function operatorDisplayNameLabel(displayName: string | null | undefined): strin
   }
 
   if (/^demo owner$/i.test(normalized)) {
-    return 'Администратор демо';
+    return 'Администратор клуба';
   }
 
   if (/^local branch manager$/i.test(normalized)) {
@@ -869,7 +869,7 @@ function floorMapLoadLabel(status: FloorMapLoadStatus, source: OperatorFloorMapS
     return error ? `Ошибка платформы · ${error}` : 'Ошибка платформы · API недоступен';
   }
 
-  return source === 'backend' ? 'Платформа подключена' : 'Демо-данные';
+  return source === 'backend' ? 'Платформа подключена' : 'Локальные данные';
 }
 
 function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string): string {
@@ -885,11 +885,11 @@ function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string): str
     return 'Ошибка платформы';
   }
 
-  return 'Демо-данные';
+  return 'Локальные данные';
 }
 
 function dataSourceLabel(source: string): string {
-  return source === 'backend' ? 'Платформа подключена' : 'Демо-режим';
+  return source === 'backend' ? 'Платформа подключена' : 'Локальные данные';
 }
 
 function shellShiftLabel(
@@ -935,11 +935,11 @@ function shellPosLabel(summary: OperatorDashboardSummaryDto | null, status: Load
 
 function shellModeLabel(mode: string): string {
   if (mode.includes('dev')) {
-    return 'режим разработки';
+    return 'локальная сборка';
   }
 
   if (mode.includes('dist')) {
-    return 'собранная версия';
+    return 'установленная сборка';
   }
 
   return mode;
@@ -3133,7 +3133,7 @@ function SettingsWorkspace() {
     if (selectedSection === 'Интеграции') {
       return (
         <div className="settings-config-grid">
-          {['Платежи · ручное подтверждение', 'Уведомления · выключены', 'Экспорт · CSV включён', 'Связь · демо-режим'].map((item) => (
+          {['Платежи · ручное подтверждение', 'Уведомления · выключены', 'Экспорт · отчёты включены', 'Связь · локальные данные'].map((item) => (
             <button key={item} type="button" onClick={() => triggerFeedback(setFeedback, item)}>
               <strong>{item.split(' · ')[0]}</strong>
               <span>{item.split(' · ')[1]}</span>
@@ -3689,7 +3689,7 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
       <section className="context-section">
         <div className="detail-row"><span>Выручка</span><strong>4 820 {currencyCode}</strong></div>
         <div className="detail-row"><span>В работе</span><strong>2 действия</strong></div>
-        <div className="detail-row"><span>Источник</span><strong>Демо-данные</strong></div>
+        <div className="detail-row"><span>Источник</span><strong>Локальные данные</strong></div>
       </section>
       <button type="button" className="primary-wide">Открыть действие</button>
     </aside>
@@ -3711,10 +3711,10 @@ type PosCartItem = PosCatalogItem & {
 };
 
 const fixturePosProducts: PosCatalogItem[] = [
-  { name: 'Кола 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'демо', stockOnHand: 0, source: 'fixture' },
-  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'демо', stockOnHand: 0, source: 'fixture' },
-  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'демо', stockOnHand: 0, source: 'fixture' },
-  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'демо', stockOnHand: 0, source: 'fixture' }
+  { name: 'Кола 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'локальный пример', stockOnHand: 0, source: 'fixture' },
+  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'локальный пример', stockOnHand: 0, source: 'fixture' },
+  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'локальный пример', stockOnHand: 0, source: 'fixture' },
+  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'локальный пример', stockOnHand: 0, source: 'fixture' }
 ];
 
 function projectPosProduct(product: PosProductDto, currencyCode: string): PosCatalogItem {
@@ -5081,9 +5081,9 @@ type PlayerClientItem = {
 
 function fixturePlayers(currencyCode: string): PlayerClientItem[] {
   return [
-    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'демо', tone: 'vip', detail: 'демо-клиент', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
-    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'демо', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
-    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'демо', tone: 'debt', detail: 'долг после сеанса', phoneNumber: '', source: 'fixture' }
+    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'пример', tone: 'vip', detail: 'локальная карточка', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'пример', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
+    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'пример', tone: 'debt', detail: 'долг после сеанса', phoneNumber: '', source: 'fixture' }
   ];
 }
 
@@ -5489,7 +5489,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
               <div>
                 <span>Нет выбранного клиента</span>
                 <strong>Выберите клиента из списка</strong>
-                <em>backend-данные не подменяются демо-карточкой</em>
+                <em>Пустой ответ платформы не подменяется локальной карточкой</em>
               </div>
             </div>
           ) : (
@@ -5668,7 +5668,7 @@ function paymentOperationPlaceholder(
     return ['—', 'Операций за период нет', 'в отчёте пусто', 'Отчёты', `0 ${currencyCode}`, 'session', null];
   }
 
-  return ['—', 'Демо: операций нет', 'локальные данные без платформы', 'демо', `0 ${currencyCode}`, 'session', null];
+  return ['—', 'Локально: операций нет', 'локальные данные без платформы', 'локально', `0 ${currencyCode}`, 'session', null];
 }
 
 function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
@@ -6118,7 +6118,7 @@ function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, h
     return ['—', 'Событий за период нет', 'аудит и диагностика вернули пустой результат', 'Платформа', 'audit', 'placeholder', null];
   }
 
-  return ['—', 'Демо: событий нет', 'локальные данные без платформы', 'Платформа', 'audit', 'placeholder', null];
+  return ['—', 'Локально: событий нет', 'локальные данные без платформы', 'Платформа', 'audit', 'placeholder', null];
 }
 
 function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[]): LogEventItem[] {
@@ -6163,9 +6163,9 @@ function auditActionLabel(action: string): string {
     case 'identity.staff.roles.update':
       return 'Роли сотрудника изменены';
     case 'updates.rollouts.view':
-      return 'Проверка раскаток';
+      return 'Проверка публикаций обновлений';
     case 'updates.rollouts.state.change':
-      return 'Состояние раскатки изменено';
+      return 'Состояние публикации обновления изменено';
     default:
       if (normalized.includes('pos')) {
         return 'Операция кассы';
@@ -7091,7 +7091,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [rolloutTargetDeviceIds, setRolloutTargetDeviceIds] = useState('');
   const [rolloutBatchPercent, setRolloutBatchPercent] = useState('100');
   const [rolloutStartsAtUtc, setRolloutStartsAtUtc] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString());
-  const [rolloutReason, setRolloutReason] = useState('Раскатка оператора.');
+  const [rolloutReason, setRolloutReason] = useState('Публикация обновления оператором.');
   const [packageStatePackageId, setPackageStatePackageId] = useState('');
   const [packageState, setPackageState] = useState('validated');
   const [packageStateReason, setPackageStateReason] = useState('Подпись проверена.');
@@ -7933,9 +7933,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setRegisteredUpdatePackages((items) => [createdPackage, ...items.filter((item) => readString(item, 'updatePackageId') !== updatePackageId)]);
         setRolloutPackageId(updatePackageId);
         setPackageStatePackageId(updatePackageId);
-      } else if (label === 'Создать раскатку обновления') {
+      } else if (label === 'Создать публикацию обновления') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
-          throw new Error('Нет прав на управление раскатками обновлений.');
+          throw new Error('Нет прав на управление публикациями обновлений.');
         }
 
         const updatePackageId = rolloutPackageId.trim();
@@ -7951,7 +7951,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           || !Number.isInteger(batchPercent) || batchPercent < 1 || batchPercent > 100
           || Number.isNaN(startsAt.getTime()) || !rolloutReason.trim()
           || targetDeviceIds.some((deviceId) => !isGuid(deviceId))) {
-          throw new Error('Выберите пакет, канал, цель, долю, старт и причину раскатки.');
+          throw new Error('Выберите пакет, канал, цель, долю, старт и причину публикации.');
         }
 
         const rollout = await apiClients.updates.createRollout(nextBackend.branchId, {
@@ -7987,16 +7987,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           reason
         });
         setRegisteredUpdatePackages((items) => [updatePackage, ...items.filter((item) => readString(item, 'updatePackageId') !== updatePackageId)]);
-      } else if (label === 'Изменить состояние раскатки') {
+      } else if (label === 'Изменить состояние публикации') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
-          throw new Error('Нет прав на управление раскатками обновлений.');
+          throw new Error('Нет прав на управление публикациями обновлений.');
         }
 
         const updateRolloutId = rolloutStateRolloutId.trim();
         const state = rolloutState.trim();
         const reason = rolloutStateReason.trim();
         if (!isGuid(updateRolloutId) || !state || !reason) {
-          throw new Error('Выберите раскатку, состояние и причину.');
+          throw new Error('Выберите публикацию, состояние и причину.');
         }
 
         const rollout = await apiClients.updates.changeRolloutState(nextBackend.branchId, updateRolloutId, {
@@ -8472,9 +8472,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-config-grid">
             {[
               ['Платежи', 'ручное подтверждение'],
-              ['Обновления', `раскаток: ${rollouts.length}`],
+              ['Обновления', `публикаций: ${rollouts.length}`],
               ['Ошибки обновлений', `ПК с ошибками: ${readNumber(updateSummary, 'failedDevices', 0)}`],
-              ['Связь', backend ? 'подключена' : 'демо-режим']
+              ['Связь', backend ? 'подключена' : 'локальные данные']
             ].map(([name, detail]) => (
               <button key={name} type="button" onClick={() => triggerFeedback(setFeedback, name, 'confirmed')}>
                 <strong>{name}</strong>
@@ -8512,8 +8512,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
 
           <div className="settings-section-title">
-            <span>Раскатки обновлений</span>
-            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Создать раскатку обновления')}>Создать раскатку</button>
+            <span>Публикации обновлений</span>
+            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Создать публикацию обновления')}>Создать публикацию</button>
           </div>
           <div className="settings-tariff-list">
             {rollouts.map((rollout) => (
@@ -8535,7 +8535,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
           {selectedRollout && (
             <div className="settings-device-detail-grid">
-              <span><strong>Раскатка</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'))} {readString(selectedRollout, 'version', 'версия')}</b></span>
+              <span><strong>Публикация</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'))} {readString(selectedRollout, 'version', 'версия')}</b></span>
               <span><strong>Состояние</strong><b>{updateRolloutStateLabel(readString(selectedRollout, 'state'))}</b></span>
               <span><strong>Цель</strong><b>{updateTargetKindLabel(readString(selectedRollout, 'targetKind'))} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
               <span><strong>Канал</strong><b>{updateChannelLabel(readString(selectedRollout, 'channel'))}</b></span>
@@ -8557,7 +8557,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             </div>
           )}
           <div className="settings-form-grid settings-update-form">
-            <label className="settings-form-wide">Пакет для раскатки
+            <label className="settings-form-wide">Пакет для публикации
               <select value={rolloutPackageId} disabled={!canManageUpdateRollouts || updatePackageOptions.length === 0} onChange={(event) => setRolloutPackageId(event.currentTarget.value)}>
                 {updatePackageOptions.length === 0 && <option value="">сначала зарегистрируйте пакет</option>}
                 {rolloutPackageId && !updatePackageOptions.some((option) => option.id === rolloutPackageId) && (
@@ -8590,8 +8590,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 ))}
               </select>
             </label>
-            <label className="settings-form-wide">Начало раскатки<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Причина раскатки<input value={rolloutReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutReason(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Начало публикации<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Причина публикации<input value={rolloutReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutReason(event.currentTarget.value)} /></label>
           </div>
 
           <div className="settings-section-title">
@@ -8614,7 +8614,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 setCriticalAction('rollout-state-change');
               }}
             >
-              Изменить состояние раскатки
+              Изменить состояние публикации
             </button>
           </div>
           <div className="settings-form-grid settings-update-form">
@@ -8638,18 +8638,18 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               </select>
             </label>
             <label>Причина пакета<input value={packageStateReason} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStateReason(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Раскатка
+            <label className="settings-form-wide">Публикация
               <select value={rolloutStateRolloutId} disabled={!canManageUpdateRollouts || rolloutOptions.length === 0} onChange={(event) => setRolloutStateRolloutId(event.currentTarget.value)}>
-                {rolloutOptions.length === 0 && <option value="">нет раскаток</option>}
+                {rolloutOptions.length === 0 && <option value="">нет публикаций</option>}
                 {rolloutStateRolloutId && !rolloutOptions.some((option) => option.id === rolloutStateRolloutId) && (
-                  <option value={rolloutStateRolloutId}>выбранная раскатка</option>
+                  <option value={rolloutStateRolloutId}>выбранная публикация</option>
                 )}
                 {rolloutOptions.map((option) => (
                   <option key={option.id} value={option.id}>{option.label}</option>
                 ))}
               </select>
             </label>
-            <label>Состояние раскатки
+            <label>Состояние публикации
               <select value={rolloutState} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutState(event.currentTarget.value)}>
                 <option value="active">{updateRolloutStateLabel('active')}</option>
                 <option value="paused">{updateRolloutStateLabel('paused')}</option>
@@ -8659,7 +8659,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <option value="cancelled">{updateRolloutStateLabel('cancelled')}</option>
               </select>
             </label>
-            <label>Причина раскатки<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
+            <label>Причина публикации<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
           </div>
           {criticalAction === 'package-state-change' && (
             <CriticalActionConfirmation
@@ -8674,13 +8674,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           )}
           {criticalAction === 'rollout-state-change' && (
             <CriticalActionConfirmation
-              title="Подтвердите состояние раскатки"
-              detail={`${rolloutOptions.find((option) => option.id === rolloutStateRolloutId)?.label ?? 'Раскатка'} · ${updateRolloutStateLabel(rolloutState)}`}
+              title="Подтвердите состояние публикации"
+              detail={`${rolloutOptions.find((option) => option.id === rolloutStateRolloutId)?.label ?? 'Публикация'} · ${updateRolloutStateLabel(rolloutState)}`}
               impact={`Изменение повлияет на выдачу обновлений устройствам. Причина: ${rolloutStateReason.trim() || 'не указана'}`}
-              confirmLabel="Подтвердить состояние раскатки"
+              confirmLabel="Подтвердить состояние публикации"
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
-              onConfirm={() => void runSettingsAction('Изменить состояние раскатки')}
+              onConfirm={() => void runSettingsAction('Изменить состояние публикации')}
             />
           )}
         </>
@@ -8693,7 +8693,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <label>Название клуба<input value={clubName} onChange={(event) => { setClubName(event.currentTarget.value); setSettingsDirty(true); }} /></label>
           <label>Город<input value={city} onChange={(event) => { setCity(event.currentTarget.value); setSettingsDirty(true); }} /></label>
           <label>Валюта<input value={currencyCode} readOnly /></label>
-          <label>Филиал<input value={backend ? 'текущий филиал' : 'демо'} readOnly /></label>
+          <label>Филиал<input value={backend ? 'текущий филиал' : 'локальный режим'} readOnly /></label>
         </div>
         <div className="settings-save-row">
           <span>{settingsDirty ? 'есть несохранённые изменения' : 'изменений нет'}</span>
@@ -9638,7 +9638,7 @@ export function App() {
       return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command) };
     }
 
-    throw new Error('Эта команда требует отдельного контракта Agent/backend и пока не включена.');
+    throw new Error('Эта команда требует отдельного контракта агента и платформы и пока не включена.');
   };
 
   if (blockedResolution !== null) {

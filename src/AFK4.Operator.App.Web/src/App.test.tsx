@@ -57,6 +57,7 @@ describe('App', () => {
     expect(await screen.findByText('Касса: 1 чек сегодня')).toBeInTheDocument();
     expect(screen.queryByText(/Смена #24/)).not.toBeInTheDocument();
     expect(screen.queryByText(/неоплаченных чека/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lease fresh|No route|Device unassigned|Postpaid|режим разработки/)).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Рабочие места' })).toBeInTheDocument();
     expect(screen.getByLabelText('ПК зала')).toBeInTheDocument();
     expect(screen.getAllByText('Сессии').length).toBeGreaterThan(0);
@@ -1330,7 +1331,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Клиенты не найдены')).toBeInTheDocument();
     expect(screen.getByText('Нет выбранного клиента')).toBeInTheDocument();
-    expect(screen.getByText('backend-данные не подменяются демо-карточкой')).toBeInTheDocument();
+    expect(screen.getByText('Пустой ответ платформы не подменяется локальной карточкой')).toBeInTheDocument();
     expect(screen.queryByText('Madina S.')).not.toBeInTheDocument();
   });
 
@@ -2439,7 +2440,7 @@ describe('App', () => {
     expect(deactivateBody).toMatchObject({ isActive: false });
   });
 
-  it('registers update packages and creates rollouts from Settings integrations', async () => {
+  it('registers update packages and creates update publications from Settings integrations', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
 
@@ -2477,12 +2478,12 @@ describe('App', () => {
     });
 
     fireEvent.change(screen.getByLabelText('Доля %'), { target: { value: '25' } });
-    await waitFor(() => expect(screen.getByLabelText('Пакет для раскатки')).toHaveValue('19191919-1919-1919-1919-191919191919'));
-    fireEvent.change(screen.getByLabelText('Начало раскатки'), { target: { value: '2026-05-21T10:00:00Z' } });
-    fireEvent.change(screen.getAllByLabelText('Причина раскатки')[0], { target: { value: 'Пилотная раскатка.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать раскатку' }));
+    await waitFor(() => expect(screen.getByLabelText('Пакет для публикации')).toHaveValue('19191919-1919-1919-1919-191919191919'));
+    fireEvent.change(screen.getByLabelText('Начало публикации'), { target: { value: '2026-05-21T10:00:00Z' } });
+    fireEvent.change(screen.getAllByLabelText('Причина публикации')[0], { target: { value: 'Пилотная публикация.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
 
-    expect(await screen.findByText('Создать раскатку обновления: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Создать публикацию обновления: подтверждено')).toBeInTheDocument();
     const rolloutCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts') &&
       init?.method === 'POST');
@@ -2496,7 +2497,7 @@ describe('App', () => {
       targetDeviceIds: [],
       batchPercent: 25,
       startsAtUtc: '2026-05-21T10:00:00.000Z',
-      reason: 'Пилотная раскатка.'
+      reason: 'Пилотная публикация.'
     });
   });
 
@@ -2535,17 +2536,17 @@ describe('App', () => {
       reason: 'Подпись проверена.'
     });
 
-    fireEvent.change(screen.getByLabelText('Состояние раскатки'), { target: { value: 'paused' } });
-    fireEvent.change(screen.getAllByLabelText('Причина раскатки')[1], { target: { value: 'Пауза для проверки ошибок.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние раскатки' }));
+    fireEvent.change(screen.getByLabelText('Состояние публикации'), { target: { value: 'paused' } });
+    fireEvent.change(screen.getAllByLabelText('Причина публикации')[1], { target: { value: 'Пауза для проверки ошибок.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние публикации' }));
 
-    const rolloutStateDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите состояние раскатки' });
+    const rolloutStateDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите состояние публикации' });
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
       init?.method === 'POST')).toBe(false);
-    fireEvent.click(within(rolloutStateDialog).getByRole('button', { name: 'Подтвердить состояние раскатки' }));
+    fireEvent.click(within(rolloutStateDialog).getByRole('button', { name: 'Подтвердить состояние публикации' }));
 
-    expect(await screen.findByText('Изменить состояние раскатки: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Изменить состояние публикации: подтверждено')).toBeInTheDocument();
     const rolloutStateCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
       init?.method === 'POST');
