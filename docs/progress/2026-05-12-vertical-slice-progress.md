@@ -130,6 +130,8 @@ Roadmap/reference:
 - Operator App production-visible placeholder pass now avoids demo/dev/raw
   fixture command copy in the top shell, fallback data states, fixture
   floor-map/POS/player placeholders, and Settings update publication forms.
+- Operator App critical confirmations and empty states now avoid backend-return
+  wording in normal operator flows.
 - Primary floor-map UI has backend loading, selected-seat actions,
   permission-aware navigation, billing-mode selection, filters/table view,
   SignalR device status/command-result reloads, active-session ticking, and
@@ -182,7 +184,7 @@ Roadmap/reference:
 - Latest technical-surface cleanup verification on 2026-05-29 after the
   connection setup, Settings device/update setup, production-visible
   placeholder, update-publication, Logs support-export, and Payments export
-  copy pass:
+  copy pass plus remaining backend-copy empty-state cleanup:
   - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
     passed 76/76 tests.
   - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns

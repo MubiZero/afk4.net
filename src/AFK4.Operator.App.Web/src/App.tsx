@@ -3542,7 +3542,7 @@ function MapSidePanel({
         <CriticalActionConfirmation
           title="Подтвердите остановку сессии"
           detail={`${seat.name} · ${seat.remaining} · ${activeBilling}`}
-          impact="Сессия будет завершена, backend отправит команду блокировки ПК."
+          impact="Сессия будет завершена, платформа отправит команду блокировки ПК."
           confirmLabel="Подтвердить стоп"
           disabled={isBusy}
           onCancel={() => setCriticalAction(null)}
@@ -4987,7 +4987,7 @@ function BackendBookingWorkspace({
                 <span className="booking-time">—</span>
                 <span className="booking-client">
                   <strong>{loadStatus === 'loading' ? 'Загрузка броней' : 'Нет броней'}</strong>
-                  <em>{loadError ?? 'Платформа вернула пустой список за сегодня.'}</em>
+                  <em>{loadError ?? 'На сегодня броней нет.'}</em>
                 </span>
                 <span className="booking-meta">{floorMap.branchName}</span>
                 <b>{loadStatus === 'failed' ? 'Ошибка' : 'Пусто'}</b>
@@ -5474,7 +5474,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             {visibleClients.length === 0 ? (
               <div className="clients-empty-state">
                 <strong>Клиенты не найдены</strong>
-                <span>{loadStatus === 'backend' ? 'Платформа вернула пустой список для текущего поиска.' : 'Загрузите клиентов платформы.'}</span>
+                <span>{loadStatus === 'backend' ? 'По текущему поиску клиентов нет.' : 'Подключитесь к платформе, чтобы загрузить клиентов.'}</span>
               </div>
             ) : (
               visibleClients.map((client) => (

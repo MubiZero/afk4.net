@@ -364,7 +364,10 @@ describe('App', () => {
     expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
     fireEvent.click(await screen.findByRole('button', { name: /^Стоп$/ }));
 
-    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите остановку сессии' })).toBeInTheDocument();
+    const stopDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите остановку сессии' });
+    expect(stopDialog).toBeInTheDocument();
+    expect(stopDialog).toHaveTextContent('платформа отправит команду блокировки ПК');
+    expect(stopDialog).not.toHaveTextContent('backend');
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/sessions/22222222-2222-2222-2222-222222222222/end') &&
       init?.method === 'POST')).toBe(false);
@@ -1363,6 +1366,8 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
 
     expect(await screen.findByText('Клиенты не найдены')).toBeInTheDocument();
+    expect(await screen.findByText('По текущему поиску клиентов нет.')).toBeInTheDocument();
+    expect(screen.queryByText('Платформа вернула пустой список для текущего поиска.')).not.toBeInTheDocument();
     expect(screen.getByText('Нет выбранного клиента')).toBeInTheDocument();
     expect(screen.getByText('Пустой ответ платформы не подменяется локальной карточкой')).toBeInTheDocument();
     expect(screen.queryByText('Madina S.')).not.toBeInTheDocument();
