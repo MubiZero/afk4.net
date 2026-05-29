@@ -658,7 +658,7 @@ function updateComponentLabel(component: string): string {
     case 'player-shell':
       return 'Оболочка игрока';
     default:
-      return component || 'Компонент';
+      return 'Приложение';
   }
 }
 
@@ -671,7 +671,7 @@ function updateChannelLabel(channel: string): string {
     case 'stable':
       return 'Стабильный';
     default:
-      return channel || 'Канал';
+      return 'Канал';
   }
 }
 
@@ -682,7 +682,7 @@ function updateTargetKindLabel(kind: string): string {
     case 'device':
       return 'Отдельные ПК';
     default:
-      return kind || 'Цель';
+      return 'Цель';
   }
 }
 
@@ -697,7 +697,7 @@ function updatePackageStateLabel(state: string): string {
     case 'retired':
       return 'Выведен';
     default:
-      return state || 'Состояние';
+      return 'Состояние';
   }
 }
 
@@ -716,7 +716,7 @@ function updateRolloutStateLabel(state: string): string {
     case 'cancelled':
       return 'Отменена';
     default:
-      return state || 'Состояние';
+      return 'Состояние';
   }
 }
 
@@ -731,7 +731,22 @@ function updateDeviceStatusLabel(status: string): string {
     case 'failed':
       return 'Ошибка';
     default:
-      return status || 'Неизвестно';
+      return 'Неизвестно';
+  }
+}
+
+function stockMovementTypeLabel(type: string): string {
+  switch (type) {
+    case 'purchase':
+      return 'Приход';
+    case 'adjustment':
+      return 'Коррекция';
+    case 'sale':
+      return 'Продажа';
+    case 'write_off':
+      return 'Списание';
+    default:
+      return 'Движение';
   }
 }
 
@@ -3008,7 +3023,7 @@ function SettingsWorkspace() {
     ['Залы и ПК', 'зоны, рабочие места, статусы'],
     ['Тарифы', 'пакеты, постоплата, VIP'],
     ['Персонал', 'операторы, роли, доступы'],
-    ['POS и склад', 'товары, остатки, чеки'],
+    ['Товары и склад', 'товары, остатки, чеки'],
     ['Интеграции', 'платежи, уведомления, экспорт']
   ];
   const rooms = [
@@ -3102,7 +3117,7 @@ function SettingsWorkspace() {
       );
     }
 
-    if (selectedSection === 'POS и склад') {
+    if (selectedSection === 'Товары и склад') {
       return (
         <div className="settings-config-grid">
           {['Напитки · 18 позиций', 'Кухня · 7 позиций', 'Услуги · 4 позиции', 'Низкие остатки · 2 товара'].map((item) => (
@@ -3118,7 +3133,7 @@ function SettingsWorkspace() {
     if (selectedSection === 'Интеграции') {
       return (
         <div className="settings-config-grid">
-          {['Платежи · manual provider', 'Уведомления · выключены', 'Экспорт · CSV включён', 'API · staging'].map((item) => (
+          {['Платежи · ручное подтверждение', 'Уведомления · выключены', 'Экспорт · CSV включён', 'Связь · демо-режим'].map((item) => (
             <button key={item} type="button" onClick={() => triggerFeedback(setFeedback, item)}>
               <strong>{item.split(' · ')[0]}</strong>
               <span>{item.split(' · ')[1]}</span>
@@ -6448,7 +6463,7 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
   const record = event[6];
 
   if (event[5] === 'audit' && record !== null) {
-    const targetType = readString(record, 'targetType', 'target');
+    const targetType = readString(record, 'targetType');
 
     return [
       ['Событие', auditActionLabel(readString(record, 'action'))],
@@ -6969,7 +6984,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     null
   >(null);
   const [deviceCommandType, setDeviceCommandType] = useState('lock');
-  const [deviceCommandReason, setDeviceCommandReason] = useState('operator device tool');
+  const [deviceCommandReason, setDeviceCommandReason] = useState('Проверка оператором');
   const [lastDeviceCommand, setLastDeviceCommand] = useState<Record<string, unknown> | null>(null);
   const [layoutZoneName, setLayoutZoneName] = useState('Основной зал');
   const [layoutZoneSortOrder, setLayoutZoneSortOrder] = useState('10');
@@ -6987,9 +7002,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [staffProfileUserName, setStaffProfileUserName] = useState('');
   const [staffProfileDisplayName, setStaffProfileDisplayName] = useState('');
   const [staffRoleName, setStaffRoleName] = useState('cashier_operator');
-  const [productCategoryName, setProductCategoryName] = useState('POS category 1');
-  const [productName, setProductName] = useState('POS item 1');
-  const [productSku, setProductSku] = useState('POS-001');
+  const [productCategoryName, setProductCategoryName] = useState('Категория 1');
+  const [productName, setProductName] = useState('Товар 1');
+  const [productSku, setProductSku] = useState('SKU-001');
   const [productPrice, setProductPrice] = useState('12.00');
   const [productTrackStock, setProductTrackStock] = useState(true);
   const [productAllowNegativeStock, setProductAllowNegativeStock] = useState(false);
@@ -6998,14 +7013,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [stockMovementType, setStockMovementType] = useState('purchase');
   const [stockQuantityDelta, setStockQuantityDelta] = useState('10');
   const [stockUnitCost, setStockUnitCost] = useState('0.00');
-  const [stockReason, setStockReason] = useState('initial stock');
-  const [tariffName, setTariffName] = useState('Day Pass');
+  const [stockReason, setStockReason] = useState('Первичное поступление');
+  const [tariffName, setTariffName] = useState('Дневной тариф');
   const [tariffPricePerHour, setTariffPricePerHour] = useState('90.00');
   const [tariffMinimumMinutes, setTariffMinimumMinutes] = useState('15');
   const [tariffRoundingMinutes, setTariffRoundingMinutes] = useState('5');
   const [tariffEffectiveFromUtc, setTariffEffectiveFromUtc] = useState(() => new Date().toISOString());
   const [selectedTariffVersionId, setSelectedTariffVersionId] = useState('');
-  const [packageName, setPackageName] = useState('Night 5h');
+  const [packageName, setPackageName] = useState('Ночной пакет 5ч');
   const [packagePrice, setPackagePrice] = useState('250.00');
   const [packageMinutes, setPackageMinutes] = useState('300');
   const [packageBonusMinutes, setPackageBonusMinutes] = useState('30');
@@ -7029,7 +7044,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [rolloutReason, setRolloutReason] = useState('Раскатка оператора.');
   const [packageStatePackageId, setPackageStatePackageId] = useState('');
   const [packageState, setPackageState] = useState('validated');
-  const [packageStateReason, setPackageStateReason] = useState('Signature verified.');
+  const [packageStateReason, setPackageStateReason] = useState('Подпись проверена.');
   const [rolloutStateRolloutId, setRolloutStateRolloutId] = useState('');
   const [rolloutState, setRolloutState] = useState('paused');
   const [rolloutStateReason, setRolloutStateReason] = useState('Изменение состояния оператором.');
@@ -7131,7 +7146,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     ['Залы и ПК', 'зоны, рабочие места, статусы'],
     ['Тарифы', 'пакеты, постоплата, VIP'],
     ['Персонал', 'операторы, роли, доступы'],
-    ['POS и склад', 'товары, остатки, чеки'],
+    ['Товары и склад', 'товары, остатки, чеки'],
     ['Интеграции', 'платежи, обновления, экспорт']
   ];
   const selectedSectionDetail = sections.find(([name]) => name === selectedSection)?.[1] ?? '';
@@ -7161,7 +7176,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     .find((seat) => readString(seat, 'seatId') === selectedLayoutSeatId) ?? null;
   const layoutSeatOptions = zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
     seatId: readString(seat, 'seatId'),
-    label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
+    label: `${readString(zone, 'name', 'Зал')} · ${readString(seat, 'name', 'ПК')}`
   }))).filter((seat) => isGuid(seat.seatId));
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
   const deviceRecentCommands = deviceCommandHistory.length > 0
@@ -7181,17 +7196,17 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const updatePackageOptions = Array.from(new Map([
     ...rollouts.map((rollout) => ({
       id: readString(rollout, 'updatePackageId'),
-      label: `${updateComponentLabel(readString(rollout, 'component', 'component'))} ${readString(rollout, 'version', 'version')} · ${updateChannelLabel(readString(rollout, 'channel', 'channel'))}`
+      label: `${updateComponentLabel(readString(rollout, 'component'))} ${readString(rollout, 'version', 'версия')} · ${updateChannelLabel(readString(rollout, 'channel'))}`
     })),
     ...registeredUpdatePackages.map((updatePackage) => ({
       id: readString(updatePackage, 'updatePackageId'),
-      label: `${updateComponentLabel(readString(updatePackage, 'component', 'component'))} ${readString(updatePackage, 'version', 'version')} · ${updateChannelLabel(readString(updatePackage, 'channel', 'channel'))} · ${updatePackageStateLabel(readString(updatePackage, 'state', 'registered'))}`
+      label: `${updateComponentLabel(readString(updatePackage, 'component'))} ${readString(updatePackage, 'version', 'версия')} · ${updateChannelLabel(readString(updatePackage, 'channel'))} · ${updatePackageStateLabel(readString(updatePackage, 'state', 'registered'))}`
     }))
   ].filter((option) => isGuid(option.id)).map((option) => [option.id, option])).values());
   const rolloutOptions = rollouts
     .map((rollout) => ({
       id: readString(rollout, 'updateRolloutId'),
-      label: `${updateComponentLabel(readString(rollout, 'component', 'component'))} ${readString(rollout, 'version', 'version')} · ${updateRolloutStateLabel(readString(rollout, 'state', 'state'))}`
+      label: `${updateComponentLabel(readString(rollout, 'component'))} ${readString(rollout, 'version', 'версия')} · ${updateRolloutStateLabel(readString(rollout, 'state'))}`
     }))
     .filter((rollout) => isGuid(rollout.id));
   const rolloutTargetDeviceIdSet = new Set(rolloutTargetDeviceIds.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean));
@@ -7203,14 +7218,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setLayoutSeatZoneId(zoneId);
     setLayoutZoneName(readString(zone, 'name', layoutZoneName));
     setLayoutZoneSortOrder(String(readNumber(zone, 'sortOrder', Number(layoutZoneSortOrder))));
-    triggerFeedback(setFeedback, readString(zone, 'name', 'Zone'), 'confirmed');
+    triggerFeedback(setFeedback, readString(zone, 'name', 'Зал'), 'confirmed');
   };
   const selectLayoutSeat = (zone: Record<string, unknown>, seat: Record<string, unknown>) => {
     setSelectedLayoutSeatId(readString(seat, 'seatId'));
     setLayoutSeatZoneId(readString(zone, 'zoneId'));
     setLayoutSeatName(readString(seat, 'name', layoutSeatName));
     setLayoutSeatSortOrder(String(readNumber(seat, 'sortOrder', Number(layoutSeatSortOrder))));
-    triggerFeedback(setFeedback, readString(seat, 'name', 'Seat'), 'confirmed');
+    triggerFeedback(setFeedback, readString(seat, 'name', 'ПК'), 'confirmed');
   };
   const selectCatalogProduct = (product: PosProductDto) => {
     const productId = readString(product, 'productId');
@@ -7221,7 +7236,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setProductPrice(price ? formatMoneyInputMinorUnits(price.minorUnits) : productPrice);
     setProductTrackStock(readBoolean(product, 'trackStock', true));
     setProductAllowNegativeStock(readBoolean(product, 'allowNegativeStock'));
-    triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed');
+    triggerFeedback(setFeedback, readString(product, 'name', 'Товар'), 'confirmed');
   };
   const selectTariffOption = (option: TariffOptionDto) => {
     setSelectedTariffVersionId(readString(option, 'tariffVersionId'));
@@ -7230,7 +7245,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setTariffMinimumMinutes(String(readNumber(option, 'minimumBillableMinutes', Number(tariffMinimumMinutes))));
     setTariffRoundingMinutes(String(readNumber(option, 'roundingIncrementMinutes', Number(tariffRoundingMinutes))));
     setTariffEffectiveFromUtc(readString(option, 'effectiveFromUtc', new Date().toISOString()));
-    triggerFeedback(setFeedback, readString(option, 'name', 'Tariff'), 'confirmed');
+    triggerFeedback(setFeedback, readString(option, 'name', 'Тариф'), 'confirmed');
   };
   const selectPackageOption = (option: PackageOptionDto) => {
     setSelectedPackageDefinitionId(readString(option, 'packageDefinitionId'));
@@ -7239,7 +7254,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setPackageMinutes(String(Math.round(readNumber(option, 'includedSeconds', 0) / 60)));
     setPackageBonusMinutes(String(Math.round(readNumber(option, 'bonusSeconds', 0) / 60)));
     setPackageExpiresDays(String(readNumber(option, 'expiresAfterDays', 30)));
-    triggerFeedback(setFeedback, readString(option, 'name', 'Package'), 'confirmed');
+    triggerFeedback(setFeedback, readString(option, 'name', 'Пакет'), 'confirmed');
   };
   const selectDeviceInventoryItem = (device: DeviceInventoryItemDto) => {
     const deviceId = readString(device, 'deviceId');
@@ -7252,7 +7267,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setDeviceCommandHistory([]);
     setRotatedCredential(null);
     setCredentialIdToRevoke('');
-    triggerFeedback(setFeedback, readString(device, 'machineName', 'Device'), 'confirmed');
+    triggerFeedback(setFeedback, readString(device, 'machineName', 'Устройство'), 'confirmed');
   };
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
@@ -7263,7 +7278,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   ];
   const actions: Array<[string, string, LucideIcon]> = [
     ['Добавить ПК', 'новое рабочее место', MonitorCheck],
-    ['Создать тариф', 'тариф и версия платформы', CircleDollarSign],
+    ['Создать тариф', 'цена и правила списания', CircleDollarSign],
     ['Пригласить сотрудника', canManageBranchStaff ? 'создать учётную запись' : 'нет прав доступа', UserRoundPlus],
     ['Обновить профиль сотрудника', canManageBranchStaff ? 'редактировать логин и имя' : 'нет прав доступа', Wrench],
     ['Проверить устройства', 'обновить диагностику', Wifi]
@@ -7457,7 +7472,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
         const zoneId = layoutSeatZoneId.trim();
         if (!zoneId) {
-          throw new Error('Create a layout zone before adding a seat.');
+          throw new Error('Сначала создайте зал для нового ПК.');
         }
 
         const name = layoutSeatName.trim();
@@ -7535,7 +7550,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             idempotencyKey: createIdempotencyKey('tariff-version-create')
           });
         }
-        setTariffName(`Tariff ${tariffs.length + 2}`);
+        setTariffName(`Тариф ${tariffs.length + 2}`);
         setTariffEffectiveFromUtc(new Date().toISOString());
         await loadSettings(nextBackend);
       } else if (label === 'Обновить тариф' || label === 'Снять тариф') {
@@ -7734,7 +7749,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setResetPassword('ChangeMe123!');
       } else if (label === 'Создать товар') {
         if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
-          throw new Error('Нет прав на управление POS каталогом.');
+          throw new Error('Нет прав на управление каталогом товаров.');
         }
 
         const categoryName = productCategoryName.trim();
@@ -7742,7 +7757,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const sku = productSku.trim();
         const priceMinorUnits = parseMoneyInputMinorUnits(productPrice);
         if (!categoryName || !nextProductName || !sku || priceMinorUnits === null) {
-          throw new Error('Заполните категорию, товар, SKU и цену больше нуля.');
+          throw new Error('Заполните категорию, товар, артикул и цену больше нуля.');
         }
 
         const category = await apiClients.settings.createProductCategory(nextBackend.branchId, {
@@ -7752,7 +7767,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         const categoryId = readString(category, 'categoryId');
         if (!categoryId) {
-          throw new Error('Платформа вернула POS-категорию без идентификатора.');
+          throw new Error('Категория создана, но платформа не подтвердила её. Повторите операцию или обратитесь в поддержку.');
         }
 
         const product = await apiClients.settings.createProduct(nextBackend.branchId, {
@@ -7767,16 +7782,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         setCatalog((items) => [...items, product]);
         const nextIndex = catalog.length + 2;
-        setProductCategoryName(`POS category ${nextIndex}`);
-        setProductName(`POS item ${nextIndex}`);
-        setProductSku(`POS-${String(nextIndex).padStart(3, '0')}`);
+        setProductCategoryName(`Категория ${nextIndex}`);
+        setProductName(`Товар ${nextIndex}`);
+        setProductSku(`SKU-${String(nextIndex).padStart(3, '0')}`);
         setProductPrice('12.00');
         setProductTrackStock(true);
         setProductAllowNegativeStock(false);
         setSelectedProductId(readString(product, 'productId'));
       } else if (label === 'Обновить товар' || label === 'Снять с продажи') {
         if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
-          throw new Error('Нет прав на управление POS каталогом.');
+          throw new Error('Нет прав на управление каталогом товаров.');
         }
 
         const selectedProduct = catalog.find((product) => readString(product, 'productId') === selectedProductId);
@@ -7784,7 +7799,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const sku = productSku.trim();
         const priceMinorUnits = parseMoneyInputMinorUnits(productPrice);
         if (!selectedProduct || !nextProductName || !sku || priceMinorUnits === null) {
-          throw new Error('Выберите товар и заполните товар, SKU и цену больше нуля.');
+          throw new Error('Выберите товар и заполните товар, артикул и цену больше нуля.');
         }
 
         await apiClients.settings.updateProduct(nextBackend.branchId, readString(selectedProduct, 'productId'), {
@@ -7839,13 +7854,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const sizeBytes = Number(updateSizeBytes);
         if (!component || !version || !channel || !artifactUri || !sha256 || !signature || !signatureAlgorithm
           || !Number.isInteger(sizeBytes) || sizeBytes <= 0) {
-          throw new Error('Заполните компонент, версию, канал, ссылку на артефакт, SHA-256, подпись, алгоритм и размер.');
+          throw new Error('Заполните приложение, версию, канал, ссылку на MSI, контрольную сумму, подпись, алгоритм и размер файла.');
         }
 
         try {
           new URL(artifactUri);
         } catch {
-          throw new Error('Ссылка на артефакт должна быть абсолютным URL.');
+          throw new Error('Ссылка на MSI должна быть полной ссылкой.');
         }
 
         const createdPackage = await apiClients.updates.registerPackage(nextBackend.branchId, {
@@ -7862,7 +7877,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         const updatePackageId = readString(createdPackage, 'updatePackageId');
         if (!isGuid(updatePackageId)) {
-          throw new Error('Платформа вернула пакет обновления без ключа.');
+          throw new Error('Пакет обновления создан, но платформа не подтвердила его. Повторите операцию или обратитесь в поддержку.');
         }
 
         setRegisteredUpdatePackages((items) => [createdPackage, ...items.filter((item) => readString(item, 'updatePackageId') !== updatePackageId)]);
@@ -7870,7 +7885,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setPackageStatePackageId(updatePackageId);
       } else if (label === 'Создать раскатку обновления') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
-          throw new Error('Нет прав на управление rollout обновлений.');
+          throw new Error('Нет прав на управление раскатками обновлений.');
         }
 
         const updatePackageId = rolloutPackageId.trim();
@@ -7924,7 +7939,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setRegisteredUpdatePackages((items) => [updatePackage, ...items.filter((item) => readString(item, 'updatePackageId') !== updatePackageId)]);
       } else if (label === 'Изменить состояние раскатки') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
-          throw new Error('Нет прав на управление rollout обновлений.');
+          throw new Error('Нет прав на управление раскатками обновлений.');
         }
 
         const updateRolloutId = rolloutStateRolloutId.trim();
@@ -8002,7 +8017,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <select value={layoutSeatZoneId} disabled={!canManageLayout || zones.length === 0} onChange={(event) => setLayoutSeatZoneId(event.currentTarget.value)}>
                 {zones.length === 0 && <option value="">нет залов</option>}
                 {zones.map((zone) => (
-                  <option key={readString(zone, 'zoneId')} value={readString(zone, 'zoneId')}>{readString(zone, 'name', 'Zone')}</option>
+                  <option key={readString(zone, 'zoneId')} value={readString(zone, 'zoneId')}>{readString(zone, 'name', 'Зал')}</option>
                 ))}
               </select>
             </label>
@@ -8046,7 +8061,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-room-grid">
             {zones.map((zone) => (
               <button key={readString(zone, 'zoneId')} type="button" className={`settings-room-card ${readString(zone, 'zoneId') === selectedLayoutZoneId ? 'active' : ''}`} onClick={() => selectLayoutZone(zone)}>
-                <strong>{readString(zone, 'name', 'Zone')}</strong>
+                <strong>{readString(zone, 'name', 'Зал')}</strong>
                 <b>{readArray(zone, 'seats').length} ПК</b>
                 <span>порядок {readNumber(zone, 'sortOrder', 0)}</span>
               </button>
@@ -8055,8 +8070,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-tariff-list">
             {zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => (
               <button key={readString(seat, 'seatId')} type="button" className={`settings-tariff-row ${readString(seat, 'seatId') === selectedLayoutSeatId ? 'active' : ''}`} onClick={() => selectLayoutSeat(zone, seat)}>
-                <strong>{readString(seat, 'name', 'Seat')}</strong>
-                <b>{readString(zone, 'name', 'Zone')}</b>
+                <strong>{readString(seat, 'name', 'ПК')}</strong>
+                <b>{readString(zone, 'name', 'Зал')}</b>
                 <span>порядок {readNumber(seat, 'sortOrder', 0)}</span>
               </button>
             )))}
@@ -8089,7 +8104,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 ))}
               </select>
             </label>
-            <label>Карточка устройства<input value={deviceDetail ? `${readString(deviceDetail, 'machineName', 'Device')} · ${readString(deviceDetail, 'seatName', 'без места')}` : 'не открыта'} readOnly /></label>
+            <label>Карточка устройства<input value={deviceDetail ? `${readString(deviceDetail, 'machineName', 'Устройство')} · ${readString(deviceDetail, 'seatName', 'без места')}` : 'не открыта'} readOnly /></label>
             <button type="button" disabled={!canViewDeviceDetail || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Открыть карточку устройства')}>Открыть карточку устройства</button>
             <label>Команда
               <select value={deviceCommandType} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandType(event.currentTarget.value)}>
@@ -8217,9 +8232,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-tariff-list">
             {tariffs.map((tariff) => (
               <button key={readString(tariff, 'tariffVersionId')} type="button" className={`settings-tariff-row ${readString(tariff, 'tariffVersionId') === selectedTariffVersionId ? 'active' : ''}`} onClick={() => selectTariffOption(tariff)}>
-                <strong>{readString(tariff, 'name', 'Tariff')}</strong>
+                <strong>{readString(tariff, 'name', 'Тариф')}</strong>
                 <b>{formatMinorUnits(readNumber(tariff, 'pricePerMinuteMinorUnits', 0) * 60, readString(tariff, 'currencyCode', currencyCode))} / час</b>
-                <span>v{readNumber(tariff, 'versionNumber', 0)} · {readString(tariff, 'tariffRuleVersionId', 'rule')}</span>
+                <span>версия {readNumber(tariff, 'versionNumber', 0)} · {readBoolean(tariff, 'isActive', true) ? 'активен' : 'снят'}</span>
               </button>
             ))}
           </div>
@@ -8234,7 +8249,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-tariff-list">
             {packageOptions.map((option) => (
               <button key={readString(option, 'packageDefinitionId')} type="button" className={`settings-tariff-row ${readString(option, 'packageDefinitionId') === selectedPackageDefinitionId ? 'active' : ''}`} onClick={() => selectPackageOption(option)}>
-                <strong>{readString(option, 'name', 'Package')}</strong>
+                <strong>{readString(option, 'name', 'Пакет')}</strong>
                 <b>{formatMinorUnits(readNumber(option, 'priceMinorUnits', 0), readString(option, 'currencyCode', currencyCode))}</b>
                 <span>{Math.round(readNumber(option, 'includedSeconds', 0) / 60)} мин · +{Math.round(readNumber(option, 'bonusSeconds', 0) / 60)} бонус · {readNumber(option, 'expiresAfterDays', 0)} дн.</span>
               </button>
@@ -8310,11 +8325,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       );
     }
 
-    if (selectedSection === 'POS и склад') {
+    if (selectedSection === 'Товары и склад') {
       return (
         <>
           <div className="settings-section-title">
-            <span>POS каталог</span>
+            <span>Каталог товаров</span>
             <div className="settings-section-actions">
               <button type="button" disabled={!canManagePosCatalog} onClick={() => runSettingsAction('Создать товар')}>Создать товар</button>
               <button type="button" disabled={!canManagePosCatalog || !selectedProductId} onClick={() => runSettingsAction('Обновить товар')}>Обновить товар</button>
@@ -8324,15 +8339,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-config-grid">
             {catalog.slice(0, 8).map((product) => (
               <button key={readString(product, 'productId')} type="button" className={readString(product, 'productId') === selectedProductId ? 'active' : undefined} onClick={() => selectCatalogProduct(product)}>
-                <strong>{readString(product, 'name', 'Product')}</strong>
-                <span>{formatMoney(readMoney(product, 'price'), currencyCode)} · stock {readNumber(product, 'stockOnHand', 0)}</span>
+                <strong>{readString(product, 'name', 'Товар')}</strong>
+                <span>{formatMoney(readMoney(product, 'price'), currencyCode)} · остаток {readNumber(product, 'stockOnHand', 0)}</span>
               </button>
             ))}
           </div>
           <div className="settings-form-grid settings-pos-form">
             <label>Категория<input value={productCategoryName} disabled={!canManagePosCatalog} onChange={(event) => setProductCategoryName(event.currentTarget.value)} /></label>
             <label>Товар<input value={productName} disabled={!canManagePosCatalog} onChange={(event) => setProductName(event.currentTarget.value)} /></label>
-            <label>SKU<input value={productSku} disabled={!canManagePosCatalog} onChange={(event) => setProductSku(event.currentTarget.value)} /></label>
+            <label>Артикул<input value={productSku} disabled={!canManagePosCatalog} onChange={(event) => setProductSku(event.currentTarget.value)} /></label>
             <label>Цена<input inputMode="decimal" value={productPrice} disabled={!canManagePosCatalog} onChange={(event) => setProductPrice(event.currentTarget.value)} /></label>
             <label>Учёт остатков
               <select value={productTrackStock ? 'yes' : 'no'} disabled={!canManagePosCatalog} onChange={(event) => setProductTrackStock(event.currentTarget.value === 'yes')}>
@@ -8356,14 +8371,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <select value={stockProductId} disabled={!canManageInventoryStock || trackedCatalog.length === 0} onChange={(event) => setStockProductId(event.currentTarget.value)}>
                 {trackedCatalog.length === 0 && <option value="">нет товаров с остатками</option>}
                 {trackedCatalog.map((product) => (
-                  <option key={readString(product, 'productId')} value={readString(product, 'productId')}>{readString(product, 'name', 'Product')} · stock {readNumber(product, 'stockOnHand', 0)}</option>
+                  <option key={readString(product, 'productId')} value={readString(product, 'productId')}>{readString(product, 'name', 'Товар')} · остаток {readNumber(product, 'stockOnHand', 0)}</option>
                 ))}
               </select>
             </label>
             <label>Тип
               <select value={stockMovementType} disabled={!canManageInventoryStock} onChange={(event) => setStockMovementType(event.currentTarget.value)}>
-                <option value="purchase">purchase</option>
-                <option value="adjustment">adjustment</option>
+                <option value="purchase">Приход</option>
+                <option value="adjustment">Коррекция</option>
               </select>
             </label>
             <label>Кол-во<input inputMode="numeric" value={stockQuantityDelta} disabled={!canManageInventoryStock} onChange={(event) => setStockQuantityDelta(event.currentTarget.value)} /></label>
@@ -8378,7 +8393,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             {stockMovements.length === 0 && (
               <button type="button" disabled>
                 <strong>Нет движений</strong>
-                <span>платформа вернула пустую историю</span>
+                <span>движений по складу пока нет</span>
               </button>
             )}
             {stockMovements.map((movement) => {
@@ -8388,10 +8403,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 'name',
                 'Товар');
               const quantityDelta = readNumber(movement, 'quantityDelta', 0);
-              const reason = readString(movement, 'reason', 'movement');
+              const reason = readString(movement, 'reason', 'причина не указана');
               return (
                 <button key={readString(movement, 'stockMovementId')} type="button" onClick={() => triggerFeedback(setFeedback, productName, 'confirmed')}>
-                  <strong>{productName} · {readString(movement, 'movementType', 'movement')}</strong>
+                  <strong>{productName} · {stockMovementTypeLabel(readString(movement, 'movementType'))}</strong>
                   <span>{quantityDelta > 0 ? '+' : ''}{quantityDelta} · {formatMoney(readMoney(movement, 'unitCost'), currencyCode)} · {reason}</span>
                 </button>
               );
@@ -8406,10 +8421,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         <>
           <div className="settings-config-grid">
             {[
-              ['Платежи', 'ручная интеграция'],
+              ['Платежи', 'ручное подтверждение'],
               ['Обновления', `раскаток: ${rollouts.length}`],
               ['Ошибки обновлений', `ПК с ошибками: ${readNumber(updateSummary, 'failedDevices', 0)}`],
-              ['Платформа', backend ? 'подключена' : 'демо']
+              ['Связь', backend ? 'подключена' : 'демо-режим']
             ].map(([name, detail]) => (
               <button key={name} type="button" onClick={() => triggerFeedback(setFeedback, name, 'confirmed')}>
                 <strong>{name}</strong>
@@ -8423,7 +8438,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Зарегистрировать пакет обновления')}>Зарегистрировать пакет</button>
           </div>
           <div className="settings-form-grid settings-update-form">
-            <label>Компонент
+            <label>Приложение
               <select value={updateComponent} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateComponent(event.currentTarget.value)}>
                 <option value="operator-app">{updateComponentLabel('operator-app')}</option>
                 <option value="agent-service">{updateComponentLabel('agent-service')}</option>
@@ -8438,11 +8453,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <option value="stable">{updateChannelLabel('stable')}</option>
               </select>
             </label>
-            <label className="settings-form-wide">URL артефакта<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">SHA-256<input value={updateSha256} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSha256(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Ссылка на MSI<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Контрольная сумма<input value={updateSha256} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSha256(event.currentTarget.value)} /></label>
             <label>Подпись<input value={updateSignature} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignature(event.currentTarget.value)} /></label>
-            <label>Алгоритм<input value={updateSignatureAlgorithm} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignatureAlgorithm(event.currentTarget.value)} /></label>
-            <label>Размер, байты<input inputMode="numeric" value={updateSizeBytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeBytes(event.currentTarget.value)} /></label>
+            <label>Алгоритм подписи<input value={updateSignatureAlgorithm} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignatureAlgorithm(event.currentTarget.value)} /></label>
+            <label>Размер файла, байты<input inputMode="numeric" value={updateSizeBytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeBytes(event.currentTarget.value)} /></label>
             <label className="settings-form-wide">Описание релиза<input value={updateReleaseNotes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateReleaseNotes(event.currentTarget.value)} /></label>
           </div>
 
@@ -8462,19 +8477,19 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                   setPackageStatePackageId(readString(rollout, 'updatePackageId'));
                 }}
               >
-                <strong>{updateComponentLabel(readString(rollout, 'component', 'component'))} {readString(rollout, 'version', 'version')}</strong>
-                <b>{updateRolloutStateLabel(readString(rollout, 'state', 'state'))}</b>
-                <span>{updateTargetKindLabel(readString(rollout, 'targetKind', 'target'))} · {readNumber(rollout, 'batchPercent', 0)}% · ПК: {readArray(rollout, 'deviceStatuses').length}</span>
+                <strong>{updateComponentLabel(readString(rollout, 'component'))} {readString(rollout, 'version', 'версия')}</strong>
+                <b>{updateRolloutStateLabel(readString(rollout, 'state'))}</b>
+                <span>{updateTargetKindLabel(readString(rollout, 'targetKind'))} · {readNumber(rollout, 'batchPercent', 0)}% · ПК: {readArray(rollout, 'deviceStatuses').length}</span>
               </button>
             ))}
           </div>
           {selectedRollout && (
             <div className="settings-device-detail-grid">
-              <span><strong>Раскатка</strong><b>{updateComponentLabel(readString(selectedRollout, 'component', 'component'))} {readString(selectedRollout, 'version', 'version')}</b></span>
-              <span><strong>Состояние</strong><b>{updateRolloutStateLabel(readString(selectedRollout, 'state', 'state'))}</b></span>
-              <span><strong>Цель</strong><b>{updateTargetKindLabel(readString(selectedRollout, 'targetKind', 'target'))} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
-              <span><strong>Канал</strong><b>{updateChannelLabel(readString(selectedRollout, 'channel', 'channel'))}</b></span>
-              <span><strong>Пакет</strong><b>{updateComponentLabel(readString(selectedRollout, 'component', 'component'))} {readString(selectedRollout, 'version', 'version')}</b></span>
+              <span><strong>Раскатка</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'))} {readString(selectedRollout, 'version', 'версия')}</b></span>
+              <span><strong>Состояние</strong><b>{updateRolloutStateLabel(readString(selectedRollout, 'state'))}</b></span>
+              <span><strong>Цель</strong><b>{updateTargetKindLabel(readString(selectedRollout, 'targetKind'))} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
+              <span><strong>Канал</strong><b>{updateChannelLabel(readString(selectedRollout, 'channel'))}</b></span>
+              <span><strong>Пакет</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'))} {readString(selectedRollout, 'version', 'версия')}</b></span>
               <span><strong>Старт</strong><b>{formatTime(readString(selectedRollout, 'startsAtUtc'))}</b></span>
               <span><strong>Завершено</strong><b>{formatTime(readString(selectedRollout, 'completedAtUtc'))}</b></span>
               <span><strong>ПК</strong><b>{selectedRolloutDeviceStatuses.length}</b></span>
@@ -8525,7 +8540,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 ))}
               </select>
             </label>
-            <label className="settings-form-wide">Старт UTC<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Начало раскатки<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
             <label className="settings-form-wide">Причина раскатки<input value={rolloutReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutReason(event.currentTarget.value)} /></label>
           </div>
 

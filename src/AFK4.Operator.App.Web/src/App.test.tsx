@@ -2119,10 +2119,11 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /POS и склад/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Товары и склад/ }));
+    expect(screen.queryByDisplayValue('POS item 1')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Категория'), { target: { value: 'Snacks' } });
     fireEvent.change(screen.getByLabelText('Товар'), { target: { value: 'Energy Bar' } });
-    fireEvent.change(screen.getByLabelText('SKU'), { target: { value: 'BAR-01' } });
+    fireEvent.change(screen.getByLabelText('Артикул'), { target: { value: 'BAR-01' } });
     fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '35.50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать товар' }));
 
@@ -2164,10 +2165,10 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^POS и склад/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Товары и склад/ }));
     fireEvent.click(screen.getAllByRole('button', { name: /Cola 0.5/ })[0]);
     fireEvent.change(screen.getByLabelText('Товар'), { target: { value: 'Cola Zero 0.5' } });
-    fireEvent.change(screen.getByLabelText('SKU'), { target: { value: 'COLA-ZERO-05' } });
+    fireEvent.change(screen.getByLabelText('Артикул'), { target: { value: 'COLA-ZERO-05' } });
     fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '13.00' } });
     fireEvent.change(screen.getByLabelText('Минусовой остаток'), { target: { value: 'yes' } });
     fireEvent.click(screen.getByRole('button', { name: 'Обновить товар' }));
@@ -2213,12 +2214,13 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^POS и склад/ }));
-    expect(await screen.findByText(/operator stock count correction/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Товары и склад/ }));
+    expect(await screen.findByText(/Коррекция остатков после пересчёта/)).toBeInTheDocument();
+    expect(screen.queryByText(/\bstock\b/i)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'adjustment' } });
     fireEvent.change(screen.getByLabelText('Кол-во'), { target: { value: '-3' } });
     fireEvent.change(screen.getByLabelText('Себестоимость'), { target: { value: '0.00' } });
-    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'operator stock count correction' } });
+    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Коррекция остатков после пересчёта' } });
     fireEvent.click(screen.getByRole('button', { name: 'Записать движение' }));
 
     expect(await screen.findByText('Записать движение: подтверждено')).toBeInTheDocument();
@@ -2233,7 +2235,7 @@ describe('App', () => {
       movementType: 'adjustment',
       quantityDelta: -3,
       unitCost: { currencyCode: 'TJS', minorUnits: 0 },
-      reason: 'operator stock count correction'
+      reason: 'Коррекция остатков после пересчёта'
     });
     expect(body.idempotencyKey).toMatch(/^stock-movement-create-/);
     expect(fetchMock.mock.calls.some(([input, init]) =>
@@ -2432,10 +2434,12 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
+    expect(screen.getByText('ручное подтверждение')).toBeInTheDocument();
+    expect(screen.queryByText(/manual provider|API · staging|URL артефакта|Старт UTC/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '0.2.0' } });
-    fireEvent.change(screen.getByLabelText('URL артефакта'), { target: { value: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi' } });
+    fireEvent.change(screen.getByLabelText('Ссылка на MSI'), { target: { value: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi' } });
     fireEvent.change(screen.getByLabelText('Подпись'), { target: { value: 'operator-package-signature' } });
-    fireEvent.change(screen.getByLabelText('Размер, байты'), { target: { value: '4096' } });
+    fireEvent.change(screen.getByLabelText('Размер файла, байты'), { target: { value: '4096' } });
     fireEvent.change(screen.getByLabelText('Описание релиза'), { target: { value: 'Пакет оператора 0.2.0.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрировать пакет' }));
 
@@ -2459,7 +2463,7 @@ describe('App', () => {
 
     fireEvent.change(screen.getByLabelText('Доля %'), { target: { value: '25' } });
     await waitFor(() => expect(screen.getByLabelText('Пакет для раскатки')).toHaveValue('19191919-1919-1919-1919-191919191919'));
-    fireEvent.change(screen.getByLabelText('Старт UTC'), { target: { value: '2026-05-21T10:00:00Z' } });
+    fireEvent.change(screen.getByLabelText('Начало раскатки'), { target: { value: '2026-05-21T10:00:00Z' } });
     fireEvent.change(screen.getAllByLabelText('Причина раскатки')[0], { target: { value: 'Пилотная раскатка.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать раскатку' }));
 
@@ -3469,7 +3473,7 @@ function createStockMovement(overrides: Record<string, unknown> = {}) {
     movementType: 'adjustment',
     quantityDelta: -3,
     unitCost: { currencyCode: 'TJS', minorUnits: 0 },
-    reason: 'operator stock count correction',
+    reason: 'Коррекция остатков после пересчёта',
     createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
     createdAtUtc: '2026-05-21T11:05:00Z',
     ...overrides

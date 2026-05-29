@@ -108,6 +108,10 @@ Roadmap/reference:
 - Operator App POS/Payments money paths now use operator-facing sales, check,
   cash, shift, and report labels in the normal UI instead of POS/backend/CSV
   copy, raw sale or cash-operation IDs, or English payment states.
+- Operator App Settings catalog, warehouse movement, and update integration
+  forms now use operator-facing product/stock/update copy instead of POS item
+  placeholders, raw stock movement names, artifact/rollout wording, or
+  backend fallback labels in the normal setup flow.
 - Primary floor-map UI has backend loading, selected-seat actions,
   permission-aware navigation, billing-mode selection, filters/table view,
   SignalR device status/command-result reloads, active-session ticking, and
@@ -157,8 +161,8 @@ Roadmap/reference:
     require a free seat.
 - Verbose branch, artifact, hash, and rollout-id evidence is archived in
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
-- Latest technical-surface cleanup verification on 2026-05-28 after the
-  POS/Payments money-flow copy pass:
+- Latest technical-surface cleanup verification on 2026-05-29 after the
+  Settings catalog/stock/update copy pass:
   - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
     passed 75/75 tests.
   - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns
@@ -173,11 +177,11 @@ Roadmap/reference:
   proactive realtime offline broadcasts and broader inventory/detail
   stale-state cleanup remain hardening.
 - Operator App technical-surface cleanup remains high-value, but the nearest
-  normal sign-in, Settings device/update, Logs/Diagnostics journal, and
-  POS/Payments money-flow surfaces are now cleaned up. Continue with remaining
-  Settings staff/tariff/package/catalog forms, support/export raw IDs,
-  production-visible placeholders, and broader backend-shaped forms before
-  broadening staging day-flow smoke.
+  normal sign-in, Settings device/update/catalog/stock/update-integration,
+  Logs/Diagnostics journal, and POS/Payments money-flow surfaces are now
+  cleaned up. Continue with remaining Settings staff/tariff/package edges,
+  support/export raw IDs, production-visible placeholders, and broader
+  backend-shaped forms before broadening staging day-flow smoke.
 - Physical Windows 10/11 smoke is still needed for wider rollout confidence:
   lock/unlock enforcement, reboot recovery, Setup Wizard, role-aware updates,
   and update/rollback.
