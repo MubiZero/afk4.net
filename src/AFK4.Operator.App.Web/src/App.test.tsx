@@ -1392,10 +1392,14 @@ describe('App', () => {
     expect(detailPanel).not.toHaveTextContent('aaaaaaaa');
   });
 
-  it('downloads Payments report exports', async () => {
+  it('downloads Payments operator-facing exports without raw shift IDs', async () => {
     installSessionBridge();
     const fetchMock = vi.mocked(fetch);
-    const createObjectUrl = vi.fn(() => 'blob:payments');
+    const exportedBlobs: Blob[] = [];
+    const createObjectUrl = vi.fn((blob: Blob) => {
+      exportedBlobs.push(blob);
+      return 'blob:payments';
+    });
     const revokeObjectUrl = vi.fn();
     Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
     Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
@@ -1419,22 +1423,36 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Платежи'));
     expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     const exportPanel = document.querySelector('.payments-export-panel') as HTMLElement;
-    fireEvent.click(within(exportPanel).getByRole('button', { name: /Таблица продаж/ }));
+    expect(within(exportPanel).queryByRole('button', { name: /Таблица продаж/ })).not.toBeInTheDocument();
+    expect(within(exportPanel).queryByRole('button', { name: /Кассовый отчёт/ })).not.toBeInTheDocument();
+    fireEvent.click(within(exportPanel).getByRole('button', { name: /Список чеков/ }));
 
-    expect(await screen.findByText('Таблица продаж: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Список чеков: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/sales/export.csv'))).toBe(true);
-    expect(downloads.some((download) => download.startsWith('afk4-sales-report-') && download.endsWith('.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-check-list-') && download.endsWith('.csv'))).toBe(true);
 
-    fireEvent.click(within(exportPanel).getByRole('button', { name: /Кассовый отчёт/ }));
-    expect(await screen.findByText('Кассовый отчёт: подтверждено')).toBeInTheDocument();
+    fireEvent.click(within(exportPanel).getByRole('button', { name: /Движение кассы/ }));
+    expect(await screen.findByText('Движение кассы: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/cash-operations/export.csv'))).toBe(true);
-    expect(downloads.some((download) => download.startsWith('afk4-cash-report-') && download.endsWith('.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('afk4-cash-movements-') && download.endsWith('.csv'))).toBe(true);
 
-    fireEvent.click(within(exportPanel).getByRole('button', { name: /Расхождения/ }));
-    expect(await screen.findByText('Расхождения: подтверждено')).toBeInTheDocument();
-    expect(downloads.some((download) => download.startsWith('afk4-shift-discrepancies-') && download.endsWith('.json'))).toBe(true);
+    fireEvent.click(within(exportPanel).getByRole('button', { name: /Сверка смены/ }));
+    expect(await screen.findByText('Сверка смены: подтверждено')).toBeInTheDocument();
+    expect(downloads.some((download) => download.startsWith('afk4-shift-reconciliation-') && download.endsWith('.json'))).toBe(true);
     expect(createObjectUrl).toHaveBeenCalledTimes(3);
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:payments');
+    const reconciliationBlob = exportedBlobs.at(-1);
+    expect(reconciliationBlob).toBeDefined();
+    const reconciliationText = await reconciliationBlob!.text();
+    expect(reconciliationText).toContain('"summary"');
+    expect(reconciliationText).toContain('"shifts"');
+    expect(reconciliationText).not.toContain('shiftId');
+    expect(reconciliationText).not.toContain('organizationId');
+    expect(reconciliationText).not.toContain('branchId');
+    expect(reconciliationText).not.toContain('openedByStaffUserId');
+    expect(reconciliationText).not.toContain('66666666-6666-6666-6666-666666666666');
+    expect(reconciliationText).not.toContain('acfc0212-967f-4d84-94be-9003387b09c2');
+    expect(reconciliationText).not.toContain('3db1367b-88c6-4b1c-99c3-bcbb5f4d5134');
     createElementSpy.mockRestore();
   });
 

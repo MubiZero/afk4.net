@@ -1266,6 +1266,25 @@ function formatTime(value: unknown): string {
   }).format(date);
 }
 
+function formatDateTime(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    return '—';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
@@ -2822,10 +2841,10 @@ function PaymentsWorkspace({ currencyCode }: { currencyCode: string }) {
             <strong>экспорт и журнал</strong>
           </header>
           <div className="payments-export-grid">
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Журнал смены')}><ReceiptText size={16} />Журнал смены</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Кассовый отчёт')}><Banknote size={16} />Кассовый отчёт</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Таблица продаж')}><ArrowRightLeft size={16} />Таблица продаж</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Расхождения')}><ShieldAlert size={16} />Расхождения</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Сводка смены')}><ReceiptText size={16} />Сводка смены</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Движение кассы')}><Banknote size={16} />Движение кассы</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Список чеков')}><ArrowRightLeft size={16} />Список чеков</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Сверка смены')}><ShieldAlert size={16} />Сверка смены</button>
           </div>
         </section>
       </section>
@@ -5671,6 +5690,40 @@ function paymentOperationPlaceholder(
   return ['—', 'Локально: операций нет', 'локальные данные без платформы', 'локально', `0 ${currencyCode}`, 'session', null];
 }
 
+function buildShiftReconciliationExportJson(report: ReportResultDto, currentShift: ShiftDto | null, currencyCode: string): string {
+  const rows = readArray<Record<string, unknown>>(report, 'rows');
+  const latestRow = rows[0];
+  const stateSource = currentShift ?? latestRow;
+  const expectedCash = readMoney(currentShift, 'expectedCash') ?? readMoney(latestRow, 'expectedCash');
+  const countedCash = readMoney(currentShift, 'countedCash') ?? readMoney(latestRow, 'countedCash');
+  const difference = readMoney(currentShift, 'difference') ?? readMoney(latestRow, 'difference');
+
+  return JSON.stringify({
+    summary: {
+      generatedAtUtc: new Date().toISOString(),
+      shiftState: shiftStateLabel(readString(stateSource, 'state', 'unknown')),
+      expectedCash: formatMoney(expectedCash, currencyCode),
+      countedCash: countedCash ? formatMoney(countedCash, currencyCode) : 'Не указано',
+      difference: formatMoney(difference, currencyCode),
+      shiftCount: rows.length
+    },
+    shifts: rows.map((row, index) => ({
+      label: `Смена ${index + 1}`,
+      state: shiftStateLabel(readString(row, 'state', 'unknown')),
+      openedAt: formatDateTime(readString(row, 'openedAtUtc')),
+      closedAt: formatDateTime(readString(row, 'closedAtUtc')),
+      startingCash: formatMoney(readMoney(row, 'startingCash'), currencyCode),
+      cashMovements: formatMoney(readMoney(row, 'cashMovementsTotal'), currencyCode),
+      cashSales: formatMoney(readMoney(row, 'posCashPaymentsTotal'), currencyCode),
+      refunds: formatMoney(readMoney(row, 'posRefundsTotal'), currencyCode),
+      walletCashImpact: formatMoney(readMoney(row, 'billingCashImpactTotal'), currencyCode),
+      expectedCash: formatMoney(readMoney(row, 'expectedCash'), currencyCode),
+      countedCash: readMoney(row, 'countedCash') ? formatMoney(readMoney(row, 'countedCash'), currencyCode) : 'Не указано',
+      difference: formatMoney(readMoney(row, 'difference'), currencyCode)
+    }))
+  }, null, 2);
+}
+
 function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const [paymentSearch, setPaymentSearch] = useState('');
   const [selectedOperationKey, setSelectedOperationKey] = useState('');
@@ -5816,15 +5869,15 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      if (label === 'Журнал смены') {
+      if (label === 'Сводка смены') {
         const csv = await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
-        downloadTextFile(`afk4-shift-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Кассовый отчёт') {
+        downloadTextFile(`afk4-shift-summary-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+      } else if (label === 'Движение кассы') {
         const csv = await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
-        downloadTextFile(`afk4-cash-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Таблица продаж') {
+        downloadTextFile(`afk4-cash-movements-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+      } else if (label === 'Список чеков') {
         const csv = await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
-        downloadTextFile(`afk4-sales-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+        downloadTextFile(`afk4-check-list-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       } else if (label === 'Открыть смену') {
         if (!hasPermission(nextBackend.session, permissionNames.openShift)) {
           throw new Error('Нет прав на открытие смены.');
@@ -5893,9 +5946,9 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
           idempotencyKey: createIdempotencyKey('shift-close')
         });
         setCurrentShift(closedShift);
-      } else if (label === 'Расхождения') {
+      } else if (label === 'Сверка смены') {
         const report = await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
-        downloadTextFile(`afk4-shift-discrepancies-${exportStamp}.json`, JSON.stringify(report, null, 2), 'application/json;charset=utf-8');
+        downloadTextFile(`afk4-shift-reconciliation-${exportStamp}.json`, buildShiftReconciliationExportJson(report, currentShift, currencyCode), 'application/json;charset=utf-8');
       } else {
         await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
       }
@@ -6083,10 +6136,10 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
           </header>
           <div className="payments-export-grid">
             {[
-              ['Журнал смены', ReceiptText],
-              ['Кассовый отчёт', Banknote],
-              ['Таблица продаж', ArrowRightLeft],
-              ['Расхождения', ShieldAlert]
+              ['Сводка смены', ReceiptText],
+              ['Движение кассы', Banknote],
+              ['Список чеков', ArrowRightLeft],
+              ['Сверка смены', ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runReportAction(label as string)}><Icon size={16} />{label as string}</button>
             ))}

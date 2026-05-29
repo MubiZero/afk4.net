@@ -114,6 +114,9 @@ Roadmap/reference:
 - Operator App POS/Payments money paths now use operator-facing sales, check,
   cash, shift, and report labels in the normal UI instead of POS/backend/CSV
   copy, raw sale or cash-operation IDs, or English payment states.
+- Operator App Payments export actions now use shift-summary, cash-movement,
+  check-list, and reconciliation copy; reconciliation exports no longer write
+  raw shift/staff/branch IDs into the normal operator download.
 - Operator App Settings catalog, warehouse movement, and update integration
   forms now use operator-facing product/stock/update copy instead of POS item
   placeholders, raw stock movement names, artifact/rollout wording, or
@@ -178,7 +181,8 @@ Roadmap/reference:
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
 - Latest technical-surface cleanup verification on 2026-05-29 after the
   connection setup, Settings device/update setup, production-visible
-  placeholder, update-publication, and Logs support-export copy pass:
+  placeholder, update-publication, Logs support-export, and Payments export
+  copy pass:
   - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
     passed 76/76 tests.
   - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns
