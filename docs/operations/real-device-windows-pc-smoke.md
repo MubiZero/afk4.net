@@ -1001,9 +1001,39 @@ Remove-Item -LiteralPath 'C:\AFK4-Smoke' -Recurse -Force -ErrorAction SilentlyCo
 On the release workstation:
 
 ```powershell
+$env:AFK4_STAGING_STAFF_PASSWORD = $null
 $env:AFK4_SMOKE_STAFF_PASSWORD = $null
 $env:AFK4_SMOKE_STAFF_PASSWORD_HASH = $null
 ```
+
+Before repeating a clean `manager_workstation` smoke, remove mistaken staging
+manager-workstation seat assignments through the API helper rather than direct
+SQL. The helper defaults to the fixed staging smoke organization/branch IDs,
+protects the fixed gaming-PC smoke seat, and runs as a dry run unless `-Apply`
+is passed:
+
+```powershell
+Set-Location D:\projects\afk4.net
+$env:AFK4_STAGING_STAFF_PASSWORD = '<one-time-staging-smoke-password>'
+
+.\scripts\cleanup-manager-workstation-smoke-data.ps1
+
+.\scripts\cleanup-manager-workstation-smoke-data.ps1 `
+  -Apply `
+  -DeleteEmptySmokeSeats
+```
+
+Expected cleanup behavior:
+
+- `manager_workstation` devices that still have floor-map seats are removed via
+  `POST /api/devices/{deviceId}/remove`, which revokes active credentials and
+  detaches active seat assignments.
+- Empty smoke/operator/manager seats are deleted only when
+  `-DeleteEmptySmokeSeats` is present. Seats with an active device assignment,
+  active session, or session history must remain for manual inspection.
+- Use `-DeviceId` or `-SeatId` to narrow an ambiguous run. Do not broaden the
+  regex filters or use direct database edits unless the API path is unavailable
+  and the exception is recorded.
 
 Leave staging data in place only when the next smoke run should reuse the same
 organization, branch, staff user, and seat. Revoke stale device credentials

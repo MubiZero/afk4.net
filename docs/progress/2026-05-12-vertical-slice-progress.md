@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-05-27
+Last updated: 2026-05-29
 
 ## Purpose
 
@@ -42,7 +42,7 @@ Active implementation plans:
 - `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md` -
   Operator App runtime migration and parity plan.
 - `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md` -
-  Operator App staging and pilot-hardening follow-up.
+  Operator App technical-surface cleanup, staging, and hardening follow-up.
 
 Roadmap/reference:
 
@@ -85,6 +85,8 @@ Roadmap/reference:
   owner-code generate/rotate, branch settings, ETag floor-map editor,
   devices/pending-device admin, and operators screens.
 - `VITE_AUDIENCE` supports separate admin and customer SPA builds.
+- Public staff sign-in now uses a user-facing club key/tenant slug endpoint
+  instead of asking club users to paste an organization GUID.
 
 ### Operator App
 
@@ -95,6 +97,43 @@ Roadmap/reference:
   creating browser data beside the installed executable under Program Files.
 - React UI gates the console behind staff sign-in, uses typed API clients, and
   avoids browser storage for tokens.
+- Operator App sign-in now uses the stored/resolved club connection and no
+  longer exposes an editable organization GUID field in the normal sign-in
+  screen.
+- Operator App first-run club connection setup now uses localized club/branch
+  key copy, setup-code errors, and protected-storage labels instead of English
+  connection/setup text.
+- Operator App Settings device/update paths now prefer operator-facing device,
+  package, and rollout selections over raw ID entry in the normal setup flow.
+- Operator App Settings device enrollment and update package setup now use
+  minute-based code expiry, operator-facing credential labels, and installer
+  package fields instead of seconds/secret/MSI/hash/byte-oriented form copy.
+- Operator App Logs/Diagnostics now show operator-facing event, source,
+  device, and audit labels in the normal journal UI instead of raw audit IDs,
+  command IDs, rollout IDs, or backend source names.
+- Operator App POS/Payments money paths now use operator-facing sales, check,
+  cash, shift, and report labels in the normal UI instead of POS/backend/CSV
+  copy, raw sale or cash-operation IDs, or English payment states.
+- Operator App Payments export actions now use shift-summary, cash-movement,
+  check-list, and reconciliation copy; reconciliation exports no longer write
+  raw shift/staff/branch IDs into the normal operator download.
+- Operator App Settings catalog, warehouse movement, and update integration
+  forms now use operator-facing product/stock/update copy instead of POS item
+  placeholders, raw stock movement names, artifact/rollout wording, or
+  backend fallback labels in the normal setup flow.
+- Operator App Settings staff, tariff, package, and journal support-export
+  edges now avoid default technical passwords, rule/version labels, terse
+  package fields, and raw audit/diagnostics records in normal support exports.
+- Operator App Logs support exports now use operator/support-facing package,
+  action-list, problem, and shift-summary labels and filenames instead of
+  CSV/JSON/audit-trail copy in normal export flows.
+- Operator App production-visible placeholder pass now avoids demo/dev/raw
+  fixture command copy in the top shell, fallback data states, fixture
+  floor-map/POS/player placeholders, and Settings update publication forms.
+- Operator App critical confirmations and empty states now avoid backend-return
+  wording in normal operator flows.
+- Operator App overview export now avoids Dashboard/CSV-style copy in the
+  visible screen and downloaded sales filename.
 - Primary floor-map UI has backend loading, selected-seat actions,
   permission-aware navigation, billing-mode selection, filters/table view,
   SignalR device status/command-result reloads, active-session ticking, and
@@ -144,19 +183,32 @@ Roadmap/reference:
     require a free seat.
 - Verbose branch, artifact, hash, and rollout-id evidence is archived in
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
+- Latest technical-surface cleanup verification on 2026-05-29 after the
+  connection setup, Settings device/update setup, production-visible
+  placeholder, update-publication, Logs support-export, and Payments export
+  copy pass plus remaining backend/dashboard-copy cleanup:
+  - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
+    passed 76/76 tests.
+  - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns
+    that the single app chunk is over 500 kB.
 
 ## Known Gaps
 
 - `manager_workstation` clean-VM smoke still needs one repeat after cleanup of
-  mistakenly created manager smoke seats/assignments. The staging backend and
-  Operator App rollout path are ready for that repeat.
+  mistakenly created manager smoke seats/assignments. A dry-run-first API helper
+  now exists at `scripts/cleanup-manager-workstation-smoke-data.ps1`; run it
+  with the staging smoke staff password before repeating the clean Windows VM
+  smoke. The staging backend and Operator App rollout path are ready for that
+  repeat.
 - Floor-map reads now apply the branch stale-heartbeat threshold after refresh;
   proactive realtime offline broadcasts and broader inventory/detail
   stale-state cleanup remain hardening.
-- Operator App staging hardening remains the highest product-value work after
-  onboarding packaging cleanup: run backend-backed staging day flows and remove
-  remaining production-visible fixtures/placeholders/raw GUID forms from normal
-  operator paths.
+- Operator App technical-surface cleanup remains high-value, but the nearest
+  normal sign-in, Settings device/update/catalog/stock/update-integration,
+  Settings staff/tariff/package, Logs/Diagnostics journal/support export, and
+  POS/Payments money-flow surfaces, and production-visible placeholder paths
+  are now cleaned up. Continue with remaining lower-priority support and
+  diagnostics backend-shaped forms before broadening staging day-flow smoke.
 - Physical Windows 10/11 smoke is still needed for wider rollout confidence:
   lock/unlock enforcement, reboot recovery, Setup Wizard, role-aware updates,
   and update/rollback.
@@ -169,9 +221,14 @@ Roadmap/reference:
 
 ## Recommended Next Work
 
-1. Clean mistaken manager-workstation smoke seat data, then rerun the
-   `manager_workstation` clean Windows VM smoke with the current Agent MSI and
-   published internal Operator App rollout.
-2. Continue Operator App staging hardening using
+1. Continue the harmful technical-surface cleanup before broad smoke:
+   remove remaining lower-priority Settings/support/diagnostics raw IDs,
+   backend-shaped forms, and overly technical copy from customer/operator
+   paths.
+2. Run the cleanup helper with `-Apply -DeleteEmptySmokeSeats` and the staging
+   smoke staff password, then rerun the `manager_workstation` clean Windows VM
+   smoke with the current Agent MSI and published internal Operator App
+   rollout.
+3. Continue Operator App staging hardening using
    `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`.
-3. Repeat real-device Windows smoke on physical hardware when available.
+4. Repeat real-device Windows smoke on physical hardware when available.

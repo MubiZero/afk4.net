@@ -75,7 +75,7 @@ export class ConnectionResolver {
   }
 
   private static async toError(response: Response): Promise<ConnectionResolutionError> {
-    let message = 'Failed to resolve operator connection.';
+    let message = 'Не удалось настроить подключение оператора.';
     try {
       const text = await response.text();
       if (text.length > 0) {

@@ -66,6 +66,7 @@ import {
   type StaffUserDto,
   type StockMovementDto,
   type TariffOptionDto,
+  type UpdatePackageDto,
   type UpdateRolloutStatusDto,
   type WalletSummaryDto,
   type ZoneDto
@@ -117,12 +118,11 @@ type PcControlActionResult = {
 };
 
 const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'logs', 'settings'];
-const fallbackOrganizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const defaultSessionDurationMinutes = 60;
 const defaultTariffRuleVersionId = 'manual-v1';
 const shellOperationalRefreshMs = 30_000;
 const billingModeOptions: Array<{ id: SessionBillingModeId; label: string; detail: string }> = [
-  { id: 'guest', label: 'Гость', detail: 'без ledger' },
+  { id: 'guest', label: 'Гость', detail: 'без списания' },
   { id: 'prepaid_wallet', label: 'Депозит', detail: 'списать с баланса' },
   { id: 'package', label: 'Пакет', detail: 'списать минуты' },
   { id: 'postpaid_debt', label: 'Постоплата', detail: 'долг игрока' }
@@ -585,7 +585,7 @@ function billingLabel(value: string) {
     return 'Пакет';
   }
 
-  if (normalized.includes('postpaid')) {
+  if (normalized.includes('postpaid') || normalized.includes('постоплата')) {
     return 'Постоплата';
   }
 
@@ -622,7 +622,7 @@ function operatorDisplayNameLabel(displayName: string | null | undefined): strin
   }
 
   if (/^demo owner$/i.test(normalized)) {
-    return 'Администратор демо';
+    return 'Администратор клуба';
   }
 
   if (/^local branch manager$/i.test(normalized)) {
@@ -658,7 +658,7 @@ function updateComponentLabel(component: string): string {
     case 'player-shell':
       return 'Оболочка игрока';
     default:
-      return component || 'Компонент';
+      return 'Приложение';
   }
 }
 
@@ -671,7 +671,7 @@ function updateChannelLabel(channel: string): string {
     case 'stable':
       return 'Стабильный';
     default:
-      return channel || 'Канал';
+      return 'Канал';
   }
 }
 
@@ -682,7 +682,7 @@ function updateTargetKindLabel(kind: string): string {
     case 'device':
       return 'Отдельные ПК';
     default:
-      return kind || 'Цель';
+      return 'Цель';
   }
 }
 
@@ -697,7 +697,7 @@ function updatePackageStateLabel(state: string): string {
     case 'retired':
       return 'Выведен';
     default:
-      return state || 'Состояние';
+      return 'Состояние';
   }
 }
 
@@ -716,7 +716,7 @@ function updateRolloutStateLabel(state: string): string {
     case 'cancelled':
       return 'Отменена';
     default:
-      return state || 'Состояние';
+      return 'Состояние';
   }
 }
 
@@ -731,7 +731,22 @@ function updateDeviceStatusLabel(status: string): string {
     case 'failed':
       return 'Ошибка';
     default:
-      return status || 'Неизвестно';
+      return 'Неизвестно';
+  }
+}
+
+function stockMovementTypeLabel(type: string): string {
+  switch (type) {
+    case 'purchase':
+      return 'Приход';
+    case 'adjustment':
+      return 'Коррекция';
+    case 'sale':
+      return 'Продажа';
+    case 'write_off':
+      return 'Списание';
+    default:
+      return 'Движение';
   }
 }
 
@@ -854,7 +869,7 @@ function floorMapLoadLabel(status: FloorMapLoadStatus, source: OperatorFloorMapS
     return error ? `Ошибка платформы · ${error}` : 'Ошибка платформы · API недоступен';
   }
 
-  return source === 'backend' ? 'Платформа подключена' : 'Демо-данные';
+  return source === 'backend' ? 'Платформа подключена' : 'Локальные данные';
 }
 
 function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string): string {
@@ -870,11 +885,11 @@ function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string): str
     return 'Ошибка платформы';
   }
 
-  return 'Демо-данные';
+  return 'Локальные данные';
 }
 
 function dataSourceLabel(source: string): string {
-  return source === 'backend' ? 'Платформа подключена' : 'Демо-режим';
+  return source === 'backend' ? 'Платформа подключена' : 'Локальные данные';
 }
 
 function shellShiftLabel(
@@ -912,19 +927,19 @@ function shellPosLabel(summary: OperatorDashboardSummaryDto | null, status: Load
   if (summary !== null) {
     const revenue = readRecord(summary, 'revenue');
     const posChecks = readNumber(revenue, 'posCheckCount', 0);
-    return `POS: ${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])} сегодня`;
+    return `Касса: ${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])} сегодня`;
   }
 
-  return status === 'loading' ? 'POS: загрузка' : 'POS: нет данных';
+  return status === 'loading' ? 'Касса: загрузка' : 'Касса: нет данных';
 }
 
 function shellModeLabel(mode: string): string {
   if (mode.includes('dev')) {
-    return 'режим разработки';
+    return 'локальная сборка';
   }
 
   if (mode.includes('dist')) {
-    return 'собранная версия';
+    return 'установленная сборка';
   }
 
   return mode;
@@ -1251,6 +1266,25 @@ function formatTime(value: unknown): string {
   }).format(date);
 }
 
+function formatDateTime(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    return '—';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
@@ -1276,28 +1310,117 @@ function downloadTextFile(fileName: string, contents: string, mimeType = 'text/p
   window.URL.revokeObjectURL(url);
 }
 
+function posSaleStateLabel(state: string): string {
+  switch (state.toLowerCase()) {
+    case 'paid':
+      return 'Оплачен';
+    case 'draft':
+      return 'Черновик';
+    case 'void':
+    case 'voided':
+      return 'Аннулирован';
+    case 'refund':
+    case 'refunded':
+      return 'Возврат';
+    case 'pending':
+      return 'Ожидает оплаты';
+    case 'sale':
+      return 'Продажа';
+    default:
+      return 'Чек';
+  }
+}
+
+function posReceiptTypeLabel(type: string): string {
+  switch (type.toLowerCase()) {
+    case 'sale':
+    case 'paid':
+      return 'Продажа';
+    case 'refund':
+    case 'refunded':
+      return 'Возврат';
+    case 'void':
+    case 'voided':
+      return 'Аннулирование';
+    default:
+      return 'Чек';
+  }
+}
+
+function posSaleLineSummary(row: unknown): string {
+  const lineCount = readNumber(row, 'lineCount', 0);
+  const itemQuantity = readNumber(row, 'itemQuantity', 0);
+  return `${lineCount} ${pluralRu(lineCount, ['строка', 'строки', 'строк'])} · ${itemQuantity} шт.`;
+}
+
+function shiftStateLabel(state: string): string {
+  switch (state.toLowerCase()) {
+    case 'open':
+      return 'Открыта';
+    case 'closed':
+      return 'Закрыта';
+    case 'closing':
+      return 'Закрывается';
+    case 'unknown':
+      return 'Неизвестно';
+    case 'нет смены':
+      return 'Нет';
+    default:
+      return state ? 'Неизвестно' : 'Нет';
+  }
+}
+
+function cashOperationTypeLabel(type: string): string {
+  switch (type.toLowerCase()) {
+    case 'opening':
+      return 'Открытие смены';
+    case 'closing':
+      return 'Закрытие смены';
+    case 'cash_in':
+      return 'Внесение';
+    case 'cash_out':
+      return 'Изъятие';
+    case 'refund':
+      return 'Возврат';
+    default:
+      return 'Движение кассы';
+  }
+}
+
+function paymentSourceLabel(source: string): string {
+  switch (source.toLowerCase()) {
+    case 'shift':
+      return 'Смена';
+    case 'cash':
+      return 'Наличные';
+    case 'pos':
+    case 'sale':
+      return 'Продажа';
+    default:
+      return 'Касса';
+  }
+}
+
 function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> | null, currencyCode: string): string {
-  const saleId = readString(sale, 'posSaleId');
-  const receiptNumber = readString(receipt, 'receiptNumber', saleId.slice(0, 8) || 'receipt');
-  const receiptType = readString(receipt, 'receiptType', readString(sale, 'state', 'sale'));
+  const receiptNumber = readString(receipt, 'receiptNumber', 'чек');
+  const receiptType = posReceiptTypeLabel(readString(receipt, 'receiptType', readString(sale, 'state', 'sale')));
   const createdAtUtc = readString(receipt, 'createdAtUtc', readString(sale, 'createdAtUtc'));
   const lines = readArray(sale, 'lines').map((line) => [
-    readString(line, 'productName', 'POS item'),
+    readString(line, 'productName', 'Товар'),
     `${readNumber(line, 'quantity', 0)} шт.`,
     formatMoney(readMoney(line, 'unitPrice'), currencyCode),
     formatMoney(readMoney(line, 'lineTotal'), currencyCode)
   ].join(' | '));
 
   return [
-    'AFK4 POS',
-    `Receipt: ${receiptNumber}`,
-    `Type: ${receiptType}`,
-    `Created: ${createdAtUtc || '—'}`,
-    `Sale: ${saleId || '—'}`,
+    'AFK4 Касса',
+    `Чек: ${receiptNumber}`,
+    `Тип: ${receiptType}`,
+    `Создан: ${createdAtUtc || '—'}`,
     '',
     ...lines,
     '',
-    `Total: ${formatMoney(readMoney(sale, 'total'), currencyCode)}`
+    `Итого: ${formatMoney(readMoney(sale, 'total'), currencyCode)}`
   ].join('\n');
 }
 
@@ -1825,7 +1948,7 @@ function DashboardWorkspace({
       'ready',
       '-',
       dashboardLoadStatus === 'failed' ? 'Данные не загружены' : 'Нет срочных сигналов',
-      dashboardLoadStatus === 'failed' ? dashboardLoadError ?? 'Повторите загрузку dashboard.' : 'Платформа не вернула срочных задач за выбранный период.',
+      dashboardLoadStatus === 'failed' ? dashboardLoadError ?? 'Повторите загрузку обзора.' : 'Срочных задач за выбранный период нет.',
       ''
     ] as const];
   const selectedFocus = focusItems[selectedFocusIndex] ?? focusItems[0];
@@ -1854,7 +1977,7 @@ function DashboardWorkspace({
         clients.shifts.exportSalesReportCsv(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to))
       ]);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      downloadTextFile(`afk4-dashboard-sales-${exportStamp}.csv`, salesCsv, 'text/csv;charset=utf-8');
+      downloadTextFile(`afk4-overview-sales-${exportStamp}.csv`, salesCsv, 'text/csv;charset=utf-8');
       setFeedback({ label: 'Экспорт', state: 'confirmed' });
     } catch (error) {
       setFeedback({ label: 'Экспорт', state: 'failed', detail: projectOperatorError(error).detail });
@@ -1870,7 +1993,7 @@ function DashboardWorkspace({
 
   const controlCards: Array<[WorkspaceId, string, string, string, LucideIcon]> = [
     ['map', 'Карта', `${totalPcs} ПК`, `${attentionCount} ${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])}`, MonitorCheck],
-    ['pos', 'POS', `${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])}`, `за ${activePeriodLabel}`, ReceiptText],
+    ['pos', 'Продажи', `${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])}`, `за ${activePeriodLabel}`, ReceiptText],
     ['payments', 'Касса', formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), `за ${activePeriodLabel}`, CircleDollarSign],
     ['players', 'Клиент', `${newClients} ${pluralRu(newClients, ['новый', 'новых', 'новых'])}`, `за ${activePeriodLabel}`, UserRoundPlus]
   ];
@@ -1879,10 +2002,10 @@ function DashboardWorkspace({
     <main className="workspace-screen dashboard-screen">
       <section className="screen-head dashboard-head">
         <div>
-          <span>Dashboard</span>
+          <span>Обзор</span>
           <h1>Что требует внимания · {activeRange.label}</h1>
         </div>
-        <div className="filter-row dashboard-period-filter" aria-label="Период данных дашборда">
+        <div className="filter-row dashboard-period-filter" aria-label="Период обзора">
           <div className="period-segment">
             <button type="button" className={period === 'today' ? 'active' : undefined} onClick={() => setPeriod('today')}>Сегодня</button>
             <button type="button" className={period === 'week' ? 'active' : undefined} onClick={() => setPeriod('week')}>Неделя</button>
@@ -1914,7 +2037,7 @@ function DashboardWorkspace({
             <span className="date-range-days" aria-label={`Длина периода: ${periodDaysShort}`}>{periodDaysShort}</span>
           </div>
           <span className={`map-load-state ${dashboardLoadStatus === 'backend' ? 'ready' : dashboardLoadStatus}`}>{dashboardStatusText}</span>
-          <button type="button" className="export-button" aria-label={`Экспорт дашборда за ${exportLabel}`} onClick={exportDashboard}>
+          <button type="button" className="export-button" aria-label={`Скачать продажи за ${exportLabel}`} onClick={exportDashboard}>
             Экспорт
           </button>
         </div>
@@ -1936,7 +2059,7 @@ function DashboardWorkspace({
             <button type="button" onClick={() => openSelectedFocusSeat('Разобрать')}><AlertTriangle size={15} /> Разобрать</button>
             <button type="button" onClick={() => openSelectedFocusSeat(pcControlLabel)}><Wrench size={15} /> {pcControlLabel}</button>
           </div>
-          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: 'Dashboard', state: 'failed', detail: dashboardLoadError ?? 'Dashboard data is unavailable.' }} />}
+          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: 'Обзор', state: 'failed', detail: dashboardLoadError ?? 'Данные обзора недоступны.' }} />}
           <FeedbackNotice feedback={feedback} />
         </article>
 
@@ -1970,7 +2093,7 @@ function DashboardWorkspace({
         <section className="dashboard-control-panel">
           <header className="dashboard-panel-title">
             <span>Управление</span>
-            <strong>карта, POS, депозит, клиент</strong>
+            <strong>карта, чек, депозит, клиент</strong>
           </header>
           <div className="dashboard-control-grid">
             {controlCards.map(([targetWorkspace, label, value, detail, Icon]) => (
@@ -2244,12 +2367,12 @@ function PosWorkspace({ currencyCode }: { currencyCode: string }) {
     <main className="workspace-screen pos-screen">
       <section className="screen-head pos-head">
         <div>
-          <span>POS</span>
-          <h1>POS · продажа и кассовые операции</h1>
+          <span>Продажи</span>
+          <h1>Продажи · чек и кассовые операции</h1>
         </div>
       </section>
 
-      <section className="state-strip pos-state-strip" aria-label="Сводка POS">
+      <section className="state-strip pos-state-strip" aria-label="Сводка продаж">
         <StateFlag label="Продажи" value={`2 чека · 145 ${currencyCode}`} />
         <StateFlag label="Возвраты" value={`1 · 20 ${currencyCode}`} critical />
         <StateFlag label="Наличные" value={`3 740 ${currencyCode}`} />
@@ -2271,7 +2394,7 @@ function PosWorkspace({ currencyCode }: { currencyCode: string }) {
               onChange={(event) => setProductSearch(event.currentTarget.value)}
             />
           </label>
-          <div className="pos-category-row" aria-label="Категории POS">
+          <div className="pos-category-row" aria-label="Категории товаров">
             {['Популярное', 'Еда', 'Напитки', 'Услуги'].map((category) => (
               <button
                 key={category}
@@ -2566,14 +2689,14 @@ function PlayersWorkspace({ currencyCode }: { currencyCode: string }) {
 
 function PaymentsWorkspace({ currencyCode }: { currencyCode: string }) {
   const [paymentSearch, setPaymentSearch] = useState('');
-  const [selectedOperationKey, setSelectedOperationKey] = useState('15:08-POS продажа-PC-06 · Madina S.');
+  const [selectedOperationKey, setSelectedOperationKey] = useState('15:08-Продажа по чеку-PC-06 · Madina S.');
   const [selectedMethod, setSelectedMethod] = useState('Наличные');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const operations = [
-    ['15:08', 'POS продажа', 'PC-06 · Madina S.', 'карта', `86 ${currencyCode}`, 'sale'],
+    ['15:08', 'Продажа по чеку', 'PC-06 · Madina S.', 'карта', `86 ${currencyCode}`, 'sale'],
     ['14:55', 'Возврат', 'Yusuf A.', 'наличные', `-20 ${currencyCode}`, 'refund'],
     ['14:41', 'Пополнение', 'Madina S.', 'карта', `200 ${currencyCode}`, 'deposit'],
-    ['14:30', 'POS продажа', 'Гость · стойка', 'наличные', `59 ${currencyCode}`, 'sale'],
+    ['14:30', 'Продажа по чеку', 'Гость · стойка', 'наличные', `59 ${currencyCode}`, 'sale'],
     ['14:22', 'Игровое время', 'Amir K.', 'депозит', `45 ${currencyCode}`, 'session']
   ];
   const methods = [
@@ -2718,10 +2841,10 @@ function PaymentsWorkspace({ currencyCode }: { currencyCode: string }) {
             <strong>экспорт и журнал</strong>
           </header>
           <div className="payments-export-grid">
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Журнал смены')}><ReceiptText size={16} />Журнал смены</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Кассовый отчёт')}><Banknote size={16} />Кассовый отчёт</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Экспорт CSV')}><ArrowRightLeft size={16} />Экспорт CSV</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Расхождения')}><ShieldAlert size={16} />Расхождения</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Сводка смены')}><ReceiptText size={16} />Сводка смены</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Движение кассы')}><Banknote size={16} />Движение кассы</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Список чеков')}><ArrowRightLeft size={16} />Список чеков</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Сверка смены')}><ShieldAlert size={16} />Сверка смены</button>
           </div>
         </section>
       </section>
@@ -2736,11 +2859,11 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
   const [selectedSource, setSelectedSource] = useState('Агент');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const events = [
-    ['15:09', 'Настройки просмотрены', 'Настройки · техник', 'аудит', 'audit'],
-    ['15:06', 'Пополнение депозита', `Madina S. · 200 ${currencyCode}`, 'кассир', 'money'],
-    ['15:04', 'PC-23 не отвечает', 'Агент · нет связи 2 мин', 'warning', 'device'],
-    ['15:01', 'PC-01 сессия продлена', 'оператор · +15 мин', 'session', 'session'],
-    ['14:55', 'Возврат по чеку', `Yusuf A. · -20 ${currencyCode}`, 'refund', 'money']
+    ['15:09', 'Настройки просмотрены', 'Настройки · техник', 'Платформа', 'audit'],
+    ['15:06', 'Пополнение депозита', `Madina S. · 200 ${currencyCode}`, 'Касса', 'money'],
+    ['15:04', 'PC-23 не отвечает', 'нет связи 2 мин', 'Агент', 'device'],
+    ['15:01', 'PC-01 сессия продлена', 'оператор · +15 мин', 'Оператор', 'session'],
+    ['14:55', 'Возврат по чеку', `Yusuf A. · -20 ${currencyCode}`, 'Касса', 'money']
   ];
   const auditRows = [
     ['15:09', 'техник', 'Просмотр настроек', 'разрешено'],
@@ -2749,17 +2872,17 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
   ];
   const sourceCards: Array<[string, string, LucideIcon]> = [
     ['Агент', '23 онлайн · 1 офлайн', MonitorCheck],
-    ['POS', '9 чеков · 1 возврат', ReceiptText],
+    ['Касса', '9 чеков · 1 возврат', ReceiptText],
     ['Оператор', '14 действий смены', UserRoundPlus],
     ['Платформа', '3 предупреждения', ShieldAlert]
   ];
   const visibleEvents = events.filter(([time, title, detail, source, tone]) => {
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
-      || (activeLogFilter === 'ПК и агент' && (source === 'warning' || detail.includes('Агент')))
-      || (activeLogFilter === 'Касса и POS' && tone === 'money')
-      || (activeLogFilter === 'Оператор' && detail.includes('operator'))
-      || (activeLogFilter === 'Системные' && source === 'audit');
+      || (activeLogFilter === 'ПК и связь' && (source === 'Агент' || detail.includes('связь')))
+      || (activeLogFilter === 'Касса' && tone === 'money')
+      || (activeLogFilter === 'Оператор' && source === 'Оператор')
+      || (activeLogFilter === 'Системные' && source === 'Платформа');
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
     return filterMatches && searchMatches;
   });
@@ -2769,17 +2892,17 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
     <main className="workspace-screen logs-screen">
       <section className="screen-head logs-head">
         <div>
-          <span>Логи</span>
-          <h1>Логи · аудит и события смены</h1>
+          <span>Журнал</span>
+          <h1>Журнал · события смены</h1>
         </div>
       </section>
 
-      <section className="state-strip logs-state-strip" aria-label="Сводка логов">
+      <section className="state-strip logs-state-strip" aria-label="Сводка журнала">
         <StateFlag label="События" value="128" />
         <StateFlag label="Ошибки" value="3" critical />
-        <StateFlag label="Команды" value="12" />
+        <StateFlag label="Команды ПК" value="12" />
         <StateFlag label="Касса" value="9" />
-        <StateFlag label="Аудит" value="6" />
+        <StateFlag label="Записи" value="6" />
       </section>
 
       <section className="logs-layout">
@@ -2818,7 +2941,7 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
         <section className="logs-panel logs-detail-panel">
           <header className="logs-panel-title">
             <span>Детали события</span>
-            <strong>выбранная запись</strong>
+            <strong>без внутренних ID</strong>
           </header>
           <div className={`log-detail-card ${selectedEvent[4]}`}>
             <span>{selectedEvent[0]} · {selectedEvent[3]}</span>
@@ -2827,9 +2950,9 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
           </div>
           <div className="log-detail-list">
             <div><span>Источник</span><strong>{selectedEvent[3]}</strong></div>
-            <div><span>Объект</span><strong>{selectedEvent[1].includes('PC-') ? selectedEvent[1].split(' ')[0] : 'смена #24'}</strong></div>
-            <div><span>Оператор</span><strong>system</strong></div>
-            <div><span>Correlation</span><strong>evt-9f42</strong></div>
+            <div><span>Раздел</span><strong>{selectedEvent[1].includes('PC-') ? 'ПК' : 'Операция смены'}</strong></div>
+            <div><span>Оператор</span><strong>Оператор смены</strong></div>
+            <div><span>Результат</span><strong>{selectedEvent[2]}</strong></div>
           </div>
           <FeedbackNotice feedback={feedback} />
         </section>
@@ -2837,10 +2960,10 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
         <section className="logs-panel logs-filter-panel">
           <header className="logs-panel-title">
             <span>Фильтры</span>
-            <strong>сузить расследование</strong>
+            <strong>найти нужные записи</strong>
           </header>
           <div className="logs-filter-grid">
-            {['Все события', 'Только ошибки', 'ПК и агент', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
+            {['Все события', 'Только ошибки', 'ПК и связь', 'Касса', 'Оператор', 'Системные'].map((filter) => (
               <button
                 key={filter}
                 type="button"
@@ -2855,7 +2978,7 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
 
         <section className="logs-panel logs-audit-panel">
           <header className="logs-panel-title">
-            <span>Аудит смены</span>
+            <span>Операции смены</span>
             <strong>действия персонала</strong>
           </header>
           <div className="logs-audit-list">
@@ -2873,7 +2996,7 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
         <section className="logs-panel logs-sources-panel">
           <header className="logs-panel-title">
             <span>Источники</span>
-            <strong>откуда пришли события</strong>
+            <strong>каналы событий</strong>
           </header>
           <div className="logs-source-grid">
             {sourceCards.map(([label, detail, Icon]) => (
@@ -2897,10 +3020,10 @@ function LogsWorkspace({ currencyCode }: { currencyCode: string }) {
             <strong>для проверки и поддержки</strong>
           </header>
           <div className="logs-export-grid">
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Журнал смены')}><ReceiptText size={16} />Журнал смены</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Ошибки')}><AlertTriangle size={16} />Ошибки</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'CSV')}><ArrowRightLeft size={16} />CSV</button>
-            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Аудит JSON')}><ShieldAlert size={16} />Аудит JSON</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Сводка смены')}><ReceiptText size={16} />Сводка смены</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Только проблемы')}><AlertTriangle size={16} />Только проблемы</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Список действий')}><ArrowRightLeft size={16} />Список действий</button>
+            <button type="button" onClick={() => triggerFeedback(setFeedback, 'Пакет для поддержки')}><ShieldAlert size={16} />Пакет для поддержки</button>
           </div>
         </section>
       </section>
@@ -2919,7 +3042,7 @@ function SettingsWorkspace() {
     ['Залы и ПК', 'зоны, рабочие места, статусы'],
     ['Тарифы', 'пакеты, постоплата, VIP'],
     ['Персонал', 'операторы, роли, доступы'],
-    ['POS и склад', 'товары, остатки, чеки'],
+    ['Товары и склад', 'товары, остатки, чеки'],
     ['Интеграции', 'платежи, уведомления, экспорт']
   ];
   const rooms = [
@@ -3013,7 +3136,7 @@ function SettingsWorkspace() {
       );
     }
 
-    if (selectedSection === 'POS и склад') {
+    if (selectedSection === 'Товары и склад') {
       return (
         <div className="settings-config-grid">
           {['Напитки · 18 позиций', 'Кухня · 7 позиций', 'Услуги · 4 позиции', 'Низкие остатки · 2 товара'].map((item) => (
@@ -3029,7 +3152,7 @@ function SettingsWorkspace() {
     if (selectedSection === 'Интеграции') {
       return (
         <div className="settings-config-grid">
-          {['Платежи · manual provider', 'Уведомления · выключены', 'Экспорт · CSV включён', 'API · staging'].map((item) => (
+          {['Платежи · ручное подтверждение', 'Уведомления · выключены', 'Экспорт · отчёты включены', 'Связь · локальные данные'].map((item) => (
             <button key={item} type="button" onClick={() => triggerFeedback(setFeedback, item)}>
               <strong>{item.split(' · ')[0]}</strong>
               <span>{item.split(' · ')[1]}</span>
@@ -3419,7 +3542,7 @@ function MapSidePanel({
         <CriticalActionConfirmation
           title="Подтвердите остановку сессии"
           detail={`${seat.name} · ${seat.remaining} · ${activeBilling}`}
-          impact="Сессия будет завершена, backend отправит команду блокировки ПК."
+          impact="Сессия будет завершена, платформа отправит команду блокировки ПК."
           confirmLabel="Подтвердить стоп"
           disabled={isBusy}
           onCancel={() => setCriticalAction(null)}
@@ -3585,7 +3708,7 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
       <section className="context-section">
         <div className="detail-row"><span>Выручка</span><strong>4 820 {currencyCode}</strong></div>
         <div className="detail-row"><span>В работе</span><strong>2 действия</strong></div>
-        <div className="detail-row"><span>Источник</span><strong>Демо-данные</strong></div>
+        <div className="detail-row"><span>Источник</span><strong>Локальные данные</strong></div>
       </section>
       <button type="button" className="primary-wide">Открыть действие</button>
     </aside>
@@ -3607,17 +3730,17 @@ type PosCartItem = PosCatalogItem & {
 };
 
 const fixturePosProducts: PosCatalogItem[] = [
-  { name: 'Кола 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'демо', stockOnHand: 0, source: 'fixture' },
-  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'демо', stockOnHand: 0, source: 'fixture' },
-  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'демо', stockOnHand: 0, source: 'fixture' },
-  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'демо', stockOnHand: 0, source: 'fixture' }
+  { name: 'Кола 0.5', priceMinorUnits: 1200, category: 'Напитки', note: 'локальный пример', stockOnHand: 0, source: 'fixture' },
+  { name: 'Вода 0.5', priceMinorUnits: 600, category: 'Напитки', note: 'локальный пример', stockOnHand: 0, source: 'fixture' },
+  { name: 'Хот-дог', priceMinorUnits: 2800, category: 'Еда', note: 'локальный пример', stockOnHand: 0, source: 'fixture' },
+  { name: 'Гостевой час', priceMinorUnits: 2500, category: 'Услуги', note: 'локальный пример', stockOnHand: 0, source: 'fixture' }
 ];
 
 function projectPosProduct(product: PosProductDto, currencyCode: string): PosCatalogItem {
   const price = readMoney(product, 'price');
   return {
     productId: readString(product, 'productId') || undefined,
-    name: readString(product, 'name', 'POS item'),
+    name: readString(product, 'name', 'Товар'),
     priceMinorUnits: price?.minorUnits ?? 0,
     category: readString(product, 'categoryName', readString(product, 'categoryId', 'Каталог')),
     note: `${readString(product, 'sku', 'SKU')} · ${readNumber(product, 'stockOnHand', 0)} шт.`,
@@ -3647,10 +3770,10 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [stockWriteOffProductId, setStockWriteOffProductId] = useState('');
   const [stockWriteOffQuantity, setStockWriteOffQuantity] = useState('1');
-  const [stockWriteOffReason, setStockWriteOffReason] = useState('операторское списание POS');
+  const [stockWriteOffReason, setStockWriteOffReason] = useState('операторское списание');
   const [criticalAction, setCriticalAction] = useState<'refund-sale' | 'void-draft' | null>(null);
   const [refundReason, setRefundReason] = useState('Возврат по запросу клиента');
-  const [voidReason, setVoidReason] = useState('Ошибка в черновике POS');
+  const [voidReason, setVoidReason] = useState('Ошибка в черновике чека');
   const [cartItems, setCartItems] = useState<PosCartItem[]>(() => backend === null
     ? [
         { ...fixturePosProducts[0], quantity: 1 },
@@ -3711,7 +3834,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     } catch (error) {
       setLoadStatus('failed');
       setFeedback({
-        label: 'POS',
+        label: 'Касса',
         state: 'failed',
         detail: projectOperatorError(error).detail
       });
@@ -3756,7 +3879,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         setPosPlayers([]);
         setSelectedPlayerId('');
         setPlayerLoadStatus('failed');
-        setFeedback({ label: 'Клиент POS', state: 'failed', detail: projectOperatorError(error).detail });
+        setFeedback({ label: 'Клиент', state: 'failed', detail: projectOperatorError(error).detail });
       });
 
     return () => {
@@ -3955,15 +4078,15 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     try {
       const nextBackend = requireBackend(backend);
       if (!hasPermission(nextBackend.session, permissionNames.createPosSale) || !hasPermission(nextBackend.session, permissionNames.payPosSale)) {
-        throw new Error('Нет прав на создание или оплату POS продажи.');
+        throw new Error('Нет прав на создание или оплату чека.');
       }
 
       if (!shiftId) {
-        throw new Error('Open shift is required before POS payment.');
+        throw new Error('Откройте смену перед оплатой.');
       }
 
       if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
-        throw new Error('POS-каталог платформы не загружен для текущей корзины.');
+        throw new Error('Каталог товаров не загружен для текущей корзины.');
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -3983,7 +4106,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       });
       const saleId = readString(sale, 'posSaleId');
       if (!saleId) {
-        throw new Error('Платформа вернула POS-продажу без идентификатора чека.');
+        throw new Error('Платформа не подтвердила номер чека. Повторите операцию или обратитесь в поддержку.');
       }
 
       const paidSale = await clients.pos.paySaleManual(saleId, {
@@ -4016,11 +4139,11 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     try {
       const nextBackend = requireBackend(backend);
       if (!hasPermission(nextBackend.session, permissionNames.refundPosSale)) {
-        throw new Error('Нет прав на возврат POS продажи.');
+        throw new Error('Нет прав на возврат по чеку.');
       }
 
       if (!selectedRefundableSaleId) {
-        throw new Error('Нет POS-продажи платформы для возврата.');
+        throw new Error('Выберите чек для возврата.');
       }
 
       const reason = refundReason.trim();
@@ -4054,7 +4177,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (!saleId) {
-        throw new Error('Для деталей чека нужен идентификатор POS-продажи платформы.');
+        throw new Error('Выберите чек из списка.');
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
@@ -4111,7 +4234,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
-      const receiptNumber = readString(selectedReceiptRecord, 'receiptNumber', readString(selectedSaleDetail, 'posSaleId').slice(0, 8));
+      const receiptNumber = readString(selectedReceiptRecord, 'receiptNumber', 'receipt');
       downloadTextFile(`${safeReceiptFileName(receiptNumber)}.txt`, receiptText);
       setFeedback({ label: 'Экспорт чека', state: 'confirmed' });
     } catch (error) {
@@ -4129,7 +4252,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     try {
       const nextBackend = requireBackend(backend);
       if (!hasPermission(nextBackend.session, permissionNames.createPosSale) || !hasPermission(nextBackend.session, permissionNames.voidPosSale)) {
-        throw new Error('Нет прав на создание или аннулирование POS продажи.');
+        throw new Error('Нет прав на создание или аннулирование чека.');
       }
 
       if (!shiftId) {
@@ -4137,7 +4260,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       }
 
       if (cartItems.length === 0 || cartItems.some((item) => !item.productId || item.source !== 'backend')) {
-        throw new Error('POS-каталог платформы не загружен для текущей корзины.');
+        throw new Error('Каталог товаров не загружен для текущей корзины.');
       }
 
       const reason = voidReason.trim();
@@ -4162,7 +4285,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
       });
       const saleId = readString(draft, 'posSaleId');
       if (!saleId) {
-        throw new Error('Платформа вернула POS-черновик без идентификатора чека.');
+        throw new Error('Платформа не подтвердила черновик чека. Повторите операцию или обратитесь в поддержку.');
       }
 
       const voidedSale = await clients.pos.voidSale(saleId, {
@@ -4188,27 +4311,27 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
     <main className="workspace-screen pos-screen">
       <section className="screen-head pos-head">
         <div>
-          <span>POS</span>
-          <h1>POS · продажа и кассовые операции</h1>
+          <span>Продажи</span>
+          <h1>Продажи · чек и кассовые операции</h1>
         </div>
         <div className="screen-actions">
           <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Платформа подключена')}</span>
         </div>
       </section>
 
-      <section className="state-strip pos-state-strip" aria-label="Сводка POS">
+      <section className="state-strip pos-state-strip" aria-label="Сводка продаж">
         <StateFlag label="Продажи" value={`${salesRows.length} · ${grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`}`} />
         <StateFlag label="Возвраты" value={refundsTotal ? formatMinorUnits(refundsTotal.minorUnits, refundsTotal.currencyCode) : `0 ${currencyCode}`} critical={(refundsTotal?.minorUnits ?? 0) > 0} />
         <StateFlag label="Товары" value={`${catalog.length} поз.`} />
         <StateFlag label="Склад" value={`${lowStockCount} низко`} critical={lowStockCount > 0} />
-        <StateFlag label="Смена" value={shiftState} critical={!shiftId} />
+        <StateFlag label="Смена" value={shiftStateLabel(shiftState)} critical={!shiftId} />
       </section>
 
       <section className="pos-layout">
         <section className="pos-panel pos-catalog-panel">
           <header className="pos-panel-title">
             <span>Каталог</span>
-            <strong>каталог, остатки и поиск платформы</strong>
+            <strong>активные товары, остатки и поиск</strong>
           </header>
           <label className="pos-search">
             <Search size={14} />
@@ -4218,7 +4341,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               onChange={(event) => setProductSearch(event.currentTarget.value)}
             />
           </label>
-          <div className="pos-category-row" aria-label="Категории POS">
+          <div className="pos-category-row" aria-label="Категории товаров">
             {categories.map((category) => (
               <button
                 key={category}
@@ -4233,8 +4356,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <div className="pos-catalog-grid">
             {visibleProducts.length === 0 ? (
               <div className="pos-empty-state">
-                <strong>Каталог POS пуст</strong>
-                <span>{loadStatus === 'backend' ? 'Платформа не вернула активные товары для этого филиала.' : 'Загрузите каталог платформы.'}</span>
+                <strong>Каталог пуст</strong>
+                <span>{loadStatus === 'backend' ? 'Активных товаров для этого филиала нет.' : 'Загрузите каталог.'}</span>
               </div>
             ) : (
               visibleProducts.map((product) => (
@@ -4252,7 +4375,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-cart-panel">
           <header className="pos-panel-title">
             <span>Корзина</span>
-            <strong>{shiftId ? `смена ${shiftId.slice(0, 8)}` : 'откройте смену'}</strong>
+            <strong>{shiftId ? 'смена открыта' : 'откройте смену'}</strong>
           </header>
           <div className="pos-cart-client">
             <UserRoundPlus size={17} />
@@ -4277,7 +4400,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <label className="pos-search pos-client-search">
             <Search size={14} />
             <input
-              aria-label="Клиент POS"
+              aria-label="Клиент"
               value={playerSearch}
               disabled={backend !== null && !hasPermission(backend.session, permissionNames.viewPlayers)}
               placeholder="имя или телефон клиента"
@@ -4285,7 +4408,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             />
           </label>
           {playerSearchQuery.length > 1 && (
-            <div className="pos-client-candidates" aria-label="Клиенты POS">
+            <div className="pos-client-candidates" aria-label="Клиенты продажи">
               {posPlayers.map((player) => (
                 <button
                   key={player.playerAccountId ?? player.name}
@@ -4306,7 +4429,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label>
               <span>Новая карта</span>
               <input
-                aria-label="Имя клиента POS"
+                aria-label="Имя клиента"
                 value={newPlayerName}
                 disabled={backend !== null && !hasPermission(backend.session, permissionNames.createPlayerAccount)}
                 placeholder={playerSearchQuery || 'имя клиента'}
@@ -4316,7 +4439,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label>
               <span>Телефон</span>
               <input
-                aria-label="Телефон клиента POS"
+                aria-label="Телефон клиента"
                 value={newPlayerPhone}
                 disabled={backend !== null && !hasPermission(backend.session, permissionNames.createPlayerAccount)}
                 placeholder="+992..."
@@ -4333,7 +4456,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
               <article className="pos-cart-row empty">
                 <div>
                   <strong>Корзина пуста</strong>
-                  <span>Добавьте товар из backend-каталога.</span>
+                  <span>Добавьте товар из каталога.</span>
                 </div>
                 <b>{formatMinorUnits(0, currencyCode)}</b>
               </article>
@@ -4352,7 +4475,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           <div className="pos-total-card">
             <span>Итого к оплате</span>
             <strong>{formatMinorUnits(cartTotalMinorUnits, currencyCode)}</strong>
-            <em>{lastSale ? `последний чек ${readString(lastSale, 'posSaleId').slice(0, 8)}` : 'чек создаётся только после ответа платформы'}</em>
+            <em>{lastSale ? 'последний чек принят' : 'чек создаётся после подтверждения платформы'}</em>
           </div>
           <FeedbackNotice feedback={feedback} />
         </section>
@@ -4360,7 +4483,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-payment-panel">
           <header className="pos-panel-title">
             <span>Оплата</span>
-            <strong>чек платформы и ручное подтверждение</strong>
+            <strong>чек и подтверждение оплаты</strong>
           </header>
           <div className="pos-payment-methods">
             {['Наличные', 'Карта', 'Депозит'].map((method) => (
@@ -4369,7 +4492,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 type="button"
                 className={paymentMethod === method ? 'active' : undefined}
                 disabled={method === 'Депозит' || feedback.state === 'pending'}
-                title={method === 'Депозит' ? 'Оплата с депозита требует ledger-контракт платформы.' : undefined}
+                title={method === 'Депозит' ? 'Оплата с депозита будет включена после подключения депозитного платежа.' : undefined}
                 onClick={() => setPaymentMethod(method)}
               >
                 {method === 'Наличные' && <Banknote size={15} />}
@@ -4391,7 +4514,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
         <section className="pos-panel pos-receipts-panel">
           <header className="pos-panel-title">
             <span>Последние чеки</span>
-            <strong>отчёт продаж из платформы</strong>
+            <strong>чеки за смену</strong>
           </header>
           <div className="pos-receipt-list">
             {salesRows.slice(0, 4).map((row) => (
@@ -4407,8 +4530,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
                 }}
               >
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{readString(row, 'state', 'sale')}</strong>
-                <em>{readNumber(row, 'lineCount', 0)} lines</em>
+                <strong>{posSaleStateLabel(readString(row, 'state', 'sale'))}</strong>
+                <em>{posSaleLineSummary(row)}</em>
                 <b>{formatMoney(readMoney(row, 'total'), currencyCode)}</b>
               </button>
             ))}
@@ -4424,21 +4547,21 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           {selectedSaleDetail !== null && (
             <div className="pos-sale-detail">
               <div>
-                <span>Детали продажи</span>
-                <strong>{readString(selectedSaleDetail, 'state', 'sale')} · {readString(selectedSaleDetail, 'posSaleId').slice(0, 8)}</strong>
+                <span>Детали чека</span>
+                <strong>{posSaleStateLabel(readString(selectedSaleDetail, 'state', 'sale'))}</strong>
                 <b>{formatMoney(readMoney(selectedSaleDetail, 'total'), currencyCode)}</b>
               </div>
               {readArray(selectedSaleDetail, 'lines').slice(0, 3).map((line) => (
                 <p key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}>
-                  {readString(line, 'productName', 'POS item')} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
+                  {readString(line, 'productName', 'Товар')} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
                 </p>
               ))}
               {selectedReceiptDetail !== null && (
                 <div className="pos-receipt-detail">
                   <span>Чек платформы</span>
-                  <strong>{readString(selectedReceiptDetail, 'receiptNumber', 'receipt')}</strong>
+                  <strong>{readString(selectedReceiptDetail, 'receiptNumber', 'чек')}</strong>
                   <b>{formatMoney(readMoney(selectedReceiptDetail, 'total'), currencyCode)}</b>
-                  <p>{readString(selectedReceiptDetail, 'receiptType', 'sale')}</p>
+                  <p>{posReceiptTypeLabel(readString(selectedReceiptDetail, 'receiptType', 'sale'))}</p>
                 </div>
               )}
               <div className="pos-receipt-actions">
@@ -4464,7 +4587,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label>
               <span>Списание</span>
               <select
-                aria-label="Товар для списания POS"
+                aria-label="Товар для списания"
                 value={selectedStockProduct?.productId ?? ''}
                 disabled={backendCatalogProducts.length === 0 || feedback.state === 'pending'}
                 onChange={(event) => setStockWriteOffProductId(event.currentTarget.value)}
@@ -4480,7 +4603,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label>
               <span>Кол-во</span>
               <input
-                aria-label="Количество списания POS"
+                aria-label="Количество списания"
                 inputMode="numeric"
                 value={stockWriteOffQuantity}
                 disabled={!canWriteOffStock || feedback.state === 'pending'}
@@ -4490,7 +4613,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <label className="pos-stock-reason">
               <span>Причина</span>
               <input
-                aria-label="Причина списания POS"
+                aria-label="Причина списания"
                 value={stockWriteOffReason}
                 disabled={!canWriteOffStock || feedback.state === 'pending'}
                 onChange={(event) => setStockWriteOffReason(event.currentTarget.value)}
@@ -4505,7 +4628,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             {[
               ['Пополнить депозит', selectedPosPlayer ? `корзина ${formatMinorUnits(cartTotalMinorUnits, currencyCode)}` : 'выберите клиента', CircleDollarSign],
               ['Возврат по чеку', 'требует выбранный чек', ReceiptText],
-              ['Аннулировать черновик', 'создать и отменить draft', X],
+              ['Аннулировать черновик', 'создать и аннулировать чек', X],
               ['Списать склад', selectedStockProduct?.name ?? 'выберите товар', AlertTriangle],
               ['Новый клиент', newPlayerDisplayName || 'заполните имя', UserRoundPlus],
               ['Внести наличные', 'экран платежей', Banknote]
@@ -4545,8 +4668,8 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
           </div>
           {criticalAction === 'refund-sale' && (
             <CriticalActionConfirmation
-              title="Подтвердите возврат POS"
-              detail={`Чек ${selectedRefundableSaleId.slice(0, 8)} · ${formatMoney(readMoney(selectedRefundableSale, 'total'), currencyCode)}`}
+              title="Подтвердите возврат"
+              detail={`Выбранный чек · ${formatMoney(readMoney(selectedRefundableSale, 'total'), currencyCode)}`}
               impact="Платформа создаст возврат по выбранному чеку и запишет причину в аудит."
               confirmLabel="Подтвердить возврат"
               disabled={feedback.state === 'pending'}
@@ -4567,7 +4690,7 @@ function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; 
             <CriticalActionConfirmation
               title="Подтвердите аннулирование"
               detail={`Корзина · ${cartItems.length} поз. · ${formatMinorUnits(cartTotalMinorUnits, currencyCode)}`}
-              impact="Будет создан draft-чек и сразу отправлена команда void в backend."
+              impact="Черновик чека будет создан и аннулирован после подтверждения платформы."
               confirmLabel="Подтвердить аннулирование"
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
@@ -4864,7 +4987,7 @@ function BackendBookingWorkspace({
                 <span className="booking-time">—</span>
                 <span className="booking-client">
                   <strong>{loadStatus === 'loading' ? 'Загрузка броней' : 'Нет броней'}</strong>
-                  <em>{loadError ?? 'Платформа вернула пустой список за сегодня.'}</em>
+                  <em>{loadError ?? 'На сегодня броней нет.'}</em>
                 </span>
                 <span className="booking-meta">{floorMap.branchName}</span>
                 <b>{loadStatus === 'failed' ? 'Ошибка' : 'Пусто'}</b>
@@ -4977,9 +5100,9 @@ type PlayerClientItem = {
 
 function fixturePlayers(currencyCode: string): PlayerClientItem[] {
   return [
-    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'демо', tone: 'vip', detail: 'демо-клиент', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
-    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'демо', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
-    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'демо', tone: 'debt', detail: 'долг после сеанса', phoneNumber: '', source: 'fixture' }
+    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: 'пример', tone: 'vip', detail: 'локальная карточка', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: 'пример', tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
+    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: 'пример', tone: 'debt', detail: 'долг после сеанса', phoneNumber: '', source: 'fixture' }
   ];
 }
 
@@ -5351,7 +5474,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
             {visibleClients.length === 0 ? (
               <div className="clients-empty-state">
                 <strong>Клиенты не найдены</strong>
-                <span>{loadStatus === 'backend' ? 'Платформа вернула пустой список для текущего поиска.' : 'Загрузите клиентов платформы.'}</span>
+                <span>{loadStatus === 'backend' ? 'По текущему поиску клиентов нет.' : 'Подключитесь к платформе, чтобы загрузить клиентов.'}</span>
               </div>
             ) : (
               visibleClients.map((client) => (
@@ -5385,7 +5508,7 @@ function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: stri
               <div>
                 <span>Нет выбранного клиента</span>
                 <strong>Выберите клиента из списка</strong>
-                <em>backend-данные не подменяются демо-карточкой</em>
+                <em>Пустой ответ платформы не подменяется локальной карточкой</em>
               </div>
             </div>
           ) : (
@@ -5549,22 +5672,56 @@ function paymentOperationPlaceholder(
   hasSearchMiss: boolean
 ): PaymentOperationItem {
   if (hasSearchMiss) {
-    return ['—', 'Нет совпадений', 'измените поиск или период', 'filter', `0 ${currencyCode}`, 'session', null];
+    return ['—', 'Нет совпадений', 'измените поиск или период', 'Поиск', `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', 'Загружаем операции', 'ждём отчёты платформы', 'платформа', `0 ${currencyCode}`, 'session', null];
+    return ['—', 'Загружаем операции', 'ждём отчёты', 'Отчёты', `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'платформа', `0 ${currencyCode}`, 'refund', null];
+    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Отчёты', `0 ${currencyCode}`, 'refund', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', 'Операций за период нет', 'платформа вернула пустой отчёт', 'платформа', `0 ${currencyCode}`, 'session', null];
+    return ['—', 'Операций за период нет', 'в отчёте пусто', 'Отчёты', `0 ${currencyCode}`, 'session', null];
   }
 
-  return ['—', 'Демо: операций нет', 'локальные данные без платформы', 'демо', `0 ${currencyCode}`, 'session', null];
+  return ['—', 'Локально: операций нет', 'локальные данные без платформы', 'локально', `0 ${currencyCode}`, 'session', null];
+}
+
+function buildShiftReconciliationExportJson(report: ReportResultDto, currentShift: ShiftDto | null, currencyCode: string): string {
+  const rows = readArray<Record<string, unknown>>(report, 'rows');
+  const latestRow = rows[0];
+  const stateSource = currentShift ?? latestRow;
+  const expectedCash = readMoney(currentShift, 'expectedCash') ?? readMoney(latestRow, 'expectedCash');
+  const countedCash = readMoney(currentShift, 'countedCash') ?? readMoney(latestRow, 'countedCash');
+  const difference = readMoney(currentShift, 'difference') ?? readMoney(latestRow, 'difference');
+
+  return JSON.stringify({
+    summary: {
+      generatedAtUtc: new Date().toISOString(),
+      shiftState: shiftStateLabel(readString(stateSource, 'state', 'unknown')),
+      expectedCash: formatMoney(expectedCash, currencyCode),
+      countedCash: countedCash ? formatMoney(countedCash, currencyCode) : 'Не указано',
+      difference: formatMoney(difference, currencyCode),
+      shiftCount: rows.length
+    },
+    shifts: rows.map((row, index) => ({
+      label: `Смена ${index + 1}`,
+      state: shiftStateLabel(readString(row, 'state', 'unknown')),
+      openedAt: formatDateTime(readString(row, 'openedAtUtc')),
+      closedAt: formatDateTime(readString(row, 'closedAtUtc')),
+      startingCash: formatMoney(readMoney(row, 'startingCash'), currencyCode),
+      cashMovements: formatMoney(readMoney(row, 'cashMovementsTotal'), currencyCode),
+      cashSales: formatMoney(readMoney(row, 'posCashPaymentsTotal'), currencyCode),
+      refunds: formatMoney(readMoney(row, 'posRefundsTotal'), currencyCode),
+      walletCashImpact: formatMoney(readMoney(row, 'billingCashImpactTotal'), currencyCode),
+      expectedCash: formatMoney(readMoney(row, 'expectedCash'), currencyCode),
+      countedCash: readMoney(row, 'countedCash') ? formatMoney(readMoney(row, 'countedCash'), currencyCode) : 'Не указано',
+      difference: formatMoney(readMoney(row, 'difference'), currencyCode)
+    }))
+  }, null, 2);
 }
 
 function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
@@ -5636,18 +5793,18 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const operations: PaymentOperationItem[] = [
     ...salesRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
-      readString(row, 'state', 'POS sale'),
-      readString(row, 'posSaleId').slice(0, 8),
-      'POS',
+      posSaleStateLabel(readString(row, 'state', 'sale')),
+      `Чек · ${posSaleLineSummary(row)}`,
+      'Продажа',
       formatMoney(readMoney(row, 'total'), currencyCode),
       readString(row, 'state', 'sale').toLowerCase().includes('refund') ? 'refund' : 'sale',
       row
     ]),
     ...cashRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
-      readString(row, 'operationType', 'Cash'),
+      cashOperationTypeLabel(readString(row, 'operationType', 'cash')),
       readString(row, 'reason', readString(row, 'sourceType', 'cash')),
-      readString(row, 'sourceType', 'cash'),
+      paymentSourceLabel(readString(row, 'sourceType', 'cash')),
       formatMoney(readMoney(row, 'cashImpact'), currencyCode),
       readNumber(readMoney(row, 'cashImpact'), 'minorUnits', 0) < 0 ? 'refund' : 'deposit',
       row
@@ -5664,14 +5821,17 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       : [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, operationSearch.length > 0)];
   const selectedOperation = visibleOperations.find(([time, type, client]) => `${time}-${type}-${client}` === selectedOperationKey) ?? visibleOperations[0];
   const selectedOperationSource = selectedOperation[6];
-  const selectedOperationId = selectedOperationSource === null
+  const selectedOperationIsSale = selectedOperationSource !== null && readString(selectedOperationSource, 'posSaleId').length > 0;
+  const selectedOperationScope = selectedOperationSource === null
     ? '—'
-    : (readString(selectedOperationSource, 'posSaleId') || readString(selectedOperationSource, 'operationId') || '—').slice(0, 8);
-  const selectedOperationShiftId = selectedOperationSource === null
-    ? '—'
-    : readString(selectedOperationSource, 'shiftId', '—').slice(0, 8);
-  const selectedOperationDetail = selectedOperation[3] === 'POS'
-    ? `${readNumber(selectedOperationSource, 'lineCount', 0)} строк · ${readNumber(selectedOperationSource, 'itemQuantity', 0)} шт.`
+    : readString(selectedOperationSource, 'shiftId') ? 'В отчёте смены' : 'Без смены';
+  const selectedOperationSourceLabel = selectedOperationSource === null
+    ? selectedOperation[3]
+    : selectedOperationIsSale
+      ? 'Продажа'
+      : 'Движение наличных';
+  const selectedOperationDetail = selectedOperationIsSale
+    ? posSaleLineSummary(selectedOperationSource)
     : readString(selectedOperationSource, 'reason', selectedOperation[2]);
   const grossSales = readMoney(salesReport, 'grossSalesTotal');
   const refunds = readMoney(salesReport, 'refundsTotal');
@@ -5698,8 +5858,8 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
   const methods = [
     ['Наличные', cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, 'кассовый отчёт', `${cashRows.length} операций`],
     ['Карта', netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, 'отчёт продаж', `${salesRows.length} чеков`],
-    ['Возвраты', refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, 'возвраты', 'платформа'],
-    ['Расхождения', difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, 'закрытие смены', 'платформа']
+    ['Возвраты', refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, 'возвраты', 'по отчёту'],
+    ['Расхождения', difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, 'закрытие смены', 'по сверке']
   ];
 
   const runReportAction = async (label: string) => {
@@ -5709,15 +5869,15 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      if (label === 'Журнал смены') {
+      if (label === 'Сводка смены') {
         const csv = await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
-        downloadTextFile(`afk4-shift-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Кассовый отчёт') {
+        downloadTextFile(`afk4-shift-summary-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+      } else if (label === 'Движение кассы') {
         const csv = await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
-        downloadTextFile(`afk4-cash-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Экспорт CSV') {
+        downloadTextFile(`afk4-cash-movements-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+      } else if (label === 'Список чеков') {
         const csv = await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
-        downloadTextFile(`afk4-sales-report-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+        downloadTextFile(`afk4-check-list-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       } else if (label === 'Открыть смену') {
         if (!hasPermission(nextBackend.session, permissionNames.openShift)) {
           throw new Error('Нет прав на открытие смены.');
@@ -5786,9 +5946,9 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
           idempotencyKey: createIdempotencyKey('shift-close')
         });
         setCurrentShift(closedShift);
-      } else if (label === 'Расхождения') {
+      } else if (label === 'Сверка смены') {
         const report = await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
-        downloadTextFile(`afk4-shift-discrepancies-${exportStamp}.json`, JSON.stringify(report, null, 2), 'application/json;charset=utf-8');
+        downloadTextFile(`afk4-shift-reconciliation-${exportStamp}.json`, buildShiftReconciliationExportJson(report, currentShift, currencyCode), 'application/json;charset=utf-8');
       } else {
         await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
       }
@@ -5815,7 +5975,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <StateFlag label="Выручка" value={grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`} />
         <StateFlag label="Наличные" value={cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`} />
         <StateFlag label="Возвраты" value={refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`} critical={(refunds?.minorUnits ?? 0) > 0} />
-        <StateFlag label="Смена" value={readString(currentShift, 'state', 'нет')} critical={currentShift === null} />
+        <StateFlag label="Смена" value={shiftStateLabel(readString(currentShift, 'state', 'нет смены'))} critical={currentShift === null} />
         <StateFlag label="К сверке" value={difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`} critical={(difference?.minorUnits ?? 0) !== 0} />
       </section>
 
@@ -5823,7 +5983,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-ledger-panel">
           <header className="payments-panel-title">
             <span>Операции смены</span>
-            <strong>sales and cash report rows</strong>
+            <strong>продажи, возвраты и наличные</strong>
           </header>
           <label className="payments-search">
             <Search size={14} />
@@ -5856,7 +6016,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-summary-panel">
           <header className="payments-panel-title">
             <span>Итоги смены</span>
-            <strong>backend aggregates</strong>
+            <strong>выручка и выбранная операция</strong>
           </header>
           <div className="payments-total-card">
             <span>Всего · выбрано {selectedOperation[0]}</span>
@@ -5864,14 +6024,14 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
             <em>{selectedOperation[1]} · {selectedOperation[2]} · {selectedOperation[4]}</em>
           </div>
           <div className="payments-operation-detail" aria-label="Детали выбранной операции">
-            <div><span>ID</span><strong>{selectedOperationId}</strong></div>
-            <div><span>Смена</span><strong>{selectedOperationShiftId}</strong></div>
-            <div><span>Источник</span><strong>{selectedOperation[3]}</strong></div>
+            <div><span>Операция</span><strong>{selectedOperation[1]}</strong></div>
+            <div><span>Смена</span><strong>{selectedOperationScope}</strong></div>
+            <div><span>Тип</span><strong>{selectedOperationSourceLabel}</strong></div>
             <div><span>Деталь</span><strong>{selectedOperationDetail}</strong></div>
           </div>
           <div className="payments-metric-grid">
             <div><span>Чеков</span><strong>{salesRows.length}</strong></div>
-            <div><span>Cash rows</span><strong>{cashRows.length}</strong></div>
+            <div><span>Наличные</span><strong>{cashRows.length}</strong></div>
             <div><span>Возвраты</span><strong>{refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`}</strong></div>
             <div><span>Смены</span><strong>{shiftRows.length}</strong></div>
           </div>
@@ -5880,10 +6040,10 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-reconcile-panel">
           <header className="payments-panel-title">
             <span>Сверка кассы</span>
-            <strong>read model before close</strong>
+            <strong>проверка перед закрытием</strong>
           </header>
           <div className="payments-open-form">
-            <label>Старт cash<input inputMode="decimal" value={openStartingCash} disabled={!canOpenShift} onChange={(event) => setOpenStartingCash(event.currentTarget.value)} /></label>
+            <label>Старт наличных<input inputMode="decimal" value={openStartingCash} disabled={!canOpenShift} onChange={(event) => setOpenStartingCash(event.currentTarget.value)} /></label>
             <label>Открытие<input value={openingNote} disabled={!canOpenShift} onChange={(event) => setOpeningNote(event.currentTarget.value)} /></label>
             <button type="button" disabled={!canOpenShift} onClick={() => runReportAction('Открыть смену')}>Открыть смену</button>
           </div>
@@ -5924,7 +6084,7 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-methods-panel">
           <header className="payments-panel-title">
             <span>Методы оплаты</span>
-            <strong>backend report breakdown</strong>
+            <strong>структура отчёта</strong>
           </header>
           <div className="payments-method-grid">
             {methods.map(([label, total, share, detail]) => (
@@ -5945,13 +6105,13 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-cash-panel">
           <header className="payments-panel-title">
             <span>Движение наличных</span>
-            <strong>cash operation rows</strong>
+            <strong>кассовые движения</strong>
           </header>
           <div className="payments-cash-list">
             {cashRows.slice(0, 4).map((row) => (
               <article key={readString(row, 'operationId')} className="payment-cash-row">
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{readString(row, 'operationType', 'cash')}</strong>
+                <strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'))}</strong>
                 <b>{formatMoney(readMoney(row, 'cashImpact'), currencyCode)}</b>
               </article>
             ))}
@@ -5972,14 +6132,14 @@ function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: str
         <section className="payments-panel payments-export-panel">
           <header className="payments-panel-title">
             <span>Отчёты</span>
-            <strong>CSV from backend</strong>
+            <strong>файлы для сверки</strong>
           </header>
           <div className="payments-export-grid">
             {[
-              ['Журнал смены', ReceiptText],
-              ['Кассовый отчёт', Banknote],
-              ['Экспорт CSV', ArrowRightLeft],
-              ['Расхождения', ShieldAlert]
+              ['Сводка смены', ReceiptText],
+              ['Движение кассы', Banknote],
+              ['Список чеков', ArrowRightLeft],
+              ['Сверка смены', ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runReportAction(label as string)}><Icon size={16} />{label as string}</button>
             ))}
@@ -6011,19 +6171,273 @@ function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, h
     return ['—', 'Событий за период нет', 'аудит и диагностика вернули пустой результат', 'Платформа', 'audit', 'placeholder', null];
   }
 
-  return ['—', 'Демо: событий нет', 'локальные данные без платформы', 'Платформа', 'audit', 'placeholder', null];
+  return ['—', 'Локально: событий нет', 'локальные данные без платформы', 'Платформа', 'audit', 'placeholder', null];
 }
 
 function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[]): LogEventItem[] {
-  return auditRecords.map((record): LogEventItem => [
-    formatTime(readString(record, 'createdAtUtc')),
-    readString(record, 'action', 'audit'),
-    `${readString(record, 'targetType', 'target')} · ${readString(record, 'outcome', 'unknown')}`,
-    readString(record, 'sourceApp', 'Audit'),
-    readString(record, 'outcome').toLowerCase().includes('denied') || readString(record, 'outcome').toLowerCase().includes('failed') ? 'warning' : 'audit',
-    'audit',
-    record
-  ]);
+  return auditRecords.map((record): LogEventItem => {
+    const outcome = readString(record, 'outcome');
+
+    return [
+      formatTime(readString(record, 'createdAtUtc')),
+      auditActionLabel(readString(record, 'action')),
+      `${auditTargetLabel(readString(record, 'targetType'))} · ${auditOutcomeLabel(outcome)}`,
+      auditSourceLabel(readString(record, 'sourceApp')),
+      outcome.toLowerCase().includes('denied') || outcome.toLowerCase().includes('failed') ? 'warning' : 'audit',
+      'audit',
+      record
+    ];
+  });
+}
+
+function auditActionLabel(action: string): string {
+  const normalized = action.toLowerCase();
+  switch (normalized) {
+    case 'pos.sale.create':
+    case 'pos.sales.create':
+      return 'Продажа создана';
+    case 'pos.sale.refund':
+    case 'pos.sales.refund':
+      return 'Возврат по чеку';
+    case 'pos.sale.void':
+    case 'pos.sales.void':
+      return 'Чек аннулирован';
+    case 'sessions.start':
+    case 'session.start':
+      return 'Сессия запущена';
+    case 'sessions.extend':
+    case 'session.extend':
+      return 'Сессия продлена';
+    case 'sessions.end':
+    case 'session.end':
+      return 'Сессия завершена';
+    case 'identity.staff.create':
+      return 'Сотрудник добавлен';
+    case 'identity.staff.roles.update':
+      return 'Роли сотрудника изменены';
+    case 'updates.rollouts.view':
+      return 'Проверка публикаций обновлений';
+    case 'updates.rollouts.state.change':
+      return 'Состояние публикации обновления изменено';
+    default:
+      if (normalized.includes('pos')) {
+        return 'Операция кассы';
+      }
+
+      if (normalized.includes('session')) {
+        return 'Операция сессии';
+      }
+
+      if (normalized.includes('device')) {
+        return 'Операция ПК';
+      }
+
+      if (normalized.includes('shift')) {
+        return 'Операция смены';
+      }
+
+      if (normalized.includes('identity') || normalized.includes('staff')) {
+        return 'Операция сотрудника';
+      }
+
+      if (normalized.includes('update')) {
+        return 'Операция обновления';
+      }
+
+      return action ? 'Операция платформы' : 'Запись аудита';
+  }
+}
+
+function auditOutcomeLabel(outcome: string): string {
+  switch (outcome.toLowerCase()) {
+    case 'succeeded':
+    case 'success':
+    case 'ok':
+      return 'успешно';
+    case 'failed':
+    case 'failure':
+      return 'ошибка';
+    case 'denied':
+    case 'rejected':
+      return 'отказ';
+    case 'pending':
+      return 'ожидает';
+    default:
+      return outcome ? 'состояние неизвестно' : 'неизвестно';
+  }
+}
+
+function auditTargetLabel(targetType: string): string {
+  const normalized = targetType.toLowerCase();
+  if (normalized.includes('pos') || normalized.includes('sale') || normalized.includes('receipt')) {
+    return 'Чек';
+  }
+
+  if (normalized.includes('session')) {
+    return 'Сессия';
+  }
+
+  if (normalized.includes('device')) {
+    return 'ПК';
+  }
+
+  if (normalized.includes('staff') || normalized.includes('identity') || normalized.includes('user')) {
+    return 'Сотрудник';
+  }
+
+  if (normalized.includes('shift')) {
+    return 'Смена';
+  }
+
+  if (normalized.includes('payment') || normalized.includes('ledger') || normalized.includes('wallet')) {
+    return 'Платёж';
+  }
+
+  if (normalized.includes('tariff')) {
+    return 'Тариф';
+  }
+
+  if (normalized.includes('package')) {
+    return 'Пакет';
+  }
+
+  if (normalized.includes('update') || normalized.includes('rollout')) {
+    return 'Обновление';
+  }
+
+  if (normalized.includes('branch')) {
+    return 'Филиал';
+  }
+
+  return targetType ? 'Объект' : 'Объект';
+}
+
+function auditSourceLabel(sourceApp: string): string {
+  const normalized = sourceApp.toLowerCase();
+  if (!normalized || normalized === 'audit' || normalized.includes('platform')) {
+    return 'Платформа';
+  }
+
+  if (normalized.includes('operator')) {
+    return 'Приложение оператора';
+  }
+
+  if (normalized.includes('agent')) {
+    return 'Агент';
+  }
+
+  if (normalized.includes('setup')) {
+    return 'Мастер установки';
+  }
+
+  return 'Платформа';
+}
+
+function auditActorLabel(record: Record<string, unknown>, backend: OperatorBackendContext | null): string {
+  const actorStaffUserId = readString(record, 'actorStaffUserId');
+  if (!actorStaffUserId) {
+    return 'Система';
+  }
+
+  if (backend?.session.staffUserId.toLowerCase() === actorStaffUserId.toLowerCase()) {
+    return operatorDisplayNameLabel(backend.session.displayName);
+  }
+
+  return 'Сотрудник';
+}
+
+function auditDetailKeyLabel(key: string): string {
+  const normalized = key.toLowerCase();
+  if (normalized.includes('reason')) {
+    return 'Причина';
+  }
+
+  if (normalized.includes('amount') || normalized.includes('money') || normalized.includes('price')) {
+    return 'Сумма';
+  }
+
+  if (normalized.includes('currency')) {
+    return 'Валюта';
+  }
+
+  if (normalized.includes('status') || normalized.includes('state') || normalized.includes('outcome')) {
+    return 'Состояние';
+  }
+
+  if (normalized.includes('device') || normalized.includes('machine')) {
+    return 'ПК';
+  }
+
+  if (normalized.includes('session')) {
+    return 'Сессия';
+  }
+
+  if (normalized.includes('sale') || normalized.includes('receipt') || normalized.includes('pos')) {
+    return 'Чек';
+  }
+
+  if (normalized.includes('shift')) {
+    return 'Смена';
+  }
+
+  if (normalized.includes('tariff')) {
+    return 'Тариф';
+  }
+
+  if (normalized.includes('package')) {
+    return 'Пакет';
+  }
+
+  if (normalized.includes('staff') || normalized.includes('user')) {
+    return 'Сотрудник';
+  }
+
+  if (normalized.includes('branch')) {
+    return 'Филиал';
+  }
+
+  return 'Параметр';
+}
+
+function auditDetailValueLabel(value: unknown): string {
+  if (value === null || value === undefined) {
+    return 'не указано';
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'да' : 'нет';
+  }
+
+  if (typeof value === 'number') {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `${value.length} ${pluralRu(value.length, ['значение', 'значения', 'значений'])}`;
+  }
+
+  if (isRecord(value)) {
+    return 'заполнено';
+  }
+
+  const trimmed = String(value).trim();
+  if (trimmed.length === 0) {
+    return 'не указано';
+  }
+
+  if (isGuid(trimmed)) {
+    return 'указано';
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return 'ссылка';
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+    return formatTime(trimmed);
+  }
+
+  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
 }
 
 function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): LogEventItem[] {
@@ -6045,7 +6459,7 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
     ]),
     ...recentUpdateFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
-      `${readString(failure, 'component', 'Обновление')} ${readString(failure, 'targetVersion', '')}`,
+      `${updateComponentLabel(readString(failure, 'component', 'Обновление'))} ${readString(failure, 'targetVersion', '')}`.trim(),
       commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
       'Обновления',
       'warning',
@@ -6055,7 +6469,7 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
     ...staleDevices.map((device): LogEventItem => [
       formatTime(readString(device, 'lastHeartbeatAtUtc')),
       `${readString(device, 'machineName', 'Устройство')} не отвечает`,
-      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} сек. без пульса`,
+      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} сек. без сигнала`,
       'Агент',
       'warning',
       'staleDevice',
@@ -6064,35 +6478,26 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
   ];
 }
 
-function shortLogValue(value: string, fallback = '—'): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return fallback;
-  }
-
-  return trimmed.length > 8 ? trimmed.slice(0, 8) : trimmed;
-}
-
 function compactAuditDetails(detailsJson: string): string {
   const trimmed = detailsJson.trim();
   if (trimmed.length === 0 || trimmed === '{}') {
-    return 'нет деталей';
+    return 'нет подробностей';
   }
 
   try {
     const parsed = JSON.parse(trimmed) as unknown;
     if (!isRecord(parsed)) {
-      return String(parsed).slice(0, 120);
+      return auditDetailValueLabel(parsed);
     }
 
     const entries = Object.entries(parsed)
       .filter(([, value]) => value !== null && value !== undefined && String(value).trim().length > 0)
       .slice(0, 3)
-      .map(([key, value]) => `${key}: ${String(value)}`);
+      .map(([key, value]) => `${auditDetailKeyLabel(key)}: ${auditDetailValueLabel(value)}`);
 
-    return entries.length > 0 ? entries.join(' · ') : 'нет деталей';
+    return entries.length > 0 ? entries.join(' · ') : 'нет подробностей';
   } catch {
-    return trimmed.slice(0, 120);
+    return 'подробности в свободном формате';
   }
 }
 
@@ -6111,24 +6516,22 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
   const record = event[6];
 
   if (event[5] === 'audit' && record !== null) {
-    const targetType = readString(record, 'targetType', 'target');
-    const targetId = readString(record, 'targetId');
+    const targetType = readString(record, 'targetType');
 
     return [
-      ['ID аудита', shortLogValue(readString(record, 'auditRecordId'))],
-      ['Действие', readString(record, 'action', 'audit')],
-      ['Результат', readString(record, 'outcome', 'unknown')],
-      ['Объект', targetId ? `${targetType} ${shortLogValue(targetId)}` : targetType],
-      ['Исполнитель', shortLogValue(readString(record, 'actorStaffUserId'), 'система')],
-      ['Источник', readString(record, 'sourceApp', 'Audit')],
-      ['Детали', compactAuditDetails(readString(record, 'detailsJson'))]
+      ['Событие', auditActionLabel(readString(record, 'action'))],
+      ['Результат', auditOutcomeLabel(readString(record, 'outcome'))],
+      ['Раздел', auditTargetLabel(targetType)],
+      ['Исполнитель', auditActorLabel(record, backend)],
+      ['Источник', auditSourceLabel(readString(record, 'sourceApp'))],
+      ['Подробности', compactAuditDetails(readString(record, 'detailsJson'))]
     ];
   }
 
   if (event[5] === 'commandFailure' && record !== null) {
     return [
-      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
-      ['Команда', `${commandTypeLabel(readString(record, 'type', 'command'))} · ${shortLogValue(readString(record, 'commandId'))}`],
+      ['Устройство', readString(record, 'machineName', 'Устройство')],
+      ['Команда', commandTypeLabel(readString(record, 'type', 'command'))],
       ['Статус', commandStatusLabel(readString(record, 'status', 'failed'))],
       ['Сообщение', commandStatusMessageLabel(readString(record, 'message')) || 'нет сообщения'],
       ['Обновлено', readString(record, 'updatedAtUtc', event[0])]
@@ -6137,9 +6540,8 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
 
   if (event[5] === 'updateFailure' && record !== null) {
     return [
-      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
-      ['Rollout', shortLogValue(readString(record, 'updateRolloutId'))],
-      ['Компонент', `${readString(record, 'component', 'Обновление')} ${readString(record, 'targetVersion')}`.trim()],
+      ['Устройство', readString(record, 'machineName', 'Устройство')],
+      ['Компонент', `${updateComponentLabel(readString(record, 'component', 'Обновление'))} ${readString(record, 'targetVersion')}`.trim()],
       ['Статус', commandStatusLabel(readString(record, 'status', 'failed'))],
       ['Сообщение', commandStatusMessageLabel(readString(record, 'message')) || 'нет сообщения']
     ];
@@ -6147,41 +6549,91 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
 
   if (event[5] === 'staleDevice' && record !== null) {
     return [
-      ['Устройство', `${readString(record, 'machineName', 'Устройство')} · ${shortLogValue(readString(record, 'deviceId'))}`],
-      ['Агент', readString(record, 'agentVersion', 'неизвестно')],
-      ['Оболочка', readString(record, 'shellVersion', 'неизвестно')],
-      ['Последний пульс', readString(record, 'lastHeartbeatAtUtc', event[0])],
-      ['Возраст', `${readNumber(record, 'lastHeartbeatAgeSeconds', 0)} сек.`]
+      ['Устройство', readString(record, 'machineName', 'Устройство')],
+      ['Версия агента', readString(record, 'agentVersion', 'неизвестно')],
+      ['Версия оболочки', readString(record, 'shellVersion', 'неизвестно')],
+      ['Последний сигнал', readString(record, 'lastHeartbeatAtUtc', event[0])],
+      ['Пауза связи', `${readNumber(record, 'lastHeartbeatAgeSeconds', 0)} сек.`]
     ];
   }
 
   return [
     ['Источник', event[3]],
-    ['Объект', event[1].split(' ')[0]],
+    ['Событие', event[1]],
     ['Оператор', operatorDisplayNameLabel(backend?.session.displayName ?? 'система')],
-    ['Филиал', backend?.branchId.slice(0, 8) ?? 'демо']
+    ['Результат', event[2]]
   ];
+}
+
+function logToneLabel(tone: LogEventTone): string {
+  switch (tone) {
+    case 'warning':
+      return 'требует внимания';
+    case 'device':
+      return 'ПК и связь';
+    case 'money':
+      return 'касса';
+    case 'session':
+      return 'сессия';
+    default:
+      return 'запись';
+  }
+}
+
+function logKindLabel(kind: LogEventKind): string {
+  switch (kind) {
+    case 'commandFailure':
+      return 'команда ПК';
+    case 'updateFailure':
+      return 'обновление';
+    case 'staleDevice':
+      return 'связь с ПК';
+    case 'placeholder':
+      return 'пустой результат';
+    default:
+      return 'аудит';
+  }
 }
 
 function buildLogsExportJson(
   branchId: string,
   auditRecords: Record<string, unknown>[],
   diagnostics: BranchDiagnosticsDto | null,
-  events: LogEventItem[]
+  events: LogEventItem[],
+  backend: OperatorBackendContext | null
 ): string {
+  const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
+  const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
+  const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
   return JSON.stringify({
     exportedAtUtc: new Date().toISOString(),
-    branchId,
-    auditRecords,
-    diagnostics,
+    branch: branchId ? 'текущий филиал' : 'филиал не выбран',
+    summary: {
+      events: events.length,
+      auditRecords: auditRecords.length,
+      warnings: events.filter((event) => event[4] === 'warning').length,
+      devices: {
+        total: readNumber(deviceSummary, 'totalDevices', 0),
+        online: readNumber(deviceSummary, 'onlineDevices', 0),
+        stale: readNumber(deviceSummary, 'staleDevices', 0)
+      },
+      commands: {
+        pending: readNumber(commandSummary, 'pendingCommands', 0),
+        failed: readNumber(commandSummary, 'failedCommands', 0)
+      },
+      updates: {
+        failedDevices: readNumber(updateSummary, 'failedDevices', 0),
+        rollbackDevices: readNumber(updateSummary, 'rollbackDevices', 0)
+      }
+    },
     events: events.map(([time, title, detail, source, tone, kind, record]) => ({
       time,
       title,
       detail,
       source,
-      tone,
-      kind,
-      record
+      result: logToneLabel(tone),
+      section: logKindLabel(kind),
+      details: Object.fromEntries(buildLogEventDetailRows([time, title, detail, source, tone, kind, record], backend))
     }))
   }, null, 2);
 }
@@ -6198,7 +6650,7 @@ function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
   const action = readString(record, 'action').toLowerCase();
   const targetType = readString(record, 'targetType').toLowerCase();
   const isAgent = source === 'Агент' || tone === 'device' || kind === 'commandFailure' || kind === 'staleDevice';
-  const isPos = normalizedTitle.includes('pos') || normalizedDetail.includes('pos') || action.includes('pos') || targetType.includes('pos');
+  const isPos = normalizedTitle.includes('касс') || normalizedTitle.includes('чек') || normalizedDetail.includes('касс') || normalizedDetail.includes('чек') || action.includes('pos') || targetType.includes('pos');
   const isOperator = normalizedSource.includes('operator') || normalizedSource.includes('оператор') || normalizedTitle.includes('identity') || normalizedDetail.includes('staff') || action.includes('identity') || targetType.includes('staff');
   const isPlatform = source === 'Обновления' || kind === 'updateFailure' || (!isAgent && !isPos && !isOperator);
 
@@ -6206,7 +6658,7 @@ function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
     return isAgent;
   }
 
-  if (sourceFilter === 'POS') {
+  if (sourceFilter === 'Касса') {
     return isPos;
   }
 
@@ -6328,10 +6780,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     const [time, title, detail, source, tone] = event;
     const filterMatches = activeLogFilter === 'Все события'
       || (activeLogFilter === 'Только ошибки' && tone === 'warning')
-      || (activeLogFilter === 'ПК и агент' && (source === 'Агент' || tone === 'device' || detail.toLowerCase().includes('device')))
-      || (activeLogFilter === 'Касса и POS' && (title.toLowerCase().includes('pos') || detail.toLowerCase().includes('cash')))
-      || (activeLogFilter === 'Оператор' && (source.toLowerCase().includes('operator') || title.toLowerCase().includes('identity') || detail.toLowerCase().includes('staff')))
-      || (activeLogFilter === 'Системные' && (source !== 'Агент' || title.toLowerCase().includes('updates') || title.toLowerCase().includes('diagnostics')));
+      || (activeLogFilter === 'ПК и связь' && matchesLogSource(event, 'Агент'))
+      || (activeLogFilter === 'Касса' && matchesLogSource(event, 'Касса'))
+      || (activeLogFilter === 'Оператор' && matchesLogSource(event, 'Оператор'))
+      || (activeLogFilter === 'Системные' && matchesLogSource(event, 'Платформа'));
     const sourceMatches = matchesLogSource(event, selectedSource);
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
     return filterMatches && sourceMatches && searchMatches;
@@ -6346,7 +6798,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
   const sourceCards: Array<[string, string, LucideIcon]> = [
     ['Все', `${events.length} событий`, Search],
     ['Агент', `${events.filter((event) => matchesLogSource(event, 'Агент')).length} событий · зависших ${readNumber(deviceSummary, 'staleDevices', 0)}`, MonitorCheck],
-    ['POS', `${events.filter((event) => matchesLogSource(event, 'POS')).length} записей`, ReceiptText],
+    ['Касса', `${events.filter((event) => matchesLogSource(event, 'Касса')).length} записей`, ReceiptText],
     ['Оператор', `${events.filter((event) => matchesLogSource(event, 'Оператор')).length} действий`, UserRoundPlus],
     ['Платформа', `${events.filter((event) => matchesLogSource(event, 'Платформа')).length} событий`, ShieldAlert]
   ];
@@ -6379,8 +6831,8 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     const presets: Record<string, AuditSearchOverrides> = {
       'Все события': { action: '', outcome: '', targetType: '', limit: 30 },
       'Только ошибки': { action: '', outcome: 'denied', targetType: '', limit: 50 },
-      'ПК и агент': { action: '', outcome: '', targetType: 'Device', limit: 50 },
-      'Касса и POS': { action: 'pos.sales.create', outcome: '', targetType: '', limit: 50 },
+      'ПК и связь': { action: '', outcome: '', targetType: 'Device', limit: 50 },
+      'Касса': { action: 'pos.sale.create', outcome: '', targetType: '', limit: 50 },
       'Оператор': { action: 'identity.staff.create', outcome: '', targetType: '', limit: 50 },
       'Системные': { action: 'updates.rollouts.view', outcome: '', targetType: '', limit: 50 }
     };
@@ -6400,32 +6852,32 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      if (label === 'Аудит JSON') {
+      if (label === 'Пакет для поддержки') {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', fromUtc: '', toUtc: '', limit: 100 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
         downloadTextFile(
-          `afk4-audit-trail-${exportStamp}.json`,
-          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)]),
+          `afk4-support-journal-${exportStamp}.json`,
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)], nextBackend),
           'application/json;charset=utf-8'
         );
-      } else if (label === 'CSV') {
+      } else if (label === 'Список действий') {
         const csv = await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
-        downloadTextFile(`afk4-operator-actions-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Ошибки') {
+        downloadTextFile(`afk4-operator-action-list-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+      } else if (label === 'Только проблемы') {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: 'denied', targetType: '', fromUtc: '', toUtc: '', limit: 50 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
         const failureEvents = [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)]
           .filter((event) => event[4] === 'warning');
         downloadTextFile(
-          `afk4-log-errors-${exportStamp}.json`,
-          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, failureEvents),
+          `afk4-support-problems-${exportStamp}.json`,
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, failureEvents, nextBackend),
           'application/json;charset=utf-8'
         );
       } else {
         const csv = await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
-        downloadTextFile(`afk4-shift-log-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
+        downloadTextFile(`afk4-shift-summary-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
       }
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {
@@ -6437,19 +6889,19 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
     <main className="workspace-screen logs-screen">
       <section className="screen-head logs-head">
         <div>
-          <span>Логи</span>
-          <h1>Логи · аудит и события смены</h1>
+          <span>Журнал</span>
+          <h1>Журнал · события смены</h1>
         </div>
         <div className="screen-actions">
           <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Журнал загружен')}</span>
         </div>
       </section>
 
-      <section className="state-strip logs-state-strip" aria-label="Сводка логов">
+      <section className="state-strip logs-state-strip" aria-label="Сводка журнала">
         <StateFlag label="События" value={String(events.length)} />
         <StateFlag label="Ошибки" value={String(events.filter((event) => event[4] === 'warning').length)} critical={events.some((event) => event[4] === 'warning')} />
-        <StateFlag label="Команды" value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
-        <StateFlag label="Аудит" value={String(auditRecords.length)} />
+        <StateFlag label="Команды ПК" value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
+        <StateFlag label="Записи" value={String(auditRecords.length)} />
         <StateFlag label="Источник" value={workspaceLoadStatusLabel(loadStatus, 'Платформа')} critical={loadStatus !== 'backend'} />
       </section>
 
@@ -6457,7 +6909,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <section className="logs-panel logs-events-panel">
           <header className="logs-panel-title">
             <span>Журнал событий</span>
-            <strong>поиск аудита и диагностика</strong>
+            <strong>события платформы и ПК</strong>
           </header>
           <label className="logs-search">
             <Search size={14} />
@@ -6493,7 +6945,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <section className="logs-panel logs-detail-panel">
           <header className="logs-panel-title">
             <span>Детали события</span>
-            <strong>выбранная запись</strong>
+            <strong>без внутренних ID</strong>
           </header>
           <div className={`log-detail-card ${selectedEvent[4]}`}>
             <span>{selectedEvent[0]} · {selectedEvent[3]}</span>
@@ -6511,10 +6963,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <section className="logs-panel logs-filter-panel">
           <header className="logs-panel-title">
             <span>Фильтры</span>
-            <strong>сузить расследование</strong>
+            <strong>найти нужные записи</strong>
           </header>
           <div className="logs-filter-grid">
-            {['Все события', 'Только ошибки', 'ПК и агент', 'Касса и POS', 'Оператор', 'Системные'].map((filter) => (
+            {['Все события', 'Только ошибки', 'ПК и связь', 'Касса', 'Оператор', 'Системные'].map((filter) => (
               <button
                 key={filter}
                 type="button"
@@ -6531,28 +6983,28 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
                 <button key={preset} type="button" onClick={() => void applyAuditPeriodPreset(label, preset)}>{label}</button>
               ))}
             </div>
-            <label>Действие аудита<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="sessions.start" /></label>
+            <label>Событие<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="продажа / сессия / ПК" /></label>
             <label>Результат<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder="успешно / отказ" /></label>
-            <label>Тип объекта<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="Session" /></label>
-            <label>С UTC<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T00:00:00Z" /></label>
-            <label>До UTC<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder="2026-05-21T23:59:59Z" /></label>
-            <label>Лимит<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
-            <button type="button" onClick={() => applyAuditSearch('Применить аудит')}>Применить аудит</button>
+            <label>Раздел<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="сессии / касса / ПК" /></label>
+            <label>С<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder="2026-05-21 00:00" /></label>
+            <label>До<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder="2026-05-21 23:59" /></label>
+            <label>Записей<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
+            <button type="button" onClick={() => applyAuditSearch('Применить фильтр')}>Применить фильтр</button>
           </div>
         </section>
 
         <section className="logs-panel logs-audit-panel">
           <header className="logs-panel-title">
-            <span>Аудит смены</span>
-            <strong>последние записи платформы</strong>
+            <span>Операции смены</span>
+            <strong>последние действия</strong>
           </header>
           <div className="logs-audit-list">
             {auditRecords.slice(0, 4).map((record) => (
               <article key={readString(record, 'auditRecordId')} className="log-audit-row">
                 <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
-                <strong>{readString(record, 'actorStaffUserId', 'system').slice(0, 8)}</strong>
-                <em>{readString(record, 'action', 'audit')}</em>
-                <b>{readString(record, 'outcome', 'ok')}</b>
+                <strong>{auditActorLabel(record, backend)}</strong>
+                <em>{auditActionLabel(readString(record, 'action'))}</em>
+                <b>{auditOutcomeLabel(readString(record, 'outcome'))}</b>
               </article>
             ))}
           </div>
@@ -6561,7 +7013,7 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
         <section className="logs-panel logs-sources-panel">
           <header className="logs-panel-title">
             <span>Источники</span>
-            <strong>откуда пришли события</strong>
+            <strong>каналы событий</strong>
           </header>
           <div className="logs-source-grid">
             {sourceCards.map(([label, detail, Icon]) => (
@@ -6586,10 +7038,10 @@ function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string;
           </header>
           <div className="logs-export-grid">
             {[
-              ['Журнал смены', ReceiptText],
-              ['Ошибки', AlertTriangle],
-              ['CSV', ArrowRightLeft],
-              ['Аудит JSON', ShieldAlert]
+              ['Сводка смены', ReceiptText],
+              ['Только проблемы', AlertTriangle],
+              ['Список действий', ArrowRightLeft],
+              ['Пакет для поддержки', ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runLogAction(label as string)}><Icon size={16} />{label as string}</button>
             ))}
@@ -6613,12 +7065,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [stockMovements, setStockMovements] = useState<StockMovementDto[]>([]);
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
+  const [registeredUpdatePackages, setRegisteredUpdatePackages] = useState<UpdatePackageDto[]>([]);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
   const [deviceAssignmentDeviceId, setDeviceAssignmentDeviceId] = useState('');
   const [deviceAssignmentSeatId, setDeviceAssignmentSeatId] = useState('');
-  const [enrollmentExpiresSeconds, setEnrollmentExpiresSeconds] = useState('900');
+  const [enrollmentExpiresMinutes, setEnrollmentExpiresMinutes] = useState('15');
   const [enrollmentCode, setEnrollmentCode] = useState<Record<string, unknown> | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
   const [deviceCommandHistory, setDeviceCommandHistory] = useState<DeviceCommandStatusDto[]>([]);
@@ -6634,7 +7087,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     null
   >(null);
   const [deviceCommandType, setDeviceCommandType] = useState('lock');
-  const [deviceCommandReason, setDeviceCommandReason] = useState('operator device tool');
+  const [deviceCommandReason, setDeviceCommandReason] = useState('Проверка оператором');
   const [lastDeviceCommand, setLastDeviceCommand] = useState<Record<string, unknown> | null>(null);
   const [layoutZoneName, setLayoutZoneName] = useState('Основной зал');
   const [layoutZoneSortOrder, setLayoutZoneSortOrder] = useState('10');
@@ -6645,16 +7098,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [selectedLayoutSeatId, setSelectedLayoutSeatId] = useState('');
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
-  const [invitePassword, setInvitePassword] = useState('ChangeMe123!');
-  const [resetPassword, setResetPassword] = useState('ChangeMe123!');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
   const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
   const [selectedStaffUserId, setSelectedStaffUserId] = useState('');
   const [staffProfileUserName, setStaffProfileUserName] = useState('');
   const [staffProfileDisplayName, setStaffProfileDisplayName] = useState('');
   const [staffRoleName, setStaffRoleName] = useState('cashier_operator');
-  const [productCategoryName, setProductCategoryName] = useState('POS category 1');
-  const [productName, setProductName] = useState('POS item 1');
-  const [productSku, setProductSku] = useState('POS-001');
+  const [productCategoryName, setProductCategoryName] = useState('Категория 1');
+  const [productName, setProductName] = useState('Товар 1');
+  const [productSku, setProductSku] = useState('SKU-001');
   const [productPrice, setProductPrice] = useState('12.00');
   const [productTrackStock, setProductTrackStock] = useState(true);
   const [productAllowNegativeStock, setProductAllowNegativeStock] = useState(false);
@@ -6663,14 +7116,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [stockMovementType, setStockMovementType] = useState('purchase');
   const [stockQuantityDelta, setStockQuantityDelta] = useState('10');
   const [stockUnitCost, setStockUnitCost] = useState('0.00');
-  const [stockReason, setStockReason] = useState('initial stock');
-  const [tariffName, setTariffName] = useState('Day Pass');
+  const [stockReason, setStockReason] = useState('Первичное поступление');
+  const [tariffName, setTariffName] = useState('Дневной тариф');
   const [tariffPricePerHour, setTariffPricePerHour] = useState('90.00');
   const [tariffMinimumMinutes, setTariffMinimumMinutes] = useState('15');
   const [tariffRoundingMinutes, setTariffRoundingMinutes] = useState('5');
   const [tariffEffectiveFromUtc, setTariffEffectiveFromUtc] = useState(() => new Date().toISOString());
   const [selectedTariffVersionId, setSelectedTariffVersionId] = useState('');
-  const [packageName, setPackageName] = useState('Night 5h');
+  const [packageName, setPackageName] = useState('Ночной пакет 5ч');
   const [packagePrice, setPackagePrice] = useState('250.00');
   const [packageMinutes, setPackageMinutes] = useState('300');
   const [packageBonusMinutes, setPackageBonusMinutes] = useState('30');
@@ -6683,7 +7136,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [updateSha256, setUpdateSha256] = useState('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
   const [updateSignature, setUpdateSignature] = useState('signed-update-package');
   const [updateSignatureAlgorithm, setUpdateSignatureAlgorithm] = useState('ECDSA-P256-SHA256-IEEE-P1363');
-  const [updateSizeBytes, setUpdateSizeBytes] = useState('1048576');
+  const [updateSizeKilobytes, setUpdateSizeKilobytes] = useState('1024');
   const [updateReleaseNotes, setUpdateReleaseNotes] = useState('Пакет обновления приложения оператора.');
   const [rolloutPackageId, setRolloutPackageId] = useState('');
   const [rolloutChannel, setRolloutChannel] = useState('internal');
@@ -6691,10 +7144,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [rolloutTargetDeviceIds, setRolloutTargetDeviceIds] = useState('');
   const [rolloutBatchPercent, setRolloutBatchPercent] = useState('100');
   const [rolloutStartsAtUtc, setRolloutStartsAtUtc] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString());
-  const [rolloutReason, setRolloutReason] = useState('Раскатка оператора.');
+  const [rolloutReason, setRolloutReason] = useState('Публикация обновления оператором.');
   const [packageStatePackageId, setPackageStatePackageId] = useState('');
   const [packageState, setPackageState] = useState('validated');
-  const [packageStateReason, setPackageStateReason] = useState('Signature verified.');
+  const [packageStateReason, setPackageStateReason] = useState('Подпись проверена.');
   const [rolloutStateRolloutId, setRolloutStateRolloutId] = useState('');
   const [rolloutState, setRolloutState] = useState('paused');
   const [rolloutStateReason, setRolloutStateReason] = useState('Изменение состояния оператором.');
@@ -6752,9 +7205,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       setDiagnostics(branchDiagnostics);
       const rolloutRows = Array.isArray(rolloutStatuses) ? rolloutStatuses : [];
       setRollouts(rolloutRows);
-      setRolloutPackageId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updatePackageId'));
-      setPackageStatePackageId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updatePackageId'));
-      setRolloutStateRolloutId((current) => isGuid(current) ? current : readString(rolloutRows[0], 'updateRolloutId'));
+      setRolloutPackageId((current) => rolloutRows.some((rollout) => readString(rollout, 'updatePackageId') === current)
+        ? current
+        : readString(rolloutRows[0], 'updatePackageId'));
+      setPackageStatePackageId((current) => rolloutRows.some((rollout) => readString(rollout, 'updatePackageId') === current)
+        ? current
+        : readString(rolloutRows[0], 'updatePackageId'));
+      setRolloutStateRolloutId((current) => rolloutRows.some((rollout) => readString(rollout, 'updateRolloutId') === current)
+        ? current
+        : readString(rolloutRows[0], 'updateRolloutId'));
       const tariffRows = Array.isArray(tariffOptions) ? tariffOptions : [];
       setTariffs(tariffRows);
       setSelectedTariffVersionId((current) => tariffRows.some((tariff) => readString(tariff, 'tariffVersionId') === current) ? current : '');
@@ -6764,7 +7223,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       const nextDeviceInventory = Array.isArray(deviceRows) ? deviceRows : [];
       setDeviceInventory(nextDeviceInventory);
       setBranchDeviceCommandHistory(Array.isArray(branchDeviceCommands) ? branchDeviceCommands : []);
-      setDeviceAssignmentDeviceId((current) => isGuid(current) ? current : readString(nextDeviceInventory[0], 'deviceId'));
+      setDeviceAssignmentDeviceId((current) => nextDeviceInventory.some((device) => readString(device, 'deviceId') === current)
+        ? current
+        : readString(nextDeviceInventory[0], 'deviceId'));
       setClubName(readString(branchProfile, 'name', 'AFK4'));
       setCity(readString(branchProfile, 'city', 'Dushanbe'));
       setSettingsDirty(false);
@@ -6781,14 +7242,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
   useEffect(() => {
     setCriticalAction(null);
-  }, [deviceAssignmentDeviceId, credentialIdToRevoke]);
+  }, [deviceAssignmentDeviceId]);
 
   const sections = [
     ['Профиль клуба', 'название, город, валюта'],
     ['Залы и ПК', 'зоны, рабочие места, статусы'],
     ['Тарифы', 'пакеты, постоплата, VIP'],
     ['Персонал', 'операторы, роли, доступы'],
-    ['POS и склад', 'товары, остатки, чеки'],
+    ['Товары и склад', 'товары, остатки, чеки'],
     ['Интеграции', 'платежи, обновления, экспорт']
   ];
   const selectedSectionDetail = sections.find(([name]) => name === selectedSection)?.[1] ?? '';
@@ -6818,30 +7279,56 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     .find((seat) => readString(seat, 'seatId') === selectedLayoutSeatId) ?? null;
   const layoutSeatOptions = zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => ({
     seatId: readString(seat, 'seatId'),
-    label: `${readString(zone, 'name', 'Zone')} · ${readString(seat, 'name', 'Seat')}`
+    label: `${readString(zone, 'name', 'Зал')} · ${readString(seat, 'name', 'ПК')}`
   }))).filter((seat) => isGuid(seat.seatId));
   const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
   const deviceRecentCommands = deviceCommandHistory.length > 0
     ? deviceCommandHistory
     : readArray<Record<string, unknown>>(deviceDetail, 'recentCommands');
   const getDeviceInventoryName = (deviceId: string) =>
-    readString(deviceInventory.find((device) => readString(device, 'deviceId') === deviceId), 'machineName', deviceId.slice(0, 8));
+    readString(deviceInventory.find((device) => readString(device, 'deviceId') === deviceId), 'machineName', 'Устройство');
   const selectedRollout = rollouts.find((rollout) => readString(rollout, 'updateRolloutId') === rolloutStateRolloutId) ?? rollouts[0] ?? null;
   const selectedRolloutDeviceStatuses = readArray<Record<string, unknown>>(selectedRollout, 'deviceStatuses');
+  const deviceOptions = deviceInventory
+    .map((device) => ({
+      id: readString(device, 'deviceId'),
+      label: `${readString(device, 'machineName', 'Устройство')} · ${readString(device, 'zoneName', 'без зала')} · ${readString(device, 'seatName', 'без места')}`
+    }))
+    .filter((device) => isGuid(device.id));
+  const selectedDeviceLabel = getDeviceInventoryName(deviceAssignmentDeviceId);
+  const updatePackageOptions = Array.from(new Map([
+    ...rollouts.map((rollout) => ({
+      id: readString(rollout, 'updatePackageId'),
+      label: `${updateComponentLabel(readString(rollout, 'component'))} ${readString(rollout, 'version', 'версия')} · ${updateChannelLabel(readString(rollout, 'channel'))}`
+    })),
+    ...registeredUpdatePackages.map((updatePackage) => ({
+      id: readString(updatePackage, 'updatePackageId'),
+      label: `${updateComponentLabel(readString(updatePackage, 'component'))} ${readString(updatePackage, 'version', 'версия')} · ${updateChannelLabel(readString(updatePackage, 'channel'))} · ${updatePackageStateLabel(readString(updatePackage, 'state', 'registered'))}`
+    }))
+  ].filter((option) => isGuid(option.id)).map((option) => [option.id, option])).values());
+  const rolloutOptions = rollouts
+    .map((rollout) => ({
+      id: readString(rollout, 'updateRolloutId'),
+      label: `${updateComponentLabel(readString(rollout, 'component'))} ${readString(rollout, 'version', 'версия')} · ${updateRolloutStateLabel(readString(rollout, 'state'))}`
+    }))
+    .filter((rollout) => isGuid(rollout.id));
+  const rolloutTargetDeviceIdSet = new Set(rolloutTargetDeviceIds.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean));
+  const rotatedCredentialId = readString(rotatedCredential, 'credentialId');
+  const rotatedCredentialLabel = rotatedCredentialId ? `готов к отзыву для ${selectedDeviceLabel}` : 'сначала смените ключ';
   const selectLayoutZone = (zone: Record<string, unknown>) => {
     const zoneId = readString(zone, 'zoneId');
     setSelectedLayoutZoneId(zoneId);
     setLayoutSeatZoneId(zoneId);
     setLayoutZoneName(readString(zone, 'name', layoutZoneName));
     setLayoutZoneSortOrder(String(readNumber(zone, 'sortOrder', Number(layoutZoneSortOrder))));
-    triggerFeedback(setFeedback, readString(zone, 'name', 'Zone'), 'confirmed');
+    triggerFeedback(setFeedback, readString(zone, 'name', 'Зал'), 'confirmed');
   };
   const selectLayoutSeat = (zone: Record<string, unknown>, seat: Record<string, unknown>) => {
     setSelectedLayoutSeatId(readString(seat, 'seatId'));
     setLayoutSeatZoneId(readString(zone, 'zoneId'));
     setLayoutSeatName(readString(seat, 'name', layoutSeatName));
     setLayoutSeatSortOrder(String(readNumber(seat, 'sortOrder', Number(layoutSeatSortOrder))));
-    triggerFeedback(setFeedback, readString(seat, 'name', 'Seat'), 'confirmed');
+    triggerFeedback(setFeedback, readString(seat, 'name', 'ПК'), 'confirmed');
   };
   const selectCatalogProduct = (product: PosProductDto) => {
     const productId = readString(product, 'productId');
@@ -6852,7 +7339,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setProductPrice(price ? formatMoneyInputMinorUnits(price.minorUnits) : productPrice);
     setProductTrackStock(readBoolean(product, 'trackStock', true));
     setProductAllowNegativeStock(readBoolean(product, 'allowNegativeStock'));
-    triggerFeedback(setFeedback, readString(product, 'name', 'Product'), 'confirmed');
+    triggerFeedback(setFeedback, readString(product, 'name', 'Товар'), 'confirmed');
   };
   const selectTariffOption = (option: TariffOptionDto) => {
     setSelectedTariffVersionId(readString(option, 'tariffVersionId'));
@@ -6861,7 +7348,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setTariffMinimumMinutes(String(readNumber(option, 'minimumBillableMinutes', Number(tariffMinimumMinutes))));
     setTariffRoundingMinutes(String(readNumber(option, 'roundingIncrementMinutes', Number(tariffRoundingMinutes))));
     setTariffEffectiveFromUtc(readString(option, 'effectiveFromUtc', new Date().toISOString()));
-    triggerFeedback(setFeedback, readString(option, 'name', 'Tariff'), 'confirmed');
+    triggerFeedback(setFeedback, readString(option, 'name', 'Тариф'), 'confirmed');
   };
   const selectPackageOption = (option: PackageOptionDto) => {
     setSelectedPackageDefinitionId(readString(option, 'packageDefinitionId'));
@@ -6870,7 +7357,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     setPackageMinutes(String(Math.round(readNumber(option, 'includedSeconds', 0) / 60)));
     setPackageBonusMinutes(String(Math.round(readNumber(option, 'bonusSeconds', 0) / 60)));
     setPackageExpiresDays(String(readNumber(option, 'expiresAfterDays', 30)));
-    triggerFeedback(setFeedback, readString(option, 'name', 'Package'), 'confirmed');
+    triggerFeedback(setFeedback, readString(option, 'name', 'Пакет'), 'confirmed');
   };
   const selectDeviceInventoryItem = (device: DeviceInventoryItemDto) => {
     const deviceId = readString(device, 'deviceId');
@@ -6881,7 +7368,9 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
     }
     setDeviceDetail(null);
     setDeviceCommandHistory([]);
-    triggerFeedback(setFeedback, readString(device, 'machineName', 'Device'), 'confirmed');
+    setRotatedCredential(null);
+    setCredentialIdToRevoke('');
+    triggerFeedback(setFeedback, readString(device, 'machineName', 'Устройство'), 'confirmed');
   };
   const readiness = [
     ['Профиль клуба', `${clubName} · ${city}`],
@@ -6892,7 +7381,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   ];
   const actions: Array<[string, string, LucideIcon]> = [
     ['Добавить ПК', 'новое рабочее место', MonitorCheck],
-    ['Создать тариф', 'тариф и версия платформы', CircleDollarSign],
+    ['Создать тариф', 'цена и правила списания', CircleDollarSign],
     ['Пригласить сотрудника', canManageBranchStaff ? 'создать учётную запись' : 'нет прав доступа', UserRoundPlus],
     ['Обновить профиль сотрудника', canManageBranchStaff ? 'редактировать логин и имя' : 'нет прав доступа', Wrench],
     ['Проверить устройства', 'обновить диагностику', Wifi]
@@ -6918,11 +7407,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           throw new Error('Нет прав на создание кода подключения устройства.');
         }
 
-        const expiresInSeconds = Number(enrollmentExpiresSeconds);
-        if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 60 || expiresInSeconds > 86400) {
-          throw new Error('Срок действия кода должен быть от 60 до 86400 секунд.');
+        const expiresInMinutes = Number(enrollmentExpiresMinutes);
+        if (!Number.isInteger(expiresInMinutes) || expiresInMinutes < 1 || expiresInMinutes > 1440) {
+          throw new Error('Срок действия кода должен быть от 1 минуты до 24 часов.');
         }
 
+        const expiresInSeconds = expiresInMinutes * 60;
         const code = await apiClients.devices.createEnrollmentCode(nextBackend.branchId, nextBackend.session.organizationId, expiresInSeconds);
         setEnrollmentCode(code);
       } else if (label === 'Назначить устройство') {
@@ -6933,7 +7423,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const deviceId = deviceAssignmentDeviceId.trim();
         const seatId = deviceAssignmentSeatId.trim();
         if (!isGuid(deviceId) || !isGuid(seatId)) {
-          throw new Error('Укажите корректные идентификаторы устройства и места.');
+          throw new Error('Выберите устройство и рабочее место.');
         }
 
         await apiClients.settings.assignDeviceSeat(nextBackend.branchId, deviceId, {
@@ -6958,7 +7448,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
         const deviceId = deviceAssignmentDeviceId.trim();
         if (!isGuid(deviceId)) {
-          throw new Error('Укажите корректный идентификатор устройства.');
+          throw new Error('Выберите устройство.');
         }
 
         const [detail, commands] = await Promise.all([
@@ -6978,7 +7468,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const type = deviceCommandType.trim();
         const reason = deviceCommandReason.trim();
         if (!isGuid(deviceId) || !type || !reason) {
-          throw new Error('Укажите идентификатор устройства, тип команды и причину.');
+          throw new Error('Выберите устройство, команду и причину.');
         }
 
         const command = await apiClients.devices.dispatchDeviceCommand(deviceId, {
@@ -7000,14 +7490,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           setDeviceCommandHistory(Array.isArray(selectedCommands) ? selectedCommands : []);
           setBranchDeviceCommandHistory(Array.isArray(branchCommands) ? branchCommands : []);
         }
-      } else if (label === 'Сменить ключ') {
+      } else if (label === 'Выдать новый ключ') {
         if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {
           throw new Error('Нет прав на смену ключа устройства.');
         }
 
         const deviceId = deviceAssignmentDeviceId.trim();
         if (!isGuid(deviceId)) {
-          throw new Error('Укажите корректный device id.');
+          throw new Error('Выберите устройство.');
         }
 
         const rotated = await apiClients.devices.rotateDeviceCredential(deviceId);
@@ -7024,7 +7514,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const deviceId = deviceAssignmentDeviceId.trim();
         const credentialId = credentialIdToRevoke.trim();
         if (!isGuid(deviceId) || !isGuid(credentialId)) {
-          throw new Error('Укажите корректные идентификаторы устройства и ключа.');
+          throw new Error('Выберите устройство и ключ для отзыва.');
         }
 
         await apiClients.devices.revokeDeviceCredential(deviceId, credentialId);
@@ -7086,7 +7576,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
         const zoneId = layoutSeatZoneId.trim();
         if (!zoneId) {
-          throw new Error('Create a layout zone before adding a seat.');
+          throw new Error('Сначала создайте зал для нового ПК.');
         }
 
         const name = layoutSeatName.trim();
@@ -7164,7 +7654,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             idempotencyKey: createIdempotencyKey('tariff-version-create')
           });
         }
-        setTariffName(`Tariff ${tariffs.length + 2}`);
+        setTariffName(`Тариф ${tariffs.length + 2}`);
         setTariffEffectiveFromUtc(new Date().toISOString());
         await loadSettings(nextBackend);
       } else if (label === 'Обновить тариф' || label === 'Снять тариф') {
@@ -7285,7 +7775,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? 'cashier_operator');
         setInviteUserName(`operator${staffUsers.length + 2}`);
         setInviteDisplayName('Новый оператор');
-        setInvitePassword('ChangeMe123!');
+        setInvitePassword('');
       } else if (label === 'Обновить профиль сотрудника') {
         if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
           throw new Error('Нет прав на управление сотрудниками.');
@@ -7360,10 +7850,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
         setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
-        setResetPassword('ChangeMe123!');
+        setResetPassword('');
       } else if (label === 'Создать товар') {
         if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
-          throw new Error('Нет прав на управление POS каталогом.');
+          throw new Error('Нет прав на управление каталогом товаров.');
         }
 
         const categoryName = productCategoryName.trim();
@@ -7371,7 +7861,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const sku = productSku.trim();
         const priceMinorUnits = parseMoneyInputMinorUnits(productPrice);
         if (!categoryName || !nextProductName || !sku || priceMinorUnits === null) {
-          throw new Error('Заполните категорию, товар, SKU и цену больше нуля.');
+          throw new Error('Заполните категорию, товар, артикул и цену больше нуля.');
         }
 
         const category = await apiClients.settings.createProductCategory(nextBackend.branchId, {
@@ -7381,7 +7871,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         const categoryId = readString(category, 'categoryId');
         if (!categoryId) {
-          throw new Error('Платформа вернула POS-категорию без идентификатора.');
+          throw new Error('Категория создана, но платформа не подтвердила её. Повторите операцию или обратитесь в поддержку.');
         }
 
         const product = await apiClients.settings.createProduct(nextBackend.branchId, {
@@ -7396,16 +7886,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         });
         setCatalog((items) => [...items, product]);
         const nextIndex = catalog.length + 2;
-        setProductCategoryName(`POS category ${nextIndex}`);
-        setProductName(`POS item ${nextIndex}`);
-        setProductSku(`POS-${String(nextIndex).padStart(3, '0')}`);
+        setProductCategoryName(`Категория ${nextIndex}`);
+        setProductName(`Товар ${nextIndex}`);
+        setProductSku(`SKU-${String(nextIndex).padStart(3, '0')}`);
         setProductPrice('12.00');
         setProductTrackStock(true);
         setProductAllowNegativeStock(false);
         setSelectedProductId(readString(product, 'productId'));
       } else if (label === 'Обновить товар' || label === 'Снять с продажи') {
         if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
-          throw new Error('Нет прав на управление POS каталогом.');
+          throw new Error('Нет прав на управление каталогом товаров.');
         }
 
         const selectedProduct = catalog.find((product) => readString(product, 'productId') === selectedProductId);
@@ -7413,7 +7903,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const sku = productSku.trim();
         const priceMinorUnits = parseMoneyInputMinorUnits(productPrice);
         if (!selectedProduct || !nextProductName || !sku || priceMinorUnits === null) {
-          throw new Error('Выберите товар и заполните товар, SKU и цену больше нуля.');
+          throw new Error('Выберите товар и заполните товар, артикул и цену больше нуля.');
         }
 
         await apiClients.settings.updateProduct(nextBackend.branchId, readString(selectedProduct, 'productId'), {
@@ -7453,7 +7943,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           idempotencyKey: createIdempotencyKey('stock-movement-create')
         });
         await loadSettings(nextBackend);
-      } else if (label === 'Зарегистрировать пакет обновления') {
+      } else if (label === 'Добавить пакет обновления') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdatePackages)) {
           throw new Error('Нет прав на управление пакетами обновлений.');
         }
@@ -7465,16 +7955,17 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const sha256 = updateSha256.trim();
         const signature = updateSignature.trim();
         const signatureAlgorithm = updateSignatureAlgorithm.trim();
-        const sizeBytes = Number(updateSizeBytes);
+        const sizeKilobytes = Number(updateSizeKilobytes);
+        const sizeBytes = sizeKilobytes * 1024;
         if (!component || !version || !channel || !artifactUri || !sha256 || !signature || !signatureAlgorithm
-          || !Number.isInteger(sizeBytes) || sizeBytes <= 0) {
-          throw new Error('Заполните component, version, channel, artifact URL, sha256, signature, algorithm и size.');
+          || !Number.isInteger(sizeKilobytes) || sizeKilobytes <= 0) {
+          throw new Error('Заполните приложение, версию, канал, ссылку на установщик, проверочную сумму, подпись, способ проверки подписи и размер файла.');
         }
 
         try {
           new URL(artifactUri);
         } catch {
-          throw new Error('Artifact URL должен быть абсолютным URL.');
+          throw new Error('Ссылка на установщик должна быть полной.');
         }
 
         const createdPackage = await apiClients.updates.registerPackage(nextBackend.branchId, {
@@ -7490,13 +7981,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           releaseNotes: updateReleaseNotes.trim()
         });
         const updatePackageId = readString(createdPackage, 'updatePackageId');
-        if (updatePackageId) {
-          setRolloutPackageId(updatePackageId);
-          setPackageStatePackageId(updatePackageId);
+        if (!isGuid(updatePackageId)) {
+          throw new Error('Пакет обновления создан, но платформа не подтвердила его. Повторите операцию или обратитесь в поддержку.');
         }
-      } else if (label === 'Создать раскатку обновления') {
+
+        setRegisteredUpdatePackages((items) => [createdPackage, ...items.filter((item) => readString(item, 'updatePackageId') !== updatePackageId)]);
+        setRolloutPackageId(updatePackageId);
+        setPackageStatePackageId(updatePackageId);
+      } else if (label === 'Создать публикацию обновления') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
-          throw new Error('Нет прав на управление rollout обновлений.');
+          throw new Error('Нет прав на управление публикациями обновлений.');
         }
 
         const updatePackageId = rolloutPackageId.trim();
@@ -7512,7 +8006,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           || !Number.isInteger(batchPercent) || batchPercent < 1 || batchPercent > 100
           || Number.isNaN(startsAt.getTime()) || !rolloutReason.trim()
           || targetDeviceIds.some((deviceId) => !isGuid(deviceId))) {
-          throw new Error('Заполните package id, channel, target, batch, start UTC и reason для rollout.');
+          throw new Error('Выберите пакет, канал, цель, долю, старт и причину публикации.');
         }
 
         const rollout = await apiClients.updates.createRollout(nextBackend.branchId, {
@@ -7539,24 +8033,25 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const state = packageState.trim();
         const reason = packageStateReason.trim();
         if (!isGuid(updatePackageId) || !state || !reason) {
-          throw new Error('Заполните package id, state и reason.');
+          throw new Error('Выберите пакет, состояние и причину.');
         }
 
-        await apiClients.updates.changePackageState(nextBackend.branchId, updatePackageId, {
+        const updatePackage = await apiClients.updates.changePackageState(nextBackend.branchId, updatePackageId, {
           organizationId: nextBackend.session.organizationId,
           state,
           reason
         });
-      } else if (label === 'Изменить состояние раскатки') {
+        setRegisteredUpdatePackages((items) => [updatePackage, ...items.filter((item) => readString(item, 'updatePackageId') !== updatePackageId)]);
+      } else if (label === 'Изменить состояние публикации') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdateRollouts)) {
-          throw new Error('Нет прав на управление rollout обновлений.');
+          throw new Error('Нет прав на управление публикациями обновлений.');
         }
 
         const updateRolloutId = rolloutStateRolloutId.trim();
         const state = rolloutState.trim();
         const reason = rolloutStateReason.trim();
         if (!isGuid(updateRolloutId) || !state || !reason) {
-          throw new Error('Заполните rollout id, state и reason.');
+          throw new Error('Выберите публикацию, состояние и причину.');
         }
 
         const rollout = await apiClients.updates.changeRolloutState(nextBackend.branchId, updateRolloutId, {
@@ -7622,17 +8117,17 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
           <div className="settings-form-grid settings-layout-form">
             <label>Название зала<input value={layoutZoneName} disabled={!canManageLayout} onChange={(event) => setLayoutZoneName(event.currentTarget.value)} /></label>
-            <label>Сортировка зала<input inputMode="numeric" value={layoutZoneSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutZoneSortOrder(event.currentTarget.value)} /></label>
+            <label>Порядок зала<input inputMode="numeric" value={layoutZoneSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutZoneSortOrder(event.currentTarget.value)} /></label>
             <label>Зона ПК
               <select value={layoutSeatZoneId} disabled={!canManageLayout || zones.length === 0} onChange={(event) => setLayoutSeatZoneId(event.currentTarget.value)}>
                 {zones.length === 0 && <option value="">нет залов</option>}
                 {zones.map((zone) => (
-                  <option key={readString(zone, 'zoneId')} value={readString(zone, 'zoneId')}>{readString(zone, 'name', 'Zone')}</option>
+                  <option key={readString(zone, 'zoneId')} value={readString(zone, 'zoneId')}>{readString(zone, 'name', 'Зал')}</option>
                 ))}
               </select>
             </label>
             <label>Название ПК<input value={layoutSeatName} disabled={!canManageLayout} onChange={(event) => setLayoutSeatName(event.currentTarget.value)} /></label>
-            <label>Сортировка ПК<input inputMode="numeric" value={layoutSeatSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutSeatSortOrder(event.currentTarget.value)} /></label>
+            <label>Порядок ПК<input inputMode="numeric" value={layoutSeatSortOrder} disabled={!canManageLayout} onChange={(event) => setLayoutSeatSortOrder(event.currentTarget.value)} /></label>
             <button type="button" disabled={!canManageLayout || !layoutSeatZoneId} onClick={() => runSettingsAction('Добавить ПК')}>Создать ПК</button>
             <button type="button" disabled={!canManageLayout || !selectedLayoutSeatId || !layoutSeatZoneId} onClick={() => runSettingsAction('Обновить ПК')}>Обновить ПК</button>
             <button
@@ -7650,7 +8145,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <CriticalActionConfirmation
               title="Подтвердите удаление зала"
               detail={`${readString(selectedLayoutZone, 'name', layoutZoneName || 'Зал')} · ${readArray(selectedLayoutZone, 'seats').length} ПК`}
-              impact="Зал будет удален из backend layout. Удаление доступно только для пустых залов."
+              impact="Зал будет удален из схемы клуба. Удаление доступно только для пустых залов."
               confirmLabel="Подтвердить удаление зала"
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
@@ -7660,8 +8155,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           {criticalAction === 'layout-seat-delete' && (
             <CriticalActionConfirmation
               title="Подтвердите удаление ПК"
-              detail={`${readString(selectedLayoutSeat, 'name', layoutSeatName || 'ПК')} · ${selectedLayoutSeatId.slice(0, 8)}`}
-              impact="Рабочее место будет удалено из backend layout. Активные сессии и привязки устройств нужно проверять до удаления."
+              detail={readString(selectedLayoutSeat, 'name', layoutSeatName || 'ПК')}
+              impact="Рабочее место будет удалено из схемы клуба. Проверьте активные сессии и привязку устройства до удаления."
               confirmLabel="Подтвердить удаление ПК"
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
@@ -7671,18 +8166,18 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-room-grid">
             {zones.map((zone) => (
               <button key={readString(zone, 'zoneId')} type="button" className={`settings-room-card ${readString(zone, 'zoneId') === selectedLayoutZoneId ? 'active' : ''}`} onClick={() => selectLayoutZone(zone)}>
-                <strong>{readString(zone, 'name', 'Zone')}</strong>
+                <strong>{readString(zone, 'name', 'Зал')}</strong>
                 <b>{readArray(zone, 'seats').length} ПК</b>
-                <span>sort {readNumber(zone, 'sortOrder', 0)}</span>
+                <span>порядок {readNumber(zone, 'sortOrder', 0)}</span>
               </button>
             ))}
           </div>
           <div className="settings-tariff-list">
             {zones.flatMap((zone) => readArray<Record<string, unknown>>(zone, 'seats').map((seat) => (
               <button key={readString(seat, 'seatId')} type="button" className={`settings-tariff-row ${readString(seat, 'seatId') === selectedLayoutSeatId ? 'active' : ''}`} onClick={() => selectLayoutSeat(zone, seat)}>
-                <strong>{readString(seat, 'name', 'Seat')}</strong>
-                <b>{readString(zone, 'name', 'Zone')}</b>
-                <span>sort {readNumber(seat, 'sortOrder', 0)}</span>
+                <strong>{readString(seat, 'name', 'ПК')}</strong>
+                <b>{readString(zone, 'name', 'Зал')}</b>
+                <span>порядок {readNumber(seat, 'sortOrder', 0)}</span>
               </button>
             )))}
           </div>
@@ -7693,9 +8188,19 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <button type="button" disabled={!canViewDeviceCommandStatus} onClick={() => runSettingsAction('Обновить историю команд')}>Обновить историю команд</button>
           </div>
           <div className="settings-form-grid settings-device-form">
-            <label>Срок кода, сек<input inputMode="numeric" value={enrollmentExpiresSeconds} disabled={!canCreateDeviceEnrollmentCode} onChange={(event) => setEnrollmentExpiresSeconds(event.currentTarget.value)} /></label>
+            <label>Срок действия кода, минут<input inputMode="numeric" value={enrollmentExpiresMinutes} disabled={!canCreateDeviceEnrollmentCode} onChange={(event) => setEnrollmentExpiresMinutes(event.currentTarget.value)} /></label>
             <label>Код подключения<input value={readString(enrollmentCode, 'code', '—')} readOnly /></label>
-            <label>ID устройства<input value={deviceAssignmentDeviceId} disabled={!canAssignDeviceSeat && !canViewDeviceDetail} onChange={(event) => setDeviceAssignmentDeviceId(event.currentTarget.value)} /></label>
+            <label>Устройство
+              <select value={deviceAssignmentDeviceId} disabled={deviceOptions.length === 0 || (!canAssignDeviceSeat && !canViewDeviceDetail)} onChange={(event) => setDeviceAssignmentDeviceId(event.currentTarget.value)}>
+                {deviceOptions.length === 0 && <option value="">нет подключенных устройств</option>}
+                {deviceAssignmentDeviceId && !deviceOptions.some((device) => device.id === deviceAssignmentDeviceId) && (
+                  <option value={deviceAssignmentDeviceId}>выбранное устройство</option>
+                )}
+                {deviceOptions.map((device) => (
+                  <option key={device.id} value={device.id}>{device.label}</option>
+                ))}
+              </select>
+            </label>
             <label>Рабочее место
               <select value={deviceAssignmentSeatId} disabled={!canAssignDeviceSeat || layoutSeatOptions.length === 0} onChange={(event) => setDeviceAssignmentSeatId(event.currentTarget.value)}>
                 {layoutSeatOptions.length === 0 && <option value="">нет рабочих мест</option>}
@@ -7704,7 +8209,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 ))}
               </select>
             </label>
-            <label>Карточка устройства<input value={deviceDetail ? `${readString(deviceDetail, 'machineName', 'Device')} · ${readString(deviceDetail, 'seatName', 'без места')}` : 'не открыта'} readOnly /></label>
+            <label>Карточка устройства<input value={deviceDetail ? `${readString(deviceDetail, 'machineName', 'Устройство')} · ${readString(deviceDetail, 'seatName', 'без места')}` : 'не открыта'} readOnly /></label>
             <button type="button" disabled={!canViewDeviceDetail || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Открыть карточку устройства')}>Открыть карточку устройства</button>
             <label>Команда
               <select value={deviceCommandType} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandType(event.currentTarget.value)}>
@@ -7713,12 +8218,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               </select>
             </label>
             <label>Причина команды<input value={deviceCommandReason} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandReason(event.currentTarget.value)} /></label>
-            <label>Последняя команда<input value={lastDeviceCommand ? `${commandTypeLabel(readString(lastDeviceCommand, 'type', 'command'))} · ${readString(lastDeviceCommand, 'commandId').slice(0, 8)}` : 'не отправлена'} readOnly /></label>
+            <label>Последняя команда<input value={lastDeviceCommand ? `${commandTypeLabel(readString(lastDeviceCommand, 'type', 'command'))} · отправлена` : 'не отправлена'} readOnly /></label>
             <button type="button" disabled={!canDispatchDeviceCommand || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Отправить команду')}>Отправить команду</button>
-            <label>Идентификатор ключа<input value={credentialIdToRevoke} disabled={!canRevokeDeviceCredential} onChange={(event) => setCredentialIdToRevoke(event.currentTarget.value)} /></label>
-            <label>Новый ключ<input value={readString(rotatedCredential, 'credentialId', '—')} readOnly /></label>
-            <label className="settings-form-wide">Секрет ключа<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
-            <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Сменить ключ')}>Сменить ключ</button>
+            <label>Ключ для отзыва<input value={rotatedCredentialLabel} readOnly /></label>
+            <label>Новый ключ устройства<input value={rotatedCredentialId ? 'создан' : '—'} readOnly /></label>
+            <label className="settings-form-wide">Код нового подключения<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
+            <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Выдать новый ключ')}>Выдать новый ключ</button>
             <button
               type="button"
               disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke) || feedback.state === 'pending'}
@@ -7733,8 +8238,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           {criticalAction === 'credential-revoke' && (
             <CriticalActionConfirmation
               title="Подтвердите отзыв ключа"
-              detail={`Устройство ${deviceAssignmentDeviceId.slice(0, 8)} · ключ ${credentialIdToRevoke.slice(0, 8)}`}
-              impact="После отзыва этот credential больше нельзя использовать для подключения Agent."
+              detail={`${selectedDeviceLabel} · новый ключ устройства`}
+              impact="После отзыва этот ключ больше нельзя использовать для подключения выбранного ПК."
               confirmLabel="Отозвать ключ"
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
@@ -7825,16 +8330,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
           <div className="settings-form-grid settings-tariff-form">
             <label>Название тарифа<input value={tariffName} disabled={!canManageTariffs} onChange={(event) => setTariffName(event.currentTarget.value)} /></label>
-            <label>Цена/час<input inputMode="decimal" value={tariffPricePerHour} disabled={!canManageTariffs} onChange={(event) => setTariffPricePerHour(event.currentTarget.value)} /></label>
-            <label>Минимум мин<input inputMode="numeric" value={tariffMinimumMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffMinimumMinutes(event.currentTarget.value)} /></label>
-            <label>Округление мин<input inputMode="numeric" value={tariffRoundingMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffRoundingMinutes(event.currentTarget.value)} /></label>
+            <label>Цена за час<input inputMode="decimal" value={tariffPricePerHour} disabled={!canManageTariffs} onChange={(event) => setTariffPricePerHour(event.currentTarget.value)} /></label>
+            <label>Минимум, мин<input inputMode="numeric" value={tariffMinimumMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffMinimumMinutes(event.currentTarget.value)} /></label>
+            <label>Шаг округления, мин<input inputMode="numeric" value={tariffRoundingMinutes} disabled={!canManageTariffs} onChange={(event) => setTariffRoundingMinutes(event.currentTarget.value)} /></label>
           </div>
           <div className="settings-tariff-list">
             {tariffs.map((tariff) => (
               <button key={readString(tariff, 'tariffVersionId')} type="button" className={`settings-tariff-row ${readString(tariff, 'tariffVersionId') === selectedTariffVersionId ? 'active' : ''}`} onClick={() => selectTariffOption(tariff)}>
-                <strong>{readString(tariff, 'name', 'Tariff')}</strong>
+                <strong>{readString(tariff, 'name', 'Тариф')}</strong>
                 <b>{formatMinorUnits(readNumber(tariff, 'pricePerMinuteMinorUnits', 0) * 60, readString(tariff, 'currencyCode', currencyCode))} / час</b>
-                <span>v{readNumber(tariff, 'versionNumber', 0)} · {readString(tariff, 'tariffRuleVersionId', 'rule')}</span>
+                <span>минимум {readNumber(tariff, 'minimumBillableMinutes', 0)} мин · шаг {readNumber(tariff, 'roundingIncrementMinutes', 0)} мин · {readBoolean(tariff, 'isActive', true) ? 'активен' : 'снят'}</span>
               </button>
             ))}
           </div>
@@ -7849,18 +8354,18 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-tariff-list">
             {packageOptions.map((option) => (
               <button key={readString(option, 'packageDefinitionId')} type="button" className={`settings-tariff-row ${readString(option, 'packageDefinitionId') === selectedPackageDefinitionId ? 'active' : ''}`} onClick={() => selectPackageOption(option)}>
-                <strong>{readString(option, 'name', 'Package')}</strong>
+                <strong>{readString(option, 'name', 'Пакет')}</strong>
                 <b>{formatMinorUnits(readNumber(option, 'priceMinorUnits', 0), readString(option, 'currencyCode', currencyCode))}</b>
-                <span>{Math.round(readNumber(option, 'includedSeconds', 0) / 60)} мин · +{Math.round(readNumber(option, 'bonusSeconds', 0) / 60)} бонус · {readNumber(option, 'expiresAfterDays', 0)} дн.</span>
+                <span>{Math.round(readNumber(option, 'includedSeconds', 0) / 60)} мин · +{Math.round(readNumber(option, 'bonusSeconds', 0) / 60)} бонус · действует {readNumber(option, 'expiresAfterDays', 0)} дн.</span>
               </button>
             ))}
           </div>
           <div className="settings-form-grid settings-package-form">
-            <label>Пакет<input value={packageName} disabled={!canManagePackages} onChange={(event) => setPackageName(event.currentTarget.value)} /></label>
+            <label>Название пакета<input value={packageName} disabled={!canManagePackages} onChange={(event) => setPackageName(event.currentTarget.value)} /></label>
             <label>Цена<input inputMode="decimal" value={packagePrice} disabled={!canManagePackages} onChange={(event) => setPackagePrice(event.currentTarget.value)} /></label>
-            <label>Минуты<input inputMode="numeric" value={packageMinutes} disabled={!canManagePackages} onChange={(event) => setPackageMinutes(event.currentTarget.value)} /></label>
-            <label>Бонус<input inputMode="numeric" value={packageBonusMinutes} disabled={!canManagePackages} onChange={(event) => setPackageBonusMinutes(event.currentTarget.value)} /></label>
-            <label>Дней<input inputMode="numeric" value={packageExpiresDays} disabled={!canManagePackages} onChange={(event) => setPackageExpiresDays(event.currentTarget.value)} /></label>
+            <label>Включено, мин<input inputMode="numeric" value={packageMinutes} disabled={!canManagePackages} onChange={(event) => setPackageMinutes(event.currentTarget.value)} /></label>
+            <label>Бонус, мин<input inputMode="numeric" value={packageBonusMinutes} disabled={!canManagePackages} onChange={(event) => setPackageBonusMinutes(event.currentTarget.value)} /></label>
+            <label>Срок, дней<input inputMode="numeric" value={packageExpiresDays} disabled={!canManagePackages} onChange={(event) => setPackageExpiresDays(event.currentTarget.value)} /></label>
           </div>
         </>
       );
@@ -7901,10 +8406,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               ))}
             </div>
             <div className="settings-form-grid settings-staff-form">
-              <label>Логин<input value={inviteUserName} disabled={!canManageBranchStaff} onChange={(event) => setInviteUserName(event.currentTarget.value)} /></label>
-              <label>Имя<input value={inviteDisplayName} disabled={!canManageBranchStaff} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} /></label>
-              <label>Временный пароль<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
-              <label>Роль
+              <label>Логин для входа<input value={inviteUserName} disabled={!canManageBranchStaff} onChange={(event) => setInviteUserName(event.currentTarget.value)} /></label>
+              <label>Имя в смене<input value={inviteDisplayName} disabled={!canManageBranchStaff} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} /></label>
+              <label>Пароль на первый вход<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
+              <label>Роль доступа
                 <select value={inviteRoleName} disabled={!canManageBranchStaff} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
                 </select>
@@ -7912,12 +8417,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <label>Логин профиля<input value={staffProfileUserName} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setStaffProfileUserName(event.currentTarget.value)} /></label>
               <label>Имя профиля<input value={staffProfileDisplayName} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setStaffProfileDisplayName(event.currentTarget.value)} /></label>
               <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction('Обновить профиль сотрудника')}>Обновить профиль</button>
-              <label>Роль сотрудника
+              <label>Новая роль
                 <select value={staffRoleName} disabled={!canManageRoles || !selectedStaffUserId} onChange={(event) => setStaffRoleName(event.currentTarget.value)}>
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
                 </select>
               </label>
-              <label>Новый пароль<input type="password" value={resetPassword} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setResetPassword(event.currentTarget.value)} /></label>
+              <label>Новый пароль для входа<input type="password" value={resetPassword} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setResetPassword(event.currentTarget.value)} /></label>
               <button type="button" disabled={!canManageRoles || !selectedStaffUserId} onClick={() => runSettingsAction('Обновить роль')}>Обновить роль</button>
             </div>
           </div>
@@ -7925,11 +8430,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
       );
     }
 
-    if (selectedSection === 'POS и склад') {
+    if (selectedSection === 'Товары и склад') {
       return (
         <>
           <div className="settings-section-title">
-            <span>POS каталог</span>
+            <span>Каталог товаров</span>
             <div className="settings-section-actions">
               <button type="button" disabled={!canManagePosCatalog} onClick={() => runSettingsAction('Создать товар')}>Создать товар</button>
               <button type="button" disabled={!canManagePosCatalog || !selectedProductId} onClick={() => runSettingsAction('Обновить товар')}>Обновить товар</button>
@@ -7939,15 +8444,15 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-config-grid">
             {catalog.slice(0, 8).map((product) => (
               <button key={readString(product, 'productId')} type="button" className={readString(product, 'productId') === selectedProductId ? 'active' : undefined} onClick={() => selectCatalogProduct(product)}>
-                <strong>{readString(product, 'name', 'Product')}</strong>
-                <span>{formatMoney(readMoney(product, 'price'), currencyCode)} · stock {readNumber(product, 'stockOnHand', 0)}</span>
+                <strong>{readString(product, 'name', 'Товар')}</strong>
+                <span>{formatMoney(readMoney(product, 'price'), currencyCode)} · остаток {readNumber(product, 'stockOnHand', 0)}</span>
               </button>
             ))}
           </div>
           <div className="settings-form-grid settings-pos-form">
             <label>Категория<input value={productCategoryName} disabled={!canManagePosCatalog} onChange={(event) => setProductCategoryName(event.currentTarget.value)} /></label>
             <label>Товар<input value={productName} disabled={!canManagePosCatalog} onChange={(event) => setProductName(event.currentTarget.value)} /></label>
-            <label>SKU<input value={productSku} disabled={!canManagePosCatalog} onChange={(event) => setProductSku(event.currentTarget.value)} /></label>
+            <label>Артикул<input value={productSku} disabled={!canManagePosCatalog} onChange={(event) => setProductSku(event.currentTarget.value)} /></label>
             <label>Цена<input inputMode="decimal" value={productPrice} disabled={!canManagePosCatalog} onChange={(event) => setProductPrice(event.currentTarget.value)} /></label>
             <label>Учёт остатков
               <select value={productTrackStock ? 'yes' : 'no'} disabled={!canManagePosCatalog} onChange={(event) => setProductTrackStock(event.currentTarget.value === 'yes')}>
@@ -7971,14 +8476,14 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               <select value={stockProductId} disabled={!canManageInventoryStock || trackedCatalog.length === 0} onChange={(event) => setStockProductId(event.currentTarget.value)}>
                 {trackedCatalog.length === 0 && <option value="">нет товаров с остатками</option>}
                 {trackedCatalog.map((product) => (
-                  <option key={readString(product, 'productId')} value={readString(product, 'productId')}>{readString(product, 'name', 'Product')} · stock {readNumber(product, 'stockOnHand', 0)}</option>
+                  <option key={readString(product, 'productId')} value={readString(product, 'productId')}>{readString(product, 'name', 'Товар')} · остаток {readNumber(product, 'stockOnHand', 0)}</option>
                 ))}
               </select>
             </label>
             <label>Тип
               <select value={stockMovementType} disabled={!canManageInventoryStock} onChange={(event) => setStockMovementType(event.currentTarget.value)}>
-                <option value="purchase">purchase</option>
-                <option value="adjustment">adjustment</option>
+                <option value="purchase">Приход</option>
+                <option value="adjustment">Коррекция</option>
               </select>
             </label>
             <label>Кол-во<input inputMode="numeric" value={stockQuantityDelta} disabled={!canManageInventoryStock} onChange={(event) => setStockQuantityDelta(event.currentTarget.value)} /></label>
@@ -7993,7 +8498,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             {stockMovements.length === 0 && (
               <button type="button" disabled>
                 <strong>Нет движений</strong>
-                <span>платформа вернула пустую историю</span>
+                <span>движений по складу пока нет</span>
               </button>
             )}
             {stockMovements.map((movement) => {
@@ -8001,12 +8506,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               const productName = readString(
                 catalog.find((product) => readString(product, 'productId') === productId),
                 'name',
-                productId.slice(0, 8) || 'Product');
+                'Товар');
               const quantityDelta = readNumber(movement, 'quantityDelta', 0);
-              const reason = readString(movement, 'reason', 'movement');
+              const reason = readString(movement, 'reason', 'причина не указана');
               return (
                 <button key={readString(movement, 'stockMovementId')} type="button" onClick={() => triggerFeedback(setFeedback, productName, 'confirmed')}>
-                  <strong>{productName} · {readString(movement, 'movementType', 'movement')}</strong>
+                  <strong>{productName} · {stockMovementTypeLabel(readString(movement, 'movementType'))}</strong>
                   <span>{quantityDelta > 0 ? '+' : ''}{quantityDelta} · {formatMoney(readMoney(movement, 'unitCost'), currencyCode)} · {reason}</span>
                 </button>
               );
@@ -8021,10 +8526,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         <>
           <div className="settings-config-grid">
             {[
-              ['Платежи', 'ручная интеграция'],
-              ['Обновления', `раскаток: ${rollouts.length}`],
+              ['Платежи', 'ручное подтверждение'],
+              ['Обновления', `публикаций: ${rollouts.length}`],
               ['Ошибки обновлений', `ПК с ошибками: ${readNumber(updateSummary, 'failedDevices', 0)}`],
-              ['API', backend?.config.platformBaseUrl ?? 'демо']
+              ['Связь', backend ? 'подключена' : 'локальные данные']
             ].map(([name, detail]) => (
               <button key={name} type="button" onClick={() => triggerFeedback(setFeedback, name, 'confirmed')}>
                 <strong>{name}</strong>
@@ -8034,11 +8539,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
 
           <div className="settings-section-title">
-            <span>Пакеты обновлений</span>
-            <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Зарегистрировать пакет обновления')}>Зарегистрировать пакет</button>
+            <span>Пакеты для обновления</span>
+            <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Добавить пакет обновления')}>Добавить пакет</button>
           </div>
           <div className="settings-form-grid settings-update-form">
-            <label>Компонент
+            <label>Приложение
               <select value={updateComponent} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateComponent(event.currentTarget.value)}>
                 <option value="operator-app">{updateComponentLabel('operator-app')}</option>
                 <option value="agent-service">{updateComponentLabel('agent-service')}</option>
@@ -8053,17 +8558,17 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <option value="stable">{updateChannelLabel('stable')}</option>
               </select>
             </label>
-            <label className="settings-form-wide">URL артефакта<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">SHA-256<input value={updateSha256} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSha256(event.currentTarget.value)} /></label>
-            <label>Подпись<input value={updateSignature} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignature(event.currentTarget.value)} /></label>
-            <label>Алгоритм<input value={updateSignatureAlgorithm} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignatureAlgorithm(event.currentTarget.value)} /></label>
-            <label>Размер, байты<input inputMode="numeric" value={updateSizeBytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeBytes(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Файл установщика<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Проверочная сумма<input value={updateSha256} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSha256(event.currentTarget.value)} /></label>
+            <label>Подпись пакета<input value={updateSignature} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignature(event.currentTarget.value)} /></label>
+            <label>Способ проверки подписи<input value={updateSignatureAlgorithm} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignatureAlgorithm(event.currentTarget.value)} /></label>
+            <label>Размер файла, КБ<input inputMode="numeric" value={updateSizeKilobytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeKilobytes(event.currentTarget.value)} /></label>
             <label className="settings-form-wide">Описание релиза<input value={updateReleaseNotes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateReleaseNotes(event.currentTarget.value)} /></label>
           </div>
 
           <div className="settings-section-title">
-            <span>Раскатки обновлений</span>
-            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Создать раскатку обновления')}>Создать раскатку</button>
+            <span>Публикации обновлений</span>
+            <button type="button" disabled={!canManageUpdateRollouts} onClick={() => runSettingsAction('Создать публикацию обновления')}>Создать публикацию</button>
           </div>
           <div className="settings-tariff-list">
             {rollouts.map((rollout) => (
@@ -8077,19 +8582,19 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                   setPackageStatePackageId(readString(rollout, 'updatePackageId'));
                 }}
               >
-                <strong>{updateComponentLabel(readString(rollout, 'component', 'component'))} {readString(rollout, 'version', 'version')}</strong>
-                <b>{updateRolloutStateLabel(readString(rollout, 'state', 'state'))}</b>
-                <span>{updateTargetKindLabel(readString(rollout, 'targetKind', 'target'))} · {readNumber(rollout, 'batchPercent', 0)}% · ПК: {readArray(rollout, 'deviceStatuses').length}</span>
+                <strong>{updateComponentLabel(readString(rollout, 'component'))} {readString(rollout, 'version', 'версия')}</strong>
+                <b>{updateRolloutStateLabel(readString(rollout, 'state'))}</b>
+                <span>{updateTargetKindLabel(readString(rollout, 'targetKind'))} · {readNumber(rollout, 'batchPercent', 0)}% · ПК: {readArray(rollout, 'deviceStatuses').length}</span>
               </button>
             ))}
           </div>
           {selectedRollout && (
             <div className="settings-device-detail-grid">
-              <span><strong>Раскатка</strong><b>{readString(selectedRollout, 'updateRolloutId').slice(0, 8)}</b></span>
-              <span><strong>Состояние</strong><b>{updateRolloutStateLabel(readString(selectedRollout, 'state', 'state'))}</b></span>
-              <span><strong>Цель</strong><b>{updateTargetKindLabel(readString(selectedRollout, 'targetKind', 'target'))} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
-              <span><strong>Канал</strong><b>{updateChannelLabel(readString(selectedRollout, 'channel', 'channel'))}</b></span>
-              <span><strong>Пакет</strong><b>{readString(selectedRollout, 'updatePackageId').slice(0, 8)}</b></span>
+              <span><strong>Публикация</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'))} {readString(selectedRollout, 'version', 'версия')}</b></span>
+              <span><strong>Состояние</strong><b>{updateRolloutStateLabel(readString(selectedRollout, 'state'))}</b></span>
+              <span><strong>Цель</strong><b>{updateTargetKindLabel(readString(selectedRollout, 'targetKind'))} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
+              <span><strong>Канал</strong><b>{updateChannelLabel(readString(selectedRollout, 'channel'))}</b></span>
+              <span><strong>Пакет</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'))} {readString(selectedRollout, 'version', 'версия')}</b></span>
               <span><strong>Старт</strong><b>{formatTime(readString(selectedRollout, 'startsAtUtc'))}</b></span>
               <span><strong>Завершено</strong><b>{formatTime(readString(selectedRollout, 'completedAtUtc'))}</b></span>
               <span><strong>ПК</strong><b>{selectedRolloutDeviceStatuses.length}</b></span>
@@ -8099,7 +8604,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <div className="settings-command-history">
               {selectedRolloutDeviceStatuses.map((status) => (
                 <span key={`${readString(status, 'deviceId')}-${readString(status, 'updatedAtUtc')}`}>
-                  <strong>{readString(status, 'deviceId').slice(0, 8)}</strong>
+                  <strong>{getDeviceInventoryName(readString(status, 'deviceId'))}</strong>
                   <b>{updateDeviceStatusLabel(readString(status, 'status', 'unknown'))}</b>
                   <em>{updateDeviceMessageLabel(readString(status, 'message')) || `${readString(status, 'installedVersion')} → ${readString(status, 'targetVersion')}`}</em>
                 </span>
@@ -8107,7 +8612,17 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             </div>
           )}
           <div className="settings-form-grid settings-update-form">
-            <label className="settings-form-wide">ID пакета раскатки<input value={rolloutPackageId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutPackageId(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Пакет для публикации
+              <select value={rolloutPackageId} disabled={!canManageUpdateRollouts || updatePackageOptions.length === 0} onChange={(event) => setRolloutPackageId(event.currentTarget.value)}>
+                {updatePackageOptions.length === 0 && <option value="">сначала зарегистрируйте пакет</option>}
+                {rolloutPackageId && !updatePackageOptions.some((option) => option.id === rolloutPackageId) && (
+                  <option value={rolloutPackageId}>выбранный пакет</option>
+                )}
+                {updatePackageOptions.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
             <label>Канал
               <select value={rolloutChannel} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutChannel(event.currentTarget.value)}>
                 <option value="internal">{updateChannelLabel('internal')}</option>
@@ -8122,9 +8637,16 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               </select>
             </label>
             <label>Доля %<input inputMode="numeric" value={rolloutBatchPercent} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutBatchPercent(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">ID целевых ПК<input value={rolloutTargetDeviceIds} disabled={!canManageUpdateRollouts || rolloutTargetKind !== 'device'} onChange={(event) => setRolloutTargetDeviceIds(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Старт UTC<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Причина раскатки<input value={rolloutReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutReason(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Целевые ПК
+              <select multiple value={Array.from(rolloutTargetDeviceIdSet)} disabled={!canManageUpdateRollouts || rolloutTargetKind !== 'device' || deviceOptions.length === 0} onChange={(event) => setRolloutTargetDeviceIds(Array.from(event.currentTarget.selectedOptions).map((option) => option.value).join(','))}>
+                {deviceOptions.length === 0 && <option value="">нет подключенных устройств</option>}
+                {deviceOptions.map((device) => (
+                  <option key={device.id} value={device.id}>{device.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="settings-form-wide">Начало публикации<input value={rolloutStartsAtUtc} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStartsAtUtc(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Причина публикации<input value={rolloutReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutReason(event.currentTarget.value)} /></label>
           </div>
 
           <div className="settings-section-title">
@@ -8147,11 +8669,21 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 setCriticalAction('rollout-state-change');
               }}
             >
-              Изменить состояние раскатки
+              Изменить состояние публикации
             </button>
           </div>
           <div className="settings-form-grid settings-update-form">
-            <label className="settings-form-wide">ID пакета<input value={packageStatePackageId} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStatePackageId(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Пакет обновления
+              <select value={packageStatePackageId} disabled={!canManageUpdatePackages || updatePackageOptions.length === 0} onChange={(event) => setPackageStatePackageId(event.currentTarget.value)}>
+                {updatePackageOptions.length === 0 && <option value="">нет пакетов</option>}
+                {packageStatePackageId && !updatePackageOptions.some((option) => option.id === packageStatePackageId) && (
+                  <option value={packageStatePackageId}>выбранный пакет</option>
+                )}
+                {updatePackageOptions.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
             <label>Состояние пакета
               <select value={packageState} disabled={!canManageUpdatePackages} onChange={(event) => setPackageState(event.currentTarget.value)}>
                 <option value="registered">{updatePackageStateLabel('registered')}</option>
@@ -8161,8 +8693,18 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
               </select>
             </label>
             <label>Причина пакета<input value={packageStateReason} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStateReason(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">ID раскатки<input value={rolloutStateRolloutId} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateRolloutId(event.currentTarget.value)} /></label>
-            <label>Состояние раскатки
+            <label className="settings-form-wide">Публикация
+              <select value={rolloutStateRolloutId} disabled={!canManageUpdateRollouts || rolloutOptions.length === 0} onChange={(event) => setRolloutStateRolloutId(event.currentTarget.value)}>
+                {rolloutOptions.length === 0 && <option value="">нет публикаций</option>}
+                {rolloutStateRolloutId && !rolloutOptions.some((option) => option.id === rolloutStateRolloutId) && (
+                  <option value={rolloutStateRolloutId}>выбранная публикация</option>
+                )}
+                {rolloutOptions.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>Состояние публикации
               <select value={rolloutState} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutState(event.currentTarget.value)}>
                 <option value="active">{updateRolloutStateLabel('active')}</option>
                 <option value="paused">{updateRolloutStateLabel('paused')}</option>
@@ -8172,13 +8714,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <option value="cancelled">{updateRolloutStateLabel('cancelled')}</option>
               </select>
             </label>
-            <label>Причина раскатки<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
+            <label>Причина публикации<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
           </div>
           {criticalAction === 'package-state-change' && (
             <CriticalActionConfirmation
               title="Подтвердите состояние пакета"
-              detail={`Пакет ${packageStatePackageId.slice(0, 8)} · ${updatePackageStateLabel(packageState)}`}
-              impact={`Причина будет записана в audit: ${packageStateReason.trim() || 'не указана'}`}
+              detail={`${updatePackageOptions.find((option) => option.id === packageStatePackageId)?.label ?? 'Пакет'} · ${updatePackageStateLabel(packageState)}`}
+              impact={`Причина будет записана в журнал: ${packageStateReason.trim() || 'не указана'}`}
               confirmLabel="Подтвердить состояние пакета"
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
@@ -8187,13 +8729,13 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           )}
           {criticalAction === 'rollout-state-change' && (
             <CriticalActionConfirmation
-              title="Подтвердите состояние раскатки"
-              detail={`Раскатка ${rolloutStateRolloutId.slice(0, 8)} · ${updateRolloutStateLabel(rolloutState)}`}
+              title="Подтвердите состояние публикации"
+              detail={`${rolloutOptions.find((option) => option.id === rolloutStateRolloutId)?.label ?? 'Публикация'} · ${updateRolloutStateLabel(rolloutState)}`}
               impact={`Изменение повлияет на выдачу обновлений устройствам. Причина: ${rolloutStateReason.trim() || 'не указана'}`}
-              confirmLabel="Подтвердить состояние раскатки"
+              confirmLabel="Подтвердить состояние публикации"
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
-              onConfirm={() => void runSettingsAction('Изменить состояние раскатки')}
+              onConfirm={() => void runSettingsAction('Изменить состояние публикации')}
             />
           )}
         </>
@@ -8206,7 +8748,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <label>Название клуба<input value={clubName} onChange={(event) => { setClubName(event.currentTarget.value); setSettingsDirty(true); }} /></label>
           <label>Город<input value={city} onChange={(event) => { setCity(event.currentTarget.value); setSettingsDirty(true); }} /></label>
           <label>Валюта<input value={currencyCode} readOnly /></label>
-          <label>Филиал<input value={backend?.branchId ?? 'демо'} readOnly /></label>
+          <label>Филиал<input value={backend ? 'текущий филиал' : 'локальный режим'} readOnly /></label>
         </div>
         <div className="settings-save-row">
           <span>{settingsDirty ? 'есть несохранённые изменения' : 'изменений нет'}</span>
@@ -8345,7 +8887,6 @@ function SignInScreen({
   hostError: string | null;
   onSignIn: (request: OperatorSignInRequest) => Promise<void>;
 }) {
-  const [organizationId, setOrganizationId] = useState(config.organizationId ?? fallbackOrganizationId);
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const [isBusy, setIsBusy] = useState(false);
@@ -8360,8 +8901,9 @@ function SignInScreen({
     event.preventDefault();
     setError(null);
 
+    const organizationId = config.organizationId?.trim() ?? '';
     if (!isGuid(organizationId)) {
-      setError('Идентификатор организации должен быть корректным GUID.');
+      setError('Подключение клуба не настроено. Смените подключение и повторите вход.');
       return;
     }
 
@@ -8416,15 +8958,6 @@ function SignInScreen({
 
           <form className="auth-form" onSubmit={submit}>
             <label>
-              Организация
-              <input
-                value={organizationId}
-                onChange={(event) => setOrganizationId(event.currentTarget.value)}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </label>
-            <label>
               Пользователь
               <input
                 value={userName}
@@ -8467,7 +9000,7 @@ function SignInScreen({
           </section>
           <section>
             <span>Хранилище</span>
-            <strong>Windows Protected Data</strong>
+            <strong>Защищённое хранилище Windows</strong>
           </section>
         </aside>
       </main>
@@ -9160,7 +9693,7 @@ export function App() {
       return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command) };
     }
 
-    throw new Error('Эта команда требует отдельного контракта Agent/backend и пока не включена.');
+    throw new Error('Эта команда требует отдельного контракта агента и платформы и пока не включена.');
   };
 
   if (blockedResolution !== null) {

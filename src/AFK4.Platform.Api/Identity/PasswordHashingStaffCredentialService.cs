@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Shared.Contracts.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -40,5 +41,36 @@ public sealed class PasswordHashingStaffCredentialService(
         return result == PasswordVerificationResult.Failed
             ? null
             : await tokenService.IssueAsync(user, cancellationToken);
+    }
+
+    public async Task<StaffSignInResponse?> SignInByTenantKeyAsync(
+        StaffSignInByTenantKeyRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.TenantKey) ||
+            string.IsNullOrWhiteSpace(request.UserName) ||
+            string.IsNullOrWhiteSpace(request.Password))
+        {
+            return null;
+        }
+
+        var tenantKey = SlugValidator.Normalize(request.TenantKey);
+        if (Guid.TryParse(tenantKey, out _) ||
+            SlugValidator.Validate(tenantKey, nameof(request.TenantKey)) is not null)
+        {
+            return null;
+        }
+
+        var organizationId = await dbContext.Organizations
+            .AsNoTracking()
+            .Where(candidate => candidate.Slug == tenantKey)
+            .Select(candidate => (Guid?)candidate.OrganizationId)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return organizationId is null
+            ? null
+            : await SignInAsync(
+                new StaffSignInRequest(organizationId.Value, request.UserName, request.Password),
+                cancellationToken);
     }
 }

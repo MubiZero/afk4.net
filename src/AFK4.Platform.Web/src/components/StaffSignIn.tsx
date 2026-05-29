@@ -5,34 +5,34 @@ import { ErrorBanner, Field } from './ui';
 
 export interface StaffSignInProps {
   client: StaffAuthApiClient;
-  initialOrganizationId: string | null;
+  initialTenantKey: string | null;
   onSignedIn: () => void;
 }
 
-export function StaffSignIn({ client, initialOrganizationId, onSignedIn }: StaffSignInProps) {
-  const [organizationId, setOrganizationId] = useState(initialOrganizationId ?? '');
+export function StaffSignIn({ client, initialTenantKey, onSignedIn }: StaffSignInProps) {
+  const [tenantKey, setTenantKey] = useState(initialTenantKey ?? '');
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setOrganizationId(initialOrganizationId ?? '');
-  }, [initialOrganizationId]);
+    setTenantKey(initialTenantKey ?? '');
+  }, [initialTenantKey]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedOrganizationId = organizationId.trim();
+    const normalizedTenantKey = tenantKey.trim();
     const normalizedUserName = userName.trim();
-    if (normalizedOrganizationId.length === 0 || normalizedUserName.length === 0) {
-      setError('Organization and user name are required.');
+    if (normalizedTenantKey.length === 0 || normalizedUserName.length === 0) {
+      setError('Club key and user name are required.');
       return;
     }
 
     setSubmitting(true);
     setError(null);
     try {
-      await client.signIn(normalizedOrganizationId, normalizedUserName, password);
+      await client.signIn(normalizedTenantKey, normalizedUserName, password);
       onSignedIn();
     } catch (cause) {
       setError(projectStaffSignInError(cause));
@@ -47,14 +47,14 @@ export function StaffSignIn({ client, initialOrganizationId, onSignedIn }: Staff
       <p className="muted">Sign in with your club staff account.</p>
       <form className="form" onSubmit={handleSubmit}>
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
-        <Field label="Organization" htmlFor="staff-organization">
+        <Field label="Club key" htmlFor="staff-tenant-key">
           <input
-            id="staff-organization"
-            name="organizationId"
+            id="staff-tenant-key"
+            name="tenantKey"
             type="text"
             autoComplete="organization"
-            value={organizationId}
-            onChange={event => setOrganizationId(event.target.value)}
+            value={tenantKey}
+            onChange={event => setTenantKey(event.target.value)}
             disabled={isSubmitting}
             required
           />
@@ -94,7 +94,7 @@ export function StaffSignIn({ client, initialOrganizationId, onSignedIn }: Staff
 function projectStaffSignInError(cause: unknown): string {
   if (cause instanceof PlatformApiError) {
     if (cause.status === 401) {
-      return 'Wrong organization, user name, or password.';
+      return 'Wrong club key, user name, or password.';
     }
     return cause.message;
   }

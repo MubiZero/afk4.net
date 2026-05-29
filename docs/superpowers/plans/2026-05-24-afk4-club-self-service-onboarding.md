@@ -710,13 +710,11 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
   operators screens backed by the existing staff APIs. This slice does not add
   new backend branch-creation/deactivation contracts or SignalR in the
   customer SPA.
-  Follow-up UX/contract gap: `/auth/sign-in` still exposes a raw Organization
-  GUID field because the current staff sign-in API requires `OrganizationId`.
-  This violates the PRD requirement that normal club users must not copy
-  organization/branch GUIDs. Replace it with a tenant resolution flow before
-  pilot evidence: resolve by invite/session/host/slug or by unique staff login,
-  and show a controlled tenant-picker or support error only when a staff login
-  is legitimately ambiguous across organizations.
+  Follow-up UX/contract gap closed in the no-GUID staff sign-in cleanup: public
+  `/auth/sign-in` now posts a user-facing club key/tenant slug to
+  `/api/auth/staff/sign-in-by-tenant-key` instead of exposing a raw
+  Organization GUID field. A fuller tenant-picker for legitimately ambiguous
+  multi-organization staff logins remains future work.
 - **Slice 2.4** - completed on `main` (original branch
   `codex/slice-2.4-terminology`): Platform Web visible copy now uses setup
   codes for owner onboarding, owner codes for the Windows setup wizard, and
@@ -816,16 +814,14 @@ Within each slice, build backend → SPA → docs → demo. Do not skip ahead.
    gets one owner code per organization, not one master code. Captured
    in Product Decision #3. Cross-org single-code support is roadmap
    work and explicitly out of scope here.
-3. **Club staff sign-in tenant resolution.** The current browser staff
-   sign-in form asks for a raw `OrganizationId`, which is unacceptable for
-   real club users and conflicts with the PRD. Before pilot, add a staff
-   sign-in path that resolves tenant context from a non-GUID user-facing
-   input or known context. If `UserName + Password` resolves to exactly one
-   active organization, sign in directly. If it resolves to multiple
-   organizations for a multi-club human, return a non-secret disambiguation
-   challenge and let the user choose by organization/branch display name or
-   stable slug, never by GUID. Keep all tenant resolution server-side and
-   preserve the existing tenant-isolation checks on issued staff tokens.
+3. **Club staff sign-in tenant resolution.** The raw `OrganizationId` browser
+   sign-in field is removed: the customer-facing sign-in path now resolves a
+   user-facing club key/tenant slug server-side before issuing staff tokens.
+   Future work: if `UserName + Password` resolves to multiple organizations
+   for a multi-club human, return a non-secret disambiguation challenge and let
+   the user choose by organization/branch display name or stable key, never by
+   GUID. Keep all tenant resolution server-side and preserve the existing
+   tenant-isolation checks on issued staff tokens.
 4. **Cross-tenant data leakage in discover.** `POST /api/install/discover`
    accepts an owner code with no auth header — the code IS the credential.
    The endpoint must scope its response strictly to branches under the

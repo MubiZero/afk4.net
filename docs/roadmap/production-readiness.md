@@ -131,9 +131,10 @@ Minimum bar:
    floor-map seat. The nullable manager-workstation install-enrollment backend
    deployed to staging on 2026-05-27 from `cac13da`; Package Smoke run
    `26507696459` published internal Operator App `0.1.33` and created the
-   staging branch rollout. Staging still needs cleanup of mistakenly created
-   smoke seats/assignments and a repeat clean-VM manager-workstation run before
-   that evidence can be closed.
+   staging branch rollout. A repeatable API cleanup helper now exists at
+   `scripts/cleanup-manager-workstation-smoke-data.ps1`; staging still needs
+   that helper run with the smoke staff credential, followed by a repeat
+   clean-VM manager-workstation run before that evidence can be closed.
    Physical Windows 10/11 hardware, reboot recovery repeats, and
    update/rollback repeats remain hardening work before wider operational
    rollout.

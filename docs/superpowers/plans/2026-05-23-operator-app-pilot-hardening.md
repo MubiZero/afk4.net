@@ -1,4 +1,4 @@
-# Operator App Pilot Hardening Plan
+# Operator App Technical-Surface Cleanup And Hardening Plan
 
 Status: active follow-up for `codex/operator-app-redesign`
 
@@ -13,30 +13,53 @@ Implemented slices:
 - 2026-05-23: completed the planned critical-action confirmation set by adding
   two-step confirmations for layout zone/seat deletion and update package/
   rollout state changes.
+- 2026-05-28: removed the normal Operator App sign-in organization GUID field
+  and replaced Settings device/update raw-ID entry with operator-facing device,
+  package, and rollout selections.
+- 2026-05-28: polished Operator App Logs/Diagnostics so the normal journal UI
+  uses operator-facing event/source/device/audit labels instead of raw audit
+  IDs, command IDs, rollout IDs, or backend source names.
+- 2026-05-28: polished Operator App POS/Payments money-flow copy so normal
+  sales, check, cash, shift, and report panels no longer show POS/backend/CSV
+  copy, raw sale or cash-operation IDs, or English payment states.
+- 2026-05-29: polished Operator App Settings catalog, warehouse movement, and
+  update integration copy so normal setup forms no longer show POS item
+  placeholders, raw stock movement names, artifact/rollout wording, or backend
+  fallback labels.
+- 2026-05-29: polished Operator App Settings staff, tariff, package, and
+  journal support-export edges so normal setup/support paths avoid default
+  technical passwords, rule/version labels, terse package fields, and raw
+  audit/diagnostics records in exported support JSON.
 
 ## Purpose
 
-This plan turns the current Operator App critique into actionable pilot
+This plan turns the current Operator App critique into actionable cleanup and
 hardening work. It does not reopen the approved product or architecture
 decisions: AFK4 remains a native Windows Operator App with a WebView2 shell and
 React/TypeScript UI, backend-authoritative critical actions, no browser web
 admin as the primary club UI, and no local club server.
 
-The goal is to make the React Operator App safe enough for a supervised pilot
-day flow: sign in, open/observe shift, use the floor map, start/extend/end
-sessions, handle POS, manage players, inspect payments/shifts, use logs, and
-perform setup/device/update operations without demo data, raw backend-shaped
-forms, or ambiguous critical actions leaking into normal operator work.
+The near-term goal is to remove harmful technical surfaces from normal
+operator work before broadening smoke coverage: sign in, open/observe shift,
+use the floor map, start/extend/end sessions, handle POS, manage players,
+inspect payments/shifts, use logs, and perform setup/device/update operations
+without demo data, raw IDs, backend-shaped forms, or ambiguous critical
+actions leaking into the day flow.
 
 ## Problems To Fix
 
 1. Staging evidence is still incomplete for the backend-backed React
-   workspaces. Unit and local build checks are not enough for pilot confidence.
+   workspaces. Unit and local build checks are not enough for release
+   confidence.
 2. Demo/fixture state must not appear as real operational data after staff
    sign-in. Empty backend catalog, player, report, or device responses must be
    shown as explicit empty states, not replaced by demo data.
-3. The sign-in and setup path still exposes technical organization and branch
-   identifiers too directly for normal operators.
+3. The raw organization GUID has been removed from normal sign-in, and the
+   first Settings device/update/catalog/stock/update-integration/staff/tariff/
+   package, Logs/Diagnostics journal/support-export, and POS/Payments
+   money-flow passes are complete. Remaining setup and diagnostics surfaces
+   still need a pass for technical keys, backend-shaped forms, and unclear
+   operator copy.
 4. Critical actions need stronger operator-safe UX: confirmation, reason where
    required, visible money/session/device impact, pending backend state, and
    final backend result.

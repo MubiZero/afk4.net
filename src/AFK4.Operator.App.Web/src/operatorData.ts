@@ -46,7 +46,7 @@ export const navItems: NavItem[] = [
   { label: 'Карта', icon: Monitor, active: true },
   { label: 'Дашборд', icon: LayoutDashboard },
   { label: 'Брони', icon: CalendarClock },
-  { label: 'POS', icon: ReceiptText },
+  { label: 'Продажи', icon: ReceiptText },
   { label: 'Клиенты', icon: Users },
   { label: 'Платежи', icon: CircleDollarSign },
   { label: 'Логи', icon: ScrollText },
@@ -63,7 +63,7 @@ export const seats: SeatSummary[] = [
     remaining: '43 мин',
     billing: 'Wallet',
     device: 'Online · unlocked · Agent 0.4',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'Rust'
   },
   {
@@ -100,7 +100,7 @@ export const seats: SeatSummary[] = [
     stateLabel: 'Долг',
     player: 'Said R.',
     remaining: '12 мин',
-    billing: 'Postpaid',
+    billing: 'Постоплата',
     device: 'Online · unlocked',
     command: 'Payment check',
     app: 'Valorant'
@@ -115,7 +115,7 @@ export const seats: SeatSummary[] = [
     remaining: 'Нет heartbeat',
     billing: 'N/A',
     device: 'Offline · locked state unknown',
-    command: 'No route',
+    command: 'Нет связи с ПК',
     app: 'Shell ?'
   },
   {
@@ -128,7 +128,7 @@ export const seats: SeatSummary[] = [
     remaining: '1ч 12м',
     billing: 'Package',
     device: 'Online · unlocked · Agent 0.4',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'Dota 2'
   },
   {
@@ -154,7 +154,7 @@ export const seats: SeatSummary[] = [
     remaining: '18 мин',
     billing: 'Wallet',
     device: 'Online · unlocked',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'CS2'
   },
   {
@@ -166,7 +166,7 @@ export const seats: SeatSummary[] = [
     player: 'Нет игрока',
     remaining: 'Закрыт',
     billing: 'N/A',
-    device: 'Device unassigned',
+    device: 'Устройство не назначено',
     command: 'Technician',
     app: 'Maintenance'
   },
@@ -180,7 +180,7 @@ export const seats: SeatSummary[] = [
     remaining: '54 мин',
     billing: 'Wallet',
     device: 'Online · unlocked · Shell 0.4',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'Fortnite'
   },
   {
@@ -219,7 +219,7 @@ export const seats: SeatSummary[] = [
     remaining: '2ч 05м',
     billing: 'Package',
     device: 'Online · unlocked',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'Apex'
   },
   {
@@ -245,7 +245,7 @@ export const seats: SeatSummary[] = [
     remaining: '31 мин',
     billing: 'Wallet',
     device: 'Online · unlocked',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'PUBG'
   },
   {
@@ -282,9 +282,9 @@ export const seats: SeatSummary[] = [
     stateLabel: 'В сессии',
     player: 'Farid N.',
     remaining: '8 мин',
-    billing: 'Postpaid',
+    billing: 'Постоплата',
     device: 'Online · unlocked',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'Roblox'
   },
   {
@@ -310,7 +310,7 @@ export const seats: SeatSummary[] = [
     remaining: '1ч 41м',
     billing: 'Package',
     device: 'Online · unlocked',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'CS2'
   },
   {
@@ -349,7 +349,7 @@ export const seats: SeatSummary[] = [
     remaining: 'Нет heartbeat',
     billing: 'N/A',
     device: 'Offline',
-    command: 'No route',
+    command: 'Нет связи с ПК',
     app: 'Shell ?'
   },
   {
@@ -362,7 +362,7 @@ export const seats: SeatSummary[] = [
     remaining: '26 мин',
     billing: 'Wallet',
     device: 'Online · unlocked',
-    command: 'Lease fresh',
+    command: 'Сессия подтверждена',
     app: 'Valorant'
   }
 ];
