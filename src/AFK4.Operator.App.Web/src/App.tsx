@@ -8848,7 +8848,7 @@ function SignInScreen({
 
     const organizationId = config.organizationId?.trim() ?? '';
     if (!isGuid(organizationId)) {
-      setError('Connection is not configured. Change the club connection and try again.');
+      setError('Подключение клуба не настроено. Смените подключение и повторите вход.');
       return;
     }
 
@@ -8945,7 +8945,7 @@ function SignInScreen({
           </section>
           <section>
             <span>Хранилище</span>
-            <strong>Windows Protected Data</strong>
+            <strong>Защищённое хранилище Windows</strong>
           </section>
         </aside>
       </main>

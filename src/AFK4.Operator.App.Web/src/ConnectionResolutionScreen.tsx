@@ -34,9 +34,9 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
       if (cause instanceof ConnectionResolutionError) {
         setError(buildResolutionMessage(cause));
       } else if (cause instanceof Error) {
-        setError(cause.message);
+        setError(localizeResolutionErrorDetail(cause.message));
       } else {
-        setError('Failed to resolve operator connection.');
+        setError('Не удалось настроить подключение оператора.');
       }
     } finally {
       setResolving(false);
@@ -45,10 +45,9 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
 
   return (
     <div className="operator-connection-screen">
-      <h1>Connect to your club</h1>
+      <h1>Подключение клуба</h1>
       <p>
-        Sign in to your club by entering its club and branch keys, or paste the setup
-        code your operator gave you.
+        Введите ключ клуба и ключ филиала или используйте код подключения от администратора.
       </p>
       <div className="operator-connection-modes">
         <button
@@ -57,7 +56,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           onClick={() => setMode('slug')}
           disabled={isResolving}
         >
-          Club + branch
+          Клуб и филиал
         </button>
         <button
           type="button"
@@ -65,7 +64,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           onClick={() => setMode('setup_code')}
           disabled={isResolving}
         >
-          Setup code
+          Код подключения
         </button>
       </div>
       <form onSubmit={handleSubmit} className="operator-connection-form">
@@ -74,7 +73,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
         )}
         {mode === 'slug' ? (
           <>
-            <label htmlFor="org-slug">Club key</label>
+            <label htmlFor="org-slug">Ключ клуба</label>
             <input
               id="org-slug"
               value={organizationSlug}
@@ -83,7 +82,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
               required
               disabled={isResolving}
             />
-            <label htmlFor="branch-slug">Branch key</label>
+            <label htmlFor="branch-slug">Ключ филиала</label>
             <input
               id="branch-slug"
               value={branchSlug}
@@ -95,7 +94,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           </>
         ) : (
           <>
-            <label htmlFor="setup-code">Setup code</label>
+            <label htmlFor="setup-code">Код подключения</label>
             <input
               id="setup-code"
               value={setupCode}
@@ -107,7 +106,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           </>
         )}
         <button type="submit" disabled={isResolving}>
-          {isResolving ? 'Resolving…' : 'Continue'}
+          {isResolving ? 'Проверяем' : 'Продолжить'}
         </button>
       </form>
     </div>
@@ -117,12 +116,25 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
 function buildResolutionMessage(error: ConnectionResolutionError): string {
   switch (error.status) {
     case 404:
-      return 'No club matched the keys / setup code. Double-check with your operator.';
+      return 'Не нашли клуб по этим ключам или коду подключения. Проверьте данные у администратора.';
     case 400:
-      return error.message;
+      return localizeResolutionErrorDetail(error.message);
     default:
-      return `${error.message} (HTTP ${error.status})`;
+      return `${localizeResolutionErrorDetail(error.message)} Код ошибки платформы: ${error.status}.`;
   }
+}
+
+function localizeResolutionErrorDetail(message: string): string {
+  const normalized = message.trim();
+  if (!normalized || normalized === 'Failed to resolve operator connection.') {
+    return 'Не удалось настроить подключение оператора.';
+  }
+
+  if (/setup code is no longer usable/i.test(normalized)) {
+    return 'Код подключения больше не действует.';
+  }
+
+  return normalized;
 }
 
 export function isOperatorTenantBlocked(

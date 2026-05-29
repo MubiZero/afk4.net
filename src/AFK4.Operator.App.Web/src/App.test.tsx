@@ -186,6 +186,8 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(screen.getByText('Защищённое хранилище Windows')).toBeInTheDocument();
+    expect(screen.queryByText('Windows Protected Data')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Пользователь'), { target: { value: 'cashier' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
@@ -233,7 +235,10 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Подключение клуба' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Ключ клуба')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ключ филиала')).toBeInTheDocument();
+    expect(screen.queryByText(/Connect to your club|Club key|Branch key|Setup code|Continue/)).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Вход оператора' })).not.toBeInTheDocument();
   });
 
@@ -243,7 +248,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Connect to your club' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Подключение клуба' })).not.toBeInTheDocument();
   });
 
   it('persists the resolved active connection via the native bridge and proceeds to the sign-in screen', async () => {
@@ -270,10 +275,10 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Club key'), { target: { value: 'afk4-dushanbe' } });
-    fireEvent.change(screen.getByLabelText('Branch key'), { target: { value: 'central' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('heading', { name: 'Подключение клуба' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Ключ клуба'), { target: { value: 'afk4-dushanbe' } });
+    fireEvent.change(screen.getByLabelText('Ключ филиала'), { target: { value: 'central' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
 
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
     expect(localStorage.getItem('afk4.operator.connection')).toBeNull();
@@ -281,6 +286,32 @@ describe('App', () => {
     expect(bridge.connectionSaves[0].organizationId).toBe('0c04d6c0-bfa8-4e26-9263-fc0d307d0f08');
     expect(bridge.connectionSaves[0].branchId).toBe('acfc0212-967f-4d84-94be-9003387b09c2');
     expect(bridge.connectionSaves[0].branchSlug).toBe('central');
+  });
+
+  it('shows operator-facing connection errors without backend copy', async () => {
+    installSessionBridge(null);
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation((input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/api/operator-connections/resolve') && init?.method === 'POST') {
+        return Promise.resolve(new Response(JSON.stringify({ error: 'Setup code is no longer usable.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }));
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Подключение клуба' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Код подключения' }));
+    fireEvent.change(screen.getByLabelText('Код подключения'), { target: { value: 'expired-code' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Код подключения больше не действует.');
+    expect(alert).not.toHaveTextContent(/Setup code|Failed to resolve|operator connection|HTTP/);
   });
 
   it('shows blocked-state copy and does not persist the connection when the resolved tenant is suspended', async () => {
@@ -307,10 +338,10 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Club key'), { target: { value: 'afk4-dushanbe' } });
-    fireEvent.change(screen.getByLabelText('Branch key'), { target: { value: 'central' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByRole('heading', { name: 'Подключение клуба' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Ключ клуба'), { target: { value: 'afk4-dushanbe' } });
+    fireEvent.change(screen.getByLabelText('Ключ филиала'), { target: { value: 'central' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить' }));
 
     expect(await screen.findByRole('heading', { name: 'Подписка приостановлена' })).toBeInTheDocument();
     expect(screen.getByText('Не оплачена подписка за май.')).toBeInTheDocument();
@@ -319,7 +350,7 @@ describe('App', () => {
     expect(bridge.requests).toContain('connection:clearConnection');
 
     fireEvent.click(screen.getByRole('button', { name: 'Сменить подключение' }));
-    expect(await screen.findByRole('heading', { name: 'Connect to your club' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Подключение клуба' })).toBeInTheDocument();
     expect(bridge.requests.filter((type) => type === 'connection:clearConnection').length).toBeGreaterThanOrEqual(2);
   });
 

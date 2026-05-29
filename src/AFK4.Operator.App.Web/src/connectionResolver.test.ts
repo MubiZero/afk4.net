@@ -120,7 +120,7 @@ describe('ConnectionResolver', () => {
 
     await expect(resolver.resolveBySlugPair('a', 'b')).rejects.toMatchObject({
       status: 502,
-      message: 'Failed to resolve operator connection.'
+      message: 'Не удалось настроить подключение оператора.'
     });
   });
 });

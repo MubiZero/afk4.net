@@ -100,6 +100,9 @@ Roadmap/reference:
 - Operator App sign-in now uses the stored/resolved club connection and no
   longer exposes an editable organization GUID field in the normal sign-in
   screen.
+- Operator App first-run club connection setup now uses localized club/branch
+  key copy, setup-code errors, and protected-storage labels instead of English
+  connection/setup text.
 - Operator App Settings device/update paths now prefer operator-facing device,
   package, and rollout selections over raw ID entry in the normal setup flow.
 - Operator App Logs/Diagnostics now show operator-facing event, source,
@@ -168,9 +171,10 @@ Roadmap/reference:
 - Verbose branch, artifact, hash, and rollout-id evidence is archived in
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
 - Latest technical-surface cleanup verification on 2026-05-29 after the
-  production-visible placeholder and Settings update-publication copy pass:
-  - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
-    passed 75/75 tests.
+  connection setup, production-visible placeholder, and Settings
+  update-publication copy pass:
+  - `npm test -- --run src/App.test.tsx src/connectionResolver.test.ts` in
+    `src/AFK4.Operator.App.Web` passed 91/91 tests.
   - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns
     that the single app chunk is over 500 kB.
 
@@ -186,8 +190,8 @@ Roadmap/reference:
   normal sign-in, Settings device/update/catalog/stock/update-integration,
   Settings staff/tariff/package, Logs/Diagnostics journal/support export, and
   POS/Payments money-flow surfaces, and production-visible placeholder paths
-  are now cleaned up. Continue with remaining lower-priority support/setup
-  backend-shaped forms before broadening staging day-flow smoke.
+  are now cleaned up. Continue with remaining lower-priority support and
+  diagnostics backend-shaped forms before broadening staging day-flow smoke.
 - Physical Windows 10/11 smoke is still needed for wider rollout confidence:
   lock/unlock enforcement, reboot recovery, Setup Wizard, role-aware updates,
   and update/rollback.
@@ -201,7 +205,7 @@ Roadmap/reference:
 ## Recommended Next Work
 
 1. Continue the harmful technical-surface cleanup before broad smoke:
-   remove remaining lower-priority Settings/support/setup raw IDs,
+   remove remaining lower-priority Settings/support/diagnostics raw IDs,
    backend-shaped forms, and overly technical copy from customer/operator
    paths.
 2. Clean mistaken manager-workstation smoke seat data, then rerun the
