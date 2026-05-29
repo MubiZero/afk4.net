@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* "Calm SaaS" — light (default) */
+:root {
+  --background: #f6f7f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #64748b;
+  --border: #e7e9ee;
+  --input: #e7e9ee;
+  --ring: #4f46e5;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --primary-weak: #eef2ff;
+  --accent: #eef2ff;
+  --accent-foreground: #4f46e5;
+  --secondary: #eef2ff;
+  --secondary-foreground: #3730a3;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --muted-foreground: #64748b;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: #0f1117;
+  --foreground: #e7e9ee;
+  --card: #171a21;
+  --card-foreground: #e7e9ee;
+  --muted: #98a1b2;
+  --border: #262b35;
+  --input: #262b35;
+  --ring: #818cf8;
+  --primary: #818cf8;
+  --primary-foreground: #0f1117;
+  --primary-weak: rgba(129,140,248,0.16);
+  --accent: rgba(129,140,248,0.16);
+  --accent-foreground: #a5b0ff;
+  --secondary: rgba(129,140,248,0.16);
+  --secondary-foreground: #a5b0ff;
+  --destructive: #f87171;
+  --destructive-foreground: #0f1117;
+  --muted-foreground: #98a1b2;
+  --popover: #171a21;
+  --popover-foreground: #e7e9ee;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-weak: var(--primary-weak);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --radius-lg: var(--radius);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+}
+
+body { background: var(--background); color: var(--foreground); font-family: var(--font-sans); }

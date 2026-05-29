@@ -1,8 +1,22 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App, { readPlatformWebAudience, resolvePlatformRoute } from './App';
 import { clearStaffSession, readStaffSession, writeStaffSession, type StaffSession } from './auth/staffTokenStore';
 import { clearSession, writeSession, type PlatformAdminSession } from './auth/tokenStore';
+import { ThemeProvider } from './theme/ThemeProvider';
+import { I18nProvider } from './i18n/I18nProvider';
+
+// Signed-in club screens now render inside the new AppShell, whose components
+// consume the theme + i18n contexts (mounted in main.tsx in production). Tests
+// that reach a club screen must provide them, mirroring the real app tree.
+function renderWithProviders(ui: ReactElement) {
+  return render(
+    <ThemeProvider>
+      <I18nProvider>{ui}</I18nProvider>
+    </ThemeProvider>
+  );
+}
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -349,7 +363,7 @@ describe('Platform Web routing', () => {
     const fetchMock = buildClubFetchMock();
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App apiBaseUrl="http://localhost" />);
+    renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     expect(screen.getByRole('heading', { name: 'Accept setup code' })).toBeInTheDocument();
     expect(screen.getByLabelText('Setup code')).toHaveValue('setup-code-1');
@@ -383,7 +397,7 @@ describe('Platform Web routing', () => {
     const fetchMock = buildClubFetchMock();
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App apiBaseUrl="http://localhost" />);
+    renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     expect(screen.getByRole('heading', { name: 'Club sign in' })).toBeInTheDocument();
     expect(screen.getByLabelText('Club key')).toHaveValue('demo-club');
@@ -404,18 +418,21 @@ describe('Platform Web routing', () => {
     });
   });
 
-  it('loads the signed-in club overview KPIs from branch APIs', async () => {
+  it('renders the new AppShell with the Overview at /club', async () => {
     window.history.replaceState(null, '', '/club');
     writeStaffSession(buildStaffSession());
     vi.stubGlobal('fetch', buildClubFetchMock());
 
-    render(<App apiBaseUrl="http://localhost" />);
+    renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Club overview' })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('Demo Branch')).toBeInTheDocument());
-    expect(screen.getAllByText('Devices').length).toBeGreaterThan(0);
-    expect(screen.getByText('Active sessions')).toBeInTheDocument();
-    expect(screen.getByText('Alerts today')).toBeInTheDocument();
+    // Sidebar nav (new shell) renders the overview item by its i18n label.
+    expect(screen.getByRole('button', { name: 'Обзор' })).toBeInTheDocument();
+
+    // The Overview KPIs resolve from the branch dashboard summary API.
+    await waitFor(() => expect(screen.getByText('Активные сессии')).toBeInTheDocument());
+    expect(screen.getByText('Устройства онлайн')).toBeInTheDocument();
+    // 'Выручка сегодня' is both a KPI label and the revenue card title.
+    expect(screen.getAllByText('Выручка сегодня').length).toBeGreaterThan(0);
   });
 
   it('generates and reveals an owner code from /club/install', async () => {
@@ -424,7 +441,7 @@ describe('Platform Web routing', () => {
     const fetchMock = buildClubFetchMock();
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App apiBaseUrl="http://localhost" />);
+    renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     expect(screen.getByRole('heading', { name: 'Install AFK4 on PCs' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText('Owner code')).toHaveTextContent('No active code'));

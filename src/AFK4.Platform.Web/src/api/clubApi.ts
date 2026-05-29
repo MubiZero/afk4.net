@@ -116,6 +116,14 @@ export class ClubApiClient {
     );
   }
 
+  public getDashboardSummaryForRange(branchId: string, fromUtc: string, toUtc: string): Promise<OperatorDashboardSummary> {
+    const query = new URLSearchParams({ fromUtc, toUtc, limit: '3' });
+    return this.send<OperatorDashboardSummary>(
+      'GET',
+      `/api/branches/${encodeURIComponent(branchId)}/dashboard/summary?${query.toString()}`
+    );
+  }
+
   public listDevices(branchId: string): Promise<DeviceInventoryItem[]> {
     return this.send<DeviceInventoryItem[]>('GET', `/api/branches/${encodeURIComponent(branchId)}/devices`);
   }
