@@ -105,6 +105,9 @@ Roadmap/reference:
   connection/setup text.
 - Operator App Settings device/update paths now prefer operator-facing device,
   package, and rollout selections over raw ID entry in the normal setup flow.
+- Operator App Settings device enrollment and update package setup now use
+  minute-based code expiry, operator-facing credential labels, and installer
+  package fields instead of seconds/secret/MSI/hash/byte-oriented form copy.
 - Operator App Logs/Diagnostics now show operator-facing event, source,
   device, and audit labels in the normal journal UI instead of raw audit IDs,
   command IDs, rollout IDs, or backend source names.
@@ -171,10 +174,10 @@ Roadmap/reference:
 - Verbose branch, artifact, hash, and rollout-id evidence is archived in
   `docs/archive/progress/2026-05-27-context-refresh-archived-details.md`.
 - Latest technical-surface cleanup verification on 2026-05-29 after the
-  connection setup, production-visible placeholder, and Settings
-  update-publication copy pass:
-  - `npm test -- --run src/App.test.tsx src/connectionResolver.test.ts` in
-    `src/AFK4.Operator.App.Web` passed 91/91 tests.
+  connection setup, Settings device/update setup, production-visible
+  placeholder, and update-publication copy pass:
+  - `npm test -- --run src/App.test.tsx` in `src/AFK4.Operator.App.Web`
+    passed 76/76 tests.
   - `npm run build` in `src/AFK4.Operator.App.Web` passed; Vite still warns
     that the single app chunk is over 500 kB.
 

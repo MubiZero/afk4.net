@@ -7018,7 +7018,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
   const [deviceAssignmentDeviceId, setDeviceAssignmentDeviceId] = useState('');
   const [deviceAssignmentSeatId, setDeviceAssignmentSeatId] = useState('');
-  const [enrollmentExpiresSeconds, setEnrollmentExpiresSeconds] = useState('900');
+  const [enrollmentExpiresMinutes, setEnrollmentExpiresMinutes] = useState('15');
   const [enrollmentCode, setEnrollmentCode] = useState<Record<string, unknown> | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
   const [deviceCommandHistory, setDeviceCommandHistory] = useState<DeviceCommandStatusDto[]>([]);
@@ -7083,7 +7083,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [updateSha256, setUpdateSha256] = useState('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
   const [updateSignature, setUpdateSignature] = useState('signed-update-package');
   const [updateSignatureAlgorithm, setUpdateSignatureAlgorithm] = useState('ECDSA-P256-SHA256-IEEE-P1363');
-  const [updateSizeBytes, setUpdateSizeBytes] = useState('1048576');
+  const [updateSizeKilobytes, setUpdateSizeKilobytes] = useState('1024');
   const [updateReleaseNotes, setUpdateReleaseNotes] = useState('Пакет обновления приложения оператора.');
   const [rolloutPackageId, setRolloutPackageId] = useState('');
   const [rolloutChannel, setRolloutChannel] = useState('internal');
@@ -7354,11 +7354,12 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           throw new Error('Нет прав на создание кода подключения устройства.');
         }
 
-        const expiresInSeconds = Number(enrollmentExpiresSeconds);
-        if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 60 || expiresInSeconds > 86400) {
-          throw new Error('Срок действия кода должен быть от 60 до 86400 секунд.');
+        const expiresInMinutes = Number(enrollmentExpiresMinutes);
+        if (!Number.isInteger(expiresInMinutes) || expiresInMinutes < 1 || expiresInMinutes > 1440) {
+          throw new Error('Срок действия кода должен быть от 1 минуты до 24 часов.');
         }
 
+        const expiresInSeconds = expiresInMinutes * 60;
         const code = await apiClients.devices.createEnrollmentCode(nextBackend.branchId, nextBackend.session.organizationId, expiresInSeconds);
         setEnrollmentCode(code);
       } else if (label === 'Назначить устройство') {
@@ -7436,7 +7437,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           setDeviceCommandHistory(Array.isArray(selectedCommands) ? selectedCommands : []);
           setBranchDeviceCommandHistory(Array.isArray(branchCommands) ? branchCommands : []);
         }
-      } else if (label === 'Сменить ключ') {
+      } else if (label === 'Выдать новый ключ') {
         if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {
           throw new Error('Нет прав на смену ключа устройства.');
         }
@@ -7889,7 +7890,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           idempotencyKey: createIdempotencyKey('stock-movement-create')
         });
         await loadSettings(nextBackend);
-      } else if (label === 'Зарегистрировать пакет обновления') {
+      } else if (label === 'Добавить пакет обновления') {
         if (!hasPermission(nextBackend.session, permissionNames.manageUpdatePackages)) {
           throw new Error('Нет прав на управление пакетами обновлений.');
         }
@@ -7901,16 +7902,17 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
         const sha256 = updateSha256.trim();
         const signature = updateSignature.trim();
         const signatureAlgorithm = updateSignatureAlgorithm.trim();
-        const sizeBytes = Number(updateSizeBytes);
+        const sizeKilobytes = Number(updateSizeKilobytes);
+        const sizeBytes = sizeKilobytes * 1024;
         if (!component || !version || !channel || !artifactUri || !sha256 || !signature || !signatureAlgorithm
-          || !Number.isInteger(sizeBytes) || sizeBytes <= 0) {
-          throw new Error('Заполните приложение, версию, канал, ссылку на MSI, контрольную сумму, подпись, алгоритм и размер файла.');
+          || !Number.isInteger(sizeKilobytes) || sizeKilobytes <= 0) {
+          throw new Error('Заполните приложение, версию, канал, ссылку на установщик, проверочную сумму, подпись, способ проверки подписи и размер файла.');
         }
 
         try {
           new URL(artifactUri);
         } catch {
-          throw new Error('Ссылка на MSI должна быть полной ссылкой.');
+          throw new Error('Ссылка на установщик должна быть полной.');
         }
 
         const createdPackage = await apiClients.updates.registerPackage(nextBackend.branchId, {
@@ -8133,7 +8135,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <button type="button" disabled={!canViewDeviceCommandStatus} onClick={() => runSettingsAction('Обновить историю команд')}>Обновить историю команд</button>
           </div>
           <div className="settings-form-grid settings-device-form">
-            <label>Срок кода, сек<input inputMode="numeric" value={enrollmentExpiresSeconds} disabled={!canCreateDeviceEnrollmentCode} onChange={(event) => setEnrollmentExpiresSeconds(event.currentTarget.value)} /></label>
+            <label>Срок действия кода, минут<input inputMode="numeric" value={enrollmentExpiresMinutes} disabled={!canCreateDeviceEnrollmentCode} onChange={(event) => setEnrollmentExpiresMinutes(event.currentTarget.value)} /></label>
             <label>Код подключения<input value={readString(enrollmentCode, 'code', '—')} readOnly /></label>
             <label>Устройство
               <select value={deviceAssignmentDeviceId} disabled={deviceOptions.length === 0 || (!canAssignDeviceSeat && !canViewDeviceDetail)} onChange={(event) => setDeviceAssignmentDeviceId(event.currentTarget.value)}>
@@ -8165,10 +8167,10 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <label>Причина команды<input value={deviceCommandReason} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandReason(event.currentTarget.value)} /></label>
             <label>Последняя команда<input value={lastDeviceCommand ? `${commandTypeLabel(readString(lastDeviceCommand, 'type', 'command'))} · отправлена` : 'не отправлена'} readOnly /></label>
             <button type="button" disabled={!canDispatchDeviceCommand || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Отправить команду')}>Отправить команду</button>
-            <label>Ключ к отзыву<input value={rotatedCredentialLabel} readOnly /></label>
-            <label>Новый ключ<input value={rotatedCredentialId ? 'создан' : '—'} readOnly /></label>
-            <label className="settings-form-wide">Секрет ключа<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
-            <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Сменить ключ')}>Сменить ключ</button>
+            <label>Ключ для отзыва<input value={rotatedCredentialLabel} readOnly /></label>
+            <label>Новый ключ устройства<input value={rotatedCredentialId ? 'создан' : '—'} readOnly /></label>
+            <label className="settings-form-wide">Код нового подключения<input value={readString(rotatedCredential, 'credentialSecret', '—')} readOnly /></label>
+            <button type="button" disabled={!canRotateDeviceCredential || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction('Выдать новый ключ')}>Выдать новый ключ</button>
             <button
               type="button"
               disabled={!canRevokeDeviceCredential || !isGuid(deviceAssignmentDeviceId) || !isGuid(credentialIdToRevoke) || feedback.state === 'pending'}
@@ -8183,7 +8185,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           {criticalAction === 'credential-revoke' && (
             <CriticalActionConfirmation
               title="Подтвердите отзыв ключа"
-              detail={`${selectedDeviceLabel} · новый ключ`}
+              detail={`${selectedDeviceLabel} · новый ключ устройства`}
               impact="После отзыва этот ключ больше нельзя использовать для подключения выбранного ПК."
               confirmLabel="Отозвать ключ"
               disabled={feedback.state === 'pending'}
@@ -8484,8 +8486,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           </div>
 
           <div className="settings-section-title">
-            <span>Пакеты обновлений</span>
-            <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Зарегистрировать пакет обновления')}>Зарегистрировать пакет</button>
+            <span>Пакеты для обновления</span>
+            <button type="button" disabled={!canManageUpdatePackages} onClick={() => runSettingsAction('Добавить пакет обновления')}>Добавить пакет</button>
           </div>
           <div className="settings-form-grid settings-update-form">
             <label>Приложение
@@ -8503,11 +8505,11 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
                 <option value="stable">{updateChannelLabel('stable')}</option>
               </select>
             </label>
-            <label className="settings-form-wide">Ссылка на MSI<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
-            <label className="settings-form-wide">Контрольная сумма<input value={updateSha256} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSha256(event.currentTarget.value)} /></label>
-            <label>Подпись<input value={updateSignature} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignature(event.currentTarget.value)} /></label>
-            <label>Алгоритм подписи<input value={updateSignatureAlgorithm} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignatureAlgorithm(event.currentTarget.value)} /></label>
-            <label>Размер файла, байты<input inputMode="numeric" value={updateSizeBytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeBytes(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Файл установщика<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
+            <label className="settings-form-wide">Проверочная сумма<input value={updateSha256} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSha256(event.currentTarget.value)} /></label>
+            <label>Подпись пакета<input value={updateSignature} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignature(event.currentTarget.value)} /></label>
+            <label>Способ проверки подписи<input value={updateSignatureAlgorithm} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSignatureAlgorithm(event.currentTarget.value)} /></label>
+            <label>Размер файла, КБ<input inputMode="numeric" value={updateSizeKilobytes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateSizeKilobytes(event.currentTarget.value)} /></label>
             <label className="settings-form-wide">Описание релиза<input value={updateReleaseNotes} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateReleaseNotes(event.currentTarget.value)} /></label>
           </div>
 

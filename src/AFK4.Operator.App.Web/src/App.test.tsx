@@ -2027,7 +2027,9 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-    fireEvent.change(screen.getByLabelText('Срок кода, сек'), { target: { value: '600' } });
+    expect(screen.queryByLabelText('Срок кода, сек')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Секрет ключа')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Срок действия кода, минут'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать код подключения' }));
 
     expect(await screen.findByText('Создать код подключения: подтверждено')).toBeInTheDocument();
@@ -2065,8 +2067,8 @@ describe('App', () => {
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands?limit=25') &&
       init?.method === 'GET')).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Сменить ключ' }));
-    expect(await screen.findByText('Сменить ключ: подтверждено')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Выдать новый ключ' }));
+    expect(await screen.findByText('Выдать новый ключ: подтверждено')).toBeInTheDocument();
     expect(screen.getByDisplayValue('готов к отзыву для PC-02')).toBeInTheDocument();
     expect(screen.getByDisplayValue('создан')).toBeInTheDocument();
     expect(screen.getByDisplayValue('device-secret-after-rotation')).toBeInTheDocument();
@@ -2482,15 +2484,15 @@ describe('App', () => {
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
     expect(screen.getByText('ручное подтверждение')).toBeInTheDocument();
-    expect(screen.queryByText(/manual provider|API · staging|URL артефакта|Старт UTC/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/manual provider|API · staging|URL артефакта|Старт UTC|Ссылка на MSI|Контрольная сумма|Алгоритм подписи|Размер файла, байты/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '0.2.0' } });
-    fireEvent.change(screen.getByLabelText('Ссылка на MSI'), { target: { value: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi' } });
-    fireEvent.change(screen.getByLabelText('Подпись'), { target: { value: 'operator-package-signature' } });
-    fireEvent.change(screen.getByLabelText('Размер файла, байты'), { target: { value: '4096' } });
+    fireEvent.change(screen.getByLabelText('Файл установщика'), { target: { value: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi' } });
+    fireEvent.change(screen.getByLabelText('Подпись пакета'), { target: { value: 'operator-package-signature' } });
+    fireEvent.change(screen.getByLabelText('Размер файла, КБ'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Описание релиза'), { target: { value: 'Пакет оператора 0.2.0.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрировать пакет' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить пакет' }));
 
-    expect(await screen.findByText('Зарегистрировать пакет обновления: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Добавить пакет обновления: подтверждено')).toBeInTheDocument();
     const packageCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages') &&
       init?.method === 'POST');
