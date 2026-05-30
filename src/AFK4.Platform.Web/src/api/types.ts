@@ -602,3 +602,34 @@ export interface CreatePlayerAccountRequest {
   phoneNumber: string | null;
   idempotencyKey: string;
 }
+
+export interface TopUpWalletRequest {
+  organizationId: string;
+  amount: MoneyMinor;
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface PayDebtRequest {
+  organizationId: string;
+  amount: MoneyMinor;
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface ManualLedgerCorrectionRequest {
+  organizationId: string;
+  accountType: string;
+  amount: MoneyMinor;
+  quantitySeconds: number;
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface RefundLedgerEntryRequest {
+  organizationId: string;
+  ledgerEntryId: string;
+  amount: MoneyMinor;
+  reason: string;
+  idempotencyKey: string;
+}
