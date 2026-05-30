@@ -2,12 +2,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { ClubApiClient } from '@/api/clubApi';
 import { TariffsTab } from './tariffs/TariffsTab';
+import { CatalogTab } from './catalog/CatalogTab';
 
-export function MonetizationScreen({ client, branchId, organizationId, canManageTariffs }: {
+export function MonetizationScreen({ client, branchId, organizationId, canManageTariffs, canManageCatalog }: {
   client: ClubApiClient;
   branchId: string;
   organizationId: string;
   canManageTariffs: boolean;
+  canManageCatalog: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -21,7 +23,7 @@ export function MonetizationScreen({ client, branchId, organizationId, canManage
         <TariffsTab client={client} branchId={branchId} organizationId={organizationId} canManage={canManageTariffs} />
       </TabsContent>
       <TabsContent value="products">
-        <p className="text-sm text-muted-foreground">{t('monetization.soon')}</p>
+        <CatalogTab client={client} branchId={branchId} organizationId={organizationId} canManage={canManageCatalog} />
       </TabsContent>
       <TabsContent value="loyalty">
         <p className="text-sm text-muted-foreground">{t('monetization.soon')}</p>

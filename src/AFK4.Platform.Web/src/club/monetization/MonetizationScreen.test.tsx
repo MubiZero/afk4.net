@@ -12,10 +12,10 @@ const option: TariffOption = {
 };
 
 function setup() {
-  const client = { getTariffOptions: vi.fn(async () => [option]) };
+  const client = { getTariffOptions: vi.fn(async () => [option]), getCatalog: vi.fn(async () => []) };
   render(
     <I18nProvider><ToastProvider>
-      <MonetizationScreen client={client as never} branchId="b1" organizationId="org" canManageTariffs />
+      <MonetizationScreen client={client as never} branchId="b1" organizationId="org" canManageTariffs canManageCatalog />
     </ToastProvider></I18nProvider>
   );
 }
@@ -25,11 +25,11 @@ it('shows tariffs in the first tab', async () => {
   expect(await screen.findByText('Дневной')).toBeInTheDocument();
 });
 
-it('shows a placeholder on the products tab', async () => {
+it('shows the catalog on the products tab', async () => {
   setup();
   await screen.findByText('Дневной');
   const tab = screen.getByRole('tab', { name: 'Товары' });
   fireEvent.mouseDown(tab);
   fireEvent.click(tab);
-  expect(await screen.findByText('Скоро')).toBeInTheDocument();
+  expect(await screen.findByText('Товары ещё не созданы.')).toBeInTheDocument();
 });
