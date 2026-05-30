@@ -139,3 +139,40 @@ it('includes the client-packages keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the reports keys', () => {
+  for (const key of [
+    'reports.noAccess', 'reports.empty', 'reports.limitNote', 'reports.export', 'reports.export.error',
+    'reports.tab.shifts', 'reports.tab.sales', 'reports.tab.gameplay', 'reports.tab.cash', 'reports.tab.operatorActions',
+    'reports.range.today', 'reports.range.7d', 'reports.range.30d', 'reports.range.from', 'reports.range.to',
+    'reports.sum.gross', 'reports.sum.refunds', 'reports.sum.net',
+    'reports.sum.duration', 'reports.sum.package', 'reports.sum.bonus', 'reports.sum.revenue',
+    'reports.sum.cashIn', 'reports.sum.cashOut', 'reports.sum.netCash', 'reports.sum.actions',
+    'reports.col.state', 'reports.col.opened', 'reports.col.closed', 'reports.col.movements',
+    'reports.col.expectedCash', 'reports.col.countedCash', 'reports.col.difference',
+    'reports.col.total', 'reports.col.paid', 'reports.col.refund', 'reports.col.lines', 'reports.col.qty',
+    'reports.col.created', 'reports.col.paidAt', 'reports.col.seat', 'reports.col.device',
+    'reports.col.playerKind', 'reports.col.duration', 'reports.col.revenue',
+    'reports.col.source', 'reports.col.opType', 'reports.col.impact', 'reports.col.reason',
+    'reports.col.operator', 'reports.col.action', 'reports.col.outcome', 'reports.col.count',
+    'reports.col.first', 'reports.col.last'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
+
+it('includes the journal keys', () => {
+  for (const key of [
+    'nav.journal',
+    'journal.noAccess', 'journal.empty', 'journal.limitNote',
+    'journal.filter.action', 'journal.filter.outcome', 'journal.filter.targetType',
+    'journal.filter.apply', 'journal.filter.reset',
+    'journal.outcome.all', 'journal.outcome.succeeded', 'journal.outcome.denied',
+    'journal.col.date', 'journal.col.actor', 'journal.col.action', 'journal.col.target',
+    'journal.col.outcome', 'journal.col.source', 'journal.col.details', 'journal.actor.system'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});

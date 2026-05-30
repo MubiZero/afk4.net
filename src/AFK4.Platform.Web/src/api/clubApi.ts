@@ -50,7 +50,14 @@ import type {
   UpdateStaffUserStateRequest,
   UpdateTariffRequest,
   UpdateTariffVersionRequest,
-  WalletSummary
+  WalletSummary,
+  ShiftReport,
+  SalesReport,
+  GameplayTimeReport,
+  CashOperationReport,
+  OperatorActionReport,
+  AuditSearchResult,
+  AuditSearchQuery
 } from './types';
 
 export interface ClubApiClientOptions {
@@ -153,6 +160,43 @@ export class ClubApiClient {
       'GET',
       `/api/branches/${encodeURIComponent(branchId)}/dashboard/summary?${query.toString()}`
     );
+  }
+
+  public getShiftReport(branchId: string, fromUtc?: string, toUtc?: string, limit?: number): Promise<ShiftReport> {
+    return this.send<ShiftReport>('GET', `/api/branches/${encodeURIComponent(branchId)}/reports/shifts${reportQuery(fromUtc, toUtc, limit)}`);
+  }
+
+  public getSalesReport(branchId: string, fromUtc?: string, toUtc?: string, limit?: number): Promise<SalesReport> {
+    return this.send<SalesReport>('GET', `/api/branches/${encodeURIComponent(branchId)}/reports/sales${reportQuery(fromUtc, toUtc, limit)}`);
+  }
+
+  public getGameplayTimeReport(branchId: string, fromUtc?: string, toUtc?: string, limit?: number): Promise<GameplayTimeReport> {
+    return this.send<GameplayTimeReport>('GET', `/api/branches/${encodeURIComponent(branchId)}/reports/gameplay-time${reportQuery(fromUtc, toUtc, limit)}`);
+  }
+
+  public getCashOperationReport(branchId: string, fromUtc?: string, toUtc?: string, limit?: number): Promise<CashOperationReport> {
+    return this.send<CashOperationReport>('GET', `/api/branches/${encodeURIComponent(branchId)}/reports/cash-operations${reportQuery(fromUtc, toUtc, limit)}`);
+  }
+
+  public getOperatorActionReport(branchId: string, fromUtc?: string, toUtc?: string, limit?: number): Promise<OperatorActionReport> {
+    return this.send<OperatorActionReport>('GET', `/api/branches/${encodeURIComponent(branchId)}/reports/operator-actions${reportQuery(fromUtc, toUtc, limit)}`);
+  }
+
+  public async fetchReportCsv(branchId: string, name: string, fromUtc?: string, toUtc?: string): Promise<Blob> {
+    const response = await this.sendRaw('GET', `/api/branches/${encodeURIComponent(branchId)}/reports/${name}/export.csv${reportQuery(fromUtc, toUtc, undefined)}`);
+    return response.blob();
+  }
+
+  public searchAudit(branchId: string, query: AuditSearchQuery): Promise<AuditSearchResult> {
+    const params = new URLSearchParams();
+    if (query.action !== undefined && query.action.length > 0) params.set('action', query.action);
+    if (query.outcome !== undefined && query.outcome.length > 0) params.set('outcome', query.outcome);
+    if (query.targetType !== undefined && query.targetType.length > 0) params.set('targetType', query.targetType);
+    if (query.fromUtc !== undefined) params.set('fromUtc', query.fromUtc);
+    if (query.toUtc !== undefined) params.set('toUtc', query.toUtc);
+    if (query.limit !== undefined) params.set('limit', String(query.limit));
+    const qs = params.toString();
+    return this.send<AuditSearchResult>('GET', `/api/branches/${encodeURIComponent(branchId)}/audit${qs.length > 0 ? `?${qs}` : ''}`);
   }
 
   public listDevices(branchId: string): Promise<DeviceInventoryItem[]> {
@@ -487,4 +531,13 @@ async function toApiError(response: Response): Promise<PlatformApiError> {
     // Keep the fallback when the API returns non-JSON content.
   }
   return new PlatformApiError(response.status, message, code);
+}
+
+function reportQuery(fromUtc?: string, toUtc?: string, limit?: number): string {
+  const params = new URLSearchParams();
+  if (fromUtc !== undefined) params.set('fromUtc', fromUtc);
+  if (toUtc !== undefined) params.set('toUtc', toUtc);
+  if (limit !== undefined) params.set('limit', String(limit));
+  const qs = params.toString();
+  return qs.length > 0 ? `?${qs}` : '';
 }
