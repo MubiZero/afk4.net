@@ -639,3 +639,136 @@ export interface PurchasePackageRequest {
   packageDefinitionId: string;
   idempotencyKey: string;
 }
+
+// --- Reports (block 7a) ---
+export interface ShiftReportRow {
+  shiftId: string;
+  organizationId: string;
+  branchId: string;
+  openedByStaffUserId: string;
+  closedByStaffUserId: string | null;
+  state: string;
+  startingCash: MoneyMinor;
+  cashMovementsTotal: MoneyMinor;
+  posCashPaymentsTotal: MoneyMinor;
+  posRefundsTotal: MoneyMinor;
+  billingCashImpactTotal: MoneyMinor;
+  expectedCash: MoneyMinor;
+  countedCash: MoneyMinor | null;
+  difference: MoneyMinor | null;
+  openedAtUtc: string;
+  closedAtUtc: string | null;
+}
+export interface ShiftReport { rows: ShiftReportRow[]; limit: number; }
+
+export interface SalesReportRow {
+  posSaleId: string;
+  organizationId: string;
+  branchId: string;
+  shiftId: string;
+  createdByStaffUserId: string;
+  state: string;
+  total: MoneyMinor;
+  paidAmount: MoneyMinor;
+  refundAmount: MoneyMinor;
+  lineCount: number;
+  itemQuantity: number;
+  createdAtUtc: string;
+  paidAtUtc: string | null;
+  refundedAtUtc: string | null;
+  voidedAtUtc: string | null;
+}
+export interface SalesReport {
+  rows: SalesReportRow[];
+  limit: number;
+  grossSalesTotal: MoneyMinor;
+  refundsTotal: MoneyMinor;
+  netSalesTotal: MoneyMinor;
+}
+
+export interface GameplayTimeReportRow {
+  sessionId: string;
+  organizationId: string;
+  branchId: string;
+  seatId: string;
+  deviceId: string;
+  createdByStaffUserId: string;
+  playerKind: string;
+  playerAccountId: string | null;
+  state: string;
+  durationSeconds: number;
+  packageSeconds: number;
+  bonusSeconds: number;
+  gameplayRevenue: MoneyMinor;
+  startedAtUtc: string | null;
+  endedAtUtc: string | null;
+  endsAtUtc: string | null;
+}
+export interface GameplayTimeReport {
+  rows: GameplayTimeReportRow[];
+  limit: number;
+  totalDurationSeconds: number;
+  totalPackageSeconds: number;
+  totalBonusSeconds: number;
+  gameplayRevenueTotal: MoneyMinor;
+}
+
+export interface CashOperationReportRow {
+  operationId: string;
+  organizationId: string;
+  branchId: string;
+  shiftId: string | null;
+  createdByStaffUserId: string;
+  sourceType: string;
+  operationType: string;
+  cashImpact: MoneyMinor;
+  reason: string;
+  createdAtUtc: string;
+}
+export interface CashOperationReport {
+  rows: CashOperationReportRow[];
+  limit: number;
+  cashInTotal: MoneyMinor;
+  cashOutTotal: MoneyMinor;
+  netCashTotal: MoneyMinor;
+}
+
+export interface OperatorActionReportRow {
+  actorStaffUserId: string | null;
+  actorDisplayName: string;
+  action: string;
+  outcome: string;
+  count: number;
+  firstAtUtc: string;
+  lastAtUtc: string;
+}
+export interface OperatorActionReport {
+  rows: OperatorActionReportRow[];
+  limit: number;
+  totalActionCount: number;
+}
+
+// --- Audit (block 7a) ---
+export interface AuditRecord {
+  auditRecordId: string;
+  organizationId: string;
+  branchId: string | null;
+  actorStaffUserId: string | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  outcome: string;
+  sourceApp: string;
+  detailsJson: string;
+  createdAtUtc: string;
+  actorPlatformAdminUserId: string | null;
+}
+export interface AuditSearchResult { records: AuditRecord[]; limit: number; }
+export interface AuditSearchQuery {
+  action?: string;
+  outcome?: string;
+  targetType?: string;
+  fromUtc?: string;
+  toUtc?: string;
+  limit?: number;
+}
