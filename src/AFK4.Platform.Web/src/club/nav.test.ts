@@ -43,3 +43,11 @@ it('owner sees the venue item', () => {
   const items = visibleNav('owner').flatMap(g => g.items).map(i => i.key);
   expect(items).toContain('venue');
 });
+
+it('exposes settings as a live owner-only branch item', () => {
+  const settings = clubNav[0].items.find(i => i.key === 'settings');
+  expect(settings).toBeDefined();
+  expect(settings?.soon).toBe(false);
+  expect(settings?.ownerOnly).toBe(true);
+  expect(settings?.path).toBe('/club/settings');
+});
