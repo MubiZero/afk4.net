@@ -6,7 +6,6 @@ import type { OwnerInvite } from './api/types';
 import { readStaffSession, type StaffSession } from './auth/staffTokenStore';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { AcceptInvite } from './components/AcceptInvite';
-import { LegacyClubScreen } from './components/ClubDashboard';
 import { AppShell } from './components/shell/AppShell';
 import { OverviewScreen } from './club/overview/OverviewScreen';
 import { useOverview } from './club/overview/useOverview';
@@ -16,6 +15,9 @@ import { MonetizationScreen } from './club/monetization/MonetizationScreen';
 import { ReportsScreen } from './club/reports/ReportsScreen';
 import { JournalScreen } from './club/journal/JournalScreen';
 import { ClientsScreen } from './club/clients/ClientsScreen';
+import { InstallScreen } from './club/install/InstallScreen';
+import { ProfileScreen } from './club/profile/ProfileScreen';
+import { resolveBranchNames } from './club/profile/profileModel';
 import { useActiveBranch } from './club/branches/useActiveBranch';
 import { useBranchDirectory } from './club/branches/useBranchDirectory';
 import { BranchesScreen } from './club/branches/BranchesScreen';
@@ -50,12 +52,8 @@ export type ClubRoute =
   | { kind: 'clubJournal' }
   | { kind: 'clubSettings' }
   | { kind: 'clubInstall' }
-  | { kind: 'clubBranches' }
-  | { kind: 'clubBranchDetail'; branchId: string }
-  | { kind: 'clubBranchFloorMap'; branchId: string }
-  | { kind: 'clubBranchDevices'; branchId: string }
-  | { kind: 'clubBranchPendingDevices'; branchId: string }
-  | { kind: 'clubBranchOperators'; branchId: string };
+  | { kind: 'clubProfile' }
+  | { kind: 'clubBranches' };
 
 export type AppRoute =
   | AdminRoute
@@ -315,12 +313,8 @@ const CLUB_SCREEN_TITLE: Partial<Record<ClubRoute['kind'], string>> = {
   clubJournal: 'Журнал',
   clubSettings: 'Настройки',
   clubInstall: 'Установка',
+  clubProfile: 'Профиль',
   clubBranches: 'Все филиалы',
-  clubBranchDetail: 'Филиал',
-  clubBranchFloorMap: 'Зал и ПК',
-  clubBranchDevices: 'Устройства',
-  clubBranchPendingDevices: 'Устройства',
-  clubBranchOperators: 'Операторы'
 };
 
 /**
@@ -346,13 +340,9 @@ export function pathForRoute(route: ClubRoute): string {
       return '/club/settings';
     case 'clubInstall':
       return '/club/install';
+    case 'clubProfile':
+      return '/club/profile';
     case 'clubBranches':
-      return '/club/branches';
-    case 'clubBranchDetail':
-    case 'clubBranchFloorMap':
-    case 'clubBranchDevices':
-    case 'clubBranchPendingDevices':
-    case 'clubBranchOperators':
       return '/club/branches';
     default:
       return '/club';
@@ -364,7 +354,7 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
   const { t } = useI18n();
   const { activeBranchId, select } = useActiveBranch(session.branchIds);
   const directory = useBranchDirectory(clubClient, session.branchIds);
-  const branches = session.branchIds.map(id => ({ branchId: id, name: directory[id]?.name ?? t('branches.unnamed') }));
+  const branches = resolveBranchNames(session.branchIds, directory, t('branches.unnamed'));
   const overviewState = useOverview(clubClient, activeBranchId);
 
   const handleNavigate = (path: string) => {
@@ -461,12 +451,18 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
           organizationId={session.organizationId}
           onOpenBranch={(id) => { select(id); onNavigate({ kind: 'clubDashboard' }, '/club'); }}
         />
-      ) : (
-        <LegacyClubScreen
-          client={clubClient}
-          route={route}
+      ) : route.kind === 'clubProfile' ? (
+        <ProfileScreen
           session={session}
-          onNavigate={onNavigate}
+          branches={branches}
+          roleLabel={ROLE_LABEL[role]}
+          onSignOut={onSignOut}
+        />
+      ) : (
+        <InstallScreen
+          client={clubClient}
+          canManage={session.permissions.includes('identity.owner_code.manage')}
+          branches={session.branchIds.map(id => ({ branchId: id, name: directory[id]?.name ?? t('branches.unnamed'), city: directory[id]?.city }))}
         />
       )}
     </AppShell>
@@ -563,58 +559,11 @@ export function resolvePlatformRoute(
     if (path === '/club/install') {
       return { route: { kind: 'clubInstall' } };
     }
+    if (path === '/club/profile') {
+      return { route: { kind: 'clubProfile' } };
+    }
     if (path === '/club/branches') {
       return { route: { kind: 'clubBranches' } };
-    }
-
-    const pendingDevicesMatch = /^\/club\/branches\/([^/]+)\/devices\/pending$/u.exec(path);
-    if (pendingDevicesMatch !== null) {
-      return {
-        route: {
-          kind: 'clubBranchPendingDevices',
-          branchId: decodePathSegment(pendingDevicesMatch[1])
-        }
-      };
-    }
-
-    const branchDevicesMatch = /^\/club\/branches\/([^/]+)\/devices$/u.exec(path);
-    if (branchDevicesMatch !== null) {
-      return {
-        route: {
-          kind: 'clubBranchDevices',
-          branchId: decodePathSegment(branchDevicesMatch[1])
-        }
-      };
-    }
-
-    const floorMapMatch = /^\/club\/branches\/([^/]+)\/floor-map$/u.exec(path);
-    if (floorMapMatch !== null) {
-      return {
-        route: {
-          kind: 'clubBranchFloorMap',
-          branchId: decodePathSegment(floorMapMatch[1])
-        }
-      };
-    }
-
-    const operatorsMatch = /^\/club\/branches\/([^/]+)\/operators$/u.exec(path);
-    if (operatorsMatch !== null) {
-      return {
-        route: {
-          kind: 'clubBranchOperators',
-          branchId: decodePathSegment(operatorsMatch[1])
-        }
-      };
-    }
-
-    const branchDetailMatch = /^\/club\/branches\/([^/]+)$/u.exec(path);
-    if (branchDetailMatch !== null) {
-      return {
-        route: {
-          kind: 'clubBranchDetail',
-          branchId: decodePathSegment(branchDetailMatch[1])
-        }
-      };
     }
   }
 
@@ -697,12 +646,8 @@ function isClubRoute(route: AppRoute): route is ClubRoute {
     || route.kind === 'clubJournal'
     || route.kind === 'clubSettings'
     || route.kind === 'clubInstall'
-    || route.kind === 'clubBranches'
-    || route.kind === 'clubBranchDetail'
-    || route.kind === 'clubBranchFloorMap'
-    || route.kind === 'clubBranchDevices'
-    || route.kind === 'clubBranchPendingDevices'
-    || route.kind === 'clubBranchOperators';
+    || route.kind === 'clubProfile'
+    || route.kind === 'clubBranches';
 }
 
 function routeForAudience(route: AppRoute, path: string, audience: PlatformWebAudience): AppRoute {
