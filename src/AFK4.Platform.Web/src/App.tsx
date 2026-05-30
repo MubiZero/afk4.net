@@ -12,6 +12,9 @@ import { OverviewScreen } from './club/overview/OverviewScreen';
 import { useOverview } from './club/overview/useOverview';
 import { VenueScreen } from './club/venue/VenueScreen';
 import { SettingsScreen } from './club/settings/SettingsScreen';
+import { useActiveBranch } from './club/branches/useActiveBranch';
+import { useBranchDirectory } from './club/branches/useBranchDirectory';
+import { BranchesScreen } from './club/branches/BranchesScreen';
 import { roleFromPermissions } from './club/nav';
 import { EmptyState } from './components/ui/states';
 import { useI18n } from './i18n/I18nProvider';
@@ -339,9 +342,10 @@ export function pathForRoute(route: ClubRoute): string {
 function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAreaProps) {
   const role = roleFromPermissions(session.permissions);
   const { t } = useI18n();
-  const branchId = session.branchIds[0] ?? '';
-  const branches = session.branchIds.map(id => ({ branchId: id, name: 'Филиал' }));
-  const overviewState = useOverview(clubClient, branchId);
+  const { activeBranchId, select } = useActiveBranch(session.branchIds);
+  const directory = useBranchDirectory(clubClient, session.branchIds);
+  const branches = session.branchIds.map(id => ({ branchId: id, name: directory[id]?.name ?? t('branches.unnamed') }));
+  const overviewState = useOverview(clubClient, activeBranchId);
 
   const handleNavigate = (path: string) => {
     const resolution = resolvePlatformRoute(path, null, '');
@@ -357,30 +361,37 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
       role={role}
       orgName={session.displayName}
       branches={branches}
-      activeBranchId={branchId}
+      activeBranchId={activeBranchId}
       activePath={pathForRoute(route)}
       screenTitle={CLUB_SCREEN_TITLE[route.kind] ?? ''}
       userName={session.displayName}
       roleLabel={ROLE_LABEL[role]}
       onNavigate={handleNavigate}
-      onSelectBranch={() => { /* single-branch pilot: no-op */ }}
+      onSelectBranch={select}
       onSignOut={onSignOut}
     >
       {route.kind === 'clubDashboard' ? (
         <OverviewScreen state={overviewState} />
       ) : route.kind === 'clubVenue' ? (
-        <VenueScreen client={clubClient} branchId={branchId} />
+        <VenueScreen client={clubClient} branchId={activeBranchId} />
       ) : route.kind === 'clubSettings' ? (
         role === 'owner' ? (
           <SettingsScreen
             client={clubClient}
-            branchId={branchId}
+            branchId={activeBranchId}
             organizationId={session.organizationId}
             currentStaffUserId={session.staffUserId}
           />
         ) : (
           <EmptyState message={t('settings.ownerOnly')} />
         )
+      ) : route.kind === 'clubBranches' ? (
+        <BranchesScreen
+          client={clubClient}
+          branchIds={session.branchIds}
+          organizationId={session.organizationId}
+          onOpenBranch={(id) => { select(id); onNavigate({ kind: 'clubDashboard' }, '/club'); }}
+        />
       ) : (
         <LegacyClubScreen
           client={clubClient}
