@@ -56,22 +56,31 @@ export function ClientsScreen({ client, branchId, organizationId, canCreate, can
             <TableRow>
               <TableHead>{t('clients.col.name')}</TableHead>
               <TableHead>{t('clients.col.phone')}</TableHead>
-              <TableHead>{t('clients.col.wallet')}</TableHead>
-              <TableHead>{t('clients.col.debt')}</TableHead>
-              <TableHead>{t('clients.col.packages')}</TableHead>
+              <TableHead className="text-right">{t('clients.col.wallet')}</TableHead>
+              <TableHead className="text-right">{t('clients.col.debt')}</TableHead>
+              <TableHead className="text-right">{t('clients.col.packages')}</TableHead>
               <TableHead>{t('clients.col.status')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {state.rows.map(row => (
-              <TableRow key={row.playerAccountId} data-clickable="true" onClick={() => setSelected(row)}>
+              <TableRow
+                key={row.playerAccountId}
+                data-clickable="true"
+                role="button"
+                tabIndex={0}
+                aria-label={row.displayName}
+                className="cursor-pointer outline-none hover:bg-muted/50 focus-visible:bg-muted/50"
+                onClick={() => setSelected(row)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(row); } }}
+              >
                 <TableCell className="font-medium">{row.displayName}</TableCell>
                 <TableCell>{row.phone === '' ? '—' : row.phone}</TableCell>
-                <TableCell className="tabular-nums">{formatNumber(row.walletMajor)}</TableCell>
-                <TableCell className="tabular-nums">{formatNumber(row.debtMajor)}</TableCell>
-                <TableCell className="tabular-nums">{formatNumber(row.activePackageCount)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatNumber(row.walletMajor)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatNumber(row.debtMajor)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatNumber(row.activePackageCount)}</TableCell>
                 <TableCell>
-                  <Badge variant={row.isActive ? 'default' : 'secondary'}>
+                  <Badge variant={row.isActive ? 'success' : 'outline'}>
                     {row.isActive ? t('clients.status.active') : t('clients.status.inactive')}
                   </Badge>
                 </TableCell>
