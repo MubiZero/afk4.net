@@ -15,7 +15,7 @@ export const messages = {
     'nav.install': 'Установка',
     'nav.billing': 'Биллинг',
     'nav.profile': 'Профиль и доступ',
-    'nav.group.controlPlane': 'Контроль',
+    'nav.group.controlPlane': 'Управление',
     'nav.group.platformAccount': 'Аккаунт',
     'nav.platform.overview': 'Обзор',
     'nav.platform.tenants': 'Тенанты',
