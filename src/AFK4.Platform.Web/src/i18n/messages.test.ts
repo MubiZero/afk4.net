@@ -80,3 +80,16 @@ it('includes the products (catalog) keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the loyalty (packages) keys', () => {
+  for (const key of [
+    'loyalty.create', 'loyalty.create.title', 'loyalty.create.submit',
+    'loyalty.edit.title', 'loyalty.edit.submit', 'loyalty.empty', 'loyalty.activeOnlyNote',
+    'loyalty.col.name', 'loyalty.col.price', 'loyalty.col.included', 'loyalty.col.bonus', 'loyalty.col.expires',
+    'loyalty.field.name', 'loyalty.field.price', 'loyalty.field.currency',
+    'loyalty.field.included', 'loyalty.field.bonus', 'loyalty.field.expires', 'loyalty.field.active'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});

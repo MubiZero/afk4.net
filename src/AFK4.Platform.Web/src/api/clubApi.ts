@@ -8,6 +8,7 @@ import { PlatformApiError } from './platformApi';
 import type {
   BranchProfile,
   BranchSettings,
+  CreatePackageDefinitionRequest,
   CreateProductCategoryRequest,
   CreateProductRequest,
   CreateStaffUserRequest,
@@ -20,6 +21,8 @@ import type {
   OperatorDashboardSummary,
   OwnerCodeIssued,
   OwnerCodeSummary,
+  PackageDefinition,
+  PackageOption,
   PosProduct,
   PosProductCategory,
   ResetStaffUserPasswordRequest,
@@ -30,6 +33,7 @@ import type {
   TariffVersion,
   UpdateBranchProfileRequest,
   UpdateBranchSettingsRequest,
+  UpdatePackageDefinitionRequest,
   UpdateProductRequest,
   UpdateStaffUserProfileRequest,
   UpdateStaffUserRolesRequest,
@@ -292,6 +296,22 @@ export class ClubApiClient {
     return this.send<PosProduct>(
       'PATCH',
       `/api/branches/${encodeURIComponent(branchId)}/pos/products/${encodeURIComponent(productId)}`,
+      request
+    );
+  }
+
+  public getPackageOptions(branchId: string): Promise<PackageOption[]> {
+    return this.send<PackageOption[]>('GET', `/api/branches/${encodeURIComponent(branchId)}/packages/options`);
+  }
+
+  public createPackageDefinition(branchId: string, request: CreatePackageDefinitionRequest): Promise<PackageDefinition> {
+    return this.send<PackageDefinition>('POST', `/api/branches/${encodeURIComponent(branchId)}/packages`, request);
+  }
+
+  public updatePackageDefinition(branchId: string, packageDefinitionId: string, request: UpdatePackageDefinitionRequest): Promise<PackageDefinition> {
+    return this.send<PackageDefinition>(
+      'PATCH',
+      `/api/branches/${encodeURIComponent(branchId)}/packages/${encodeURIComponent(packageDefinitionId)}`,
       request
     );
   }
