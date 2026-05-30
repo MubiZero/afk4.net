@@ -41,4 +41,22 @@ describe('OverviewScreen', () => {
     wrap({ ...ready, data: { ...ready.data!, attention: [] } } as OverviewState);
     expect(screen.getByText('Всё в порядке — ничего не требует внимания.')).toBeInTheDocument();
   });
+
+  it('shows gameplay and pos amounts by key regardless of array order', () => {
+    // intentionally reversed order to prove by-key (not positional) access
+    const reversed: OverviewState = {
+      status: 'ready',
+      retry: vi.fn(),
+      data: {
+        kpis: { devicesOnline: { online: 1, total: 2 }, activeSessions: 0, utilizationPercent: 0, revenueToday: { amount: 100, currencyCode: 'TJS' }, attention: 0 },
+        revenueBreakdown: [{ key: 'pos', amount: 30 }, { key: 'gameplay', amount: 70 }],
+        attention: []
+      }
+    };
+    wrap(reversed);
+    const gameplay = screen.getByText('Игровое время:').closest('span')!;
+    const pos = screen.getByText('Бар и товары:').closest('span')!;
+    expect(gameplay.textContent).toContain('70');
+    expect(pos.textContent).toContain('30');
+  });
 });
