@@ -13,3 +13,17 @@ it('includes the new venue/devices keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the new settings/operators/roles keys', () => {
+  for (const key of [
+    'settings.tab.branch', 'settings.tab.operators', 'settings.branch.name', 'settings.branch.city',
+    'settings.branch.approval', 'settings.ownerOnly',
+    'operators.col.name', 'operators.status.active', 'operators.save.profile',
+    'operators.action.deactivate', 'operators.action.resetPassword', 'operators.password.tooShort',
+    'operators.create.title', 'operators.create.submit',
+    'roles.branch_manager', 'roles.technician', 'roles.unknown'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
