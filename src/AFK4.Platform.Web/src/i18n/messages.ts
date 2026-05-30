@@ -252,7 +252,19 @@ export const messages = {
     'money.field.minutes': 'Минуты',
     'money.field.reason': 'Причина',
     'money.field.account': 'Счёт',
-    'money.submit': 'Подтвердить'
+    'money.submit': 'Подтвердить',
+    'clientPackages.title': 'Пакеты',
+    'clientPackages.empty': 'У клиента нет пакетов.',
+    'clientPackages.purchase': 'Купить пакет',
+    'clientPackages.purchase.title': 'Покупка пакета',
+    'clientPackages.purchase.submit': 'Купить',
+    'clientPackages.field.package': 'Пакет',
+    'clientPackages.col.name': 'Название',
+    'clientPackages.col.included': 'Остаток вкл., мин',
+    'clientPackages.col.bonus': 'Остаток бонус., мин',
+    'clientPackages.col.expires': 'Действует до',
+    'clientPackages.noExpiry': 'Бессрочно',
+    'clientPackages.noChoices': 'Нет доступных пакетов для покупки.'
   },
   en: {
     'nav.group.branch': 'Branch',
@@ -505,7 +517,19 @@ export const messages = {
     'money.field.minutes': 'Minutes',
     'money.field.reason': 'Reason',
     'money.field.account': 'Account',
-    'money.submit': 'Confirm'
+    'money.submit': 'Confirm',
+    'clientPackages.title': 'Packages',
+    'clientPackages.empty': 'This client has no packages.',
+    'clientPackages.purchase': 'Buy package',
+    'clientPackages.purchase.title': 'Buy package',
+    'clientPackages.purchase.submit': 'Buy',
+    'clientPackages.field.package': 'Package',
+    'clientPackages.col.name': 'Name',
+    'clientPackages.col.included': 'Remaining incl., min',
+    'clientPackages.col.bonus': 'Remaining bonus, min',
+    'clientPackages.col.expires': 'Expires',
+    'clientPackages.noExpiry': 'No expiry',
+    'clientPackages.noChoices': 'No packages available to buy.'
   }
 } as const;
 

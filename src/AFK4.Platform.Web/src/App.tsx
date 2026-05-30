@@ -403,6 +403,7 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
               correct: session.permissions.includes('billing.manual_correction'),
               refund: session.permissions.includes('billing.refund')
             }}
+            canPurchase={session.permissions.includes('packages.purchase')}
           />
         ) : (
           <EmptyState message={t('clients.noAccess')} />

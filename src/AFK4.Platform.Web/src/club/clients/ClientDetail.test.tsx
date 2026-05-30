@@ -16,14 +16,17 @@ function fakeClient() {
       walletBalance: { currencyCode: 'TJS', minorUnits: 50000 },
       debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
       recentEntries: []
-    }))
+    })),
+    getPlayerPackages: vi.fn(async () => []),
+    getPackageOptions: vi.fn(async () => []),
+    purchasePackage: vi.fn(async () => ({ playerPackageId: 'pp9' }))
   };
 }
 
 it('shows the header and the edit-unavailable note', () => {
   render(
     <I18nProvider>
-      <ClientDetail client={fakeClient() as never} player={player} organizationId="org" canViewBilling />
+      <ClientDetail client={fakeClient() as never} player={player} branchId="b1" organizationId="org" canViewBilling />
     </I18nProvider>
   );
   expect(screen.getByText('Иван')).toBeInTheDocument();
@@ -33,7 +36,7 @@ it('shows the header and the edit-unavailable note', () => {
 it('renders the wallet panel when billing is permitted', async () => {
   render(
     <I18nProvider>
-      <ClientDetail client={fakeClient() as never} player={player} organizationId="org" canViewBilling />
+      <ClientDetail client={fakeClient() as never} player={player} branchId="b1" organizationId="org" canViewBilling />
     </I18nProvider>
   );
   expect(await screen.findByText('История операций')).toBeInTheDocument();
@@ -43,9 +46,10 @@ it('hides the wallet panel and shows a note when billing is not permitted', () =
   const client = fakeClient();
   render(
     <I18nProvider>
-      <ClientDetail client={client as never} player={player} organizationId="org" canViewBilling={false} />
+      <ClientDetail client={client as never} player={player} branchId="b1" organizationId="org" canViewBilling={false} />
     </I18nProvider>
   );
   expect(screen.getByText('Просмотр баланса недоступен.')).toBeInTheDocument();
   expect(client.getWalletSummary).not.toHaveBeenCalled();
+  expect(client.getPlayerPackages).not.toHaveBeenCalled();
 });

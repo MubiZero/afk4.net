@@ -127,3 +127,15 @@ it('includes the money-operations keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the client-packages keys', () => {
+  for (const key of [
+    'clientPackages.title', 'clientPackages.empty', 'clientPackages.purchase',
+    'clientPackages.purchase.title', 'clientPackages.purchase.submit', 'clientPackages.field.package',
+    'clientPackages.col.name', 'clientPackages.col.included', 'clientPackages.col.bonus',
+    'clientPackages.col.expires', 'clientPackages.noExpiry', 'clientPackages.noChoices'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
