@@ -14,15 +14,17 @@ import type { MoneyPerms } from './WalletPanel';
 
 type Client = Pick<ClubApiClient,
   'searchPlayers' | 'getWalletSummary' | 'createPlayer'
-  | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'>;
+  | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'
+  | 'getPlayerPackages' | 'getPackageOptions' | 'purchasePackage'>;
 
-export function ClientsScreen({ client, branchId, organizationId, canCreate, canViewBilling, moneyPerms }: {
+export function ClientsScreen({ client, branchId, organizationId, canCreate, canViewBilling, moneyPerms, canPurchase }: {
   client: Client;
   branchId: string;
   organizationId: string;
   canCreate: boolean;
   canViewBilling: boolean;
   moneyPerms?: MoneyPerms;
+  canPurchase?: boolean;
 }) {
   const { t, formatNumber } = useI18n();
   const [query, setQuery] = useState('');
@@ -84,9 +86,11 @@ export function ClientsScreen({ client, branchId, organizationId, canCreate, can
           key={selected.playerAccountId}
           client={client}
           player={selected}
+          branchId={branchId}
           organizationId={organizationId}
           canViewBilling={canViewBilling}
           moneyPerms={moneyPerms}
+          canPurchase={canPurchase}
           onMutated={() => { if (state.status === 'ready') state.retry(); }}
         />
       ) : (

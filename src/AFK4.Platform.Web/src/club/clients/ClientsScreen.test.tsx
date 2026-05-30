@@ -21,7 +21,10 @@ function fakeClient() {
   return {
     searchPlayers: vi.fn(async () => [result]),
     getWalletSummary: vi.fn(async () => summary),
-    createPlayer: vi.fn(async () => ({ playerAccountId: 'p2' }))
+    createPlayer: vi.fn(async () => ({ playerAccountId: 'p2' })),
+    getPlayerPackages: vi.fn(async () => []),
+    getPackageOptions: vi.fn(async () => []),
+    purchasePackage: vi.fn(async () => ({}))
   };
 }
 

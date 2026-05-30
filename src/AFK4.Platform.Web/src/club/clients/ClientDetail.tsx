@@ -4,16 +4,20 @@ import { useI18n } from '@/i18n/I18nProvider';
 import type { ClubApiClient } from '@/api/clubApi';
 import type { PlayerRow } from './clientsModel';
 import { WalletPanel, type MoneyPerms } from './WalletPanel';
+import { PackagesPanel } from './PackagesPanel';
 
 type Client = Pick<ClubApiClient,
-  'getWalletSummary' | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'>;
+  'getWalletSummary' | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'
+  | 'getPlayerPackages' | 'getPackageOptions' | 'purchasePackage'>;
 
-export function ClientDetail({ client, player, organizationId, canViewBilling, moneyPerms, onMutated }: {
+export function ClientDetail({ client, player, branchId, organizationId, canViewBilling, moneyPerms, canPurchase, onMutated }: {
   client: Client;
   player: PlayerRow;
+  branchId: string;
   organizationId: string;
   canViewBilling: boolean;
   moneyPerms?: MoneyPerms;
+  canPurchase?: boolean;
   onMutated?: () => void;
 }) {
   const { t } = useI18n();
@@ -30,10 +34,16 @@ export function ClientDetail({ client, player, organizationId, canViewBilling, m
       </div>
 
       {canViewBilling ? (
-        <WalletPanel
-          client={client} playerAccountId={player.playerAccountId} organizationId={organizationId}
-          moneyPerms={moneyPerms} onMutated={onMutated}
-        />
+        <>
+          <WalletPanel
+            client={client} playerAccountId={player.playerAccountId} organizationId={organizationId}
+            moneyPerms={moneyPerms} onMutated={onMutated}
+          />
+          <PackagesPanel
+            client={client} playerAccountId={player.playerAccountId} branchId={branchId} organizationId={organizationId}
+            canPurchase={canPurchase ?? false} onMutated={onMutated}
+          />
+        </>
       ) : (
         <p className="text-sm text-muted-foreground">{t('clients.billing.noAccess')}</p>
       )}
