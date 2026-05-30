@@ -23,7 +23,21 @@ function device(p: Partial<DeviceInventoryItem>): DeviceInventoryItem {
   };
 }
 
+function summaryWith(over: Partial<OperatorDashboardSummary['utilization']>): OperatorDashboardSummary {
+  return {
+    organizationId: 'o', branchId: 'b', fromUtc: '', toUtc: '', generatedAtUtc: '',
+    utilization: { totalSeats: 99, activeSessions: 0, endingSessions: 0, onlineDevices: 6, offlineDevices: 2, sessionStarts: 0, utilizationPercent: 0, ...over },
+    alertPressure: { pendingCommands: 0, failedCommands: 0, offlineDevices: 0, endingSessions: 0, totalAlerts: 0 },
+    revenue: { posNetSales: { amount: 0, currencyCode: 'TJS' }, gameplayRevenue: { amount: 0, currencyCode: 'TJS' }, totalRevenue: { amount: 0, currencyCode: 'TJS' }, posCheckCount: 0, newPlayerCount: 0 }
+  };
+}
+
 describe('buildOverview', () => {
+  it('uses online+offline devices as the online denominator, not totalSeats', () => {
+    const vm = buildOverview(summaryWith({}), [], []);
+    expect(vm.kpis.devicesOnline).toEqual({ online: 6, total: 8 });
+  });
+
   it('maps KPI values from the summary', () => {
     const vm = buildOverview(summary, [], []);
     expect(vm.kpis.devicesOnline).toEqual({ online: 28, total: 30 });
