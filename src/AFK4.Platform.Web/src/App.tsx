@@ -12,6 +12,7 @@ import { OverviewScreen } from './club/overview/OverviewScreen';
 import { useOverview } from './club/overview/useOverview';
 import { VenueScreen } from './club/venue/VenueScreen';
 import { SettingsScreen } from './club/settings/SettingsScreen';
+import { MonetizationScreen } from './club/monetization/MonetizationScreen';
 import { useActiveBranch } from './club/branches/useActiveBranch';
 import { useBranchDirectory } from './club/branches/useBranchDirectory';
 import { BranchesScreen } from './club/branches/BranchesScreen';
@@ -40,6 +41,7 @@ export type AuthRoute =
 export type ClubRoute =
   | { kind: 'clubDashboard' }
   | { kind: 'clubVenue' }
+  | { kind: 'clubMonetization' }
   | { kind: 'clubSettings' }
   | { kind: 'clubInstall' }
   | { kind: 'clubBranches' }
@@ -301,6 +303,7 @@ const ROLE_LABEL: Record<'owner' | 'manager', string> = {
 const CLUB_SCREEN_TITLE: Partial<Record<ClubRoute['kind'], string>> = {
   clubDashboard: 'Обзор',
   clubVenue: 'Зал и ПК',
+  clubMonetization: 'Монетизация',
   clubSettings: 'Настройки',
   clubInstall: 'Установка',
   clubBranches: 'Все филиалы',
@@ -322,6 +325,8 @@ export function pathForRoute(route: ClubRoute): string {
       return '/club';
     case 'clubVenue':
       return '/club/venue';
+    case 'clubMonetization':
+      return '/club/monetization';
     case 'clubSettings':
       return '/club/settings';
     case 'clubInstall':
@@ -379,6 +384,17 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
           organizationId={session.organizationId}
           canManageLayout={session.permissions.includes('layout.manage')}
         />
+      ) : route.kind === 'clubMonetization' ? (
+        role === 'owner' ? (
+          <MonetizationScreen
+            client={clubClient}
+            branchId={activeBranchId}
+            organizationId={session.organizationId}
+            canManageTariffs={session.permissions.includes('tariffs.manage')}
+          />
+        ) : (
+          <EmptyState message={t('monetization.ownerOnly')} />
+        )
       ) : route.kind === 'clubSettings' ? (
         role === 'owner' ? (
           <SettingsScreen
@@ -480,6 +496,9 @@ export function resolvePlatformRoute(
     }
     if (path === '/club/venue') {
       return { route: { kind: 'clubVenue' } };
+    }
+    if (path === '/club/monetization') {
+      return { route: { kind: 'clubMonetization' } };
     }
     if (path === '/club/settings') {
       return { route: { kind: 'clubSettings' } };
@@ -615,6 +634,7 @@ function isAdminRoute(route: AppRoute): route is AdminRoute {
 function isClubRoute(route: AppRoute): route is ClubRoute {
   return route.kind === 'clubDashboard'
     || route.kind === 'clubVenue'
+    || route.kind === 'clubMonetization'
     || route.kind === 'clubSettings'
     || route.kind === 'clubInstall'
     || route.kind === 'clubBranches'

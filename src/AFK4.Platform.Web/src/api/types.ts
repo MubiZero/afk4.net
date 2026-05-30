@@ -368,3 +368,71 @@ export const SubscriptionStatus = {
   PastDue: 'past_due',
   Cancelled: 'cancelled'
 } as const;
+
+export interface TariffOption {
+  tariffId: string;
+  tariffVersionId: string;
+  name: string;
+  tariffRuleVersionId: string;
+  versionNumber: number;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: string;
+}
+
+export interface Tariff {
+  tariffId: string;
+  organizationId: string;
+  branchId: string;
+  name: string;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export interface TariffVersion {
+  tariffVersionId: string;
+  tariffId: string;
+  versionNumber: number;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: string;
+  retiredAtUtc: string | null;
+  createdAtUtc: string;
+}
+
+export interface CreateTariffRequest {
+  organizationId: string;
+  name: string;
+  idempotencyKey: string;
+}
+
+export interface UpdateTariffRequest {
+  organizationId: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface CreateTariffVersionRequest {
+  organizationId: string;
+  tariffId: string;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: string;
+  idempotencyKey: string;
+}
+
+export interface UpdateTariffVersionRequest {
+  organizationId: string;
+  currencyCode: string;
+  pricePerMinuteMinorUnits: number;
+  minimumBillableMinutes: number;
+  roundingIncrementMinutes: number;
+  effectiveFromUtc: string;
+  isActive: boolean;
+}

@@ -50,3 +50,17 @@ it('includes the floor-map editor keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the monetization + tariffs keys', () => {
+  for (const key of [
+    'monetization.tab.tariffs', 'monetization.tab.products', 'monetization.tab.loyalty',
+    'monetization.soon', 'monetization.ownerOnly',
+    'tariffs.create', 'tariffs.create.title', 'tariffs.create.submit',
+    'tariffs.edit.title', 'tariffs.edit.submit', 'tariffs.empty', 'tariffs.activeOnlyNote',
+    'tariffs.col.name', 'tariffs.col.price', 'tariffs.col.minMinutes', 'tariffs.col.rounding', 'tariffs.col.effectiveFrom',
+    'tariffs.field.name', 'tariffs.field.pricePerMinute', 'tariffs.field.minMinutes', 'tariffs.field.rounding', 'tariffs.field.currency', 'tariffs.field.active'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});

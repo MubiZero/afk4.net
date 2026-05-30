@@ -9,6 +9,8 @@ import type {
   BranchProfile,
   BranchSettings,
   CreateStaffUserRequest,
+  CreateTariffRequest,
+  CreateTariffVersionRequest,
   DeviceInventoryItem,
   FloorMapBulkUpdateRequest,
   FloorMapBulkUpdateResponse,
@@ -19,11 +21,16 @@ import type {
   ResetStaffUserPasswordRequest,
   StaffSignInResponse,
   StaffUser,
+  Tariff,
+  TariffOption,
+  TariffVersion,
   UpdateBranchProfileRequest,
   UpdateBranchSettingsRequest,
   UpdateStaffUserProfileRequest,
   UpdateStaffUserRolesRequest,
-  UpdateStaffUserStateRequest
+  UpdateStaffUserStateRequest,
+  UpdateTariffRequest,
+  UpdateTariffVersionRequest
 } from './types';
 
 export interface ClubApiClientOptions {
@@ -228,6 +235,38 @@ export class ClubApiClient {
     return this.send<StaffUser>(
       'POST',
       `/api/branches/${encodeURIComponent(branchId)}/staff/${encodeURIComponent(staffUserId)}/password-reset`,
+      request
+    );
+  }
+
+  public getTariffOptions(branchId: string): Promise<TariffOption[]> {
+    return this.send<TariffOption[]>('GET', `/api/branches/${encodeURIComponent(branchId)}/tariffs/options`);
+  }
+
+  public createTariff(branchId: string, request: CreateTariffRequest): Promise<Tariff> {
+    return this.send<Tariff>('POST', `/api/branches/${encodeURIComponent(branchId)}/tariffs`, request);
+  }
+
+  public createTariffVersion(branchId: string, tariffId: string, request: CreateTariffVersionRequest): Promise<TariffVersion> {
+    return this.send<TariffVersion>(
+      'POST',
+      `/api/branches/${encodeURIComponent(branchId)}/tariffs/${encodeURIComponent(tariffId)}/versions`,
+      request
+    );
+  }
+
+  public updateTariff(branchId: string, tariffId: string, request: UpdateTariffRequest): Promise<Tariff> {
+    return this.send<Tariff>(
+      'PATCH',
+      `/api/branches/${encodeURIComponent(branchId)}/tariffs/${encodeURIComponent(tariffId)}`,
+      request
+    );
+  }
+
+  public updateTariffVersion(branchId: string, tariffId: string, tariffVersionId: string, request: UpdateTariffVersionRequest): Promise<TariffVersion> {
+    return this.send<TariffVersion>(
+      'PATCH',
+      `/api/branches/${encodeURIComponent(branchId)}/tariffs/${encodeURIComponent(tariffId)}/versions/${encodeURIComponent(tariffVersionId)}`,
       request
     );
   }
