@@ -41,7 +41,7 @@ export function VenueScreen({ client, branchId }: { client: ClubApiClient; branc
       </Tabs>
 
       <Sheet open={selected !== null} onOpenChange={open => { if (!open) setSelected(null); }}>
-        <SheetContent>
+        <SheetContent closeLabel={t('common.close')}>
           {selected && (
             <>
               <SheetTitle>{selected.displayName}</SheetTitle>

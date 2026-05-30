@@ -6,7 +6,11 @@ import { cn } from '@/lib/utils';
 export const Sheet = DialogPrimitive.Root;
 export const SheetClose = DialogPrimitive.Close;
 
-export function SheetContent({ className, children, ...props }: ComponentProps<typeof DialogPrimitive.Content>) {
+interface SheetContentProps extends ComponentProps<typeof DialogPrimitive.Content> {
+  closeLabel?: string;
+}
+
+export function SheetContent({ className, children, closeLabel = 'Close', ...props }: SheetContentProps) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
@@ -19,7 +23,7 @@ export function SheetContent({ className, children, ...props }: ComponentProps<t
       >
         {children}
         <DialogPrimitive.Close
-          aria-label="Закрыть"
+          aria-label={closeLabel}
           className="absolute right-4 top-4 rounded-sm opacity-60 transition-opacity hover:opacity-100"
         >
           <X className="size-4" />

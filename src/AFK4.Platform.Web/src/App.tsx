@@ -340,8 +340,8 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
     if (isClubRoute(resolution.route)) {
       onNavigate(resolution.route, resolution.redirectTo ?? path);
     }
-    // Not-yet-built nav targets (e.g. /club/venue) resolve to notFound and are
-    // intentionally ignored here so the shell stays put until those screens land.
+    // Soon/unbuilt nav targets resolve to notFound and are ignored; live targets
+    // (overview, venue, install, branches) navigate.
   };
 
   return (

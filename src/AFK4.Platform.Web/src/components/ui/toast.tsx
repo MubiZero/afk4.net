@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n/I18nProvider';
 
 export type ToastVariant = 'success' | 'error';
 export interface ToastOptions { title: string; variant?: ToastVariant; }
@@ -9,6 +10,7 @@ interface ToastContextValue { toast: (options: ToastOptions) => void; }
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children, autoDismissMs = 4000 }: { children: ReactNode; autoDismissMs?: number }) {
+  const { t } = useI18n();
   const [toasts, setToasts] = useState<ActiveToast[]>([]);
   const nextId = useRef(0);
 
@@ -21,7 +23,7 @@ export function ToastProvider({ children, autoDismissMs = 4000 }: { children: Re
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col gap-2" role="region" aria-label="Уведомления">
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col gap-2" role="region" aria-label={t('toast.region')}>
         {toasts.map(t => (
           <div
             key={t.id}

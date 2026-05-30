@@ -62,7 +62,9 @@ export const messages = {
     'common.name': 'Название',
     'common.delete': 'Удалить',
     'toast.saved': 'Изменения сохранены',
-    'toast.failed': 'Не удалось выполнить действие'
+    'toast.failed': 'Не удалось выполнить действие',
+    'toast.region': 'Уведомления',
+    'common.close': 'Закрыть'
   },
   en: {
     'nav.group.branch': 'Branch',
@@ -125,7 +127,9 @@ export const messages = {
     'common.name': 'Name',
     'common.delete': 'Delete',
     'toast.saved': 'Changes saved',
-    'toast.failed': 'The action could not be completed'
+    'toast.failed': 'The action could not be completed',
+    'toast.region': 'Notifications',
+    'common.close': 'Close'
   }
 } as const;
 
