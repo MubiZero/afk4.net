@@ -16,10 +16,14 @@ import type {
   OperatorDashboardSummary,
   OwnerCodeIssued,
   OwnerCodeSummary,
+  ResetStaffUserPasswordRequest,
   StaffSignInResponse,
   StaffUser,
   UpdateBranchProfileRequest,
-  UpdateBranchSettingsRequest
+  UpdateBranchSettingsRequest,
+  UpdateStaffUserProfileRequest,
+  UpdateStaffUserRolesRequest,
+  UpdateStaffUserStateRequest
 } from './types';
 
 export interface ClubApiClientOptions {
@@ -178,6 +182,54 @@ export class ClubApiClient {
 
   public createStaff(branchId: string, request: CreateStaffUserRequest): Promise<StaffUser> {
     return this.send<StaffUser>('POST', `/api/branches/${encodeURIComponent(branchId)}/staff`, request);
+  }
+
+  public updateStaffRoles(
+    branchId: string,
+    staffUserId: string,
+    request: UpdateStaffUserRolesRequest
+  ): Promise<StaffUser> {
+    return this.send<StaffUser>(
+      'PATCH',
+      `/api/branches/${encodeURIComponent(branchId)}/staff/${encodeURIComponent(staffUserId)}/roles`,
+      request
+    );
+  }
+
+  public updateStaffProfile(
+    branchId: string,
+    staffUserId: string,
+    request: UpdateStaffUserProfileRequest
+  ): Promise<StaffUser> {
+    return this.send<StaffUser>(
+      'PATCH',
+      `/api/branches/${encodeURIComponent(branchId)}/staff/${encodeURIComponent(staffUserId)}/profile`,
+      request
+    );
+  }
+
+  public updateStaffState(
+    branchId: string,
+    staffUserId: string,
+    request: UpdateStaffUserStateRequest
+  ): Promise<StaffUser> {
+    return this.send<StaffUser>(
+      'PATCH',
+      `/api/branches/${encodeURIComponent(branchId)}/staff/${encodeURIComponent(staffUserId)}/state`,
+      request
+    );
+  }
+
+  public resetStaffPassword(
+    branchId: string,
+    staffUserId: string,
+    request: ResetStaffUserPasswordRequest
+  ): Promise<StaffUser> {
+    return this.send<StaffUser>(
+      'POST',
+      `/api/branches/${encodeURIComponent(branchId)}/staff/${encodeURIComponent(staffUserId)}/password-reset`,
+      request
+    );
   }
 
   private async send<T>(

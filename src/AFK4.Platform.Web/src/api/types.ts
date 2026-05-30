@@ -208,6 +208,27 @@ export interface CreateStaffUserRequest {
   roleNames: string[];
 }
 
+export interface UpdateStaffUserRolesRequest {
+  organizationId: string;
+  roleNames: string[];
+}
+
+export interface UpdateStaffUserProfileRequest {
+  organizationId: string;
+  userName: string;
+  displayName: string;
+}
+
+export interface UpdateStaffUserStateRequest {
+  organizationId: string;
+  isActive: boolean;
+}
+
+export interface ResetStaffUserPasswordRequest {
+  organizationId: string;
+  newPassword: string;
+}
+
 export interface TenantSummary {
   organizationId: string;
   slug: string;

@@ -11,7 +11,10 @@ import { AppShell } from './components/shell/AppShell';
 import { OverviewScreen } from './club/overview/OverviewScreen';
 import { useOverview } from './club/overview/useOverview';
 import { VenueScreen } from './club/venue/VenueScreen';
+import { SettingsScreen } from './club/settings/SettingsScreen';
 import { roleFromPermissions } from './club/nav';
+import { EmptyState } from './components/ui/states';
+import { useI18n } from './i18n/I18nProvider';
 import { SignIn } from './components/SignIn';
 import { StaffSignIn } from './components/StaffSignIn';
 import { TenantList } from './components/TenantList';
@@ -34,6 +37,7 @@ export type AuthRoute =
 export type ClubRoute =
   | { kind: 'clubDashboard' }
   | { kind: 'clubVenue' }
+  | { kind: 'clubSettings' }
   | { kind: 'clubInstall' }
   | { kind: 'clubBranches' }
   | { kind: 'clubBranchDetail'; branchId: string }
@@ -294,6 +298,7 @@ const ROLE_LABEL: Record<'owner' | 'manager', string> = {
 const CLUB_SCREEN_TITLE: Partial<Record<ClubRoute['kind'], string>> = {
   clubDashboard: 'Обзор',
   clubVenue: 'Зал и ПК',
+  clubSettings: 'Настройки',
   clubInstall: 'Установка',
   clubBranches: 'Все филиалы',
   clubBranchDetail: 'Филиал',
@@ -314,6 +319,8 @@ export function pathForRoute(route: ClubRoute): string {
       return '/club';
     case 'clubVenue':
       return '/club/venue';
+    case 'clubSettings':
+      return '/club/settings';
     case 'clubInstall':
       return '/club/install';
     case 'clubBranches':
@@ -331,6 +338,7 @@ export function pathForRoute(route: ClubRoute): string {
 
 function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAreaProps) {
   const role = roleFromPermissions(session.permissions);
+  const { t } = useI18n();
   const branchId = session.branchIds[0] ?? '';
   const branches = session.branchIds.map(id => ({ branchId: id, name: 'Филиал' }));
   const overviewState = useOverview(clubClient, branchId);
@@ -362,6 +370,17 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
         <OverviewScreen state={overviewState} />
       ) : route.kind === 'clubVenue' ? (
         <VenueScreen client={clubClient} branchId={branchId} />
+      ) : route.kind === 'clubSettings' ? (
+        role === 'owner' ? (
+          <SettingsScreen
+            client={clubClient}
+            branchId={branchId}
+            organizationId={session.organizationId}
+            currentStaffUserId={session.staffUserId}
+          />
+        ) : (
+          <EmptyState message={t('settings.ownerOnly')} />
+        )
       ) : (
         <LegacyClubScreen
           client={clubClient}
@@ -445,6 +464,9 @@ export function resolvePlatformRoute(
     }
     if (path === '/club/venue') {
       return { route: { kind: 'clubVenue' } };
+    }
+    if (path === '/club/settings') {
+      return { route: { kind: 'clubSettings' } };
     }
     if (path === '/club/install') {
       return { route: { kind: 'clubInstall' } };
@@ -577,6 +599,7 @@ function isAdminRoute(route: AppRoute): route is AdminRoute {
 function isClubRoute(route: AppRoute): route is ClubRoute {
   return route.kind === 'clubDashboard'
     || route.kind === 'clubVenue'
+    || route.kind === 'clubSettings'
     || route.kind === 'clubInstall'
     || route.kind === 'clubBranches'
     || route.kind === 'clubBranchDetail'
