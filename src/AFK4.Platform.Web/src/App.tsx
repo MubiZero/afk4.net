@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClubApiClient } from './api/clubApi';
 import { PlatformApiClient } from './api/platformApi';
 import { StaffAuthApiClient } from './api/staffAuthApi';
-import type { OwnerInvite } from './api/types';
+import type { CreateTenantResponse, OwnerInvite } from './api/types';
 import { readStaffSession, type StaffSession } from './auth/staffTokenStore';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { AcceptInvite } from './components/AcceptInvite';
@@ -30,10 +30,14 @@ import { StaffSignIn } from './components/StaffSignIn';
 import { TenantList } from './components/TenantList';
 import { TenantDetailView } from './components/TenantDetail';
 import { NewTenant } from './components/NewTenant';
+import { platformNav } from './platform/nav';
+import { OverviewScreen as PlatformOverviewScreen } from './platform/overview/OverviewScreen';
+import { useTenantMetrics } from './platform/overview/useTenantMetrics';
 
 export type PlatformWebAudience = 'all' | 'admin' | 'club';
 
 export type AdminRoute =
+  | { kind: 'adminOverview' }
   | { kind: 'tenantList' }
   | { kind: 'newTenant' }
   | { kind: 'tenantDetail'; organizationId: string; initialInvite: OwnerInvite | null };
@@ -169,6 +173,11 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
     [navigate]
   );
 
+  const navigateToAdminRoute = useCallback(
+    (nextRoute: AdminRoute, path: string) => navigate(nextRoute, path),
+    [navigate]
+  );
+
   const navigateToStaffSignIn = useCallback(
     () => navigate({ kind: 'staffSignIn', tenantKey: null }, '/auth/sign-in'),
     [navigate]
@@ -255,40 +264,18 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
   }
 
   return (
-    <>
-      <header className="app-header">
-        <div className="app-title">AFK4 Control Plane</div>
-        <div className="app-session">
-          <button type="button" className="link" onClick={navigateToTenantList}>Tenants</button>
-          <span className="muted">{adminSession.displayName} ({adminSession.userName})</span>
-          <button type="button" onClick={() => void adminClient.signOut()}>Sign out</button>
-        </div>
-      </header>
-      <main>
-        {route.kind === 'tenantList' && (
-          <TenantList
-            client={adminClient}
-            onOpenTenant={id => navigateToTenantDetail(id)}
-            onCreateTenant={navigateToNewTenant}
-          />
-        )}
-        {route.kind === 'newTenant' && (
-          <NewTenant
-            client={adminClient}
-            onCreated={response => navigateToTenantDetail(response.tenant.organizationId, response.ownerInvite)}
-            onCancel={navigateToTenantList}
-          />
-        )}
-        {route.kind === 'tenantDetail' && (
-          <TenantDetailView
-            client={adminClient}
-            organizationId={route.organizationId}
-            initialInvite={route.initialInvite}
-            onBack={navigateToTenantList}
-          />
-        )}
-      </main>
-    </>
+    <PlatformArea
+      adminClient={adminClient}
+      route={route}
+      session={adminSession}
+      onNavigate={navigateToAdminRoute}
+      onCreateTenant={navigateToNewTenant}
+      onOpenTenant={navigateToTenantDetail}
+      onCreatedTenant={(response) => navigateToTenantDetail(response.tenant.organizationId, response.ownerInvite)}
+      onCancelNewTenant={navigateToTenantList}
+      onBackToTenants={navigateToTenantList}
+      onSignOut={() => void adminClient.signOut()}
+    />
   );
 }
 
@@ -475,6 +462,103 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
   );
 }
 
+interface PlatformAreaProps {
+  adminClient: PlatformApiClient;
+  route: AdminRoute;
+  session: PlatformAdminSession;
+  onNavigate: (route: AdminRoute, path: string) => void;
+  onCreateTenant: () => void;
+  onOpenTenant: (organizationId: string) => void;
+  onCreatedTenant: (response: CreateTenantResponse) => void;
+  onCancelNewTenant: () => void;
+  onBackToTenants: () => void;
+  onSignOut: () => void;
+}
+
+const PLATFORM_ROLE_LABEL = 'Администратор';
+
+const PLATFORM_SCREEN_TITLE: Record<AdminRoute['kind'], string> = {
+  adminOverview: 'Обзор',
+  tenantList: 'Тенанты',
+  newTenant: 'Новый тенант',
+  tenantDetail: 'Тенант'
+};
+
+function pathForAdminRoute(route: AdminRoute): string {
+  switch (route.kind) {
+    case 'adminOverview':
+      return '/admin';
+    case 'tenantList':
+    case 'newTenant':
+    case 'tenantDetail':
+      return '/admin/tenants';
+    default:
+      return '/admin';
+  }
+}
+
+function PlatformArea({
+  adminClient, route, session, onNavigate, onCreateTenant, onOpenTenant,
+  onCreatedTenant, onCancelNewTenant, onBackToTenants, onSignOut
+}: PlatformAreaProps) {
+  const metricsState = useTenantMetrics(adminClient);
+
+  const handleNavigate = (path: string) => {
+    const resolution = resolvePlatformRoute(path, null, '');
+    if (isAdminRoute(resolution.route)) {
+      onNavigate(resolution.route, resolution.redirectTo ?? path);
+    }
+    // Soon/unbuilt nav targets (billing, profile) resolve to notFound and are ignored.
+  };
+
+  return (
+    <AppShell
+      navGroups={platformNav}
+      sidebarHeader={
+        <div className="m-3 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-left">
+          <span className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
+            A
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-bold">AFK4 Control Plane</span>
+            <span className="block truncate text-[11px] text-muted">{session.userName}</span>
+          </span>
+        </div>
+      }
+      activePath={pathForAdminRoute(route)}
+      subtitle=""
+      screenTitle={PLATFORM_SCREEN_TITLE[route.kind] ?? ''}
+      userName={session.displayName}
+      roleLabel={PLATFORM_ROLE_LABEL}
+      onNavigate={handleNavigate}
+      onSignOut={onSignOut}
+    >
+      {route.kind === 'adminOverview' ? (
+        <PlatformOverviewScreen state={metricsState} />
+      ) : route.kind === 'newTenant' ? (
+        <NewTenant
+          client={adminClient}
+          onCreated={onCreatedTenant}
+          onCancel={onCancelNewTenant}
+        />
+      ) : route.kind === 'tenantDetail' ? (
+        <TenantDetailView
+          client={adminClient}
+          organizationId={route.organizationId}
+          initialInvite={route.initialInvite}
+          onBack={onBackToTenants}
+        />
+      ) : (
+        <TenantList
+          client={adminClient}
+          onOpenTenant={onOpenTenant}
+          onCreateTenant={onCreateTenant}
+        />
+      )}
+    </AppShell>
+  );
+}
+
 export function resolvePlatformRoute(
   pathname: string,
   historyState: unknown = null,
@@ -505,7 +589,10 @@ export function resolvePlatformRoute(
       };
     }
 
-    if (path === '/admin' || path === '/admin/tenants') {
+    if (path === '/admin') {
+      return { route: { kind: 'adminOverview' } };
+    }
+    if (path === '/admin/tenants') {
       return { route: { kind: 'tenantList' } };
     }
     if (path === '/admin/tenants/new') {
@@ -638,7 +725,8 @@ function readInitialInvite(historyState: unknown): OwnerInvite | null {
 }
 
 function isAdminRoute(route: AppRoute): route is AdminRoute {
-  return route.kind === 'tenantList'
+  return route.kind === 'adminOverview'
+    || route.kind === 'tenantList'
     || route.kind === 'newTenant'
     || route.kind === 'tenantDetail';
 }
@@ -695,7 +783,7 @@ function getAudienceHome(audience: PlatformWebAudience): { route: AppRoute; path
   if (audience === 'club') {
     return { route: { kind: 'clubInstall' }, path: '/club/install', label: 'Open club install' };
   }
-  return { route: { kind: 'tenantList' }, path: '/admin', label: 'Open admin tenants' };
+  return { route: { kind: 'adminOverview' }, path: '/admin', label: 'Open admin overview' };
 }
 
 function ReservedAuthPage({ onSignIn }: { onSignIn: () => void }) {
