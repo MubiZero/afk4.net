@@ -536,3 +536,69 @@ export interface UpdatePackageDefinitionRequest {
   expiresAfterDays: number;
   isActive: boolean;
 }
+
+export interface PlayerAccount {
+  playerAccountId: string;
+  organizationId: string;
+  homeBranchId: string;
+  displayName: string;
+  phoneNumber: string | null;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export interface PlayerSearchResult {
+  playerAccountId: string;
+  displayName: string;
+  phoneNumber: string | null;
+  walletBalanceMinorUnits: number;
+  debtBalanceMinorUnits: number;
+  activePackageCount: number;
+  isActive: boolean;
+}
+
+export interface LedgerEntry {
+  ledgerEntryId: string;
+  organizationId: string;
+  branchId: string;
+  playerAccountId: string;
+  sessionId: string | null;
+  playerPackageId: string | null;
+  entryType: string;
+  accountType: string;
+  amount: MoneyMinor;
+  quantitySeconds: number;
+  description: string;
+  reason: string;
+  reversesLedgerEntryId: string | null;
+  createdByStaffUserId: string;
+  createdAtUtc: string;
+}
+
+export interface WalletSummary {
+  playerAccountId: string;
+  walletBalance: MoneyMinor;
+  debtBalance: MoneyMinor;
+  recentEntries: LedgerEntry[];
+}
+
+export interface PlayerPackage {
+  playerPackageId: string;
+  packageDefinitionId: string;
+  playerAccountId: string;
+  name: string;
+  purchasedPrice: MoneyMinor;
+  includedSeconds: number;
+  bonusSeconds: number;
+  remainingIncludedSeconds: number;
+  remainingBonusSeconds: number;
+  purchasedAtUtc: string;
+  expiresAtUtc: string | null;
+}
+
+export interface CreatePlayerAccountRequest {
+  organizationId: string;
+  displayName: string;
+  phoneNumber: string | null;
+  idempotencyKey: string;
+}
