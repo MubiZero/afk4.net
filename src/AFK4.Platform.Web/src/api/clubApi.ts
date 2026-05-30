@@ -8,6 +8,8 @@ import { PlatformApiError } from './platformApi';
 import type {
   BranchProfile,
   BranchSettings,
+  CreateProductCategoryRequest,
+  CreateProductRequest,
   CreateStaffUserRequest,
   CreateTariffRequest,
   CreateTariffVersionRequest,
@@ -18,6 +20,8 @@ import type {
   OperatorDashboardSummary,
   OwnerCodeIssued,
   OwnerCodeSummary,
+  PosProduct,
+  PosProductCategory,
   ResetStaffUserPasswordRequest,
   StaffSignInResponse,
   StaffUser,
@@ -26,6 +30,7 @@ import type {
   TariffVersion,
   UpdateBranchProfileRequest,
   UpdateBranchSettingsRequest,
+  UpdateProductRequest,
   UpdateStaffUserProfileRequest,
   UpdateStaffUserRolesRequest,
   UpdateStaffUserStateRequest,
@@ -267,6 +272,26 @@ export class ClubApiClient {
     return this.send<TariffVersion>(
       'PATCH',
       `/api/branches/${encodeURIComponent(branchId)}/tariffs/${encodeURIComponent(tariffId)}/versions/${encodeURIComponent(tariffVersionId)}`,
+      request
+    );
+  }
+
+  public getCatalog(branchId: string): Promise<PosProduct[]> {
+    return this.send<PosProduct[]>('GET', `/api/branches/${encodeURIComponent(branchId)}/pos/catalog`);
+  }
+
+  public createProductCategory(branchId: string, request: CreateProductCategoryRequest): Promise<PosProductCategory> {
+    return this.send<PosProductCategory>('POST', `/api/branches/${encodeURIComponent(branchId)}/pos/categories`, request);
+  }
+
+  public createProduct(branchId: string, request: CreateProductRequest): Promise<PosProduct> {
+    return this.send<PosProduct>('POST', `/api/branches/${encodeURIComponent(branchId)}/pos/products`, request);
+  }
+
+  public updateProduct(branchId: string, productId: string, request: UpdateProductRequest): Promise<PosProduct> {
+    return this.send<PosProduct>(
+      'PATCH',
+      `/api/branches/${encodeURIComponent(branchId)}/pos/products/${encodeURIComponent(productId)}`,
       request
     );
   }
