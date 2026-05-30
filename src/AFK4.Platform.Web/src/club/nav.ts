@@ -22,6 +22,7 @@ export const clubNav: NavGroup[] = [
       { key: 'clients', labelKey: 'nav.clients', path: '/club/clients', ownerOnly: false, soon: false },
       { key: 'monetization', labelKey: 'nav.monetization', path: '/club/monetization', ownerOnly: true, soon: false },
       { key: 'reports', labelKey: 'nav.reports', path: '/club/reports', ownerOnly: false, soon: false },
+      { key: 'journal', labelKey: 'nav.journal', path: '/club/journal', ownerOnly: false, soon: false },
       { key: 'settings', labelKey: 'nav.settings', path: '/club/settings', ownerOnly: true, soon: false }
     ]
   },

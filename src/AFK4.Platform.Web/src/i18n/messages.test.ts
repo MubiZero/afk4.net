@@ -164,6 +164,7 @@ it('includes the reports keys', () => {
 
 it('includes the journal keys', () => {
   for (const key of [
+    'nav.journal',
     'journal.noAccess', 'journal.empty', 'journal.limitNote',
     'journal.filter.action', 'journal.filter.outcome', 'journal.filter.targetType',
     'journal.filter.apply', 'journal.filter.reset',
