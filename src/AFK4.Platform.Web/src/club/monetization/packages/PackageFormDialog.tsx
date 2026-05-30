@@ -30,7 +30,7 @@ export function PackageFormDialog({ open, mode, branchId, organizationId, client
   const [includedMinutes, setIncludedMinutes] = useState(String(initial?.includedMinutes ?? '0'));
   const [bonusMinutes, setBonusMinutes] = useState(String(initial?.bonusMinutes ?? '0'));
   const [expiresAfterDays, setExpiresAfterDays] = useState(String(initial?.expiresAfterDays ?? '0'));
-  const [active, setActive] = useState(initial?.isActive ?? true);
+  const [active, setActive] = useState(true);
   const [pending, setPending] = useState(false);
 
   const valid = name.trim() !== '' && currency.trim() !== ''

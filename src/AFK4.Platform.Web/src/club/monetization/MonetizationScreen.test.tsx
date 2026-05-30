@@ -12,10 +12,10 @@ const option: TariffOption = {
 };
 
 function setup() {
-  const client = { getTariffOptions: vi.fn(async () => [option]), getCatalog: vi.fn(async () => []) };
+  const client = { getTariffOptions: vi.fn(async () => [option]), getCatalog: vi.fn(async () => []), getPackageOptions: vi.fn(async () => []) };
   render(
     <I18nProvider><ToastProvider>
-      <MonetizationScreen client={client as never} branchId="b1" organizationId="org" canManageTariffs canManageCatalog />
+      <MonetizationScreen client={client as never} branchId="b1" organizationId="org" canManageTariffs canManageCatalog canManagePackages />
     </ToastProvider></I18nProvider>
   );
 }
@@ -32,4 +32,13 @@ it('shows the catalog on the products tab', async () => {
   fireEvent.mouseDown(tab);
   fireEvent.click(tab);
   expect(await screen.findByText('Товары ещё не созданы.')).toBeInTheDocument();
+});
+
+it('shows packages on the loyalty tab', async () => {
+  setup();
+  await screen.findByText('Дневной');
+  const tab = screen.getByRole('tab', { name: 'Лояльность' });
+  fireEvent.mouseDown(tab);
+  fireEvent.click(tab);
+  expect(await screen.findByText('Пакеты ещё не созданы.')).toBeInTheDocument();
 });
