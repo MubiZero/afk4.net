@@ -6,14 +6,17 @@ import { clearStaffSession, readStaffSession, writeStaffSession, type StaffSessi
 import { clearSession, writeSession, type PlatformAdminSession } from './auth/tokenStore';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { I18nProvider } from './i18n/I18nProvider';
+import { ToastProvider } from './components/ui/toast';
 
 // Signed-in club screens now render inside the new AppShell, whose components
-// consume the theme + i18n contexts (mounted in main.tsx in production). Tests
-// that reach a club screen must provide them, mirroring the real app tree.
+// consume the theme + i18n + toast contexts (mounted in main.tsx in production).
+// Tests that reach a club screen must provide them, mirroring the real app tree.
 function renderWithProviders(ui: ReactElement) {
   return render(
     <ThemeProvider>
-      <I18nProvider>{ui}</I18nProvider>
+      <I18nProvider>
+        <ToastProvider>{ui}</ToastProvider>
+      </I18nProvider>
     </ThemeProvider>
   );
 }
@@ -307,7 +310,7 @@ describe('Platform Web routing', () => {
     render(<App apiBaseUrl="http://localhost" audience="admin" />);
 
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Install AFK4 on PCs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Установка на ПК' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open admin tenants' })).toBeInTheDocument();
   });
 
@@ -375,7 +378,7 @@ describe('Platform Web routing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Accept and open club' }));
 
     await waitFor(() => expect(window.location.pathname).toBe('/club/install'));
-    expect(screen.getByRole('heading', { name: 'Install AFK4 on PCs' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Установка на ПК' })).toBeInTheDocument();
     expect(readStaffSession()?.accessToken).toBe('staff-access-token');
 
     const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -407,7 +410,7 @@ describe('Platform Web routing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => expect(window.location.pathname).toBe('/club/install'));
-    expect(screen.getByRole('heading', { name: 'Install AFK4 on PCs' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Установка на ПК' })).toBeInTheDocument();
 
     const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-tenant-key');
@@ -443,12 +446,12 @@ describe('Platform Web routing', () => {
 
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
-    expect(screen.getByRole('heading', { name: 'Install AFK4 on PCs' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText('Owner code')).toHaveTextContent('No active code'));
+    expect(screen.getByRole('heading', { name: 'Установка на ПК' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('Код владельца')).toHaveTextContent('Код не сгенерирован'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate code' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать код' }));
 
-    await waitFor(() => expect(screen.getByLabelText('Owner code')).toHaveTextContent('12345678'));
+    await waitFor(() => expect(screen.getByLabelText('Код владельца')).toHaveTextContent('12345678'));
     expect(fetchMock).toHaveBeenCalledWith(
       'http://localhost/api/staff/me/owner-code/generate',
       expect.objectContaining({ method: 'POST' })

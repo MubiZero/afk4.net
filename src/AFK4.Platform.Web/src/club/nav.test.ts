@@ -18,7 +18,8 @@ describe('club nav', () => {
     expect(keys).not.toContain('settings');
     expect(keys).not.toContain('install');
     expect(keys).not.toContain('billing');
-    expect(keys).not.toContain('profile');
+    // profile is now visible to all roles (ownerOnly: false)
+    expect(keys).toContain('profile');
   });
 
   it('derives owner role from the owner permission', () => {
