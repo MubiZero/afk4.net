@@ -38,3 +38,15 @@ it('includes the new branches keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the floor-map editor keys', () => {
+  for (const key of [
+    'floor.reload', 'floor.save', 'floor.addZone', 'floor.addSeat',
+    'floor.zoneName', 'floor.seatName', 'floor.removeZone', 'floor.removeSeat',
+    'floor.moveUp', 'floor.moveDown', 'floor.empty', 'floor.conflict',
+    'floor.readonly', 'floor.zoneDefault', 'floor.seatDefault'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});

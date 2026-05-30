@@ -19,13 +19,22 @@ function client() {
   return {
     listDevices: vi.fn().mockResolvedValue([device({ deviceId: 'd1', displayName: 'ПК-1' })]),
     listPendingDevices: vi.fn().mockResolvedValue([]),
-    getFloorMap: vi.fn().mockResolvedValue({ etag: null, floorMap })
+    getFloorMap: vi.fn().mockResolvedValue({ etag: null, floorMap }),
+    updateFloorMap: vi.fn(async () => ({ eTag: 'e2', zones: [], seats: [] }))
   } as never;
 }
 
 it('renders the devices table and opens the drawer on row click', async () => {
-  render(<I18nProvider><ToastProvider><VenueScreen client={client()} branchId="b1" /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><VenueScreen client={client()} branchId="b1" organizationId="org" canManageLayout /></ToastProvider></I18nProvider>);
   await waitFor(() => expect(screen.getByText('ПК-1')).toBeInTheDocument());
   fireEvent.click(screen.getByText('ПК-1'));
   expect(screen.getByLabelText('Название')).toBeInTheDocument(); // drawer body
+});
+
+it('renders the floor-map editor in the map tab', async () => {
+  render(<I18nProvider><ToastProvider><VenueScreen client={client()} branchId="b1" organizationId="org" canManageLayout /></ToastProvider></I18nProvider>);
+  const mapTab = await screen.findByRole('tab', { name: 'Карта зала' });
+  fireEvent.mouseDown(mapTab);
+  fireEvent.click(mapTab);
+  expect(await screen.findByRole('button', { name: 'Добавить зону' })).toBeInTheDocument();
 });
