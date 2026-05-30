@@ -1,5 +1,5 @@
 // src/club/venue/DeviceDrawer.test.tsx
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { it, expect, vi } from 'vitest';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
@@ -50,4 +50,33 @@ it('approves a pending device', async () => {
   const { client } = renderDrawer({ ...activeRow, status: 'pending' });
   fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
   await waitFor(() => expect(client.approveDevice).toHaveBeenCalledWith('d1', 'org', expect.any(String)));
+});
+
+it('moves device to current seat when move-seat button is clicked', async () => {
+  // activeRow.seatId is 's1', so seatId state initialises to 's1' and button is enabled
+  const { client } = renderDrawer(activeRow);
+  fireEvent.click(screen.getByRole('button', { name: 'Переместить на место' }));
+  await waitFor(() => expect(client.moveDeviceSeat).toHaveBeenCalledWith('d1', 'org', 's1'));
+});
+
+it('rejects a pending device through the confirm dialog', async () => {
+  const { client } = renderDrawer({ ...activeRow, status: 'pending' });
+  // Click the trigger button to open the confirm dialog
+  fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
+  // Wait for the dialog to appear, then click the confirm button scoped inside it
+  const dialog = await waitFor(() => screen.getByRole('dialog'));
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Отклонить' }));
+  await waitFor(() => expect(client.rejectDevice).toHaveBeenCalledWith('d1', 'org', expect.any(String)));
+});
+
+it('shows error toast and does not call onDone when renameDevice fails', async () => {
+  const errorClient = {
+    ...fakeClient(),
+    renameDevice: vi.fn().mockRejectedValue(new Error('boom')),
+  };
+  const { onDone } = renderDrawer(activeRow, errorClient as never);
+  fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'ПК-bad' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() => expect(screen.getByText('Не удалось выполнить действие')).toBeInTheDocument());
+  expect(onDone).not.toHaveBeenCalled();
 });
