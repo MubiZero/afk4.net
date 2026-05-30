@@ -59,3 +59,29 @@ it('shows the add-branch affordance as unavailable', async () => {
   setup();
   expect(await screen.findByText('Создание филиалов выполняется при подключении — обратитесь в поддержку.')).toBeInTheDocument();
 });
+
+it('shows an error in the card when a branch summary fails to load', async () => {
+  const client = fakeClient();
+  client.getDashboardSummary = vi.fn(async (id: string) => {
+    if (id === 'b') throw new Error('boom');
+    return summary(id, 5);
+  });
+  setup(client);
+  expect(await screen.findByText('Не удалось загрузить данные филиала.')).toBeInTheDocument();
+  // the failed branch's card and its actions still render
+  expect(screen.getByText('Юг')).toBeInTheDocument();
+});
+
+it('shows the empty state when there are no branches', async () => {
+  render(
+    <I18nProvider><ToastProvider>
+      <BranchesScreen client={fakeClient() as never} branchIds={[]} organizationId="org" onOpenBranch={vi.fn()} />
+    </ToastProvider></I18nProvider>
+  );
+  expect(await screen.findByText('Филиалы не найдены.')).toBeInTheDocument();
+});
+
+it('keeps the add-branch button disabled', async () => {
+  setup();
+  expect(await screen.findByRole('button', { name: 'Добавить филиал' })).toBeDisabled();
+});
