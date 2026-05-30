@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { it, expect, vi } from 'vitest';
 import { I18nProvider } from '@/i18n/I18nProvider';
+import { ToastProvider } from '@/components/ui/toast';
 import type { WalletSummary } from '@/api/types';
 import { WalletPanel } from './WalletPanel';
 
@@ -17,22 +18,47 @@ const summary: WalletSummary = {
   }]
 };
 
-function renderPanel(client: { getWalletSummary: () => Promise<WalletSummary> }) {
+function fakeClient() {
+  return {
+    getWalletSummary: vi.fn(async () => summary),
+    topUpWallet: vi.fn(async () => ({ ledgerEntryId: 'l9' })),
+    payDebt: vi.fn(async () => ({ ledgerEntryId: 'l9' })),
+    createManualCorrection: vi.fn(async () => ({ ledgerEntryId: 'l9' })),
+    refundLedgerEntry: vi.fn(async () => ({ ledgerEntryId: 'l9' }))
+  };
+}
+
+function renderPanel(moneyPerms?: { topUp: boolean; payDebt: boolean; correct: boolean; refund: boolean }) {
   render(
-    <I18nProvider>
-      <WalletPanel client={client as never} playerAccountId="p1" />
-    </I18nProvider>
+    <I18nProvider><ToastProvider>
+      <WalletPanel client={fakeClient() as never} playerAccountId="p1" organizationId="org" moneyPerms={moneyPerms} />
+    </ToastProvider></I18nProvider>
   );
 }
 
 it('shows balances and a translated ledger entry type', async () => {
-  renderPanel({ getWalletSummary: vi.fn(async () => summary) });
+  renderPanel();
   expect(await screen.findByText('Пополнение')).toBeInTheDocument();
   expect(screen.getByText('Касса')).toBeInTheDocument();
   expect(screen.getByText('История операций')).toBeInTheDocument();
 });
 
-it('shows an empty message when there is no history', async () => {
-  renderPanel({ getWalletSummary: vi.fn(async () => ({ ...summary, recentEntries: [] })) });
-  expect(await screen.findByText('Операций пока нет.')).toBeInTheDocument();
+it('hides all action buttons when no permissions are given', async () => {
+  renderPanel();
+  await screen.findByText('Пополнение');
+  expect(screen.queryByRole('button', { name: 'Пополнить' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Возврат' })).not.toBeInTheDocument();
+});
+
+it('opens the top-up dialog when permitted', async () => {
+  renderPanel({ topUp: true, payDebt: false, correct: false, refund: false });
+  await screen.findByText('Пополнение');
+  fireEvent.click(screen.getByRole('button', { name: 'Пополнить' }));
+  expect(await screen.findByText('Пополнение кошелька')).toBeInTheDocument();
+});
+
+it('shows a refund button per ledger row when permitted', async () => {
+  renderPanel({ topUp: false, payDebt: false, correct: false, refund: true });
+  await screen.findByText('Пополнение');
+  expect(screen.getByRole('button', { name: 'Возврат' })).toBeInTheDocument();
 });

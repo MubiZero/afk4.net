@@ -239,7 +239,20 @@ export const messages = {
     'ledger.account.wallet': 'Кошелёк',
     'ledger.account.debt': 'Долг',
     'ledger.account.package_time': 'Пакетное время',
-    'ledger.account.bonus_time': 'Бонусное время'
+    'ledger.account.bonus_time': 'Бонусное время',
+    'money.topUp': 'Пополнить',
+    'money.topUp.title': 'Пополнение кошелька',
+    'money.payDebt': 'Оплатить долг',
+    'money.payDebt.title': 'Оплата долга',
+    'money.correction': 'Коррекция',
+    'money.correction.title': 'Ручная коррекция',
+    'money.refund': 'Возврат',
+    'money.refund.title': 'Возврат операции',
+    'money.field.amount': 'Сумма',
+    'money.field.minutes': 'Минуты',
+    'money.field.reason': 'Причина',
+    'money.field.account': 'Счёт',
+    'money.submit': 'Подтвердить'
   },
   en: {
     'nav.group.branch': 'Branch',
@@ -479,7 +492,20 @@ export const messages = {
     'ledger.account.wallet': 'Wallet',
     'ledger.account.debt': 'Debt',
     'ledger.account.package_time': 'Package time',
-    'ledger.account.bonus_time': 'Bonus time'
+    'ledger.account.bonus_time': 'Bonus time',
+    'money.topUp': 'Top up',
+    'money.topUp.title': 'Top up wallet',
+    'money.payDebt': 'Pay debt',
+    'money.payDebt.title': 'Pay debt',
+    'money.correction': 'Correction',
+    'money.correction.title': 'Manual correction',
+    'money.refund': 'Refund',
+    'money.refund.title': 'Refund transaction',
+    'money.field.amount': 'Amount',
+    'money.field.minutes': 'Minutes',
+    'money.field.reason': 'Reason',
+    'money.field.account': 'Account',
+    'money.submit': 'Confirm'
   }
 } as const;
 

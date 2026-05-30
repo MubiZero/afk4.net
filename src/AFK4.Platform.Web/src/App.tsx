@@ -397,6 +397,12 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
             organizationId={session.organizationId}
             canCreate={session.permissions.includes('players.create')}
             canViewBilling={session.permissions.includes('billing.view')}
+            moneyPerms={{
+              topUp: session.permissions.includes('billing.wallet.top_up'),
+              payDebt: session.permissions.includes('billing.debt.pay'),
+              correct: session.permissions.includes('billing.manual_correction'),
+              refund: session.permissions.includes('billing.refund')
+            }}
           />
         ) : (
           <EmptyState message={t('clients.noAccess')} />

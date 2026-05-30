@@ -19,22 +19,27 @@ import type {
   FloorMapBulkUpdateRequest,
   FloorMapBulkUpdateResponse,
   FloorMapRead,
+  LedgerEntry,
+  ManualLedgerCorrectionRequest,
   OperatorDashboardSummary,
   OwnerCodeIssued,
   OwnerCodeSummary,
   PackageDefinition,
   PackageOption,
+  PayDebtRequest,
   PlayerAccount,
   PlayerPackage,
   PlayerSearchResult,
   PosProduct,
   PosProductCategory,
+  RefundLedgerEntryRequest,
   ResetStaffUserPasswordRequest,
   StaffSignInResponse,
   StaffUser,
   Tariff,
   TariffOption,
   TariffVersion,
+  TopUpWalletRequest,
   UpdateBranchProfileRequest,
   UpdateBranchSettingsRequest,
   UpdatePackageDefinitionRequest,
@@ -339,6 +344,26 @@ export class ClubApiClient {
 
   public getPlayerPackages(playerAccountId: string): Promise<PlayerPackage[]> {
     return this.send<PlayerPackage[]>('GET', `/api/players/${encodeURIComponent(playerAccountId)}/packages`);
+  }
+
+  public topUpWallet(playerAccountId: string, request: TopUpWalletRequest): Promise<LedgerEntry> {
+    return this.send<LedgerEntry>('POST', `/api/players/${encodeURIComponent(playerAccountId)}/wallet/top-ups`, request);
+  }
+
+  public payDebt(playerAccountId: string, request: PayDebtRequest): Promise<LedgerEntry> {
+    return this.send<LedgerEntry>('POST', `/api/players/${encodeURIComponent(playerAccountId)}/debts/payments`, request);
+  }
+
+  public createManualCorrection(playerAccountId: string, request: ManualLedgerCorrectionRequest): Promise<LedgerEntry> {
+    return this.send<LedgerEntry>('POST', `/api/players/${encodeURIComponent(playerAccountId)}/ledger/manual-corrections`, request);
+  }
+
+  public refundLedgerEntry(playerAccountId: string, ledgerEntryId: string, request: RefundLedgerEntryRequest): Promise<LedgerEntry> {
+    return this.send<LedgerEntry>(
+      'POST',
+      `/api/players/${encodeURIComponent(playerAccountId)}/ledger/${encodeURIComponent(ledgerEntryId)}/refunds`,
+      request
+    );
   }
 
   private async send<T>(

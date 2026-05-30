@@ -3,14 +3,18 @@ import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { ClubApiClient } from '@/api/clubApi';
 import type { PlayerRow } from './clientsModel';
-import { WalletPanel } from './WalletPanel';
+import { WalletPanel, type MoneyPerms } from './WalletPanel';
 
-type Client = Pick<ClubApiClient, 'getWalletSummary'>;
+type Client = Pick<ClubApiClient,
+  'getWalletSummary' | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'>;
 
-export function ClientDetail({ client, player, canViewBilling }: {
+export function ClientDetail({ client, player, organizationId, canViewBilling, moneyPerms, onMutated }: {
   client: Client;
   player: PlayerRow;
+  organizationId: string;
   canViewBilling: boolean;
+  moneyPerms?: MoneyPerms;
+  onMutated?: () => void;
 }) {
   const { t } = useI18n();
   return (
@@ -26,7 +30,10 @@ export function ClientDetail({ client, player, canViewBilling }: {
       </div>
 
       {canViewBilling ? (
-        <WalletPanel client={client} playerAccountId={player.playerAccountId} />
+        <WalletPanel
+          client={client} playerAccountId={player.playerAccountId} organizationId={organizationId}
+          moneyPerms={moneyPerms} onMutated={onMutated}
+        />
       ) : (
         <p className="text-sm text-muted-foreground">{t('clients.billing.noAccess')}</p>
       )}

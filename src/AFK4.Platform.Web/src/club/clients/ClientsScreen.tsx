@@ -10,15 +10,19 @@ import { useClientSearch } from './useClientSearch';
 import { CreateClientDialog } from './CreateClientDialog';
 import { ClientDetail } from './ClientDetail';
 import type { PlayerRow } from './clientsModel';
+import type { MoneyPerms } from './WalletPanel';
 
-type Client = Pick<ClubApiClient, 'searchPlayers' | 'getWalletSummary' | 'createPlayer'>;
+type Client = Pick<ClubApiClient,
+  'searchPlayers' | 'getWalletSummary' | 'createPlayer'
+  | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'>;
 
-export function ClientsScreen({ client, branchId, organizationId, canCreate, canViewBilling }: {
+export function ClientsScreen({ client, branchId, organizationId, canCreate, canViewBilling, moneyPerms }: {
   client: Client;
   branchId: string;
   organizationId: string;
   canCreate: boolean;
   canViewBilling: boolean;
+  moneyPerms?: MoneyPerms;
 }) {
   const { t, formatNumber } = useI18n();
   const [query, setQuery] = useState('');
@@ -76,7 +80,15 @@ export function ClientsScreen({ client, branchId, organizationId, canCreate, can
       )}
 
       {selected !== null ? (
-        <ClientDetail key={selected.playerAccountId} client={client} player={selected} canViewBilling={canViewBilling} />
+        <ClientDetail
+          key={selected.playerAccountId}
+          client={client}
+          player={selected}
+          organizationId={organizationId}
+          canViewBilling={canViewBilling}
+          moneyPerms={moneyPerms}
+          onMutated={() => { if (state.status === 'ready') state.retry(); }}
+        />
       ) : (
         <p className="text-sm text-muted-foreground">{t('clients.selectHint')}</p>
       )}
