@@ -5,7 +5,7 @@ import { ToastProvider } from '@/components/ui/toast';
 import { CreateClientDialog } from './CreateClientDialog';
 
 function setup() {
-  const client = { createPlayer: vi.fn(async () => ({ playerAccountId: 'p2' })) };
+  const client = { createPlayer: vi.fn<(branchId: string, req: object) => Promise<{ playerAccountId: string }>>(async () => ({ playerAccountId: 'p2' })) };
   const onDone = vi.fn();
   render(
     <I18nProvider><ToastProvider>
