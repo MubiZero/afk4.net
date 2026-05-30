@@ -373,7 +373,12 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
       {route.kind === 'clubDashboard' ? (
         <OverviewScreen state={overviewState} />
       ) : route.kind === 'clubVenue' ? (
-        <VenueScreen client={clubClient} branchId={activeBranchId} />
+        <VenueScreen
+          client={clubClient}
+          branchId={activeBranchId}
+          organizationId={session.organizationId}
+          canManageLayout={session.permissions.includes('layout.manage')}
+        />
       ) : route.kind === 'clubSettings' ? (
         role === 'owner' ? (
           <SettingsScreen
