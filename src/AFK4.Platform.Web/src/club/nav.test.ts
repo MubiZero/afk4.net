@@ -33,3 +33,13 @@ describe('club nav', () => {
     }
   });
 });
+
+it('exposes Зал и ПК as an active (non-soon) item', () => {
+  const venue = clubNav.flatMap(g => g.items).find(i => i.key === 'venue');
+  expect(venue?.soon).toBe(false);
+});
+
+it('owner sees the venue item', () => {
+  const items = visibleNav('owner').flatMap(g => g.items).map(i => i.key);
+  expect(items).toContain('venue');
+});
