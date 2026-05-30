@@ -17,6 +17,7 @@ import { JournalScreen } from './club/journal/JournalScreen';
 import { ClientsScreen } from './club/clients/ClientsScreen';
 import { InstallScreen } from './club/install/InstallScreen';
 import { ProfileScreen } from './club/profile/ProfileScreen';
+import { resolveBranchNames } from './club/profile/profileModel';
 import { useActiveBranch } from './club/branches/useActiveBranch';
 import { useBranchDirectory } from './club/branches/useBranchDirectory';
 import { BranchesScreen } from './club/branches/BranchesScreen';
@@ -353,7 +354,7 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
   const { t } = useI18n();
   const { activeBranchId, select } = useActiveBranch(session.branchIds);
   const directory = useBranchDirectory(clubClient, session.branchIds);
-  const branches = session.branchIds.map(id => ({ branchId: id, name: directory[id]?.name ?? t('branches.unnamed') }));
+  const branches = resolveBranchNames(session.branchIds, directory, t('branches.unnamed'));
   const overviewState = useOverview(clubClient, activeBranchId);
 
   const handleNavigate = (path: string) => {
