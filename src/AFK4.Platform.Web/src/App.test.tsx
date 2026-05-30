@@ -252,21 +252,6 @@ describe('Platform Web routing', () => {
     expect(resolvePlatformRoute('/club/branches')).toMatchObject({
       route: { kind: 'clubBranches' }
     });
-    expect(resolvePlatformRoute('/club/branches/branch-1')).toMatchObject({
-      route: { kind: 'clubBranchDetail', branchId: 'branch-1' }
-    });
-    expect(resolvePlatformRoute('/club/branches/branch-1/floor-map')).toMatchObject({
-      route: { kind: 'clubBranchFloorMap', branchId: 'branch-1' }
-    });
-    expect(resolvePlatformRoute('/club/branches/branch-1/devices')).toMatchObject({
-      route: { kind: 'clubBranchDevices', branchId: 'branch-1' }
-    });
-    expect(resolvePlatformRoute('/club/branches/branch-1/devices/pending')).toMatchObject({
-      route: { kind: 'clubBranchPendingDevices', branchId: 'branch-1' }
-    });
-    expect(resolvePlatformRoute('/club/branches/branch-1/operators')).toMatchObject({
-      route: { kind: 'clubBranchOperators', branchId: 'branch-1' }
-    });
   });
 
   it('gates routes by the audience build flag', () => {
