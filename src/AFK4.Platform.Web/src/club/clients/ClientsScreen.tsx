@@ -11,7 +11,9 @@ import { CreateClientDialog } from './CreateClientDialog';
 import { ClientDetail } from './ClientDetail';
 import type { PlayerRow } from './clientsModel';
 
-type Client = Pick<ClubApiClient, 'searchPlayers' | 'getWalletSummary' | 'createPlayer'>;
+type Client = Pick<ClubApiClient,
+  'searchPlayers' | 'getWalletSummary' | 'createPlayer'
+  | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'>;
 
 export function ClientsScreen({ client, branchId, organizationId, canCreate, canViewBilling }: {
   client: Client;
@@ -76,7 +78,7 @@ export function ClientsScreen({ client, branchId, organizationId, canCreate, can
       )}
 
       {selected !== null ? (
-        <ClientDetail key={selected.playerAccountId} client={client} player={selected} canViewBilling={canViewBilling} />
+        <ClientDetail key={selected.playerAccountId} client={client} player={selected} organizationId={organizationId} canViewBilling={canViewBilling} />
       ) : (
         <p className="text-sm text-muted-foreground">{t('clients.selectHint')}</p>
       )}
