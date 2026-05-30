@@ -32,6 +32,7 @@ import type {
   PlayerSearchResult,
   PosProduct,
   PosProductCategory,
+  PurchasePackageRequest,
   RefundLedgerEntryRequest,
   ResetStaffUserPasswordRequest,
   StaffSignInResponse,
@@ -364,6 +365,10 @@ export class ClubApiClient {
       `/api/players/${encodeURIComponent(playerAccountId)}/ledger/${encodeURIComponent(ledgerEntryId)}/refunds`,
       request
     );
+  }
+
+  public purchasePackage(playerAccountId: string, request: PurchasePackageRequest): Promise<PlayerPackage> {
+    return this.send<PlayerPackage>('POST', `/api/players/${encodeURIComponent(playerAccountId)}/packages/purchases`, request);
   }
 
   private async send<T>(

@@ -633,3 +633,9 @@ export interface RefundLedgerEntryRequest {
   reason: string;
   idempotencyKey: string;
 }
+
+export interface PurchasePackageRequest {
+  organizationId: string;
+  packageDefinitionId: string;
+  idempotencyKey: string;
+}
