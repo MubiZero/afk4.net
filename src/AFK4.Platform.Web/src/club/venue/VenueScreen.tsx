@@ -9,8 +9,9 @@ import { useDevices } from './useDevices';
 import { DevicesTable } from './DevicesTable';
 import { DeviceDrawer } from './DeviceDrawer';
 import type { DeviceRow } from './devicesModel';
+import { FloorMapEditor } from './FloorMapEditor';
 
-export function VenueScreen({ client, branchId }: { client: ClubApiClient; branchId: string }) {
+export function VenueScreen({ client, branchId, organizationId, canManageLayout }: { client: ClubApiClient; branchId: string; organizationId: string; canManageLayout: boolean }) {
   const { t } = useI18n();
   const state = useDevices(client, branchId);
   const [selected, setSelected] = useState<DeviceRow | null>(null);
@@ -36,7 +37,7 @@ export function VenueScreen({ client, branchId }: { client: ClubApiClient; branc
           </TabsContent>
         )}
         <TabsContent value="map">
-          <p className="text-sm text-muted-foreground">{t('venue.map.soon')}</p>
+          <FloorMapEditor client={client} branchId={branchId} organizationId={organizationId} canEdit={canManageLayout} />
         </TabsContent>
       </Tabs>
 
