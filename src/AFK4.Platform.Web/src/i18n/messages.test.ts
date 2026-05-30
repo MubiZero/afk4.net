@@ -93,3 +93,25 @@ it('includes the loyalty (packages) keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the clients/CRM keys', () => {
+  for (const key of [
+    'clients.search.placeholder', 'clients.search.label', 'clients.create', 'clients.create.title',
+    'clients.create.submit', 'clients.field.displayName', 'clients.field.phone',
+    'clients.empty', 'clients.noAccess', 'clients.selectHint', 'clients.editUnavailable',
+    'clients.col.name', 'clients.col.phone', 'clients.col.wallet', 'clients.col.debt',
+    'clients.col.packages', 'clients.col.status', 'clients.status.active', 'clients.status.inactive',
+    'clients.billing.noAccess', 'clients.balance.wallet', 'clients.balance.debt',
+    'clients.history.title', 'clients.history.empty', 'clients.history.note',
+    'clients.history.col.date', 'clients.history.col.type', 'clients.history.col.account',
+    'clients.history.col.amount', 'clients.history.col.minutes', 'clients.history.col.reason',
+    'ledger.type.top_up', 'ledger.type.gameplay_charge', 'ledger.type.package_purchase',
+    'ledger.type.package_consumption', 'ledger.type.bonus_grant', 'ledger.type.bonus_consumption',
+    'ledger.type.refund', 'ledger.type.manual_correction', 'ledger.type.postpaid_debt',
+    'ledger.type.debt_payment', 'ledger.type.reversal',
+    'ledger.account.wallet', 'ledger.account.debt', 'ledger.account.package_time', 'ledger.account.bonus_time'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
