@@ -1,0 +1,20 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { it, expect, vi } from 'vitest';
+import { I18nProvider } from '@/i18n/I18nProvider';
+import { ToastProvider } from '@/components/ui/toast';
+import { ExportButton } from './ExportButton';
+import * as saveBlobModule from '@/lib/saveBlob';
+
+it('calls onExport then saveBlob with the filename', async () => {
+  const blob = new Blob(['x']);
+  const onExport = vi.fn<() => Promise<Blob>>(async () => blob);
+  const save = vi.spyOn(saveBlobModule, 'saveBlob').mockImplementation(() => {});
+  render(
+    <I18nProvider><ToastProvider>
+      <ExportButton onExport={onExport} filename="sales.csv" />
+    </ToastProvider></I18nProvider>
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Экспорт CSV' }));
+  await waitFor(() => expect(onExport).toHaveBeenCalled());
+  await waitFor(() => expect(save).toHaveBeenCalledWith(blob, 'sales.csv'));
+});
