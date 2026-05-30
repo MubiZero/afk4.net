@@ -115,3 +115,15 @@ it('includes the clients/CRM keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the money-operations keys', () => {
+  for (const key of [
+    'money.topUp', 'money.topUp.title', 'money.payDebt', 'money.payDebt.title',
+    'money.correction', 'money.correction.title', 'money.refund', 'money.refund.title',
+    'money.field.amount', 'money.field.minutes', 'money.field.reason', 'money.field.account',
+    'money.submit'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
