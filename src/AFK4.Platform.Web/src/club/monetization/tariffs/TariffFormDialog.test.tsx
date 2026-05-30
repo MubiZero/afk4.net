@@ -1,0 +1,48 @@
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { it, expect, vi } from 'vitest';
+import { I18nProvider } from '@/i18n/I18nProvider';
+import { ToastProvider } from '@/components/ui/toast';
+import type { TariffRow } from './tariffsModel';
+import { TariffFormDialog } from './TariffFormDialog';
+
+function client(overrides: Record<string, unknown> = {}) {
+  return {
+    createTariff: vi.fn(async () => ({ tariffId: 't1' })),
+    createTariffVersion: vi.fn(async () => ({ tariffVersionId: 'v1' })),
+    updateTariff: vi.fn(async () => ({})),
+    updateTariffVersion: vi.fn(async () => ({})),
+    ...overrides
+  };
+}
+
+function renderDialog(props: Record<string, unknown>) {
+  render(
+    <I18nProvider><ToastProvider>
+      <TariffFormDialog open branchId="b1" organizationId="org" onOpenChange={() => {}} onDone={() => {}} {...props} />
+    </ToastProvider></I18nProvider>
+  );
+}
+
+it('creates a tariff then its first version', async () => {
+  const c = client();
+  renderDialog({ mode: 'create', client: c });
+  fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'Дневной' } });
+  fireEvent.change(screen.getByLabelText('Цена за минуту'), { target: { value: '2.5' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
+  await waitFor(() => expect(c.createTariff).toHaveBeenCalledWith('b1', expect.objectContaining({ organizationId: 'org', name: 'Дневной' })));
+  await waitFor(() => expect(c.createTariffVersion).toHaveBeenCalledWith('b1', 't1', expect.objectContaining({ pricePerMinuteMinorUnits: 250, organizationId: 'org', tariffId: 't1' })));
+});
+
+it('updates the tariff and its version in edit mode', async () => {
+  const c = client();
+  const initial: TariffRow = {
+    tariffId: 't1', tariffVersionId: 'v1', name: 'Дневной', currencyCode: 'RUB',
+    pricePerMinute: 2.5, minimumBillableMinutes: 1, roundingIncrementMinutes: 1,
+    effectiveFromUtc: '2026-01-01T00:00:00.000Z', versionNumber: 1
+  };
+  renderDialog({ mode: 'edit', client: c, initial });
+  fireEvent.change(screen.getByLabelText('Цена за минуту'), { target: { value: '3' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  await waitFor(() => expect(c.updateTariff).toHaveBeenCalledWith('b1', 't1', expect.objectContaining({ name: 'Дневной', isActive: true })));
+  await waitFor(() => expect(c.updateTariffVersion).toHaveBeenCalledWith('b1', 't1', 'v1', expect.objectContaining({ pricePerMinuteMinorUnits: 300 })));
+});
