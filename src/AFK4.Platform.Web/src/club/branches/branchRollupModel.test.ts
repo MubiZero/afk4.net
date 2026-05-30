@@ -46,3 +46,9 @@ it('counts a failed branch in the count but excludes it from totals and marks it
   expect(vm.totals.devicesOnline).toEqual({ online: 5, total: 6 });
   expect(vm.totals.revenue).toEqual({ amount: 1000, currencyCode: 'RUB' });
 });
+
+it('falls back to a valid currency code when no branch summary loads', () => {
+  const vm = buildBranchRollup([]);
+  expect(vm.totals.branches).toBe(0);
+  expect(vm.totals.revenue).toEqual({ amount: 0, currencyCode: 'RUB' });
+});

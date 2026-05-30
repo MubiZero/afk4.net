@@ -76,7 +76,7 @@ export function buildBranchRollup(entries: BranchRollupEntry[]): BranchRollupVie
       branches: rows.length,
       devicesOnline: { online, total },
       activeSessions,
-      revenue: { amount: revenueAmount, currencyCode },
+      revenue: { amount: revenueAmount, currencyCode: currencyCode === '' ? 'RUB' : currencyCode },
       attention
     }
   };
