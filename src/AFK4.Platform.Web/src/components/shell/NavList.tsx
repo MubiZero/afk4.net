@@ -1,20 +1,20 @@
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n/I18nProvider';
 import { Badge } from '@/components/ui/badge';
-import { visibleNav, type ClubRole } from '@/club/nav';
+import type { NavGroup } from './navModel';
 
 export interface NavListProps {
-  role: ClubRole;
+  groups: NavGroup[];
   activePath: string;
   counts?: Record<string, number>;
   onNavigate: (path: string) => void;
 }
 
-export function NavList({ role, activePath, counts = {}, onNavigate }: NavListProps) {
+export function NavList({ groups, activePath, counts = {}, onNavigate }: NavListProps) {
   const { t } = useI18n();
   return (
     <nav className="flex flex-col gap-1">
-      {visibleNav(role).map(group => (
+      {groups.map(group => (
         <div key={group.key} className="px-2 py-1">
           <div className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-muted">
             {t(group.labelKey)}

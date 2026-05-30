@@ -21,7 +21,8 @@ import { resolveBranchNames } from './club/profile/profileModel';
 import { useActiveBranch } from './club/branches/useActiveBranch';
 import { useBranchDirectory } from './club/branches/useBranchDirectory';
 import { BranchesScreen } from './club/branches/BranchesScreen';
-import { roleFromPermissions } from './club/nav';
+import { roleFromPermissions, visibleNav } from './club/nav';
+import { BranchSwitcher } from './components/shell/BranchSwitcher';
 import { EmptyState } from './components/ui/states';
 import { useI18n } from './i18n/I18nProvider';
 import { SignIn } from './components/SignIn';
@@ -368,16 +369,21 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
 
   return (
     <AppShell
-      role={role}
-      orgName={session.displayName}
-      branches={branches}
-      activeBranchId={activeBranchId}
+      navGroups={visibleNav(role)}
+      sidebarHeader={
+        <BranchSwitcher
+          orgName={session.displayName}
+          branches={branches}
+          activeBranchId={activeBranchId}
+          onSelect={select}
+        />
+      }
       activePath={pathForRoute(route)}
+      subtitle={branches.find(b => b.branchId === activeBranchId)?.name ?? ''}
       screenTitle={CLUB_SCREEN_TITLE[route.kind] ?? ''}
       userName={session.displayName}
       roleLabel={ROLE_LABEL[role]}
       onNavigate={handleNavigate}
-      onSelectBranch={select}
       onSignOut={onSignOut}
     >
       {route.kind === 'clubDashboard' ? (

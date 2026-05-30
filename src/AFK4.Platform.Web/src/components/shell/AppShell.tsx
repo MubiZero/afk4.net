@@ -1,24 +1,21 @@
 import { useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { BranchSwitcher, type BranchOption } from './BranchSwitcher';
 import { NavList } from './NavList';
 import { UserMenu } from './UserMenu';
 import { Topbar } from './Topbar';
-import type { ClubRole } from '@/club/nav';
+import type { NavGroup } from './navModel';
 
 export interface AppShellProps {
-  role: ClubRole;
-  orgName: string;
-  branches: BranchOption[];
-  activeBranchId: string;
+  navGroups: NavGroup[];
+  sidebarHeader: ReactNode;
   activePath: string;
+  subtitle: string;
   screenTitle: string;
   userName: string;
   roleLabel: string;
   counts?: Record<string, number>;
   topbarRight?: ReactNode;
   onNavigate: (path: string) => void;
-  onSelectBranch: (branchId: string) => void;
   onSignOut: () => void;
   children: ReactNode;
 }
@@ -33,10 +30,9 @@ export function AppShell(props: AppShellProps) {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <BranchSwitcher orgName={props.orgName} branches={props.branches}
-          activeBranchId={props.activeBranchId} onSelect={props.onSelectBranch} />
+        {props.sidebarHeader}
         <div className="flex-1 overflow-auto">
-          <NavList role={props.role} activePath={props.activePath} counts={props.counts}
+          <NavList groups={props.navGroups} activePath={props.activePath} counts={props.counts}
             onNavigate={(p) => { setSidebarOpen(false); props.onNavigate(p); }} />
         </div>
         <UserMenu displayName={props.userName} roleLabel={props.roleLabel} onSignOut={props.onSignOut} />
@@ -47,7 +43,7 @@ export function AppShell(props: AppShellProps) {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar branchName={props.branches.find(b => b.branchId === props.activeBranchId)?.name ?? ''}
+        <Topbar subtitle={props.subtitle}
           screenTitle={props.screenTitle} onOpenSidebar={() => setSidebarOpen(true)} right={props.topbarRight} />
         <main className="flex-1 overflow-auto p-5">{props.children}</main>
       </div>
