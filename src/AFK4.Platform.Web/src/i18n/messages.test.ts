@@ -64,3 +64,19 @@ it('includes the monetization + tariffs keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the products (catalog) keys', () => {
+  for (const key of [
+    'products.create', 'products.create.title', 'products.create.submit',
+    'products.edit.title', 'products.edit.submit', 'products.empty',
+    'products.createCategory', 'products.createCategory.title', 'products.createCategory.submit',
+    'products.categoryNote', 'products.categoryUnknown',
+    'products.col.category', 'products.col.name', 'products.col.sku', 'products.col.price', 'products.col.stock', 'products.col.status',
+    'products.field.category', 'products.field.categoryName', 'products.field.name', 'products.field.sku',
+    'products.field.price', 'products.field.currency', 'products.field.trackStock', 'products.field.allowNegativeStock', 'products.field.active',
+    'products.status.active', 'products.status.inactive'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});

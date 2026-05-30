@@ -391,6 +391,7 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
             branchId={activeBranchId}
             organizationId={session.organizationId}
             canManageTariffs={session.permissions.includes('tariffs.manage')}
+            canManageCatalog={session.permissions.includes('pos.catalog.manage')}
           />
         ) : (
           <EmptyState message={t('monetization.ownerOnly')} />

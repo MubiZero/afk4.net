@@ -436,3 +436,60 @@ export interface UpdateTariffVersionRequest {
   effectiveFromUtc: string;
   isActive: boolean;
 }
+
+export interface MoneyMinor {
+  currencyCode: string;
+  minorUnits: number;
+}
+
+export interface PosProduct {
+  productId: string;
+  organizationId: string;
+  branchId: string;
+  categoryId: string;
+  name: string;
+  sku: string;
+  price: MoneyMinor;
+  trackStock: boolean;
+  allowNegativeStock: boolean;
+  isActive: boolean;
+  stockOnHand: number;
+  createdAtUtc: string;
+}
+
+export interface PosProductCategory {
+  categoryId: string;
+  organizationId: string;
+  branchId: string;
+  name: string;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export interface CreateProductCategoryRequest {
+  organizationId: string;
+  name: string;
+  idempotencyKey: string;
+}
+
+export interface CreateProductRequest {
+  organizationId: string;
+  categoryId: string;
+  name: string;
+  sku: string;
+  price: MoneyMinor;
+  trackStock: boolean;
+  allowNegativeStock: boolean;
+  idempotencyKey: string;
+}
+
+export interface UpdateProductRequest {
+  organizationId: string;
+  categoryId: string;
+  name: string;
+  sku: string;
+  price: MoneyMinor;
+  trackStock: boolean;
+  allowNegativeStock: boolean;
+  isActive: boolean;
+}
