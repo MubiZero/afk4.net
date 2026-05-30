@@ -493,3 +493,46 @@ export interface UpdateProductRequest {
   allowNegativeStock: boolean;
   isActive: boolean;
 }
+
+export interface PackageOption {
+  packageDefinitionId: string;
+  name: string;
+  currencyCode: string;
+  priceMinorUnits: number;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+}
+
+export interface PackageDefinition {
+  packageDefinitionId: string;
+  organizationId: string;
+  branchId: string;
+  name: string;
+  price: MoneyMinor;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export interface CreatePackageDefinitionRequest {
+  organizationId: string;
+  name: string;
+  price: MoneyMinor;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+  idempotencyKey: string;
+}
+
+export interface UpdatePackageDefinitionRequest {
+  organizationId: string;
+  name: string;
+  price: MoneyMinor;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+  isActive: boolean;
+}
