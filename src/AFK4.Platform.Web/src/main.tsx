@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App, { readPlatformWebAudience, type PlatformWebAudience } from './App';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { I18nProvider } from './i18n/I18nProvider';
+import { ToastProvider } from './components/ui/toast';
 import './index.css';
 import './styles.css';
 
@@ -18,7 +19,9 @@ createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
       <I18nProvider>
-        <App apiBaseUrl={resolveApiBaseUrl()} audience={audience} />
+        <ToastProvider>
+          <App apiBaseUrl={resolveApiBaseUrl()} audience={audience} />
+        </ToastProvider>
       </I18nProvider>
     </ThemeProvider>
   </StrictMode>

@@ -10,6 +10,7 @@ import { LegacyClubScreen } from './components/ClubDashboard';
 import { AppShell } from './components/shell/AppShell';
 import { OverviewScreen } from './club/overview/OverviewScreen';
 import { useOverview } from './club/overview/useOverview';
+import { VenueScreen } from './club/venue/VenueScreen';
 import { roleFromPermissions } from './club/nav';
 import { SignIn } from './components/SignIn';
 import { StaffSignIn } from './components/StaffSignIn';
@@ -32,6 +33,7 @@ export type AuthRoute =
 
 export type ClubRoute =
   | { kind: 'clubDashboard' }
+  | { kind: 'clubVenue' }
   | { kind: 'clubInstall' }
   | { kind: 'clubBranches' }
   | { kind: 'clubBranchDetail'; branchId: string }
@@ -291,6 +293,7 @@ const ROLE_LABEL: Record<'owner' | 'manager', string> = {
 
 const CLUB_SCREEN_TITLE: Partial<Record<ClubRoute['kind'], string>> = {
   clubDashboard: 'Обзор',
+  clubVenue: 'Зал и ПК',
   clubInstall: 'Установка',
   clubBranches: 'Все филиалы',
   clubBranchDetail: 'Филиал',
@@ -309,6 +312,8 @@ export function pathForRoute(route: ClubRoute): string {
   switch (route.kind) {
     case 'clubDashboard':
       return '/club';
+    case 'clubVenue':
+      return '/club/venue';
     case 'clubInstall':
       return '/club/install';
     case 'clubBranches':
@@ -335,8 +340,8 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
     if (isClubRoute(resolution.route)) {
       onNavigate(resolution.route, resolution.redirectTo ?? path);
     }
-    // Not-yet-built nav targets (e.g. /club/venue) resolve to notFound and are
-    // intentionally ignored here so the shell stays put until those screens land.
+    // Soon/unbuilt nav targets resolve to notFound and are ignored; live targets
+    // (overview, venue, install, branches) navigate.
   };
 
   return (
@@ -355,6 +360,8 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
     >
       {route.kind === 'clubDashboard' ? (
         <OverviewScreen state={overviewState} />
+      ) : route.kind === 'clubVenue' ? (
+        <VenueScreen client={clubClient} branchId={branchId} />
       ) : (
         <LegacyClubScreen
           client={clubClient}
@@ -435,6 +442,9 @@ export function resolvePlatformRoute(
   if (allowsClubRoutes(audience)) {
     if (path === '/club') {
       return { route: { kind: 'clubDashboard' } };
+    }
+    if (path === '/club/venue') {
+      return { route: { kind: 'clubVenue' } };
     }
     if (path === '/club/install') {
       return { route: { kind: 'clubInstall' } };
@@ -566,6 +576,7 @@ function isAdminRoute(route: AppRoute): route is AdminRoute {
 
 function isClubRoute(route: AppRoute): route is ClubRoute {
   return route.kind === 'clubDashboard'
+    || route.kind === 'clubVenue'
     || route.kind === 'clubInstall'
     || route.kind === 'clubBranches'
     || route.kind === 'clubBranchDetail'

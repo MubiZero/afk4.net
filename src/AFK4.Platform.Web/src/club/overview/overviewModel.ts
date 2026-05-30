@@ -30,7 +30,7 @@ export function buildOverview(
 
   return {
     kpis: {
-      devicesOnline: { online: summary.utilization.onlineDevices, total: summary.utilization.totalSeats },
+      devicesOnline: { online: summary.utilization.onlineDevices, total: summary.utilization.onlineDevices + summary.utilization.offlineDevices },
       activeSessions: summary.utilization.activeSessions,
       utilizationPercent: summary.utilization.utilizationPercent,
       revenueToday: summary.revenue.totalRevenue,

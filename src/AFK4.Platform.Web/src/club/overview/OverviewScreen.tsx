@@ -15,6 +15,10 @@ const ATTENTION_LABEL: Record<AttentionKind, MessageKey> = {
 };
 const SLICE_COLOR: Record<string, string> = { gameplay: 'var(--primary)', pos: 'var(--success)' };
 
+function sliceAmount(breakdown: { key: string; amount: number }[], key: string): number {
+  return breakdown.find(s => s.key === key)?.amount ?? 0;
+}
+
 export function OverviewScreen({ state }: { state: OverviewState }) {
   const { t, formatNumber, formatCurrency } = useI18n();
 
@@ -55,13 +59,18 @@ export function OverviewScreen({ state }: { state: OverviewState }) {
                   <Pie data={revenueBreakdown} dataKey="amount" nameKey="key" innerRadius={50} outerRadius={75}>
                     {revenueBreakdown.map(s => <Cell key={s.key} fill={SLICE_COLOR[s.key]} />)}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      formatCurrency(Number(value), kpis.revenueToday.currencyCode),
+                      t(String(name) === 'gameplay' ? 'overview.revenue.gameplay' : 'overview.revenue.pos')
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
             <div className="mt-3 flex gap-4 text-sm">
-              <span><b>{t('overview.revenue.gameplay')}:</b> {formatCurrency(revenueBreakdown[0].amount, kpis.revenueToday.currencyCode)}</span>
-              <span><b>{t('overview.revenue.pos')}:</b> {formatCurrency(revenueBreakdown[1].amount, kpis.revenueToday.currencyCode)}</span>
+              <span><b>{t('overview.revenue.gameplay')}:</b> {formatCurrency(sliceAmount(revenueBreakdown, 'gameplay'), kpis.revenueToday.currencyCode)}</span>
+              <span><b>{t('overview.revenue.pos')}:</b> {formatCurrency(sliceAmount(revenueBreakdown, 'pos'), kpis.revenueToday.currencyCode)}</span>
             </div>
           </CardContent>
         </Card>
