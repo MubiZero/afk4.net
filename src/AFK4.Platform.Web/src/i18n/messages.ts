@@ -99,7 +99,17 @@ export const messages = {
     'roles.cashier_operator': 'Кассир-оператор',
     'roles.technician': 'Техник',
     'roles.accountant_auditor': 'Бухгалтер',
-    'roles.unknown': 'Роль'
+    'roles.unknown': 'Роль',
+    'branches.unnamed': 'Филиал',
+    'branches.totals.title': 'Сводка по филиалам',
+    'branches.totals.branches': 'Филиалов',
+    'branches.open': 'Открыть',
+    'branches.rename': 'Переименовать',
+    'branches.rename.title': 'Переименовать филиал',
+    'branches.add': 'Добавить филиал',
+    'branches.add.unavailable': 'Создание филиалов выполняется при подключении — обратитесь в поддержку.',
+    'branches.card.error': 'Не удалось загрузить данные филиала.',
+    'branches.empty': 'Филиалы не найдены.'
   },
   en: {
     'nav.group.branch': 'Branch',
@@ -199,7 +209,17 @@ export const messages = {
     'roles.cashier_operator': 'Cashier / operator',
     'roles.technician': 'Technician',
     'roles.accountant_auditor': 'Accountant',
-    'roles.unknown': 'Role'
+    'roles.unknown': 'Role',
+    'branches.unnamed': 'Branch',
+    'branches.totals.title': 'Branches summary',
+    'branches.totals.branches': 'Branches',
+    'branches.open': 'Open',
+    'branches.rename': 'Rename',
+    'branches.rename.title': 'Rename branch',
+    'branches.add': 'Add branch',
+    'branches.add.unavailable': 'Adding branches happens during onboarding — contact support.',
+    'branches.card.error': 'Failed to load this branch.',
+    'branches.empty': 'No branches found.'
   }
 } as const;
 

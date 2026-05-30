@@ -27,3 +27,14 @@ it('includes the new settings/operators/roles keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the new branches keys', () => {
+  for (const key of [
+    'branches.unnamed', 'branches.totals.title', 'branches.totals.branches',
+    'branches.open', 'branches.rename', 'branches.rename.title',
+    'branches.add', 'branches.add.unavailable', 'branches.card.error', 'branches.empty'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});

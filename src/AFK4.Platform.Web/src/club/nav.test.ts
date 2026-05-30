@@ -51,3 +51,8 @@ it('exposes settings as a live owner-only branch item', () => {
   expect(settings?.ownerOnly).toBe(true);
   expect(settings?.path).toBe('/club/settings');
 });
+
+it('exposes the branches nav item as available (not soon)', () => {
+  const item = clubNav.flatMap(g => g.items).find(i => i.key === 'branches');
+  expect(item?.soon).toBe(false);
+});
