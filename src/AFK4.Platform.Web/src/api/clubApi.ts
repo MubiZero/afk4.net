@@ -9,6 +9,7 @@ import type {
   BranchProfile,
   BranchSettings,
   CreatePackageDefinitionRequest,
+  CreatePlayerAccountRequest,
   CreateProductCategoryRequest,
   CreateProductRequest,
   CreateStaffUserRequest,
@@ -23,6 +24,9 @@ import type {
   OwnerCodeSummary,
   PackageDefinition,
   PackageOption,
+  PlayerAccount,
+  PlayerPackage,
+  PlayerSearchResult,
   PosProduct,
   PosProductCategory,
   ResetStaffUserPasswordRequest,
@@ -39,7 +43,8 @@ import type {
   UpdateStaffUserRolesRequest,
   UpdateStaffUserStateRequest,
   UpdateTariffRequest,
-  UpdateTariffVersionRequest
+  UpdateTariffVersionRequest,
+  WalletSummary
 } from './types';
 
 export interface ClubApiClientOptions {
@@ -314,6 +319,26 @@ export class ClubApiClient {
       `/api/branches/${encodeURIComponent(branchId)}/packages/${encodeURIComponent(packageDefinitionId)}`,
       request
     );
+  }
+
+  public searchPlayers(branchId: string, query: string, limit = 20): Promise<PlayerSearchResult[]> {
+    const qs = new URLSearchParams({ query, limit: String(limit) });
+    return this.send<PlayerSearchResult[]>(
+      'GET',
+      `/api/branches/${encodeURIComponent(branchId)}/players?${qs.toString()}`
+    );
+  }
+
+  public createPlayer(branchId: string, request: CreatePlayerAccountRequest): Promise<PlayerAccount> {
+    return this.send<PlayerAccount>('POST', `/api/branches/${encodeURIComponent(branchId)}/players`, request);
+  }
+
+  public getWalletSummary(playerAccountId: string): Promise<WalletSummary> {
+    return this.send<WalletSummary>('GET', `/api/players/${encodeURIComponent(playerAccountId)}/wallet-summary`);
+  }
+
+  public getPlayerPackages(playerAccountId: string): Promise<PlayerPackage[]> {
+    return this.send<PlayerPackage[]>('GET', `/api/players/${encodeURIComponent(playerAccountId)}/packages`);
   }
 
   private async send<T>(
