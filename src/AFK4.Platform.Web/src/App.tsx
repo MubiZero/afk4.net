@@ -13,6 +13,7 @@ import { useOverview } from './club/overview/useOverview';
 import { VenueScreen } from './club/venue/VenueScreen';
 import { SettingsScreen } from './club/settings/SettingsScreen';
 import { MonetizationScreen } from './club/monetization/MonetizationScreen';
+import { ReportsScreen } from './club/reports/ReportsScreen';
 import { ClientsScreen } from './club/clients/ClientsScreen';
 import { useActiveBranch } from './club/branches/useActiveBranch';
 import { useBranchDirectory } from './club/branches/useBranchDirectory';
@@ -44,6 +45,7 @@ export type ClubRoute =
   | { kind: 'clubVenue' }
   | { kind: 'clubClients' }
   | { kind: 'clubMonetization' }
+  | { kind: 'clubReports' }
   | { kind: 'clubSettings' }
   | { kind: 'clubInstall' }
   | { kind: 'clubBranches' }
@@ -307,6 +309,7 @@ const CLUB_SCREEN_TITLE: Partial<Record<ClubRoute['kind'], string>> = {
   clubVenue: 'Зал и ПК',
   clubClients: 'Клиенты',
   clubMonetization: 'Монетизация',
+  clubReports: 'Отчёты',
   clubSettings: 'Настройки',
   clubInstall: 'Установка',
   clubBranches: 'Все филиалы',
@@ -332,6 +335,8 @@ export function pathForRoute(route: ClubRoute): string {
       return '/club/clients';
     case 'clubMonetization':
       return '/club/monetization';
+    case 'clubReports':
+      return '/club/reports';
     case 'clubSettings':
       return '/club/settings';
     case 'clubInstall':
@@ -432,6 +437,12 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
         ) : (
           <EmptyState message={t('settings.ownerOnly')} />
         )
+      ) : route.kind === 'clubReports' ? (
+        session.permissions.includes('reports.view') ? (
+          <ReportsScreen client={clubClient} branchId={activeBranchId} />
+        ) : (
+          <EmptyState message={t('reports.noAccess')} />
+        )
       ) : route.kind === 'clubBranches' ? (
         <BranchesScreen
           client={clubClient}
@@ -528,6 +539,9 @@ export function resolvePlatformRoute(
     }
     if (path === '/club/monetization') {
       return { route: { kind: 'clubMonetization' } };
+    }
+    if (path === '/club/reports') {
+      return { route: { kind: 'clubReports' } };
     }
     if (path === '/club/settings') {
       return { route: { kind: 'clubSettings' } };
@@ -665,6 +679,7 @@ function isClubRoute(route: AppRoute): route is ClubRoute {
     || route.kind === 'clubVenue'
     || route.kind === 'clubClients'
     || route.kind === 'clubMonetization'
+    || route.kind === 'clubReports'
     || route.kind === 'clubSettings'
     || route.kind === 'clubInstall'
     || route.kind === 'clubBranches'
