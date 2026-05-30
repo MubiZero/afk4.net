@@ -1,9 +1,12 @@
+import type { ComponentProps } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { it, expect, vi } from 'vitest';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { TariffRow } from './tariffsModel';
 import { TariffFormDialog } from './TariffFormDialog';
+
+type DialogProps = ComponentProps<typeof TariffFormDialog>;
 
 function client(overrides: Record<string, unknown> = {}) {
   return {
@@ -16,9 +19,14 @@ function client(overrides: Record<string, unknown> = {}) {
 }
 
 function renderDialog(props: Record<string, unknown>) {
+  const merged = {
+    open: true, branchId: 'b1', organizationId: 'org',
+    onOpenChange: () => {}, onDone: () => {},
+    ...props
+  } as unknown as DialogProps;
   render(
     <I18nProvider><ToastProvider>
-      <TariffFormDialog open branchId="b1" organizationId="org" onOpenChange={() => {}} onDone={() => {}} {...props} />
+      <TariffFormDialog {...merged} />
     </ToastProvider></I18nProvider>
   );
 }
