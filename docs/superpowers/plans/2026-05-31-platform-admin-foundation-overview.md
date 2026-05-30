@@ -1056,6 +1056,7 @@ This adds the `adminOverview` route at `/admin`, an inline `PlatformArea` (mirro
 **Files:**
 - Modify: `src/App.tsx`
 - Test: `src/App.routing.test.ts`
+- Test: `src/App.test.tsx` (existing admin routing/render assertions must be updated for the new home + shell)
 
 - [ ] **Step 1: Add failing routing assertions**
 
@@ -1310,15 +1311,97 @@ function PlatformArea({
 
 Note: `CreateTenantResponse` must be importable. Check the existing `import type { OwnerInvite } from './api/types';` line — extend it to `import type { CreateTenantResponse, OwnerInvite } from './api/types';` (the `NewTenant` `onCreated` callback already receives this shape today, so the type exists in `./api/types`). If `CreateTenantResponse` is not exported from `./api/types`, instead type `onCreatedTenant` against the actual `NewTenant` `onCreated` prop type — read `src/components/NewTenant.tsx` to confirm the exact exported type name and import that.
 
-- [ ] **Step 10: Run the full suite + build**
+- [ ] **Step 10: Update `App.test.tsx` for the new admin home + shell**
+
+Two breaking changes ripple into `src/App.test.tsx`: (a) `/` (and `/`-in-admin-audience) now resolves to `adminOverview`, not `tenantList`, and the audience-home label is now `'Open admin overview'`; (b) signed-in admin screens now render inside `AppShell`, which consumes `ThemeProvider`/`I18nProvider`/`ToastProvider` — so the bare `render(<App .../>)` calls for signed-in admins must switch to the file's existing `renderWithProviders(...)` helper (the same migration the club tests already went through; see the comment at the top of the file). Apply these five edits:
+
+**Edit 1** — in the test `resolves root and legacy tenant URLs to admin routes`, the `/` case:
+
+```typescript
+    expect(resolvePlatformRoute('/')).toMatchObject({
+      redirectTo: '/admin',
+      route: { kind: 'tenantList' }
+    });
+```
+
+becomes:
+
+```typescript
+    expect(resolvePlatformRoute('/')).toMatchObject({
+      redirectTo: '/admin',
+      route: { kind: 'adminOverview' }
+    });
+```
+
+**Edit 2** — in the test `gates routes by the audience build flag`, the `/`-in-admin case:
+
+```typescript
+    expect(resolvePlatformRoute('/', null, '', 'admin')).toMatchObject({
+      redirectTo: '/admin',
+      route: { kind: 'tenantList' }
+    });
+```
+
+becomes:
+
+```typescript
+    expect(resolvePlatformRoute('/', null, '', 'admin')).toMatchObject({
+      redirectTo: '/admin',
+      route: { kind: 'adminOverview' }
+    });
+```
+
+**Edit 3** — in the test `does not render customer screens in an admin audience build` (this one stays a bare `render(...)` because the route is `notFound`, which renders no shell), update the home-button label:
+
+```typescript
+    expect(screen.getByRole('button', { name: 'Open admin tenants' })).toBeInTheDocument();
+```
+
+becomes:
+
+```typescript
+    expect(screen.getByRole('button', { name: 'Open admin overview' })).toBeInTheDocument();
+```
+
+**Edit 4** — replace the entire `redirects the old root bookmark to /admin for signed-in platform admins` test (it must use providers, and `/admin` now shows Overview, not the Tenants heading):
+
+```typescript
+  it('redirects the old root bookmark to /admin for signed-in platform admins', async () => {
+    writeSession(buildSession());
+    render(<App apiBaseUrl="http://localhost" />);
+
+    await waitFor(() => expect(window.location.pathname).toBe('/admin'));
+    expect(screen.getByRole('heading', { name: 'Tenants' })).toBeInTheDocument();
+  });
+```
+
+becomes:
+
+```typescript
+  it('redirects the old root bookmark to /admin for signed-in platform admins', async () => {
+    writeSession(buildSession());
+    renderWithProviders(<App apiBaseUrl="http://localhost" />);
+
+    await waitFor(() => expect(window.location.pathname).toBe('/admin'));
+    expect(await screen.findByText('Всего тенантов')).toBeInTheDocument();
+  });
+```
+
+(The `beforeEach` fetch stub returns `200 []`, so `listTenants()` resolves to an empty list and the Overview reaches `ready` with all-zero KPIs; `'Всего тенантов'` is the first KPI label.)
+
+**Edit 5** — the two remaining signed-in-admin tests (`redirects a legacy new-tenant bookmark to the admin-prefixed screen` and `pushes admin-prefixed URLs for tenant list navigation`) each call `render(<App apiBaseUrl="http://localhost" />);`. Change BOTH of those specific calls to `renderWithProviders(<App apiBaseUrl="http://localhost" />);`. Leave every assertion in those two tests unchanged — the legacy `NewTenant` ("New tenant" heading) and `TenantList` ("Tenants" heading, "New tenant"/"Cancel" buttons) components still render their same text, now inside the shell.
+
+Do NOT touch the club tests in this file (`renders the new AppShell with the Overview at /club`, the accept-invite/sign-in tests, etc.) — they already use `renderWithProviders` and are unaffected. Do NOT change the bare `render(...)` in `does not render customer screens in an admin audience build` or `does not render platform-admin screens in a club audience build` — both hit `notFound` and render no shell.
+
+- [ ] **Step 11: Run the full suite + build**
 
 Run: `npm test` then `npm run build`
-Expected: all tests pass; `tsc -b && vite build` succeeds. In particular `App.test.tsx` (admin audience shows the `AFK4 Control Plane` sign-in heading) still passes because an unauthenticated admin still renders `<SignIn>`, and `App.branches.test.tsx` / `App.settings.test.tsx` still pass because the `ClubArea` call site was already migrated in Task 2.
+Expected: all suites pass and `tsc -b && vite build` succeeds. Specifically: `App.test.tsx` passes with the five edits above; `App.branches.test.tsx` / `App.settings.test.tsx` (pure `resolvePlatformRoute`/`pathForRoute` assertions on club routes) are unaffected by Task 2/8 and still pass; the unauthenticated-admin path still renders `<SignIn>` (no shell, no providers needed). If any admin `App.test.tsx` test throws a "must be used within a Provider" error, a signed-in-admin `render(...)` was missed in Edit 5 — switch it to `renderWithProviders`.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
-git add src/App.tsx src/App.routing.test.ts
+git add src/App.tsx src/App.routing.test.ts src/App.test.tsx
 git commit -m "feat(platform): adminOverview route + PlatformArea shell wiring"
 ```
 
