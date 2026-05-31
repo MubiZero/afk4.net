@@ -406,3 +406,21 @@ input, select, textarea {
   .device-actions { grid-template-columns: 1fr; min-width: 0; }
 }
 }
+
+.linklike {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 1rem;
+  color: var(--accent, #4f46e5);
+  cursor: pointer;
+  text-decoration: underline;
+  font: inherit;
+}
+
+.actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+}

@@ -194,6 +194,16 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
     [navigate]
   );
 
+  const navigateToClubDashboard = useCallback(
+    () => navigate({ kind: 'clubDashboard' }, '/club'),
+    [navigate]
+  );
+
+  const navigateToAcceptInvite = useCallback(
+    () => navigate({ kind: 'acceptInvite', code: null }, '/auth/accept-invite'),
+    [navigate]
+  );
+
   const navigateToClubRoute = useCallback(
     (nextRoute: ClubRoute, path: string) => navigate(nextRoute, path),
     [navigate]
@@ -224,8 +234,8 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
     return (
       <StaffSignIn
         client={staffClient}
-        initialTenantKey={route.tenantKey}
-        onSignedIn={navigateToClubInstall}
+        onSignedIn={navigateToClubDashboard}
+        onOpenAcceptInvite={navigateToAcceptInvite}
       />
     );
   }
@@ -239,8 +249,8 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
       return (
         <StaffSignIn
           client={staffClient}
-          initialTenantKey={null}
-          onSignedIn={navigateToClubInstall}
+          onSignedIn={navigateToClubDashboard}
+          onOpenAcceptInvite={navigateToAcceptInvite}
         />
       );
     }

@@ -87,9 +87,6 @@ function buildClubFetchMock() {
     if (url.pathname === '/api/platform/owner-invites/accept' && method === 'POST') {
       return jsonResponse(200, buildStaffSignInResponse());
     }
-    if (url.pathname === '/api/auth/staff/sign-in-by-tenant-key' && method === 'POST') {
-      return jsonResponse(200, buildStaffSignInResponse());
-    }
     if (url.pathname === '/api/auth/staff/sign-in-by-login' && method === 'POST') {
       return jsonResponse(200, buildStaffSignInResponse());
     }
@@ -396,26 +393,23 @@ describe('Platform Web routing', () => {
     });
   });
 
-  // TODO Task 4: replace with the new login-only sign-in test (no Club key field)
-  it('signs in a staff user and redirects to /club/install', async () => {
-    window.history.replaceState(
-      null,
-      '',
-      '/auth/sign-in?tenantKey=demo-club'
-    );
+  it('signs in a staff user via the login-only form and lands on the dashboard', async () => {
+    window.history.replaceState(null, '', '/auth/sign-in');
     const fetchMock = buildClubFetchMock();
     vi.stubGlobal('fetch', fetchMock);
 
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
-    expect(screen.getByRole('heading', { name: 'Club sign in' })).toBeInTheDocument();
+    // Login-only club sign-in renders in Russian (no Club key field).
+    expect(screen.getByRole('heading', { name: 'Вход в клуб' })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('User name'), { target: { value: 'owner@demo.test' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Passw0rd!Real' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'owner@demo.test' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!Real' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
-    await waitFor(() => expect(window.location.pathname).toBe('/club/install'));
-    expect(screen.getByRole('heading', { name: 'Установка на ПК' })).toBeInTheDocument();
+    // Lands on the dashboard (/club), not the install screen.
+    await waitFor(() => expect(window.location.pathname).toBe('/club'));
+    expect(screen.getByRole('button', { name: 'Обзор' })).toBeInTheDocument();
 
     const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-login');
