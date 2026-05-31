@@ -98,6 +98,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformIdempotencyRecordEntity> PlatformIdempotencyRecords => Set<PlatformIdempotencyRecordEntity>();
 
+    public DbSet<SubscriptionPlanEntity> SubscriptionPlans => Set<SubscriptionPlanEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -113,6 +115,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(organization => organization.LimitsJson).HasColumnType("jsonb").IsRequired();
             entity.HasIndex(organization => organization.Slug).IsUnique();
             entity.HasIndex(organization => organization.Status);
+        });
+
+        modelBuilder.Entity<SubscriptionPlanEntity>(entity =>
+        {
+            entity.ToTable("subscription_plans");
+            entity.HasKey(plan => plan.PlanCode);
+            entity.Property(plan => plan.PlanCode).HasMaxLength(64).IsRequired();
+            entity.Property(plan => plan.Name).HasMaxLength(160).IsRequired();
+            entity.Property(plan => plan.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(plan => plan.BillingInterval).HasMaxLength(16).IsRequired();
+            entity.HasIndex(plan => plan.SortOrder);
         });
 
         modelBuilder.Entity<BranchEntity>(entity =>
