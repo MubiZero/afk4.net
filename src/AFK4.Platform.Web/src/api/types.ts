@@ -22,6 +22,11 @@ export interface StaffSignInResponse {
   permissions: string[];
 }
 
+export interface StaffSignInClubChoice {
+  organizationId: string;
+  name: string;
+}
+
 export interface AcceptOwnerInviteRequest {
   code: string;
   userName: string;

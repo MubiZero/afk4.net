@@ -32,7 +32,7 @@ export function StaffSignIn({ client, initialTenantKey, onSignedIn }: StaffSignI
     setSubmitting(true);
     setError(null);
     try {
-      await client.signIn(normalizedTenantKey, normalizedUserName, password);
+      await client.signInByLogin(normalizedUserName, password); // TODO Task 4: replace StaffSignIn entirely
       onSignedIn();
     } catch (cause) {
       setError(projectStaffSignInError(cause));

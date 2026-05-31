@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readStaffSession, type StaffSession } from '../auth/staffTokenStore';
-import { StaffAuthApiClient } from './staffAuthApi';
+import { StaffAuthApiClient, StaffSignInChooseClubError } from './staffAuthApi';
 import { PlatformApiError } from './platformApi';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -57,7 +57,7 @@ describe('StaffAuthApiClient', () => {
     );
   });
 
-  it('signs in staff users through the tenant-key staff auth endpoint', async () => {
+  it('signs in by login through the sign-in-by-login endpoint', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(200, buildResponse()));
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
@@ -66,18 +66,50 @@ describe('StaffAuthApiClient', () => {
       onSessionChanged: () => {}
     });
 
-    await client.signIn(
-      'demo-club',
-      'owner@demo.test',
-      'Passw0rd!Real'
-    );
+    await client.signInByLogin('owner@demo.test', 'Passw0rd!Real');
 
     const call = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-tenant-key');
+    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-login');
     expect(JSON.parse(call[1].body as string)).toEqual({
-      tenantKey: 'demo-club',
-      userName: 'owner@demo.test',
+      login: 'owner@demo.test',
       password: 'Passw0rd!Real'
+    });
+  });
+
+  it('throws StaffSignInChooseClubError on a 409 with clubs', async () => {
+    const clubs = [
+      { organizationId: 'org-a', name: 'Club A' },
+      { organizationId: 'org-b', name: 'Club B' }
+    ];
+    const fetchImpl = vi.fn(async () => jsonResponse(409, { clubs }));
+    const client = new StaffAuthApiClient({
+      baseUrl: 'http://localhost',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      session: null,
+      onSessionChanged: () => {}
+    });
+
+    await expect(client.signInByLogin('shared@demo.test', 'pw'))
+      .rejects.toMatchObject({ clubs });
+  });
+
+  it('signs in to a chosen club through the org-scoped endpoint', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse(200, buildResponse()));
+    const client = new StaffAuthApiClient({
+      baseUrl: 'http://localhost',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      session: null,
+      onSessionChanged: () => {}
+    });
+
+    await client.signInToClub('org-b', 'shared@demo.test', 'pw');
+
+    const call = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in');
+    expect(JSON.parse(call[1].body as string)).toEqual({
+      organizationId: 'org-b',
+      userName: 'shared@demo.test',
+      password: 'pw'
     });
   });
 
@@ -108,7 +140,7 @@ describe('StaffAuthApiClient', () => {
     expect(onSessionChanged).toHaveBeenCalledWith(null);
   });
 
-  it('throws a parsed PlatformApiError when staff sign-in fails', async () => {
+  it('throws a parsed PlatformApiError when login sign-in fails', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse(401, { error: 'Bad credentials' }));
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
@@ -117,10 +149,10 @@ describe('StaffAuthApiClient', () => {
       onSessionChanged: () => {}
     });
 
-    await expect(client.signIn('org', 'owner', 'wrong')).rejects.toMatchObject({
+    await expect(client.signInByLogin('owner', 'wrong')).rejects.toMatchObject({
       status: 401,
       message: 'Bad credentials'
     });
-    await expect(client.signIn('org', 'owner', 'wrong')).rejects.toBeInstanceOf(PlatformApiError);
+    await expect(client.signInByLogin('owner', 'wrong')).rejects.toBeInstanceOf(PlatformApiError);
   });
 });

@@ -90,6 +90,9 @@ function buildClubFetchMock() {
     if (url.pathname === '/api/auth/staff/sign-in-by-tenant-key' && method === 'POST') {
       return jsonResponse(200, buildStaffSignInResponse());
     }
+    if (url.pathname === '/api/auth/staff/sign-in-by-login' && method === 'POST') {
+      return jsonResponse(200, buildStaffSignInResponse());
+    }
     if (url.pathname === '/api/staff/me/owner-code' && method === 'GET') {
       return new Response(null, { status: 204 });
     }
@@ -393,6 +396,7 @@ describe('Platform Web routing', () => {
     });
   });
 
+  // TODO Task 4: replace with the new login-only sign-in test (no Club key field)
   it('signs in a staff user and redirects to /club/install', async () => {
     window.history.replaceState(
       null,
@@ -405,7 +409,6 @@ describe('Platform Web routing', () => {
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     expect(screen.getByRole('heading', { name: 'Club sign in' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Club key')).toHaveValue('demo-club');
 
     fireEvent.change(screen.getByLabelText('User name'), { target: { value: 'owner@demo.test' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Passw0rd!Real' } });
@@ -415,10 +418,9 @@ describe('Platform Web routing', () => {
     expect(screen.getByRole('heading', { name: 'Установка на ПК' })).toBeInTheDocument();
 
     const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-tenant-key');
+    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-login');
     expect(JSON.parse(call[1].body as string)).toEqual({
-      tenantKey: 'demo-club',
-      userName: 'owner@demo.test',
+      login: 'owner@demo.test',
       password: 'Passw0rd!Real'
     });
   });

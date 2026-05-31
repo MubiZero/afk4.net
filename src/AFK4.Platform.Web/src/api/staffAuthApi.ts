@@ -1,6 +1,16 @@
 import { clearStaffSession, staffSessionFromSignInResponse, writeStaffSession, type StaffSession } from '../auth/staffTokenStore';
-import type { AcceptOwnerInviteRequest, StaffSignInResponse } from './types';
+import type { AcceptOwnerInviteRequest, StaffSignInClubChoice, StaffSignInResponse } from './types';
 import { PlatformApiError } from './platformApi';
+
+export class StaffSignInChooseClubError extends Error {
+  public readonly clubs: StaffSignInClubChoice[];
+
+  public constructor(clubs: StaffSignInClubChoice[]) {
+    super('Multiple clubs match this login.');
+    this.name = 'StaffSignInChooseClubError';
+    this.clubs = clubs;
+  }
+}
 
 export interface StaffAuthApiClientOptions {
   baseUrl: string;
@@ -35,11 +45,24 @@ export class StaffAuthApiClient {
     return this.readAndApplySession(response, 'Setup code acceptance failed.');
   }
 
-  public async signIn(tenantKey: string, userName: string, password: string): Promise<StaffSession> {
-    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/sign-in-by-tenant-key`, {
+  public async signInByLogin(login: string, password: string): Promise<StaffSession> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/sign-in-by-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantKey, userName, password })
+      body: JSON.stringify({ login, password })
+    });
+    if (response.status === 409) {
+      const body = (await response.json()) as { clubs: StaffSignInClubChoice[] };
+      throw new StaffSignInChooseClubError(body.clubs);
+    }
+    return this.readAndApplySession(response, 'Sign-in failed.');
+  }
+
+  public async signInToClub(organizationId: string, login: string, password: string): Promise<StaffSession> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/sign-in`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ organizationId, userName: login, password })
     });
     return this.readAndApplySession(response, 'Sign-in failed.');
   }
