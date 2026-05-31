@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { InvoicesTab } from './InvoicesTab';
@@ -27,5 +27,13 @@ describe('InvoicesTab', () => {
       <I18nProvider><ToastProvider><InvoicesTab client={fakeClient()} /></ToastProvider></I18nProvider>
     );
     await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
+
+    // amountMinorUnits: 290000 must render as MAJOR units (2900), not 290000.
+    const row = screen.getByText('Acme').closest('tr');
+    expect(row).not.toBeNull();
+    const cells = within(row as HTMLElement).getAllByRole('cell');
+    const digitTexts = cells.map(c => (c.textContent ?? '').replace(/\D/g, ''));
+    expect(digitTexts).toContain('2900');
+    expect(digitTexts).not.toContain('290000');
   });
 });

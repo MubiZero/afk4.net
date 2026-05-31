@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
+import { minorToMajor } from '@/club/money';
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { Invoice } from '@/api/types';
 import { INVOICE_STATUS_VARIANT, INVOICE_STATUS_LABEL } from '@/platform/billing/billingModel';
@@ -59,7 +60,7 @@ export function TenantInvoicesSection({ client, organizationId }: { client: Clie
             <div key={inv.invoiceId} className="flex items-center justify-between border-b border-border py-2 last:border-0">
               <span className="tabular-nums">#{inv.number} · {formatDate(inv.issuedAtUtc)}</span>
               <span className="flex items-center gap-2">
-                <span className="tabular-nums">{formatCurrency(inv.amountMinorUnits, inv.currencyCode)}</span>
+                <span className="tabular-nums">{formatCurrency(minorToMajor(inv.amountMinorUnits), inv.currencyCode)}</span>
                 <Badge variant={INVOICE_STATUS_VARIANT[inv.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[inv.status] ? t(INVOICE_STATUS_LABEL[inv.status]) : inv.status}</Badge>
               </span>
             </div>

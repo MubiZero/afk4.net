@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ export interface ConfirmDialogProps {
 
 export function ConfirmDialog(props: ConfirmDialogProps) {
   const [reason, setReason] = useState('');
+  useEffect(() => { if (props.open) setReason(''); }, [props.open]);
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent>

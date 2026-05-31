@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useI18n } from '@/i18n/I18nProvider';
+import { minorToMajor } from '@/club/money';
 import type { MessageKey } from '@/i18n/messages';
 import type { AttentionReason } from './metricsModel';
 import type { TenantMetricsState } from './useTenantMetrics';
@@ -53,9 +54,9 @@ export function OverviewScreen({ state, billing }: { state: TenantMetricsState; 
 
       {billing !== undefined && billing.status === 'ready' && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Kpi label={t('platform.overview.kpi.mrr')} value={formatCurrency(billing.data.mrrMinorUnits, billing.data.currencyCode)} />
-          <Kpi label={t('platform.overview.kpi.outstanding')} value={formatCurrency(billing.data.outstandingMinorUnits, billing.data.currencyCode)} />
-          <Kpi label={t('platform.overview.kpi.overdue')} value={formatCurrency(billing.data.overdueMinorUnits, billing.data.currencyCode)} />
+          <Kpi label={t('platform.overview.kpi.mrr')} value={formatCurrency(minorToMajor(billing.data.mrrMinorUnits), billing.data.currencyCode)} />
+          <Kpi label={t('platform.overview.kpi.outstanding')} value={formatCurrency(minorToMajor(billing.data.outstandingMinorUnits), billing.data.currencyCode)} />
+          <Kpi label={t('platform.overview.kpi.overdue')} value={formatCurrency(minorToMajor(billing.data.overdueMinorUnits), billing.data.currencyCode)} />
         </div>
       )}
 

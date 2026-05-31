@@ -6,6 +6,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
+import { minorToMajor } from '@/club/money';
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { SubscriptionPlan, TenantSubscription } from '@/api/types';
 import { SUBSCRIPTION_STATUS_LABEL } from '@/platform/billing/billingModel';
@@ -74,7 +75,7 @@ export function TenantSubscriptionSection({ client, organizationId }: { client: 
           <Select value={planCode} onValueChange={setPlanCode}>
             <SelectTrigger aria-label={t('platform.tenant.subscriptionForm.plan')}><SelectValue /></SelectTrigger>
             <SelectContent>
-              {plans.map(p => <SelectItem key={p.planCode} value={p.planCode}>{p.name} ({formatCurrency(p.priceMinorUnits, p.currencyCode)})</SelectItem>)}
+              {plans.map(p => <SelectItem key={p.planCode} value={p.planCode}>{p.name} ({formatCurrency(minorToMajor(p.priceMinorUnits), p.currencyCode)})</SelectItem>)}
             </SelectContent>
           </Select>
         </label>
@@ -100,7 +101,7 @@ export function TenantSubscriptionSection({ client, organizationId }: { client: 
           <span className="text-muted-foreground">{t('platform.tenant.subscriptionForm.cancelAtPeriodEnd')}</span>
           <Switch checked={cancelAtPeriodEnd} onCheckedChange={setCancelAtPeriodEnd} />
         </label>
-        <div className="flex justify-between text-muted-foreground"><span>{t('platform.tenant.subscriptionForm.amount')}</span><span className="tabular-nums">{formatCurrency(sub.amountMinorUnits, sub.currencyCode)}</span></div>
+        <div className="flex justify-between text-muted-foreground"><span>{t('platform.tenant.subscriptionForm.amount')}</span><span className="tabular-nums">{formatCurrency(minorToMajor(sub.amountMinorUnits), sub.currencyCode)}</span></div>
         <div className="flex justify-between text-muted-foreground"><span>{t('platform.tenant.subscriptionForm.currentPeriod')}</span><span>{formatDate(sub.currentPeriodStartUtc)} – {formatDate(sub.currentPeriodEndUtc)}</span></div>
         <div className="flex justify-between text-muted-foreground"><span>{t('platform.tenant.subscriptionForm.nextInvoice')}</span><span>{sub.nextInvoiceUtc !== null ? formatDate(sub.nextInvoiceUtc) : '—'}</span></div>
         <div><Button onClick={() => void submit()} disabled={pending || !dirty}>{t('platform.tenant.subscriptionForm.apply')}</Button></div>

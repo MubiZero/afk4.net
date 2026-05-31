@@ -6,6 +6,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
+import { minorToMajor } from '@/club/money';
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { SubscriptionPlan } from '@/api/types';
 import { usePlans } from './usePlans';
@@ -70,7 +71,7 @@ export function PlansTab({ client }: { client: PlatformApiClient }) {
               {state.data.map(plan => (
                 <TableRow key={plan.planCode}>
                   <TableCell><span className="font-medium">{plan.name}</span> <code className="text-xs text-muted-foreground">{plan.planCode}</code></TableCell>
-                  <TableCell className="tabular-nums">{formatCurrency(plan.priceMinorUnits, plan.currencyCode)}</TableCell>
+                  <TableCell className="tabular-nums">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
                   <TableCell>{INTERVAL_LABEL[plan.billingInterval] ? t(INTERVAL_LABEL[plan.billingInterval]) : plan.billingInterval}</TableCell>
                   <TableCell>{plan.isActive ? <Badge variant="success">●</Badge> : <Badge variant="outline">—</Badge>}</TableCell>
                   <TableCell><Button variant="outline" onClick={() => openEdit(plan)}>{t('platform.billing.plans.edit')}</Button></TableCell>

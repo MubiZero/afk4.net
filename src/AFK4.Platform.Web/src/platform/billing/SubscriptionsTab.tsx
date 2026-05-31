@@ -6,6 +6,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
+import { minorToMajor } from '@/club/money';
 import type { PlatformApiClient } from '@/api/platformApi';
 import { useSubscriptions } from './useSubscriptions';
 import {
@@ -58,7 +59,7 @@ export function SubscriptionsTab({ client }: { client: PlatformApiClient }) {
                   <TableCell><span className="font-medium">{r.organizationName}</span> <code className="text-xs text-muted-foreground">{r.organizationSlug}</code></TableCell>
                   <TableCell>{r.planCode}</TableCell>
                   <TableCell><Badge variant={SUBSCRIPTION_STATUS_VARIANT[r.status] ?? 'outline'}>{SUBSCRIPTION_STATUS_LABEL[r.status] ? t(SUBSCRIPTION_STATUS_LABEL[r.status]) : r.status}</Badge></TableCell>
-                  <TableCell className="tabular-nums">{formatCurrency(r.amountMinorUnits, r.currencyCode)}</TableCell>
+                  <TableCell className="tabular-nums">{formatCurrency(minorToMajor(r.amountMinorUnits), r.currencyCode)}</TableCell>
                   <TableCell>{INTERVAL_LABEL[r.billingInterval] ? t(INTERVAL_LABEL[r.billingInterval]) : r.billingInterval}</TableCell>
                   <TableCell>{formatDate(r.currentPeriodEndUtc)}</TableCell>
                 </TableRow>

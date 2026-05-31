@@ -9,6 +9,7 @@ import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
+import { minorToMajor } from '@/club/money';
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { InvoiceListItem } from '@/api/types';
 import { useInvoices } from './useInvoices';
@@ -88,7 +89,7 @@ export function InvoicesTab({ client }: { client: PlatformApiClient }) {
                   <TableCell className="tabular-nums">#{r.number}</TableCell>
                   <TableCell><span className="font-medium">{r.organizationName}</span> <code className="text-xs text-muted-foreground">{r.organizationSlug}</code></TableCell>
                   <TableCell>{INVOICE_KIND_LABEL[r.kind] ? t(INVOICE_KIND_LABEL[r.kind]) : r.kind}</TableCell>
-                  <TableCell className="tabular-nums">{formatCurrency(r.amountMinorUnits, r.currencyCode)}</TableCell>
+                  <TableCell className="tabular-nums">{formatCurrency(minorToMajor(r.amountMinorUnits), r.currencyCode)}</TableCell>
                   <TableCell><Badge variant={INVOICE_STATUS_VARIANT[r.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[r.status] ? t(INVOICE_STATUS_LABEL[r.status]) : r.status}</Badge></TableCell>
                   <TableCell>{formatDate(r.dueAtUtc)}</TableCell>
                   <TableCell className="flex gap-2">

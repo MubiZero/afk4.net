@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useI18n } from '@/i18n/I18nProvider';
+import { minorToMajor, majorToMinor } from '@/club/money';
 import { validatePlanForm, type PlanForm } from './billingModel';
 
 interface Props {
@@ -46,7 +47,7 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
           </label>
           <label className="block text-sm">
             <span className="mb-1 block text-muted-foreground">{t('platform.billing.planForm.price')}</span>
-            <Input type="number" value={String(form.priceMinorUnits)} onChange={e => onChange({ ...form, priceMinorUnits: Math.max(0, Math.trunc(Number(e.target.value))) })} />
+            <Input type="number" value={String(minorToMajor(form.priceMinorUnits))} onChange={e => { const major = Math.max(0, Number(e.target.value) || 0); onChange({ ...form, priceMinorUnits: majorToMinor(major) }); }} />
           </label>
           <label className="block text-sm">
             <span className="mb-1 block text-muted-foreground">{t('platform.billing.planForm.currency')}</span>
