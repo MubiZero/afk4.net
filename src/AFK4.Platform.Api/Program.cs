@@ -184,6 +184,7 @@ builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>(
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
+builder.Services.AddHostedService<InvoiceGenerationHostedService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
