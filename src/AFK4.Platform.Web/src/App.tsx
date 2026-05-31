@@ -514,7 +514,8 @@ function PlatformArea({
     if (isAdminRoute(resolution.route)) {
       onNavigate(resolution.route, resolution.redirectTo ?? path);
     }
-    // Soon/unbuilt nav targets (billing, profile) resolve to notFound and are ignored.
+    // Soon/unbuilt nav targets (profile) resolve to notFound and are ignored; live targets
+    // (overview, billing, tenants) navigate.
   };
 
   return (
