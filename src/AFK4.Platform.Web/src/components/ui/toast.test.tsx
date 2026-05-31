@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { vi, it, expect, beforeEach, afterEach } from 'vitest';
+import { it, expect, beforeEach, afterEach, jest } from 'bun:test';
 import { ToastProvider, useToast } from './toast';
 import { I18nProvider } from '@/i18n/I18nProvider';
 
-beforeEach(() => { vi.useFakeTimers(); });
-afterEach(() => { vi.useRealTimers(); });
+beforeEach(() => { jest.useFakeTimers(); });
+afterEach(() => { jest.useRealTimers(); });
 
 function Trigger() {
   const { toast } = useToast();
@@ -16,7 +16,7 @@ it('shows a toast when fired and dismisses after the delay', () => {
   expect(screen.queryByText('Сохранено')).toBeNull();
   fireEvent.click(screen.getByText('fire'));
   expect(screen.getByText('Сохранено')).toBeInTheDocument();
-  act(() => { vi.advanceTimersByTime(1000); });
+  act(() => { jest.advanceTimersByTime(1000); });
   expect(screen.queryByText('Сохранено')).toBeNull();
 });
 
