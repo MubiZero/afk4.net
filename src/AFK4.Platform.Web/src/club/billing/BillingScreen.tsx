@@ -2,7 +2,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
+import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { minorToMajor } from '../money';
 import type { ClubApiClient } from '@/api/clubApi';
 import { useBilling } from './useBilling';
@@ -76,14 +76,16 @@ export function BillingScreen({ client, organizationId }: { client: ClubApiClien
         </CardContent>
       </Card>
 
-      {rows.length === 0 ? (
-        <EmptyState message={t('club.billing.invoices.empty')} />
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('club.billing.invoices.title')}</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('club.billing.invoices.title')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {rows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {t('club.billing.invoices.empty')}
+            </p>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -115,9 +117,9 @@ export function BillingScreen({ client, organizationId }: { client: ClubApiClien
                 })}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
