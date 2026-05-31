@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import {
   BridgeOperatorConnectionStorage,
   ConnectionResolutionError,
@@ -46,7 +46,7 @@ function buildResponse(overrides: Partial<ResolveOperatorConnectionResponse> = {
 describe('ConnectionResolver', () => {
   it('resolves by slug pair and returns parsed body', async () => {
     const expected = buildResponse();
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = mock(async () =>
       new Response(JSON.stringify(expected), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
@@ -70,7 +70,7 @@ describe('ConnectionResolver', () => {
 
   it('resolves by setup code and returns parsed body', async () => {
     const expected = buildResponse({ source: 'setup_code' });
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = mock(async () =>
       new Response(JSON.stringify(expected), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
@@ -93,7 +93,7 @@ describe('ConnectionResolver', () => {
   });
 
   it('throws ConnectionResolutionError with parsed error body on failure', async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = mock(async () =>
       new Response(JSON.stringify({ error: 'Setup code is no longer usable.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
@@ -112,7 +112,7 @@ describe('ConnectionResolver', () => {
   });
 
   it('falls back to a generic message when the body is not JSON', async () => {
-    const fetchImpl = vi.fn(async () => new Response('upstream-error', { status: 502 }));
+    const fetchImpl = mock(async () => new Response('upstream-error', { status: 502 }));
     const resolver = new ConnectionResolver({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import {
   HostBridgeUnavailableError,
   isHostBridgeUnavailableError,
@@ -13,7 +13,7 @@ describe('postHostWindowCommand', () => {
   });
 
   it('posts a narrow window command to the native host', () => {
-    const postMessage = vi.fn();
+    const postMessage = mock();
     window.chrome = {
       webview: {
         postMessage
@@ -33,12 +33,12 @@ describe('postHostWindowCommand', () => {
 describe('postHostRequest', () => {
   afterEach(() => {
     delete window.chrome;
-    vi.restoreAllMocks();
+    mock.restore();
   });
 
   it('posts a request and resolves the matching host response', async () => {
     const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
-    const postMessage = vi.fn((message: unknown) => {
+    const postMessage = mock((message: unknown) => {
       const request = message as { requestId: string };
       queueMicrotask(() => {
         for (const listener of listeners) {

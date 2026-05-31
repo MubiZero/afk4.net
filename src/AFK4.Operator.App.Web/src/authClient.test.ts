@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { loadOperatorSession, signInOperator, signOutOperator } from './authClient';
 import type { HostBridgeMessageEvent } from './hostBridge';
 
@@ -7,7 +7,7 @@ describe('operator auth client', () => {
     delete window.chrome;
     localStorage.clear();
     sessionStorage.clear();
-    vi.restoreAllMocks();
+    mock.restore();
   });
 
   it('signs in through the native bridge without browser token persistence', async () => {
@@ -67,7 +67,7 @@ describe('operator auth client', () => {
 
 function installAuthBridge(respond: (message: { type: string; requestId: string; payload?: unknown }) => unknown) {
   const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
-  const postMessage = vi.fn((message: unknown) => {
+  const postMessage = mock((message: unknown) => {
     const request = message as { type: string; requestId: string; payload?: unknown };
     const payload = respond(request);
     queueMicrotask(() => {
