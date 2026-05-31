@@ -342,7 +342,7 @@ describe('Platform Web routing', () => {
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     await waitFor(() => expect(window.location.pathname).toBe('/admin/tenants/new'));
-    expect(screen.getByRole('heading', { name: 'New tenant' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Создать тенант' })).toBeInTheDocument();
   });
 
   it('pushes admin-prefixed URLs for tenant list navigation', async () => {
@@ -355,9 +355,9 @@ describe('Platform Web routing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Новый тенант' }));
 
     expect(window.location.pathname).toBe('/admin/tenants/new');
-    expect(screen.getByRole('heading', { name: 'New tenant' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Создать тенант' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
 
     expect(window.location.pathname).toBe('/admin/tenants');
     expect(await screen.findByLabelText('Поиск по названию или ключу')).toBeInTheDocument();

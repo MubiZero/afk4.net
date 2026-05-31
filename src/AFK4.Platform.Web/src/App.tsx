@@ -27,7 +27,7 @@ import { EmptyState } from './components/ui/states';
 import { useI18n } from './i18n/I18nProvider';
 import { SignIn } from './components/SignIn';
 import { StaffSignIn } from './components/StaffSignIn';
-import { NewTenant } from './components/NewTenant';
+import { NewTenantScreen } from './platform/tenants/NewTenantScreen';
 import { platformNav } from './platform/nav';
 import { OverviewScreen as PlatformOverviewScreen } from './platform/overview/OverviewScreen';
 import { BillingScreen as PlatformBillingScreen } from './platform/billing/BillingScreen';
@@ -551,7 +551,7 @@ function PlatformArea({
       ) : route.kind === 'adminProfile' ? (
         <PlatformProfileScreen session={session} onSignOut={onSignOut} />
       ) : route.kind === 'newTenant' ? (
-        <NewTenant
+        <NewTenantScreen
           client={adminClient}
           onCreated={onCreatedTenant}
           onCancel={onCancelNewTenant}
