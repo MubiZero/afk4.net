@@ -2,7 +2,7 @@
 
 ## Repository
 
-- Root: `D:\projects\afk4.net`.
+- Root: `D:\afk4.net`.
 - Use Windows and PowerShell by default. Do not switch to WSL unless the user
   asks for it.
 - Prefer explicit local tools when PATH is unreliable:
@@ -56,8 +56,8 @@ roadmap/progress/plan that depends on it.
 - Inspect `git status` before editing.
 - Never revert or overwrite user changes unless explicitly asked.
 - Keep changes small and aligned with existing repo patterns.
-- Use `rg`/`rg --files` for search.
-- Use `apply_patch` for manual file edits.
+- Search with your harness's dedicated search tools (e.g. Grep/Glob); `rg` is fine from a shell.
+- Edit files with your harness's file-editing tools (e.g. Edit/Write).
 - Keep backend module boundaries explicit; modules must not directly mutate
   another module's data.
 - Keep shared transport DTOs in `AFK4.Shared.Contracts`.
@@ -68,8 +68,8 @@ roadmap/progress/plan that depends on it.
 
 ## Git
 
-- Use a `codex/<topic>` branch for non-trivial work unless the user asks to work
-  directly on the current branch.
+- Use a dedicated topic branch (e.g. `sp3-plan4-billing-ui`) for non-trivial work
+  unless the user asks to work directly on the current branch.
 - Do not auto-push, auto-merge, or delete task branches unless the user asks or
   the current task explicitly requires it.
 - Do not merge a PR until the latest PR head has a green required verification
