@@ -110,4 +110,67 @@ public sealed class BillingListEndpointTests
         await db.SaveChangesAsync();
         return orgId;
     }
+
+    [Fact]
+    public async Task ListInvoices_returns_rows_with_org_identity_newest_first()
+    {
+        await using var factory = new PlatformApiFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var orgId = await SeedOrgWithSubscriptionAsync(db, "inv-org", "Invoice Org", SubscriptionStatusNames.Active);
+        SeedInvoice(db, orgId, number: 1, status: InvoiceStatusNames.Issued);
+        SeedInvoice(db, orgId, number: 2, status: InvoiceStatusNames.Paid);
+        await db.SaveChangesAsync();
+
+        var service = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
+        var result = await service.ListAllAsync(status: null, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var mine = result.Value!.Where(r => r.OrganizationId == orgId).ToList();
+        Assert.Equal(2, mine.Count);
+        Assert.Equal(2, mine[0].Number); // newest (highest number) first
+        Assert.Equal("Invoice Org", mine[0].OrganizationName);
+    }
+
+    [Fact]
+    public async Task ListInvoices_filters_by_status_and_rejects_unknown()
+    {
+        await using var factory = new PlatformApiFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var orgId = await SeedOrgWithSubscriptionAsync(db, "inv-filter", "Filter Org", SubscriptionStatusNames.Active);
+        SeedInvoice(db, orgId, number: 10, status: InvoiceStatusNames.Overdue);
+        await db.SaveChangesAsync();
+
+        var service = scope.ServiceProvider.GetRequiredService<IInvoiceService>();
+        var overdue = await service.ListAllAsync(status: InvoiceStatusNames.Overdue, CancellationToken.None);
+        Assert.True(overdue.Succeeded);
+        Assert.All(overdue.Value!, r => Assert.Equal(InvoiceStatusNames.Overdue, r.Status));
+
+        var bad = await service.ListAllAsync(status: "nope", CancellationToken.None);
+        Assert.False(bad.Succeeded);
+        Assert.Equal(BillingOperationStatus.BadRequest, bad.Status);
+    }
+
+    private static void SeedInvoice(PlatformDbContext db, Guid orgId, int number, string status)
+    {
+        var now = DateTimeOffset.UtcNow;
+        db.Invoices.Add(new InvoiceEntity
+        {
+            InvoiceId = Guid.NewGuid(),
+            OrganizationId = orgId,
+            Number = number,
+            Kind = InvoiceKindNames.Subscription,
+            PeriodStartUtc = now.AddMonths(-1),
+            PeriodEndUtc = now,
+            IssuedAtUtc = now,
+            DueAtUtc = now.AddDays(7),
+            AmountMinorUnits = 290000,
+            CurrencyCode = "RUB",
+            Status = status,
+            Description = "Test invoice",
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+    }
 }

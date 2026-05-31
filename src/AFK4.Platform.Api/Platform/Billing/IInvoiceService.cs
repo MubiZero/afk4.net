@@ -22,4 +22,8 @@ public interface IInvoiceService
         Guid invoiceId,
         VoidInvoiceRequest request,
         CancellationToken cancellationToken);
+
+    Task<BillingOperationResult<IReadOnlyList<InvoiceListItemDto>>> ListAllAsync(
+        string? status,
+        CancellationToken cancellationToken);
 }

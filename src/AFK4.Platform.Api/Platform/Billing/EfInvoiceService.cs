@@ -150,6 +150,52 @@ public sealed class EfInvoiceService(
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
 
+    public async Task<BillingOperationResult<IReadOnlyList<InvoiceListItemDto>>> ListAllAsync(
+        string? status,
+        CancellationToken cancellationToken)
+    {
+        string? normalized = null;
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            normalized = status.Trim();
+            if (!AllowedStatusFilters.Contains(normalized))
+            {
+                return BillingOperationResult<IReadOnlyList<InvoiceListItemDto>>.BadRequest(
+                    $"status must be one of: {string.Join(", ", AllowedStatusFilters)}.");
+            }
+        }
+
+        var query =
+            from invoice in dbContext.Invoices.AsNoTracking()
+            join org in dbContext.Organizations.AsNoTracking()
+                on invoice.OrganizationId equals org.OrganizationId
+            select new { invoice, org.Name, org.Slug };
+
+        if (normalized is not null)
+        {
+            query = query.Where(x => x.invoice.Status == normalized);
+        }
+
+        var rows = await query
+            .OrderByDescending(x => x.invoice.Number)
+            .ToListAsync(cancellationToken);
+
+        IReadOnlyList<InvoiceListItemDto> dtos = rows.Select(x => new InvoiceListItemDto(
+            InvoiceId: x.invoice.InvoiceId,
+            OrganizationId: x.invoice.OrganizationId,
+            OrganizationName: x.Name,
+            OrganizationSlug: x.Slug,
+            Number: x.invoice.Number,
+            Kind: x.invoice.Kind,
+            IssuedAtUtc: x.invoice.IssuedAtUtc,
+            DueAtUtc: x.invoice.DueAtUtc,
+            AmountMinorUnits: x.invoice.AmountMinorUnits,
+            CurrencyCode: x.invoice.CurrencyCode,
+            Status: x.invoice.Status)).ToList();
+
+        return BillingOperationResult<IReadOnlyList<InvoiceListItemDto>>.Success(dtos);
+    }
+
     private static InvoiceDto ToDto(InvoiceEntity entity) =>
         new(
             InvoiceId: entity.InvoiceId,
