@@ -523,6 +523,31 @@ public sealed class EfPlatformTenantService(
             organization.PlanCode = trimmedPlan;
             organization.SubscriptionStatus = trimmedSubscription;
             organization.UpdatedAtUtc = now;
+
+            var subscription = await dbContext.TenantSubscriptions
+                .SingleOrDefaultAsync(s => s.OrganizationId == organizationId, cancellationToken);
+            if (subscription is not null)
+            {
+                subscription.PlanCode = trimmedPlan;
+                subscription.Status = trimmedSubscription;
+
+                var catalogPlan = await dbContext.SubscriptionPlans
+                    .SingleOrDefaultAsync(p => p.PlanCode == trimmedPlan, cancellationToken);
+                if (catalogPlan is not null)
+                {
+                    subscription.AmountMinorUnits = catalogPlan.PriceMinorUnits;
+                    subscription.CurrencyCode = catalogPlan.CurrencyCode;
+                    subscription.BillingInterval = catalogPlan.BillingInterval;
+                    organization.LimitsJson = SerializeLimits(new TenantLimitsDto(
+                        catalogPlan.MaxBranches,
+                        catalogPlan.MaxDevicesPerBranch,
+                        catalogPlan.MaxConcurrentSessions,
+                        catalogPlan.MaxStaffUsersPerBranch));
+                }
+
+                subscription.UpdatedAtUtc = now;
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
