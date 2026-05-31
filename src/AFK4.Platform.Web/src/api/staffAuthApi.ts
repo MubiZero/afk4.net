@@ -1,5 +1,5 @@
 import { clearStaffSession, staffSessionFromSignInResponse, writeStaffSession, type StaffSession } from '../auth/staffTokenStore';
-import type { AcceptOwnerInviteRequest, StaffSignInClubChoice, StaffSignInResponse } from './types';
+import type { AcceptOwnerInviteRequest, FetchLike, StaffSignInClubChoice, StaffSignInResponse } from './types';
 import { PlatformApiError } from './platformApi';
 
 export class StaffSignInChooseClubError extends Error {
@@ -14,7 +14,7 @@ export class StaffSignInChooseClubError extends Error {
 
 export interface StaffAuthApiClientOptions {
   baseUrl: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   session: StaffSession | null;
   onSessionChanged: (session: StaffSession | null) => void;
 }
@@ -22,7 +22,7 @@ export interface StaffAuthApiClientOptions {
 export class StaffAuthApiClient {
   private session: StaffSession | null;
   private readonly baseUrl: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
   private readonly onSessionChanged: (session: StaffSession | null) => void;
 
   public constructor(options: StaffAuthApiClientOptions) {

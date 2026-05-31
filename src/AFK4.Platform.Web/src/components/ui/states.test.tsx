@@ -1,5 +1,4 @@
 import { it, expect, mock } from 'bun:test';
-import { vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LoadingCards, ErrorState, EmptyState } from './states';
 
@@ -12,7 +11,7 @@ it('renders an error message and calls retry', () => {
   const retry = mock();
   render(<ErrorState message="Не удалось загрузить" retryLabel="Повторить" onRetry={retry} />);
   fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
-  expect(retry).toHaveBeenCalledOnce();
+  expect(retry).toHaveBeenCalledTimes(1);
 });
 
 it('renders an empty message', () => {

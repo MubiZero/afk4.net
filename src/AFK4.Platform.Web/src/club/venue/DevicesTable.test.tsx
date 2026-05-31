@@ -1,5 +1,4 @@
 import { it, expect, mock } from 'bun:test';
-import { vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { DevicesTable } from './DevicesTable';

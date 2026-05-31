@@ -1,3 +1,9 @@
+// A browser-fetch-shaped injectable. We deliberately avoid `typeof fetch` here because
+// @types/bun (pulled in for bun:test) redefines the global `fetch` type with a required
+// `preconnect` member that mock implementations don't carry. The api clients only ever
+// call this as a function, so this narrower contract is the correct one.
+export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
 export interface PlatformAdminSignInResponse {
   platformAdminId: string;
   userName: string;

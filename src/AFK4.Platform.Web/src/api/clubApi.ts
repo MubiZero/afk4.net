@@ -59,12 +59,13 @@ import type {
   CashOperationReport,
   OperatorActionReport,
   AuditSearchResult,
-  AuditSearchQuery
+  AuditSearchQuery,
+  FetchLike
 } from './types';
 
 export interface ClubApiClientOptions {
   baseUrl: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   session: StaffSession | null;
   onSessionChanged: (session: StaffSession | null) => void;
 }
@@ -72,7 +73,7 @@ export interface ClubApiClientOptions {
 export class ClubApiClient {
   private session: StaffSession | null;
   private readonly baseUrl: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
   private readonly onSessionChanged: (session: StaffSession | null) => void;
   private inflightRefresh: Promise<StaffSession | null> | null = null;
 

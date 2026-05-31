@@ -23,7 +23,8 @@ import type {
   TenantSummary,
   TenantSupportNote,
   UpdatePlanRequest,
-  UpdateSubscriptionRequest
+  UpdateSubscriptionRequest,
+  FetchLike
 } from './types';
 
 export class PlatformApiError extends Error {
@@ -39,7 +40,7 @@ export class PlatformApiError extends Error {
 
 export interface PlatformApiClientOptions {
   baseUrl: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
   session: PlatformAdminSession | null;
   onSessionChanged: (session: PlatformAdminSession | null) => void;
 }
@@ -47,7 +48,7 @@ export interface PlatformApiClientOptions {
 export class PlatformApiClient {
   private session: PlatformAdminSession | null;
   private readonly baseUrl: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
   private readonly onSessionChanged: (session: PlatformAdminSession | null) => void;
   private inflightRefresh: Promise<PlatformAdminSession | null> | null = null;
 
