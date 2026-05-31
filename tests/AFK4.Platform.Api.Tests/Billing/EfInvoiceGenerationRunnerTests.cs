@@ -62,6 +62,8 @@ public sealed class EfInvoiceGenerationRunnerTests
         Assert.Equal(InvoiceKindNames.Subscription, invoice.Kind);
         Assert.Equal(290000, invoice.AmountMinorUnits);
         Assert.Equal(1, invoice.Number);
+        Assert.Equal(Start.AddMonths(1), invoice.IssuedAtUtc);
+        Assert.Equal(Start.AddMonths(1).AddDays(7), invoice.DueAtUtc); // default InvoiceDueAfter = 7 days
         var reloaded = await db.TenantSubscriptions.SingleAsync();
         Assert.Equal(Start.AddMonths(1), reloaded.CurrentPeriodStartUtc);
         Assert.Equal(Start.AddMonths(2), reloaded.CurrentPeriodEndUtc);
@@ -106,6 +108,7 @@ public sealed class EfInvoiceGenerationRunnerTests
 
         var invoice = await db.Invoices.SingleAsync();
         Assert.Equal(InvoiceStatusNames.Overdue, invoice.Status);
+        Assert.Equal(Start.AddMonths(1).AddDays(8), invoice.UpdatedAtUtc);
     }
 
     [Fact]
