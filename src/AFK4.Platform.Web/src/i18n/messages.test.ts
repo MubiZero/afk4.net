@@ -195,3 +195,18 @@ it('includes the profile + install keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the platform admin keys', () => {
+  for (const key of [
+    'nav.group.controlPlane', 'nav.group.platformAccount',
+    'nav.platform.overview', 'nav.platform.tenants', 'nav.platform.billing', 'nav.platform.profile',
+    'platform.overview.kpi.tenants', 'platform.overview.kpi.active', 'platform.overview.kpi.suspended',
+    'platform.overview.kpi.trial', 'platform.overview.kpi.branches', 'platform.overview.kpi.new30d',
+    'platform.overview.byPlan.title', 'platform.overview.attention.title', 'platform.overview.attention.empty',
+    'platform.overview.attention.suspended', 'platform.overview.attention.pastDue',
+    'platform.plan.starter', 'platform.plan.growth', 'platform.plan.scale'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});

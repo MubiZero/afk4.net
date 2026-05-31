@@ -204,7 +204,7 @@ describe('Platform Web routing', () => {
   it('resolves root and legacy tenant URLs to admin routes', () => {
     expect(resolvePlatformRoute('/')).toMatchObject({
       redirectTo: '/admin',
-      route: { kind: 'tenantList' }
+      route: { kind: 'adminOverview' }
     });
     expect(resolvePlatformRoute('/tenants')).toMatchObject({
       redirectTo: '/admin/tenants',
@@ -257,7 +257,7 @@ describe('Platform Web routing', () => {
   it('gates routes by the audience build flag', () => {
     expect(resolvePlatformRoute('/', null, '', 'admin')).toMatchObject({
       redirectTo: '/admin',
-      route: { kind: 'tenantList' }
+      route: { kind: 'adminOverview' }
     });
     expect(resolvePlatformRoute('/', null, '', 'club')).toMatchObject({
       redirectTo: '/club/install',
@@ -296,7 +296,7 @@ describe('Platform Web routing', () => {
 
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Установка на ПК' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open admin tenants' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open admin overview' })).toBeInTheDocument();
   });
 
   it('does not render platform-admin screens in a club audience build', () => {
@@ -312,17 +312,17 @@ describe('Platform Web routing', () => {
 
   it('redirects the old root bookmark to /admin for signed-in platform admins', async () => {
     writeSession(buildSession());
-    render(<App apiBaseUrl="http://localhost" />);
+    renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     await waitFor(() => expect(window.location.pathname).toBe('/admin'));
-    expect(screen.getByRole('heading', { name: 'Tenants' })).toBeInTheDocument();
+    expect(await screen.findByText('Всего тенантов')).toBeInTheDocument();
   });
 
   it('redirects a legacy new-tenant bookmark to the admin-prefixed screen', async () => {
     window.history.replaceState(null, '', '/tenants/new');
     writeSession(buildSession());
 
-    render(<App apiBaseUrl="http://localhost" />);
+    renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     await waitFor(() => expect(window.location.pathname).toBe('/admin/tenants/new'));
     expect(screen.getByRole('heading', { name: 'New tenant' })).toBeInTheDocument();
@@ -331,7 +331,7 @@ describe('Platform Web routing', () => {
   it('pushes admin-prefixed URLs for tenant list navigation', async () => {
     window.history.replaceState(null, '', '/admin/tenants');
     writeSession(buildSession());
-    render(<App apiBaseUrl="http://localhost" />);
+    renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
     expect(screen.getByRole('heading', { name: 'Tenants' })).toBeInTheDocument();
 

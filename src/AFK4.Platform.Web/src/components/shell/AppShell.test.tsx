@@ -2,23 +2,26 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+import { visibleNav } from '@/club/nav';
+import { BranchSwitcher } from './BranchSwitcher';
 import { AppShell } from './AppShell';
 
-function renderShell(role: 'owner' | 'manager') {
+function renderShell(role: 'owner' | 'manager', onNavigate = vi.fn()) {
   return render(
     <ThemeProvider><I18nProvider>
       <AppShell
-        role={role}
-        orgName="Победа"
-        branches={[{ branchId: 'b1', name: 'Центральный' }]}
-        activeBranchId="b1"
+        navGroups={visibleNav(role)}
+        sidebarHeader={
+          <BranchSwitcher orgName="Победа" branches={[{ branchId: 'b1', name: 'Центральный' }]}
+            activeBranchId="b1" onSelect={vi.fn()} />
+        }
         activePath="/club"
+        subtitle="Центральный"
         screenTitle="Обзор"
         userName="Алишер"
         roleLabel="Владелец"
         counts={{ venue: 2 }}
-        onNavigate={vi.fn()}
-        onSelectBranch={vi.fn()}
+        onNavigate={onNavigate}
         onSignOut={vi.fn()}
       >
         <div>screen-body</div>
@@ -45,15 +48,7 @@ describe('AppShell', () => {
 
   it('fires navigation on item click', () => {
     const onNavigate = vi.fn();
-    render(
-      <ThemeProvider><I18nProvider>
-        <AppShell role="owner" orgName="П" branches={[{ branchId: 'b1', name: 'Ц' }]} activeBranchId="b1"
-          activePath="/club" screenTitle="Обзор" userName="A" roleLabel="Владелец"
-          onNavigate={onNavigate} onSelectBranch={vi.fn()} onSignOut={vi.fn()}>
-          <div />
-        </AppShell>
-      </I18nProvider></ThemeProvider>
-    );
+    renderShell('owner', onNavigate);
     fireEvent.click(screen.getByRole('button', { name: 'Обзор' }));
     expect(onNavigate).toHaveBeenCalledWith('/club');
   });

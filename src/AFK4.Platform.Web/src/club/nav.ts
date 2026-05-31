@@ -1,16 +1,6 @@
-import type { MessageKey } from '@/i18n/messages';
+import type { NavGroup } from '@/components/shell/navModel';
 
 export type ClubRole = 'owner' | 'manager';
-export type NavGroupKey = 'branch' | 'account';
-
-export interface NavItem {
-  key: string;
-  labelKey: MessageKey;
-  path: string;
-  ownerOnly: boolean;
-  soon: boolean;
-}
-export interface NavGroup { key: NavGroupKey; labelKey: MessageKey; items: NavItem[]; }
 
 export const clubNav: NavGroup[] = [
   {
