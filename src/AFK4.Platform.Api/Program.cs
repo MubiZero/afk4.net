@@ -178,6 +178,7 @@ builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteSer
 builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore>();
 builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthService>();
 builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
+builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
