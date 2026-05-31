@@ -175,6 +175,26 @@ public sealed class EfPlatformTenantService(
         dbContext.Branches.Add(branch);
         dbContext.Zones.Add(defaultZone);
         dbContext.OwnerInvites.Add(invite);
+        var catalogPlan = await dbContext.SubscriptionPlans
+            .AsNoTracking()
+            .SingleOrDefaultAsync(plan => plan.PlanCode == organization.PlanCode, cancellationToken);
+        var subscriptionInterval = catalogPlan?.BillingInterval ?? "monthly";
+        dbContext.TenantSubscriptions.Add(new TenantSubscriptionEntity
+        {
+            TenantSubscriptionId = Guid.NewGuid(),
+            OrganizationId = organization.OrganizationId,
+            PlanCode = organization.PlanCode,
+            Status = organization.SubscriptionStatus,
+            CurrentPeriodStartUtc = now,
+            CurrentPeriodEndUtc = subscriptionInterval == "yearly" ? now.AddYears(1) : now.AddMonths(1),
+            NextInvoiceUtc = subscriptionInterval == "yearly" ? now.AddYears(1) : now.AddMonths(1),
+            AmountMinorUnits = catalogPlan?.PriceMinorUnits ?? 0,
+            CurrencyCode = catalogPlan?.CurrencyCode ?? "RUB",
+            BillingInterval = subscriptionInterval,
+            CancelAtPeriodEnd = false,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var detail = await BuildTenantDetailAsync(organization.OrganizationId, cancellationToken);

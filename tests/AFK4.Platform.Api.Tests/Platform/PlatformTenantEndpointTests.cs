@@ -700,6 +700,25 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
+    public async Task PostTenants_SeedsTenantSubscription()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var response = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
+        var body = await response.Content.ReadFromJsonAsync<CreateTenantResponse>();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var subscription = await dbContext.TenantSubscriptions
+            .SingleAsync(s => s.OrganizationId == body!.Tenant.OrganizationId);
+        Assert.Equal("starter", subscription.PlanCode);
+        Assert.Equal(290000, subscription.AmountMinorUnits); // from seeded starter plan
+    }
+
+    [Fact]
     public async Task StaffAccessToken_CannotReachPlatformTenantEndpoints()
     {
         await using var factory = new PlatformApiFactory();
