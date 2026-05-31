@@ -182,6 +182,7 @@ builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
 builder.Services.AddScoped<ITenantSubscriptionService, EfTenantSubscriptionService>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
+builder.Services.AddScoped<IBillingMetricsService, EfBillingMetricsService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddHostedService<InvoiceGenerationHostedService>();
@@ -1841,6 +1842,34 @@ app.MapGet("/api/platform/invoices", async (
 
     var result = await invoiceService.ListAllAsync(status, cancellationToken);
     return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
+});
+
+app.MapGet("/api/platform/metrics", async (
+    PlatformAdminAuthorizationService authorizationService,
+    IBillingMetricsService metricsService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewBilling);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewBilling,
+            targetType: "BillingMetrics",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var metrics = await metricsService.GetAsync(cancellationToken);
+    return Results.Ok(metrics);
 });
 
 app.MapPost("/api/platform/tenants/{organizationId:guid}/invoices/generate", async (
