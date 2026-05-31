@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'bun:test';
 import {
-  buildDeviceHubUrl,
-  createOperatorRealtimeClient,
   deviceCommandResultEventName,
   deviceStatusChangedEventName,
   type DeviceCommandResultDto,
   type DeviceStatusChangedDto,
   type SignalRConnectionLike
 } from './operatorRealtime';
+
+// App.test.tsx registers a process-wide mock.module('./operatorRealtime', ...) that bun
+// cannot reliably restore for sibling files, so a plain import of the client factory here
+// can resolve to App's stub when the whole suite runs in one process. The shared preload
+// (src/test/setup.ts) captures the genuine module before any mock is installed; read the
+// real implementation from there so these behavioural assertions exercise the real client.
+const { buildDeviceHubUrl, createOperatorRealtimeClient } = (
+  globalThis as typeof globalThis & {
+    __afk4RealOperatorRealtime: typeof import('./operatorRealtime');
+  }
+).__afk4RealOperatorRealtime;
 
 describe('operator realtime client', () => {
   it('targets the ASP.NET Core device hub path from any platform base URL', () => {

@@ -1,49 +1,53 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from './App';
+import { afterEach, beforeEach, describe, expect, it, mock, spyOn, type Mock } from 'bun:test';
 import type { HostBridgeMessageEvent } from './hostBridge';
 
-const realtimeMock = vi.hoisted(() => ({
+const realtimeMock = {
   clients: [] as Array<{
     onConnectionStateChanged?: (state: string) => void;
     onDeviceStatusChanged: (status: unknown) => void;
     onDeviceCommandResult?: (result: unknown) => void;
   }>
+};
+
+// bun's mock.module is NOT hoisted above static imports the way vi.mock is, so the
+// mock must be registered before the component under test is imported.
+const actualRealtime = await import('./operatorRealtime');
+mock.module('./operatorRealtime', () => ({
+  ...actualRealtime,
+  createOperatorRealtimeClient: mock((options: {
+    onConnectionStateChanged?: (state: string) => void;
+    onDeviceStatusChanged: (status: unknown) => void;
+    onDeviceCommandResult?: (result: unknown) => void;
+  }) => ({
+    start: mock(async () => {
+      realtimeMock.clients.push(options);
+      options.onConnectionStateChanged?.('connected');
+    }),
+    stop: mock(async () => options.onConnectionStateChanged?.('disconnected'))
+  }))
 }));
 
-vi.mock('./operatorRealtime', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./operatorRealtime')>();
-  return {
-    ...actual,
-    createOperatorRealtimeClient: vi.fn((options: {
-      onConnectionStateChanged?: (state: string) => void;
-      onDeviceStatusChanged: (status: unknown) => void;
-      onDeviceCommandResult?: (result: unknown) => void;
-    }) => ({
-      start: vi.fn(async () => {
-        realtimeMock.clients.push(options);
-        options.onConnectionStateChanged?.('connected');
-      }),
-      stop: vi.fn(async () => options.onConnectionStateChanged?.('disconnected'))
-    }))
-  };
-});
+const { App } = await import('./App');
+
+const originalFetch = globalThis.fetch;
+let fetchMock: Mock<typeof fetch>;
 
 describe('App', () => {
   beforeEach(() => {
     realtimeMock.clients.length = 0;
-    vi.stubGlobal('fetch', vi.fn(mockPlatformFetch));
+    fetchMock = mock(mockPlatformFetch) as unknown as Mock<typeof fetch>;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
   });
 
   afterEach(() => {
     cleanup();
-    vi.unstubAllGlobals();
+    globalThis.fetch = originalFetch;
     delete window.chrome;
     delete window.__AFK4_OPERATOR_CONFIG__;
     localStorage.clear();
     sessionStorage.clear();
-    vi.clearAllMocks();
-    vi.restoreAllMocks();
+    mock.restore();
   });
 
   it('opens on the floor map operator workspace after native session restore', async () => {
@@ -91,7 +95,6 @@ describe('App', () => {
 
   it('opens selected PC control and runs backend device status/lock actions', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
       if (pathname.endsWith('/api/devices/11111111-1111-1111-1111-111111111111')) {
@@ -204,7 +207,6 @@ describe('App', () => {
       },
       loadConnection: buildStoredConnection()
     });
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -253,7 +255,6 @@ describe('App', () => {
 
   it('persists the resolved active connection via the native bridge and proceeds to the sign-in screen', async () => {
     const bridge = installSessionBridge(null);
-    const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input));
       if (url.pathname.endsWith('/api/operator-connections/resolve') && init?.method === 'POST') {
@@ -290,7 +291,6 @@ describe('App', () => {
 
   it('shows operator-facing connection errors without backend copy', async () => {
     installSessionBridge(null);
-    const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input));
       if (url.pathname.endsWith('/api/operator-connections/resolve') && init?.method === 'POST') {
@@ -316,7 +316,6 @@ describe('App', () => {
 
   it('shows blocked-state copy and does not persist the connection when the resolved tenant is suspended', async () => {
     const bridge = installSessionBridge(null);
-    const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input));
       if (url.pathname.endsWith('/api/operator-connections/resolve') && init?.method === 'POST') {
@@ -356,7 +355,6 @@ describe('App', () => {
 
   it('ends the selected active session through the backend before confirming the UI action', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -385,7 +383,6 @@ describe('App', () => {
 
   it('refreshes the selected seat when a session command result arrives over realtime', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     let commandResultReported = false;
     let floorMapRequestCount = 0;
     fetchMock.mockImplementation((input, init) => {
@@ -441,7 +438,6 @@ describe('App', () => {
 
   it('starts a ready seat as a fast guest session through the backend', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -470,7 +466,6 @@ describe('App', () => {
 
   it('starts a ready seat with player billing metadata and command status', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -668,14 +663,13 @@ describe('App', () => {
 
   it('downloads the Overview sales export without dashboard copy', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
-    const createObjectUrl = vi.fn(() => 'blob:dashboard');
-    const revokeObjectUrl = vi.fn();
+    const createObjectUrl = mock(() => 'blob:dashboard');
+    const revokeObjectUrl = mock();
     Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
     Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
     const downloads: string[] = [];
     const createElement = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    const createElementSpy = spyOn(document, 'createElement').mockImplementation((tagName: string) => {
       const element = createElement(tagName);
       if (tagName.toLowerCase() === 'a') {
         Object.defineProperty(element, 'click', {
@@ -705,7 +699,6 @@ describe('App', () => {
 
   it('runs backend audit search filters from Logs', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -769,7 +762,6 @@ describe('App', () => {
 
   it('shows backend diagnostics failure detail in Logs', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
       if (pathname.endsWith('/diagnostics')) {
@@ -824,18 +816,17 @@ describe('App', () => {
 
   it('downloads Logs support exports without technical labels', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     const exportedBlobs: Blob[] = [];
-    const createObjectUrl = vi.fn((blob: Blob) => {
+    const createObjectUrl = mock((blob: Blob) => {
       exportedBlobs.push(blob);
       return 'blob:logs';
     });
-    const revokeObjectUrl = vi.fn();
+    const revokeObjectUrl = mock();
     Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
     Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
     const downloads: string[] = [];
     const createElement = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    const createElementSpy = spyOn(document, 'createElement').mockImplementation((tagName: string) => {
       const element = createElement(tagName);
       if (tagName.toLowerCase() === 'a') {
         Object.defineProperty(element, 'click', {
@@ -879,7 +870,6 @@ describe('App', () => {
 
   it('shows successful empty Logs results without backend-empty copy', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
       if (pathname.endsWith('/audit')) {
@@ -901,7 +891,6 @@ describe('App', () => {
 
   it('confirms POS payment only after backend sale and manual payment calls resolve', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -934,7 +923,6 @@ describe('App', () => {
 
   it('attaches the selected backend client to POS sale checkout', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -974,7 +962,6 @@ describe('App', () => {
 
   it('tops up the selected POS client wallet from the cart total', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1001,7 +988,6 @@ describe('App', () => {
 
   it('creates a POS customer card from the cart and attaches it to checkout', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1042,7 +1028,6 @@ describe('App', () => {
 
   it('refunds the latest backend POS sale from quick operations', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1073,7 +1058,6 @@ describe('App', () => {
 
   it('refunds the selected backend POS sale from quick operations', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1095,7 +1079,6 @@ describe('App', () => {
 
   it('loads backend POS sale details from the recent receipt list', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1117,23 +1100,23 @@ describe('App', () => {
 
   it('prints and exports the loaded backend POS receipt', async () => {
     installSessionBridge();
-    const writeMock = vi.fn();
-    const printMock = vi.fn();
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue({
+    const writeMock = mock();
+    const printMock = mock();
+    const openSpy = spyOn(window, 'open').mockReturnValue({
       document: {
         write: writeMock,
-        close: vi.fn()
+        close: mock()
       },
-      focus: vi.fn(),
+      focus: mock(),
       print: printMock
     } as unknown as Window);
-    const createObjectUrl = vi.fn(() => 'blob:receipt');
-    const revokeObjectUrl = vi.fn();
+    const createObjectUrl = mock(() => 'blob:receipt');
+    const revokeObjectUrl = mock();
     Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
     Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
-    const linkClick = vi.fn();
+    const linkClick = mock();
     const createElement = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    const createElementSpy = spyOn(document, 'createElement').mockImplementation((tagName: string) => {
       const element = createElement(tagName);
       if (tagName.toLowerCase() === 'a') {
         Object.defineProperty(element, 'click', { value: linkClick, configurable: true });
@@ -1167,7 +1150,6 @@ describe('App', () => {
 
   it('voids a backend POS draft from the current cart', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1210,7 +1192,6 @@ describe('App', () => {
 
   it('records a POS stock write-off from quick operations', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1243,7 +1224,6 @@ describe('App', () => {
 
   it('opens a shift from Payments when no current shift exists', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     let shiftOpened = false;
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input));
@@ -1283,7 +1263,6 @@ describe('App', () => {
 
   it('shows successful empty Payments reports without backend-empty copy', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     const zero = { currencyCode: 'TJS', minorUnits: 0 };
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
@@ -1329,7 +1308,6 @@ describe('App', () => {
 
   it('does not replace an empty backend POS catalog with demo products', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
       if (pathname.endsWith('/pos/catalog')) {
@@ -1352,7 +1330,6 @@ describe('App', () => {
 
   it('does not select a demo client when backend player search is empty', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
       if (pathname.endsWith('/players') && init?.method !== 'POST') {
@@ -1401,18 +1378,17 @@ describe('App', () => {
 
   it('downloads Payments operator-facing exports without raw shift IDs', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
     const exportedBlobs: Blob[] = [];
-    const createObjectUrl = vi.fn((blob: Blob) => {
+    const createObjectUrl = mock((blob: Blob) => {
       exportedBlobs.push(blob);
       return 'blob:payments';
     });
-    const revokeObjectUrl = vi.fn();
+    const revokeObjectUrl = mock();
     Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
     Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
     const downloads: string[] = [];
     const createElement = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+    const createElementSpy = spyOn(document, 'createElement').mockImplementation((tagName: string) => {
       const element = createElement(tagName);
       if (tagName.toLowerCase() === 'a') {
         Object.defineProperty(element, 'click', {
@@ -1465,7 +1441,6 @@ describe('App', () => {
 
   it('closes the current shift from Payments through the backend', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1498,7 +1473,6 @@ describe('App', () => {
 
   it('records a cash movement from Payments through the backend', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1526,7 +1500,6 @@ describe('App', () => {
 
   it('confirms booking create and cancel only after reservation backend calls resolve', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1567,7 +1540,6 @@ describe('App', () => {
 
   it('creates a reservation from the selected backend player card', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1609,7 +1581,6 @@ describe('App', () => {
 
   it('purchases a backend package from the selected client card', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1637,7 +1608,6 @@ describe('App', () => {
 
   it('shows active backend packages on the selected client profile', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1653,7 +1623,6 @@ describe('App', () => {
 
   it('tops up the selected client wallet from the Clients money form', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1682,7 +1651,6 @@ describe('App', () => {
 
   it('pays debt for a selected client from the Clients money form', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1713,7 +1681,6 @@ describe('App', () => {
 
   it('creates a backend player from the Clients new card form', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1740,7 +1707,6 @@ describe('App', () => {
 
   it('creates a staff user from the Settings personnel form', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1772,7 +1738,6 @@ describe('App', () => {
 
   it('updates the selected staff user role from Settings personnel', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1798,7 +1763,6 @@ describe('App', () => {
 
   it('updates the selected staff profile from Settings personnel', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1827,7 +1791,6 @@ describe('App', () => {
 
   it('deactivates the selected staff user from Settings personnel', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1852,7 +1815,6 @@ describe('App', () => {
 
   it('resets the selected staff password from Settings personnel', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1893,7 +1855,6 @@ describe('App', () => {
 
   it('saves the Settings branch profile through the backend', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1919,7 +1880,6 @@ describe('App', () => {
 
   it('creates layout zones and seats from Settings layout form', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -1961,7 +1921,6 @@ describe('App', () => {
 
   it('updates selected layout zones and seats from Settings layout form', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2005,7 +1964,6 @@ describe('App', () => {
 
   it('deletes selected layout seats and empty zones from Settings layout form', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2046,7 +2004,6 @@ describe('App', () => {
 
   it('creates device enrollment codes and assigns devices to seats from Settings', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2118,7 +2075,6 @@ describe('App', () => {
 
   it('loads branch device inventory in Settings and opens a selected device card', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2160,7 +2116,6 @@ describe('App', () => {
 
   it('dispatches device commands from Settings device tools', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2187,7 +2142,6 @@ describe('App', () => {
 
   it('creates a POS category and product from Settings', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2233,7 +2187,6 @@ describe('App', () => {
 
   it('updates and deactivates a POS product from Settings', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2282,7 +2235,6 @@ describe('App', () => {
 
   it('records an inventory stock movement from Settings POS and stock', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2320,7 +2272,6 @@ describe('App', () => {
 
   it('creates a package definition from Settings tariffs', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2354,7 +2305,6 @@ describe('App', () => {
 
   it('updates and deactivates a package definition from Settings tariffs', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2402,7 +2352,6 @@ describe('App', () => {
 
   it('creates a tariff and rule version from Settings tariffs', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2448,7 +2397,6 @@ describe('App', () => {
 
   it('updates and deactivates a selected tariff from Settings tariffs', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2502,7 +2450,6 @@ describe('App', () => {
 
   it('registers update packages and creates update publications from Settings integrations', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
@@ -2563,7 +2510,6 @@ describe('App', () => {
 
   it('changes update package and rollout states from Settings integrations', async () => {
     installSessionBridge();
-    const fetchMock = vi.mocked(fetch);
 
     render(<App />);
 
