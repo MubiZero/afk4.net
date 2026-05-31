@@ -31,9 +31,9 @@ export function TenantsScreen({
   const [planFilter, setPlanFilter] = useState('all');
 
   const selectedName =
-    state.status === 'ready'
-      ? state.data.find(x => x.organizationId === selectedTenantId)?.name ?? ''
-      : '';
+    (state.status === 'ready'
+      ? state.data.find(x => x.organizationId === selectedTenantId)?.name
+      : undefined) ?? t('nav.platform.tenants');
 
   return (
     <>

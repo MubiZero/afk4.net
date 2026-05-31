@@ -21,8 +21,8 @@ function toField(value: number | null): string {
 function toLimit(value: string): number | null {
   const trimmed = value.trim();
   if (trimmed === '') return null;
-  const n = Number(trimmed);
-  return Number.isFinite(n) ? n : null;
+  const n = Number.parseInt(trimmed, 10);
+  return Number.isNaN(n) || n < 0 ? null : n;
 }
 
 export function TenantLimitsSection({ client, tenant, onUpdated }: Props) {
@@ -56,7 +56,7 @@ export function TenantLimitsSection({ client, tenant, onUpdated }: Props) {
   const field = (label: string, value: string, set: (v: string) => void) => (
     <label className="block text-sm">
       <span className="mb-1 block text-muted-foreground">{label}</span>
-      <Input type="number" inputMode="numeric" aria-label={label} value={value} onChange={e => set(e.target.value)} />
+      <Input type="number" inputMode="numeric" min="0" step="1" aria-label={label} value={value} onChange={e => set(e.target.value)} />
     </label>
   );
 
