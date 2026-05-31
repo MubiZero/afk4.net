@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { TenantsTable } from './TenantsTable';
 import type { TenantRow } from './tenantsModel';
@@ -10,7 +10,7 @@ const rows: TenantRow[] = [{
 }];
 
 it('renders rows and fires onSelect on row click', () => {
-  const onSelect = vi.fn();
+  const onSelect = mock();
   render(<I18nProvider><TenantsTable rows={rows} selectedId={null} emptyMessage="none" onSelect={onSelect} /></I18nProvider>);
   fireEvent.click(screen.getByText('Acme'));
   expect(onSelect).toHaveBeenCalledWith('o1');

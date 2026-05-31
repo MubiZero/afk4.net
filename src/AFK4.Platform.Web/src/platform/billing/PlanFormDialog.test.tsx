@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { render, screen } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { PlanFormDialog } from './PlanFormDialog';
@@ -7,7 +7,7 @@ import { emptyPlanForm } from './billingModel';
 function renderDialog(over: Partial<Parameters<typeof PlanFormDialog>[0]> = {}) {
   return render(
     <I18nProvider>
-      <PlanFormDialog open mode="create" form={emptyPlanForm()} pending={false} onChange={vi.fn()} onSubmit={vi.fn()} onOpenChange={vi.fn()} {...over} />
+      <PlanFormDialog open mode="create" form={emptyPlanForm()} pending={false} onChange={mock()} onSubmit={mock()} onOpenChange={mock()} {...over} />
     </I18nProvider>
   );
 }

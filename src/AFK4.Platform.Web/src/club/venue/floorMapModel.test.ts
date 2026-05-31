@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type { FloorMap } from '@/api/types';
 import { toEditorZones, buildBulkRequest, moveByIndex, type EditorZone } from './floorMapModel';
 

@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { waitFor, renderHook } from '@testing-library/react';
 import type { OperatorDashboardSummary } from '@/api/types';
 import { useBranchRollup } from './useBranchRollup';
@@ -14,8 +14,8 @@ function summary(id: string, online: number): OperatorDashboardSummary {
 
 function client() {
   return {
-    getBranchProfile: vi.fn(async (id: string) => ({ organizationId: 'org', branchId: id, name: id.toUpperCase(), city: 'Москва', createdAtUtc: '' })),
-    getDashboardSummary: vi.fn(async (id: string) => summary(id, id === 'a' ? 5 : 3))
+    getBranchProfile: mock(async (id: string) => ({ organizationId: 'org', branchId: id, name: id.toUpperCase(), city: 'Москва', createdAtUtc: '' })),
+    getDashboardSummary: mock(async (id: string) => summary(id, id === 'a' ? 5 : 3))
   };
 }
 
@@ -29,11 +29,11 @@ it('loads each branch and builds a rollup', async () => {
 
 it('marks a branch whose summary fails as kpis null and uses the unnamed fallback when its profile fails', async () => {
   const c = client();
-  c.getDashboardSummary = vi.fn(async (id: string) => {
+  c.getDashboardSummary = mock(async (id: string) => {
     if (id === 'b') throw new Error('boom');
     return summary(id, 5);
   });
-  c.getBranchProfile = vi.fn(async (id: string) => {
+  c.getBranchProfile = mock(async (id: string) => {
     if (id === 'b') throw new Error('boom');
     return { organizationId: 'org', branchId: id, name: id.toUpperCase(), city: 'Москва', createdAtUtc: '' };
   });

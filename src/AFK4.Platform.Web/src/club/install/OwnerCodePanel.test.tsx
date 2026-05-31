@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { OwnerCodeSummary, OwnerCodeIssued } from '@/api/types';
@@ -9,9 +9,9 @@ const summary: OwnerCodeSummary = { codeSuffix: '5678', expiresAtUtc: '2026-06-0
 
 function fakeClient() {
   return {
-    getOwnerCode: vi.fn<() => Promise<OwnerCodeSummary | null>>(async () => summary),
-    generateOwnerCode: vi.fn<() => Promise<OwnerCodeIssued>>(async () => ({ ownerCode: '99998888', codeSuffix: '8888', expiresAtUtc: '2026-07-01T00:00:00.000Z' })),
-    rotateOwnerCode: vi.fn<(reason: string) => Promise<OwnerCodeIssued>>(async () => ({ ownerCode: '77776666', codeSuffix: '6666', expiresAtUtc: '2026-07-01T00:00:00.000Z' }))
+    getOwnerCode: mock<() => Promise<OwnerCodeSummary | null>>(async () => summary),
+    generateOwnerCode: mock<() => Promise<OwnerCodeIssued>>(async () => ({ ownerCode: '99998888', codeSuffix: '8888', expiresAtUtc: '2026-07-01T00:00:00.000Z' })),
+    rotateOwnerCode: mock<(reason: string) => Promise<OwnerCodeIssued>>(async () => ({ ownerCode: '77776666', codeSuffix: '6666', expiresAtUtc: '2026-07-01T00:00:00.000Z' }))
   };
 }
 

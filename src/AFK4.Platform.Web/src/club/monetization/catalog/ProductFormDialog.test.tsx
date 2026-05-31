@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { CategoryOption, ProductRow } from './catalogModel';
@@ -12,8 +12,8 @@ const categories: CategoryOption[] = [{ categoryId: 'c1', name: 'Напитки'
 
 function client(overrides: Record<string, unknown> = {}) {
   return {
-    createProduct: vi.fn(async () => ({ productId: 'p1' })),
-    updateProduct: vi.fn(async () => ({ productId: 'p1' })),
+    createProduct: mock(async () => ({ productId: 'p1' })),
+    updateProduct: mock(async () => ({ productId: 'p1' })),
     ...overrides
   };
 }

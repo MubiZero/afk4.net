@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { TariffOption } from '@/api/types';
@@ -12,7 +12,7 @@ const option: TariffOption = {
 };
 
 function setup() {
-  const client = { getTariffOptions: vi.fn(async () => [option]), getCatalog: vi.fn(async () => []), getPackageOptions: vi.fn(async () => []) };
+  const client = { getTariffOptions: mock(async () => [option]), getCatalog: mock(async () => []), getPackageOptions: mock(async () => []) };
   render(
     <I18nProvider><ToastProvider>
       <MonetizationScreen client={client as never} branchId="b1" organizationId="org" canManageTariffs canManageCatalog canManagePackages />

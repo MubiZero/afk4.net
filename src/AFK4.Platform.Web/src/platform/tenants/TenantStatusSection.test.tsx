@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi, beforeAll } from 'vitest';
+import { it, expect, beforeAll, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { TenantStatusSection } from './TenantStatusSection';
@@ -23,8 +23,8 @@ function detail(over: Partial<TenantDetail>): TenantDetail {
 
 it('confirms a status change and calls updateStatus then onUpdated', async () => {
   const next = detail({ status: 'suspended' });
-  const client = { updateStatus: vi.fn().mockResolvedValue(next) } as any;
-  const onUpdated = vi.fn();
+  const client = { updateStatus: mock().mockResolvedValue(next) } as any;
+  const onUpdated = mock();
   render(
     <I18nProvider><ToastProvider>
       <TenantStatusSection client={client} tenant={detail({})} onUpdated={onUpdated} />

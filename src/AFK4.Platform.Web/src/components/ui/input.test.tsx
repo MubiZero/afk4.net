@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useState } from 'react';
 import { Input } from './input';

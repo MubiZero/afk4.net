@@ -1,11 +1,11 @@
 // src/club/settings/CreateOperatorDialog.test.tsx
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { CreateOperatorDialog } from './CreateOperatorDialog';
 
-function setup(client: { createStaff: ReturnType<typeof vi.fn> }, onDone = vi.fn(), onOpenChange = vi.fn()) {
+function setup(client: { createStaff: ReturnType<typeof mock> }, onDone = mock(), onOpenChange = mock()) {
   render(
     <I18nProvider><ToastProvider>
       <CreateOperatorDialog open branchId="b1" organizationId="org" client={client as never} onOpenChange={onOpenChange} onDone={onDone} />
@@ -15,7 +15,7 @@ function setup(client: { createStaff: ReturnType<typeof vi.fn> }, onDone = vi.fn
 }
 
 it('keeps submit disabled until all fields and a role are valid', () => {
-  setup({ createStaff: vi.fn() });
+  setup({ createStaff: mock() });
   const submit = screen.getByRole('button', { name: 'Создать' });
   expect(submit).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'newop' } });
@@ -26,7 +26,7 @@ it('keeps submit disabled until all fields and a role are valid', () => {
 });
 
 it('creates the operator with trimmed values and selected roles', async () => {
-  const client = { createStaff: vi.fn().mockResolvedValue({}) };
+  const client = { createStaff: mock().mockResolvedValue({}) };
   const { onDone, onOpenChange } = setup(client);
   fireEvent.change(screen.getByLabelText('Логин'), { target: { value: ' newop ' } });
   fireEvent.change(screen.getByLabelText('Отображаемое имя'), { target: { value: 'Новый' } });

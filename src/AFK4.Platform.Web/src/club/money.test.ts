@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { minorToMajor, majorToMinor } from './money';
 
 it('converts minor units to major units', () => {

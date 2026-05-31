@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, mock } from 'bun:test';
 import { render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '../../i18n/I18nProvider';
 import { BillingScreen } from './BillingScreen';
@@ -17,15 +17,15 @@ function sub(): TenantSubscription {
 
 function client(invoices: Invoice[]): ClubApiClient {
   return {
-    getSubscription: vi.fn().mockResolvedValue(sub()),
-    listInvoices: vi.fn().mockResolvedValue(invoices)
+    getSubscription: mock().mockResolvedValue(sub()),
+    listInvoices: mock().mockResolvedValue(invoices)
   } as unknown as ClubApiClient;
 }
 
 function errorClient(): ClubApiClient {
   return {
-    getSubscription: vi.fn().mockRejectedValue(new Error('network')),
-    listInvoices: vi.fn().mockRejectedValue(new Error('network'))
+    getSubscription: mock().mockRejectedValue(new Error('network')),
+    listInvoices: mock().mockRejectedValue(new Error('network'))
   } as unknown as ClubApiClient;
 }
 

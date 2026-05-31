@@ -1,6 +1,6 @@
 // src/club/venue/DeviceDrawer.test.tsx
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { DeviceDrawer } from './DeviceDrawer';
@@ -14,15 +14,15 @@ const seatOptions: SeatOption[] = [{ seatId: 's2', label: 'Зона B · Мес�
 
 function fakeClient() {
   return {
-    renameDevice: vi.fn().mockResolvedValue({}),
-    moveDeviceSeat: vi.fn().mockResolvedValue({}),
-    removeDevice: vi.fn().mockResolvedValue({}),
-    approveDevice: vi.fn().mockResolvedValue({}),
-    rejectDevice: vi.fn().mockResolvedValue({})
+    renameDevice: mock().mockResolvedValue({}),
+    moveDeviceSeat: mock().mockResolvedValue({}),
+    removeDevice: mock().mockResolvedValue({}),
+    approveDevice: mock().mockResolvedValue({}),
+    rejectDevice: mock().mockResolvedValue({})
   };
 }
 
-function renderDrawer(row: DeviceRow, client = fakeClient(), onDone = vi.fn()) {
+function renderDrawer(row: DeviceRow, client = fakeClient(), onDone = mock()) {
   render(
     <I18nProvider><ToastProvider>
       <DeviceDrawer device={row} seatOptions={seatOptions} client={client as never} onDone={onDone} />
@@ -72,7 +72,7 @@ it('rejects a pending device through the confirm dialog', async () => {
 it('shows error toast and does not call onDone when renameDevice fails', async () => {
   const errorClient = {
     ...fakeClient(),
-    renameDevice: vi.fn().mockRejectedValue(new Error('boom')),
+    renameDevice: mock().mockRejectedValue(new Error('boom')),
   };
   const { onDone } = renderDrawer(activeRow, errorClient as never);
   fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'ПК-bad' } });

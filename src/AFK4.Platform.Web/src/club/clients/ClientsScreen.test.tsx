@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { PlayerSearchResult, WalletSummary } from '@/api/types';
@@ -19,12 +19,12 @@ const summary: WalletSummary = {
 
 function fakeClient() {
   return {
-    searchPlayers: vi.fn(async () => [result]),
-    getWalletSummary: vi.fn(async () => summary),
-    createPlayer: vi.fn(async () => ({ playerAccountId: 'p2' })),
-    getPlayerPackages: vi.fn(async () => []),
-    getPackageOptions: vi.fn(async () => []),
-    purchasePackage: vi.fn(async () => ({}))
+    searchPlayers: mock(async () => [result]),
+    getWalletSummary: mock(async () => summary),
+    createPlayer: mock(async () => ({ playerAccountId: 'p2' })),
+    getPlayerPackages: mock(async () => []),
+    getPackageOptions: mock(async () => []),
+    purchasePackage: mock(async () => ({}))
   };
 }
 

@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PosProduct } from '@/api/types';
 import { useCatalog } from './useCatalog';
@@ -10,7 +10,7 @@ const product: PosProduct = {
 };
 
 it('loads the catalog into product rows', async () => {
-  const client = { getCatalog: vi.fn(async () => [product]) };
+  const client = { getCatalog: mock(async () => [product]) };
   const { result } = renderHook(() => useCatalog(client as never, 'b1'));
   await waitFor(() => expect(result.current.status).toBe('ready'));
   if (result.current.status !== 'ready') throw new Error('not ready');
@@ -19,7 +19,7 @@ it('loads the catalog into product rows', async () => {
 });
 
 it('reports an error when the load fails', async () => {
-  const client = { getCatalog: vi.fn(async () => { throw new Error('boom'); }) };
+  const client = { getCatalog: mock(async () => { throw new Error('boom'); }) };
   const { result } = renderHook(() => useCatalog(client as never, 'b1'));
   await waitFor(() => expect(result.current.status).toBe('error'));
 });

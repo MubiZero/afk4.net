@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type {
   ShiftReport, SalesReport, GameplayTimeReport, CashOperationReport, OperatorActionReport
 } from '@/api/types';

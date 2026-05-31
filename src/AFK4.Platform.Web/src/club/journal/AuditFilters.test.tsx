@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { AuditFilters } from './AuditFilters';
 import { presetRange, type DateRange } from '../reports/reportsModel';
@@ -7,7 +7,7 @@ import { presetRange, type DateRange } from '../reports/reportsModel';
 const range: DateRange = presetRange('today', new Date('2026-05-30T12:00:00.000Z'));
 
 it('applies the typed action filter', () => {
-  const onApply = vi.fn();
+  const onApply = mock();
   render(<I18nProvider>
     <AuditFilters range={range} onRangeChange={() => {}} onApply={onApply} onReset={() => {}} />
   </I18nProvider>);
@@ -17,7 +17,7 @@ it('applies the typed action filter', () => {
 });
 
 it('resets the draft', () => {
-  const onReset = vi.fn();
+  const onReset = mock();
   render(<I18nProvider>
     <AuditFilters range={range} onRangeChange={() => {}} onApply={() => {}} onReset={onReset} />
   </I18nProvider>);

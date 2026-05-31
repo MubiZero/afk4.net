@@ -1,14 +1,14 @@
-import { it, expect, vi, afterEach } from 'vitest';
+import { it, expect, afterEach, mock, spyOn } from 'bun:test';
 import { saveBlob } from './saveBlob';
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { mock.restore(); });
 
 it('creates an object URL, clicks an anchor with the filename, and revokes', () => {
-  const createObjectURL = vi.fn(() => 'blob:test');
-  const revokeObjectURL = vi.fn();
+  const createObjectURL = mock(() => 'blob:test');
+  const revokeObjectURL = mock();
   (URL as unknown as { createObjectURL: typeof createObjectURL }).createObjectURL = createObjectURL;
   (URL as unknown as { revokeObjectURL: typeof revokeObjectURL }).revokeObjectURL = revokeObjectURL;
-  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  const click = spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
   saveBlob(new Blob(['a,b,c']), 'report.csv');
 

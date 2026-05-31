@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import type { PlatformAdminSession } from '@/auth/tokenStore';
 import { ProfileScreen } from './ProfileScreen';
@@ -11,7 +11,7 @@ const session = {
 } as PlatformAdminSession;
 
 it('shows identity, roles, permissions, and signs out', () => {
-  const onSignOut = vi.fn();
+  const onSignOut = mock();
   render(
     <I18nProvider>
       <ProfileScreen session={session} onSignOut={onSignOut} />

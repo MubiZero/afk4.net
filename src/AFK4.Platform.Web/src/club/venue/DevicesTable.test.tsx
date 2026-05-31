@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
@@ -10,7 +10,7 @@ const row: DeviceRow = {
   seatId: 's1', seatLabel: 'Зона A · Место 1', status: 'online', lastHeartbeatAtUtc: null, failedCommandCount: 0
 };
 
-function renderTable(rows: DeviceRow[], onSelect = vi.fn()) {
+function renderTable(rows: DeviceRow[], onSelect = mock()) {
   render(<I18nProvider><DevicesTable rows={rows} emptyMessage="Нет устройств" onSelect={onSelect} /></I18nProvider>);
   return onSelect;
 }

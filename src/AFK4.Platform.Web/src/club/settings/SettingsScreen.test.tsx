@@ -1,6 +1,6 @@
 // src/club/settings/SettingsScreen.test.tsx
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { SettingsScreen } from './SettingsScreen';
@@ -14,11 +14,11 @@ const staff: StaffUser[] = [
 
 function fakeClient() {
   return {
-    getBranchProfile: vi.fn().mockResolvedValue(profile),
-    getBranchSettings: vi.fn().mockResolvedValue(settings),
-    listStaff: vi.fn().mockResolvedValue(staff),
-    updateBranchProfile: vi.fn(), updateBranchSettings: vi.fn(),
-    updateStaffProfile: vi.fn(), updateStaffRoles: vi.fn(), updateStaffState: vi.fn(), resetStaffPassword: vi.fn(), createStaff: vi.fn()
+    getBranchProfile: mock().mockResolvedValue(profile),
+    getBranchSettings: mock().mockResolvedValue(settings),
+    listStaff: mock().mockResolvedValue(staff),
+    updateBranchProfile: mock(), updateBranchSettings: mock(),
+    updateStaffProfile: mock(), updateStaffRoles: mock(), updateStaffState: mock(), resetStaffPassword: mock(), createStaff: mock()
   };
 }
 
@@ -48,7 +48,7 @@ it('switches to the operators tab and opens the operator drawer on row click', a
 });
 
 it('shows the error state with retry when loading fails', async () => {
-  const client = { ...fakeClient(), getBranchProfile: vi.fn().mockRejectedValue(new Error('boom')) };
+  const client = { ...fakeClient(), getBranchProfile: mock().mockRejectedValue(new Error('boom')) };
   setup(client as never);
   expect(await screen.findByText('Не удалось загрузить данные.')).toBeInTheDocument();
 });

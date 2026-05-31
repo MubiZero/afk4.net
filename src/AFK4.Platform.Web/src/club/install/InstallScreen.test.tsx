@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { OwnerCodeSummary } from '@/api/types';
@@ -7,9 +7,9 @@ import { InstallScreen } from './InstallScreen';
 
 function fakeClient() {
   return {
-    getOwnerCode: vi.fn<() => Promise<OwnerCodeSummary | null>>(async () => null),
-    generateOwnerCode: vi.fn(),
-    rotateOwnerCode: vi.fn()
+    getOwnerCode: mock<() => Promise<OwnerCodeSummary | null>>(async () => null),
+    generateOwnerCode: mock(),
+    rotateOwnerCode: mock()
   };
 }
 

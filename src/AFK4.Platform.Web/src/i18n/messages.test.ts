@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { messages } from './messages';
 
 it('ru and en have identical key sets', () => {

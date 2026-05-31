@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { PosProduct } from '@/api/types';
@@ -13,10 +13,10 @@ const product: PosProduct = {
 
 function fakeClient() {
   return {
-    getCatalog: vi.fn(async () => [product]),
-    createProductCategory: vi.fn(async () => ({ categoryId: 'c9', organizationId: 'org', branchId: 'b1', name: 'Снеки', isActive: true, createdAtUtc: '' })),
-    createProduct: vi.fn(async () => ({ productId: 'p2' })),
-    updateProduct: vi.fn(async () => ({ productId: 'p1' }))
+    getCatalog: mock(async () => [product]),
+    createProductCategory: mock(async () => ({ categoryId: 'c9', organizationId: 'org', branchId: 'b1', name: 'Снеки', isActive: true, createdAtUtc: '' })),
+    createProduct: mock(async () => ({ productId: 'p2' })),
+    updateProduct: mock(async () => ({ productId: 'p1' }))
   };
 }
 

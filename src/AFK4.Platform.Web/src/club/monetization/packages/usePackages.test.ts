@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PackageOption } from '@/api/types';
 import { usePackages } from './usePackages';
@@ -9,7 +9,7 @@ const option: PackageOption = {
 };
 
 it('loads package options into rows', async () => {
-  const client = { getPackageOptions: vi.fn(async () => [option]) };
+  const client = { getPackageOptions: mock(async () => [option]) };
   const { result } = renderHook(() => usePackages(client as never, 'b1'));
   await waitFor(() => expect(result.current.status).toBe('ready'));
   if (result.current.status !== 'ready') throw new Error('not ready');
@@ -19,7 +19,7 @@ it('loads package options into rows', async () => {
 });
 
 it('reports an error when the load fails', async () => {
-  const client = { getPackageOptions: vi.fn(async () => { throw new Error('boom'); }) };
+  const client = { getPackageOptions: mock(async () => { throw new Error('boom'); }) };
   const { result } = renderHook(() => usePackages(client as never, 'b1'));
   await waitFor(() => expect(result.current.status).toBe('error'));
 });

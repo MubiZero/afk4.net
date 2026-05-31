@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { PackageOption } from '@/api/types';
@@ -12,9 +12,9 @@ const option: PackageOption = {
 
 function fakeClient() {
   return {
-    getPackageOptions: vi.fn(async () => [option]),
-    createPackageDefinition: vi.fn(async () => ({ packageDefinitionId: 'pk2' })),
-    updatePackageDefinition: vi.fn(async () => ({ packageDefinitionId: 'pk1' }))
+    getPackageOptions: mock(async () => [option]),
+    createPackageDefinition: mock(async () => ({ packageDefinitionId: 'pk2' })),
+    updatePackageDefinition: mock(async () => ({ packageDefinitionId: 'pk1' }))
   };
 }
 

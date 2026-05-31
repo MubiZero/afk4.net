@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type { AuditSearchResult } from '@/api/types';
 import { toAuditRows, outcomeBadgeVariant } from './auditModel';
 

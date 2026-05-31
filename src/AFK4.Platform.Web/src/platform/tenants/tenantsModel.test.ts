@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { buildTenantRows, INVITE_STATUS_VARIANT, INVITE_STATUS_LABEL, type TenantsFilter } from './tenantsModel';
 import type { TenantSummary } from '@/api/types';
 

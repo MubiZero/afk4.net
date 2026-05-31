@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
@@ -15,9 +15,9 @@ function invoice(p: Partial<InvoiceListItem>): InvoiceListItem {
 
 function fakeClient() {
   return {
-    listInvoices: vi.fn().mockResolvedValue([invoice({})]),
-    markInvoicePaid: vi.fn().mockResolvedValue(invoice({ status: 'paid' })),
-    voidInvoice: vi.fn().mockResolvedValue(invoice({ status: 'void' }))
+    listInvoices: mock().mockResolvedValue([invoice({})]),
+    markInvoicePaid: mock().mockResolvedValue(invoice({ status: 'paid' })),
+    voidInvoice: mock().mockResolvedValue(invoice({ status: 'void' }))
   } as never;
 }
 

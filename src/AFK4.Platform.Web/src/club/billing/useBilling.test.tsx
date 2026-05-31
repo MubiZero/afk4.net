@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, mock } from 'bun:test';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useBilling } from './useBilling';
 import type { ClubApiClient } from '../../api/clubApi';
@@ -16,8 +16,8 @@ function makeSubscription(): TenantSubscription {
 
 function makeClient(over: Partial<ClubApiClient>): ClubApiClient {
   return {
-    getSubscription: vi.fn().mockResolvedValue(makeSubscription()),
-    listInvoices: vi.fn().mockResolvedValue([] as Invoice[]),
+    getSubscription: mock().mockResolvedValue(makeSubscription()),
+    listInvoices: mock().mockResolvedValue([] as Invoice[]),
     ...over
   } as unknown as ClubApiClient;
 }
@@ -35,7 +35,7 @@ describe('useBilling', () => {
   });
 
   it('reaches error and can retry', async () => {
-    const getSubscription = vi.fn()
+    const getSubscription = mock()
       .mockRejectedValueOnce(new Error('boom'))
       .mockResolvedValue(makeSubscription());
     const client = makeClient({ getSubscription });

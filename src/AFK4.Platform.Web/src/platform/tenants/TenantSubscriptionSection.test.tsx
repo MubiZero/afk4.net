@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
@@ -14,9 +14,9 @@ const sub: TenantSubscription = {
 
 function fakeClient(over: Record<string, unknown> = {}) {
   return {
-    getSubscription: vi.fn().mockResolvedValue(sub),
-    updateSubscription: vi.fn().mockResolvedValue({ ...sub, planCode: 'growth' }),
-    listPlans: vi.fn().mockResolvedValue([
+    getSubscription: mock().mockResolvedValue(sub),
+    updateSubscription: mock().mockResolvedValue({ ...sub, planCode: 'growth' }),
+    listPlans: mock().mockResolvedValue([
       { planCode: 'starter', name: 'Starter', priceMinorUnits: 290000, currencyCode: 'RUB', billingInterval: 'monthly', maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null, isActive: true, sortOrder: 0 },
       { planCode: 'growth', name: 'Growth', priceMinorUnits: 790000, currencyCode: 'RUB', billingInterval: 'monthly', maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null, isActive: true, sortOrder: 1 }
     ]),

@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach } from 'bun:test';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ThemeProvider, useTheme } from './ThemeProvider';
 import { THEME_STORAGE_KEY } from './theme';

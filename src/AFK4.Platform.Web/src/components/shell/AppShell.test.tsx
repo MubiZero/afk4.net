@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -6,14 +6,14 @@ import { visibleNav } from '@/club/nav';
 import { BranchSwitcher } from './BranchSwitcher';
 import { AppShell } from './AppShell';
 
-function renderShell(role: 'owner' | 'manager', onNavigate = vi.fn()) {
+function renderShell(role: 'owner' | 'manager', onNavigate = mock()) {
   return render(
     <ThemeProvider><I18nProvider>
       <AppShell
         navGroups={visibleNav(role)}
         sidebarHeader={
           <BranchSwitcher orgName="Победа" branches={[{ branchId: 'b1', name: 'Центральный' }]}
-            activeBranchId="b1" onSelect={vi.fn()} />
+            activeBranchId="b1" onSelect={mock()} />
         }
         activePath="/club"
         subtitle="Центральный"
@@ -22,7 +22,7 @@ function renderShell(role: 'owner' | 'manager', onNavigate = vi.fn()) {
         roleLabel="Владелец"
         counts={{ venue: 2 }}
         onNavigate={onNavigate}
-        onSignOut={vi.fn()}
+        onSignOut={mock()}
       >
         <div>screen-body</div>
       </AppShell>
@@ -47,7 +47,7 @@ describe('AppShell', () => {
   });
 
   it('fires navigation on item click', () => {
-    const onNavigate = vi.fn();
+    const onNavigate = mock();
     renderShell('owner', onNavigate);
     fireEvent.click(screen.getByRole('button', { name: 'Обзор' }));
     expect(onNavigate).toHaveBeenCalledWith('/club');

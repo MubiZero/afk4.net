@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { OverviewScreen } from './OverviewScreen';
@@ -9,7 +9,7 @@ function wrap(state: OverviewState) {
 }
 
 const ready: OverviewState = {
-  status: 'ready', retry: vi.fn(),
+  status: 'ready', retry: mock(),
   data: {
     kpis: { devicesOnline: { online: 28, total: 30 }, activeSessions: 19, utilizationPercent: 63, revenueToday: { amount: 4250, currencyCode: 'TJS' }, attention: 3 },
     revenueBreakdown: [{ key: 'gameplay', amount: 3000 }, { key: 'pos', amount: 1250 }],
@@ -26,12 +26,12 @@ describe('OverviewScreen', () => {
   });
 
   it('shows a loading skeleton', () => {
-    wrap({ status: 'loading', retry: vi.fn() });
+    wrap({ status: 'loading', retry: mock() });
     expect(screen.getByTestId('overview-loading')).toBeInTheDocument();
   });
 
   it('shows an error with a working retry', () => {
-    const retry = vi.fn();
+    const retry = mock();
     wrap({ status: 'error', message: 'x', retry });
     fireEvent.click(screen.getByText('Повторить'));
     expect(retry).toHaveBeenCalled();
@@ -46,7 +46,7 @@ describe('OverviewScreen', () => {
     // intentionally reversed order to prove by-key (not positional) access
     const reversed: OverviewState = {
       status: 'ready',
-      retry: vi.fn(),
+      retry: mock(),
       data: {
         kpis: { devicesOnline: { online: 1, total: 2 }, activeSessions: 0, utilizationPercent: 0, revenueToday: { amount: 100, currencyCode: 'TJS' }, attention: 0 },
         revenueBreakdown: [{ key: 'pos', amount: 30 }, { key: 'gameplay', amount: 70 }],

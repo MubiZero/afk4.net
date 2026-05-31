@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { groupPermissions, resolveBranchNames } from './profileModel';
 
 it('groups permissions by their prefix, sorted', () => {

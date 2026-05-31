@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { I18nProvider, useI18n } from './I18nProvider';
 

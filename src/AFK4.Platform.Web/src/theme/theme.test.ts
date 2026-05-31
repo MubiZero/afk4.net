@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { THEME_STORAGE_KEY, resolveInitialTheme, applyThemeClass } from './theme';
 
 describe('theme core', () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { readStaffSession, type StaffSession } from '../auth/staffTokenStore';
 import { StaffAuthApiClient, StaffSignInChooseClubError } from './staffAuthApi';
 import { PlatformApiError } from './platformApi';
@@ -32,8 +32,8 @@ describe('StaffAuthApiClient', () => {
   });
 
   it('accepts an invite and stores the staff session', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse(200, buildResponse()));
-    const onSessionChanged = vi.fn();
+    const fetchImpl = mock(async () => jsonResponse(200, buildResponse()));
+    const onSessionChanged = mock();
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost:5000/',
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -58,7 +58,7 @@ describe('StaffAuthApiClient', () => {
   });
 
   it('signs in by login through the sign-in-by-login endpoint', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse(200, buildResponse()));
+    const fetchImpl = mock(async () => jsonResponse(200, buildResponse()));
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -81,7 +81,7 @@ describe('StaffAuthApiClient', () => {
       { organizationId: 'org-a', name: 'Club A' },
       { organizationId: 'org-b', name: 'Club B' }
     ];
-    const fetchImpl = vi.fn(async () => jsonResponse(409, { clubs }));
+    const fetchImpl = mock(async () => jsonResponse(409, { clubs }));
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -94,7 +94,7 @@ describe('StaffAuthApiClient', () => {
   });
 
   it('signs in to a chosen club through the org-scoped endpoint', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse(200, buildResponse()));
+    const fetchImpl = mock(async () => jsonResponse(200, buildResponse()));
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -125,10 +125,10 @@ describe('StaffAuthApiClient', () => {
       refreshToken: 'staff-refresh',
       refreshTokenExpiresAtUtc: '2030-02-01T00:00:00Z'
     };
-    const onSessionChanged = vi.fn();
+    const onSessionChanged = mock();
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
-      fetchImpl: vi.fn() as unknown as typeof fetch,
+      fetchImpl: mock() as unknown as typeof fetch,
       session,
       onSessionChanged
     });
@@ -141,7 +141,7 @@ describe('StaffAuthApiClient', () => {
   });
 
   it('throws a parsed PlatformApiError when login sign-in fails', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse(401, { error: 'Bad credentials' }));
+    const fetchImpl = mock(async () => jsonResponse(401, { error: 'Bad credentials' }));
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { TariffOption } from '@/api/types';
@@ -13,11 +13,11 @@ const option: TariffOption = {
 
 function fakeClient() {
   return {
-    getTariffOptions: vi.fn(async () => [option]),
-    createTariff: vi.fn(async () => ({ tariffId: 't1' })),
-    createTariffVersion: vi.fn(async () => ({ tariffVersionId: 'v1' })),
-    updateTariff: vi.fn(async () => ({})),
-    updateTariffVersion: vi.fn(async () => ({}))
+    getTariffOptions: mock(async () => [option]),
+    createTariff: mock(async () => ({ tariffId: 't1' })),
+    createTariffVersion: mock(async () => ({ tariffVersionId: 'v1' })),
+    updateTariff: mock(async () => ({})),
+    updateTariffVersion: mock(async () => ({}))
   };
 }
 

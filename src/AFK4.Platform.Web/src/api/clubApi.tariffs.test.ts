@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { ClubApiClient } from './clubApi';
 
 function jsonResponse(body: unknown): Response {
@@ -10,13 +10,13 @@ function makeClient(fetchImpl: typeof fetch): ClubApiClient {
 }
 
 it('getTariffOptions GETs the branch options route', async () => {
-  const fetchImpl = vi.fn(async () => jsonResponse([])) as unknown as typeof fetch;
+  const fetchImpl = mock(async () => jsonResponse([])) as unknown as typeof fetch;
   await makeClient(fetchImpl).getTariffOptions('b1');
   expect(fetchImpl).toHaveBeenCalledWith('https://api.test/api/branches/b1/tariffs/options', expect.objectContaining({ method: 'GET' }));
 });
 
 it('createTariff POSTs the body to the tariffs route', async () => {
-  const fetchImpl = vi.fn(async () => jsonResponse({ tariffId: 't1' })) as unknown as typeof fetch;
+  const fetchImpl = mock(async () => jsonResponse({ tariffId: 't1' })) as unknown as typeof fetch;
   await makeClient(fetchImpl).createTariff('b1', { organizationId: 'org', name: 'Day', idempotencyKey: 'k1' });
   const call = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
   expect(call[0]).toBe('https://api.test/api/branches/b1/tariffs');
@@ -25,7 +25,7 @@ it('createTariff POSTs the body to the tariffs route', async () => {
 });
 
 it('createTariffVersion POSTs to the versions route', async () => {
-  const fetchImpl = vi.fn(async () => jsonResponse({ tariffVersionId: 'v1' })) as unknown as typeof fetch;
+  const fetchImpl = mock(async () => jsonResponse({ tariffVersionId: 'v1' })) as unknown as typeof fetch;
   await makeClient(fetchImpl).createTariffVersion('b1', 't1', {
     organizationId: 'org', tariffId: 't1', currencyCode: 'RUB', pricePerMinuteMinorUnits: 250,
     minimumBillableMinutes: 1, roundingIncrementMinutes: 1, effectiveFromUtc: '2026-01-01T00:00:00.000Z', idempotencyKey: 'k2'
@@ -36,7 +36,7 @@ it('createTariffVersion POSTs to the versions route', async () => {
 });
 
 it('updateTariffVersion PATCHes the version route', async () => {
-  const fetchImpl = vi.fn(async () => jsonResponse({ tariffVersionId: 'v1' })) as unknown as typeof fetch;
+  const fetchImpl = mock(async () => jsonResponse({ tariffVersionId: 'v1' })) as unknown as typeof fetch;
   await makeClient(fetchImpl).updateTariffVersion('b1', 't1', 'v1', {
     organizationId: 'org', currencyCode: 'RUB', pricePerMinuteMinorUnits: 300,
     minimumBillableMinutes: 1, roundingIncrementMinutes: 1, effectiveFromUtc: '2026-01-01T00:00:00.000Z', isActive: true

@@ -1,6 +1,6 @@
 // src/club/settings/OperatorDrawer.test.tsx
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { OperatorDrawer } from './OperatorDrawer';
@@ -12,14 +12,14 @@ const active: OperatorRow = {
 
 function fakeClient() {
   return {
-    updateStaffProfile: vi.fn().mockResolvedValue({}),
-    updateStaffRoles: vi.fn().mockResolvedValue({}),
-    updateStaffState: vi.fn().mockResolvedValue({}),
-    resetStaffPassword: vi.fn().mockResolvedValue({})
+    updateStaffProfile: mock().mockResolvedValue({}),
+    updateStaffRoles: mock().mockResolvedValue({}),
+    updateStaffState: mock().mockResolvedValue({}),
+    resetStaffPassword: mock().mockResolvedValue({})
   };
 }
 
-function setup(row: OperatorRow, currentStaffUserId = 'me', client = fakeClient(), onDone = vi.fn()) {
+function setup(row: OperatorRow, currentStaffUserId = 'me', client = fakeClient(), onDone = mock()) {
   render(
     <I18nProvider><ToastProvider>
       <OperatorDrawer operator={row} branchId="b1" currentStaffUserId={currentStaffUserId} client={client as never} onDone={onDone} />
@@ -75,7 +75,7 @@ it('rejects a too-short password without calling the API', async () => {
 });
 
 it('shows an error toast and does not call onDone when a save fails', async () => {
-  const client = { ...fakeClient(), updateStaffProfile: vi.fn().mockRejectedValue(new Error('boom')) };
+  const client = { ...fakeClient(), updateStaffProfile: mock().mockRejectedValue(new Error('boom')) };
   const { onDone } = setup(active, 'me', client as never);
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить профиль' }));
   await waitFor(() => expect(screen.getByText('Не удалось выполнить действие')).toBeInTheDocument());

@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type { PosProduct } from '@/api/types';
 import {
   toProductRows, deriveCategories, buildCreateCategoryRequest, buildCreateProductRequest,

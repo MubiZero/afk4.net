@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
@@ -6,8 +6,8 @@ import { TenantInvoicesSection } from './TenantInvoicesSection';
 
 function fakeClient() {
   return {
-    listTenantInvoices: vi.fn().mockResolvedValue([]),
-    generateInvoice: vi.fn().mockResolvedValue({})
+    listTenantInvoices: mock().mockResolvedValue([]),
+    generateInvoice: mock().mockResolvedValue({})
   } as never;
 }
 

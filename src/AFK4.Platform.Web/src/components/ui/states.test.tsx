@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LoadingCards, ErrorState, EmptyState } from './states';
@@ -9,7 +9,7 @@ it('renders the requested number of loading skeletons', () => {
 });
 
 it('renders an error message and calls retry', () => {
-  const retry = vi.fn();
+  const retry = mock();
   render(<ErrorState message="Не удалось загрузить" retryLabel="Повторить" onRetry={retry} />);
   fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
   expect(retry).toHaveBeenCalledOnce();

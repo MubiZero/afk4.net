@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import type { PlatformAdminSession } from '../auth/tokenStore';
 
@@ -36,7 +36,7 @@ describe('PlatformApiClient', () => {
   });
 
   it('signs in and stores the returned session', async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = mock(async () =>
       jsonResponse(200, {
         platformAdminId: 'a',
         userName: 'u',
@@ -70,7 +70,7 @@ describe('PlatformApiClient', () => {
   });
 
   it('throws PlatformApiError with parsed body on failure', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse(400, { error: 'Slug too short' }));
+    const fetchImpl = mock(async () => jsonResponse(400, { error: 'Slug too short' }));
     const client = new PlatformApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -100,8 +100,8 @@ describe('PlatformApiClient', () => {
       }),
       jsonResponse(200, [])
     ];
-    const fetchImpl = vi.fn(async () => responses.shift() as Response);
-    const onSessionChanged = vi.fn();
+    const fetchImpl = mock(async () => responses.shift() as Response);
+    const onSessionChanged = mock();
     const client = new PlatformApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -120,8 +120,8 @@ describe('PlatformApiClient', () => {
   });
 
   it('signs out and clears the session when the refresh attempt fails', async () => {
-    const fetchImpl = vi.fn(async () => emptyResponse(401));
-    const onSessionChanged = vi.fn();
+    const fetchImpl = mock(async () => emptyResponse(401));
+    const onSessionChanged = mock();
     const client = new PlatformApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -151,7 +151,7 @@ describe('PlatformApiClient', () => {
         createdAtUtc: '2026-05-23T00:00:00Z'
       }
     ];
-    const fetchImpl = vi.fn(async () => jsonResponse(200, listBody));
+    const fetchImpl = mock(async () => jsonResponse(200, listBody));
     const client = new PlatformApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -169,7 +169,7 @@ describe('PlatformApiClient', () => {
   });
 
   it('attaches Bearer token on calls that have a session', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse(200, []));
+    const fetchImpl = mock(async () => jsonResponse(200, []));
     const client = new PlatformApiClient({
       baseUrl: 'http://localhost',
       fetchImpl: fetchImpl as unknown as typeof fetch,

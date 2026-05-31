@@ -1,5 +1,5 @@
 // src/App.settings.test.tsx
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { resolvePlatformRoute, pathForRoute } from './App';
 
 it('resolves /club/settings to the clubSettings route', () => {

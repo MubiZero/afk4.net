@@ -1,6 +1,6 @@
 // src/club/venue/VenueScreen.test.tsx
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { VenueScreen } from './VenueScreen';
@@ -17,10 +17,10 @@ function device(over: Partial<DeviceInventoryItem>): DeviceInventoryItem {
 }
 function client() {
   return {
-    listDevices: vi.fn().mockResolvedValue([device({ deviceId: 'd1', displayName: 'ПК-1' })]),
-    listPendingDevices: vi.fn().mockResolvedValue([]),
-    getFloorMap: vi.fn().mockResolvedValue({ etag: null, floorMap }),
-    updateFloorMap: vi.fn(async () => ({ eTag: 'e2', zones: [], seats: [] }))
+    listDevices: mock().mockResolvedValue([device({ deviceId: 'd1', displayName: 'ПК-1' })]),
+    listPendingDevices: mock().mockResolvedValue([]),
+    getFloorMap: mock().mockResolvedValue({ etag: null, floorMap }),
+    updateFloorMap: mock(async () => ({ eTag: 'e2', zones: [], seats: [] }))
   } as never;
 }
 

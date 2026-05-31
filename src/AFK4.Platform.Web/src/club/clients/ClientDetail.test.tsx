@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import type { PlayerRow } from './clientsModel';
 import { ClientDetail } from './ClientDetail';
@@ -11,15 +11,15 @@ const player: PlayerRow = {
 
 function fakeClient() {
   return {
-    getWalletSummary: vi.fn(async () => ({
+    getWalletSummary: mock(async () => ({
       playerAccountId: 'p1',
       walletBalance: { currencyCode: 'TJS', minorUnits: 50000 },
       debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
       recentEntries: []
     })),
-    getPlayerPackages: vi.fn(async () => []),
-    getPackageOptions: vi.fn(async () => []),
-    purchasePackage: vi.fn(async () => ({ playerPackageId: 'pp9' }))
+    getPlayerPackages: mock(async () => []),
+    getPackageOptions: mock(async () => []),
+    purchasePackage: mock(async () => ({ playerPackageId: 'pp9' }))
   };
 }
 

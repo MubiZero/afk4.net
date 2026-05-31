@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { PackageRow } from './packagesModel';
@@ -10,8 +10,8 @@ type DialogProps = ComponentProps<typeof PackageFormDialog>;
 
 function client(overrides: Record<string, unknown> = {}) {
   return {
-    createPackageDefinition: vi.fn(async () => ({ packageDefinitionId: 'pk1' })),
-    updatePackageDefinition: vi.fn(async () => ({ packageDefinitionId: 'pk1' })),
+    createPackageDefinition: mock(async () => ({ packageDefinitionId: 'pk1' })),
+    updatePackageDefinition: mock(async () => ({ packageDefinitionId: 'pk1' })),
     ...overrides
   };
 }

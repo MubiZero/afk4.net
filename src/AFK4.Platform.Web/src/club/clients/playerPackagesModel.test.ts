@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type { PackageOption, PlayerPackage } from '@/api/types';
 import { toPlayerPackageRows, toPackageChoices, buildPurchasePackageRequest } from './playerPackagesModel';
 

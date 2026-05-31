@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useOverview } from './useOverview';
 
@@ -10,9 +10,9 @@ const okSummary = {
 
 function fakeClient(over: Partial<Record<'getDashboardSummary' | 'listDevices' | 'listPendingDevices', unknown>> = {}) {
   return {
-    getDashboardSummary: vi.fn().mockResolvedValue(okSummary),
-    listDevices: vi.fn().mockResolvedValue([]),
-    listPendingDevices: vi.fn().mockResolvedValue([]),
+    getDashboardSummary: mock().mockResolvedValue(okSummary),
+    listDevices: mock().mockResolvedValue([]),
+    listPendingDevices: mock().mockResolvedValue([]),
     ...over
   } as never;
 }
@@ -28,10 +28,10 @@ describe('useOverview', () => {
   });
 
   it('surfaces an error state and supports retry', async () => {
-    const failing = fakeClient({ getDashboardSummary: vi.fn().mockRejectedValue(new Error('boom')) });
+    const failing = fakeClient({ getDashboardSummary: mock().mockRejectedValue(new Error('boom')) });
     const { result } = renderHook(() => useOverview(failing, 'b1'));
     await waitFor(() => expect(result.current.status).toBe('error'));
-    (failing as { getDashboardSummary: ReturnType<typeof vi.fn> }).getDashboardSummary.mockResolvedValue(okSummary);
+    (failing as { getDashboardSummary: ReturnType<typeof mock> }).getDashboardSummary.mockResolvedValue(okSummary);
     result.current.retry();
     await waitFor(() => expect(result.current.status).toBe('ready'));
   });

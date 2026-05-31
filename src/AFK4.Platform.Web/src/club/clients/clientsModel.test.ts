@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type { LedgerEntry, PlayerSearchResult, WalletSummary } from '@/api/types';
 import { toPlayerRows, toBalanceView, toLedgerRows, buildCreatePlayerRequest } from './clientsModel';
 

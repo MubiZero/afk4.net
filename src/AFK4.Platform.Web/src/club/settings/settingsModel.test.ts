@@ -1,5 +1,5 @@
 // src/club/settings/settingsModel.test.ts
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { buildSettings } from './settingsModel';
 import type { BranchProfile, BranchSettings, StaffUser } from '@/api/types';
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { buildDevices } from './devicesModel';
 import type { DeviceInventoryItem, FloorMap } from '@/api/types';
 

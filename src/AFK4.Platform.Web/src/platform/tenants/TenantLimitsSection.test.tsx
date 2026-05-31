@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { TenantLimitsSection } from './TenantLimitsSection';
@@ -15,8 +15,8 @@ function detail(over: Partial<TenantDetail>): TenantDetail {
 }
 
 it('submits limits with blanks coerced to null', async () => {
-  const client = { updateLimits: vi.fn().mockResolvedValue(detail({})) } as any;
-  const onUpdated = vi.fn();
+  const client = { updateLimits: mock().mockResolvedValue(detail({})) } as any;
+  const onUpdated = mock();
   render(
     <I18nProvider><ToastProvider>
       <TenantLimitsSection client={client} tenant={detail({})} onUpdated={onUpdated} />

@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type { OperatorDashboardSummary } from '@/api/types';
 import { buildBranchRollup, type BranchRollupEntry } from './branchRollupModel';
 

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { TenantHealthSection } from './TenantHealthSection';
 import type { TenantHealth } from '@/api/types';
@@ -12,14 +12,14 @@ const health: TenantHealth = {
 };
 
 it('renders health metrics and the recent-errors row', async () => {
-  const client = { getHealth: vi.fn().mockResolvedValue(health) };
+  const client = { getHealth: mock().mockResolvedValue(health) };
   render(<I18nProvider><TenantHealthSection client={client} organizationId="o1" /></I18nProvider>);
   expect(await screen.findByText('active')).toBeInTheDocument();
   expect(screen.getByText('bad creds')).toBeInTheDocument();
 });
 
 it('shows an error state with a retry button', async () => {
-  const client = { getHealth: vi.fn().mockRejectedValue(new Error('boom')) };
+  const client = { getHealth: mock().mockRejectedValue(new Error('boom')) };
   render(<I18nProvider><TenantHealthSection client={client} organizationId="o1" /></I18nProvider>);
   expect(await screen.findByText('Повторить')).toBeInTheDocument();
 });

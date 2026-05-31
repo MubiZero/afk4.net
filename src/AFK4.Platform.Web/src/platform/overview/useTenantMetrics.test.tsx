@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useTenantMetrics } from './useTenantMetrics';
 
@@ -9,7 +9,7 @@ const okTenants = [
 
 function fakeClient(over: Partial<Record<'listTenants', unknown>> = {}) {
   return {
-    listTenants: vi.fn().mockResolvedValue(okTenants),
+    listTenants: mock().mockResolvedValue(okTenants),
     ...over
   } as never;
 }
@@ -26,10 +26,10 @@ describe('useTenantMetrics', () => {
   });
 
   it('surfaces an error state and supports retry', async () => {
-    const failing = fakeClient({ listTenants: vi.fn().mockRejectedValue(new Error('boom')) });
+    const failing = fakeClient({ listTenants: mock().mockRejectedValue(new Error('boom')) });
     const { result } = renderHook(() => useTenantMetrics(failing));
     await waitFor(() => expect(result.current.status).toBe('error'));
-    (failing as { listTenants: ReturnType<typeof vi.fn> }).listTenants.mockResolvedValue(okTenants);
+    (failing as { listTenants: ReturnType<typeof mock> }).listTenants.mockResolvedValue(okTenants);
     result.current.retry();
     await waitFor(() => expect(result.current.status).toBe('ready'));
   });

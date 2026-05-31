@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { TariffOption } from '@/api/types';
 import { useTariffs } from './useTariffs';
@@ -10,7 +10,7 @@ const option: TariffOption = {
 };
 
 it('loads tariff options into rows', async () => {
-  const client = { getTariffOptions: vi.fn(async () => [option]) };
+  const client = { getTariffOptions: mock(async () => [option]) };
   const { result } = renderHook(() => useTariffs(client as never, 'b1'));
   await waitFor(() => expect(result.current.status).toBe('ready'));
   if (result.current.status !== 'ready') throw new Error('not ready');
@@ -19,7 +19,7 @@ it('loads tariff options into rows', async () => {
 });
 
 it('reports an error when the load fails', async () => {
-  const client = { getTariffOptions: vi.fn(async () => { throw new Error('boom'); }) };
+  const client = { getTariffOptions: mock(async () => { throw new Error('boom'); }) };
   const { result } = renderHook(() => useTariffs(client as never, 'b1'));
   await waitFor(() => expect(result.current.status).toBe('error'));
 });

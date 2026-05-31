@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { WalletSummary } from '@/api/types';
@@ -20,11 +20,11 @@ const summary: WalletSummary = {
 
 function fakeClient() {
   return {
-    getWalletSummary: vi.fn(async () => summary),
-    topUpWallet: vi.fn(async () => ({ ledgerEntryId: 'l9' })),
-    payDebt: vi.fn(async () => ({ ledgerEntryId: 'l9' })),
-    createManualCorrection: vi.fn(async () => ({ ledgerEntryId: 'l9' })),
-    refundLedgerEntry: vi.fn(async () => ({ ledgerEntryId: 'l9' }))
+    getWalletSummary: mock(async () => summary),
+    topUpWallet: mock(async () => ({ ledgerEntryId: 'l9' })),
+    payDebt: mock(async () => ({ ledgerEntryId: 'l9' })),
+    createManualCorrection: mock(async () => ({ ledgerEntryId: 'l9' })),
+    refundLedgerEntry: mock(async () => ({ ledgerEntryId: 'l9' }))
   };
 }
 

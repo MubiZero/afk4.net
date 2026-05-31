@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { BranchesScreen } from './BranchesScreen';
@@ -16,13 +16,13 @@ function summary(id: string, online: number): OperatorDashboardSummary {
 
 function fakeClient() {
   return {
-    getBranchProfile: vi.fn(async (id: string) => ({ organizationId: 'org', branchId: id, name: id === 'a' ? 'Центр' : 'Юг', city: 'Москва', createdAtUtc: '' })),
-    getDashboardSummary: vi.fn(async (id: string) => summary(id, id === 'a' ? 5 : 3)),
-    updateBranchProfile: vi.fn()
+    getBranchProfile: mock(async (id: string) => ({ organizationId: 'org', branchId: id, name: id === 'a' ? 'Центр' : 'Юг', city: 'Москва', createdAtUtc: '' })),
+    getDashboardSummary: mock(async (id: string) => summary(id, id === 'a' ? 5 : 3)),
+    updateBranchProfile: mock()
   };
 }
 
-function setup(client = fakeClient(), onOpenBranch = vi.fn()) {
+function setup(client = fakeClient(), onOpenBranch = mock()) {
   render(
     <I18nProvider><ToastProvider>
       <BranchesScreen client={client as never} branchIds={['a', 'b']} organizationId="org" onOpenBranch={onOpenBranch} />
@@ -46,7 +46,7 @@ it('opens a branch via its Открыть button', async () => {
 
 it('renames a branch through the rename dialog', async () => {
   const client = fakeClient();
-  client.updateBranchProfile = vi.fn().mockResolvedValue({});
+  client.updateBranchProfile = mock().mockResolvedValue({});
   setup(client);
   const renameButtons = await screen.findAllByRole('button', { name: 'Переименовать' });
   fireEvent.click(renameButtons[0]);
@@ -62,7 +62,7 @@ it('shows the add-branch affordance as unavailable', async () => {
 
 it('shows an error in the card when a branch summary fails to load', async () => {
   const client = fakeClient();
-  client.getDashboardSummary = vi.fn(async (id: string) => {
+  client.getDashboardSummary = mock(async (id: string) => {
     if (id === 'b') throw new Error('boom');
     return summary(id, 5);
   });
@@ -75,7 +75,7 @@ it('shows an error in the card when a branch summary fails to load', async () =>
 it('shows the empty state when there are no branches', async () => {
   render(
     <I18nProvider><ToastProvider>
-      <BranchesScreen client={fakeClient() as never} branchIds={[]} organizationId="org" onOpenBranch={vi.fn()} />
+      <BranchesScreen client={fakeClient() as never} branchIds={[]} organizationId="org" onOpenBranch={mock()} />
     </ToastProvider></I18nProvider>
   );
   expect(await screen.findByText('Филиалы не найдены.')).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PackageOption, PlayerPackage } from '@/api/types';
 import { usePlayerPackages } from './usePlayerPackages';
@@ -17,8 +17,8 @@ const option: PackageOption = {
 
 it('loads player packages and purchase choices', async () => {
   const client = {
-    getPlayerPackages: vi.fn(async () => [pkg]),
-    getPackageOptions: vi.fn(async () => [option])
+    getPlayerPackages: mock(async () => [pkg]),
+    getPackageOptions: mock(async () => [option])
   };
   const { result } = renderHook(() => usePlayerPackages(client as never, 'p1', 'b1'));
   await waitFor(() => expect(result.current.status).toBe('ready'));
@@ -31,8 +31,8 @@ it('loads player packages and purchase choices', async () => {
 
 it('reports an error when a load fails', async () => {
   const client = {
-    getPlayerPackages: vi.fn(async () => { throw new Error('boom'); }),
-    getPackageOptions: vi.fn(async () => [option])
+    getPlayerPackages: mock(async () => { throw new Error('boom'); }),
+    getPackageOptions: mock(async () => [option])
   };
   const { result } = renderHook(() => usePlayerPackages(client as never, 'p1', 'b1'));
   await waitFor(() => expect(result.current.status).toBe('error'));

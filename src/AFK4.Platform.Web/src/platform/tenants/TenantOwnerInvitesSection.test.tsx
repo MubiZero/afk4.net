@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi, beforeAll } from 'vitest';
+import { it, expect, beforeAll, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { TenantOwnerInvitesSection } from './TenantOwnerInvitesSection';
@@ -33,7 +33,7 @@ function renderSection(client: any) {
 }
 
 it('lists invites with a masked code', async () => {
-  const client = { listOwnerInvites: vi.fn().mockResolvedValue([summary({})]), createOwnerInvite: vi.fn(), revokeOwnerInvite: vi.fn() };
+  const client = { listOwnerInvites: mock().mockResolvedValue([summary({})]), createOwnerInvite: mock(), revokeOwnerInvite: mock() };
   renderSection(client);
   expect(await screen.findByText('•••• 1234')).toBeTruthy();
   expect(screen.getByText('owner@x.io')).toBeTruthy();
@@ -41,14 +41,14 @@ it('lists invites with a masked code', async () => {
 
 it('creates a code and reveals the full code', async () => {
   const client = {
-    listOwnerInvites: vi.fn(),
-    createOwnerInvite: vi.fn().mockResolvedValue({
+    listOwnerInvites: mock(),
+    createOwnerInvite: mock().mockResolvedValue({
       ownerInviteId: 'i9', organizationId: 'o1', branchId: 'b1', code: 'FULL-CODE-9',
       status: 'pending', ownerUserName: null, ownerDisplayName: null,
       expiresAtUtc: '2026-02-01T00:00:00Z', acceptedAtUtc: null, revokedAtUtc: null,
       revokedReason: null, createdAtUtc: '2026-01-01T00:00:00Z'
     }),
-    revokeOwnerInvite: vi.fn()
+    revokeOwnerInvite: mock()
   };
   client.listOwnerInvites.mockResolvedValueOnce([]).mockResolvedValueOnce([summary({ ownerInviteId: 'i9', codeSuffix: 'DE-9', ownerUserName: null })]);
   renderSection(client);
@@ -61,9 +61,9 @@ it('creates a code and reveals the full code', async () => {
 
 it('revokes a pending invite with a reason', async () => {
   const client = {
-    listOwnerInvites: vi.fn().mockResolvedValue([summary({})]),
-    createOwnerInvite: vi.fn(),
-    revokeOwnerInvite: vi.fn().mockResolvedValue(summary({ status: 'revoked' }))
+    listOwnerInvites: mock().mockResolvedValue([summary({})]),
+    createOwnerInvite: mock(),
+    revokeOwnerInvite: mock().mockResolvedValue(summary({ status: 'revoked' }))
   };
   renderSection(client);
   fireEvent.click(await screen.findByRole('button', { name: 'Отозвать' }));

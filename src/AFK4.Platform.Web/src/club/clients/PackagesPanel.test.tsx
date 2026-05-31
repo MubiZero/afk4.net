@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { PackageOption, PlayerPackage } from '@/api/types';
@@ -19,9 +19,9 @@ const option: PackageOption = {
 
 function fakeClient() {
   return {
-    getPlayerPackages: vi.fn(async () => [pkg]),
-    getPackageOptions: vi.fn(async () => [option]),
-    purchasePackage: vi.fn(async () => ({ playerPackageId: 'pp9' }))
+    getPlayerPackages: mock(async () => [pkg]),
+    getPackageOptions: mock(async () => [option]),
+    purchasePackage: mock(async () => ({ playerPackageId: 'pp9' }))
   };
 }
 

@@ -1,14 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { RefundDialog } from './RefundDialog';
 
 function setup() {
   const client = {
-    refundLedgerEntry: vi.fn<(id: string, lid: string, req: object) => Promise<object>>(async () => ({ ledgerEntryId: 'l9' }))
+    refundLedgerEntry: mock<(id: string, lid: string, req: object) => Promise<object>>(async () => ({ ledgerEntryId: 'l9' }))
   };
-  const onDone = vi.fn();
+  const onDone = mock();
   render(
     <I18nProvider><ToastProvider>
       <RefundDialog

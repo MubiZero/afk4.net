@@ -1,13 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { CategoryCreateDialog } from './CategoryCreateDialog';
 
 it('creates a category and reports it via onCreated', async () => {
-  const onCreated = vi.fn();
+  const onCreated = mock();
   const client = {
-    createProductCategory: vi.fn(async () => ({
+    createProductCategory: mock(async () => ({
       categoryId: 'c9', organizationId: 'org', branchId: 'b1', name: 'Снеки', isActive: true, createdAtUtc: '2026-01-01T00:00:00.000Z'
     }))
   };

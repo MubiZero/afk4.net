@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { ReportTab } from './ReportTab';
@@ -14,7 +14,7 @@ function build(_data: { ok: boolean }, _fmt: ReportFormatters): ReportView {
 }
 
 it('renders summary cards and table rows from the built view', async () => {
-  const load = vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true }));
+  const load = mock<() => Promise<{ ok: boolean }>>(async () => ({ ok: true }));
   render(
     <I18nProvider><ToastProvider>
       <ReportTab load={load} build={build} deps={['k']} onExport={async () => new Blob()} filename="x.csv" />
@@ -25,7 +25,7 @@ it('renders summary cards and table rows from the built view', async () => {
 });
 
 it('shows the empty state when there are no rows', async () => {
-  const load = vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true }));
+  const load = mock<() => Promise<{ ok: boolean }>>(async () => ({ ok: true }));
   const emptyBuild = (): ReportView => ({ summaryCards: [], columns: [{ key: 'state', labelKey: 'reports.col.state' }], rows: [] });
   render(
     <I18nProvider><ToastProvider>

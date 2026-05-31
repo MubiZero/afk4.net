@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useTenantDetail } from './useTenantDetail';
 import type { TenantDetail } from '@/api/types';
@@ -12,7 +12,7 @@ function detail(over: Partial<TenantDetail>): TenantDetail {
   };
 }
 function fakeClient(over: Partial<Record<'getTenant', unknown>> = {}) {
-  return { getTenant: vi.fn().mockResolvedValue(detail({})), ...over } as never;
+  return { getTenant: mock().mockResolvedValue(detail({})), ...over } as never;
 }
 
 describe('useTenantDetail', () => {
@@ -24,7 +24,7 @@ describe('useTenantDetail', () => {
   });
 
   it('reaches error and retry reloads', async () => {
-    const client = fakeClient({ getTenant: vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValue(detail({})) });
+    const client = fakeClient({ getTenant: mock().mockRejectedValueOnce(new Error('boom')).mockResolvedValue(detail({})) });
     const { result } = renderHook(() => useTenantDetail(client, 'o1'));
     await waitFor(() => expect(result.current.status).toBe('error'));
     act(() => result.current.retry());

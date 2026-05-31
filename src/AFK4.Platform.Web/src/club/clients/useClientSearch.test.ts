@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PlayerSearchResult } from '@/api/types';
 import { useClientSearch } from './useClientSearch';
@@ -9,7 +9,7 @@ const result: PlayerSearchResult = {
 };
 
 it('loads search results into rows', async () => {
-  const client = { searchPlayers: vi.fn(async () => [result]) };
+  const client = { searchPlayers: mock(async () => [result]) };
   const { result: hook } = renderHook(() => useClientSearch(client as never, 'b1', ''));
   await waitFor(() => expect(hook.current.status).toBe('ready'));
   if (hook.current.status !== 'ready') throw new Error('not ready');
@@ -18,13 +18,13 @@ it('loads search results into rows', async () => {
 });
 
 it('passes the query through to the API', async () => {
-  const client = { searchPlayers: vi.fn(async () => []) };
+  const client = { searchPlayers: mock(async () => []) };
   renderHook(() => useClientSearch(client as never, 'b1', 'иван'));
   await waitFor(() => expect(client.searchPlayers).toHaveBeenCalledWith('b1', 'иван', 20));
 });
 
 it('reports an error when the load fails', async () => {
-  const client = { searchPlayers: vi.fn(async () => { throw new Error('boom'); }) };
+  const client = { searchPlayers: mock(async () => { throw new Error('boom'); }) };
   const { result: hook } = renderHook(() => useClientSearch(client as never, 'b1', ''));
   await waitFor(() => expect(hook.current.status).toBe('error'));
 });

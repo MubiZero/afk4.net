@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { WalletSummary } from '@/api/types';
 import { useWalletSummary } from './useWalletSummary';
@@ -17,7 +17,7 @@ const summary: WalletSummary = {
 };
 
 it('loads a wallet summary into balance and ledger rows', async () => {
-  const client = { getWalletSummary: vi.fn(async () => summary) };
+  const client = { getWalletSummary: mock(async () => summary) };
   const { result } = renderHook(() => useWalletSummary(client as never, 'p1'));
   await waitFor(() => expect(result.current.status).toBe('ready'));
   if (result.current.status !== 'ready') throw new Error('not ready');
@@ -27,7 +27,7 @@ it('loads a wallet summary into balance and ledger rows', async () => {
 });
 
 it('reports an error when the load fails', async () => {
-  const client = { getWalletSummary: vi.fn(async () => { throw new Error('boom'); }) };
+  const client = { getWalletSummary: mock(async () => { throw new Error('boom'); }) };
   const { result } = renderHook(() => useWalletSummary(client as never, 'p1'));
   await waitFor(() => expect(result.current.status).toBe('error'));
 });

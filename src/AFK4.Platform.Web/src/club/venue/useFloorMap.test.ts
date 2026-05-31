@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { PlatformApiError } from '@/api/platformApi';
 import type { FloorMap } from '@/api/types';
@@ -14,8 +14,8 @@ function floorMap(): FloorMap {
 
 function client(overrides: Record<string, unknown> = {}) {
   return {
-    getFloorMap: vi.fn(async () => ({ etag: 'etag-1', floorMap: floorMap() })),
-    updateFloorMap: vi.fn(async () => ({ eTag: 'etag-2', zones: [], seats: [] })),
+    getFloorMap: mock(async () => ({ etag: 'etag-1', floorMap: floorMap() })),
+    updateFloorMap: mock(async () => ({ eTag: 'etag-2', zones: [], seats: [] })),
     ...overrides
   };
 }
@@ -39,7 +39,7 @@ it('save sends the bulk request with the current ETag and returns ok', async () 
 });
 
 it('save surfaces a 412 as a conflict and keeps the staged zones', async () => {
-  const c = client({ updateFloorMap: vi.fn(async () => { throw new PlatformApiError(412, 'stale'); }) });
+  const c = client({ updateFloorMap: mock(async () => { throw new PlatformApiError(412, 'stale'); }) });
   const { result } = renderHook(() => useFloorMap(c as never, 'b1', 'org'));
   await waitFor(() => expect(result.current.status).toBe('ready'));
   let outcome: string | undefined;
@@ -49,7 +49,7 @@ it('save surfaces a 412 as a conflict and keeps the staged zones', async () => {
 });
 
 it('save surfaces a non-precondition failure as an error', async () => {
-  const c = client({ updateFloorMap: vi.fn(async () => { throw new PlatformApiError(409, 'busy'); }) });
+  const c = client({ updateFloorMap: mock(async () => { throw new PlatformApiError(409, 'busy'); }) });
   const { result } = renderHook(() => useFloorMap(c as never, 'b1', 'org'));
   await waitFor(() => expect(result.current.status).toBe('ready'));
   let outcome: string | undefined;

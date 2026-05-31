@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { clubNav, roleFromPermissions, visibleNav } from './nav';
 
 describe('club nav', () => {

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import type { AuditSearchResult } from '@/api/types';
@@ -13,7 +13,7 @@ const record = {
 };
 
 function fakeClient() {
-  return { searchAudit: vi.fn<() => Promise<AuditSearchResult>>(async () => ({ limit: 100, records: [record] })) };
+  return { searchAudit: mock<() => Promise<AuditSearchResult>>(async () => ({ limit: 100, records: [record] })) };
 }
 
 it('renders audit rows', async () => {

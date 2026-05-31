@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { toOwnerCodeView, getSetupMsiUrl } from './installModel';
 
 it('shows the full issued code when freshly issued', () => {

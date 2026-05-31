@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { PlatformApiError } from '@/api/platformApi';
@@ -16,8 +16,8 @@ function floorMap(): FloorMap {
 
 function fakeClient(overrides: Record<string, unknown> = {}) {
   return {
-    getFloorMap: vi.fn(async () => ({ etag: 'etag-1', floorMap: floorMap() })),
-    updateFloorMap: vi.fn(async () => ({ eTag: 'etag-2', zones: [], seats: [] })),
+    getFloorMap: mock(async () => ({ etag: 'etag-1', floorMap: floorMap() })),
+    updateFloorMap: mock(async () => ({ eTag: 'etag-2', zones: [], seats: [] })),
     ...overrides
   };
 }
@@ -52,7 +52,7 @@ it('saves via updateFloorMap and toasts success', async () => {
 });
 
 it('shows the conflict banner on a 412', async () => {
-  const client = fakeClient({ updateFloorMap: vi.fn(async () => { throw new PlatformApiError(412, 'stale'); }) });
+  const client = fakeClient({ updateFloorMap: mock(async () => { throw new PlatformApiError(412, 'stale'); }) });
   setup(client);
   await screen.findByDisplayValue('Зона A');
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить карту' }));

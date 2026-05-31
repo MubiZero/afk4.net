@@ -1,30 +1,30 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { ReportsScreen } from './ReportsScreen';
 
 function fakeClient() {
   return {
-    getShiftReport: vi.fn<() => Promise<object>>(async () => ({ rows: [], limit: 100 })),
-    getSalesReport: vi.fn<() => Promise<object>>(async () => ({
+    getShiftReport: mock<() => Promise<object>>(async () => ({ rows: [], limit: 100 })),
+    getSalesReport: mock<() => Promise<object>>(async () => ({
       rows: [], limit: 100,
       grossSalesTotal: { currencyCode: 'RUB', minorUnits: 0 },
       refundsTotal: { currencyCode: 'RUB', minorUnits: 0 },
       netSalesTotal: { currencyCode: 'RUB', minorUnits: 0 }
     })),
-    getGameplayTimeReport: vi.fn<() => Promise<object>>(async () => ({
+    getGameplayTimeReport: mock<() => Promise<object>>(async () => ({
       rows: [], limit: 100, totalDurationSeconds: 0, totalPackageSeconds: 0, totalBonusSeconds: 0,
       gameplayRevenueTotal: { currencyCode: 'RUB', minorUnits: 0 }
     })),
-    getCashOperationReport: vi.fn<() => Promise<object>>(async () => ({
+    getCashOperationReport: mock<() => Promise<object>>(async () => ({
       rows: [], limit: 100,
       cashInTotal: { currencyCode: 'RUB', minorUnits: 0 },
       cashOutTotal: { currencyCode: 'RUB', minorUnits: 0 },
       netCashTotal: { currencyCode: 'RUB', minorUnits: 0 }
     })),
-    getOperatorActionReport: vi.fn<() => Promise<object>>(async () => ({ rows: [], limit: 100, totalActionCount: 0 })),
-    fetchReportCsv: vi.fn<() => Promise<Blob>>(async () => new Blob())
+    getOperatorActionReport: mock<() => Promise<object>>(async () => ({ rows: [], limit: 100, totalActionCount: 0 })),
+    fetchReportCsv: mock<() => Promise<Blob>>(async () => new Blob())
   };
 }
 

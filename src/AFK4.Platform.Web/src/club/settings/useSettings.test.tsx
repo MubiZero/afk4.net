@@ -1,6 +1,6 @@
 // src/club/settings/useSettings.test.tsx
 import { renderHook, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { useSettings } from './useSettings';
 import type { BranchProfile, BranchSettings, StaffUser } from '@/api/types';
 
@@ -10,9 +10,9 @@ const staff: StaffUser[] = [];
 
 it('loads profile, settings, and staff into a ready state', async () => {
   const client = {
-    getBranchProfile: vi.fn().mockResolvedValue(profile),
-    getBranchSettings: vi.fn().mockResolvedValue(settings),
-    listStaff: vi.fn().mockResolvedValue(staff)
+    getBranchProfile: mock().mockResolvedValue(profile),
+    getBranchSettings: mock().mockResolvedValue(settings),
+    listStaff: mock().mockResolvedValue(staff)
   };
   const { result } = renderHook(() => useSettings(client as never, 'b1'));
   expect(result.current.status).toBe('loading');
@@ -24,9 +24,9 @@ it('loads profile, settings, and staff into a ready state', async () => {
 
 it('surfaces an error state when a call rejects', async () => {
   const client = {
-    getBranchProfile: vi.fn().mockRejectedValue(new Error('boom')),
-    getBranchSettings: vi.fn().mockResolvedValue(settings),
-    listStaff: vi.fn().mockResolvedValue(staff)
+    getBranchProfile: mock().mockRejectedValue(new Error('boom')),
+    getBranchSettings: mock().mockResolvedValue(settings),
+    listStaff: mock().mockResolvedValue(staff)
   };
   const { result } = renderHook(() => useSettings(client as never, 'b1'));
   await waitFor(() => expect(result.current.status).toBe('error'));

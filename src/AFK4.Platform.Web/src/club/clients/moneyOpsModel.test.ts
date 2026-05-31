@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { buildAmountReasonRequest, buildManualCorrectionRequest, buildRefundRequest } from './moneyOpsModel';
 
 it('builds an amount+reason request (top-up / pay-debt shape): major to minor, trims reason', () => {

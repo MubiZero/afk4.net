@@ -1,4 +1,4 @@
-import { it, expect, beforeEach } from 'vitest';
+import { it, expect, beforeEach } from 'bun:test';
 import { act, renderHook } from '@testing-library/react';
 import { useActiveBranch } from './useActiveBranch';
 

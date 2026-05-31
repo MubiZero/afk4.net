@@ -1,4 +1,4 @@
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { ClubApiClient } from './clubApi';
 
 function jsonResponse(body: unknown): Response {
@@ -9,13 +9,13 @@ function makeClient(fetchImpl: typeof fetch): ClubApiClient {
 }
 
 it('getPackageOptions GETs the branch options route', async () => {
-  const fetchImpl = vi.fn(async () => jsonResponse([])) as unknown as typeof fetch;
+  const fetchImpl = mock(async () => jsonResponse([])) as unknown as typeof fetch;
   await makeClient(fetchImpl).getPackageOptions('b1');
   expect(fetchImpl).toHaveBeenCalledWith('https://api.test/api/branches/b1/packages/options', expect.objectContaining({ method: 'GET' }));
 });
 
 it('createPackageDefinition POSTs to the packages route', async () => {
-  const fetchImpl = vi.fn(async () => jsonResponse({ packageDefinitionId: 'pk1' })) as unknown as typeof fetch;
+  const fetchImpl = mock(async () => jsonResponse({ packageDefinitionId: 'pk1' })) as unknown as typeof fetch;
   await makeClient(fetchImpl).createPackageDefinition('b1', {
     organizationId: 'org', name: 'Старт', price: { currencyCode: 'RUB', minorUnits: 50000 },
     includedSeconds: 3600, bonusSeconds: 0, expiresAfterDays: 30, idempotencyKey: 'k1'
@@ -27,7 +27,7 @@ it('createPackageDefinition POSTs to the packages route', async () => {
 });
 
 it('updatePackageDefinition PATCHes the package route', async () => {
-  const fetchImpl = vi.fn(async () => jsonResponse({ packageDefinitionId: 'pk1' })) as unknown as typeof fetch;
+  const fetchImpl = mock(async () => jsonResponse({ packageDefinitionId: 'pk1' })) as unknown as typeof fetch;
   await makeClient(fetchImpl).updatePackageDefinition('b1', 'pk1', {
     organizationId: 'org', name: 'Старт', price: { currencyCode: 'RUB', minorUnits: 60000 },
     includedSeconds: 3600, bonusSeconds: 0, expiresAfterDays: 30, isActive: true

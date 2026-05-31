@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { TenantSupportNotesSection } from './TenantSupportNotesSection';
@@ -21,7 +21,7 @@ function renderSection(client: any) {
 }
 
 it('lists existing notes', async () => {
-  const client = { listSupportNotes: vi.fn().mockResolvedValue([note({})]), createSupportNote: vi.fn(), updateSupportNote: vi.fn() };
+  const client = { listSupportNotes: mock().mockResolvedValue([note({})]), createSupportNote: mock(), updateSupportNote: mock() };
   renderSection(client);
   expect(await screen.findByText('first note')).toBeTruthy();
   expect(screen.getByText('Admin')).toBeTruthy();
@@ -29,9 +29,9 @@ it('lists existing notes', async () => {
 
 it('creates a note from the draft', async () => {
   const client = {
-    listSupportNotes: vi.fn().mockResolvedValue([]),
-    createSupportNote: vi.fn().mockResolvedValue(note({ tenantSupportNoteId: 'n2', body: 'added' })),
-    updateSupportNote: vi.fn()
+    listSupportNotes: mock().mockResolvedValue([]),
+    createSupportNote: mock().mockResolvedValue(note({ tenantSupportNoteId: 'n2', body: 'added' })),
+    updateSupportNote: mock()
   };
   renderSection(client);
   await screen.findByText('Заметок поддержки пока нет.');
@@ -43,9 +43,9 @@ it('creates a note from the draft', async () => {
 
 it('edits a note inline', async () => {
   const client = {
-    listSupportNotes: vi.fn().mockResolvedValue([note({})]),
-    createSupportNote: vi.fn(),
-    updateSupportNote: vi.fn().mockResolvedValue(note({ body: 'edited' }))
+    listSupportNotes: mock().mockResolvedValue([note({})]),
+    createSupportNote: mock(),
+    updateSupportNote: mock().mockResolvedValue(note({ body: 'edited' }))
   };
   renderSection(client);
   fireEvent.click(await screen.findByRole('button', { name: 'Редактировать' }));

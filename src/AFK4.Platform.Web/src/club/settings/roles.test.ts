@@ -1,5 +1,5 @@
 // src/club/settings/roles.test.ts
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import { ASSIGNABLE_ROLES, roleLabelKey } from './roles';
 
 it('exposes the five assignable branch-staff roles and excludes owner', () => {

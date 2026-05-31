@@ -1,10 +1,10 @@
-import { it, expect } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ConfirmDialog } from './ConfirmDialog';
 
 it('confirms with the typed reason and disables confirm while pending', () => {
-  const onConfirm = vi.fn();
+  const onConfirm = mock();
   render(
     <ConfirmDialog
       open

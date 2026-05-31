@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
 import { render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
@@ -6,9 +6,9 @@ import { BillingScreen } from './BillingScreen';
 
 function fakeClient() {
   return {
-    listSubscriptions: vi.fn().mockResolvedValue([]),
-    listInvoices: vi.fn().mockResolvedValue([]),
-    listPlans: vi.fn().mockResolvedValue([])
+    listSubscriptions: mock().mockResolvedValue([]),
+    listInvoices: mock().mockResolvedValue([]),
+    listPlans: mock().mockResolvedValue([])
   } as never;
 }
 

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi, beforeAll } from 'vitest';
+import { it, expect, beforeAll, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { NewTenantScreen } from './NewTenantScreen';
@@ -15,7 +15,7 @@ const response = {
   ownerInvite: { ownerInviteId: 'i1', code: 'X' }
 } as never;
 
-function renderScreen(client: any, onCreated = vi.fn(), onCancel = vi.fn()) {
+function renderScreen(client: any, onCreated = mock(), onCancel = mock()) {
   render(
     <I18nProvider><ToastProvider>
       <NewTenantScreen client={client} onCreated={onCreated} onCancel={onCancel} />
@@ -33,7 +33,7 @@ function fillRequired() {
 }
 
 it('submits trimmed values with the default plan/status and calls onCreated', async () => {
-  const client = { createTenant: vi.fn().mockResolvedValue(response) };
+  const client = { createTenant: mock().mockResolvedValue(response) };
   const { onCreated } = renderScreen(client);
 
   fillRequired();
@@ -50,7 +50,7 @@ it('submits trimmed values with the default plan/status and calls onCreated', as
 });
 
 it('shows an inline error when creation fails', async () => {
-  const client = { createTenant: vi.fn().mockRejectedValue(new Error('slug taken')) };
+  const client = { createTenant: mock().mockRejectedValue(new Error('slug taken')) };
   renderScreen(client);
   fillRequired();
   fireEvent.click(screen.getByRole('button', { name: 'Создать тенант' }));
@@ -58,7 +58,7 @@ it('shows an inline error when creation fails', async () => {
 });
 
 it('cancels without submitting', () => {
-  const client = { createTenant: vi.fn() };
+  const client = { createTenant: mock() };
   const { onCancel } = renderScreen(client);
   fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
   expect(onCancel).toHaveBeenCalled();
@@ -66,7 +66,7 @@ it('cancels without submitting', () => {
 });
 
 it('auto-fills the organization slug from the name until the slug is edited', () => {
-  const client = { createTenant: vi.fn() };
+  const client = { createTenant: mock() };
   renderScreen(client);
 
   // Type into the org-name input — slug should auto-fill

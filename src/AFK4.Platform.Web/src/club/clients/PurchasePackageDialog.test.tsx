@@ -1,14 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, vi } from 'vitest';
+import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { PurchasePackageDialog } from './PurchasePackageDialog';
 
 function setup(choices = [{ packageDefinitionId: 'pd1', name: 'Старт' }]) {
   const client = {
-    purchasePackage: vi.fn<(id: string, req: object) => Promise<object>>(async () => ({ playerPackageId: 'pp9' }))
+    purchasePackage: mock<(id: string, req: object) => Promise<object>>(async () => ({ playerPackageId: 'pp9' }))
   };
-  const onDone = vi.fn();
+  const onDone = mock();
   render(
     <I18nProvider><ToastProvider>
       <PurchasePackageDialog

@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type { TariffOption } from '@/api/types';
 import {
   toTariffRows, buildCreateTariffRequest, buildCreateVersionRequest,

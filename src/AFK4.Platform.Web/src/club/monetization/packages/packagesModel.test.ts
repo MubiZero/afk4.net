@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect } from 'bun:test';
 import type { PackageOption } from '@/api/types';
 import {
   toPackageRows, buildCreatePackageRequest, buildUpdatePackageRequest, type PackageFormValues
