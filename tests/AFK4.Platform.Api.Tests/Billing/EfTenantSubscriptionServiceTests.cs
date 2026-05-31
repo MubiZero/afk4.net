@@ -85,7 +85,8 @@ public sealed class EfTenantSubscriptionServiceTests
 
         var invoice = await db.Invoices.SingleAsync();
         Assert.Equal(InvoiceKindNames.Proration, invoice.Kind);
-        Assert.True(invoice.AmountMinorUnits > 0);
+        // starter→scale, 15 of 30 days remaining: (1990000-290000)/30 * 15 = 850000
+        Assert.Equal(850000, invoice.AmountMinorUnits);
 
         var org = await db.Organizations.SingleAsync(o => o.OrganizationId == orgId);
         Assert.Equal("scale", org.PlanCode);
