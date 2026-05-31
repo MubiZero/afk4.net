@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, mock } from 'bun:test';
+const originalFetch = globalThis.fetch;
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 
 describe('PlatformApiClient', () => {
@@ -24,11 +25,11 @@ describe('PlatformApiClient', () => {
   });
 
   it('calls browser fetch through the global receiver when no override is provided', async () => {
-    const fetchImpl = vi.fn(function (this: unknown) {
+    const fetchImpl = mock(function (this: unknown) {
       expect(this).toBe(globalThis);
       return Promise.resolve(jsonResponse({ ok: true }));
     });
-    vi.stubGlobal('fetch', fetchImpl);
+    globalThis.fetch = fetchImpl as unknown as typeof fetch;
 
     try {
       const api = new PlatformApiClient({
@@ -39,7 +40,7 @@ describe('PlatformApiClient', () => {
       await expect(api.get('/api/example')).resolves.toEqual({ ok: true });
       expect(fetchImpl).toHaveBeenCalledTimes(1);
     } finally {
-      vi.unstubAllGlobals();
+      globalThis.fetch = originalFetch;
     }
   });
 
@@ -87,7 +88,7 @@ describe('PlatformApiClient', () => {
   });
 
   it('returns null for optional 404 responses', async () => {
-    const fetchImpl = vi.fn(async () => new Response('', { status: 404, statusText: 'Not Found' }));
+    const fetchImpl = mock(async () => new Response('', { status: 404, statusText: 'Not Found' }));
     const api = new PlatformApiClient({
       baseUrl: 'http://localhost:5074',
       getAccessToken: () => 'access-token',
@@ -98,7 +99,7 @@ describe('PlatformApiClient', () => {
   });
 
   it('projects failed responses into PlatformApiError', async () => {
-    const fetchImpl = vi.fn(async () => new Response('denied', { status: 403, statusText: 'Forbidden' }));
+    const fetchImpl = mock(async () => new Response('denied', { status: 403, statusText: 'Forbidden' }));
     const api = new PlatformApiClient({
       baseUrl: 'http://localhost:5074',
       getAccessToken: () => 'access-token',
@@ -113,7 +114,7 @@ describe('PlatformApiClient', () => {
   });
 
   it('fails before network use when the native token is missing', async () => {
-    const fetchImpl = vi.fn();
+    const fetchImpl = mock();
     const api = new PlatformApiClient({
       baseUrl: 'http://localhost:5074',
       getAccessToken: () => null,
