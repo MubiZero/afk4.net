@@ -27,12 +27,11 @@ import { EmptyState } from './components/ui/states';
 import { useI18n } from './i18n/I18nProvider';
 import { SignIn } from './components/SignIn';
 import { StaffSignIn } from './components/StaffSignIn';
-import { TenantList } from './components/TenantList';
-import { TenantDetailView } from './components/TenantDetail';
 import { NewTenant } from './components/NewTenant';
 import { platformNav } from './platform/nav';
 import { OverviewScreen as PlatformOverviewScreen } from './platform/overview/OverviewScreen';
 import { useTenantMetrics } from './platform/overview/useTenantMetrics';
+import { TenantsScreen } from './platform/tenants/TenantsScreen';
 
 export type PlatformWebAudience = 'all' | 'admin' | 'club';
 
@@ -541,17 +540,13 @@ function PlatformArea({
           onCreated={onCreatedTenant}
           onCancel={onCancelNewTenant}
         />
-      ) : route.kind === 'tenantDetail' ? (
-        <TenantDetailView
-          client={adminClient}
-          organizationId={route.organizationId}
-          initialInvite={route.initialInvite}
-          onBack={onBackToTenants}
-        />
       ) : (
-        <TenantList
+        <TenantsScreen
           client={adminClient}
+          selectedTenantId={route.kind === 'tenantDetail' ? route.organizationId : null}
+          initialInvite={route.kind === 'tenantDetail' ? route.initialInvite : null}
           onOpenTenant={onOpenTenant}
+          onCloseTenant={onBackToTenants}
           onCreateTenant={onCreateTenant}
         />
       )}

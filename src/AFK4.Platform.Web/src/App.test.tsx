@@ -333,9 +333,9 @@ describe('Platform Web routing', () => {
     writeSession(buildSession());
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
-    expect(screen.getByRole('heading', { name: 'Tenants' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Поиск по названию или ключу')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New tenant' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Новый тенант' }));
 
     expect(window.location.pathname).toBe('/admin/tenants/new');
     expect(screen.getByRole('heading', { name: 'New tenant' })).toBeInTheDocument();
@@ -343,7 +343,7 @@ describe('Platform Web routing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(window.location.pathname).toBe('/admin/tenants');
-    expect(screen.getByRole('heading', { name: 'Tenants' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Поиск по названию или ключу')).toBeInTheDocument();
   });
 
   it('accepts a setup code, stores the staff session, and redirects to /club/install', async () => {
