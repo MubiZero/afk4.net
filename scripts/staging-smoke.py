@@ -460,8 +460,8 @@ else:
 
 step("21. Update plan + limits")
 status, body, _ = request(
-    "PATCH", f"/api/platform/tenants/{org_id}/plan",
-    body={"planCode": "growth", "subscriptionStatus": "active"},
+    "PATCH", f"/api/platform/tenants/{org_id}/subscription",
+    body={"planCode": "growth", "status": "active"},
     auth=token,
 )
 plan_code = body.get("planCode") if status == 200 else "?"

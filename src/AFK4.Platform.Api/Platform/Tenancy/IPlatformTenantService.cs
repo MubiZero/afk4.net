@@ -35,12 +35,6 @@ public interface IPlatformTenantService
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 
-    Task<PlatformTenantOperationResult<TenantDetailDto>> UpdatePlanAsync(
-        Guid organizationId,
-        UpdateTenantPlanRequest request,
-        Guid platformAdminUserId,
-        CancellationToken cancellationToken);
-
     Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateLimitsAsync(
         Guid organizationId,
         UpdateTenantLimitsRequest request,

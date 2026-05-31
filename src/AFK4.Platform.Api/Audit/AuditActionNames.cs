@@ -164,8 +164,6 @@ public static class AuditActionNames
 
     public const string UpdateTenantStatus = "tenancy.tenant.status.update";
 
-    public const string UpdateTenantPlan = "tenancy.tenant.plan.update";
-
     public const string UpdateTenantLimits = "tenancy.tenant.limits.update";
 
     public const string ViewTenant = "tenancy.tenant.view";

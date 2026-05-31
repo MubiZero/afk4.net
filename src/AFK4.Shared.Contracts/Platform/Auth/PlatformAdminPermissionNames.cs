@@ -8,8 +8,6 @@ public static class PlatformAdminPermissionNames
 
     public const string UpdateTenantStatus = "platform.tenants.status.update";
 
-    public const string UpdateTenantPlan = "platform.tenants.plan.update";
-
     public const string UpdateTenantLimits = "platform.tenants.limits.update";
 
     public const string ViewTenantSupportNotes = "platform.tenants.support_notes.view";

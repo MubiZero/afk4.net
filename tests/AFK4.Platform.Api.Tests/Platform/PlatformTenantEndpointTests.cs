@@ -719,30 +719,6 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
-    public async Task PatchPlan_KeepsTenantSubscriptionInSync()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-
-        var create = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
-        var created = await create.Content.ReadFromJsonAsync<CreateTenantResponse>();
-        var orgId = created!.Tenant.OrganizationId;
-
-        // Legacy /plan change to "growth" (a seeded catalog plan, price 790000).
-        var patch = await client.PatchAsJsonAsync(
-            $"/api/platform/tenants/{orgId}/plan",
-            new UpdateTenantPlanRequest("growth", SubscriptionStatusNames.Active));
-        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
-
-        await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var subscription = await db.TenantSubscriptions.SingleAsync(s => s.OrganizationId == orgId);
-        Assert.Equal("growth", subscription.PlanCode);
-        Assert.Equal(790000, subscription.AmountMinorUnits); // synced from the growth catalog plan
-    }
-
-    [Fact]
     public async Task StaffAccessToken_CannotReachPlatformTenantEndpoints()
     {
         await using var factory = new PlatformApiFactory();

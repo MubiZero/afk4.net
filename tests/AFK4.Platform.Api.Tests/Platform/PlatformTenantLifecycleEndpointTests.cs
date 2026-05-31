@@ -178,69 +178,6 @@ public sealed class PlatformTenantLifecycleEndpointTests
     }
 
     [Fact]
-    public async Task PatchPlan_UpdatesPlanAndSubscription()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-
-        var organizationId = await CreateTenantAsync(client);
-
-        var response = await client.PatchAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/plan",
-            new UpdateTenantPlanRequest(TenantPlanCodeNames.Scale, SubscriptionStatusNames.Active));
-        var body = await response.Content.ReadFromJsonAsync<TenantDetailDto>();
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(body);
-        Assert.Equal(TenantPlanCodeNames.Scale, body.PlanCode);
-        Assert.Equal(SubscriptionStatusNames.Active, body.SubscriptionStatus);
-    }
-
-    [Fact]
-    public async Task PatchPlan_WithUnknownSubscriptionStatus_Returns400()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-
-        var organizationId = await CreateTenantAsync(client);
-
-        var response = await client.PatchAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/plan",
-            new UpdateTenantPlanRequest(TenantPlanCodeNames.Growth, "ghost"));
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task PatchPlan_WithSupportRoleOnly_Returns403()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client);
-
-        using var supportClient = factory.CreateClient();
-        await PlatformAdminTestHelper.AuthorizeAsAsync(
-            factory,
-            supportClient,
-            userName: "support@platform.test",
-            roles: [PlatformAdminRoleNames.PlatformSupport]);
-
-        var response = await supportClient.PatchAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/plan",
-            new UpdateTenantPlanRequest(TenantPlanCodeNames.Scale, SubscriptionStatusNames.Active));
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-
-        await using var scope = factory.Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var organization = await dbContext.Organizations.SingleAsync(org => org.OrganizationId == organizationId);
-        Assert.Equal(TenantPlanCodeNames.Starter, organization.PlanCode);
-    }
-
-    [Fact]
     public async Task PatchLimits_UpdatesAndReturnsParsedLimits()
     {
         await using var factory = new PlatformApiFactory();

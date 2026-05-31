@@ -12,7 +12,6 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.ViewTenants,
                 PlatformAdminPermissionNames.CreateTenant,
                 PlatformAdminPermissionNames.UpdateTenantStatus,
-                PlatformAdminPermissionNames.UpdateTenantPlan,
                 PlatformAdminPermissionNames.UpdateTenantLimits,
                 PlatformAdminPermissionNames.ViewTenantSupportNotes,
                 PlatformAdminPermissionNames.ManageTenantSupportNotes,

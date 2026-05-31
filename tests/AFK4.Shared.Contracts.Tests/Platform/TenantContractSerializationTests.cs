@@ -117,21 +117,6 @@ public sealed class TenantContractSerializationTests
     }
 
     [Fact]
-    public void UpdateTenantPlanRequest_RoundTripsThroughJson()
-    {
-        var request = new UpdateTenantPlanRequest(
-            PlanCode: TenantPlanCodeNames.Scale,
-            SubscriptionStatus: SubscriptionStatusNames.Active);
-
-        var json = JsonSerializer.Serialize(request);
-        var copy = JsonSerializer.Deserialize<UpdateTenantPlanRequest>(json);
-
-        Assert.NotNull(copy);
-        Assert.Equal(request.PlanCode, copy.PlanCode);
-        Assert.Equal(request.SubscriptionStatus, copy.SubscriptionStatus);
-    }
-
-    [Fact]
     public void UpdateTenantLimitsRequest_RoundTripsNullableFields()
     {
         var request = new UpdateTenantLimitsRequest(
