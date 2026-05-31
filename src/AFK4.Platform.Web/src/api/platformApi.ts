@@ -6,15 +6,24 @@ import {
   type PlatformAdminSession
 } from '../auth/tokenStore';
 import type {
+  CreatePlanRequest,
   CreateTenantRequest,
   CreateTenantResponse,
+  Invoice,
+  InvoiceListItem,
   OwnerInvite,
   OwnerInviteSummary,
   PlatformAdminSignInResponse,
+  PlatformBillingMetrics,
+  SubscriptionListItem,
+  SubscriptionPlan,
   TenantDetail,
   TenantHealth,
+  TenantSubscription,
   TenantSummary,
-  TenantSupportNote
+  TenantSupportNote,
+  UpdatePlanRequest,
+  UpdateSubscriptionRequest
 } from './types';
 
 export class PlatformApiError extends Error {
@@ -187,6 +196,60 @@ export class PlatformApiClient {
     return this.send<TenantHealth>('GET', `/api/platform/tenants/${organizationId}/health`);
   }
 
+  public listPlans(includeInactive = true): Promise<SubscriptionPlan[]> {
+    return this.send<SubscriptionPlan[]>('GET', `/api/platform/plans?includeInactive=${includeInactive ? 'true' : 'false'}`);
+  }
+
+  public createPlan(request: CreatePlanRequest): Promise<SubscriptionPlan> {
+    return this.send<SubscriptionPlan>('POST', '/api/platform/plans', request);
+  }
+
+  public updatePlanCatalog(planCode: string, request: UpdatePlanRequest): Promise<SubscriptionPlan> {
+    return this.send<SubscriptionPlan>('PATCH', `/api/platform/plans/${encodeURIComponent(planCode)}`, request);
+  }
+
+  public getSubscription(organizationId: string): Promise<TenantSubscription> {
+    return this.send<TenantSubscription>('GET', `/api/platform/tenants/${organizationId}/subscription`);
+  }
+
+  public updateSubscription(organizationId: string, request: UpdateSubscriptionRequest): Promise<TenantSubscription> {
+    return this.send<TenantSubscription>('PATCH', `/api/platform/tenants/${organizationId}/subscription`, request);
+  }
+
+  public listTenantInvoices(organizationId: string, status?: string): Promise<Invoice[]> {
+    const query = status !== undefined && status.length > 0 ? `?status=${encodeURIComponent(status)}` : '';
+    return this.send<Invoice[]>('GET', `/api/platform/tenants/${organizationId}/invoices${query}`);
+  }
+
+  public listSubscriptions(status?: string, planCode?: string): Promise<SubscriptionListItem[]> {
+    const params = new URLSearchParams();
+    if (status !== undefined && status.length > 0) params.set('status', status);
+    if (planCode !== undefined && planCode.length > 0) params.set('planCode', planCode);
+    const query = params.toString().length > 0 ? `?${params.toString()}` : '';
+    return this.send<SubscriptionListItem[]>('GET', `/api/platform/subscriptions${query}`);
+  }
+
+  public listInvoices(status?: string): Promise<InvoiceListItem[]> {
+    const query = status !== undefined && status.length > 0 ? `?status=${encodeURIComponent(status)}` : '';
+    return this.send<InvoiceListItem[]>('GET', `/api/platform/invoices${query}`);
+  }
+
+  public getBillingMetrics(): Promise<PlatformBillingMetrics> {
+    return this.send<PlatformBillingMetrics>('GET', '/api/platform/metrics');
+  }
+
+  public generateInvoice(organizationId: string): Promise<Invoice> {
+    return this.sendIdempotent<Invoice>('POST', `/api/platform/tenants/${organizationId}/invoices/generate`, undefined);
+  }
+
+  public markInvoicePaid(invoiceId: string, reference: string | null): Promise<Invoice> {
+    return this.sendIdempotent<Invoice>('POST', `/api/platform/invoices/${invoiceId}/mark-paid`, { reference });
+  }
+
+  public voidInvoice(invoiceId: string, reason: string): Promise<Invoice> {
+    return this.sendIdempotent<Invoice>('POST', `/api/platform/invoices/${invoiceId}/void`, { reason });
+  }
+
   private async send<T>(method: string, path: string, body?: unknown): Promise<T> {
     let response = await this.dispatch(method, path, body, true);
     if (response.status === 401 && this.session !== null) {
@@ -205,11 +268,39 @@ export class PlatformApiClient {
     return text.length === 0 ? (undefined as unknown as T) : (JSON.parse(text) as T);
   }
 
-  private dispatch(method: string, path: string, body: unknown | undefined, includeAuth: boolean): Promise<Response> {
-    const init: RequestInit = {
-      method,
-      headers: this.buildHeaders(includeAuth && body !== undefined)
-    };
+  private async sendIdempotent<T>(method: string, path: string, body: unknown | undefined): Promise<T> {
+    const idempotencyKey = crypto.randomUUID();
+    let response = await this.dispatch(method, path, body, true, { 'Idempotency-Key': idempotencyKey });
+    if (response.status === 401 && this.session !== null) {
+      const refreshed = await this.refreshTokenOnce();
+      if (refreshed !== null) {
+        response = await this.dispatch(method, path, body, true, { 'Idempotency-Key': idempotencyKey });
+      }
+    }
+    if (!response.ok) {
+      throw await PlatformApiClient.toError(response);
+    }
+    if (response.status === 204) {
+      return undefined as unknown as T;
+    }
+    const text = await response.text();
+    return text.length === 0 ? (undefined as unknown as T) : (JSON.parse(text) as T);
+  }
+
+  private dispatch(
+    method: string,
+    path: string,
+    body: unknown | undefined,
+    includeAuth: boolean,
+    extraHeaders?: Record<string, string>
+  ): Promise<Response> {
+    const headers = this.buildHeaders(includeAuth && body !== undefined);
+    if (extraHeaders !== undefined) {
+      for (const [k, v] of Object.entries(extraHeaders)) {
+        headers[k] = v;
+      }
+    }
+    const init: RequestInit = { method, headers };
     if (body !== undefined) {
       init.body = JSON.stringify(body);
     }
