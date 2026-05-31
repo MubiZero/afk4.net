@@ -24,3 +24,11 @@ src/AFK4.Operator.App.Web/dist/
 *.key
 secrets/
 Secrets/
+
+# Local agent/editor settings
+.claude/
+
+# One-off command-output dumps
+diffstat.txt
+g_build.txt
+g_test.txt
