@@ -21,6 +21,7 @@ import { resolveBranchNames } from './club/profile/profileModel';
 import { useActiveBranch } from './club/branches/useActiveBranch';
 import { useBranchDirectory } from './club/branches/useBranchDirectory';
 import { BranchesScreen } from './club/branches/BranchesScreen';
+import { BillingScreen } from './club/billing/BillingScreen';
 import { roleFromPermissions, visibleNav } from './club/nav';
 import { BranchSwitcher } from './components/shell/BranchSwitcher';
 import { EmptyState } from './components/ui/states';
@@ -62,7 +63,8 @@ export type ClubRoute =
   | { kind: 'clubSettings' }
   | { kind: 'clubInstall' }
   | { kind: 'clubProfile' }
-  | { kind: 'clubBranches' };
+  | { kind: 'clubBranches' }
+  | { kind: 'clubBilling' };
 
 export type AppRoute =
   | AdminRoute
@@ -307,6 +309,7 @@ const CLUB_SCREEN_TITLE: Partial<Record<ClubRoute['kind'], string>> = {
   clubInstall: 'Установка',
   clubProfile: 'Профиль',
   clubBranches: 'Все филиалы',
+  clubBilling: 'Биллинг',
 };
 
 /**
@@ -336,6 +339,8 @@ export function pathForRoute(route: ClubRoute): string {
       return '/club/profile';
     case 'clubBranches':
       return '/club/branches';
+    case 'clubBilling':
+      return '/club/billing';
     default:
       return '/club';
   }
@@ -455,6 +460,8 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
           roleLabel={ROLE_LABEL[role]}
           onSignOut={onSignOut}
         />
+      ) : route.kind === 'clubBilling' ? (
+        <BillingScreen client={clubClient} organizationId={session.organizationId} />
       ) : (
         <InstallScreen
           client={clubClient}
@@ -675,6 +682,9 @@ export function resolvePlatformRoute(
     if (path === '/club/branches') {
       return { route: { kind: 'clubBranches' } };
     }
+    if (path === '/club/billing') {
+      return { route: { kind: 'clubBilling' } };
+    }
   }
 
   return { route: { kind: 'notFound', path } };
@@ -760,7 +770,8 @@ function isClubRoute(route: AppRoute): route is ClubRoute {
     || route.kind === 'clubSettings'
     || route.kind === 'clubInstall'
     || route.kind === 'clubProfile'
-    || route.kind === 'clubBranches';
+    || route.kind === 'clubBranches'
+    || route.kind === 'clubBilling';
 }
 
 function routeForAudience(route: AppRoute, path: string, audience: PlatformWebAudience): AppRoute {
