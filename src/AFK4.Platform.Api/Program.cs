@@ -1566,6 +1566,7 @@ app.MapPatch("/api/platform/tenants/{organizationId:guid}/limits", async (
 app.MapGet("/api/platform/plans", async (
     PlatformAdminAuthorizationService authorizationService,
     IPlanCatalogService planCatalogService,
+    IAuditRecordWriter auditRecordWriter,
     bool? includeInactive,
     CancellationToken cancellationToken) =>
 {
@@ -1573,7 +1574,19 @@ app.MapGet("/api/platform/plans", async (
     if (!authorization.IsAuthenticated)
         return Results.Unauthorized();
     if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewBilling,
+            targetType: "SubscriptionPlan",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
         return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
 
     var plans = await planCatalogService.ListAsync(includeInactive ?? true, cancellationToken);
     return Results.Ok(plans);
@@ -1590,7 +1603,19 @@ app.MapPost("/api/platform/plans", async (
     if (!authorization.IsAuthenticated)
         return Results.Unauthorized();
     if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.CreatePlan,
+            targetType: "SubscriptionPlan",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
         return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
 
     var result = await planCatalogService.CreateAsync(request, cancellationToken);
     if (!result.Succeeded)
@@ -1621,7 +1646,19 @@ app.MapPatch("/api/platform/plans/{planCode}", async (
     if (!authorization.IsAuthenticated)
         return Results.Unauthorized();
     if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.UpdatePlan,
+            targetType: "SubscriptionPlan",
+            targetId: planCode,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
         return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
 
     var result = await planCatalogService.UpdateAsync(planCode, request, cancellationToken);
     if (!result.Succeeded)
