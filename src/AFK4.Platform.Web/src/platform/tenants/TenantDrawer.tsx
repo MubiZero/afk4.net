@@ -11,7 +11,7 @@ import { TenantInvoicesSection } from './TenantInvoicesSection';
 import { TenantLimitsSection } from './TenantLimitsSection';
 import { TenantOwnerInvitesSection } from './TenantOwnerInvitesSection';
 import { TenantSupportNotesSection } from './TenantSupportNotesSection';
-import { HealthSection } from '@/components/HealthSection';
+import { TenantHealthSection } from './TenantHealthSection';
 
 interface TenantDrawerProps {
   client: PlatformApiClient;
@@ -57,8 +57,7 @@ export function TenantDrawer({ client, organizationId, initialInvite, onChanged 
       <TenantOwnerInvitesSection client={client} organizationId={tenant.organizationId} branches={tenant.branches} initialInvite={initialInvite} />
       <TenantSupportNotesSection client={client} organizationId={tenant.organizationId} />
 
-      {/* Interim: legacy Health section embedded unchanged until later plans redesign it. */}
-      <HealthSection client={client} organizationId={tenant.organizationId} />
+      <TenantHealthSection client={client} organizationId={tenant.organizationId} />
     </div>
   );
 }
