@@ -68,6 +68,19 @@ export const PLAN_LABEL: Record<string, MessageKey> = {
   scale: 'platform.plan.scale'
 };
 
+export const INVITE_STATUS_VARIANT: Record<string, BadgeVariant> = {
+  pending: 'secondary',
+  accepted: 'success',
+  revoked: 'outline',
+  expired: 'outline'
+};
+export const INVITE_STATUS_LABEL: Record<string, MessageKey> = {
+  pending: 'platform.tenant.invites.status.pending',
+  accepted: 'platform.tenant.invites.status.accepted',
+  revoked: 'platform.tenant.invites.status.revoked',
+  expired: 'platform.tenant.invites.status.expired'
+};
+
 export const STATUS_OPTIONS = ['active', 'suspended', 'deletion_pending'] as const;
 export const PLAN_OPTIONS = ['starter', 'growth', 'scale'] as const;
 export const SUBSCRIPTION_OPTIONS = ['trial', 'active', 'past_due', 'cancelled'] as const;

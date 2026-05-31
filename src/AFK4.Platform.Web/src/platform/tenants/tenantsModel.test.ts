@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTenantRows, type TenantsFilter } from './tenantsModel';
+import { buildTenantRows, INVITE_STATUS_VARIANT, INVITE_STATUS_LABEL, type TenantsFilter } from './tenantsModel';
 import type { TenantSummary } from '@/api/types';
 
 function tenant(over: Partial<TenantSummary>): TenantSummary {
@@ -37,5 +37,12 @@ describe('buildTenantRows', () => {
       { ...ALL, status: 'active', plan: 'scale' }
     );
     expect(rows.map(r => r.organizationId)).toEqual(['b']);
+  });
+
+  it('maps every invite status to a variant and label', () => {
+    for (const s of ['pending', 'accepted', 'revoked', 'expired']) {
+      expect(INVITE_STATUS_VARIANT[s]).toBeTruthy();
+      expect(INVITE_STATUS_LABEL[s]).toContain('platform.tenant.invites.status.');
+    }
   });
 });

@@ -2,31 +2,18 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge, type BadgeVariant } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { MessageKey } from '@/i18n/messages';
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { OwnerInvite, OwnerInviteSummary, TenantBranch } from '@/api/types';
+import { INVITE_STATUS_VARIANT, INVITE_STATUS_LABEL } from './tenantsModel';
 
 type Client = Pick<PlatformApiClient, 'listOwnerInvites' | 'createOwnerInvite' | 'revokeOwnerInvite'>;
-
-const INVITE_STATUS_VARIANT: Record<string, BadgeVariant> = {
-  pending: 'secondary',
-  accepted: 'success',
-  revoked: 'outline',
-  expired: 'outline'
-};
-const INVITE_STATUS_LABEL: Record<string, MessageKey> = {
-  pending: 'platform.tenant.invites.status.pending',
-  accepted: 'platform.tenant.invites.status.accepted',
-  revoked: 'platform.tenant.invites.status.revoked',
-  expired: 'platform.tenant.invites.status.expired'
-};
 
 interface Props {
   client: Client;
