@@ -10,8 +10,8 @@ const realtimeMock = {
   }>
 };
 
-// bun's mock.module is NOT hoisted above static imports the way vi.mock is, so the
-// mock must be registered before the component under test is imported.
+// bun's mock.module is NOT hoisted above static imports the way Vitest hoists its
+// mocks, so the mock must be registered before the component under test is imported.
 const actualRealtime = await import('./operatorRealtime');
 mock.module('./operatorRealtime', () => ({
   ...actualRealtime,
