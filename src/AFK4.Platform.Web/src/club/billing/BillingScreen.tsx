@@ -45,10 +45,13 @@ export function BillingScreen({ client, organizationId }: { client: ClubApiClien
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">{t('club.billing.subscription.status')}</dt>
-              <dd className="mt-1">
+              <dd className="mt-1 flex flex-wrap gap-1">
                 <Badge variant={subscriptionStatusVariant(subscription.status)}>
                   {subLabelKey ? t(subLabelKey) : subscription.status}
                 </Badge>
+                {subscription.cancelAtPeriodEnd && (
+                  <Badge variant="secondary">{t('club.billing.subscription.cancelAtPeriodEnd')}</Badge>
+                )}
               </dd>
             </div>
             <div>
@@ -73,14 +76,14 @@ export function BillingScreen({ client, organizationId }: { client: ClubApiClien
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('club.billing.invoices.title')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {rows.length === 0 ? (
-            <EmptyState message={t('club.billing.invoices.empty')} />
-          ) : (
+      {rows.length === 0 ? (
+        <EmptyState message={t('club.billing.invoices.empty')} />
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('club.billing.invoices.title')}</CardTitle>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -112,9 +115,9 @@ export function BillingScreen({ client, organizationId }: { client: ClubApiClien
                 })}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

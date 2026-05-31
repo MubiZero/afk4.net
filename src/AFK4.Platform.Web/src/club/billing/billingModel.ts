@@ -54,7 +54,6 @@ export function invoiceStatusVariant(status: string): BadgeVariant {
 export interface InvoiceRow {
   invoiceId: string;
   number: number;
-  kind: string;
   issuedAtUtc: string;
   dueAtUtc: string;
   amountMinorUnits: number;
@@ -66,7 +65,6 @@ export function buildInvoiceRows(invoices: Invoice[]): InvoiceRow[] {
   return invoices.map(i => ({
     invoiceId: i.invoiceId,
     number: i.number,
-    kind: i.kind,
     issuedAtUtc: i.issuedAtUtc,
     dueAtUtc: i.dueAtUtc,
     amountMinorUnits: i.amountMinorUnits,

@@ -22,6 +22,13 @@ function client(invoices: Invoice[]): ClubApiClient {
   } as unknown as ClubApiClient;
 }
 
+function errorClient(): ClubApiClient {
+  return {
+    getSubscription: vi.fn().mockRejectedValue(new Error('network')),
+    listInvoices: vi.fn().mockRejectedValue(new Error('network'))
+  } as unknown as ClubApiClient;
+}
+
 function wrap(ui: React.ReactElement) {
   return render(<I18nProvider>{ui}</I18nProvider>);
 }
@@ -35,5 +42,10 @@ describe('BillingScreen', () => {
   it('shows the empty state when there are no invoices', async () => {
     wrap(<BillingScreen client={client([])} organizationId="o1" />);
     await waitFor(() => expect(screen.getByText(/Нет инвойсов|No invoices/)).toBeInTheDocument());
+  });
+
+  it('shows the error state with a retry button when loading fails', async () => {
+    wrap(<BillingScreen client={errorClient()} organizationId="o1" />);
+    await waitFor(() => expect(screen.getByText('Повторить')).toBeInTheDocument());
   });
 });
