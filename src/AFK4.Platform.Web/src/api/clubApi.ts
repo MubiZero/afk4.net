@@ -19,6 +19,7 @@ import type {
   FloorMapBulkUpdateRequest,
   FloorMapBulkUpdateResponse,
   FloorMapRead,
+  Invoice,
   LedgerEntry,
   ManualLedgerCorrectionRequest,
   OperatorDashboardSummary,
@@ -40,6 +41,7 @@ import type {
   Tariff,
   TariffOption,
   TariffVersion,
+  TenantSubscription,
   TopUpWalletRequest,
   UpdateBranchProfileRequest,
   UpdateBranchSettingsRequest,
@@ -103,6 +105,14 @@ export class ClubApiClient {
 
   public getBranchProfile(branchId: string): Promise<BranchProfile> {
     return this.send<BranchProfile>('GET', `/api/branches/${encodeURIComponent(branchId)}/profile`);
+  }
+
+  public getSubscription(organizationId: string): Promise<TenantSubscription> {
+    return this.send<TenantSubscription>('GET', `/api/organizations/${encodeURIComponent(organizationId)}/subscription`);
+  }
+
+  public listInvoices(organizationId: string): Promise<Invoice[]> {
+    return this.send<Invoice[]>('GET', `/api/organizations/${encodeURIComponent(organizationId)}/invoices`);
   }
 
   public updateBranchProfile(branchId: string, request: UpdateBranchProfileRequest): Promise<BranchProfile> {
