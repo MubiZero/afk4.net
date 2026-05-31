@@ -226,3 +226,46 @@ it('includes the tenants admin keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the platform profile keys', () => {
+  for (const key of [
+    'platform.profile.field.userName', 'platform.profile.field.adminId',
+    'platform.profile.roles.title', 'platform.profile.roles.empty'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
+
+it('includes the new-tenant keys', () => {
+  for (const key of [
+    'platform.newTenant.section.organization', 'platform.newTenant.section.branch',
+    'platform.newTenant.section.plan', 'platform.newTenant.section.limits', 'platform.newTenant.section.owner',
+    'platform.newTenant.field.orgSlug', 'platform.newTenant.field.orgSlugHint', 'platform.newTenant.field.orgName',
+    'platform.newTenant.field.branchSlug', 'platform.newTenant.field.branchName', 'platform.newTenant.field.branchCity',
+    'platform.newTenant.field.planCode', 'platform.newTenant.field.subscriptionStatus',
+    'platform.newTenant.field.maxBranches', 'platform.newTenant.field.maxDevices',
+    'platform.newTenant.field.maxSessions', 'platform.newTenant.field.maxStaff',
+    'platform.newTenant.field.ownerUserName', 'platform.newTenant.field.ownerDisplayName',
+    'platform.newTenant.sub.trial', 'platform.newTenant.sub.active', 'platform.newTenant.sub.pastDue', 'platform.newTenant.sub.cancelled',
+    'platform.newTenant.submit', 'platform.newTenant.submitting', 'platform.newTenant.cancel',
+    'platform.newTenant.created', 'platform.newTenant.error'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
+
+it('includes the tenant health keys', () => {
+  for (const key of [
+    'platform.tenant.section.health', 'platform.tenant.health.refresh',
+    'platform.tenant.health.status', 'platform.tenant.health.branches', 'platform.tenant.health.devices',
+    'platform.tenant.health.activeStaff', 'platform.tenant.health.lastSignIn', 'platform.tenant.health.latestMigration',
+    'platform.tenant.health.recentErrors', 'platform.tenant.health.recentErrorsEmpty',
+    'platform.tenant.health.col.time', 'platform.tenant.health.col.source', 'platform.tenant.health.col.action',
+    'platform.tenant.health.col.outcome', 'platform.tenant.health.col.message', 'platform.tenant.health.error'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
