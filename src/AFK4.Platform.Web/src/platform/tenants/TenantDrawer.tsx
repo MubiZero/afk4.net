@@ -6,7 +6,8 @@ import type { PlatformApiClient } from '@/api/platformApi';
 import type { OwnerInvite, TenantDetail } from '@/api/types';
 import { useTenantDetail } from './useTenantDetail';
 import { TenantStatusSection } from './TenantStatusSection';
-import { TenantPlanSection } from './TenantPlanSection';
+import { TenantSubscriptionSection } from './TenantSubscriptionSection';
+import { TenantInvoicesSection } from './TenantInvoicesSection';
 import { TenantLimitsSection } from './TenantLimitsSection';
 import { OwnerInvitesSection } from '@/components/OwnerInvitesSection';
 import { SupportNotesSection } from '@/components/SupportNotesSection';
@@ -49,8 +50,9 @@ export function TenantDrawer({ client, organizationId, initialInvite, onChanged 
       </Card>
 
       <TenantStatusSection client={client} tenant={tenant} onUpdated={handleUpdated} />
-      <TenantPlanSection client={client} tenant={tenant} onUpdated={handleUpdated} />
+      <TenantSubscriptionSection client={client} organizationId={tenant.organizationId} />
       <TenantLimitsSection client={client} tenant={tenant} onUpdated={handleUpdated} />
+      <TenantInvoicesSection client={client} organizationId={tenant.organizationId} />
 
       {/* Interim: legacy sections embedded unchanged until later plans redesign them. */}
       <OwnerInvitesSection client={client} organizationId={tenant.organizationId} branches={tenant.branches} initialInvite={initialInvite} />

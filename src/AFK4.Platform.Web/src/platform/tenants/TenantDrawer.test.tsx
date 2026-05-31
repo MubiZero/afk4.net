@@ -16,7 +16,17 @@ function detail(over: Partial<TenantDetail>): TenantDetail {
 function client() {
   return {
     getTenant: vi.fn().mockResolvedValue(detail({})),
-    updateStatus: vi.fn(), updatePlan: vi.fn(), updateLimits: vi.fn(),
+    updateStatus: vi.fn(), updateLimits: vi.fn(),
+    getSubscription: vi.fn().mockResolvedValue({
+      organizationId: 'o1', planCode: 'starter', billingInterval: 'monthly', status: 'active',
+      cancelAtPeriodEnd: false, amountMinorUnits: 1000, currencyCode: 'RUB',
+      currentPeriodStartUtc: '2026-01-01T00:00:00Z', currentPeriodEndUtc: '2026-02-01T00:00:00Z',
+      nextInvoiceUtc: null
+    }),
+    updateSubscription: vi.fn(),
+    listPlans: vi.fn().mockResolvedValue([]),
+    listTenantInvoices: vi.fn().mockResolvedValue([]),
+    generateInvoice: vi.fn(),
     listOwnerInvites: vi.fn().mockResolvedValue([]),
     listSupportNotes: vi.fn().mockResolvedValue([]),
     getHealth: vi.fn().mockResolvedValue({
@@ -32,7 +42,7 @@ it('loads the tenant and renders the section headers', async () => {
       <TenantDrawer client={client()} organizationId="o1" initialInvite={null} onChanged={() => {}} />
     </ToastProvider></I18nProvider>
   );
-  await waitFor(() => expect(screen.getByText('Тариф и подписка')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText('Подписка')).toBeInTheDocument());
   expect(screen.getByText('Лимиты')).toBeInTheDocument();
 });
 

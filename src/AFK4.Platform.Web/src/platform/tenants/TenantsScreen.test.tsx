@@ -21,7 +21,17 @@ function client() {
       limits: { maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null },
       branches: [], createdAtUtc: '2026-01-01T00:00:00Z', updatedAtUtc: '2026-01-01T00:00:00Z'
     }),
-    updateStatus: vi.fn(), updatePlan: vi.fn(), updateLimits: vi.fn(),
+    updateStatus: vi.fn(), updateLimits: vi.fn(),
+    getSubscription: vi.fn().mockResolvedValue({
+      organizationId: 'o1', planCode: 'starter', billingInterval: 'monthly', status: 'active',
+      cancelAtPeriodEnd: false, amountMinorUnits: 1000, currencyCode: 'RUB',
+      currentPeriodStartUtc: '2026-01-01T00:00:00Z', currentPeriodEndUtc: '2026-02-01T00:00:00Z',
+      nextInvoiceUtc: null
+    }),
+    updateSubscription: vi.fn(),
+    listPlans: vi.fn().mockResolvedValue([]),
+    listTenantInvoices: vi.fn().mockResolvedValue([]),
+    generateInvoice: vi.fn(),
     listOwnerInvites: vi.fn().mockResolvedValue([]), listSupportNotes: vi.fn().mockResolvedValue([]),
     getHealth: vi.fn().mockResolvedValue({ organizationId: 'o1', status: 'active', branchCount: 0, deviceCount: 0, activeStaffUserCount: 0, latestStaffSignInAtUtc: null, latestMigration: null, recentErrorCount: 0, recentErrors: [] })
   } as never;
@@ -60,5 +70,5 @@ it('fires onOpenTenant when a row is clicked', async () => {
 
 it('opens the drawer when selectedTenantId is set', async () => {
   setup({ selectedTenantId: 'o1' });
-  await waitFor(() => expect(screen.getByText('Тариф и подписка')).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText('Подписка')).toBeInTheDocument());
 });
