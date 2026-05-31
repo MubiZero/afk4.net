@@ -58,7 +58,7 @@ export function InvoicesTab({ client }: { client: PlatformApiClient }) {
     <Card>
       <CardContent className="flex flex-col gap-3 pt-6">
         <div className="flex flex-wrap gap-2">
-          <Input className="max-w-xs" placeholder={t('platform.billing.search.placeholder')} value={query} onChange={e => setQuery(e.target.value)} />
+          <Input className="max-w-xs" placeholder={t('platform.billing.search.placeholder')} aria-label={t('platform.billing.search.placeholder')} value={query} onChange={e => setQuery(e.target.value)} />
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="max-w-[200px]" aria-label={t('platform.billing.column.status')}><SelectValue /></SelectTrigger>
             <SelectContent>

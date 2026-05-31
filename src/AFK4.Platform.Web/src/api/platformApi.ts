@@ -84,7 +84,7 @@ export class PlatformApiClient {
     try {
       await this.fetchImpl(`${this.baseUrl}/api/platform/auth/sign-out`, {
         method: 'POST',
-        headers: this.buildHeaders(true),
+        headers: this.buildHeaders(),
         body: JSON.stringify({ refreshToken: this.session.refreshToken })
       });
     } finally {
@@ -113,18 +113,6 @@ export class PlatformApiClient {
       'PATCH',
       `/api/platform/tenants/${organizationId}/status`,
       { status, reason }
-    );
-  }
-
-  public updatePlan(
-    organizationId: string,
-    planCode: string,
-    subscriptionStatus: string
-  ): Promise<TenantDetail> {
-    return this.send<TenantDetail>(
-      'PATCH',
-      `/api/platform/tenants/${organizationId}/plan`,
-      { planCode, subscriptionStatus }
     );
   }
 
@@ -251,11 +239,11 @@ export class PlatformApiClient {
   }
 
   private async send<T>(method: string, path: string, body?: unknown): Promise<T> {
-    let response = await this.dispatch(method, path, body, true);
+    let response = await this.dispatch(method, path, body);
     if (response.status === 401 && this.session !== null) {
       const refreshed = await this.refreshTokenOnce();
       if (refreshed !== null) {
-        response = await this.dispatch(method, path, body, true);
+        response = await this.dispatch(method, path, body);
       }
     }
     if (!response.ok) {
@@ -270,11 +258,11 @@ export class PlatformApiClient {
 
   private async sendIdempotent<T>(method: string, path: string, body: unknown | undefined): Promise<T> {
     const idempotencyKey = crypto.randomUUID();
-    let response = await this.dispatch(method, path, body, true, { 'Idempotency-Key': idempotencyKey });
+    let response = await this.dispatch(method, path, body, { 'Idempotency-Key': idempotencyKey });
     if (response.status === 401 && this.session !== null) {
       const refreshed = await this.refreshTokenOnce();
       if (refreshed !== null) {
-        response = await this.dispatch(method, path, body, true, { 'Idempotency-Key': idempotencyKey });
+        response = await this.dispatch(method, path, body, { 'Idempotency-Key': idempotencyKey });
       }
     }
     if (!response.ok) {
@@ -291,10 +279,9 @@ export class PlatformApiClient {
     method: string,
     path: string,
     body: unknown | undefined,
-    includeAuth: boolean,
     extraHeaders?: Record<string, string>
   ): Promise<Response> {
-    const headers = this.buildHeaders(includeAuth && body !== undefined);
+    const headers = this.buildHeaders();
     if (extraHeaders !== undefined) {
       for (const [k, v] of Object.entries(extraHeaders)) {
         headers[k] = v;
@@ -307,13 +294,8 @@ export class PlatformApiClient {
     return this.fetchImpl(`${this.baseUrl}${path}`, init);
   }
 
-  private buildHeaders(includeContentType: boolean): Record<string, string> {
-    const headers: Record<string, string> = {};
-    if (includeContentType) {
-      headers['Content-Type'] = 'application/json';
-    } else {
-      headers['Content-Type'] = 'application/json';
-    }
+  private buildHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.session !== null && this.session.accessToken.length > 0) {
       headers['Authorization'] = `Bearer ${this.session.accessToken}`;
     }
