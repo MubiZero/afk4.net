@@ -41,6 +41,7 @@ using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Platform.Auth;
+using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Invites;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
@@ -1560,6 +1561,83 @@ app.MapPatch("/api/platform/tenants/{organizationId:guid}/limits", async (
         cancellationToken);
 
     return Results.Ok(detail);
+});
+
+app.MapGet("/api/platform/plans", async (
+    PlatformAdminAuthorizationService authorizationService,
+    IPlanCatalogService planCatalogService,
+    bool? includeInactive,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewBilling);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+    var plans = await planCatalogService.ListAsync(includeInactive ?? true, cancellationToken);
+    return Results.Ok(plans);
+});
+
+app.MapPost("/api/platform/plans", async (
+    PlatformAdminAuthorizationService authorizationService,
+    IPlanCatalogService planCatalogService,
+    IAuditRecordWriter auditRecordWriter,
+    CreatePlanRequest request,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManagePlans);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+    var result = await planCatalogService.CreateAsync(request, cancellationToken);
+    if (!result.Succeeded)
+        return BillingResults.From(result);
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: Guid.Empty,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.CreatePlan,
+        targetType: "SubscriptionPlan",
+        targetId: result.Value!.PlanCode,
+        outcome: AuditOutcome.Succeeded,
+        details: new { result.Value.PlanCode, result.Value.PriceMinorUnits, result.Value.BillingInterval },
+        cancellationToken);
+    return Results.Ok(result.Value);
+});
+
+app.MapPatch("/api/platform/plans/{planCode}", async (
+    string planCode,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlanCatalogService planCatalogService,
+    IAuditRecordWriter auditRecordWriter,
+    UpdatePlanRequest request,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManagePlans);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+    var result = await planCatalogService.UpdateAsync(planCode, request, cancellationToken);
+    if (!result.Succeeded)
+        return BillingResults.From(result);
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: Guid.Empty,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.UpdatePlan,
+        targetType: "SubscriptionPlan",
+        targetId: planCode,
+        outcome: AuditOutcome.Succeeded,
+        details: new { result.Value!.PlanCode, result.Value.PriceMinorUnits, result.Value.IsActive },
+        cancellationToken);
+    return Results.Ok(result.Value);
 });
 
 app.MapGet("/api/platform/tenants/{organizationId:guid}/health", async (
