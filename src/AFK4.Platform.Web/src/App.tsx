@@ -31,6 +31,7 @@ import { NewTenant } from './components/NewTenant';
 import { platformNav } from './platform/nav';
 import { OverviewScreen as PlatformOverviewScreen } from './platform/overview/OverviewScreen';
 import { useTenantMetrics } from './platform/overview/useTenantMetrics';
+import { useBillingMetrics } from './platform/billing/useBillingMetrics';
 import { TenantsScreen } from './platform/tenants/TenantsScreen';
 
 export type PlatformWebAudience = 'all' | 'admin' | 'club';
@@ -501,6 +502,7 @@ function PlatformArea({
   onCreatedTenant, onCancelNewTenant, onBackToTenants, onSignOut
 }: PlatformAreaProps) {
   const metricsState = useTenantMetrics(adminClient);
+  const billingMetricsState = useBillingMetrics(adminClient);
 
   const handleNavigate = (path: string) => {
     const resolution = resolvePlatformRoute(path, null, '');
@@ -533,7 +535,7 @@ function PlatformArea({
       onSignOut={onSignOut}
     >
       {route.kind === 'adminOverview' ? (
-        <PlatformOverviewScreen state={metricsState} />
+        <PlatformOverviewScreen state={metricsState} billing={billingMetricsState} />
       ) : route.kind === 'newTenant' ? (
         <NewTenant
           client={adminClient}

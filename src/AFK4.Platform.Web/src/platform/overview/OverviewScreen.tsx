@@ -6,6 +6,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
 import type { AttentionReason } from './metricsModel';
 import type { TenantMetricsState } from './useTenantMetrics';
+import type { BillingMetricsState } from '@/platform/billing/useBillingMetrics';
 
 const ATTENTION_LABEL: Record<AttentionReason, MessageKey> = {
   suspended: 'platform.overview.attention.suspended',
@@ -18,8 +19,8 @@ const PLAN_LABEL: Record<string, MessageKey> = {
   scale: 'platform.plan.scale'
 };
 
-export function OverviewScreen({ state }: { state: TenantMetricsState }) {
-  const { t, formatNumber } = useI18n();
+export function OverviewScreen({ state, billing }: { state: TenantMetricsState; billing?: BillingMetricsState }) {
+  const { t, formatNumber, formatCurrency } = useI18n();
 
   if (state.status === 'loading') {
     return (
@@ -49,6 +50,14 @@ export function OverviewScreen({ state }: { state: TenantMetricsState }) {
         <Kpi label={t('platform.overview.kpi.branches')} value={formatNumber(kpis.totalBranches)} />
         <Kpi label={t('platform.overview.kpi.new30d')} value={formatNumber(kpis.newTenants30d)} />
       </div>
+
+      {billing !== undefined && billing.status === 'ready' && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Kpi label={t('platform.overview.kpi.mrr')} value={formatCurrency(billing.data.mrrMinorUnits, billing.data.currencyCode)} />
+          <Kpi label={t('platform.overview.kpi.outstanding')} value={formatCurrency(billing.data.outstandingMinorUnits, billing.data.currencyCode)} />
+          <Kpi label={t('platform.overview.kpi.overdue')} value={formatCurrency(billing.data.overdueMinorUnits, billing.data.currencyCode)} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="md:col-span-2">
