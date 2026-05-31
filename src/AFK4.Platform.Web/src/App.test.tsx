@@ -245,11 +245,8 @@ describe('Platform Web routing', () => {
     expect(resolvePlatformRoute('/auth/accept-invite', null, '?code=setup-123')).toMatchObject({
       route: { kind: 'acceptInvite', code: 'setup-123' }
     });
-    expect(resolvePlatformRoute('/auth/sign-in', null, '?tenantKey=demo-club')).toMatchObject({
-      route: {
-        kind: 'staffSignIn',
-        tenantKey: 'demo-club'
-      }
+    expect(resolvePlatformRoute('/auth/sign-in')).toMatchObject({
+      route: { kind: 'staffSignIn' }
     });
     expect(resolvePlatformRoute('/auth/forgot-password')).toMatchObject({
       route: { kind: 'forgotPassword' }

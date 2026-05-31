@@ -49,7 +49,7 @@ export type AdminRoute =
 
 export type AuthRoute =
   | { kind: 'acceptInvite'; code: string | null }
-  | { kind: 'staffSignIn'; tenantKey: string | null }
+  | { kind: 'staffSignIn' }
   | { kind: 'forgotPassword' }
   | { kind: 'resetPassword' };
 
@@ -185,7 +185,7 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
   );
 
   const navigateToStaffSignIn = useCallback(
-    () => navigate({ kind: 'staffSignIn', tenantKey: null }, '/auth/sign-in'),
+    () => navigate({ kind: 'staffSignIn' }, '/auth/sign-in'),
     [navigate]
   );
 
@@ -646,10 +646,10 @@ export function resolvePlatformRoute(
   }
 
   if (path === '/auth') {
-    return { route: { kind: 'staffSignIn', tenantKey: null }, redirectTo: '/auth/sign-in' };
+    return { route: { kind: 'staffSignIn' }, redirectTo: '/auth/sign-in' };
   }
   if (path === '/auth/sign-in') {
-    return { route: { kind: 'staffSignIn', tenantKey: readQueryValue(search, 'tenantKey') } };
+    return { route: { kind: 'staffSignIn' } };
   }
   if (path === '/auth/accept-invite') {
     return { route: { kind: 'acceptInvite', code: readQueryValue(search, 'code') } };
