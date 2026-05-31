@@ -1701,6 +1701,43 @@ app.MapGet("/api/platform/tenants/{organizationId:guid}/invoices", async (
     return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
 });
 
+// --- Club-side (owner) read-only billing (SP3 Plan 7) ---
+app.MapGet("/api/organizations/{organizationId:guid}/subscription", async (
+    Guid organizationId,
+    StaffAuthorizationService authorizationService,
+    ITenantSubscriptionService subscriptionService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewSubscription);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    if (organizationId != authorization.StaffContext!.OrganizationId)
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+    var result = await subscriptionService.GetAsync(authorization.StaffContext!.OrganizationId, cancellationToken);
+    return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
+});
+
+app.MapGet("/api/organizations/{organizationId:guid}/invoices", async (
+    Guid organizationId,
+    StaffAuthorizationService authorizationService,
+    IInvoiceService invoiceService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewSubscription);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    if (organizationId != authorization.StaffContext!.OrganizationId)
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+    var result = await invoiceService.ListForTenantAsync(authorization.StaffContext!.OrganizationId, status: null, cancellationToken);
+    return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
+});
+
 app.MapGet("/api/platform/subscriptions", async (
     string? status,
     string? planCode,
