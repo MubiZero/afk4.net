@@ -89,6 +89,19 @@ public sealed class ClubBillingEndpointTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task GET_invoices_rejects_other_org_with_403()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await SeedSubscriptionAsync(factory);
+
+        var response = await client.GetAsync($"/api/organizations/{Guid.NewGuid():D}/invoices");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static async Task SeedSubscriptionAsync(PlatformApiFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();
