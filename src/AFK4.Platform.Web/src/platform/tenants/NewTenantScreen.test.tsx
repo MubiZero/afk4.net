@@ -64,3 +64,17 @@ it('cancels without submitting', () => {
   expect(onCancel).toHaveBeenCalled();
   expect(client.createTenant).not.toHaveBeenCalled();
 });
+
+it('auto-fills the organization slug from the name until the slug is edited', () => {
+  const client = { createTenant: vi.fn() };
+  renderScreen(client);
+
+  // Type into the org-name input — slug should auto-fill
+  fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'AFK4 Душанбе' } });
+  expect((screen.getByLabelText('Ключ тенанта') as HTMLInputElement).value).toBe('afk4-dushanbe');
+
+  // Edit the slug directly — auto-fill should stop
+  fireEvent.change(screen.getByLabelText('Ключ тенанта'), { target: { value: 'custom-slug' } });
+  fireEvent.change(screen.getByLabelText('Название'), { target: { value: 'AFK4 Душанбе v2' } });
+  expect((screen.getByLabelText('Ключ тенанта') as HTMLInputElement).value).toBe('custom-slug');
+});

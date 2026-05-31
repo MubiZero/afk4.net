@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { slugify } from '@/lib/slugify';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +55,7 @@ export function NewTenantScreen({ client, onCreated, onCancel }: NewTenantScreen
   const [form, setForm] = useState<FormState>(defaultState);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [slugTouched, setSlugTouched] = useState(false);
 
   function update(field: keyof FormState, value: string) {
     setForm(current => ({ ...current, [field]: value }));
@@ -98,9 +100,13 @@ export function NewTenantScreen({ client, onCreated, onCancel }: NewTenantScreen
         <CardHeader><CardTitle>{t('platform.newTenant.section.organization')}</CardTitle></CardHeader>
         <CardContent className="flex flex-col gap-3">
           <LabeledInput label={t('platform.newTenant.field.orgSlug')} hint={t('platform.newTenant.field.orgSlugHint')}
-            value={form.organizationSlug} onChange={v => update('organizationSlug', v)} required />
+            value={form.organizationSlug} onChange={v => { setSlugTouched(true); update('organizationSlug', v); }} required />
           <LabeledInput label={t('platform.newTenant.field.orgName')}
-            value={form.organizationName} onChange={v => update('organizationName', v)} required />
+            value={form.organizationName} onChange={v => setForm(current => ({
+              ...current,
+              organizationName: v,
+              organizationSlug: slugTouched ? current.organizationSlug : slugify(v)
+            }))} required />
         </CardContent>
       </Card>
 
