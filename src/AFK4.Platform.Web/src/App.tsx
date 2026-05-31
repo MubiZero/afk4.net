@@ -30,6 +30,7 @@ import { StaffSignIn } from './components/StaffSignIn';
 import { NewTenant } from './components/NewTenant';
 import { platformNav } from './platform/nav';
 import { OverviewScreen as PlatformOverviewScreen } from './platform/overview/OverviewScreen';
+import { BillingScreen as PlatformBillingScreen } from './platform/billing/BillingScreen';
 import { useTenantMetrics } from './platform/overview/useTenantMetrics';
 import { useBillingMetrics } from './platform/billing/useBillingMetrics';
 import { TenantsScreen } from './platform/tenants/TenantsScreen';
@@ -38,6 +39,7 @@ export type PlatformWebAudience = 'all' | 'admin' | 'club';
 
 export type AdminRoute =
   | { kind: 'adminOverview' }
+  | { kind: 'adminBilling' }
   | { kind: 'tenantList' }
   | { kind: 'newTenant' }
   | { kind: 'tenantDetail'; organizationId: string; initialInvite: OwnerInvite | null };
@@ -479,6 +481,7 @@ const PLATFORM_ROLE_LABEL = 'Администратор';
 
 const PLATFORM_SCREEN_TITLE: Record<AdminRoute['kind'], string> = {
   adminOverview: 'Обзор',
+  adminBilling: 'Биллинг',
   tenantList: 'Тенанты',
   newTenant: 'Новый тенант',
   tenantDetail: 'Тенант'
@@ -488,6 +491,8 @@ function pathForAdminRoute(route: AdminRoute): string {
   switch (route.kind) {
     case 'adminOverview':
       return '/admin';
+    case 'adminBilling':
+      return '/admin/billing';
     case 'tenantList':
     case 'newTenant':
     case 'tenantDetail':
@@ -536,6 +541,8 @@ function PlatformArea({
     >
       {route.kind === 'adminOverview' ? (
         <PlatformOverviewScreen state={metricsState} billing={billingMetricsState} />
+      ) : route.kind === 'adminBilling' ? (
+        <PlatformBillingScreen client={adminClient} />
       ) : route.kind === 'newTenant' ? (
         <NewTenant
           client={adminClient}
@@ -588,6 +595,9 @@ export function resolvePlatformRoute(
 
     if (path === '/admin') {
       return { route: { kind: 'adminOverview' } };
+    }
+    if (path === '/admin/billing') {
+      return { route: { kind: 'adminBilling' } };
     }
     if (path === '/admin/tenants') {
       return { route: { kind: 'tenantList' } };
@@ -723,6 +733,7 @@ function readInitialInvite(historyState: unknown): OwnerInvite | null {
 
 function isAdminRoute(route: AppRoute): route is AdminRoute {
   return route.kind === 'adminOverview'
+    || route.kind === 'adminBilling'
     || route.kind === 'tenantList'
     || route.kind === 'newTenant'
     || route.kind === 'tenantDetail';

@@ -10,11 +10,11 @@ describe('platform nav', () => {
     expect(keys).toContain('profile');
   });
 
-  it('marks overview and tenants live, billing and profile soon', () => {
+  it('marks overview, tenants and billing live, profile soon', () => {
     const items = platformNav.flatMap(g => g.items);
     expect(items.find(i => i.key === 'overview')?.soon).toBe(false);
     expect(items.find(i => i.key === 'tenants')?.soon).toBe(false);
-    expect(items.find(i => i.key === 'billing')?.soon).toBe(true);
+    expect(items.find(i => i.key === 'billing')?.soon).toBe(false);
     expect(items.find(i => i.key === 'profile')?.soon).toBe(true);
   });
 

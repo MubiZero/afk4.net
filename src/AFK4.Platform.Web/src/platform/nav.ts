@@ -7,7 +7,7 @@ export const platformNav: NavGroup[] = [
     items: [
       { key: 'overview', labelKey: 'nav.platform.overview', path: '/admin', ownerOnly: false, soon: false },
       { key: 'tenants', labelKey: 'nav.platform.tenants', path: '/admin/tenants', ownerOnly: false, soon: false },
-      { key: 'billing', labelKey: 'nav.platform.billing', path: '/admin/billing', ownerOnly: false, soon: true }
+      { key: 'billing', labelKey: 'nav.platform.billing', path: '/admin/billing', ownerOnly: false, soon: false }
     ]
   },
   {
