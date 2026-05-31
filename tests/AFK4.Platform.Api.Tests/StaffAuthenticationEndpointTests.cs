@@ -112,6 +112,169 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.Equal(HttpStatusCode.Unauthorized, replayResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task PostStaffSignInByLogin_SingleClub_ReturnsAccessToken()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("tech@afk4.test", "Passw0rd!"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
+        Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByLogin_WrongPassword_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("tech@afk4.test", "wrong-password"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByLogin_UnknownLogin_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("nobody@afk4.test", "Passw0rd!"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByLogin_SameLoginDifferentPasswords_SignsIntoCorrectClub()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory); // org A: tech@afk4.test / Passw0rd!
+        await SeedSecondClubAsync(factory, "shared@afk4.test", "OrgA-pass"); // also adds shared@ to org A
+        await SeedSharedLoginInSecondOrgAsync(factory, "shared@afk4.test", "OrgB-pass");
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("shared@afk4.test", "OrgB-pass"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(SecondOrgId, body.OrganizationId);
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByLogin_SameLoginSamePasswordTwoClubs_ReturnsChooseClub()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        await SeedSecondClubAsync(factory, "shared@afk4.test", "Same-pass"); // org A
+        await SeedSharedLoginInSecondOrgAsync(factory, "shared@afk4.test", "Same-pass"); // org B
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("shared@afk4.test", "Same-pass"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInChooseClubResponse>();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(2, body.Clubs.Count);
+        Assert.Contains(body.Clubs, c => c.OrganizationId == TestIds.OrganizationId);
+        Assert.Contains(body.Clubs, c => c.OrganizationId == SecondOrgId);
+    }
+
+    private static readonly Guid SecondOrgId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f09");
+    private static readonly Guid SecondBranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c3");
+
+    // Adds `login` to the EXISTING org A with the given password.
+    private static async Task SeedSecondClubAsync(PlatformApiFactory factory, string login, string password)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var hasher = new PasswordHasher<StaffUserEntity>();
+        var user = new StaffUserEntity
+        {
+            StaffUserId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            UserName = login,
+            NormalizedUserName = login.ToUpperInvariant(),
+            DisplayName = "Shared A",
+            IsActive = true,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
+        };
+        user.PasswordHash = hasher.HashPassword(user, password);
+        dbContext.StaffUsers.Add(user);
+        dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(),
+            StaffUserId = user.StaffUserId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            RoleName = StaffRoleNames.Owner
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
+    // Creates org B and adds the same login there with its own password.
+    private static async Task SeedSharedLoginInSecondOrgAsync(PlatformApiFactory factory, string login, string password)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var hasher = new PasswordHasher<StaffUserEntity>();
+        var createdAt = DateTimeOffset.Parse("2026-05-12T00:00:00Z");
+        dbContext.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = SecondOrgId,
+            Slug = "second-club",
+            Name = "Second Org",
+            CreatedAtUtc = createdAt
+        });
+        dbContext.Branches.Add(new BranchEntity
+        {
+            BranchId = SecondBranchId,
+            OrganizationId = SecondOrgId,
+            Slug = "main",
+            Name = "Second Branch",
+            CreatedAtUtc = createdAt
+        });
+        var user = new StaffUserEntity
+        {
+            StaffUserId = Guid.NewGuid(),
+            OrganizationId = SecondOrgId,
+            UserName = login,
+            NormalizedUserName = login.ToUpperInvariant(),
+            DisplayName = "Shared B",
+            IsActive = true,
+            CreatedAtUtc = createdAt
+        };
+        user.PasswordHash = hasher.HashPassword(user, password);
+        dbContext.StaffUsers.Add(user);
+        dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(),
+            StaffUserId = user.StaffUserId,
+            OrganizationId = SecondOrgId,
+            BranchId = SecondBranchId,
+            RoleName = StaffRoleNames.Owner
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
     private static async Task SeedTechnicianAsync(PlatformApiFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();

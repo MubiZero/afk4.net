@@ -525,6 +525,25 @@ app.MapPost("/api/auth/staff/sign-in-by-tenant-key", async (
         : Results.Ok(response);
 });
 
+app.MapPost("/api/auth/staff/sign-in-by-login", async (
+    StaffSignInByLoginRequest request,
+    IStaffCredentialService credentialService,
+    CancellationToken cancellationToken) =>
+{
+    var resolution = await credentialService.SignInByLoginAsync(request, cancellationToken);
+
+    if (resolution.SignedIn is not null)
+    {
+        return Results.Ok(resolution.SignedIn);
+    }
+
+    return resolution.Clubs.Count > 0
+        ? Results.Json(
+            new StaffSignInChooseClubResponse(resolution.Clubs),
+            statusCode: StatusCodes.Status409Conflict)
+        : Results.Unauthorized();
+});
+
 app.MapPost("/api/auth/staff/refresh", async (
     StaffRefreshTokenRequest request,
     IStaffTokenService tokenService,
