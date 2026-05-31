@@ -81,4 +81,17 @@ public sealed class PlatformSubscriptionEndpointTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task PatchSubscription_WithoutAuth_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/platform/tenants/{Guid.NewGuid()}/subscription",
+            new UpdateSubscriptionRequest("scale", null, null, null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }
