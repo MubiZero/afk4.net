@@ -100,6 +100,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<SubscriptionPlanEntity> SubscriptionPlans => Set<SubscriptionPlanEntity>();
 
+    public DbSet<TenantSubscriptionEntity> TenantSubscriptions => Set<TenantSubscriptionEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -126,6 +128,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(plan => plan.CurrencyCode).HasMaxLength(3).IsRequired();
             entity.Property(plan => plan.BillingInterval).HasMaxLength(16).IsRequired();
             entity.HasIndex(plan => plan.SortOrder);
+        });
+
+        modelBuilder.Entity<TenantSubscriptionEntity>(entity =>
+        {
+            entity.ToTable("tenant_subscriptions");
+            entity.HasKey(subscription => subscription.TenantSubscriptionId);
+            entity.Property(subscription => subscription.PlanCode).HasMaxLength(64).IsRequired();
+            entity.Property(subscription => subscription.Status).HasMaxLength(32).IsRequired();
+            entity.Property(subscription => subscription.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(subscription => subscription.BillingInterval).HasMaxLength(16).IsRequired();
+            entity.HasIndex(subscription => subscription.OrganizationId).IsUnique();
+            entity.HasIndex(subscription => new { subscription.Status, subscription.NextInvoiceUtc });
         });
 
         modelBuilder.Entity<BranchEntity>(entity =>
