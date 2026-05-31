@@ -18,7 +18,11 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.ManageTenantSupportNotes,
                 PlatformAdminPermissionNames.ManageOwnerInvites,
                 PlatformAdminPermissionNames.ViewTenantHealth,
-                PlatformAdminPermissionNames.ViewPlatformAudit
+                PlatformAdminPermissionNames.ViewPlatformAudit,
+                PlatformAdminPermissionNames.ViewBilling,
+                PlatformAdminPermissionNames.ManagePlans,
+                PlatformAdminPermissionNames.ManageSubscriptions,
+                PlatformAdminPermissionNames.ManageInvoices
             },
             [PlatformAdminRoleNames.PlatformSupport] = new HashSet<string>
             {
@@ -28,7 +32,8 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.ManageTenantSupportNotes,
                 PlatformAdminPermissionNames.ManageOwnerInvites,
                 PlatformAdminPermissionNames.ViewTenantHealth,
-                PlatformAdminPermissionNames.ViewPlatformAudit
+                PlatformAdminPermissionNames.ViewPlatformAudit,
+                PlatformAdminPermissionNames.ViewBilling
             }
         };
 

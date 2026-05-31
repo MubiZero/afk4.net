@@ -21,4 +21,12 @@ public static class PlatformAdminPermissionNames
     public const string ViewTenantHealth = "platform.tenants.health.view";
 
     public const string ViewPlatformAudit = "platform.audit.view";
+
+    public const string ViewBilling = "platform.billing.view";
+
+    public const string ManagePlans = "platform.billing.plans.manage";
+
+    public const string ManageSubscriptions = "platform.billing.subscriptions.manage";
+
+    public const string ManageInvoices = "platform.billing.invoices.manage";
 }

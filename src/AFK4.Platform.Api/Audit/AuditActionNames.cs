@@ -203,4 +203,18 @@ public static class AuditActionNames
     public const string UpdateBranchSettings = "branches.settings.update";
 
     public const string UpdateFloorMap = "floor_map.update";
+
+    public const string ViewBilling = "billing.view";
+
+    public const string CreatePlan = "billing.plan.create";
+
+    public const string UpdatePlan = "billing.plan.update";
+
+    public const string UpdateSubscription = "billing.subscription.update";
+
+    public const string GenerateInvoice = "billing.invoice.generate";
+
+    public const string MarkInvoicePaid = "billing.invoice.mark_paid";
+
+    public const string VoidInvoice = "billing.invoice.void";
 }
