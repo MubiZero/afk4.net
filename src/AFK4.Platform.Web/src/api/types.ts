@@ -772,3 +772,141 @@ export interface AuditSearchQuery {
   toUtc?: string;
   limit?: number;
 }
+
+// --- SaaS billing (SP3 Plan 4) ---
+export const BillingInterval = {
+  Monthly: 'monthly',
+  Yearly: 'yearly'
+} as const;
+
+export const InvoiceStatus = {
+  Issued: 'issued',
+  Paid: 'paid',
+  Void: 'void',
+  Overdue: 'overdue'
+} as const;
+
+export const InvoiceKind = {
+  Subscription: 'subscription',
+  Proration: 'proration'
+} as const;
+
+export interface SubscriptionPlan {
+  planCode: string;
+  name: string;
+  priceMinorUnits: number;
+  currencyCode: string;
+  billingInterval: string;
+  maxBranches: number | null;
+  maxDevicesPerBranch: number | null;
+  maxConcurrentSessions: number | null;
+  maxStaffUsersPerBranch: number | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface CreatePlanRequest {
+  planCode: string;
+  name: string;
+  priceMinorUnits: number;
+  currencyCode: string;
+  billingInterval: string;
+  maxBranches: number | null;
+  maxDevicesPerBranch: number | null;
+  maxConcurrentSessions: number | null;
+  maxStaffUsersPerBranch: number | null;
+  sortOrder: number;
+}
+
+export interface UpdatePlanRequest {
+  name: string;
+  priceMinorUnits: number;
+  currencyCode: string;
+  billingInterval: string;
+  maxBranches: number | null;
+  maxDevicesPerBranch: number | null;
+  maxConcurrentSessions: number | null;
+  maxStaffUsersPerBranch: number | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface TenantSubscription {
+  tenantSubscriptionId: string;
+  organizationId: string;
+  planCode: string;
+  status: string;
+  currentPeriodStartUtc: string;
+  currentPeriodEndUtc: string;
+  nextInvoiceUtc: string | null;
+  amountMinorUnits: number;
+  currencyCode: string;
+  billingInterval: string;
+  cancelAtPeriodEnd: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface UpdateSubscriptionRequest {
+  planCode: string | null;
+  billingInterval: string | null;
+  status: string | null;
+  cancelAtPeriodEnd: boolean | null;
+}
+
+export interface Invoice {
+  invoiceId: string;
+  organizationId: string;
+  number: number;
+  kind: string;
+  periodStartUtc: string;
+  periodEndUtc: string;
+  issuedAtUtc: string;
+  dueAtUtc: string;
+  amountMinorUnits: number;
+  currencyCode: string;
+  status: string;
+  paidAtUtc: string | null;
+  voidedAtUtc: string | null;
+  voidReason: string | null;
+  description: string;
+}
+
+export interface SubscriptionListItem {
+  tenantSubscriptionId: string;
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  planCode: string;
+  status: string;
+  billingInterval: string;
+  amountMinorUnits: number;
+  currencyCode: string;
+  currentPeriodEndUtc: string;
+  nextInvoiceUtc: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export interface InvoiceListItem {
+  invoiceId: string;
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  number: number;
+  kind: string;
+  issuedAtUtc: string;
+  dueAtUtc: string;
+  amountMinorUnits: number;
+  currencyCode: string;
+  status: string;
+}
+
+export interface PlatformBillingMetrics {
+  mrrMinorUnits: number;
+  currencyCode: string;
+  activeSubscriptions: number;
+  outstandingMinorUnits: number;
+  outstandingCount: number;
+  overdueMinorUnits: number;
+  overdueCount: number;
+}
