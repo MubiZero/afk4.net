@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { PlatformApiError } from '../api/platformApi';
 import type { StaffAuthApiClient } from '../api/staffAuthApi';
+import { useI18n } from '../i18n/I18nProvider';
 import { ErrorBanner, Field } from './ui';
 
 export interface AcceptInviteProps {
@@ -11,9 +12,9 @@ export interface AcceptInviteProps {
 }
 
 export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: AcceptInviteProps) {
+  const { t } = useI18n();
   const [code, setCode] = useState(initialCode ?? '');
   const [userName, setUserName] = useState('');
-  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -27,21 +28,20 @@ export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: 
     event.preventDefault();
     const normalizedCode = code.trim();
     const normalizedUserName = userName.trim();
-    const normalizedDisplayName = displayName.trim();
     if (normalizedCode.length === 0) {
-      setError('Setup code is required.');
+      setError(t('auth.accept.error.codeRequired'));
       return;
     }
-    if (normalizedUserName.length === 0 || normalizedDisplayName.length === 0) {
-      setError('User name and display name are required.');
+    if (normalizedUserName.length === 0) {
+      setError(t('auth.accept.error.loginRequired'));
       return;
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+      setError(t('auth.accept.error.passwordLength'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('auth.accept.error.passwordMismatch'));
       return;
     }
 
@@ -51,12 +51,12 @@ export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: 
       await client.acceptInvite({
         code: normalizedCode,
         userName: normalizedUserName,
-        displayName: normalizedDisplayName,
+        displayName: '',
         password
       });
       onAccepted();
     } catch (cause) {
-      setError(projectAcceptInviteError(cause));
+      setError(projectAcceptInviteError(cause, t));
     } finally {
       setSubmitting(false);
     }
@@ -64,11 +64,11 @@ export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: 
 
   return (
     <div className="page page-narrow">
-      <h1>Accept setup code</h1>
-      <p className="muted">Create the owner sign-in for this club.</p>
+      <h1>{t('auth.accept.title')}</h1>
+      <p className="muted">{t('auth.accept.subtitle')}</p>
       <form className="form" onSubmit={handleSubmit}>
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
-        <Field label="Setup code" htmlFor="accept-code">
+        <Field label={t('auth.accept.field.code')} htmlFor="accept-code">
           <input
             id="accept-code"
             name="code"
@@ -80,7 +80,7 @@ export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: 
             required
           />
         </Field>
-        <Field label="User name" htmlFor="accept-username">
+        <Field label={t('auth.field.login')} htmlFor="accept-username">
           <input
             id="accept-username"
             name="userName"
@@ -92,19 +92,7 @@ export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: 
             required
           />
         </Field>
-        <Field label="Display name" htmlFor="accept-display-name">
-          <input
-            id="accept-display-name"
-            name="displayName"
-            type="text"
-            autoComplete="name"
-            value={displayName}
-            onChange={event => setDisplayName(event.target.value)}
-            disabled={isSubmitting}
-            required
-          />
-        </Field>
-        <Field label="Password" htmlFor="accept-password">
+        <Field label={t('auth.field.password')} htmlFor="accept-password">
           <input
             id="accept-password"
             name="password"
@@ -116,7 +104,7 @@ export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: 
             required
           />
         </Field>
-        <Field label="Confirm password" htmlFor="accept-confirm-password">
+        <Field label={t('auth.accept.field.confirmPassword')} htmlFor="accept-confirm-password">
           <input
             id="accept-confirm-password"
             name="confirmPassword"
@@ -130,10 +118,10 @@ export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: 
         </Field>
         <div className="actions">
           <button type="submit" className="primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Accepting...' : 'Accept and open club'}
+            {isSubmitting ? t('auth.accept.action.submitting') : t('auth.accept.action.submit')}
           </button>
           <button type="button" onClick={onOpenSignIn} disabled={isSubmitting}>
-            Sign in instead
+            {t('auth.accept.action.signInInstead')}
           </button>
         </div>
       </form>
@@ -141,18 +129,21 @@ export function AcceptInvite({ client, initialCode, onAccepted, onOpenSignIn }: 
   );
 }
 
-function projectAcceptInviteError(cause: unknown): string {
+function projectAcceptInviteError(
+  cause: unknown,
+  t: (key: 'auth.accept.error.codeNotFound' | 'auth.accept.error.loginTaken' | 'auth.accept.error.generic') => string
+): string {
   if (cause instanceof PlatformApiError) {
     if (cause.status === 404) {
-      return 'Setup code was not found.';
+      return t('auth.accept.error.codeNotFound');
     }
     if (cause.status === 409) {
-      return 'That user name is already in use.';
+      return t('auth.accept.error.loginTaken');
     }
     return cause.message;
   }
   if (cause instanceof Error) {
     return cause.message;
   }
-  return 'Setup code acceptance failed.';
+  return t('auth.accept.error.generic');
 }

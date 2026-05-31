@@ -827,12 +827,13 @@ function getAudienceHome(audience: PlatformWebAudience): { route: AppRoute; path
 }
 
 function ReservedAuthPage({ onSignIn }: { onSignIn: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="page page-narrow">
-      <h1>Password reset</h1>
+      <h1>{t('auth.reset.title')}</h1>
       <section className="section">
-        <p className="muted">Password reset is not available in this build.</p>
-        <button type="button" className="primary" onClick={onSignIn}>Back to sign in</button>
+        <p className="muted">{t('auth.reset.message')}</p>
+        <button type="button" className="primary" onClick={onSignIn}>{t('auth.reset.back')}</button>
       </section>
     </div>
   );

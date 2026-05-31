@@ -370,14 +370,15 @@ describe('Platform Web routing', () => {
 
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
-    expect(screen.getByRole('heading', { name: 'Accept setup code' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Setup code')).toHaveValue('setup-code-1');
+    // Localized: default locale is ru
+    expect(screen.getByRole('heading', { name: 'Активация по коду' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Код приглашения')).toHaveValue('setup-code-1');
 
-    fireEvent.change(screen.getByLabelText('User name'), { target: { value: 'owner@demo.test' } });
-    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Demo Owner' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Passw0rd!Real' } });
-    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'Passw0rd!Real' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Accept and open club' }));
+    // Display-name field is removed; backend derives it from the login
+    fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'owner@demo.test' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!Real' } });
+    fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Passw0rd!Real' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Активировать и открыть клуб' }));
 
     await waitFor(() => expect(window.location.pathname).toBe('/club/install'));
     expect(screen.getByRole('heading', { name: 'Установка на ПК' })).toBeInTheDocument();
@@ -388,7 +389,7 @@ describe('Platform Web routing', () => {
     expect(JSON.parse(call[1].body as string)).toEqual({
       code: 'setup-code-1',
       userName: 'owner@demo.test',
-      displayName: 'Demo Owner',
+      displayName: '',
       password: 'Passw0rd!Real'
     });
   });

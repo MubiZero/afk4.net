@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { PlatformApiClient, PlatformApiError } from '../api/platformApi';
+import { useI18n } from '../i18n/I18nProvider';
 import { ErrorBanner, Field } from './ui';
 
 export interface SignInProps {
@@ -8,6 +9,7 @@ export interface SignInProps {
 }
 
 export function SignIn({ client, onSignedIn }: SignInProps) {
+  const { t } = useI18n();
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -22,11 +24,11 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
       onSignedIn();
     } catch (cause) {
       if (cause instanceof PlatformApiError) {
-        setError(cause.status === 401 ? 'Wrong user name or password.' : cause.message);
+        setError(cause.status === 401 ? t('auth.error.invalid') : cause.message);
       } else if (cause instanceof Error) {
         setError(cause.message);
       } else {
-        setError('Sign-in failed.');
+        setError(t('auth.error.generic'));
       }
     } finally {
       setSubmitting(false);
@@ -35,11 +37,11 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
 
   return (
     <div className="page page-narrow">
-      <h1>Platform Control Plane</h1>
-      <p className="muted">Sign in with your platform admin credentials.</p>
+      <h1>{t('auth.admin.title')}</h1>
+      <p className="muted">{t('auth.admin.subtitle')}</p>
       <form className="form" onSubmit={handleSubmit}>
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
-        <Field label="User name" htmlFor="signin-username">
+        <Field label={t('auth.field.login')} htmlFor="signin-username">
           <input
             id="signin-username"
             name="userName"
@@ -51,7 +53,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
             required
           />
         </Field>
-        <Field label="Password" htmlFor="signin-password">
+        <Field label={t('auth.field.password')} htmlFor="signin-password">
           <input
             id="signin-password"
             name="password"
@@ -64,7 +66,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
           />
         </Field>
         <button type="submit" className="primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Signing in…' : 'Sign in'}
+          {isSubmitting ? t('auth.action.signingIn') : t('auth.action.signIn')}
         </button>
       </form>
     </div>
