@@ -546,10 +546,16 @@ preload = ["./src/test/setup.ts"]
 import { afterEach, expect } from 'bun:test';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import * as matchers from '@testing-library/jest-dom/matchers';
-import { cleanup } from '@testing-library/react';
 
+// happy-dom must be registered before @testing-library is imported: testing-library's
+// `screen` binds to `document.body` at module-evaluation time, so a dynamic import keeps
+// that evaluation after the DOM globals exist. (Confirmed necessary in the Operator project
+// — a static `import { cleanup } from '@testing-library/react'` makes every render test
+// throw "a global document has to be available".)
 GlobalRegistrator.register({ url: 'http://localhost/' });
 expect.extend(matchers);
+
+const { cleanup } = await import('@testing-library/react');
 
 afterEach(() => {
   cleanup();
@@ -834,10 +840,27 @@ Expected: `CLEAN`.
 Run: `grep -n "vitest\|jsdom" src/AFK4.Platform.Web/package.json || echo CLEAN`
 Expected: `CLEAN`.
 
-- [ ] **Step 3: Confirm the build still passes**
+- [ ] **Step 3: Confirm the build passes — including the `preconnect` typing fix**
 
 Run: `cd src/AFK4.Platform.Web && "$HOME/.bun/bin/bun" run build; cd ../..`
 Expected: `tsc -b && vite build` succeeds.
+
+`bun test` does NOT typecheck, so `tsc -b` may surface ~N errors of the form
+`Property 'preconnect' is missing in type '(input...) => Promise<Response>' but required
+in type 'typeof fetch'`. This is the known `@types/bun` global-`fetch` override (it
+redefines `fetch` with a `preconnect` member). Fix at the type boundary — do NOT add
+`preconnect` to mocks, do NOT edit tsconfig:
+  - In any **production** api client that exposes an injectable `fetchImpl?: typeof fetch`
+    (e.g. the Platform/club api clients), introduce
+    `type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;`
+    and type the injectable as `FetchLike` instead of `typeof fetch`; drop any resulting
+    `as typeof fetch` cast on the default. The client only calls it as a function.
+  - In **test** files, where a mock is typed `Mock<typeof fetch>`, retype to `Mock<FetchLike>`
+    (define the same local alias); where a mock is assigned to `globalThis.fetch`, use
+    `globalThis.fetch = X as unknown as typeof fetch`.
+  - Re-run `bun run build` until exit 0, and re-run `bun test` to confirm still green.
+This mirrors the fix already applied in the Operator project
+(`fix(operator-app-web): satisfy tsc with browser-fetch typing for bun globals`).
 
 - [ ] **Step 4: Commit (only if Steps 1–3 produced fixups)**
 
