@@ -12,3 +12,7 @@ it('resolves /admin to adminOverview', () => {
 it('resolves /admin/tenants to tenantList', () => {
   expect(resolvePlatformRoute('/admin/tenants', null, '', 'admin').route).toEqual({ kind: 'tenantList' });
 });
+
+it('resolves /admin/profile to adminProfile', () => {
+  expect(resolvePlatformRoute('/admin/profile', null, '', 'admin').route).toEqual({ kind: 'adminProfile' });
+});

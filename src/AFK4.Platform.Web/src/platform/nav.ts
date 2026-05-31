@@ -14,7 +14,7 @@ export const platformNav: NavGroup[] = [
     key: 'platformAccount',
     labelKey: 'nav.group.platformAccount',
     items: [
-      { key: 'profile', labelKey: 'nav.platform.profile', path: '/admin/profile', ownerOnly: false, soon: true }
+      { key: 'profile', labelKey: 'nav.platform.profile', path: '/admin/profile', ownerOnly: false, soon: false }
     ]
   }
 ];

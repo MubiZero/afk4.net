@@ -10,12 +10,12 @@ describe('platform nav', () => {
     expect(keys).toContain('profile');
   });
 
-  it('marks overview, tenants and billing live, profile soon', () => {
+  it('marks every platform nav item live', () => {
     const items = platformNav.flatMap(g => g.items);
     expect(items.find(i => i.key === 'overview')?.soon).toBe(false);
     expect(items.find(i => i.key === 'tenants')?.soon).toBe(false);
     expect(items.find(i => i.key === 'billing')?.soon).toBe(false);
-    expect(items.find(i => i.key === 'profile')?.soon).toBe(true);
+    expect(items.find(i => i.key === 'profile')?.soon).toBe(false);
   });
 
   it('every item has an /admin path and a nav. label key', () => {

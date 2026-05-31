@@ -34,12 +34,14 @@ import { BillingScreen as PlatformBillingScreen } from './platform/billing/Billi
 import { useTenantMetrics } from './platform/overview/useTenantMetrics';
 import { useBillingMetrics } from './platform/billing/useBillingMetrics';
 import { TenantsScreen } from './platform/tenants/TenantsScreen';
+import { ProfileScreen as PlatformProfileScreen } from './platform/profile/ProfileScreen';
 
 export type PlatformWebAudience = 'all' | 'admin' | 'club';
 
 export type AdminRoute =
   | { kind: 'adminOverview' }
   | { kind: 'adminBilling' }
+  | { kind: 'adminProfile' }
   | { kind: 'tenantList' }
   | { kind: 'newTenant' }
   | { kind: 'tenantDetail'; organizationId: string; initialInvite: OwnerInvite | null };
@@ -482,6 +484,7 @@ const PLATFORM_ROLE_LABEL = 'Администратор';
 const PLATFORM_SCREEN_TITLE: Record<AdminRoute['kind'], string> = {
   adminOverview: 'Обзор',
   adminBilling: 'Биллинг',
+  adminProfile: 'Профиль',
   tenantList: 'Тенанты',
   newTenant: 'Новый тенант',
   tenantDetail: 'Тенант'
@@ -493,6 +496,8 @@ function pathForAdminRoute(route: AdminRoute): string {
       return '/admin';
     case 'adminBilling':
       return '/admin/billing';
+    case 'adminProfile':
+      return '/admin/profile';
     case 'tenantList':
     case 'newTenant':
     case 'tenantDetail':
@@ -514,8 +519,7 @@ function PlatformArea({
     if (isAdminRoute(resolution.route)) {
       onNavigate(resolution.route, resolution.redirectTo ?? path);
     }
-    // Soon/unbuilt nav targets (profile) resolve to notFound and are ignored; live targets
-    // (overview, billing, tenants) navigate.
+    // All platform nav targets (overview, tenants, billing, profile) resolve to admin routes.
   };
 
   return (
@@ -544,6 +548,8 @@ function PlatformArea({
         <PlatformOverviewScreen state={metricsState} billing={billingMetricsState} />
       ) : route.kind === 'adminBilling' ? (
         <PlatformBillingScreen client={adminClient} />
+      ) : route.kind === 'adminProfile' ? (
+        <PlatformProfileScreen session={session} onSignOut={onSignOut} />
       ) : route.kind === 'newTenant' ? (
         <NewTenant
           client={adminClient}
@@ -599,6 +605,9 @@ export function resolvePlatformRoute(
     }
     if (path === '/admin/billing') {
       return { route: { kind: 'adminBilling' } };
+    }
+    if (path === '/admin/profile') {
+      return { route: { kind: 'adminProfile' } };
     }
     if (path === '/admin/tenants') {
       return { route: { kind: 'tenantList' } };
@@ -735,6 +744,7 @@ function readInitialInvite(historyState: unknown): OwnerInvite | null {
 function isAdminRoute(route: AppRoute): route is AdminRoute {
   return route.kind === 'adminOverview'
     || route.kind === 'adminBilling'
+    || route.kind === 'adminProfile'
     || route.kind === 'tenantList'
     || route.kind === 'newTenant'
     || route.kind === 'tenantDetail';
