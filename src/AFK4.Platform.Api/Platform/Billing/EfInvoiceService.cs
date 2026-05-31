@@ -81,6 +81,8 @@ public sealed class EfInvoiceService(
         MarkInvoicePaidRequest request,
         CancellationToken cancellationToken)
     {
+        // request.Reference is recorded in the mark-paid audit record at the endpoint layer, not on the
+        // invoice itself — invoices carry no payment metadata (no payment provider; see design spec §8).
         var invoice = await dbContext.Invoices
             .SingleOrDefaultAsync(candidate => candidate.InvoiceId == invoiceId, cancellationToken);
         if (invoice is null)

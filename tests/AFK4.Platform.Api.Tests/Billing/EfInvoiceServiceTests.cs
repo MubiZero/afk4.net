@@ -134,4 +134,64 @@ public sealed class EfInvoiceServiceTests
         Assert.Equal(InvoiceStatusNames.Void, result.Value!.Status);
         Assert.Equal("duplicate", result.Value.VoidReason);
     }
+
+    [Fact]
+    public async Task MarkPaidAsync_OverdueInvoice_CanBePaid()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
+        var generated = await service.GenerateAsync(orgId, CancellationToken.None);
+
+        // Force the invoice into the overdue state.
+        var stored = await db.Invoices.SingleAsync();
+        stored.Status = InvoiceStatusNames.Overdue;
+        await db.SaveChangesAsync();
+
+        var result = await service.MarkPaidAsync(generated.Value!.InvoiceId, new MarkInvoicePaidRequest(null), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(InvoiceStatusNames.Paid, result.Value!.Status);
+    }
+
+    [Fact]
+    public async Task VoidAsync_OverdueInvoice_CanBeVoided()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
+        var generated = await service.GenerateAsync(orgId, CancellationToken.None);
+
+        var stored = await db.Invoices.SingleAsync();
+        stored.Status = InvoiceStatusNames.Overdue;
+        await db.SaveChangesAsync();
+
+        var result = await service.VoidAsync(generated.Value!.InvoiceId, new VoidInvoiceRequest("overdue cleanup"), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(InvoiceStatusNames.Void, result.Value!.Status);
+    }
+
+    [Fact]
+    public async Task ListForTenantAsync_InvalidStatus_ReturnsBadRequest()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
+
+        var result = await service.ListForTenantAsync(orgId, "garbage", CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+    }
+
+    [Fact]
+    public async Task ListForTenantAsync_UnknownTenant_ReturnsNotFound()
+    {
+        await using var db = NewContext();
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
+
+        var result = await service.ListForTenantAsync(Guid.NewGuid(), null, CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.NotFound, result.Status);
+    }
 }
