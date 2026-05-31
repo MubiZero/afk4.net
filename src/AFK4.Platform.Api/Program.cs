@@ -1678,6 +1678,78 @@ app.MapPatch("/api/platform/plans/{planCode}", async (
     return Results.Ok(result.Value);
 });
 
+app.MapGet("/api/platform/tenants/{organizationId:guid}/subscription", async (
+    Guid organizationId,
+    PlatformAdminAuthorizationService authorizationService,
+    ITenantSubscriptionService subscriptionService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewBilling);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewBilling,
+            targetType: "TenantSubscription",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await subscriptionService.GetAsync(organizationId, cancellationToken);
+    return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
+});
+
+app.MapPatch("/api/platform/tenants/{organizationId:guid}/subscription", async (
+    Guid organizationId,
+    PlatformAdminAuthorizationService authorizationService,
+    ITenantSubscriptionService subscriptionService,
+    IAuditRecordWriter auditRecordWriter,
+    UpdateSubscriptionRequest request,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageSubscriptions);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.UpdateSubscription,
+            targetType: "TenantSubscription",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await subscriptionService.UpdateAsync(organizationId, request, cancellationToken);
+    if (!result.Succeeded)
+        return BillingResults.From(result);
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.UpdateSubscription,
+        targetType: "TenantSubscription",
+        targetId: organizationId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { result.Value!.PlanCode, result.Value.Status, result.Value.CancelAtPeriodEnd },
+        cancellationToken);
+    return Results.Ok(result.Value);
+});
+
 app.MapGet("/api/platform/tenants/{organizationId:guid}/health", async (
     Guid organizationId,
     PlatformAdminAuthorizationService authorizationService,
