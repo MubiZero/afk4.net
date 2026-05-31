@@ -102,6 +102,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<TenantSubscriptionEntity> TenantSubscriptions => Set<TenantSubscriptionEntity>();
 
+    public DbSet<InvoiceEntity> Invoices => Set<InvoiceEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -140,6 +142,20 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(subscription => subscription.BillingInterval).HasMaxLength(16).IsRequired();
             entity.HasIndex(subscription => subscription.OrganizationId).IsUnique();
             entity.HasIndex(subscription => new { subscription.Status, subscription.NextInvoiceUtc });
+        });
+
+        modelBuilder.Entity<InvoiceEntity>(entity =>
+        {
+            entity.ToTable("invoices");
+            entity.HasKey(invoice => invoice.InvoiceId);
+            entity.Property(invoice => invoice.Kind).HasMaxLength(16).IsRequired();
+            entity.Property(invoice => invoice.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(invoice => invoice.Status).HasMaxLength(16).IsRequired();
+            entity.Property(invoice => invoice.VoidReason).HasMaxLength(512);
+            entity.Property(invoice => invoice.Description).HasMaxLength(240).IsRequired();
+            entity.HasIndex(invoice => invoice.Number).IsUnique();
+            entity.HasIndex(invoice => new { invoice.OrganizationId, invoice.IssuedAtUtc });
+            entity.HasIndex(invoice => new { invoice.Status, invoice.DueAtUtc });
         });
 
         modelBuilder.Entity<BranchEntity>(entity =>
