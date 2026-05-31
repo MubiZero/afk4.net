@@ -13,16 +13,16 @@
 # `platform.afk4.local` (or staging) host and TLS are terminated by the
 # Coolify-managed Traefik in front of this container — see ingress.md.
 
-FROM node:24-alpine AS build
+FROM oven/bun:1 AS build
 WORKDIR /src
-COPY src/AFK4.Platform.Web/package.json src/AFK4.Platform.Web/package-lock.json ./
-RUN npm ci
+COPY src/AFK4.Platform.Web/package.json src/AFK4.Platform.Web/bun.lock ./
+RUN bun install --frozen-lockfile
 COPY src/AFK4.Platform.Web/. ./
 ARG VITE_PLATFORM_API_BASE_URL=""
 ARG VITE_AUDIENCE="admin"
 ENV VITE_PLATFORM_API_BASE_URL=${VITE_PLATFORM_API_BASE_URL}
 ENV VITE_AUDIENCE=${VITE_AUDIENCE}
-RUN npm run build
+RUN bun run build
 
 FROM nginx:1.27-alpine AS runtime
 COPY deploy/coolify/platform-web.nginx.conf /etc/nginx/conf.d/default.conf
