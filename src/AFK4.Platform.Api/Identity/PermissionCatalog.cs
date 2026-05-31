@@ -30,6 +30,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.RefundLedgerEntry,
                 StaffPermissionNames.ManualLedgerCorrection,
                 StaffPermissionNames.PayDebt,
+                StaffPermissionNames.ViewSubscription,
                 StaffPermissionNames.ManageTariffs,
                 StaffPermissionNames.ViewTariffs,
                 StaffPermissionNames.ManagePackages,

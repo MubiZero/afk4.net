@@ -44,6 +44,8 @@ public static class StaffPermissionNames
 
     public const string PayDebt = "billing.debt.pay";
 
+    public const string ViewSubscription = "billing.subscription.view";
+
     public const string ManageTariffs = "tariffs.manage";
 
     public const string ViewTariffs = "tariffs.view";
