@@ -1,12 +1,14 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import App, { readPlatformWebAudience, resolvePlatformRoute } from './App';
 import { clearStaffSession, readStaffSession, writeStaffSession, type StaffSession } from './auth/staffTokenStore';
 import { clearSession, writeSession, type PlatformAdminSession } from './auth/tokenStore';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { I18nProvider } from './i18n/I18nProvider';
 import { ToastProvider } from './components/ui/toast';
+
+const originalFetch = globalThis.fetch;
 
 // Signed-in club screens now render inside the new AppShell, whose components
 // consume the theme + i18n + toast contexts (mounted in main.tsx in production).
@@ -80,7 +82,7 @@ function buildStaffSession(): StaffSession {
 }
 
 function buildClubFetchMock() {
-  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  return mock(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? 'GET';
 
@@ -188,34 +190,31 @@ describe('Platform Web routing', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '/');
     sessionStorage.clear();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL) => {
-        // The admin overview renders billing KPI tiles, which call
-        // GET /api/platform/metrics. The real backend always returns a valid
-        // PlatformBillingMetricsDto (non-empty currencyCode); mirror that here so
-        // formatCurrency doesn't throw. All other endpoints keep the blanket [].
-        if (new URL(String(input)).pathname === '/api/platform/metrics') {
-          return jsonResponse(200, {
-            mrrMinorUnits: 0,
-            currencyCode: 'RUB',
-            activeSubscriptions: 0,
-            outstandingMinorUnits: 0,
-            outstandingCount: 0,
-            overdueMinorUnits: 0,
-            overdueCount: 0
-          });
-        }
-        return jsonResponse(200, []);
-      })
-    );
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      // The admin overview renders billing KPI tiles, which call
+      // GET /api/platform/metrics. The real backend always returns a valid
+      // PlatformBillingMetricsDto (non-empty currencyCode); mirror that here so
+      // formatCurrency doesn't throw. All other endpoints keep the blanket [].
+      if (new URL(String(input)).pathname === '/api/platform/metrics') {
+        return jsonResponse(200, {
+          mrrMinorUnits: 0,
+          currencyCode: 'RUB',
+          activeSubscriptions: 0,
+          outstandingMinorUnits: 0,
+          outstandingCount: 0,
+          overdueMinorUnits: 0,
+          overdueCount: 0
+        });
+      }
+      return jsonResponse(200, []);
+    }) as unknown as typeof fetch;
   });
 
   afterEach(() => {
     cleanup();
     clearSession();
     clearStaffSession();
-    vi.unstubAllGlobals();
+    globalThis.fetch = originalFetch;
   });
 
   it('resolves root and legacy tenant URLs to admin routes', () => {
@@ -363,7 +362,7 @@ describe('Platform Web routing', () => {
   it('accepts a setup code, stores the staff session, and redirects to /club/install', async () => {
     window.history.replaceState(null, '', '/auth/accept-invite?code=setup-code-1');
     const fetchMock = buildClubFetchMock();
-    vi.stubGlobal('fetch', fetchMock);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
@@ -394,7 +393,7 @@ describe('Platform Web routing', () => {
   it('signs in a staff user via the login-only form and lands on the dashboard', async () => {
     window.history.replaceState(null, '', '/auth/sign-in');
     const fetchMock = buildClubFetchMock();
-    vi.stubGlobal('fetch', fetchMock);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
@@ -420,7 +419,7 @@ describe('Platform Web routing', () => {
   it('renders the new AppShell with the Overview at /club', async () => {
     window.history.replaceState(null, '', '/club');
     writeStaffSession(buildStaffSession());
-    vi.stubGlobal('fetch', buildClubFetchMock());
+    globalThis.fetch = buildClubFetchMock() as unknown as typeof fetch;
 
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
@@ -438,7 +437,7 @@ describe('Platform Web routing', () => {
     window.history.replaceState(null, '', '/club/install');
     writeStaffSession(buildStaffSession());
     const fetchMock = buildClubFetchMock();
-    vi.stubGlobal('fetch', fetchMock);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     renderWithProviders(<App apiBaseUrl="http://localhost" />);
 
