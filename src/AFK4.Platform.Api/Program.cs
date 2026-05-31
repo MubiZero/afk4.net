@@ -181,6 +181,7 @@ builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthS
 builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
 builder.Services.AddScoped<ITenantSubscriptionService, EfTenantSubscriptionService>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
+builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
