@@ -210,3 +210,19 @@ it('includes the platform admin keys', () => {
     expect(messages.en[key]).toBeTruthy();
   }
 });
+
+it('includes the tenants admin keys', () => {
+  for (const key of [
+    'platform.tenants.search',
+    'platform.tenants.col.name',
+    'platform.tenant.status.suspended',
+    'platform.tenant.subscription.pastDue',
+    'platform.tenant.section.status',
+    'platform.tenant.planForm.apply',
+    'platform.tenant.limitsForm.maxBranches',
+    'platform.tenant.action.error'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+  }
+});
