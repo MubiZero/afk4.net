@@ -9,8 +9,8 @@ import { TenantStatusSection } from './TenantStatusSection';
 import { TenantSubscriptionSection } from './TenantSubscriptionSection';
 import { TenantInvoicesSection } from './TenantInvoicesSection';
 import { TenantLimitsSection } from './TenantLimitsSection';
-import { OwnerInvitesSection } from '@/components/OwnerInvitesSection';
-import { SupportNotesSection } from '@/components/SupportNotesSection';
+import { TenantOwnerInvitesSection } from './TenantOwnerInvitesSection';
+import { TenantSupportNotesSection } from './TenantSupportNotesSection';
 import { HealthSection } from '@/components/HealthSection';
 
 interface TenantDrawerProps {
@@ -54,9 +54,10 @@ export function TenantDrawer({ client, organizationId, initialInvite, onChanged 
       <TenantLimitsSection client={client} tenant={tenant} onUpdated={handleUpdated} />
       <TenantInvoicesSection client={client} organizationId={tenant.organizationId} />
 
-      {/* Interim: legacy sections embedded unchanged until later plans redesign them. */}
-      <OwnerInvitesSection client={client} organizationId={tenant.organizationId} branches={tenant.branches} initialInvite={initialInvite} />
-      <SupportNotesSection client={client} organizationId={tenant.organizationId} />
+      <TenantOwnerInvitesSection client={client} organizationId={tenant.organizationId} branches={tenant.branches} initialInvite={initialInvite} />
+      <TenantSupportNotesSection client={client} organizationId={tenant.organizationId} />
+
+      {/* Interim: legacy Health section embedded unchanged until later plans redesign it. */}
       <HealthSection client={client} organizationId={tenant.organizationId} />
     </div>
   );
