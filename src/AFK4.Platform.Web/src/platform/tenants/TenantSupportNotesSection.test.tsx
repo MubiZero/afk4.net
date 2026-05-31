@@ -50,8 +50,7 @@ it('edits a note inline', async () => {
   renderSection(client);
   fireEvent.click(await screen.findByRole('button', { name: 'Редактировать' }));
 
-  const editors = screen.getAllByRole('textbox', { name: 'Новая заметка' });
-  const editor = editors[editors.length - 1];
+  const editor = screen.getByRole('textbox', { name: 'Редактировать заметку' });
   fireEvent.change(editor, { target: { value: 'edited' } });
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   await waitFor(() => expect(client.updateSupportNote).toHaveBeenCalledWith('o1', 'n1', 'edited'));

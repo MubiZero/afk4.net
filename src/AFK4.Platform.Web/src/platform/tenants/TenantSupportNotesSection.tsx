@@ -97,7 +97,7 @@ export function TenantSupportNotesSection({ client, organizationId }: { client: 
                 </div>
                 {editingId === n.tenantSupportNoteId ? (
                   <div className="flex flex-col gap-2">
-                    <Textarea aria-label={t('platform.tenant.notes.newNote')} rows={4} maxLength={4000} value={editingBody} onChange={e => setEditingBody(e.target.value)} />
+                    <Textarea aria-label={t('platform.tenant.notes.editNote')} rows={4} maxLength={4000} value={editingBody} onChange={e => setEditingBody(e.target.value)} />
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" disabled={savingEdit} onClick={() => setEditingId(null)}>{t('platform.tenant.notes.cancel')}</Button>
                       <Button size="sm" disabled={savingEdit || editingBody.trim().length === 0} onClick={() => void saveEdit()}>{t('platform.tenant.notes.save')}</Button>
