@@ -448,6 +448,32 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
+    public async Task AcceptOwnerInvite_WithBlankDisplayName_DerivesDisplayNameFromLogin()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var createResponse = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
+        var created = await createResponse.Content.ReadFromJsonAsync<CreateTenantResponse>();
+        Assert.NotNull(created);
+
+        using var publicClient = factory.CreateClient();
+        var response = await publicClient.PostAsJsonAsync(
+            "/api/platform/owner-invites/accept",
+            new AcceptOwnerInviteRequest(
+                Code: created.OwnerInvite.Code,
+                UserName: "owner@club.test",
+                DisplayName: "",
+                Password: "Passw0rd!Real"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal("owner", body.DisplayName);
+    }
+
+    [Fact]
     public async Task RevokeOwnerInvite_WithValidPendingInvite_MarksRevokedAndAudits()
     {
         await using var factory = new PlatformApiFactory();

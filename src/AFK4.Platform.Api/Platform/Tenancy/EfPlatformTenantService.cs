@@ -338,10 +338,10 @@ public sealed class EfPlatformTenantService(
                 $"UserName is required and must contain {MaxUserNameLength} characters or fewer.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.DisplayName) || request.DisplayName.Trim().Length > MaxDisplayNameLength)
+        if (request.DisplayName is { } providedDisplayName && providedDisplayName.Trim().Length > MaxDisplayNameLength)
         {
             return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest(
-                $"DisplayName is required and must contain {MaxDisplayNameLength} characters or fewer.");
+                $"DisplayName must contain {MaxDisplayNameLength} characters or fewer.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < MinPasswordLength)
@@ -413,7 +413,9 @@ public sealed class EfPlatformTenantService(
             OrganizationId = invite.OrganizationId,
             UserName = requestedUserName,
             NormalizedUserName = normalizedUserName,
-            DisplayName = request.DisplayName.Trim(),
+            DisplayName = string.IsNullOrWhiteSpace(request.DisplayName)
+                ? DeriveDisplayNameFromLogin(requestedUserName)
+                : request.DisplayName.Trim(),
             IsActive = true,
             CreatedAtUtc = now
         };
@@ -437,6 +439,13 @@ public sealed class EfPlatformTenantService(
 
         var signInResponse = await staffTokenService.IssueAsync(staffUser, cancellationToken);
         return PlatformTenantOperationResult<StaffSignInResponse>.Success(signInResponse);
+    }
+
+    private static string DeriveDisplayNameFromLogin(string login)
+    {
+        var atIndex = login.IndexOf('@');
+        var localPart = atIndex > 0 ? login[..atIndex] : login;
+        return localPart.Trim();
     }
 
     public async Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateStatusAsync(
