@@ -1754,6 +1754,269 @@ app.MapPatch("/api/platform/tenants/{organizationId:guid}/subscription", async (
     return Results.Ok(result.Value);
 });
 
+app.MapGet("/api/platform/tenants/{organizationId:guid}/invoices", async (
+    Guid organizationId,
+    string? status,
+    PlatformAdminAuthorizationService authorizationService,
+    IInvoiceService invoiceService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewBilling);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewBilling,
+            targetType: "Invoice",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await invoiceService.ListForTenantAsync(organizationId, status, cancellationToken);
+    return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
+});
+
+app.MapPost("/api/platform/tenants/{organizationId:guid}/invoices/generate", async (
+    Guid organizationId,
+    HttpContext httpContext,
+    PlatformAdminAuthorizationService authorizationService,
+    IInvoiceService invoiceService,
+    IPlatformIdempotencyStore idempotencyStore,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageInvoices);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.GenerateInvoice,
+            targetType: "Invoice",
+            targetId: organizationId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault();
+    var requestHash = IdempotencyKeyHelper.HashRequest(new { organizationId });
+    if (!string.IsNullOrWhiteSpace(idempotencyKey))
+    {
+        var prior = await idempotencyStore.TryReadAsync(
+            scope: "platform.invoices.generate",
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash,
+            cancellationToken);
+        if (prior.RequestHashMismatch)
+            return Results.Json(new { Error = "Idempotency-Key was reused with a different request body." }, statusCode: StatusCodes.Status422UnprocessableEntity);
+        if (prior.Stored is not null)
+        {
+            httpContext.Response.Headers["Idempotency-Replayed"] = "true";
+            return Results.Content(prior.Stored.ResponseBody, "application/json", statusCode: prior.Stored.StatusCode);
+        }
+    }
+
+    var result = await invoiceService.GenerateAsync(organizationId, cancellationToken);
+    if (!result.Succeeded)
+        return BillingResults.From(result);
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.GenerateInvoice,
+        targetType: "Invoice",
+        targetId: result.Value!.InvoiceId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { result.Value.Number, result.Value.AmountMinorUnits },
+        cancellationToken);
+
+    if (!string.IsNullOrWhiteSpace(idempotencyKey))
+    {
+        var responseBody = JsonSerializer.Serialize(result.Value, IdempotencyKeyHelper.JsonOptions);
+        await idempotencyStore.WriteAsync(
+            scope: "platform.invoices.generate",
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash,
+            platformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            statusCode: StatusCodes.Status200OK,
+            responseBody: responseBody,
+            retention: TimeSpan.FromHours(24),
+            cancellationToken);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+app.MapPost("/api/platform/invoices/{invoiceId:guid}/mark-paid", async (
+    Guid invoiceId,
+    HttpContext httpContext,
+    PlatformAdminAuthorizationService authorizationService,
+    IInvoiceService invoiceService,
+    IPlatformIdempotencyStore idempotencyStore,
+    IAuditRecordWriter auditRecordWriter,
+    MarkInvoicePaidRequest request,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageInvoices);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.MarkInvoicePaid,
+            targetType: "Invoice",
+            targetId: invoiceId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault();
+    var requestHash = IdempotencyKeyHelper.HashRequest(new { invoiceId, request });
+    if (!string.IsNullOrWhiteSpace(idempotencyKey))
+    {
+        var prior = await idempotencyStore.TryReadAsync(
+            scope: "platform.invoices.mark_paid",
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash,
+            cancellationToken);
+        if (prior.RequestHashMismatch)
+            return Results.Json(new { Error = "Idempotency-Key was reused with a different request body." }, statusCode: StatusCodes.Status422UnprocessableEntity);
+        if (prior.Stored is not null)
+        {
+            httpContext.Response.Headers["Idempotency-Replayed"] = "true";
+            return Results.Content(prior.Stored.ResponseBody, "application/json", statusCode: prior.Stored.StatusCode);
+        }
+    }
+
+    var result = await invoiceService.MarkPaidAsync(invoiceId, request, cancellationToken);
+    if (!result.Succeeded)
+        return BillingResults.From(result);
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: result.Value!.OrganizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.MarkInvoicePaid,
+        targetType: "Invoice",
+        targetId: invoiceId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { result.Value.Number, request.Reference },
+        cancellationToken);
+
+    if (!string.IsNullOrWhiteSpace(idempotencyKey))
+    {
+        var responseBody = JsonSerializer.Serialize(result.Value, IdempotencyKeyHelper.JsonOptions);
+        await idempotencyStore.WriteAsync(
+            scope: "platform.invoices.mark_paid",
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash,
+            platformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            statusCode: StatusCodes.Status200OK,
+            responseBody: responseBody,
+            retention: TimeSpan.FromHours(24),
+            cancellationToken);
+    }
+
+    return Results.Ok(result.Value);
+});
+
+app.MapPost("/api/platform/invoices/{invoiceId:guid}/void", async (
+    Guid invoiceId,
+    HttpContext httpContext,
+    PlatformAdminAuthorizationService authorizationService,
+    IInvoiceService invoiceService,
+    IPlatformIdempotencyStore idempotencyStore,
+    IAuditRecordWriter auditRecordWriter,
+    VoidInvoiceRequest request,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageInvoices);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.VoidInvoice,
+            targetType: "Invoice",
+            targetId: invoiceId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault();
+    var requestHash = IdempotencyKeyHelper.HashRequest(new { invoiceId, request });
+    if (!string.IsNullOrWhiteSpace(idempotencyKey))
+    {
+        var prior = await idempotencyStore.TryReadAsync(
+            scope: "platform.invoices.void",
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash,
+            cancellationToken);
+        if (prior.RequestHashMismatch)
+            return Results.Json(new { Error = "Idempotency-Key was reused with a different request body." }, statusCode: StatusCodes.Status422UnprocessableEntity);
+        if (prior.Stored is not null)
+        {
+            httpContext.Response.Headers["Idempotency-Replayed"] = "true";
+            return Results.Content(prior.Stored.ResponseBody, "application/json", statusCode: prior.Stored.StatusCode);
+        }
+    }
+
+    var result = await invoiceService.VoidAsync(invoiceId, request, cancellationToken);
+    if (!result.Succeeded)
+        return BillingResults.From(result);
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: result.Value!.OrganizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.VoidInvoice,
+        targetType: "Invoice",
+        targetId: invoiceId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { result.Value.Number, request.Reason },
+        cancellationToken);
+
+    if (!string.IsNullOrWhiteSpace(idempotencyKey))
+    {
+        var responseBody = JsonSerializer.Serialize(result.Value, IdempotencyKeyHelper.JsonOptions);
+        await idempotencyStore.WriteAsync(
+            scope: "platform.invoices.void",
+            idempotencyKey: idempotencyKey,
+            requestHash: requestHash,
+            platformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+            statusCode: StatusCodes.Status200OK,
+            responseBody: responseBody,
+            retention: TimeSpan.FromHours(24),
+            cancellationToken);
+    }
+
+    return Results.Ok(result.Value);
+});
+
 app.MapGet("/api/platform/tenants/{organizationId:guid}/health", async (
     Guid organizationId,
     PlatformAdminAuthorizationService authorizationService,
