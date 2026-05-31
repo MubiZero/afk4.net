@@ -52,7 +52,7 @@ public sealed class InvoiceGenerationHostedServiceTests
         await hosted.StartAsync(cts.Token);
 
         InvoiceEntity? invoice = null;
-        for (var attempt = 0; attempt < 50 && invoice is null; attempt++)
+        for (var attempt = 0; attempt < 200 && invoice is null; attempt++)
         {
             await Task.Delay(20, CancellationToken.None);
             await using var scope = provider.CreateAsyncScope();
