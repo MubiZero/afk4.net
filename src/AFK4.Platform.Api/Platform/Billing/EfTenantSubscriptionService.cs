@@ -138,6 +138,56 @@ public sealed class EfTenantSubscriptionService(
         return BillingOperationResult<TenantSubscriptionDto>.Success(ToDto(subscription));
     }
 
+    public async Task<BillingOperationResult<IReadOnlyList<SubscriptionListItemDto>>> ListAsync(
+        string? status,
+        string? planCode,
+        CancellationToken cancellationToken)
+    {
+        if (status is not null && !AllowedStatuses.Contains(status.Trim()))
+        {
+            return BillingOperationResult<IReadOnlyList<SubscriptionListItemDto>>.BadRequest(
+                $"Status must be one of: {string.Join(", ", AllowedStatuses)}.");
+        }
+
+        var query =
+            from subscription in dbContext.TenantSubscriptions.AsNoTracking()
+            join org in dbContext.Organizations.AsNoTracking()
+                on subscription.OrganizationId equals org.OrganizationId
+            select new { subscription, org.Name, org.Slug };
+
+        if (status is not null)
+        {
+            var s = status.Trim();
+            query = query.Where(x => x.subscription.Status == s);
+        }
+
+        if (!string.IsNullOrWhiteSpace(planCode))
+        {
+            var p = planCode.Trim();
+            query = query.Where(x => x.subscription.PlanCode == p);
+        }
+
+        var rows = await query
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+        IReadOnlyList<SubscriptionListItemDto> dtos = rows.Select(x => new SubscriptionListItemDto(
+            TenantSubscriptionId: x.subscription.TenantSubscriptionId,
+            OrganizationId: x.subscription.OrganizationId,
+            OrganizationName: x.Name,
+            OrganizationSlug: x.Slug,
+            PlanCode: x.subscription.PlanCode,
+            Status: x.subscription.Status,
+            BillingInterval: x.subscription.BillingInterval,
+            AmountMinorUnits: x.subscription.AmountMinorUnits,
+            CurrencyCode: x.subscription.CurrencyCode,
+            CurrentPeriodEndUtc: x.subscription.CurrentPeriodEndUtc,
+            NextInvoiceUtc: x.subscription.NextInvoiceUtc,
+            CancelAtPeriodEnd: x.subscription.CancelAtPeriodEnd)).ToList();
+
+        return BillingOperationResult<IReadOnlyList<SubscriptionListItemDto>>.Success(dtos);
+    }
+
     private async Task<TenantSubscriptionEntity> EnsureSubscriptionAsync(
         OrganizationEntity org,
         CancellationToken cancellationToken)

@@ -12,4 +12,9 @@ public interface ITenantSubscriptionService
         Guid organizationId,
         UpdateSubscriptionRequest request,
         CancellationToken cancellationToken);
+
+    Task<BillingOperationResult<IReadOnlyList<SubscriptionListItemDto>>> ListAsync(
+        string? status,
+        string? planCode,
+        CancellationToken cancellationToken);
 }
