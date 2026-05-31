@@ -1784,6 +1784,65 @@ app.MapGet("/api/platform/tenants/{organizationId:guid}/invoices", async (
     return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
 });
 
+app.MapGet("/api/platform/subscriptions", async (
+    string? status,
+    string? planCode,
+    PlatformAdminAuthorizationService authorizationService,
+    ITenantSubscriptionService subscriptionService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewBilling);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewBilling,
+            targetType: "TenantSubscription",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await subscriptionService.ListAsync(status, planCode, cancellationToken);
+    return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
+});
+
+app.MapGet("/api/platform/invoices", async (
+    string? status,
+    PlatformAdminAuthorizationService authorizationService,
+    IInvoiceService invoiceService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewBilling);
+    if (!authorization.IsAuthenticated)
+        return Results.Unauthorized();
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: Guid.Empty,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ViewBilling,
+            targetType: "Invoice",
+            targetId: null,
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await invoiceService.ListAllAsync(status, cancellationToken);
+    return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
+});
+
 app.MapPost("/api/platform/tenants/{organizationId:guid}/invoices/generate", async (
     Guid organizationId,
     HttpContext httpContext,

@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
@@ -150,6 +151,45 @@ public sealed class BillingListEndpointTests
         var bad = await service.ListAllAsync(status: "nope", CancellationToken.None);
         Assert.False(bad.Succeeded);
         Assert.Equal(BillingOperationStatus.BadRequest, bad.Status);
+    }
+
+    [Fact]
+    public async Task GET_subscriptions_requires_auth()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync("/api/platform/subscriptions");
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GET_subscriptions_returns_rows_when_authorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var rows = await client.GetFromJsonAsync<List<SubscriptionListItemDto>>("/api/platform/subscriptions");
+        Assert.NotNull(rows);
+    }
+
+    [Fact]
+    public async Task GET_invoices_returns_rows_when_authorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var rows = await client.GetFromJsonAsync<List<InvoiceListItemDto>>("/api/platform/invoices");
+        Assert.NotNull(rows);
+    }
+
+    [Fact]
+    public async Task GET_subscriptions_rejects_bad_status_filter()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var response = await client.GetAsync("/api/platform/subscriptions?status=bogus");
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     private static void SeedInvoice(PlatformDbContext db, Guid orgId, int number, string status)
