@@ -1,7 +1,9 @@
+type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
 export interface PlatformApiOptions {
   baseUrl: string;
   getAccessToken: () => string | null | Promise<string | null>;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
 }
 
 export interface QueryValue {
@@ -25,12 +27,12 @@ export class PlatformApiError extends Error {
 export class PlatformApiClient {
   private readonly baseUrl: URL;
   private readonly getAccessToken: PlatformApiOptions['getAccessToken'];
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
 
   constructor(options: PlatformApiOptions) {
     this.baseUrl = new URL(options.baseUrl);
     this.getAccessToken = options.getAccessToken;
-    this.fetchImpl = options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init)) as typeof fetch;
+    this.fetchImpl = options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
   }
 
   get<TResponse>(path: string, query?: QueryParams): Promise<TResponse> {

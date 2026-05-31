@@ -30,13 +30,15 @@ mock.module('./operatorRealtime', () => ({
 
 const { App } = await import('./App');
 
+type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
 const originalFetch = globalThis.fetch;
-let fetchMock: Mock<typeof fetch>;
+let fetchMock: Mock<FetchLike>;
 
 describe('App', () => {
   beforeEach(() => {
     realtimeMock.clients.length = 0;
-    fetchMock = mock(mockPlatformFetch) as unknown as Mock<typeof fetch>;
+    fetchMock = mock(mockPlatformFetch) as unknown as Mock<FetchLike>;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
   });
 
