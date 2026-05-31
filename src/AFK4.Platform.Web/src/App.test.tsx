@@ -190,7 +190,24 @@ describe('Platform Web routing', () => {
     sessionStorage.clear();
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse(200, []))
+      vi.fn(async (input: RequestInfo | URL) => {
+        // The admin overview renders billing KPI tiles, which call
+        // GET /api/platform/metrics. The real backend always returns a valid
+        // PlatformBillingMetricsDto (non-empty currencyCode); mirror that here so
+        // formatCurrency doesn't throw. All other endpoints keep the blanket [].
+        if (new URL(String(input)).pathname === '/api/platform/metrics') {
+          return jsonResponse(200, {
+            mrrMinorUnits: 0,
+            currencyCode: 'RUB',
+            activeSubscriptions: 0,
+            outstandingMinorUnits: 0,
+            outstandingCount: 0,
+            overdueMinorUnits: 0,
+            overdueCount: 0
+          });
+        }
+        return jsonResponse(200, []);
+      })
     );
   });
 
