@@ -1815,6 +1815,11 @@ app.MapPost("/api/platform/tenants/{organizationId:guid}/invoices/generate", asy
     var requestHash = IdempotencyKeyHelper.HashRequest(new { organizationId });
     if (!string.IsNullOrWhiteSpace(idempotencyKey))
     {
+        if (idempotencyKey.Length > 128)
+        {
+            return Results.BadRequest(new { Error = "Idempotency-Key must be at most 128 characters." });
+        }
+
         var prior = await idempotencyStore.TryReadAsync(
             scope: "platform.invoices.generate",
             idempotencyKey: idempotencyKey,
@@ -1893,6 +1898,11 @@ app.MapPost("/api/platform/invoices/{invoiceId:guid}/mark-paid", async (
     var requestHash = IdempotencyKeyHelper.HashRequest(new { invoiceId, request });
     if (!string.IsNullOrWhiteSpace(idempotencyKey))
     {
+        if (idempotencyKey.Length > 128)
+        {
+            return Results.BadRequest(new { Error = "Idempotency-Key must be at most 128 characters." });
+        }
+
         var prior = await idempotencyStore.TryReadAsync(
             scope: "platform.invoices.mark_paid",
             idempotencyKey: idempotencyKey,
@@ -1971,6 +1981,11 @@ app.MapPost("/api/platform/invoices/{invoiceId:guid}/void", async (
     var requestHash = IdempotencyKeyHelper.HashRequest(new { invoiceId, request });
     if (!string.IsNullOrWhiteSpace(idempotencyKey))
     {
+        if (idempotencyKey.Length > 128)
+        {
+            return Results.BadRequest(new { Error = "Idempotency-Key must be at most 128 characters." });
+        }
+
         var prior = await idempotencyStore.TryReadAsync(
             scope: "platform.invoices.void",
             idempotencyKey: idempotencyKey,
