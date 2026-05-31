@@ -41,7 +41,10 @@ describe('useBilling', () => {
     const client = makeClient({ getSubscription });
     const { result } = renderHook(() => useBilling(client, 'o1'));
     await waitFor(() => expect(result.current.status).toBe('error'));
-    act(() => result.current.retry());
+    const errorState = result.current;
+    if (errorState.status === 'error') {
+      act(() => errorState.retry());
+    }
     await waitFor(() => expect(result.current.status).toBe('ready'));
   });
 });
