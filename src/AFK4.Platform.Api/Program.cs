@@ -225,6 +225,7 @@ builder.Services.AddScoped<IPosService, EfPosService>();
 builder.Services.AddScoped<IPaymentProvider, ManualPaymentProvider>();
 builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 builder.Services.AddScoped<IReportService, EfReportService>();
+builder.Services.AddScoped<IReportScheduleService, EfReportScheduleService>();
 builder.Services.AddScoped<IOperatorDashboardService, EfOperatorDashboardService>();
 builder.Services.AddScoped<IReservationService, EfReservationService>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
@@ -728,6 +729,153 @@ app.MapPost("/api/staff/invites/accept", async (
     return result.Succeeded
         ? Results.Ok(new AcceptStaffInviteResponse(result.OrganizationId, result.UserName))
         : Results.BadRequest(new { error = result.Error });
+});
+
+app.MapPost("/api/branches/{branchId:guid}/report-schedules", async (
+    Guid branchId,
+    CreateReportScheduleRequest request,
+    StaffAuthorizationService authorizationService,
+    IReportScheduleService reportScheduleService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateReportSchedule,
+            "ReportSchedule",
+            null,
+            AuditOutcome.Denied,
+            new { request.ReportType, request.Frequency, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateCreateReportScheduleRequest(request);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var dto = await reportScheduleService.CreateAsync(
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request.ReportType,
+        request.Frequency,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateReportSchedule,
+        "ReportSchedule",
+        dto.ReportScheduleId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.ReportType, request.Frequency },
+        cancellationToken);
+
+    return Results.Ok(dto);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/report-schedules", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IReportScheduleService reportScheduleService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var schedules = await reportScheduleService.ListAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        cancellationToken);
+
+    return Results.Ok(schedules);
+});
+
+app.MapDelete("/api/branches/{branchId:guid}/report-schedules/{scheduleId:guid}", async (
+    Guid branchId,
+    Guid scheduleId,
+    StaffAuthorizationService authorizationService,
+    IReportScheduleService reportScheduleService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var deleted = await reportScheduleService.DeleteAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        scheduleId,
+        cancellationToken);
+
+    if (!deleted)
+    {
+        return Results.NotFound();
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.DeleteReportSchedule,
+        "ReportSchedule",
+        scheduleId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { scheduleId },
+        cancellationToken);
+
+    return Results.Ok(new { message = "Report schedule deleted." });
 });
 
 app.MapGet("/api/staff/me/owner-code", async (
@@ -10779,6 +10927,26 @@ static string? ValidateCreateStaffUserRequest(CreateStaffUserRequest request)
     }
 
     return ValidateStaffRoleNames(request.RoleNames);
+}
+
+static string? ValidateCreateReportScheduleRequest(CreateReportScheduleRequest request)
+{
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return "OrganizationId is required.";
+    }
+
+    if (!ScheduledReportTypeNames.All.Contains(request.ReportType))
+    {
+        return $"ReportType must be one of: {string.Join(", ", ScheduledReportTypeNames.All)}.";
+    }
+
+    if (!ReportScheduleFrequencyNames.All.Contains(request.Frequency))
+    {
+        return $"Frequency must be one of: {string.Join(", ", ReportScheduleFrequencyNames.All)}.";
+    }
+
+    return null;
 }
 
 static string? ValidateCreateStaffInviteRequest(CreateStaffInviteRequest request)

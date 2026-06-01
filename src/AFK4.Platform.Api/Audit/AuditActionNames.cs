@@ -78,6 +78,10 @@ public static class AuditActionNames
 
     public const string ViewOperatorActionReport = "reports.operator_actions.view";
 
+    public const string CreateReportSchedule = "reports.schedules.create";
+
+    public const string DeleteReportSchedule = "reports.schedules.delete";
+
     public const string ViewDashboardSummary = "dashboard.summary.view";
 
     public const string ViewReservations = "reservations.view";
