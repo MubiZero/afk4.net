@@ -1707,7 +1707,7 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^player-create-/);
   });
 
-  it('creates a staff user from the Settings personnel form', async () => {
+  it('invites a staff member from the Settings personnel form and shows the code', async () => {
     installSessionBridge();
 
     render(<App />);
@@ -1716,26 +1716,26 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Настройки'));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    expect(screen.queryByDisplayValue('ChangeMe123!')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Логин для входа'), { target: { value: 'manager2' } });
     fireEvent.change(screen.getByLabelText('Имя в смене'), { target: { value: 'Manager Two' } });
-    fireEvent.change(screen.getByLabelText('Пароль на первый вход'), { target: { value: 'Secret123!' } });
+    fireEvent.change(screen.getByLabelText('Email для приглашения'), { target: { value: 'manager2@club.example' } });
     fireEvent.change(screen.getByLabelText('Роль доступа'), { target: { value: 'branch_manager' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать сотрудника' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Пригласить сотрудника' }));
 
     expect(await screen.findByText('Пригласить сотрудника: подтверждено')).toBeInTheDocument();
-    const staffCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff') &&
+    const inviteCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/invites') &&
       init?.method === 'POST');
-    expect(staffCall).toBeDefined();
-    const body = JSON.parse(String(staffCall?.[1]?.body));
+    expect(inviteCall).toBeDefined();
+    const body = JSON.parse(String(inviteCall?.[1]?.body));
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       userName: 'manager2',
       displayName: 'Manager Two',
-      password: 'Secret123!',
+      email: 'manager2@club.example',
       roleNames: ['branch_manager']
     });
+    expect(await screen.findByLabelText('Код приглашения')).toHaveValue('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4.deadbeef');
   });
 
   it('updates the selected staff user role from Settings personnel', async () => {
@@ -2809,9 +2809,8 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPlayerPackages());
   }
 
-  if (pathname.endsWith('/staff') && init?.method === 'POST') {
-    const body = JSON.parse(String(init.body));
-    return jsonResponse(createStaffUser(body));
+  if (pathname.endsWith('/staff/invites') && init?.method === 'POST') {
+    return jsonResponse(createStaffInvite());
   }
 
   if (pathname.includes('/staff/') && pathname.endsWith('/profile') && init?.method === 'PATCH') {
@@ -3785,6 +3784,15 @@ function createBranchProfile(overrides: Record<string, unknown> = {}) {
     name: 'AFK4 Dushanbe',
     city: 'Dushanbe',
     createdAtUtc: '2026-05-21T08:00:00Z',
+    ...overrides
+  };
+}
+
+function createStaffInvite(overrides: Record<string, unknown> = {}) {
+  return {
+    staffInviteId: 'b6f1f2a0-1111-2222-3333-444455556666',
+    code: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4.deadbeef',
+    expiresAtUtc: '2026-06-08T08:00:00Z',
     ...overrides
   };
 }
