@@ -38,6 +38,9 @@ public static class NotificationTemplateKeys
     /// <summary>Daily owner summary digest — revenue, shifts and cash discrepancies for the prior day (Stage 5 digest trigger).</summary>
     public const string OwnerDailySummary = "owner.daily_summary";
 
+    /// <summary>Scheduled report digest — a recurring CSV report delivered to the owner as an attachment (Stage 5 digest trigger).</summary>
+    public const string ScheduledReport = "report.scheduled";
+
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, OwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy, LowStock, OwnerDailySummary];
+        [Test, StaffPasswordReset, OwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport];
 }

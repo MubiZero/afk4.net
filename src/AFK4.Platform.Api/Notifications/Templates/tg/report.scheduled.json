@@ -1,0 +1,5 @@
+{
+  "subject": "AFK4: ҳисоботи «{{reportType}}» барои {{periodStart}} — {{organizationName}}",
+  "bodyText": "Салом, {{displayName}}. Дар замима ҳисоботи нақшавии «{{reportType}}» барои «{{organizationName}}» дар давраи {{periodStart}} — {{periodEnd}} (CSV).",
+  "bodyHtml": "<p>Салом, {{displayName}}.</p><p>Дар замима ҳисоботи нақшавии <strong>«{{reportType}}»</strong> барои «{{organizationName}}» дар давраи {{periodStart}} — {{periodEnd}} (CSV).</p>"
+}
