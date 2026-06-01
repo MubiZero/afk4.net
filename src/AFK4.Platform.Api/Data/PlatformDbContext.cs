@@ -110,6 +110,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
 
+    public DbSet<StaffInviteEntity> StaffInvites => Set<StaffInviteEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -829,6 +831,20 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(token => token.TokenHash).IsRequired();
             entity.HasIndex(token => token.TokenHash);
             entity.HasIndex(token => new { token.StaffUserId, token.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<StaffInviteEntity>(entity =>
+        {
+            entity.ToTable("staff_invites");
+            entity.HasKey(invite => invite.StaffInviteId);
+            entity.Property(invite => invite.UserName).HasMaxLength(256).IsRequired();
+            entity.Property(invite => invite.NormalizedUserName).HasMaxLength(256).IsRequired();
+            entity.Property(invite => invite.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(invite => invite.Email).HasMaxLength(320).IsRequired();
+            entity.Property(invite => invite.RoleNamesCsv).HasMaxLength(512).IsRequired();
+            entity.Property(invite => invite.TokenHash).IsRequired();
+            entity.HasIndex(invite => invite.TokenHash);
+            entity.HasIndex(invite => new { invite.OrganizationId, invite.NormalizedUserName });
         });
     }
 }

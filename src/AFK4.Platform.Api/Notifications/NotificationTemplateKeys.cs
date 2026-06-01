@@ -17,6 +17,9 @@ public static class NotificationTemplateKeys
     /// <summary>Owner invite email carrying the invite code/link (Stage 3).</summary>
     public const string OwnerInvite = "owner.invite";
 
+    /// <summary>Staff invite email carrying the invite code; invitee sets their own password on accept (Stage 3, additive).</summary>
+    public const string StaffInvite = "staff.invite";
+
     /// <summary>Invoice issued to the organization owner (Stage 4 billing trigger).</summary>
     public const string InvoiceIssued = "invoice.issued";
 
@@ -27,5 +30,5 @@ public static class NotificationTemplateKeys
     public const string InvoiceOverdue = "invoice.overdue";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, OwnerInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue];
+        [Test, StaffPasswordReset, OwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue];
 }
