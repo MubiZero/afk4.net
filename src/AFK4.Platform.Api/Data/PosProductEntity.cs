@@ -22,6 +22,15 @@ public sealed class PosProductEntity
 
     public bool AllowNegativeStock { get; set; }
 
+    /// <summary>Stock-on-hand at or below this (when &gt; 0 and tracked) alerts the owner. 0 = no low-stock alerting.</summary>
+    public int ReorderThreshold { get; set; }
+
+    /// <summary>True while a low-stock alert is outstanding; re-armed (false) when stock returns above the threshold.</summary>
+    public bool LowStockAlerted { get; set; }
+
+    /// <summary>Restock-cycle counter; bumped on each re-arm so each cycle's alert carries a distinct idempotency key.</summary>
+    public int LowStockCycle { get; set; }
+
     public bool IsActive { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }

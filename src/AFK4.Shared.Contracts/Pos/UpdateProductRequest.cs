@@ -10,4 +10,5 @@ public sealed record UpdateProductRequest(
     MoneyDto Price,
     bool TrackStock,
     bool AllowNegativeStock,
-    bool IsActive);
+    bool IsActive,
+    int ReorderThreshold = 0);

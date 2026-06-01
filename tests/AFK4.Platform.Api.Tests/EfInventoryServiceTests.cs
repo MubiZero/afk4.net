@@ -82,6 +82,50 @@ public sealed class EfInventoryServiceTests
     }
 
     [Fact]
+    public async Task CreateProductAsync_PersistsReorderThreshold()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var category = await CreateCategoryAsync(service);
+
+        var result = await service.CreateProductAsync(TestIds.BranchId, ActorStaffUserId,
+            ProductRequest(category.CategoryId, "product-rt") with { ReorderThreshold = 5 }, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(5, result.Response!.ReorderThreshold);
+        Assert.Equal(5, (await db.PosProducts.SingleAsync()).ReorderThreshold);
+    }
+
+    [Fact]
+    public async Task CreateProductAsync_RejectsNegativeReorderThreshold()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var category = await CreateCategoryAsync(service);
+
+        var result = await service.CreateProductAsync(TestIds.BranchId, ActorStaffUserId,
+            ProductRequest(category.CategoryId, "product-neg") with { ReorderThreshold = -1 }, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task UpdateProductAsync_UpdatesReorderThreshold()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+
+        var result = await service.UpdateProductAsync(TestIds.BranchId, product.ProductId, ActorStaffUserId,
+            new UpdateProductRequest(TestIds.OrganizationId, product.CategoryId, product.Name, product.Sku, product.Price,
+                TrackStock: true, AllowNegativeStock: false, IsActive: true, ReorderThreshold: 7),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(7, result.Response!.ReorderThreshold);
+    }
+
+    [Fact]
     public async Task CreateProductAsync_RejectsDuplicateSkuInSameBranch()
     {
         await using var db = CreateDbContext();

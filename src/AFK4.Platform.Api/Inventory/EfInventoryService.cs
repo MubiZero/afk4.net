@@ -169,6 +169,7 @@ public sealed class EfInventoryService(
                 PriceMinorUnits = request.Price.MinorUnits,
                 TrackStock = request.TrackStock,
                 AllowNegativeStock = request.AllowNegativeStock,
+                ReorderThreshold = request.ReorderThreshold,
                 IsActive = true,
                 CreatedAtUtc = now
             };
@@ -266,6 +267,7 @@ public sealed class EfInventoryService(
         product.PriceMinorUnits = request.Price.MinorUnits;
         product.TrackStock = request.TrackStock;
         product.AllowNegativeStock = request.AllowNegativeStock;
+        product.ReorderThreshold = request.ReorderThreshold;
         product.IsActive = request.IsActive;
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -504,6 +506,11 @@ public sealed class EfInventoryService(
             return "Product price cannot be negative.";
         }
 
+        if (request.ReorderThreshold < 0)
+        {
+            return "Reorder threshold cannot be negative.";
+        }
+
         return null;
     }
 
@@ -532,6 +539,11 @@ public sealed class EfInventoryService(
         if (request.Price.MinorUnits < 0)
         {
             return "Product price cannot be negative.";
+        }
+
+        if (request.ReorderThreshold < 0)
+        {
+            return "Reorder threshold cannot be negative.";
         }
 
         return null;
@@ -741,7 +753,8 @@ public sealed class EfInventoryService(
             product.AllowNegativeStock,
             product.IsActive,
             stockOnHand,
-            product.CreatedAtUtc);
+            product.CreatedAtUtc,
+            product.ReorderThreshold);
     }
 
     private static StockMovementDto ToDto(StockMovementEntity movement)
