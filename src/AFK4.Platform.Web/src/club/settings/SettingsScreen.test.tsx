@@ -7,7 +7,7 @@ import { SettingsScreen } from './SettingsScreen';
 import type { BranchProfile, BranchSettings, StaffUser } from '@/api/types';
 
 const profile: BranchProfile = { organizationId: 'org', branchId: 'b1', name: 'Центр', city: 'Москва', createdAtUtc: '' };
-const settings: BranchSettings = { organizationId: 'org', branchId: 'b1', requireManualDeviceApproval: false };
+const settings: BranchSettings = { organizationId: 'org', branchId: 'b1', requireManualDeviceApproval: false, preferredLocale: 'ru' };
 const staff: StaffUser[] = [
   { staffUserId: 's1', organizationId: 'org', userName: 'ANN', displayName: 'Анна', isActive: true, roleNames: ['branch_manager'], createdAtUtc: '' }
 ];

@@ -1,17 +1,24 @@
 // src/club/settings/BranchProfileForm.test.tsx
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, mock } from 'bun:test';
+import { it, expect, beforeAll, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { BranchProfileForm } from './BranchProfileForm';
 import type { BranchProfileView } from './settingsModel';
+
+// Radix Select (locale picker) needs these jsdom/happy-dom pointer/scroll shims.
+beforeAll(() => {
+  window.HTMLElement.prototype.hasPointerCapture = () => false;
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+  window.HTMLElement.prototype.releasePointerCapture = () => {};
+});
 
 const profile: BranchProfileView = { branchId: 'b1', organizationId: 'org', name: 'Центр', city: 'Москва' };
 
 function setup(client: { updateBranchProfile: ReturnType<typeof mock>; updateBranchSettings: ReturnType<typeof mock> }, onDone = mock()) {
   render(
     <I18nProvider><ToastProvider>
-      <BranchProfileForm profile={profile} requireManualDeviceApproval={false} branchId="b1" client={client as never} onDone={onDone} />
+      <BranchProfileForm profile={profile} requireManualDeviceApproval={false} preferredLocale="ru" branchId="b1" client={client as never} onDone={onDone} />
     </ToastProvider></I18nProvider>
   );
   return { client, onDone };
@@ -30,7 +37,7 @@ it('persists the approval toggle when switched on', async () => {
   const client = { updateBranchProfile: mock(), updateBranchSettings: mock().mockResolvedValue({}) };
   setup(client);
   fireEvent.click(screen.getByRole('switch', { name: 'Ручное подтверждение устройств' }));
-  await waitFor(() => expect(client.updateBranchSettings).toHaveBeenCalledWith('b1', { organizationId: 'org', requireManualDeviceApproval: true }));
+  await waitFor(() => expect(client.updateBranchSettings).toHaveBeenCalledWith('b1', { organizationId: 'org', requireManualDeviceApproval: true, preferredLocale: 'ru' }));
 });
 
 it('reverts the toggle and shows an error toast when the settings call fails', async () => {

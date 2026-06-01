@@ -65,6 +65,7 @@ export interface BranchSettings {
   organizationId: string;
   branchId: string;
   requireManualDeviceApproval: boolean;
+  preferredLocale: string;
 }
 
 export interface UpdateBranchProfileRequest {
@@ -76,6 +77,7 @@ export interface UpdateBranchProfileRequest {
 export interface UpdateBranchSettingsRequest {
   organizationId: string;
   requireManualDeviceApproval: boolean;
+  preferredLocale: string;
 }
 
 export interface SeatStatus {

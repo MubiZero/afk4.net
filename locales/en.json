@@ -342,6 +342,8 @@
   "settings.branch.city": "City",
   "settings.branch.approval": "Manual device approval",
   "settings.branch.approval.hint": "New devices require approval before they can connect.",
+  "settings.branch.locale": "Club language",
+  "settings.branch.locale.hint": "The customer-facing screen language on this branch's gaming PCs.",
   "settings.ownerOnly": "This section is available to owners only.",
   "operators.col.name": "Staff member",
   "operators.col.roles": "Roles",

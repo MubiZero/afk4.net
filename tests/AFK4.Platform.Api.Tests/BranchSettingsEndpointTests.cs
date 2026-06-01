@@ -48,6 +48,7 @@ public sealed class BranchSettingsEndpointTests
         Assert.NotNull(settings);
         Assert.Equal(TestIds.BranchId, settings.BranchId);
         Assert.False(settings.RequireManualDeviceApproval);
+        Assert.Equal("ru", settings.PreferredLocale);
     }
 
     [Fact]
@@ -57,7 +58,7 @@ public sealed class BranchSettingsEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
 
-        var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: true);
+        var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: true, PreferredLocale: "ru");
         var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
         var settings = await response.Content.ReadFromJsonAsync<BranchSettingsDto>();
 
@@ -80,7 +81,43 @@ public sealed class BranchSettingsEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
 
-        var request = new UpdateBranchSettingsRequest(Guid.NewGuid(), RequireManualDeviceApproval: true);
+        var request = new UpdateBranchSettingsRequest(Guid.NewGuid(), RequireManualDeviceApproval: true, PreferredLocale: "ru");
+        var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_UpdatesPreferredLocaleAndPersists()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+
+        var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: false, PreferredLocale: "tg");
+        var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
+        var settings = await response.Content.ReadFromJsonAsync<BranchSettingsDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(settings);
+        Assert.Equal("tg", settings.PreferredLocale);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var persisted = await dbContext.Branches
+            .AsNoTracking()
+            .SingleAsync(b => b.BranchId == TestIds.BranchId);
+        Assert.Equal("tg", persisted.PreferredLocale);
+    }
+
+    [Fact]
+    public async Task Put_WithUnsupportedLocale_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+
+        var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: false, PreferredLocale: "xx");
         var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

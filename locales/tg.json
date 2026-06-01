@@ -342,6 +342,8 @@
   "settings.branch.city": "Город",
   "settings.branch.approval": "Ручное подтверждение устройств",
   "settings.branch.approval.hint": "Новые устройства требуют подтверждения перед подключением.",
+  "settings.branch.locale": "Забони клуб",
+  "settings.branch.locale.hint": "Забони экран барои муштариён дар компютерҳои бозии ин филиал.",
   "settings.ownerOnly": "Раздел доступен только владельцу.",
   "operators.col.name": "Сотрудник",
   "operators.col.roles": "Роли",

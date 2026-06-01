@@ -27,7 +27,7 @@ export function SettingsScreen({ client, branchId, organizationId, currentStaffU
   if (state.status === 'loading') return <LoadingCards count={2} />;
   if (state.status === 'error') return <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />;
 
-  const { profile, requireManualDeviceApproval, operators } = state.data;
+  const { profile, requireManualDeviceApproval, preferredLocale, operators } = state.data;
   return (
     <>
       <Tabs defaultValue="branch">
@@ -39,6 +39,7 @@ export function SettingsScreen({ client, branchId, organizationId, currentStaffU
           <BranchProfileForm
             profile={profile}
             requireManualDeviceApproval={requireManualDeviceApproval}
+            preferredLocale={preferredLocale}
             branchId={branchId}
             client={client}
             onDone={state.retry}

@@ -20,6 +20,7 @@ export interface BranchProfileView {
 export interface SettingsViewModel {
   profile: BranchProfileView;
   requireManualDeviceApproval: boolean;
+  preferredLocale: string;
   operators: OperatorRow[];
 }
 
@@ -36,6 +37,7 @@ export function buildSettings(
       city: profile.city
     },
     requireManualDeviceApproval: settings.requireManualDeviceApproval,
+    preferredLocale: settings.preferredLocale,
     operators: staff
       .map(u => ({
         staffUserId: u.staffUserId,

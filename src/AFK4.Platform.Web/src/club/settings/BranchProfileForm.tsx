@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { ClubApiClient } from '@/api/clubApi';
@@ -10,9 +11,13 @@ import type { BranchProfileView } from './settingsModel';
 
 type Actions = Pick<ClubApiClient, 'updateBranchProfile' | 'updateBranchSettings'>;
 
-export function BranchProfileForm({ profile, requireManualDeviceApproval, branchId, client, onDone }: {
+const BRANCH_LOCALES = ['ru', 'en', 'tg'] as const;
+const LOCALE_ENDONYM: Record<string, string> = { ru: 'Русский', en: 'English', tg: 'Тоҷикӣ' };
+
+export function BranchProfileForm({ profile, requireManualDeviceApproval, preferredLocale, branchId, client, onDone }: {
   profile: BranchProfileView;
   requireManualDeviceApproval: boolean;
+  preferredLocale: string;
   branchId: string;
   client: Actions;
   onDone: () => void;
@@ -22,6 +27,7 @@ export function BranchProfileForm({ profile, requireManualDeviceApproval, branch
   const [name, setName] = useState(profile.name);
   const [city, setCity] = useState(profile.city);
   const [approval, setApproval] = useState(requireManualDeviceApproval);
+  const [locale, setLocale] = useState(preferredLocale);
   const [pending, setPending] = useState(false);
 
   async function saveProfile() {
@@ -37,21 +43,35 @@ export function BranchProfileForm({ profile, requireManualDeviceApproval, branch
     }
   }
 
-  function toggleApproval(next: boolean) {
-    setApproval(next);
+  function saveSettings(nextApproval: boolean, nextLocale: string, rollback: () => void) {
     setPending(true);
     void (async () => {
       try {
-        await client.updateBranchSettings(branchId, { organizationId: profile.organizationId, requireManualDeviceApproval: next });
+        await client.updateBranchSettings(branchId, {
+          organizationId: profile.organizationId,
+          requireManualDeviceApproval: nextApproval,
+          preferredLocale: nextLocale,
+        });
         toast({ title: t('toast.saved'), variant: 'success' });
         onDone();
       } catch {
-        setApproval(!next);
+        rollback();
         toast({ title: t('toast.failed'), variant: 'error' });
       } finally {
         setPending(false);
       }
     })();
+  }
+
+  function toggleApproval(next: boolean) {
+    setApproval(next);
+    saveSettings(next, locale, () => setApproval(!next));
+  }
+
+  function changeLocale(next: string) {
+    const previous = locale;
+    setLocale(next);
+    saveSettings(approval, next, () => setLocale(previous));
   }
 
   return (
@@ -79,6 +99,19 @@ export function BranchProfileForm({ profile, requireManualDeviceApproval, branch
           disabled={pending}
           onCheckedChange={toggleApproval}
         />
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border pt-4">
+        <div>
+          <div className="text-sm font-medium">{t('settings.branch.locale')}</div>
+          <div className="text-xs text-muted-foreground">{t('settings.branch.locale.hint')}</div>
+        </div>
+        <Select value={locale} onValueChange={changeLocale} disabled={pending}>
+          <SelectTrigger aria-label={t('settings.branch.locale')} className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {BRANCH_LOCALES.map(l => <SelectItem key={l} value={l}>{LOCALE_ENDONYM[l]}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

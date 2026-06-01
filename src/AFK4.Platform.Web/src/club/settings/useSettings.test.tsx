@@ -5,7 +5,7 @@ import { useSettings } from './useSettings';
 import type { BranchProfile, BranchSettings, StaffUser } from '@/api/types';
 
 const profile: BranchProfile = { organizationId: 'org', branchId: 'b1', name: 'Центр', city: 'Москва', createdAtUtc: '' };
-const settings: BranchSettings = { organizationId: 'org', branchId: 'b1', requireManualDeviceApproval: false };
+const settings: BranchSettings = { organizationId: 'org', branchId: 'b1', requireManualDeviceApproval: false, preferredLocale: 'ru' };
 const staff: StaffUser[] = [];
 
 it('loads profile, settings, and staff into a ready state', async () => {
