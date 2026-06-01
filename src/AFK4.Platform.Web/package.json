@@ -10,6 +10,8 @@
     "preview": "vite preview --host 127.0.0.1 --port 4175"
   },
   "dependencies": {
+    "@afk4/i18n": "workspace:*",
+    "@afk4/money": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",

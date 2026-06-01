@@ -1,0 +1,10 @@
+{
+  "name": "afk4-web-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "src/AFK4.Platform.Web",
+    "src/AFK4.Operator.App.Web"
+  ]
+}
