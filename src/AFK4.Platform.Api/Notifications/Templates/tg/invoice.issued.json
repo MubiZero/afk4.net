@@ -1,0 +1,5 @@
+{
+  "subject": "AFK4: ҳисобнома №{{invoiceNumber}} бароварда шуд",
+  "bodyText": "Салом, {{displayName}}. Барои клуби «{{organizationName}}» ҳисобномаи №{{invoiceNumber}} ба маблағи {{amount}} {{currency}} бароварда шуд. Мӯҳлати пардохт — то {{dueDate}}.",
+  "bodyHtml": "<p>Салом, {{displayName}}.</p><p>Барои клуби «{{organizationName}}» ҳисобномаи <strong>№{{invoiceNumber}}</strong> ба маблағи <strong>{{amount}} {{currency}}</strong> бароварда шуд.</p><p>Мӯҳлати пардохт — то {{dueDate}}.</p>"
+}

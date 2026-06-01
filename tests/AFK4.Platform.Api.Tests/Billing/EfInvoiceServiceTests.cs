@@ -16,8 +16,11 @@ public sealed class EfInvoiceServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options);
 
-    private static EfInvoiceService NewService(PlatformDbContext db, TimeProvider time) =>
-        new(db, new EfInvoiceGenerationRunner(db, Options.Create(new BillingOptions())), time);
+    private static EfInvoiceService NewService(PlatformDbContext db, TimeProvider time, IInvoiceNotifier? notifier = null)
+    {
+        notifier ??= new RecordingInvoiceNotifier();
+        return new(db, new EfInvoiceGenerationRunner(db, Options.Create(new BillingOptions()), notifier), notifier, time);
+    }
 
     private static async Task<Guid> SeedTenantWithSubscriptionAsync(PlatformDbContext db)
     {

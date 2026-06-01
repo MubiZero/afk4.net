@@ -19,6 +19,7 @@ public sealed class InvoiceGenerationHostedServiceTests
 
         var services = new ServiceCollection();
         services.AddDbContext<PlatformDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddScoped<IInvoiceNotifier, RecordingInvoiceNotifier>();
         services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
         services.Configure<BillingOptions>(options => options.GenerationInterval = TimeSpan.FromHours(1));
         await using var provider = services.BuildServiceProvider();

@@ -182,6 +182,7 @@ builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore
 builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthService>();
 builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
 builder.Services.AddScoped<ITenantSubscriptionService, EfTenantSubscriptionService>();
+builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
 builder.Services.AddScoped<IBillingMetricsService, EfBillingMetricsService>();

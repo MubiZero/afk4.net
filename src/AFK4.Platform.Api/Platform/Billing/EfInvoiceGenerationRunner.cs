@@ -8,7 +8,8 @@ namespace AFK4.Platform.Api.Platform.Billing;
 
 public sealed class EfInvoiceGenerationRunner(
     PlatformDbContext dbContext,
-    IOptions<BillingOptions> options) : IInvoiceGenerationRunner
+    IOptions<BillingOptions> options,
+    IInvoiceNotifier invoiceNotifier) : IInvoiceGenerationRunner
 {
     private readonly BillingOptions options = options.Value;
 
@@ -28,6 +29,7 @@ public sealed class EfInvoiceGenerationRunner(
             if (invoice is not null)
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
+                await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
                 issued++;
             }
         }
