@@ -22,6 +22,13 @@ public sealed class AgentOptions
 
     public string DeviceRole { get; init; } = DeviceRoleNames.GamingPc;
 
+    /// <summary>
+    /// The branch's preferred customer-shell locale (mirrors <c>BranchEntity.PreferredLocale</c>),
+    /// provisioned into the agent config and stamped onto the player-shell state so the kiosk
+    /// renders in the branch language. Defaults to <c>ru</c>.
+    /// </summary>
+    public string PreferredLocale { get; init; } = "ru";
+
     public string DeviceCredentialSecret { get; init; } = string.Empty;
 
     public string LeaseSigningPublicKeyPem { get; init; } = string.Empty;

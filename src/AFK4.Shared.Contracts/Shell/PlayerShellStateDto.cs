@@ -12,4 +12,5 @@ public sealed record PlayerShellStateDto(
     bool IsGraceMode,
     int WarningThresholdSeconds,
     string Message,
-    IReadOnlyList<LauncherAppDto> LauncherApps);
+    IReadOnlyList<LauncherAppDto> LauncherApps,
+    string Locale = "ru");

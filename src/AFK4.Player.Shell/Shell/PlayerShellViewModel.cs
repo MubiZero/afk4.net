@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using AFK4.Localization;
 using AFK4.Player.Shell.Launcher;
 using AFK4.Player.Shell.Mvvm;
 using AFK4.Shared.Contracts.Shell;
@@ -11,8 +12,9 @@ namespace AFK4.Player.Shell.Shell;
 public sealed class PlayerShellViewModel : INotifyPropertyChanged
 {
     private readonly ILauncherCommandClient launcherCommandClient;
+    private readonly ILocalizationService localization;
     private string state = PlayerShellStateNames.Locked;
-    private string statusMessage = "This PC is locked.";
+    private string statusMessage;
     private string remainingTimeText = "--:--";
     private bool isLocked = true;
     private bool isSessionActive;
@@ -21,9 +23,11 @@ public sealed class PlayerShellViewModel : INotifyPropertyChanged
     private bool showLauncher;
     private string? lastCommandStatus;
 
-    public PlayerShellViewModel(ILauncherCommandClient launcherCommandClient)
+    public PlayerShellViewModel(ILauncherCommandClient launcherCommandClient, ILocalizationService localization)
     {
         this.launcherCommandClient = launcherCommandClient;
+        this.localization = localization;
+        statusMessage = localization.T(StateMessageKey(PlayerShellStateNames.Locked));
         LaunchCommand = new RelayCommand(
             parameter => _ = LaunchAsync(parameter as LauncherAppViewModel, CancellationToken.None),
             parameter => parameter is LauncherAppViewModel { IsAvailable: true } && ShowLauncher);
@@ -91,6 +95,9 @@ public sealed class PlayerShellViewModel : INotifyPropertyChanged
 
     public void ApplyState(PlayerShellStateDto dto)
     {
+        // The customer-facing shell follows the branch locale carried on the state
+        // (P4: no per-walk-in switcher); re-resolves live on a config refresh.
+        localization.SetLocale(dto.Locale);
         State = dto.State;
         IsLocked = string.Equals(dto.State, PlayerShellStateNames.Locked, StringComparison.Ordinal);
         IsGraceMode = dto.IsGraceMode || string.Equals(dto.State, PlayerShellStateNames.Grace, StringComparison.Ordinal);
@@ -101,7 +108,10 @@ public sealed class PlayerShellViewModel : INotifyPropertyChanged
         RemainingTimeText = RemainingTimeFormatter.Format(dto.RemainingSeconds);
         ShowWarning = IsGraceMode || (dto.RemainingSeconds is not null && dto.RemainingSeconds <= dto.WarningThresholdSeconds);
         ShowLauncher = IsSessionActive && dto.LauncherApps.Any(app => app.IsAvailable);
-        StatusMessage = string.IsNullOrWhiteSpace(dto.Message) ? CreateFallbackMessage(dto.State) : dto.Message;
+
+        // Render the customer status from the catalog by state — not the (English)
+        // server-supplied dto.Message — so the kiosk shows the branch language (L5).
+        StatusMessage = localization.T(StateMessageKey(dto.State));
 
         LauncherApps.Clear();
         foreach (var app in dto.LauncherApps)
@@ -127,17 +137,17 @@ public sealed class PlayerShellViewModel : INotifyPropertyChanged
         StatusMessage = result.Message;
     }
 
-    private static string CreateFallbackMessage(string state)
+    private static string StateMessageKey(string state)
     {
         return state switch
         {
-            PlayerShellStateNames.Active => "Session is active.",
-            PlayerShellStateNames.Grace => "Connection lost. Active session continues within the signed lease.",
-            PlayerShellStateNames.Ending => "Session is ending.",
-            PlayerShellStateNames.Maintenance => "This PC is under maintenance.",
-            PlayerShellStateNames.Offline => "Agent is offline.",
-            PlayerShellStateNames.Error => "This PC needs operator attention.",
-            _ => "This PC is locked."
+            PlayerShellStateNames.Active => "shell.state.active",
+            PlayerShellStateNames.Grace => "shell.state.grace",
+            PlayerShellStateNames.Ending => "shell.state.ending",
+            PlayerShellStateNames.Maintenance => "shell.state.maintenance",
+            PlayerShellStateNames.Offline => "shell.state.offline",
+            PlayerShellStateNames.Error => "shell.state.error",
+            _ => "shell.state.locked"
         };
     }
 

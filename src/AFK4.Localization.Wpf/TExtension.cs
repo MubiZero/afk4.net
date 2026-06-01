@@ -12,14 +12,18 @@ namespace AFK4.Localization.Wpf;
 /// <see cref="LocalizedString"/>, the bound text re-resolves automatically when the
 /// active locale changes — no per-control wiring needed in code-behind.
 /// </summary>
+/// <remarks>
+/// The class is named <c>TExtension</c> so XAML resolves the literal <c>{loc:T}</c>
+/// (WPF strips the <c>Extension</c> suffix), mirroring the React <c>t(key)</c> call.
+/// </remarks>
 [MarkupExtensionReturnType(typeof(string))]
-public sealed class LocExtension : MarkupExtension
+public sealed class TExtension : MarkupExtension
 {
-    public LocExtension()
+    public TExtension()
     {
     }
 
-    public LocExtension(string key) => Key = key;
+    public TExtension(string key) => Key = key;
 
     [ConstructorArgument("key")]
     public string Key { get; set; } = string.Empty;
