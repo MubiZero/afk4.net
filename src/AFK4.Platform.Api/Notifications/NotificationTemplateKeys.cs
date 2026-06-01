@@ -35,6 +35,9 @@ public static class NotificationTemplateKeys
     /// <summary>Low-stock alert to the organization owner when stock-on-hand reaches the reorder threshold (Stage 5 operational trigger).</summary>
     public const string LowStock = "inventory.low_stock";
 
+    /// <summary>Daily owner summary digest — revenue, shifts and cash discrepancies for the prior day (Stage 5 digest trigger).</summary>
+    public const string OwnerDailySummary = "owner.daily_summary";
+
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, OwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy, LowStock];
+        [Test, StaffPasswordReset, OwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy, LowStock, OwnerDailySummary];
 }
