@@ -51,6 +51,30 @@ public sealed class SmtpEmailChannelTests
     }
 
     [Fact]
+    public async Task SendAsync_PassesOutboxAttachmentsToTransport()
+    {
+        var transport = new StubTransport();
+        var channel = CreateChannel(transport);
+        var row = Row();
+        row.Attachments.Add(new NotificationOutboxAttachmentEntity
+        {
+            NotificationOutboxAttachmentId = Guid.NewGuid(),
+            FileName = "shifts.csv",
+            ContentType = "text/csv",
+            Content = "a,b\r\n1,2\r\n"u8.ToArray(),
+        });
+
+        var result = await channel.SendAsync(row, CancellationToken.None);
+
+        Assert.True(result.Success);
+        var sent = Assert.Single(transport.Sent);
+        var attachment = Assert.Single(sent.Attachments!);
+        Assert.Equal("shifts.csv", attachment.FileName);
+        Assert.Equal("text/csv", attachment.ContentType);
+        Assert.Equal("a,b\r\n1,2\r\n"u8.ToArray(), attachment.Content);
+    }
+
+    [Fact]
     public async Task SendAsync_MapsPermanentTransportFailureToPermanentResult()
     {
         var transport = new StubTransport(_ => throw new SmtpTransportException(isPermanent: true, "550 mailbox unavailable"));

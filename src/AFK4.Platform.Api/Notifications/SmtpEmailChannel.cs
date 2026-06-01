@@ -30,13 +30,20 @@ public sealed class SmtpEmailChannel(ISmtpTransport transport, IOptions<Notifica
             return ChannelResult.PermanentFailure("Notification SMTP FromAddress is not configured.");
         }
 
+        var attachments = row.Attachments.Count == 0
+            ? null
+            : row.Attachments
+                .Select(attachment => new SmtpAttachment(attachment.FileName, attachment.ContentType, attachment.Content))
+                .ToList();
+
         var message = new SmtpMessage(
             FromAddress: options.FromAddress,
             FromName: options.FromName,
             ToAddress: row.RecipientAddress,
             Subject: row.Subject,
             BodyText: row.BodyText,
-            BodyHtml: row.BodyHtml);
+            BodyHtml: row.BodyHtml,
+            Attachments: attachments);
 
         try
         {

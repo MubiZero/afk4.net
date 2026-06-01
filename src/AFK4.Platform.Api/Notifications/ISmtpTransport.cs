@@ -17,7 +17,11 @@ public sealed record SmtpMessage(
     string ToAddress,
     string Subject,
     string BodyText,
-    string BodyHtml);
+    string BodyHtml,
+    IReadOnlyList<SmtpAttachment>? Attachments = null);
+
+/// <summary>A file attached to an outbound email.</summary>
+public sealed record SmtpAttachment(string FileName, string ContentType, byte[] Content);
 
 /// <summary>A classified SMTP delivery failure: permanent failures fail fast, transient ones retry.</summary>
 public sealed class SmtpTransportException(bool isPermanent, string message) : Exception(message)

@@ -23,11 +23,20 @@ public sealed class MailKitSmtpTransport(IOptions<NotificationOptions> options) 
         mimeMessage.From.Add(new MailboxAddress(message.FromName ?? string.Empty, message.FromAddress));
         mimeMessage.To.Add(MailboxAddress.Parse(message.ToAddress));
         mimeMessage.Subject = message.Subject;
-        mimeMessage.Body = new BodyBuilder
+        var bodyBuilder = new BodyBuilder
         {
             TextBody = message.BodyText,
             HtmlBody = message.BodyHtml,
-        }.ToMessageBody();
+        };
+        if (message.Attachments is { Count: > 0 } attachments)
+        {
+            foreach (var attachment in attachments)
+            {
+                bodyBuilder.Attachments.Add(attachment.FileName, attachment.Content, ContentType.Parse(attachment.ContentType));
+            }
+        }
+
+        mimeMessage.Body = bodyBuilder.ToMessageBody();
 
         using var client = new SmtpClient();
         try
