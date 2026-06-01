@@ -222,6 +222,43 @@ public sealed class NotificationServiceTests
         Assert.Equal(NotificationOutboxStatus.Pending, row.Status);
     }
 
+    [Fact]
+    public async Task SendAsync_PersistsAttachmentsOnTheOutboxRow()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        var request = Request(idempotencyKey: "report:1") with
+        {
+            Attachments = [new NotificationAttachment("shifts.csv", "text/csv", "a,b\r\n1,2\r\n"u8.ToArray())],
+        };
+
+        var handle = await service.SendAsync(request, CancellationToken.None);
+
+        var rows = await new EfNotificationOutbox(db).GetByIdsAsync(handle.OutboxIds, CancellationToken.None);
+        var row = Assert.Single(rows);
+        var attachment = Assert.Single(row.Attachments);
+        Assert.Equal("shifts.csv", attachment.FileName);
+        Assert.Equal("text/csv", attachment.ContentType);
+        Assert.Equal("a,b\r\n1,2\r\n"u8.ToArray(), attachment.Content);
+    }
+
+    [Fact]
+    public async Task SendAsync_DoesNotPersistAttachmentsOnSuppressedRow()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        var request = Request(idempotencyKey: "report:2", email: null, channels: [NotificationChannel.Email]) with
+        {
+            Attachments = [new NotificationAttachment("shifts.csv", "text/csv", "x"u8.ToArray())],
+        };
+
+        await service.SendAsync(request, CancellationToken.None);
+
+        var row = await db.NotificationOutbox.Include(r => r.Attachments).SingleAsync();
+        Assert.Equal(NotificationOutboxStatus.Suppressed, row.Status);
+        Assert.Empty(row.Attachments);
+    }
+
     private sealed class StubChannel(NotificationChannel channel, ChannelResult result) : INotificationChannel
     {
         public NotificationChannel Channel => channel;

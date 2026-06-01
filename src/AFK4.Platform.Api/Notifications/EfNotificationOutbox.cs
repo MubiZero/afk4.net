@@ -30,6 +30,7 @@ public sealed class EfNotificationOutbox(PlatformDbContext db) : INotificationOu
     public async Task<IReadOnlyList<NotificationOutboxEntity>> ClaimDueAsync(DateTimeOffset now, int max, CancellationToken cancellationToken)
     {
         var due = await db.NotificationOutbox
+            .Include(row => row.Attachments)
             .Where(row => row.Status == NotificationOutboxStatus.Pending && row.NextAttemptUtc <= now)
             .OrderBy(row => row.NextAttemptUtc)
             .Take(max)
@@ -46,6 +47,7 @@ public sealed class EfNotificationOutbox(PlatformDbContext db) : INotificationOu
 
     public async Task<IReadOnlyList<NotificationOutboxEntity>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
         await db.NotificationOutbox
+            .Include(row => row.Attachments)
             .Where(row => ids.Contains(row.NotificationOutboxId))
             .ToListAsync(cancellationToken);
 

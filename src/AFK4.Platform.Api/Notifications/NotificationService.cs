@@ -71,6 +71,20 @@ public sealed class NotificationService(
                 CreatedUtc = now,
             };
 
+            if (suppressionReason is null && request.Attachments is { Count: > 0 } attachments)
+            {
+                foreach (var attachment in attachments)
+                {
+                    row.Attachments.Add(new NotificationOutboxAttachmentEntity
+                    {
+                        NotificationOutboxAttachmentId = Guid.NewGuid(),
+                        FileName = attachment.FileName,
+                        ContentType = attachment.ContentType,
+                        Content = attachment.Content,
+                    });
+                }
+            }
+
             var result = await outbox.AddIfAbsentAsync(row, cancellationToken);
             ids.Add(result.Row.NotificationOutboxId);
             anyCreated |= result.Created;

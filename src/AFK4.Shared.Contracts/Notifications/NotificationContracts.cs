@@ -32,6 +32,13 @@ public sealed record NotificationRecipient(
     Guid? PlayerAccountId = null);
 
 /// <summary>
+/// A file attached to a notification (e.g. a scheduled report CSV). The bytes are persisted on the
+/// outbox row so retries and restarts replay the same payload without regenerating it. Only the email
+/// channel emits attachments today; other channels ignore them.
+/// </summary>
+public sealed record NotificationAttachment(string FileName, string ContentType, byte[] Content);
+
+/// <summary>
 /// One notification to send. Features build this and call <see cref="INotificationService"/>; they
 /// never touch channels, templates or SMTP. Money/dates inside <see cref="Tokens"/> are formatted to
 /// display strings by the caller so the renderer stays presentation-pure.
@@ -44,7 +51,8 @@ public sealed record NotificationRequest(
     string IdempotencyKey,
     IReadOnlyList<NotificationChannel>? PreferredChannels = null,
     Guid? OrganizationId = null,
-    Guid? BranchId = null);
+    Guid? BranchId = null,
+    IReadOnlyList<NotificationAttachment>? Attachments = null);
 
 /// <summary>
 /// The result of enqueuing a notification: the outbox row id(s) and whether new rows were created

@@ -48,6 +48,23 @@ public sealed class NotificationOutboxEntity
     public DateTimeOffset CreatedUtc { get; set; }
 
     public DateTimeOffset? SentUtc { get; set; }
+
+    /// <summary>Files delivered with this notification (e.g. a scheduled report CSV). Persisted so retries replay the same payload.</summary>
+    public List<NotificationOutboxAttachmentEntity> Attachments { get; set; } = [];
+}
+
+/// <summary>A file persisted alongside an outbox row and attached when the email channel delivers it.</summary>
+public sealed class NotificationOutboxAttachmentEntity
+{
+    public Guid NotificationOutboxAttachmentId { get; set; }
+
+    public Guid NotificationOutboxId { get; set; }
+
+    public string FileName { get; set; } = string.Empty;
+
+    public string ContentType { get; set; } = string.Empty;
+
+    public byte[] Content { get; set; } = [];
 }
 
 /// <summary>The closed set of <see cref="NotificationOutboxEntity.Status"/> values.</summary>

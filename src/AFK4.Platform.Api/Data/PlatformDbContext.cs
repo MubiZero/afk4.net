@@ -106,6 +106,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<NotificationOutboxEntity> NotificationOutbox => Set<NotificationOutboxEntity>();
 
+    public DbSet<NotificationOutboxAttachmentEntity> NotificationOutboxAttachments => Set<NotificationOutboxAttachmentEntity>();
+
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
 
     public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
@@ -812,6 +814,20 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(row => row.LastError).HasMaxLength(2000);
             entity.HasIndex(row => row.IdempotencyKey).IsUnique();
             entity.HasIndex(row => new { row.Status, row.NextAttemptUtc });
+            entity.HasMany(row => row.Attachments)
+                .WithOne()
+                .HasForeignKey(attachment => attachment.NotificationOutboxId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotificationOutboxAttachmentEntity>(entity =>
+        {
+            entity.ToTable("notification_outbox_attachments");
+            entity.HasKey(attachment => attachment.NotificationOutboxAttachmentId);
+            entity.Property(attachment => attachment.FileName).HasMaxLength(256).IsRequired();
+            entity.Property(attachment => attachment.ContentType).HasMaxLength(128).IsRequired();
+            entity.Property(attachment => attachment.Content).IsRequired();
+            entity.HasIndex(attachment => attachment.NotificationOutboxId);
         });
 
         modelBuilder.Entity<NotificationPreferenceEntity>(entity =>
