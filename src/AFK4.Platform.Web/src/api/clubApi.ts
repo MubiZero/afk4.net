@@ -12,7 +12,7 @@ import type {
   CreatePlayerAccountRequest,
   CreateProductCategoryRequest,
   CreateProductRequest,
-  CreateStaffUserRequest,
+  CreateStaffInviteRequest,
   CreateTariffRequest,
   CreateTariffVersionRequest,
   DeviceInventoryItem,
@@ -36,6 +36,7 @@ import type {
   PurchasePackageRequest,
   RefundLedgerEntryRequest,
   ResetStaffUserPasswordRequest,
+  StaffInviteDto,
   StaffSignInResponse,
   StaffUser,
   Tariff,
@@ -262,8 +263,8 @@ export class ClubApiClient {
     return this.send<StaffUser[]>('GET', `/api/branches/${encodeURIComponent(branchId)}/staff`);
   }
 
-  public createStaff(branchId: string, request: CreateStaffUserRequest): Promise<StaffUser> {
-    return this.send<StaffUser>('POST', `/api/branches/${encodeURIComponent(branchId)}/staff`, request);
+  public createStaffInvite(branchId: string, request: CreateStaffInviteRequest): Promise<StaffInviteDto> {
+    return this.send<StaffInviteDto>('POST', `/api/branches/${encodeURIComponent(branchId)}/staff/invites`, request);
   }
 
   public updateStaffRoles(

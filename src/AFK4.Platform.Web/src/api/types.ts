@@ -211,12 +211,18 @@ export interface StaffUser {
   createdAtUtc: string;
 }
 
-export interface CreateStaffUserRequest {
+export interface CreateStaffInviteRequest {
   organizationId: string;
   userName: string;
   displayName: string;
-  password: string;
+  email: string;
   roleNames: string[];
+}
+
+export interface StaffInviteDto {
+  staffInviteId: string;
+  code: string;
+  expiresAtUtc: string;
 }
 
 export interface UpdateStaffUserRolesRequest {
