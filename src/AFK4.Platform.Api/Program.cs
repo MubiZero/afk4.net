@@ -215,6 +215,7 @@ builder.Services.AddScoped<IShiftDiscrepancyNotifier, EfShiftDiscrepancyNotifier
 builder.Services.AddScoped<EfShiftService>();
 builder.Services.AddScoped<IShiftService>(provider => provider.GetRequiredService<EfShiftService>());
 builder.Services.AddScoped<IOpenShiftResolver>(provider => provider.GetRequiredService<EfShiftService>());
+builder.Services.AddScoped<ILowStockNotifier, EfLowStockNotifier>();
 builder.Services.AddScoped<IInventoryService, EfInventoryService>();
 builder.Services.AddScoped<IPosService, EfPosService>();
 builder.Services.AddScoped<IPaymentProvider, ManualPaymentProvider>();

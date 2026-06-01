@@ -32,6 +32,9 @@ public static class NotificationTemplateKeys
     /// <summary>Shift cash-variance alert to the organization owner (Stage 5 operational trigger).</summary>
     public const string ShiftDiscrepancy = "shift.discrepancy";
 
+    /// <summary>Low-stock alert to the organization owner when stock-on-hand reaches the reorder threshold (Stage 5 operational trigger).</summary>
+    public const string LowStock = "inventory.low_stock";
+
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, OwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy];
+        [Test, StaffPasswordReset, OwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy, LowStock];
 }

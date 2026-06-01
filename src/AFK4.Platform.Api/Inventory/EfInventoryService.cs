@@ -11,7 +11,8 @@ namespace AFK4.Platform.Api.Inventory;
 
 public sealed class EfInventoryService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IInventoryService
+    TimeProvider timeProvider,
+    ILowStockNotifier? lowStockNotifier = null) : IInventoryService
 {
     private const string CategoryCreateOperation = "pos-category-create";
     private const string ProductCreateOperation = "pos-product-create";
@@ -352,6 +353,12 @@ public sealed class EfInventoryService(
 
             dbContext.StockMovements.Add(movement);
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (lowStockNotifier is not null)
+            {
+                await lowStockNotifier.EvaluateProductsAsync(
+                    product.OrganizationId, product.BranchId, [product.ProductId], cancellationToken);
+            }
 
             var response = ToDto(movement);
             AddIdempotencyRecord(

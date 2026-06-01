@@ -1,0 +1,5 @@
+{
+  "subject": "AFK4: захираи кам — {{productName}} ({{branchName}})",
+  "bodyText": "Салом, {{displayName}}. Дар филиали «{{branchName}}» миқдори моли «{{productName}}» (SKU {{sku}}) кам шуда истодааст: боқимонда {{stockOnHand}} ҳангоми ҳади {{threshold}}. Тавсия медиҳем захираро пур кунед.",
+  "bodyHtml": "<p>Салом, {{displayName}}.</p><p>Дар филиали «{{branchName}}» миқдори моли «{{productName}}» (SKU {{sku}}) кам шуда истодааст: боқимонда <strong>{{stockOnHand}}</strong> ҳангоми ҳади {{threshold}}.</p><p>Тавсия медиҳем захираро пур кунед.</p>"
+}
