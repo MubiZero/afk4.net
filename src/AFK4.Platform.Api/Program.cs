@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Text;
+using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -14,6 +15,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Idempotency;
@@ -186,6 +188,17 @@ builder.Services.AddScoped<IBillingMetricsService, EfBillingMetricsService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddHostedService<InvoiceGenerationHostedService>();
+builder.Services.Configure<NotificationOptions>(
+    builder.Configuration.GetSection(NotificationOptions.ConfigurationSection));
+builder.Services.AddSingleton<INotificationRenderer, NotificationRenderer>();
+builder.Services.AddSingleton<ITemplateProvider>(provider =>
+    new EmbeddedTemplateProvider(provider.GetRequiredService<IOptions<NotificationOptions>>().Value.DefaultLocale));
+builder.Services.AddSingleton<ISmtpTransport, MailKitSmtpTransport>();
+builder.Services.AddSingleton<INotificationChannel, SmtpEmailChannel>();
+builder.Services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
+builder.Services.AddScoped<NotificationDispatchRunner>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
@@ -216,6 +229,10 @@ builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDat
 builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 
 var app = builder.Build();
+
+// Fail fast at startup if any registered notification template key is missing its file (§8),
+// rather than discovering it when a send is attempted at runtime.
+app.Services.GetRequiredService<ITemplateProvider>().EnsureKeysPresent(NotificationTemplateKeys.All);
 
 // Single UseCors call so the CORS middleware emits Access-Control-Allow-*
 // headers on preflight OPTIONS as well as the mainline request. The combined
