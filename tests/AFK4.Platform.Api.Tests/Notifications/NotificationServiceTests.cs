@@ -25,7 +25,8 @@ public sealed class NotificationServiceTests
             [channel ?? new StubChannel(NotificationChannel.Email, ChannelResult.Sent())],
             new FixedTimeProvider(Now),
             options);
-        return new NotificationService(outbox, new EmbeddedTemplateProvider("ru"), new NotificationRenderer(), runner, new FixedTimeProvider(Now), options);
+        var preferences = new EfNotificationPreferenceService(db, new FixedTimeProvider(Now));
+        return new NotificationService(outbox, new EmbeddedTemplateProvider("ru"), new NotificationRenderer(), preferences, runner, new FixedTimeProvider(Now), options);
     }
 
     private static NotificationRequest Request(
@@ -152,6 +153,73 @@ public sealed class NotificationServiceTests
         var row = await db.NotificationOutbox.SingleAsync();
         Assert.Equal(NotificationOutboxStatus.Pending, row.Status);
         Assert.Equal(1, row.AttemptCount);
+    }
+
+    [Fact]
+    public async Task SendAsync_SuppressesOperationalRowWhenRecipientOptedOut()
+    {
+        await using var db = CreateDb();
+        var staffId = Guid.NewGuid();
+        await new EfNotificationPreferenceService(db, new FixedTimeProvider(Now))
+            .SetPreferenceAsync(staffId, null, NotificationCategory.Operational, NotificationChannel.Email, optedOut: true, CancellationToken.None);
+        var service = CreateService(db);
+
+        var request = new NotificationRequest(
+            TemplateKey: NotificationTemplateKeys.Test,
+            Category: NotificationCategory.Operational,
+            Recipient: new NotificationRecipient("ru", EmailAddress: "owner@club.example", StaffUserId: staffId),
+            Tokens: new Dictionary<string, string> { ["recipient"] = "Owner" },
+            IdempotencyKey: "low-stock:1",
+            PreferredChannels: [NotificationChannel.Email]);
+
+        await service.SendAsync(request, CancellationToken.None);
+
+        var row = await db.NotificationOutbox.SingleAsync();
+        Assert.Equal(NotificationOutboxStatus.Suppressed, row.Status);
+        Assert.Contains("opted out", row.LastError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendAsync_IgnoresOptOutForTransactionalCategory()
+    {
+        await using var db = CreateDb();
+        var staffId = Guid.NewGuid();
+        await new EfNotificationPreferenceService(db, new FixedTimeProvider(Now))
+            .SetPreferenceAsync(staffId, null, NotificationCategory.Operational, NotificationChannel.Email, optedOut: true, CancellationToken.None);
+        var service = CreateService(db);
+
+        var request = new NotificationRequest(
+            TemplateKey: NotificationTemplateKeys.Test,
+            Category: NotificationCategory.Transactional,
+            Recipient: new NotificationRecipient("ru", EmailAddress: "owner@club.example", StaffUserId: staffId),
+            Tokens: new Dictionary<string, string> { ["recipient"] = "Owner" },
+            IdempotencyKey: "invoice:1",
+            PreferredChannels: [NotificationChannel.Email]);
+
+        await service.SendAsync(request, CancellationToken.None);
+
+        var row = await db.NotificationOutbox.SingleAsync();
+        Assert.Equal(NotificationOutboxStatus.Pending, row.Status);
+    }
+
+    [Fact]
+    public async Task SendAsync_OperationalDefaultsToPendingWhenNoOptOut()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+
+        var request = new NotificationRequest(
+            TemplateKey: NotificationTemplateKeys.Test,
+            Category: NotificationCategory.Operational,
+            Recipient: new NotificationRecipient("ru", EmailAddress: "owner@club.example", StaffUserId: Guid.NewGuid()),
+            Tokens: new Dictionary<string, string> { ["recipient"] = "Owner" },
+            IdempotencyKey: "low-stock:2",
+            PreferredChannels: [NotificationChannel.Email]);
+
+        await service.SendAsync(request, CancellationToken.None);
+
+        var row = await db.NotificationOutbox.SingleAsync();
+        Assert.Equal(NotificationOutboxStatus.Pending, row.Status);
     }
 
     private sealed class StubChannel(NotificationChannel channel, ChannelResult result) : INotificationChannel

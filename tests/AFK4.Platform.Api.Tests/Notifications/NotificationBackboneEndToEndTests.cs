@@ -46,7 +46,8 @@ public sealed class NotificationBackboneEndToEndTests
         var channel = new SmtpEmailChannel(transport, options);
         var runner = new NotificationDispatchRunner(outbox, [channel], time, options);
         var service = new NotificationService(
-            outbox, new EmbeddedTemplateProvider("ru"), new NotificationRenderer(), runner, time, options);
+            outbox, new EmbeddedTemplateProvider("ru"), new NotificationRenderer(),
+            new EfNotificationPreferenceService(db, time), runner, time, options);
 
         var request = new NotificationRequest(
             TemplateKey: NotificationTemplateKeys.Test,
@@ -85,7 +86,8 @@ public sealed class NotificationBackboneEndToEndTests
         var outbox = new EfNotificationOutbox(db);
         var runner = new NotificationDispatchRunner(outbox, [new SmtpEmailChannel(new CapturingTransport(), options)], time, options);
         var service = new NotificationService(
-            outbox, new EmbeddedTemplateProvider("ru"), new NotificationRenderer(), runner, time, options);
+            outbox, new EmbeddedTemplateProvider("ru"), new NotificationRenderer(),
+            new EfNotificationPreferenceService(db, time), runner, time, options);
 
         NotificationRequest Request() => new(
             TemplateKey: NotificationTemplateKeys.Test,

@@ -196,6 +196,7 @@ builder.Services.AddSingleton<ITemplateProvider>(provider =>
 builder.Services.AddSingleton<ISmtpTransport, MailKitSmtpTransport>();
 builder.Services.AddSingleton<INotificationChannel, SmtpEmailChannel>();
 builder.Services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
+builder.Services.AddScoped<INotificationPreferenceService, EfNotificationPreferenceService>();
 builder.Services.AddScoped<NotificationDispatchRunner>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddHostedService<NotificationDispatcher>();

@@ -14,6 +14,7 @@ public sealed class NotificationService(
     INotificationOutbox outbox,
     ITemplateProvider templateProvider,
     INotificationRenderer renderer,
+    INotificationPreferenceService preferences,
     NotificationDispatchRunner dispatchRunner,
     TimeProvider timeProvider,
     IOptions<NotificationOptions> options) : INotificationService
@@ -38,7 +39,14 @@ public sealed class NotificationService(
 
         foreach (var channel in channels)
         {
-            var (address, suppressionReason) = ResolveAddress(channel, request.Recipient);
+            var (address, addressSuppressionReason) = ResolveAddress(channel, request.Recipient);
+
+            var suppressionReason = addressSuppressionReason;
+            if (suppressionReason is null
+                && await preferences.IsSuppressedAsync(request.Recipient, request.Category, channel, cancellationToken))
+            {
+                suppressionReason = $"Recipient opted out of {request.Category} notifications on this channel.";
+            }
 
             var row = new NotificationOutboxEntity
             {
