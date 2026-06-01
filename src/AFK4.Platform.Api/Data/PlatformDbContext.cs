@@ -106,6 +106,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<NotificationOutboxEntity> NotificationOutbox => Set<NotificationOutboxEntity>();
 
+    public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -805,6 +807,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(row => row.LastError).HasMaxLength(2000);
             entity.HasIndex(row => row.IdempotencyKey).IsUnique();
             entity.HasIndex(row => new { row.Status, row.NextAttemptUtc });
+        });
+
+        modelBuilder.Entity<NotificationPreferenceEntity>(entity =>
+        {
+            entity.ToTable("notification_preferences");
+            entity.HasKey(preference => preference.NotificationPreferenceId);
+            entity.Property(preference => preference.Category).HasMaxLength(16).IsRequired();
+            entity.Property(preference => preference.Channel).HasMaxLength(16).IsRequired();
+            entity.HasIndex(preference => new { preference.StaffUserId, preference.Category, preference.Channel });
+            entity.HasIndex(preference => new { preference.PlayerAccountId, preference.Category, preference.Channel });
         });
     }
 }
