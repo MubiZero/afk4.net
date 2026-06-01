@@ -46,7 +46,6 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
     private bool isBusy;
     private string statusMessage = "Pilot setup ready.";
     private string? errorMessage;
-    private IReadOnlyList<string> passwordRedactionValues = [];
 
     public PilotSetupWorkspaceViewModel(IOperatorPilotSetupApiClient apiClient)
     {
@@ -58,17 +57,17 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             new PilotSetupStaffUserViewModel(
                 "cashier.pilot@afk4.test",
                 "Pilot Cashier",
-                "ChangeMe!2026",
+                "cashier.pilot@afk4.test",
                 "cashier_operator"),
             new PilotSetupStaffUserViewModel(
                 "technician.pilot@afk4.test",
                 "Pilot Technician",
-                "ChangeMe!2026",
+                "technician.pilot@afk4.test",
                 "technician"),
             new PilotSetupStaffUserViewModel(
                 "supervisor.pilot@afk4.test",
                 "Pilot Supervisor",
-                "ChangeMe!2026",
+                "supervisor.pilot@afk4.test",
                 "shift_supervisor")
         ];
     }
@@ -290,7 +289,6 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         }
 
         Results.Clear();
-        passwordRedactionValues = CreatePasswordRedactionValues();
         ErrorMessage = null;
         StatusMessage = "Applying pilot setup...";
 
@@ -329,22 +327,22 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                         continue;
                     }
 
-                    var created = await apiClient.CreateStaffUserAsync(
+                    var invite = await apiClient.CreateStaffInviteAsync(
                         branchId,
-                        new CreateStaffUserRequest(
+                        new CreateStaffInviteRequest(
                             organizationId,
                             userName,
                             staffUser.DisplayName.Trim(),
-                            staffUser.Password,
+                            staffUser.Email.Trim(),
                             [staffUser.RoleName.Trim()]),
                         cancellationToken);
 
                     AddResult(
                         currentKey,
                         currentLabel,
-                        "created",
-                        $"Created staff user {created.UserName}.",
-                        created.StaffUserId.ToString("D"));
+                        "invited",
+                        $"Invited staff member {userName} (code {invite.Code}).",
+                        invite.StaffInviteId.ToString("D"));
                 }
             }
 
@@ -537,25 +535,25 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         }
         catch (InvalidOperationException exception)
         {
-            ErrorMessage = RedactSensitive(exception.Message);
+            ErrorMessage = exception.Message;
             AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
             StatusMessage = "Pilot setup failed.";
         }
         catch (HttpRequestException exception)
         {
-            ErrorMessage = RedactSensitive(exception.Message);
+            ErrorMessage = exception.Message;
             AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
             StatusMessage = "Pilot setup failed.";
         }
         catch (TaskCanceledException exception)
         {
-            ErrorMessage = RedactSensitive(exception.Message);
+            ErrorMessage = exception.Message;
             AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
             StatusMessage = "Pilot setup failed.";
         }
         catch (JsonException exception)
         {
-            ErrorMessage = RedactSensitive(exception.Message);
+            ErrorMessage = exception.Message;
             AddResult(currentKey, currentLabel, "failed", ErrorMessage, null);
             StatusMessage = "Pilot setup failed.";
         }
@@ -590,10 +588,10 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             {
                 if (string.IsNullOrWhiteSpace(staffUser.UserName)
                     || string.IsNullOrWhiteSpace(staffUser.DisplayName)
-                    || string.IsNullOrWhiteSpace(staffUser.Password)
+                    || string.IsNullOrWhiteSpace(staffUser.Email)
                     || string.IsNullOrWhiteSpace(staffUser.RoleName))
                 {
-                    ErrorMessage = "Staff setup rows require username, display name, password, and role.";
+                    ErrorMessage = "Staff setup rows require username, display name, email, and role.";
                     AddResult("staff", "Staff users", "failed", ErrorMessage, null);
                     return false;
                 }
@@ -674,43 +672,8 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             key,
             label,
             state,
-            RedactSensitive(detail),
+            detail,
             entityId));
-    }
-
-    private string RedactSensitive(string value)
-    {
-        var redacted = value;
-
-        foreach (var password in passwordRedactionValues)
-        {
-            redacted = redacted.Replace(password, "[redacted]", StringComparison.Ordinal);
-        }
-
-        return redacted;
-    }
-
-    private IReadOnlyList<string> CreatePasswordRedactionValues()
-    {
-        return StaffUsers
-            .SelectMany(staffUser =>
-            {
-                if (string.IsNullOrEmpty(staffUser.Password))
-                {
-                    return [];
-                }
-
-                return new[]
-                {
-                    staffUser.Password,
-                    JsonEncodedText.Encode(staffUser.Password).ToString(),
-                    JsonSerializer.Serialize(staffUser.Password).Trim('"')
-                };
-            })
-            .Where(value => !string.IsNullOrEmpty(value))
-            .Distinct(StringComparer.Ordinal)
-            .OrderByDescending(value => value.Length)
-            .ToList();
     }
 
     private static string NormalizeIdempotencyValue(string value)
@@ -752,14 +715,14 @@ public sealed class PilotSetupStaffUserViewModel : INotifyPropertyChanged
 {
     private string userName;
     private string displayName;
-    private string password;
+    private string email;
     private string roleName;
 
-    public PilotSetupStaffUserViewModel(string userName, string displayName, string password, string roleName)
+    public PilotSetupStaffUserViewModel(string userName, string displayName, string email, string roleName)
     {
         this.userName = userName;
         this.displayName = displayName;
-        this.password = password;
+        this.email = email;
         this.roleName = roleName;
     }
 
@@ -777,10 +740,10 @@ public sealed class PilotSetupStaffUserViewModel : INotifyPropertyChanged
         set => SetField(ref displayName, value);
     }
 
-    public string Password
+    public string Email
     {
-        get => password;
-        set => SetField(ref password, value);
+        get => email;
+        set => SetField(ref email, value);
     }
 
     public string RoleName

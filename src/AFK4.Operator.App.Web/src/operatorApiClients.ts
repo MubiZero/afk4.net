@@ -235,8 +235,14 @@ export interface CancelReservationRequest {
   reason: string;
 }
 
-export interface CreateStaffUserRequest extends Record<string, unknown> {
+export interface CreateStaffInviteRequest extends Record<string, unknown> {
   organizationId: Guid;
+}
+
+export interface StaffInviteDto {
+  staffInviteId: Guid;
+  code: string;
+  expiresAtUtc: string;
 }
 
 export interface UpdateStaffUserProfileRequest extends Record<string, unknown> {
@@ -570,8 +576,8 @@ export function createSettingsClient(api: PlatformApiClient) {
     getStaffUsers(branchId: Guid): Promise<StaffUserDto[]> {
       return api.get<StaffUserDto[]>(`/api/branches/${branchId}/staff`);
     },
-    createStaffUser(branchId: Guid, request: CreateStaffUserRequest): Promise<StaffUserDto> {
-      return api.post<StaffUserDto, CreateStaffUserRequest>(`/api/branches/${branchId}/staff`, request);
+    createStaffInvite(branchId: Guid, request: CreateStaffInviteRequest): Promise<StaffInviteDto> {
+      return api.post<StaffInviteDto, CreateStaffInviteRequest>(`/api/branches/${branchId}/staff/invites`, request);
     },
     updateStaffUserProfile(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserProfileRequest): Promise<StaffUserDto> {
       return api.patch<StaffUserDto, UpdateStaffUserProfileRequest>(`/api/branches/${branchId}/staff/${staffUserId}/profile`, request);

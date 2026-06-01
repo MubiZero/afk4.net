@@ -7100,7 +7100,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [selectedLayoutSeatId, setSelectedLayoutSeatId] = useState('');
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
-  const [invitePassword, setInvitePassword] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
   const [selectedStaffUserId, setSelectedStaffUserId] = useState('');
@@ -7759,25 +7760,23 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
         const userName = inviteUserName.trim();
         const displayName = inviteDisplayName.trim();
-        if (!userName || !displayName || !invitePassword) {
-          throw new Error('Заполните имя пользователя, имя сотрудника и временный пароль.');
+        const email = inviteEmail.trim();
+        if (!userName || !displayName || !email) {
+          throw new Error('Заполните имя пользователя, имя сотрудника и email.');
         }
 
-        const staffUser = await apiClients.settings.createStaffUser(nextBackend.branchId, {
+        const invite = await apiClients.settings.createStaffInvite(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
           userName,
           displayName,
-          password: invitePassword,
+          email,
           roleNames: [inviteRoleName || 'cashier_operator']
         });
-        setStaffUsers((items) => [...items, staffUser]);
-        setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
-        setStaffProfileUserName(readString(staffUser, 'userName'));
-        setStaffProfileDisplayName(operatorDisplayNameLabel(readString(staffUser, 'displayName')));
-        setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? 'cashier_operator');
+        // The invitee appears in the staff list only after they accept and set a password.
+        setInviteCode(invite.code);
         setInviteUserName(`operator${staffUsers.length + 2}`);
         setInviteDisplayName('Новый оператор');
-        setInvitePassword('');
+        setInviteEmail('');
       } else if (label === 'Обновить профиль сотрудника') {
         if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
           throw new Error('Нет прав на управление сотрудниками.');
@@ -8379,7 +8378,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-section-title">
             <span>Сотрудники</span>
             <div className="settings-section-actions">
-              <button type="button" disabled={!canManageBranchStaff} onClick={() => runSettingsAction('Пригласить сотрудника')}>Создать сотрудника</button>
+              <button type="button" disabled={!canManageBranchStaff} onClick={() => runSettingsAction('Пригласить сотрудника')}>Пригласить сотрудника</button>
               <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction(selectedStaffIsActive ? 'Отключить сотрудника' : 'Включить сотрудника')}>
                 {selectedStaffIsActive ? 'Отключить сотрудника' : 'Включить сотрудника'}
               </button>
@@ -8410,7 +8409,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <div className="settings-form-grid settings-staff-form">
               <label>Логин для входа<input value={inviteUserName} disabled={!canManageBranchStaff} onChange={(event) => setInviteUserName(event.currentTarget.value)} /></label>
               <label>Имя в смене<input value={inviteDisplayName} disabled={!canManageBranchStaff} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} /></label>
-              <label>Пароль на первый вход<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
+              <label>Email для приглашения<input type="email" value={inviteEmail} disabled={!canManageBranchStaff} onChange={(event) => setInviteEmail(event.currentTarget.value)} /></label>
+              {inviteCode && <label>Код приглашения<input readOnly value={inviteCode} onFocus={(event) => event.currentTarget.select()} /></label>}
               <label>Роль доступа
                 <select value={inviteRoleName} disabled={!canManageBranchStaff} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}

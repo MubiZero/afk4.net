@@ -18,7 +18,7 @@ function fakeClient() {
     getBranchSettings: mock().mockResolvedValue(settings),
     listStaff: mock().mockResolvedValue(staff),
     updateBranchProfile: mock(), updateBranchSettings: mock(),
-    updateStaffProfile: mock(), updateStaffRoles: mock(), updateStaffState: mock(), resetStaffPassword: mock(), createStaff: mock()
+    updateStaffProfile: mock(), updateStaffRoles: mock(), updateStaffState: mock(), resetStaffPassword: mock(), createStaffInvite: mock()
   };
 }
 
