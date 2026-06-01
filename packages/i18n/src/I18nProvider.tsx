@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { formatNumber as fmtNumber, formatCurrency as fmtCurrency, formatDateParts } from '@afk4/formatting';
 import { messages, type Locale, type MessageKey } from './messages';
 
 interface I18nContextValue {
@@ -20,14 +21,13 @@ export function I18nProvider({ children, initialLocale = 'ru' }: { children: Rea
     return dict[key] ?? key;
   }, [locale]);
 
-  const formatNumber = useCallback((n: number) => new Intl.NumberFormat(LOCALE_TAG[locale]).format(n), [locale]);
+  const formatNumber = useCallback((n: number) => fmtNumber(n, LOCALE_TAG[locale]), [locale]);
   const formatCurrency = useCallback(
-    (amount: number, currencyCode: string) =>
-      new Intl.NumberFormat(LOCALE_TAG[locale], { style: 'currency', currency: currencyCode, maximumFractionDigits: 0 }).format(amount),
+    (amount: number, currencyCode: string) => fmtCurrency(amount, currencyCode, LOCALE_TAG[locale]),
     [locale]
   );
   const formatDate = useCallback(
-    (iso: string) => new Intl.DateTimeFormat(LOCALE_TAG[locale], { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso)),
+    (iso: string) => formatDateParts(iso, LOCALE_TAG[locale], { dateStyle: 'medium', timeStyle: 'short' }),
     [locale]
   );
 

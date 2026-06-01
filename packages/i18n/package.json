@@ -18,6 +18,9 @@
   "scripts": {
     "test": "bun test"
   },
+  "dependencies": {
+    "@afk4/formatting": "workspace:*"
+  },
   "peerDependencies": {
     "react": ">=19"
   },
