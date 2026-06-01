@@ -199,6 +199,7 @@ builder.Services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
 builder.Services.AddScoped<INotificationPreferenceService, EfNotificationPreferenceService>();
 builder.Services.AddScoped<NotificationDispatchRunner>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IStaffPasswordResetService, EfStaffPasswordResetService>();
 builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();

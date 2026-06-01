@@ -11,5 +11,8 @@ public static class NotificationTemplateKeys
     /// <summary>Trivial end-to-end probe template shipped with the core backbone (Stage 1).</summary>
     public const string Test = "notification.test";
 
-    public static readonly IReadOnlyList<string> All = [Test];
+    /// <summary>Self-service password reset for a staff/owner account (Stage 3).</summary>
+    public const string StaffPasswordReset = "staff.password_reset";
+
+    public static readonly IReadOnlyList<string> All = [Test, StaffPasswordReset];
 }

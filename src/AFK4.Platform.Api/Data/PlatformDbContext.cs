@@ -108,6 +108,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
 
+    public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -817,6 +819,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(preference => preference.Channel).HasMaxLength(16).IsRequired();
             entity.HasIndex(preference => new { preference.StaffUserId, preference.Category, preference.Channel });
             entity.HasIndex(preference => new { preference.PlayerAccountId, preference.Category, preference.Channel });
+        });
+
+        modelBuilder.Entity<PasswordResetTokenEntity>(entity =>
+        {
+            entity.ToTable("password_reset_tokens");
+            entity.HasKey(token => token.PasswordResetTokenId);
+            entity.Property(token => token.TokenHash).IsRequired();
+            entity.HasIndex(token => token.TokenHash);
+            entity.HasIndex(token => new { token.StaffUserId, token.ExpiresAtUtc });
         });
     }
 }
