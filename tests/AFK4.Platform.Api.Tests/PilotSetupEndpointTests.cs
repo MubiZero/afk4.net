@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Layout;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,6 +14,47 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed class PilotSetupEndpointTests
 {
+    // Staff are onboarded via the invite flow (see StaffInviteEndpointTests); these tests exercise the
+    // staff *management* endpoints (profile/roles/state/password-reset), so they seed an existing
+    // branch staff member directly rather than going through onboarding.
+    private static async Task<Guid> SeedBranchStaffAsync(
+        PlatformApiFactory factory,
+        string userName,
+        string displayName,
+        string password,
+        IReadOnlyList<string> roleNames)
+    {
+        var staffUserId = Guid.NewGuid();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var staffUser = new StaffUserEntity
+        {
+            StaffUserId = staffUserId,
+            OrganizationId = TestIds.OrganizationId,
+            UserName = userName,
+            NormalizedUserName = userName.ToUpperInvariant(),
+            DisplayName = displayName,
+            IsActive = true,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-05-01T00:00:00Z"),
+        };
+        staffUser.PasswordHash = new PasswordHasher<StaffUserEntity>().HashPassword(staffUser, password);
+        dbContext.StaffUsers.Add(staffUser);
+        foreach (var roleName in roleNames)
+        {
+            dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+            {
+                StaffRoleAssignmentId = Guid.NewGuid(),
+                StaffUserId = staffUserId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                RoleName = roleName,
+            });
+        }
+
+        await dbContext.SaveChangesAsync();
+        return staffUserId;
+    }
+
     [Fact]
     public async Task BranchProfile_WithBranchManagerRole_ReadsAndUpdatesProfile()
     {
@@ -53,85 +95,16 @@ public sealed class PilotSetupEndpointTests
     }
 
     [Fact]
-    public async Task CreateStaffUser_WithOwnerRole_CreatesUserRoleAssignmentAndAllowsSignIn()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
-        var request = new CreateStaffUserRequest(
-            TestIds.OrganizationId,
-            "cashier.one@afk4.test",
-            "Cashier One",
-            "Passw0rd!Pilot",
-            [StaffRoleNames.CashierOperator]);
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            request);
-        var staffUser = await response.Content.ReadFromJsonAsync<StaffUserDto>();
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(staffUser);
-        Assert.Equal("cashier.one@afk4.test", staffUser.UserName);
-        Assert.Contains(StaffRoleNames.CashierOperator, staffUser.RoleNames);
-
-        using var signInClient = factory.CreateClient();
-        var signInResponse = await signInClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
-            new StaffSignInRequest(TestIds.OrganizationId, "cashier.one@afk4.test", "Passw0rd!Pilot"));
-        var signIn = await signInResponse.Content.ReadFromJsonAsync<StaffSignInResponse>();
-
-        Assert.Equal(HttpStatusCode.OK, signInResponse.StatusCode);
-        Assert.NotNull(signIn);
-        Assert.Contains(TestIds.BranchId, signIn.BranchIds);
-        Assert.Contains(StaffPermissionNames.StartSession, signIn.Permissions);
-    }
-
-    [Fact]
-    public async Task CreateStaffUser_WithBranchManagerRole_CreatesBranchStaff()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
-        var request = new CreateStaffUserRequest(
-            TestIds.OrganizationId,
-            "technician.one@afk4.test",
-            "Technician One",
-            "Passw0rd!Pilot",
-            [StaffRoleNames.Technician]);
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            request);
-        var staffUser = await response.Content.ReadFromJsonAsync<StaffUserDto>();
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(staffUser);
-        Assert.Equal("technician.one@afk4.test", staffUser.UserName);
-        Assert.Contains(StaffRoleNames.Technician, staffUser.RoleNames);
-    }
-
-    [Fact]
     public async Task UpdateStaffProfile_WithBranchManagerRole_UpdatesLoginDisplayNameAndWritesAudit()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
-        var createResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            new CreateStaffUserRequest(
-                TestIds.OrganizationId,
-                "profile.one@afk4.test",
-                "Profile One",
-                "Passw0rd!Pilot",
-                [StaffRoleNames.CashierOperator]));
-        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
-
-        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
-        Assert.NotNull(createdStaffUser);
+        var staffUserId = await SeedBranchStaffAsync(
+            factory, "profile.one@afk4.test", "Profile One", "Passw0rd!Pilot", [StaffRoleNames.CashierOperator]);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/profile",
+            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/profile",
             new UpdateStaffUserProfileRequest(
                 TestIds.OrganizationId,
                 "profile.renamed@afk4.test",
@@ -140,7 +113,7 @@ public sealed class PilotSetupEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.NotNull(updatedStaffUser);
-        Assert.Equal(createdStaffUser.StaffUserId, updatedStaffUser.StaffUserId);
+        Assert.Equal(staffUserId, updatedStaffUser.StaffUserId);
         Assert.Equal("profile.renamed@afk4.test", updatedStaffUser.UserName);
         Assert.Equal("Profile Renamed", updatedStaffUser.DisplayName);
         Assert.Contains(StaffRoleNames.CashierOperator, updatedStaffUser.RoleNames);
@@ -158,11 +131,11 @@ public sealed class PilotSetupEndpointTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var persistedUser = await dbContext.StaffUsers.SingleAsync(staffUser => staffUser.StaffUserId == createdStaffUser.StaffUserId);
+        var persistedUser = await dbContext.StaffUsers.SingleAsync(staffUser => staffUser.StaffUserId == staffUserId);
         Assert.Equal("PROFILE.RENAMED@AFK4.TEST", persistedUser.NormalizedUserName);
         Assert.Contains(await dbContext.AuditRecords.ToListAsync(), audit =>
             audit.Action == AuditActionNames.UpdateStaffProfile &&
-            audit.TargetId == createdStaffUser.StaffUserId.ToString("D") &&
+            audit.TargetId == staffUserId.ToString("D") &&
             audit.Outcome == AuditOutcome.Succeeded);
     }
 
@@ -172,21 +145,11 @@ public sealed class PilotSetupEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
-        var createResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            new CreateStaffUserRequest(
-                TestIds.OrganizationId,
-                "profile.duplicate@afk4.test",
-                "Profile Duplicate",
-                "Passw0rd!Pilot",
-                [StaffRoleNames.CashierOperator]));
-        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
-
-        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
-        Assert.NotNull(createdStaffUser);
+        var staffUserId = await SeedBranchStaffAsync(
+            factory, "profile.duplicate@afk4.test", "Profile Duplicate", "Passw0rd!Pilot", [StaffRoleNames.CashierOperator]);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/profile",
+            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/profile",
             new UpdateStaffUserProfileRequest(
                 TestIds.OrganizationId,
                 "tech@afk4.test",
@@ -210,66 +173,16 @@ public sealed class PilotSetupEndpointTests
     }
 
     [Fact]
-    public async Task CreateStaffUser_WithOwnerTargetRole_ReturnsBadRequest()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
-        var request = new CreateStaffUserRequest(
-            TestIds.OrganizationId,
-            "owner.two@afk4.test",
-            "Owner Two",
-            "Passw0rd!Pilot",
-            [StaffRoleNames.Owner]);
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            request);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CreateStaffUser_WithCashierRole_ReturnsForbidden()
-    {
-        await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
-        var request = new CreateStaffUserRequest(
-            TestIds.OrganizationId,
-            "cashier.two@afk4.test",
-            "Cashier Two",
-            "Passw0rd!Pilot",
-            [StaffRoleNames.CashierOperator]);
-
-        var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            request);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
     public async Task UpdateStaffRoles_WithOwnerRole_ReplacesBranchRoleAssignments()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
-        var createResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            new CreateStaffUserRequest(
-                TestIds.OrganizationId,
-                "roles.one@afk4.test",
-                "Roles One",
-                "Passw0rd!Pilot",
-                [StaffRoleNames.CashierOperator]));
-        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
-
-        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
-        Assert.NotNull(createdStaffUser);
+        var staffUserId = await SeedBranchStaffAsync(
+            factory, "roles.one@afk4.test", "Roles One", "Passw0rd!Pilot", [StaffRoleNames.CashierOperator]);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/roles",
+            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/roles",
             new UpdateStaffUserRolesRequest(
                 TestIds.OrganizationId,
                 [StaffRoleNames.Technician, StaffRoleNames.ShiftSupervisor]));
@@ -287,14 +200,14 @@ public sealed class PilotSetupEndpointTests
             .Where(roleAssignment =>
                 roleAssignment.OrganizationId == TestIds.OrganizationId &&
                 roleAssignment.BranchId == TestIds.BranchId &&
-                roleAssignment.StaffUserId == createdStaffUser.StaffUserId)
+                roleAssignment.StaffUserId == staffUserId)
             .Select(roleAssignment => roleAssignment.RoleName)
             .OrderBy(roleName => roleName)
             .ToListAsync();
         Assert.Equal([StaffRoleNames.ShiftSupervisor, StaffRoleNames.Technician], persistedRoleNames);
         Assert.Contains(await dbContext.AuditRecords.ToListAsync(), audit =>
             audit.Action == AuditActionNames.UpdateStaffRoles &&
-            audit.TargetId == createdStaffUser.StaffUserId.ToString("D") &&
+            audit.TargetId == staffUserId.ToString("D") &&
             audit.Outcome == AuditOutcome.Succeeded);
     }
 
@@ -318,17 +231,8 @@ public sealed class PilotSetupEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
-        var createResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            new CreateStaffUserRequest(
-                TestIds.OrganizationId,
-                "state.one@afk4.test",
-                "State One",
-                "Passw0rd!Pilot",
-                [StaffRoleNames.CashierOperator]));
-        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
-        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
-        Assert.NotNull(createdStaffUser);
+        var staffUserId = await SeedBranchStaffAsync(
+            factory, "state.one@afk4.test", "State One", "Passw0rd!Pilot", [StaffRoleNames.CashierOperator]);
 
         using var staffClient = factory.CreateClient();
         var firstSignInResponse = await staffClient.PostAsJsonAsync(
@@ -337,7 +241,7 @@ public sealed class PilotSetupEndpointTests
         Assert.Equal(HttpStatusCode.OK, firstSignInResponse.StatusCode);
 
         var deactivateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/state",
+            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/state",
             new UpdateStaffUserStateRequest(TestIds.OrganizationId, false));
         var deactivatedStaffUser = await deactivateResponse.Content.ReadFromJsonAsync<StaffUserDto>();
 
@@ -355,22 +259,22 @@ public sealed class PilotSetupEndpointTests
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             Assert.All(
                 await dbContext.StaffAccessTokens
-                    .Where(token => token.StaffUserId == createdStaffUser.StaffUserId)
+                    .Where(token => token.StaffUserId == staffUserId)
                     .ToListAsync(),
                 token => Assert.NotNull(token.RevokedAtUtc));
             Assert.All(
                 await dbContext.StaffRefreshTokens
-                    .Where(token => token.StaffUserId == createdStaffUser.StaffUserId)
+                    .Where(token => token.StaffUserId == staffUserId)
                     .ToListAsync(),
                 token => Assert.NotNull(token.RevokedAtUtc));
             Assert.Contains(await dbContext.AuditRecords.ToListAsync(), audit =>
                 audit.Action == AuditActionNames.UpdateStaffState &&
-                audit.TargetId == createdStaffUser.StaffUserId.ToString("D") &&
+                audit.TargetId == staffUserId.ToString("D") &&
                 audit.Outcome == AuditOutcome.Succeeded);
         }
 
         var reactivateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/state",
+            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/state",
             new UpdateStaffUserStateRequest(TestIds.OrganizationId, true));
         var reactivatedStaffUser = await reactivateResponse.Content.ReadFromJsonAsync<StaffUserDto>();
 
@@ -390,17 +294,8 @@ public sealed class PilotSetupEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
-        var createResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff",
-            new CreateStaffUserRequest(
-                TestIds.OrganizationId,
-                "reset.one@afk4.test",
-                "Reset One",
-                "Passw0rd!Pilot",
-                [StaffRoleNames.CashierOperator]));
-        var createdStaffUser = await createResponse.Content.ReadFromJsonAsync<StaffUserDto>();
-        Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
-        Assert.NotNull(createdStaffUser);
+        var staffUserId = await SeedBranchStaffAsync(
+            factory, "reset.one@afk4.test", "Reset One", "Passw0rd!Pilot", [StaffRoleNames.CashierOperator]);
 
         using var staffClient = factory.CreateClient();
         var firstSignInResponse = await staffClient.PostAsJsonAsync(
@@ -409,7 +304,7 @@ public sealed class PilotSetupEndpointTests
         Assert.Equal(HttpStatusCode.OK, firstSignInResponse.StatusCode);
 
         var resetResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{createdStaffUser.StaffUserId:D}/password-reset",
+            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/password-reset",
             new ResetStaffUserPasswordRequest(TestIds.OrganizationId, "Passw0rd!Reset"));
         var resetStaffUser = await resetResponse.Content.ReadFromJsonAsync<StaffUserDto>();
 
@@ -422,17 +317,17 @@ public sealed class PilotSetupEndpointTests
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             Assert.All(
                 await dbContext.StaffAccessTokens
-                    .Where(token => token.StaffUserId == createdStaffUser.StaffUserId)
+                    .Where(token => token.StaffUserId == staffUserId)
                     .ToListAsync(),
                 token => Assert.NotNull(token.RevokedAtUtc));
             Assert.All(
                 await dbContext.StaffRefreshTokens
-                    .Where(token => token.StaffUserId == createdStaffUser.StaffUserId)
+                    .Where(token => token.StaffUserId == staffUserId)
                     .ToListAsync(),
                 token => Assert.NotNull(token.RevokedAtUtc));
             Assert.Contains(await dbContext.AuditRecords.ToListAsync(), audit =>
                 audit.Action == AuditActionNames.ResetStaffPassword &&
-                audit.TargetId == createdStaffUser.StaffUserId.ToString("D") &&
+                audit.TargetId == staffUserId.ToString("D") &&
                 audit.Outcome == AuditOutcome.Succeeded);
         }
 
