@@ -273,6 +273,7 @@
   "shell.signOut": "Sign out",
   "shell.soon": "Soon",
   "shell.theme.toggle": "Toggle theme",
+  "shell.language.toggle": "Switch language",
   "overview.title": "Overview",
   "overview.kpi.devicesOnline": "Devices online",
   "overview.kpi.activeSessions": "Active sessions",

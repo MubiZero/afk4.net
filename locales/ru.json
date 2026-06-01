@@ -273,6 +273,7 @@
   "shell.signOut": "Выйти",
   "shell.soon": "Скоро",
   "shell.theme.toggle": "Сменить тему",
+  "shell.language.toggle": "Сменить язык",
   "overview.title": "Обзор",
   "overview.kpi.devicesOnline": "Устройства онлайн",
   "overview.kpi.activeSessions": "Активные сессии",
