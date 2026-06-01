@@ -109,6 +109,27 @@ public sealed class EfInvoiceNotifierTests
     }
 
     [Fact]
+    public async Task NotifyOverdueAsync_OrgHasOwnerEmail_EnqueuesTransactionalDunningStage1ToOwner()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
+        var recorder = new RecordingNotificationService();
+        var notifier = new EfInvoiceNotifier(db, recorder);
+        var invoice = NewInvoice(orgId);
+        invoice.Status = InvoiceStatusNames.Overdue;
+
+        await notifier.NotifyOverdueAsync(invoice, CancellationToken.None);
+
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal(NotificationTemplateKeys.InvoiceOverdue, request.TemplateKey);
+        Assert.Equal(NotificationCategory.Transactional, request.Category);
+        Assert.Equal("owner@club.test", request.Recipient.EmailAddress);
+        Assert.Equal($"invoice-overdue:{invoice.InvoiceId:N}:1", request.IdempotencyKey);
+        Assert.Equal("2900.00", request.Tokens["amount"]);
+        Assert.Equal("2026-05-08", request.Tokens["dueDate"]);
+    }
+
+    [Fact]
     public async Task NotifyIssuedAsync_OwnerHasNoEmail_SendsNothing()
     {
         await using var db = NewContext();

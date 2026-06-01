@@ -127,6 +127,22 @@ public sealed class EfInvoiceGenerationRunnerTests
     }
 
     [Fact]
+    public async Task RunAsync_FlippingInvoiceToOverdue_NotifiesOverdueOncePerInvoice()
+    {
+        await using var db = NewContext();
+        await SeedActiveDueSubscriptionAsync(db);
+        var notifier = new RecordingInvoiceNotifier();
+        var runner = NewRunner(db, notifier);
+        await runner.RunAsync(Start.AddMonths(1), CancellationToken.None); // issues invoice due +7 days
+
+        await runner.RunAsync(Start.AddMonths(1).AddDays(8), CancellationToken.None); // flips to overdue
+        await runner.RunAsync(Start.AddMonths(1).AddDays(9), CancellationToken.None); // already overdue, no re-flip
+
+        var overdue = Assert.Single(notifier.Overdue);
+        Assert.Equal(InvoiceStatusNames.Overdue, overdue.Status);
+    }
+
+    [Fact]
     public async Task RunAsync_CancelledSubscription_IsSkipped()
     {
         await using var db = NewContext();

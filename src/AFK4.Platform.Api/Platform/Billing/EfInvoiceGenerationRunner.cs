@@ -46,6 +46,10 @@ public sealed class EfInvoiceGenerationRunner(
         if (overdue.Count > 0)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            foreach (var invoice in overdue)
+            {
+                await invoiceNotifier.NotifyOverdueAsync(invoice, cancellationToken);
+            }
         }
 
         return issued;

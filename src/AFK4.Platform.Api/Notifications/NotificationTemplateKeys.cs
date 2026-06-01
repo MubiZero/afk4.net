@@ -23,5 +23,9 @@ public static class NotificationTemplateKeys
     /// <summary>Invoice payment receipt to the organization owner (Stage 4 billing trigger).</summary>
     public const string InvoicePaid = "invoice.paid";
 
-    public static readonly IReadOnlyList<string> All = [Test, StaffPasswordReset, OwnerInvite, InvoiceIssued, InvoicePaid];
+    /// <summary>Invoice overdue dunning notice to the organization owner (Stage 4 billing trigger).</summary>
+    public const string InvoiceOverdue = "invoice.overdue";
+
+    public static readonly IReadOnlyList<string> All =
+        [Test, StaffPasswordReset, OwnerInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue];
 }

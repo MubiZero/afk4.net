@@ -17,8 +17,13 @@ public sealed class EfInvoiceNotifier(
     public Task NotifyPaidAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
         SendAsync(invoice, NotificationTemplateKeys.InvoicePaid, $"invoice-paid:{invoice.InvoiceId:N}", cancellationToken);
 
+    // Single dunning notice on the issued→overdue transition (stage 1). A multi-step reminder ladder
+    // (stage 2+, idempotent per (invoiceId, stage)) is deferred to a later scheduling pass; the key
+    // already carries the stage so adding stages does not collide with this one.
+    private const int FirstDunningStage = 1;
+
     public Task NotifyOverdueAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+        SendAsync(invoice, NotificationTemplateKeys.InvoiceOverdue, $"invoice-overdue:{invoice.InvoiceId:N}:{FirstDunningStage}", cancellationToken);
 
     private async Task SendAsync(
         InvoiceEntity invoice,
