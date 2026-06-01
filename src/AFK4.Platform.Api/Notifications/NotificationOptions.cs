@@ -34,6 +34,9 @@ public sealed class NotificationOptions
     /// <summary>How often the daily owner-summary service ticks. Idempotency per (org, date) makes repeated ticks safe, so a sub-day interval just means the prior day's summary goes out promptly after midnight UTC.</summary>
     public TimeSpan DailySummaryInterval { get; set; } = TimeSpan.FromHours(1);
 
+    /// <summary>How often the scheduled-report service ticks. Idempotency per (schedule, window) makes repeated ticks safe.</summary>
+    public TimeSpan ScheduledReportInterval { get; set; } = TimeSpan.FromHours(1);
+
     /// <summary>How often the dispatcher polls for due rows.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(15);
 
