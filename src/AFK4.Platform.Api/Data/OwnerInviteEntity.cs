@@ -18,6 +18,9 @@ public sealed class OwnerInviteEntity
 
     public string? OwnerDisplayName { get; set; }
 
+    /// <summary>Optional email the invite is sent to (enables emailing + resend). Null = code shared out of band.</summary>
+    public string? OwnerEmail { get; set; }
+
     public DateTimeOffset ExpiresAtUtc { get; set; }
 
     public DateTimeOffset? AcceptedAtUtc { get; set; }

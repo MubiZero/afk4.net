@@ -1,7 +1,9 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Platform.Invites;
 using AFK4.Shared.Contracts.Platform.Tenants;
 using Microsoft.AspNetCore.Identity;
@@ -15,6 +17,7 @@ public sealed class EfPlatformTenantService(
     TimeProvider timeProvider,
     IOwnerInviteCodeGenerator inviteCodeGenerator,
     IStaffTokenService staffTokenService,
+    INotificationService notifications,
     IOptions<PlatformTenantOptions> tenantOptions) : IPlatformTenantService
 {
     private const int MinPasswordLength = 8;
@@ -158,6 +161,7 @@ public sealed class EfPlatformTenantService(
             platformAdminUserId,
             request.OwnerUserName,
             request.OwnerDisplayName,
+            ownerEmail: null,
             lifetime,
             now);
 
@@ -314,13 +318,48 @@ public sealed class EfPlatformTenantService(
             platformAdminUserId,
             request.OwnerUserName,
             request.OwnerDisplayName,
+            request.OwnerEmail,
             lifetime,
             now);
         dbContext.OwnerInvites.Add(freshInvite);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        await SendOwnerInviteEmailAsync(freshInvite, $"owner-invite:{freshInvite.OwnerInviteId:N}", cancellationToken);
+
         return PlatformTenantOperationResult<OwnerInviteDto>.Success(ToInviteDto(freshInvite));
+    }
+
+    public async Task<PlatformTenantOperationResult<OwnerInviteDto>> ResendOwnerInviteAsync(
+        Guid ownerInviteId,
+        CancellationToken cancellationToken)
+    {
+        if (ownerInviteId == Guid.Empty)
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("OwnerInviteId is required.");
+        }
+
+        var invite = await dbContext.OwnerInvites
+            .SingleOrDefaultAsync(candidate => candidate.OwnerInviteId == ownerInviteId, cancellationToken);
+        if (invite is null)
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.NotFound("Owner invite was not found.");
+        }
+
+        if (invite.Status != OwnerInviteStatusNames.Pending)
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("Only pending invites can be resent.");
+        }
+
+        if (string.IsNullOrWhiteSpace(invite.OwnerEmail))
+        {
+            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("This invite has no email address on file.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        await SendOwnerInviteEmailAsync(invite, $"owner-invite-resend:{invite.OwnerInviteId:N}:{now.UtcTicks}", cancellationToken);
+
+        return PlatformTenantOperationResult<OwnerInviteDto>.Success(ToInviteDto(invite));
     }
 
     public async Task<PlatformTenantOperationResult<StaffSignInResponse>> AcceptOwnerInviteAsync(
@@ -616,6 +655,7 @@ public sealed class EfPlatformTenantService(
         Guid platformAdminUserId,
         string? ownerUserName,
         string? ownerDisplayName,
+        string? ownerEmail,
         TimeSpan lifetime,
         DateTimeOffset now)
     {
@@ -630,10 +670,34 @@ public sealed class EfPlatformTenantService(
             Status = OwnerInviteStatusNames.Pending,
             OwnerUserName = string.IsNullOrWhiteSpace(ownerUserName) ? null : ownerUserName.Trim(),
             OwnerDisplayName = string.IsNullOrWhiteSpace(ownerDisplayName) ? null : ownerDisplayName.Trim(),
+            OwnerEmail = string.IsNullOrWhiteSpace(ownerEmail) ? null : ownerEmail.Trim(),
             ExpiresAtUtc = now.Add(lifetime),
             CreatedByPlatformAdminUserId = platformAdminUserId,
             CreatedAtUtc = now
         };
+    }
+
+    private async Task SendOwnerInviteEmailAsync(OwnerInviteEntity invite, string idempotencyKey, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(invite.OwnerEmail))
+        {
+            return;
+        }
+
+        var request = new NotificationRequest(
+            TemplateKey: NotificationTemplateKeys.OwnerInvite,
+            Category: NotificationCategory.Transactional,
+            Recipient: new NotificationRecipient(Locale: string.Empty, EmailAddress: invite.OwnerEmail),
+            Tokens: new Dictionary<string, string>
+            {
+                ["displayName"] = string.IsNullOrWhiteSpace(invite.OwnerDisplayName) ? "owner" : invite.OwnerDisplayName!,
+                ["code"] = invite.Code,
+            },
+            IdempotencyKey: idempotencyKey,
+            OrganizationId: invite.OrganizationId,
+            BranchId: invite.BranchId);
+
+        await notifications.SendAsync(request, cancellationToken);
     }
 
     private async Task<TenantDetailDto?> BuildTenantDetailAsync(Guid organizationId, CancellationToken cancellationToken)

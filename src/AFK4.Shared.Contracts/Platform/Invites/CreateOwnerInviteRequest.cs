@@ -4,4 +4,5 @@ public sealed record CreateOwnerInviteRequest(
     Guid BranchId,
     string? OwnerUserName,
     string? OwnerDisplayName,
-    TimeSpan? Lifetime);
+    TimeSpan? Lifetime,
+    string? OwnerEmail = null);

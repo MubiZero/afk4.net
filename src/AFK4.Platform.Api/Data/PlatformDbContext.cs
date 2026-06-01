@@ -752,6 +752,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(invite => invite.Status).HasMaxLength(32).IsRequired();
             entity.Property(invite => invite.OwnerUserName).HasMaxLength(256);
             entity.Property(invite => invite.OwnerDisplayName).HasMaxLength(160);
+            entity.Property(invite => invite.OwnerEmail).HasMaxLength(320);
             entity.Property(invite => invite.RevokedReason).HasMaxLength(512);
             entity.HasIndex(invite => invite.NormalizedCode).IsUnique();
             entity.HasIndex(invite => new { invite.OrganizationId, invite.BranchId, invite.Status });

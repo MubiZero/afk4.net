@@ -1,0 +1,5 @@
+{
+  "subject": "AFK4 club owner invitation",
+  "bodyText": "Hello {{displayName}}. You have been invited to manage a club in AFK4. Use this invite code to create your account: {{code}}. If you were not expecting this email, ignore it.",
+  "bodyHtml": "<p>Hello {{displayName}}.</p><p>You have been invited to manage a club in AFK4. Use this invite code to create your account:</p><p><strong>{{code}}</strong></p><p>If you were not expecting this email, ignore it.</p>"
+}

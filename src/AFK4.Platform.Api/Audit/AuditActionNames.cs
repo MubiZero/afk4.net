@@ -176,6 +176,8 @@ public static class AuditActionNames
 
     public const string RevokeOwnerInvite = "tenancy.owner_invite.revoke";
 
+    public const string ResendOwnerInvite = "tenancy.owner_invite.resend";
+
     public const string CreateTenantSupportNote = "tenancy.support_note.create";
 
     public const string UpdateTenantSupportNote = "tenancy.support_note.update";

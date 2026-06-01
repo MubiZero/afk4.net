@@ -14,5 +14,8 @@ public static class NotificationTemplateKeys
     /// <summary>Self-service password reset for a staff/owner account (Stage 3).</summary>
     public const string StaffPasswordReset = "staff.password_reset";
 
-    public static readonly IReadOnlyList<string> All = [Test, StaffPasswordReset];
+    /// <summary>Owner invite email carrying the invite code/link (Stage 3).</summary>
+    public const string OwnerInvite = "owner.invite";
+
+    public static readonly IReadOnlyList<string> All = [Test, StaffPasswordReset, OwnerInvite];
 }
