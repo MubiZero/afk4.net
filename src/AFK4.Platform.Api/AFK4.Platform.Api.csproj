@@ -17,6 +17,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Notifications\Templates\**\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\AFK4.BuildingBlocks\AFK4.BuildingBlocks.csproj" />
     <ProjectReference Include="..\AFK4.Shared.Contracts\AFK4.Shared.Contracts.csproj" />
   </ItemGroup>
