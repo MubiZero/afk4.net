@@ -614,6 +614,115 @@ app.MapPost("/api/auth/staff/reset-password", async (
         : Results.BadRequest(new { error = "The reset link is invalid or has expired." });
 });
 
+app.MapPost("/api/branches/{branchId:guid}/staff/invites", async (
+    Guid branchId,
+    CreateStaffInviteRequest request,
+    StaffAuthorizationService authorizationService,
+    IStaffInviteService staffInviteService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageBranchStaff,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateStaffInvite,
+            "StaffInvite",
+            null,
+            AuditOutcome.Denied,
+            new { request.UserName, request.RoleNames, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateCreateStaffInviteRequest(request);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var result = await staffInviteService.CreateInviteAsync(
+        request.OrganizationId,
+        branchId,
+        request.UserName,
+        request.DisplayName,
+        request.Email,
+        request.RoleNames,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            request.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateStaffInvite,
+            "StaffInvite",
+            null,
+            AuditOutcome.Denied,
+            new { request.UserName, Error = result.Error },
+            cancellationToken);
+
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateStaffInvite,
+        "StaffInvite",
+        result.StaffInviteId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.UserName, request.RoleNames },
+        cancellationToken);
+
+    return Results.Ok(new StaffInviteDto(result.StaffInviteId, result.Code, result.ExpiresAtUtc));
+});
+
+app.MapPost("/api/staff/invites/accept", async (
+    AcceptStaffInviteRequest request,
+    IStaffInviteService staffInviteService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Token))
+    {
+        return Results.BadRequest(new { error = "Token is required." });
+    }
+
+    var passwordValidation = ValidateStaffPassword(request.Password);
+    if (passwordValidation is not null)
+    {
+        return Results.BadRequest(new { error = passwordValidation });
+    }
+
+    var result = await staffInviteService.AcceptInviteAsync(request.Token, request.Password, cancellationToken);
+    return result.Succeeded
+        ? Results.Ok(new AcceptStaffInviteResponse(result.OrganizationId, result.UserName))
+        : Results.BadRequest(new { error = result.Error });
+});
+
 app.MapGet("/api/staff/me/owner-code", async (
     StaffAuthorizationService authorizationService,
     IOwnerCodeService ownerCodeService,
@@ -10660,6 +10769,31 @@ static string? ValidateCreateStaffUserRequest(CreateStaffUserRequest request)
     if (passwordValidation is not null)
     {
         return passwordValidation;
+    }
+
+    return ValidateStaffRoleNames(request.RoleNames);
+}
+
+static string? ValidateCreateStaffInviteRequest(CreateStaffInviteRequest request)
+{
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return "OrganizationId is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.UserName))
+    {
+        return "UserName is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.DisplayName))
+    {
+        return "DisplayName is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@', StringComparison.Ordinal))
+    {
+        return "A valid Email is required to send the invite.";
     }
 
     return ValidateStaffRoleNames(request.RoleNames);

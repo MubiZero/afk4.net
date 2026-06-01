@@ -124,6 +124,8 @@ public static class AuditActionNames
 
     public const string CreateStaffUser = "identity.staff.create";
 
+    public const string CreateStaffInvite = "identity.staff.invite.create";
+
     public const string ViewStaffUsers = "identity.staff.view";
 
     public const string UpdateStaffProfile = "identity.staff.profile.update";
