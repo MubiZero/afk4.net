@@ -51,19 +51,19 @@ public sealed class PilotSetupWorkspaceViewModelTests
             viewModel.StaffUsers[0],
             "cashier.pilot@afk4.test",
             "Pilot Cashier",
-            "ChangeMe!2026",
+            "cashier.pilot@afk4.test",
             "cashier_operator");
         AssertStaffUser(
             viewModel.StaffUsers[1],
             "technician.pilot@afk4.test",
             "Pilot Technician",
-            "ChangeMe!2026",
+            "technician.pilot@afk4.test",
             "technician");
         AssertStaffUser(
             viewModel.StaffUsers[2],
             "supervisor.pilot@afk4.test",
             "Pilot Supervisor",
-            "ChangeMe!2026",
+            "supervisor.pilot@afk4.test",
             "shift_supervisor");
     }
 
@@ -294,7 +294,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
     }
 
     [Fact]
-    public async Task ApplyAsync_WhenApiFails_StopsAtFailedStepAndKeepsPasswordOutOfMessages()
+    public async Task ApplyAsync_WhenApiFails_StopsAtFailedStep()
     {
         var apiClient = new RecordingPilotSetupApiClient
         {
@@ -305,8 +305,6 @@ public sealed class PilotSetupWorkspaceViewModelTests
         await viewModel.ApplyAsync(CancellationToken.None);
 
         Assert.Equal("Platform API returned 500 Internal Server Error: staff create failed", viewModel.ErrorMessage);
-        Assert.DoesNotContain("ChangeMe!2026", viewModel.ErrorMessage);
-        Assert.All(viewModel.Results, result => Assert.DoesNotContain("ChangeMe!2026", result.Detail));
         Assert.DoesNotContain("create-staff:supervisor.pilot@afk4.test", apiClient.Calls);
     }
 
@@ -342,30 +340,6 @@ public sealed class PilotSetupWorkspaceViewModelTests
         Assert.Equal("json parse failed", viewModel.ErrorMessage);
         Assert.False(viewModel.IsBusy);
         Assert.Contains(viewModel.Results, result => result.Key == "staff:cashier.pilot@afk4.test" && result.State == "failed");
-    }
-
-    [Fact]
-    public async Task ApplyAsync_RedactsJsonEscapedPasswordFromFailureMessages()
-    {
-        const string password = "Change\"Me\\2026";
-        var escapedPassword = JsonSerializer.Serialize(password).Trim('"');
-        var apiClient = new RecordingPilotSetupApiClient
-        {
-            FailOnCall = "create-staff:cashier.pilot@afk4.test",
-            FailureException = new HttpRequestException($"Platform API rejected password {escapedPassword}")
-        };
-        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageBranchStaff);
-        viewModel.StaffUsers[0].Password = password;
-
-        await viewModel.ApplyAsync(CancellationToken.None);
-
-        Assert.DoesNotContain(password, viewModel.ErrorMessage);
-        Assert.DoesNotContain(escapedPassword, viewModel.ErrorMessage);
-        Assert.All(viewModel.Results, result =>
-        {
-            Assert.DoesNotContain(password, result.Detail);
-            Assert.DoesNotContain(escapedPassword, result.Detail);
-        });
     }
 
     [Fact]
@@ -415,12 +389,12 @@ public sealed class PilotSetupWorkspaceViewModelTests
         PilotSetupStaffUserViewModel staffUser,
         string userName,
         string displayName,
-        string password,
+        string email,
         string roleName)
     {
         Assert.Equal(userName, staffUser.UserName);
         Assert.Equal(displayName, staffUser.DisplayName);
-        Assert.Equal(password, staffUser.Password);
+        Assert.Equal(email, staffUser.Email);
         Assert.Equal(roleName, staffUser.RoleName);
     }
 
@@ -472,13 +446,16 @@ public sealed class PilotSetupWorkspaceViewModelTests
             return Task.FromResult(staffUsers);
         }
 
-        public Task<StaffUserDto> CreateStaffUserAsync(
+        public Task<StaffInviteDto> CreateStaffInviteAsync(
             Guid branchId,
-            CreateStaffUserRequest request,
+            CreateStaffInviteRequest request,
             CancellationToken cancellationToken)
         {
             Record($"create-staff:{request.UserName}");
-            return Task.FromResult(CreateStaffUser(request.UserName, request.DisplayName, request.RoleNames[0]));
+            return Task.FromResult(new StaffInviteDto(
+                Guid.NewGuid(),
+                $"invite-{request.UserName}",
+                DateTimeOffset.Parse("2026-05-26T07:00:00Z")));
         }
 
         public Task<IReadOnlyList<ZoneDto>> GetLayoutZonesAsync(Guid branchId, CancellationToken cancellationToken)

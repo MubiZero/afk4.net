@@ -10,9 +10,9 @@ public interface IOperatorPilotSetupApiClient
 {
     Task<IReadOnlyList<StaffUserDto>> GetStaffUsersAsync(Guid branchId, CancellationToken cancellationToken);
 
-    Task<StaffUserDto> CreateStaffUserAsync(
+    Task<StaffInviteDto> CreateStaffInviteAsync(
         Guid branchId,
-        CreateStaffUserRequest request,
+        CreateStaffInviteRequest request,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ZoneDto>> GetLayoutZonesAsync(Guid branchId, CancellationToken cancellationToken);

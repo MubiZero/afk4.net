@@ -15,12 +15,12 @@ public sealed class UnconfiguredOperatorPilotSetupApiClient : IOperatorPilotSetu
         return Throw<IReadOnlyList<StaffUserDto>>();
     }
 
-    public Task<StaffUserDto> CreateStaffUserAsync(
+    public Task<StaffInviteDto> CreateStaffInviteAsync(
         Guid branchId,
-        CreateStaffUserRequest request,
+        CreateStaffInviteRequest request,
         CancellationToken cancellationToken)
     {
-        return Throw<StaffUserDto>();
+        return Throw<StaffInviteDto>();
     }
 
     public Task<IReadOnlyList<ZoneDto>> GetLayoutZonesAsync(Guid branchId, CancellationToken cancellationToken)
