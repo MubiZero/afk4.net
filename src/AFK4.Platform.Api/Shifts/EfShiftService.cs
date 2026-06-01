@@ -11,7 +11,8 @@ namespace AFK4.Platform.Api.Shifts;
 
 public sealed class EfShiftService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IShiftService, IOpenShiftResolver
+    TimeProvider timeProvider,
+    IShiftDiscrepancyNotifier? discrepancyNotifier = null) : IShiftService, IOpenShiftResolver
 {
     private const string ShiftOpenOperation = "shift-open";
     private const string CashMovementOperation = "shift-cash-movement";
@@ -347,6 +348,13 @@ public sealed class EfShiftService(
             shift.ClosedAtUtc = now;
 
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            // Anti-fraud: alert the owner on cash variance over tolerance. The outbox write
+            // participates in this transaction, so a rolled-back close never leaks an alert.
+            if (discrepancyNotifier is not null)
+            {
+                await discrepancyNotifier.NotifyIfOverToleranceAsync(shift, cancellationToken);
+            }
 
             var response = ToDto(shift);
             AddIdempotencyRecord(

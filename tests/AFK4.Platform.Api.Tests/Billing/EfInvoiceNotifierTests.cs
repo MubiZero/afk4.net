@@ -67,7 +67,7 @@ public sealed class EfInvoiceNotifierTests
         await using var db = NewContext();
         var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
         var recorder = new RecordingNotificationService();
-        var notifier = new EfInvoiceNotifier(db, recorder);
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
         var invoice = NewInvoice(orgId);
 
         await notifier.NotifyIssuedAsync(invoice, CancellationToken.None);
@@ -92,7 +92,7 @@ public sealed class EfInvoiceNotifierTests
         await using var db = NewContext();
         var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
         var recorder = new RecordingNotificationService();
-        var notifier = new EfInvoiceNotifier(db, recorder);
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
         var invoice = NewInvoice(orgId);
         invoice.Status = InvoiceStatusNames.Paid;
         invoice.PaidAtUtc = Now.AddDays(3);
@@ -114,7 +114,7 @@ public sealed class EfInvoiceNotifierTests
         await using var db = NewContext();
         var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
         var recorder = new RecordingNotificationService();
-        var notifier = new EfInvoiceNotifier(db, recorder);
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
         var invoice = NewInvoice(orgId);
         invoice.Status = InvoiceStatusNames.Overdue;
 
@@ -135,7 +135,7 @@ public sealed class EfInvoiceNotifierTests
         await using var db = NewContext();
         var orgId = await SeedOrgWithOwnerAsync(db, ownerEmail: null);
         var recorder = new RecordingNotificationService();
-        var notifier = new EfInvoiceNotifier(db, recorder);
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
 
         await notifier.NotifyIssuedAsync(NewInvoice(orgId), CancellationToken.None);
 
@@ -147,7 +147,7 @@ public sealed class EfInvoiceNotifierTests
     {
         await using var db = NewContext();
         var recorder = new RecordingNotificationService();
-        var notifier = new EfInvoiceNotifier(db, recorder);
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
 
         await notifier.NotifyIssuedAsync(NewInvoice(Guid.NewGuid()), CancellationToken.None);
 

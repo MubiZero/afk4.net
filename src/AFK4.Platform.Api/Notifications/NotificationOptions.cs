@@ -28,6 +28,9 @@ public sealed class NotificationOptions
 
     public string? FromName { get; set; }
 
+    /// <summary>Cash variance (absolute minor units) a closed shift may have before the owner is alerted. Default 0 = alert on any discrepancy.</summary>
+    public long ShiftDiscrepancyToleranceMinorUnits { get; set; }
+
     /// <summary>How often the dispatcher polls for due rows.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(15);
 

@@ -182,6 +182,7 @@ builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore
 builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthService>();
 builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
 builder.Services.AddScoped<ITenantSubscriptionService, EfTenantSubscriptionService>();
+builder.Services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolver>();
 builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
@@ -210,6 +211,7 @@ builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
 builder.Services.AddSingleton(new BranchDiagnosticsOptions());
 builder.Services.AddScoped<IBranchDiagnosticsService, EfBranchDiagnosticsService>();
+builder.Services.AddScoped<IShiftDiscrepancyNotifier, EfShiftDiscrepancyNotifier>();
 builder.Services.AddScoped<EfShiftService>();
 builder.Services.AddScoped<IShiftService>(provider => provider.GetRequiredService<EfShiftService>());
 builder.Services.AddScoped<IOpenShiftResolver>(provider => provider.GetRequiredService<EfShiftService>());
