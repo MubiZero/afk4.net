@@ -12,6 +12,22 @@ public sealed class NotificationOptions
     /// <summary>Locale used when a recipient has none / an unknown one (D12).</summary>
     public string DefaultLocale { get; set; } = "ru";
 
+    // --- SMTP / email channel (D8) ---
+
+    public string SmtpHost { get; set; } = string.Empty;
+
+    public int SmtpPort { get; set; } = 587;
+
+    public bool UseStartTls { get; set; } = true;
+
+    public string? Username { get; set; }
+
+    public string? Password { get; set; }
+
+    public string FromAddress { get; set; } = string.Empty;
+
+    public string? FromName { get; set; }
+
     /// <summary>How often the dispatcher polls for due rows.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(15);
 
