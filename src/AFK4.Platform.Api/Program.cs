@@ -575,6 +575,43 @@ app.MapPost("/api/auth/staff/refresh", async (
         : Results.Ok(response);
 });
 
+app.MapPost("/api/auth/staff/forgot-password", async (
+    StaffForgotPasswordRequest request,
+    IStaffPasswordResetService passwordResetService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.UserNameOrEmail))
+    {
+        return Results.BadRequest(new { error = "UserNameOrEmail is required." });
+    }
+
+    // Anti-enumeration: always report acceptance regardless of whether the account exists.
+    await passwordResetService.RequestResetAsync(request.UserNameOrEmail, cancellationToken);
+    return Results.Ok(new { message = "If the account exists, a reset email has been sent." });
+});
+
+app.MapPost("/api/auth/staff/reset-password", async (
+    StaffResetPasswordRequest request,
+    IStaffPasswordResetService passwordResetService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Token))
+    {
+        return Results.BadRequest(new { error = "Token is required." });
+    }
+
+    var passwordValidation = ValidateStaffPassword(request.NewPassword);
+    if (passwordValidation is not null)
+    {
+        return Results.BadRequest(new { error = passwordValidation });
+    }
+
+    var reset = await passwordResetService.CompleteResetAsync(request.Token, request.NewPassword, cancellationToken);
+    return reset
+        ? Results.Ok(new { message = "Password updated." })
+        : Results.BadRequest(new { error = "The reset link is invalid or has expired." });
+});
+
 app.MapGet("/api/staff/me/owner-code", async (
     StaffAuthorizationService authorizationService,
     IOwnerCodeService ownerCodeService,
