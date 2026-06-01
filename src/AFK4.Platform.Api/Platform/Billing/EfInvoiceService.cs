@@ -107,6 +107,7 @@ public sealed class EfInvoiceService(
         invoice.PaidAtUtc = now;
         invoice.UpdatedAtUtc = now;
         await dbContext.SaveChangesAsync(cancellationToken);
+        await invoiceNotifier.NotifyPaidAsync(invoice, cancellationToken);
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
 

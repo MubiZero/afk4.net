@@ -20,5 +20,8 @@ public static class NotificationTemplateKeys
     /// <summary>Invoice issued to the organization owner (Stage 4 billing trigger).</summary>
     public const string InvoiceIssued = "invoice.issued";
 
-    public static readonly IReadOnlyList<string> All = [Test, StaffPasswordReset, OwnerInvite, InvoiceIssued];
+    /// <summary>Invoice payment receipt to the organization owner (Stage 4 billing trigger).</summary>
+    public const string InvoicePaid = "invoice.paid";
+
+    public static readonly IReadOnlyList<string> All = [Test, StaffPasswordReset, OwnerInvite, InvoiceIssued, InvoicePaid];
 }

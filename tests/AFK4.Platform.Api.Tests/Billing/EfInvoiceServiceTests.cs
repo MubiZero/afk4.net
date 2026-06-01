@@ -107,6 +107,37 @@ public sealed class EfInvoiceServiceTests
     }
 
     [Fact]
+    public async Task MarkPaidAsync_NotifiesPaid()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var notifier = new RecordingInvoiceNotifier();
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)), notifier);
+        var generated = await service.GenerateAsync(orgId, CancellationToken.None);
+
+        await service.MarkPaidAsync(generated.Value!.InvoiceId, new MarkInvoicePaidRequest("ref-1"), CancellationToken.None);
+
+        var paid = Assert.Single(notifier.Paid);
+        Assert.Equal(generated.Value.InvoiceId, paid.InvoiceId);
+        Assert.Equal(InvoiceStatusNames.Paid, paid.Status);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_NotifiesIssued()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var notifier = new RecordingInvoiceNotifier();
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)), notifier);
+
+        await service.GenerateAsync(orgId, CancellationToken.None);
+
+        var issued = Assert.Single(notifier.Issued);
+        Assert.Equal(InvoiceStatusNames.Issued, issued.Status);
+        Assert.Empty(notifier.Paid);
+    }
+
+    [Fact]
     public async Task MarkPaidAsync_AlreadyPaid_ReturnsConflict()
     {
         await using var db = NewContext();

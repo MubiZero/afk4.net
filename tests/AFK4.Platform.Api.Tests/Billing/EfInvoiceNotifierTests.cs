@@ -87,6 +87,28 @@ public sealed class EfInvoiceNotifierTests
     }
 
     [Fact]
+    public async Task NotifyPaidAsync_OrgHasOwnerEmail_EnqueuesTransactionalInvoicePaidToOwner()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
+        var recorder = new RecordingNotificationService();
+        var notifier = new EfInvoiceNotifier(db, recorder);
+        var invoice = NewInvoice(orgId);
+        invoice.Status = InvoiceStatusNames.Paid;
+        invoice.PaidAtUtc = Now.AddDays(3);
+
+        await notifier.NotifyPaidAsync(invoice, CancellationToken.None);
+
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal(NotificationTemplateKeys.InvoicePaid, request.TemplateKey);
+        Assert.Equal(NotificationCategory.Transactional, request.Category);
+        Assert.Equal("owner@club.test", request.Recipient.EmailAddress);
+        Assert.Equal($"invoice-paid:{invoice.InvoiceId:N}", request.IdempotencyKey);
+        Assert.Equal("2900.00", request.Tokens["amount"]);
+        Assert.Equal("2026-05-04", request.Tokens["paidDate"]);
+    }
+
+    [Fact]
     public async Task NotifyIssuedAsync_OwnerHasNoEmail_SendsNothing()
     {
         await using var db = NewContext();

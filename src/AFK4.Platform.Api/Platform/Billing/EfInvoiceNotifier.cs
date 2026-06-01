@@ -15,7 +15,7 @@ public sealed class EfInvoiceNotifier(
         SendAsync(invoice, NotificationTemplateKeys.InvoiceIssued, $"invoice-issued:{invoice.InvoiceId:N}", cancellationToken);
 
     public Task NotifyPaidAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+        SendAsync(invoice, NotificationTemplateKeys.InvoicePaid, $"invoice-paid:{invoice.InvoiceId:N}", cancellationToken);
 
     public Task NotifyOverdueAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
         throw new NotImplementedException();
