@@ -16,7 +16,8 @@
     }
   },
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "gen": "bun scripts/generate-messages.ts"
   },
   "dependencies": {
     "@afk4/formatting": "workspace:*"

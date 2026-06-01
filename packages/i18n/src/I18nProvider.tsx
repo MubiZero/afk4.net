@@ -11,7 +11,7 @@ interface I18nContextValue {
   formatDate: (iso: string) => string;
 }
 const I18nContext = createContext<I18nContextValue | null>(null);
-const LOCALE_TAG: Record<Locale, string> = { ru: 'ru-RU', en: 'en-US' };
+const LOCALE_TAG: Record<Locale, string> = { ru: 'ru-RU', en: 'en-US', tg: 'tg-TJ' };
 
 export function I18nProvider({ children, initialLocale = 'ru' }: { children: ReactNode; initialLocale?: Locale }) {
   const [locale, setLocale] = useState<Locale>(initialLocale);

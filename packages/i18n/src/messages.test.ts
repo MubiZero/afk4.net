@@ -1,8 +1,22 @@
 import { it, expect } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { messages } from './messages';
 
-it('ru and en have identical key sets', () => {
-  expect(Object.keys(messages.en).sort()).toEqual(Object.keys(messages.ru).sort());
+const localesDir = join(import.meta.dir, '..', '..', '..', 'locales');
+const readLocale = (loc: string) => JSON.parse(readFileSync(join(localesDir, `${loc}.json`), 'utf8')) as Record<string, string>;
+
+it('ru, en and tg have identical key sets (catalog parity)', () => {
+  const ruKeys = Object.keys(messages.ru).sort();
+  expect(Object.keys(messages.en).sort()).toEqual(ruKeys);
+  expect(Object.keys(messages.tg).sort()).toEqual(ruKeys);
+});
+
+it('generated messages.ts matches the locales/*.json source of truth', () => {
+  // Guards against forgetting to re-run `bun run gen` after editing the JSON.
+  for (const loc of ['ru', 'en', 'tg'] as const) {
+    expect(messages[loc]).toEqual(readLocale(loc));
+  }
 });
 
 it('includes the new venue/devices keys', () => {
