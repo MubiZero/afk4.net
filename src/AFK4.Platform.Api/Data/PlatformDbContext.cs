@@ -110,6 +110,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
 
+    public DbSet<ReportScheduleEntity> ReportSchedules => Set<ReportScheduleEntity>();
+
     public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
 
     public DbSet<StaffInviteEntity> StaffInvites => Set<StaffInviteEntity>();
@@ -838,6 +840,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(preference => preference.Channel).HasMaxLength(16).IsRequired();
             entity.HasIndex(preference => new { preference.StaffUserId, preference.Category, preference.Channel });
             entity.HasIndex(preference => new { preference.PlayerAccountId, preference.Category, preference.Channel });
+        });
+
+        modelBuilder.Entity<ReportScheduleEntity>(entity =>
+        {
+            entity.ToTable("report_schedules");
+            entity.HasKey(schedule => schedule.ReportScheduleId);
+            entity.Property(schedule => schedule.ReportType).HasMaxLength(32).IsRequired();
+            entity.Property(schedule => schedule.Frequency).HasMaxLength(16).IsRequired();
+            entity.HasIndex(schedule => new { schedule.IsActive, schedule.NextRunUtc });
+            entity.HasIndex(schedule => new { schedule.OrganizationId, schedule.BranchId });
         });
 
         modelBuilder.Entity<PasswordResetTokenEntity>(entity =>
