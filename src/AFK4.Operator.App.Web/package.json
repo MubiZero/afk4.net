@@ -10,6 +10,8 @@
     "preview": "vite preview --host 127.0.0.1 --port 4174"
   },
   "dependencies": {
+    "@afk4/formatting": "workspace:*",
+    "@afk4/money": "workspace:*",
     "@microsoft/signalr": "^10.0.0",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
