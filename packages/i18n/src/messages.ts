@@ -652,7 +652,20 @@ export const messages = {
     "install.wizard.step3": "Выберите филиал и место на карте зала.",
     "install.wizard.step4": "Выберите тип (игровой ПК или рабочее место менеджера) и завершите привязку.",
     "install.branches.title": "Филиалы, доступные мастеру",
-    "install.branches.empty": "К этой учётной записи не привязаны филиалы."
+    "install.branches.empty": "К этой учётной записи не привязаны филиалы.",
+    "operator.connect.title": "Подключение клуба",
+    "operator.connect.subtitle": "Введите ключ клуба и ключ филиала или используйте код подключения от администратора.",
+    "operator.connect.mode.slug": "Клуб и филиал",
+    "operator.connect.mode.setupCode": "Код подключения",
+    "operator.connect.field.orgSlug": "Ключ клуба",
+    "operator.connect.field.branchSlug": "Ключ филиала",
+    "operator.connect.field.setupCode": "Код подключения",
+    "operator.connect.action.resolving": "Проверяем",
+    "operator.connect.action.submit": "Продолжить",
+    "operator.connect.error.generic": "Не удалось настроить подключение оператора.",
+    "operator.connect.error.notFound": "Не нашли клуб по этим ключам или коду подключения. Проверьте данные у администратора.",
+    "operator.connect.error.setupCodeExpired": "Код подключения больше не действует.",
+    "operator.connect.error.platformCode": "Код ошибки платформы:"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -1303,7 +1316,20 @@ export const messages = {
     "install.wizard.step3": "Pick the branch and the seat on the floor map.",
     "install.wizard.step4": "Choose the type (gaming PC or manager workstation) and finish enrollment.",
     "install.branches.title": "Branches available to the wizard",
-    "install.branches.empty": "No branches are linked to this account."
+    "install.branches.empty": "No branches are linked to this account.",
+    "operator.connect.title": "Club connection",
+    "operator.connect.subtitle": "Enter the club key and branch key, or use a setup code from your administrator.",
+    "operator.connect.mode.slug": "Club & branch",
+    "operator.connect.mode.setupCode": "Setup code",
+    "operator.connect.field.orgSlug": "Club key",
+    "operator.connect.field.branchSlug": "Branch key",
+    "operator.connect.field.setupCode": "Setup code",
+    "operator.connect.action.resolving": "Checking",
+    "operator.connect.action.submit": "Continue",
+    "operator.connect.error.generic": "Couldn't set up the operator connection.",
+    "operator.connect.error.notFound": "No club found for these keys or setup code. Check the details with your administrator.",
+    "operator.connect.error.setupCodeExpired": "This setup code is no longer valid.",
+    "operator.connect.error.platformCode": "Platform error code:"
   },
   tg: {
     "auth.club.title": "Вход в клуб",
@@ -1954,7 +1980,20 @@ export const messages = {
     "install.wizard.step3": "Выберите филиал и место на карте зала.",
     "install.wizard.step4": "Выберите тип (игровой ПК или рабочее место менеджера) и завершите привязку.",
     "install.branches.title": "Филиалы, доступные мастеру",
-    "install.branches.empty": "К этой учётной записи не привязаны филиалы."
+    "install.branches.empty": "К этой учётной записи не привязаны филиалы.",
+    "operator.connect.title": "Пайвасти клуб",
+    "operator.connect.subtitle": "Калиди клуб ва калиди филиалро ворид кунед ё рамзи пайвастро аз маъмур истифода баред.",
+    "operator.connect.mode.slug": "Клуб ва филиал",
+    "operator.connect.mode.setupCode": "Рамзи пайваст",
+    "operator.connect.field.orgSlug": "Калиди клуб",
+    "operator.connect.field.branchSlug": "Калиди филиал",
+    "operator.connect.field.setupCode": "Рамзи пайваст",
+    "operator.connect.action.resolving": "Санҷиш",
+    "operator.connect.action.submit": "Идома",
+    "operator.connect.error.generic": "Танзими пайвасти оператор муяссар нашуд.",
+    "operator.connect.error.notFound": "Клуб бо ин калидҳо ё рамзи пайваст ёфт нашуд. Маълумотро бо маъмур санҷед.",
+    "operator.connect.error.setupCodeExpired": "Ин рамзи пайваст дигар эътибор надорад.",
+    "operator.connect.error.platformCode": "Рамзи хатои платформа:"
   },
 } as const;
 

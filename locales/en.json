@@ -647,5 +647,18 @@
   "install.wizard.step3": "Pick the branch and the seat on the floor map.",
   "install.wizard.step4": "Choose the type (gaming PC or manager workstation) and finish enrollment.",
   "install.branches.title": "Branches available to the wizard",
-  "install.branches.empty": "No branches are linked to this account."
+  "install.branches.empty": "No branches are linked to this account.",
+  "operator.connect.title": "Club connection",
+  "operator.connect.subtitle": "Enter the club key and branch key, or use a setup code from your administrator.",
+  "operator.connect.mode.slug": "Club & branch",
+  "operator.connect.mode.setupCode": "Setup code",
+  "operator.connect.field.orgSlug": "Club key",
+  "operator.connect.field.branchSlug": "Branch key",
+  "operator.connect.field.setupCode": "Setup code",
+  "operator.connect.action.resolving": "Checking",
+  "operator.connect.action.submit": "Continue",
+  "operator.connect.error.generic": "Couldn't set up the operator connection.",
+  "operator.connect.error.notFound": "No club found for these keys or setup code. Check the details with your administrator.",
+  "operator.connect.error.setupCodeExpired": "This setup code is no longer valid.",
+  "operator.connect.error.platformCode": "Platform error code:"
 }

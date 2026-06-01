@@ -647,5 +647,18 @@
   "install.wizard.step3": "Выберите филиал и место на карте зала.",
   "install.wizard.step4": "Выберите тип (игровой ПК или рабочее место менеджера) и завершите привязку.",
   "install.branches.title": "Филиалы, доступные мастеру",
-  "install.branches.empty": "К этой учётной записи не привязаны филиалы."
+  "install.branches.empty": "К этой учётной записи не привязаны филиалы.",
+  "operator.connect.title": "Пайвасти клуб",
+  "operator.connect.subtitle": "Калиди клуб ва калиди филиалро ворид кунед ё рамзи пайвастро аз маъмур истифода баред.",
+  "operator.connect.mode.slug": "Клуб ва филиал",
+  "operator.connect.mode.setupCode": "Рамзи пайваст",
+  "operator.connect.field.orgSlug": "Калиди клуб",
+  "operator.connect.field.branchSlug": "Калиди филиал",
+  "operator.connect.field.setupCode": "Рамзи пайваст",
+  "operator.connect.action.resolving": "Санҷиш",
+  "operator.connect.action.submit": "Идома",
+  "operator.connect.error.generic": "Танзими пайвасти оператор муяссар нашуд.",
+  "operator.connect.error.notFound": "Клуб бо ин калидҳо ё рамзи пайваст ёфт нашуд. Маълумотро бо маъмур санҷед.",
+  "operator.connect.error.setupCodeExpired": "Ин рамзи пайваст дигар эътибор надорад.",
+  "operator.connect.error.platformCode": "Рамзи хатои платформа:"
 }

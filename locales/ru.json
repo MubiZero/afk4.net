@@ -647,5 +647,18 @@
   "install.wizard.step3": "Выберите филиал и место на карте зала.",
   "install.wizard.step4": "Выберите тип (игровой ПК или рабочее место менеджера) и завершите привязку.",
   "install.branches.title": "Филиалы, доступные мастеру",
-  "install.branches.empty": "К этой учётной записи не привязаны филиалы."
+  "install.branches.empty": "К этой учётной записи не привязаны филиалы.",
+  "operator.connect.title": "Подключение клуба",
+  "operator.connect.subtitle": "Введите ключ клуба и ключ филиала или используйте код подключения от администратора.",
+  "operator.connect.mode.slug": "Клуб и филиал",
+  "operator.connect.mode.setupCode": "Код подключения",
+  "operator.connect.field.orgSlug": "Ключ клуба",
+  "operator.connect.field.branchSlug": "Ключ филиала",
+  "operator.connect.field.setupCode": "Код подключения",
+  "operator.connect.action.resolving": "Проверяем",
+  "operator.connect.action.submit": "Продолжить",
+  "operator.connect.error.generic": "Не удалось настроить подключение оператора.",
+  "operator.connect.error.notFound": "Не нашли клуб по этим ключам или коду подключения. Проверьте данные у администратора.",
+  "operator.connect.error.setupCodeExpired": "Код подключения больше не действует.",
+  "operator.connect.error.platformCode": "Код ошибки платформы:"
 }
