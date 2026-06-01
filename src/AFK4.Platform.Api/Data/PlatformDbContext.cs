@@ -179,6 +179,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(staffUser => staffUser.UserName).HasMaxLength(256).IsRequired();
             entity.Property(staffUser => staffUser.NormalizedUserName).HasMaxLength(256).IsRequired();
             entity.Property(staffUser => staffUser.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(staffUser => staffUser.Email).HasMaxLength(320);
             entity.Property(staffUser => staffUser.PasswordHash).IsRequired();
             entity.HasIndex(staffUser => new { staffUser.OrganizationId, staffUser.NormalizedUserName }).IsUnique();
         });
@@ -389,6 +390,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(player => player.PlayerAccountId);
             entity.Property(player => player.DisplayName).HasMaxLength(160).IsRequired();
             entity.Property(player => player.PhoneNumber).HasMaxLength(64);
+            entity.Property(player => player.Email).HasMaxLength(320);
+            entity.Property(player => player.PreferredLocale).HasMaxLength(16);
             entity.HasIndex(player => new { player.OrganizationId, player.HomeBranchId });
         });
 
