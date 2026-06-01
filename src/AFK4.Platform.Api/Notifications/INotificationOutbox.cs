@@ -13,6 +13,8 @@ public interface INotificationOutbox
 
     Task<IReadOnlyList<NotificationOutboxEntity>> ClaimDueAsync(DateTimeOffset now, int max, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<NotificationOutboxEntity>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
     Task SaveAsync(CancellationToken cancellationToken);
 }
 

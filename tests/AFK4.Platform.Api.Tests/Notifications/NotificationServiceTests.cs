@@ -16,13 +16,17 @@ public sealed class NotificationServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options);
 
-    private static NotificationService CreateService(PlatformDbContext db) =>
-        new(
-            new EfNotificationOutbox(db),
-            new EmbeddedTemplateProvider(defaultLocale: "ru"),
-            new NotificationRenderer(),
+    private static NotificationService CreateService(PlatformDbContext db, INotificationChannel? channel = null)
+    {
+        var options = Options.Create(new NotificationOptions { DefaultLocale = "ru" });
+        var outbox = new EfNotificationOutbox(db);
+        var runner = new NotificationDispatchRunner(
+            outbox,
+            [channel ?? new StubChannel(NotificationChannel.Email, ChannelResult.Sent())],
             new FixedTimeProvider(Now),
-            Options.Create(new NotificationOptions { DefaultLocale = "ru" }));
+            options);
+        return new NotificationService(outbox, new EmbeddedTemplateProvider("ru"), new NotificationRenderer(), runner, new FixedTimeProvider(Now), options);
+    }
 
     private static NotificationRequest Request(
         string idempotencyKey = "test:1",
@@ -119,5 +123,42 @@ public sealed class NotificationServiceTests
         var row = await db.NotificationOutbox.SingleAsync();
         Assert.Equal(NotificationOutboxStatus.Suppressed, row.Status);
         Assert.Contains("email", row.LastError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendNowAsync_DeliversImmediatelyAndReportsSuccess()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db, new StubChannel(NotificationChannel.Email, ChannelResult.Sent()));
+
+        var result = await service.SendNowAsync(Request(idempotencyKey: "otp:1"), CancellationToken.None);
+
+        Assert.True(result.Delivered);
+        Assert.Null(result.Error);
+        var row = await db.NotificationOutbox.SingleAsync();
+        Assert.Equal(NotificationOutboxStatus.Sent, row.Status);
+    }
+
+    [Fact]
+    public async Task SendNowAsync_LeavesRowPendingForRetryOnTransientFailure()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db, new StubChannel(NotificationChannel.Email, ChannelResult.TransientFailure("smtp down")));
+
+        var result = await service.SendNowAsync(Request(idempotencyKey: "otp:2"), CancellationToken.None);
+
+        Assert.False(result.Delivered);
+        Assert.Equal("smtp down", result.Error);
+        var row = await db.NotificationOutbox.SingleAsync();
+        Assert.Equal(NotificationOutboxStatus.Pending, row.Status);
+        Assert.Equal(1, row.AttemptCount);
+    }
+
+    private sealed class StubChannel(NotificationChannel channel, ChannelResult result) : INotificationChannel
+    {
+        public NotificationChannel Channel => channel;
+
+        public Task<ChannelResult> SendAsync(Data.NotificationOutboxEntity row, CancellationToken cancellationToken) =>
+            Task.FromResult(result);
     }
 }

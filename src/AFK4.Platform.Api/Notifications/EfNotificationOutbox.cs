@@ -44,5 +44,10 @@ public sealed class EfNotificationOutbox(PlatformDbContext db) : INotificationOu
         return due;
     }
 
+    public async Task<IReadOnlyList<NotificationOutboxEntity>> GetByIdsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken) =>
+        await db.NotificationOutbox
+            .Where(row => ids.Contains(row.NotificationOutboxId))
+            .ToListAsync(cancellationToken);
+
     public Task SaveAsync(CancellationToken cancellationToken) => db.SaveChangesAsync(cancellationToken);
 }

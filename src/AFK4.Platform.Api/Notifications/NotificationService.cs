@@ -14,6 +14,7 @@ public sealed class NotificationService(
     INotificationOutbox outbox,
     ITemplateProvider templateProvider,
     INotificationRenderer renderer,
+    NotificationDispatchRunner dispatchRunner,
     TimeProvider timeProvider,
     IOptions<NotificationOptions> options) : INotificationService
 {
@@ -68,6 +69,25 @@ public sealed class NotificationService(
         }
 
         return new NotificationHandle(ids, anyCreated);
+    }
+
+    public async Task<NotificationDeliveryResult> SendNowAsync(NotificationRequest request, CancellationToken cancellationToken)
+    {
+        var handle = await SendAsync(request, cancellationToken);
+
+        var rows = await outbox.GetByIdsAsync(handle.OutboxIds, cancellationToken);
+        foreach (var row in rows.Where(row => row.Status == NotificationOutboxStatus.Pending))
+        {
+            await dispatchRunner.DispatchAsync(row, cancellationToken);
+        }
+
+        await outbox.SaveAsync(cancellationToken);
+
+        var refreshed = await outbox.GetByIdsAsync(handle.OutboxIds, cancellationToken);
+        var delivered = refreshed.Count > 0 && refreshed.All(row => row.Status == NotificationOutboxStatus.Sent);
+        var error = refreshed.FirstOrDefault(row => row.Status != NotificationOutboxStatus.Sent)?.LastError;
+
+        return new NotificationDeliveryResult(handle, delivered, error);
     }
 
     private string ResolveLocale(string? recipientLocale) =>
