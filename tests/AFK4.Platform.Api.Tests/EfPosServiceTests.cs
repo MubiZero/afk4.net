@@ -1,13 +1,19 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
+using AFK4.Platform.Api.Tests.Billing;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -178,6 +184,30 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
+    public async Task PaySaleAsync_StockReachesReorderThreshold_EnqueuesLowStockAlert()
+    {
+        await using var db = CreateDbContext();
+        await SeedOwnerAsync(db);
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        product.ReorderThreshold = 3;
+        await SeedStockAsync(db, product.ProductId, quantityDelta: 5);
+        await db.SaveChangesAsync();
+        var recorder = new RecordingNotificationService();
+        var notifier = new EfLowStockNotifier(new EfOrganizationOwnerResolver(db), recorder, db);
+        var service = CreateService(db, notifier);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId); // quantity 2 → stock 3 == threshold
+
+        var result = await service.PaySaleAsync(sale.PosSaleId, ActorStaffUserId,
+            ManualPaymentRequest("pay-001", amountMinorUnits: 2400), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal(NotificationTemplateKeys.LowStock, request.TemplateKey);
+        Assert.Equal("3", request.Tokens["stockOnHand"]);
+    }
+
+    [Fact]
     public async Task PaySaleAsync_RejectsInsufficientStockForTrackedProducts()
     {
         await using var db = CreateDbContext();
@@ -316,13 +346,36 @@ public sealed class EfPosServiceTests
         return new PlatformDbContext(options);
     }
 
-    private static EfPosService CreateService(PlatformDbContext db)
+    private static EfPosService CreateService(PlatformDbContext db, ILowStockNotifier? lowStockNotifier = null)
     {
         return new EfPosService(
             db,
             new ManualPaymentProvider(),
             new ReceiptNumberGenerator(db),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            lowStockNotifier);
+    }
+
+    private static async Task SeedOwnerAsync(PlatformDbContext db)
+    {
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = TestIds.OrganizationId, Slug = "club", Name = "Demo Club", Status = "active",
+            PlanCode = "starter", SubscriptionStatus = "active", LimitsJson = "{}", CreatedAtUtc = Now, UpdatedAtUtc = Now
+        });
+        var ownerId = Guid.NewGuid();
+        db.StaffUsers.Add(new StaffUserEntity
+        {
+            StaffUserId = ownerId, OrganizationId = TestIds.OrganizationId, UserName = "owner", NormalizedUserName = "OWNER",
+            DisplayName = "Club Owner", Email = "owner@club.example", PasswordHash = "x", IsActive = true, CreatedAtUtc = Now
+        });
+        db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
+            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = StaffRoleNames.Owner
+        });
+        db.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Name = "Central", CreatedAtUtc = Now });
+        await db.SaveChangesAsync();
     }
 
     private static async Task<ShiftEntity> SeedOpenShiftAsync(PlatformDbContext db)

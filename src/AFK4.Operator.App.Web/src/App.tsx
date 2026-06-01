@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react';
+import { minorToMajor, majorToMinor } from '@afk4/money';
+import { formatNumber as formatLocaleNumber, formatDateParts } from '@afk4/formatting';
 import { projectOperatorError } from './apiErrors';
 import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
 import {
@@ -1150,13 +1152,13 @@ function readRecord(value: unknown, name: string): Record<string, unknown> | nul
 }
 
 function formatMinorUnits(minorUnits: number, currencyCode: string): string {
-  const majorUnits = minorUnits / 100;
-  const formatter = new Intl.NumberFormat('ru-RU', {
+  const majorUnits = minorToMajor(minorUnits);
+  const formatted = formatLocaleNumber(majorUnits, 'ru-RU', {
     maximumFractionDigits: Number.isInteger(majorUnits) ? 0 : 2,
     minimumFractionDigits: 0
   });
 
-  return `${formatter.format(majorUnits)} ${currencyCode}`;
+  return `${formatted} ${currencyCode}`;
 }
 
 function formatMoney(value: unknown, fallbackCurrencyCode: string): string {
@@ -1176,7 +1178,7 @@ function parseMoneyInputMinorUnits(value: string): number | null {
   }
 
   const majorUnits = Number(normalized);
-  return Number.isFinite(majorUnits) && majorUnits > 0 ? Math.round(majorUnits * 100) : null;
+  return Number.isFinite(majorUnits) && majorUnits > 0 ? majorToMinor(majorUnits) : null;
 }
 
 function parseNonNegativeMoneyInputMinorUnits(value: string): number | null {
@@ -1186,11 +1188,11 @@ function parseNonNegativeMoneyInputMinorUnits(value: string): number | null {
   }
 
   const majorUnits = Number(normalized);
-  return Number.isFinite(majorUnits) && majorUnits >= 0 ? Math.round(majorUnits * 100) : null;
+  return Number.isFinite(majorUnits) && majorUnits >= 0 ? majorToMinor(majorUnits) : null;
 }
 
 function formatMoneyInputMinorUnits(minorUnits: number): string {
-  return (minorUnits / 100).toFixed(2);
+  return minorToMajor(minorUnits).toFixed(2);
 }
 
 function dashboardRangeQuery(from: string, to: string) {
@@ -1260,10 +1262,10 @@ function formatTime(value: unknown): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat('ru-RU', {
+  return formatDateParts(date, 'ru-RU', {
     hour: '2-digit',
     minute: '2-digit'
-  }).format(date);
+  });
 }
 
 function formatDateTime(value: unknown): string {
@@ -1276,13 +1278,13 @@ function formatDateTime(value: unknown): string {
     return value;
   }
 
-  return new Intl.DateTimeFormat('ru-RU', {
+  return formatDateParts(date, 'ru-RU', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  }).format(date);
+  });
 }
 
 function escapeHtml(value: string): string {
@@ -1985,7 +1987,7 @@ function DashboardWorkspace({
   };
 
   const pulseItems = [
-    { label: 'Касса', value: formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), detail: `из ${formatMinorUnits(cashTargetMinorUnits, totalRevenue.currencyCode)}`, chartValue: cashPercent, chartLabel: <><AnimatedNumber value={cashPercent} />%</>, chartSubLabel: formatCompactNumber(Math.round(totalRevenue.minorUnits / 100)), tone: 'cash', icon: Banknote },
+    { label: 'Касса', value: formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), detail: `из ${formatMinorUnits(cashTargetMinorUnits, totalRevenue.currencyCode)}`, chartValue: cashPercent, chartLabel: <><AnimatedNumber value={cashPercent} />%</>, chartSubLabel: formatCompactNumber(Math.round(minorToMajor(totalRevenue.minorUnits))), tone: 'cash', icon: Banknote },
     { label: 'Активные ПК', value: `${activePcs} / ${totalPcs}`, detail: `за ${activePeriodLabel}`, chartValue: Math.round((activePcs / totalPcs) * 100), chartLabel: <><AnimatedNumber value={activePcs} />/{totalPcs}</>, chartSubLabel: 'сейчас', tone: 'devices', icon: MonitorCheck },
     { label: 'Внимание', value: String(attentionCount), detail: `${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])} за ${activePeriodLabel}`, chartValue: Math.min(100, Math.round((attentionCount / Math.max(1, totalPcs * activeDays)) * 100)), chartLabel: <AnimatedNumber value={attentionCount} />, chartSubLabel: 'сигн.', tone: 'attention', icon: ShieldAlert },
     { label: 'Брони', value: `${bookingUsed} / ${bookingSlots}`, detail: `слоты за ${activePeriodLabel}`, chartValue: bookingSlots > 0 ? Math.min(100, Math.round((bookingUsed / bookingSlots) * 100)) : 0, chartLabel: <><AnimatedNumber value={bookingUsed} />/{bookingSlots}</>, chartSubLabel: 'слоты', tone: 'booking', icon: CalendarClock }

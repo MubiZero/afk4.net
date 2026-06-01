@@ -12,6 +12,12 @@ public sealed class PlayerAccountEntity
 
     public string? PhoneNumber { get; set; }
 
+    /// <summary>Optional contact email for player notifications (email-first OTP, dunning, digests).</summary>
+    public string? Email { get; set; }
+
+    /// <summary>Preferred notification locale; null falls back to the branch/default locale at resolution.</summary>
+    public string? PreferredLocale { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; }

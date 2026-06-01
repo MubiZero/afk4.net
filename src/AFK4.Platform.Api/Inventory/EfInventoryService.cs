@@ -11,7 +11,8 @@ namespace AFK4.Platform.Api.Inventory;
 
 public sealed class EfInventoryService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IInventoryService
+    TimeProvider timeProvider,
+    ILowStockNotifier? lowStockNotifier = null) : IInventoryService
 {
     private const string CategoryCreateOperation = "pos-category-create";
     private const string ProductCreateOperation = "pos-product-create";
@@ -169,6 +170,7 @@ public sealed class EfInventoryService(
                 PriceMinorUnits = request.Price.MinorUnits,
                 TrackStock = request.TrackStock,
                 AllowNegativeStock = request.AllowNegativeStock,
+                ReorderThreshold = request.ReorderThreshold,
                 IsActive = true,
                 CreatedAtUtc = now
             };
@@ -266,6 +268,7 @@ public sealed class EfInventoryService(
         product.PriceMinorUnits = request.Price.MinorUnits;
         product.TrackStock = request.TrackStock;
         product.AllowNegativeStock = request.AllowNegativeStock;
+        product.ReorderThreshold = request.ReorderThreshold;
         product.IsActive = request.IsActive;
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -350,6 +353,12 @@ public sealed class EfInventoryService(
 
             dbContext.StockMovements.Add(movement);
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (lowStockNotifier is not null)
+            {
+                await lowStockNotifier.EvaluateProductsAsync(
+                    product.OrganizationId, product.BranchId, [product.ProductId], cancellationToken);
+            }
 
             var response = ToDto(movement);
             AddIdempotencyRecord(
@@ -504,6 +513,11 @@ public sealed class EfInventoryService(
             return "Product price cannot be negative.";
         }
 
+        if (request.ReorderThreshold < 0)
+        {
+            return "Reorder threshold cannot be negative.";
+        }
+
         return null;
     }
 
@@ -532,6 +546,11 @@ public sealed class EfInventoryService(
         if (request.Price.MinorUnits < 0)
         {
             return "Product price cannot be negative.";
+        }
+
+        if (request.ReorderThreshold < 0)
+        {
+            return "Reorder threshold cannot be negative.";
         }
 
         return null;
@@ -741,7 +760,8 @@ public sealed class EfInventoryService(
             product.AllowNegativeStock,
             product.IsActive,
             stockOnHand,
-            product.CreatedAtUtc);
+            product.CreatedAtUtc,
+            product.ReorderThreshold);
     }
 
     private static StockMovementDto ToDto(StockMovementEntity movement)

@@ -78,6 +78,10 @@ public static class AuditActionNames
 
     public const string ViewOperatorActionReport = "reports.operator_actions.view";
 
+    public const string CreateReportSchedule = "reports.schedules.create";
+
+    public const string DeleteReportSchedule = "reports.schedules.delete";
+
     public const string ViewDashboardSummary = "dashboard.summary.view";
 
     public const string ViewReservations = "reservations.view";
@@ -123,6 +127,8 @@ public static class AuditActionNames
     public const string ViewAudit = "audit.view";
 
     public const string CreateStaffUser = "identity.staff.create";
+
+    public const string CreateStaffInvite = "identity.staff.invite.create";
 
     public const string ViewStaffUsers = "identity.staff.view";
 
@@ -175,6 +181,8 @@ public static class AuditActionNames
     public const string AcceptOwnerInvite = "tenancy.owner_invite.accept";
 
     public const string RevokeOwnerInvite = "tenancy.owner_invite.revoke";
+
+    public const string ResendOwnerInvite = "tenancy.owner_invite.resend";
 
     public const string CreateTenantSupportNote = "tenancy.support_note.create";
 

@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Text;
+using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -14,6 +15,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Idempotency;
@@ -180,12 +182,32 @@ builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore
 builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthService>();
 builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
 builder.Services.AddScoped<ITenantSubscriptionService, EfTenantSubscriptionService>();
+builder.Services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolver>();
+builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
 builder.Services.AddScoped<IBillingMetricsService, EfBillingMetricsService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddHostedService<InvoiceGenerationHostedService>();
+builder.Services.Configure<NotificationOptions>(
+    builder.Configuration.GetSection(NotificationOptions.ConfigurationSection));
+builder.Services.AddSingleton<INotificationRenderer, NotificationRenderer>();
+builder.Services.AddSingleton<ITemplateProvider>(provider =>
+    new EmbeddedTemplateProvider(provider.GetRequiredService<IOptions<NotificationOptions>>().Value.DefaultLocale));
+builder.Services.AddSingleton<ISmtpTransport, MailKitSmtpTransport>();
+builder.Services.AddSingleton<INotificationChannel, SmtpEmailChannel>();
+builder.Services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
+builder.Services.AddScoped<INotificationPreferenceService, EfNotificationPreferenceService>();
+builder.Services.AddScoped<NotificationDispatchRunner>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IStaffPasswordResetService, EfStaffPasswordResetService>();
+builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
+builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
+builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
+builder.Services.AddHostedService<NotificationDispatcher>();
+builder.Services.AddHostedService<DailySummaryHostedService>();
+builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
@@ -193,14 +215,17 @@ builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
 builder.Services.AddSingleton(new BranchDiagnosticsOptions());
 builder.Services.AddScoped<IBranchDiagnosticsService, EfBranchDiagnosticsService>();
+builder.Services.AddScoped<IShiftDiscrepancyNotifier, EfShiftDiscrepancyNotifier>();
 builder.Services.AddScoped<EfShiftService>();
 builder.Services.AddScoped<IShiftService>(provider => provider.GetRequiredService<EfShiftService>());
 builder.Services.AddScoped<IOpenShiftResolver>(provider => provider.GetRequiredService<EfShiftService>());
+builder.Services.AddScoped<ILowStockNotifier, EfLowStockNotifier>();
 builder.Services.AddScoped<IInventoryService, EfInventoryService>();
 builder.Services.AddScoped<IPosService, EfPosService>();
 builder.Services.AddScoped<IPaymentProvider, ManualPaymentProvider>();
 builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 builder.Services.AddScoped<IReportService, EfReportService>();
+builder.Services.AddScoped<IReportScheduleService, EfReportScheduleService>();
 builder.Services.AddScoped<IOperatorDashboardService, EfOperatorDashboardService>();
 builder.Services.AddScoped<IReservationService, EfReservationService>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
@@ -216,6 +241,10 @@ builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDat
 builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 
 var app = builder.Build();
+
+// Fail fast at startup if any registered notification template key is missing its file (§8),
+// rather than discovering it when a send is attempted at runtime.
+app.Services.GetRequiredService<ITemplateProvider>().EnsureKeysPresent(NotificationTemplateKeys.All);
 
 // Single UseCors call so the CORS middleware emits Access-Control-Allow-*
 // headers on preflight OPTIONS as well as the mainline request. The combined
@@ -554,6 +583,299 @@ app.MapPost("/api/auth/staff/refresh", async (
     return response is null
         ? Results.Unauthorized()
         : Results.Ok(response);
+});
+
+app.MapPost("/api/auth/staff/forgot-password", async (
+    StaffForgotPasswordRequest request,
+    IStaffPasswordResetService passwordResetService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.UserNameOrEmail))
+    {
+        return Results.BadRequest(new { error = "UserNameOrEmail is required." });
+    }
+
+    // Anti-enumeration: always report acceptance regardless of whether the account exists.
+    await passwordResetService.RequestResetAsync(request.UserNameOrEmail, cancellationToken);
+    return Results.Ok(new { message = "If the account exists, a reset email has been sent." });
+});
+
+app.MapPost("/api/auth/staff/reset-password", async (
+    StaffResetPasswordRequest request,
+    IStaffPasswordResetService passwordResetService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Token))
+    {
+        return Results.BadRequest(new { error = "Token is required." });
+    }
+
+    var passwordValidation = ValidateStaffPassword(request.NewPassword);
+    if (passwordValidation is not null)
+    {
+        return Results.BadRequest(new { error = passwordValidation });
+    }
+
+    var reset = await passwordResetService.CompleteResetAsync(request.Token, request.NewPassword, cancellationToken);
+    return reset
+        ? Results.Ok(new { message = "Password updated." })
+        : Results.BadRequest(new { error = "The reset link is invalid or has expired." });
+});
+
+app.MapPost("/api/branches/{branchId:guid}/staff/invites", async (
+    Guid branchId,
+    CreateStaffInviteRequest request,
+    StaffAuthorizationService authorizationService,
+    IStaffInviteService staffInviteService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ManageBranchStaff,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateStaffInvite,
+            "StaffInvite",
+            null,
+            AuditOutcome.Denied,
+            new { request.UserName, request.RoleNames, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateCreateStaffInviteRequest(request);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var result = await staffInviteService.CreateInviteAsync(
+        request.OrganizationId,
+        branchId,
+        request.UserName,
+        request.DisplayName,
+        request.Email,
+        request.RoleNames,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            request.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateStaffInvite,
+            "StaffInvite",
+            null,
+            AuditOutcome.Denied,
+            new { request.UserName, Error = result.Error },
+            cancellationToken);
+
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateStaffInvite,
+        "StaffInvite",
+        result.StaffInviteId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.UserName, request.RoleNames },
+        cancellationToken);
+
+    return Results.Ok(new StaffInviteDto(result.StaffInviteId, result.Code, result.ExpiresAtUtc));
+});
+
+app.MapPost("/api/staff/invites/accept", async (
+    AcceptStaffInviteRequest request,
+    IStaffInviteService staffInviteService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Token))
+    {
+        return Results.BadRequest(new { error = "Token is required." });
+    }
+
+    var passwordValidation = ValidateStaffPassword(request.Password);
+    if (passwordValidation is not null)
+    {
+        return Results.BadRequest(new { error = passwordValidation });
+    }
+
+    var result = await staffInviteService.AcceptInviteAsync(request.Token, request.Password, cancellationToken);
+    return result.Succeeded
+        ? Results.Ok(new AcceptStaffInviteResponse(result.OrganizationId, result.UserName))
+        : Results.BadRequest(new { error = result.Error });
+});
+
+app.MapPost("/api/branches/{branchId:guid}/report-schedules", async (
+    Guid branchId,
+    CreateReportScheduleRequest request,
+    StaffAuthorizationService authorizationService,
+    IReportScheduleService reportScheduleService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CreateReportSchedule,
+            "ReportSchedule",
+            null,
+            AuditOutcome.Denied,
+            new { request.ReportType, request.Frequency, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    var validation = ValidateCreateReportScheduleRequest(request);
+    if (validation is not null)
+    {
+        return Results.BadRequest(new { Error = validation });
+    }
+
+    var dto = await reportScheduleService.CreateAsync(
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        request.ReportType,
+        request.Frequency,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        request.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CreateReportSchedule,
+        "ReportSchedule",
+        dto.ReportScheduleId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.ReportType, request.Frequency },
+        cancellationToken);
+
+    return Results.Ok(dto);
+});
+
+app.MapGet("/api/branches/{branchId:guid}/report-schedules", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IReportScheduleService reportScheduleService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var schedules = await reportScheduleService.ListAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        cancellationToken);
+
+    return Results.Ok(schedules);
+});
+
+app.MapDelete("/api/branches/{branchId:guid}/report-schedules/{scheduleId:guid}", async (
+    Guid branchId,
+    Guid scheduleId,
+    StaffAuthorizationService authorizationService,
+    IReportScheduleService reportScheduleService,
+    IAuditRecordWriter auditRecordWriter,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var deleted = await reportScheduleService.DeleteAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        scheduleId,
+        cancellationToken);
+
+    if (!deleted)
+    {
+        return Results.NotFound();
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.DeleteReportSchedule,
+        "ReportSchedule",
+        scheduleId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { scheduleId },
+        cancellationToken);
+
+    return Results.Ok(new { message = "Report schedule deleted." });
 });
 
 app.MapGet("/api/staff/me/owner-code", async (
@@ -1163,6 +1485,77 @@ app.MapPost("/api/platform/tenants/{organizationId:guid}/owner-invites", async (
         cancellationToken);
 
     return Results.Ok(invite);
+});
+
+app.MapPost("/api/platform/owner-invites/{ownerInviteId:guid}/resend", async (
+    Guid ownerInviteId,
+    PlatformAdminAuthorizationService authorizationService,
+    IPlatformTenantService tenantService,
+    IAuditRecordWriter auditRecordWriter,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOwnerInvites);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    var organizationId = await dbContext.OwnerInvites
+        .AsNoTracking()
+        .Where(invite => invite.OwnerInviteId == ownerInviteId)
+        .Select(invite => (Guid?)invite.OrganizationId)
+        .SingleOrDefaultAsync(cancellationToken) ?? Guid.Empty;
+
+    if (!authorization.IsAllowed)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ResendOwnerInvite,
+            targetType: "OwnerInvite",
+            targetId: ownerInviteId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { authorization.DenialReason },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await tenantService.ResendOwnerInviteAsync(ownerInviteId, cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        await WritePlatformAuditAsync(
+            auditRecordWriter,
+            organizationId: organizationId,
+            actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+            action: AuditActionNames.ResendOwnerInvite,
+            targetType: "OwnerInvite",
+            targetId: ownerInviteId.ToString("D"),
+            outcome: AuditOutcome.Denied,
+            details: new { Error = result.Error },
+            cancellationToken);
+
+        return result.Status switch
+        {
+            PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+            _ => Results.BadRequest(new { Error = result.Error })
+        };
+    }
+
+    await WritePlatformAuditAsync(
+        auditRecordWriter,
+        organizationId: organizationId,
+        actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+        action: AuditActionNames.ResendOwnerInvite,
+        targetType: "OwnerInvite",
+        targetId: ownerInviteId.ToString("D"),
+        outcome: AuditOutcome.Succeeded,
+        details: new { result.Value!.BranchId },
+        cancellationToken);
+
+    return Results.Ok(result.Value);
 });
 
 app.MapPost("/api/platform/owner-invites/{ownerInviteId:guid}/revoke", async (
@@ -10531,6 +10924,51 @@ static string? ValidateCreateStaffUserRequest(CreateStaffUserRequest request)
     if (passwordValidation is not null)
     {
         return passwordValidation;
+    }
+
+    return ValidateStaffRoleNames(request.RoleNames);
+}
+
+static string? ValidateCreateReportScheduleRequest(CreateReportScheduleRequest request)
+{
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return "OrganizationId is required.";
+    }
+
+    if (!ScheduledReportTypeNames.All.Contains(request.ReportType))
+    {
+        return $"ReportType must be one of: {string.Join(", ", ScheduledReportTypeNames.All)}.";
+    }
+
+    if (!ReportScheduleFrequencyNames.All.Contains(request.Frequency))
+    {
+        return $"Frequency must be one of: {string.Join(", ", ReportScheduleFrequencyNames.All)}.";
+    }
+
+    return null;
+}
+
+static string? ValidateCreateStaffInviteRequest(CreateStaffInviteRequest request)
+{
+    if (request.OrganizationId == Guid.Empty)
+    {
+        return "OrganizationId is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.UserName))
+    {
+        return "UserName is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.DisplayName))
+    {
+        return "DisplayName is required.";
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@', StringComparison.Ordinal))
+    {
+        return "A valid Email is required to send the invite.";
     }
 
     return ValidateStaffRoleNames(request.RoleNames);

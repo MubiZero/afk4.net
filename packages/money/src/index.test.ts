@@ -1,5 +1,5 @@
 import { it, expect } from 'bun:test';
-import { minorToMajor, majorToMinor } from './money';
+import { minorToMajor, majorToMinor } from './index';
 
 it('converts minor units to major units', () => {
   expect(minorToMajor(12345)).toBe(123.45);
