@@ -668,5 +668,8 @@
   "operator.connect.error.generic": "Couldn't set up the operator connection.",
   "operator.connect.error.notFound": "No club found for these keys or setup code. Check the details with your administrator.",
   "operator.connect.error.setupCodeExpired": "This setup code is no longer valid.",
-  "operator.connect.error.platformCode": "Platform error code:"
+  "operator.connect.error.platformCode": "Platform error code:",
+  "operator.host.loading": "Loading operator workspace...",
+  "operator.host.failedTitle": "Operator UI failed to start",
+  "operator.host.navFailed": "Operator UI navigation failed: {0}"
 }

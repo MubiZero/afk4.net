@@ -673,7 +673,10 @@ export const messages = {
     "operator.connect.error.generic": "Не удалось настроить подключение оператора.",
     "operator.connect.error.notFound": "Не нашли клуб по этим ключам или коду подключения. Проверьте данные у администратора.",
     "operator.connect.error.setupCodeExpired": "Код подключения больше не действует.",
-    "operator.connect.error.platformCode": "Код ошибки платформы:"
+    "operator.connect.error.platformCode": "Код ошибки платформы:",
+    "operator.host.loading": "Загрузка рабочего пространства оператора…",
+    "operator.host.failedTitle": "Не удалось запустить интерфейс оператора",
+    "operator.host.navFailed": "Не удалось загрузить интерфейс оператора: {0}"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -1345,7 +1348,10 @@ export const messages = {
     "operator.connect.error.generic": "Couldn't set up the operator connection.",
     "operator.connect.error.notFound": "No club found for these keys or setup code. Check the details with your administrator.",
     "operator.connect.error.setupCodeExpired": "This setup code is no longer valid.",
-    "operator.connect.error.platformCode": "Platform error code:"
+    "operator.connect.error.platformCode": "Platform error code:",
+    "operator.host.loading": "Loading operator workspace...",
+    "operator.host.failedTitle": "Operator UI failed to start",
+    "operator.host.navFailed": "Operator UI navigation failed: {0}"
   },
   tg: {
     "auth.club.title": "Вход в клуб",
@@ -2017,7 +2023,10 @@ export const messages = {
     "operator.connect.error.generic": "Танзими пайвасти оператор муяссар нашуд.",
     "operator.connect.error.notFound": "Клуб бо ин калидҳо ё рамзи пайваст ёфт нашуд. Маълумотро бо маъмур санҷед.",
     "operator.connect.error.setupCodeExpired": "Ин рамзи пайваст дигар эътибор надорад.",
-    "operator.connect.error.platformCode": "Рамзи хатои платформа:"
+    "operator.connect.error.platformCode": "Рамзи хатои платформа:",
+    "operator.host.loading": "Загрузка рабочего пространства оператора…",
+    "operator.host.failedTitle": "Не удалось запустить интерфейс оператора",
+    "operator.host.navFailed": "Не удалось загрузить интерфейс оператора: {0}"
   },
 } as const;
 

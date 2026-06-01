@@ -668,5 +668,8 @@
   "operator.connect.error.generic": "Не удалось настроить подключение оператора.",
   "operator.connect.error.notFound": "Не нашли клуб по этим ключам или коду подключения. Проверьте данные у администратора.",
   "operator.connect.error.setupCodeExpired": "Код подключения больше не действует.",
-  "operator.connect.error.platformCode": "Код ошибки платформы:"
+  "operator.connect.error.platformCode": "Код ошибки платформы:",
+  "operator.host.loading": "Загрузка рабочего пространства оператора…",
+  "operator.host.failedTitle": "Не удалось запустить интерфейс оператора",
+  "operator.host.navFailed": "Не удалось загрузить интерфейс оператора: {0}"
 }

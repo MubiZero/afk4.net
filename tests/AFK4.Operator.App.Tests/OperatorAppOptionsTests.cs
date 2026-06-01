@@ -11,6 +11,25 @@ public sealed class OperatorAppOptionsTests
 
         Assert.Equal(new Uri("http://localhost:5074"), options.PlatformBaseUrl);
         Assert.Equal("TJS", options.CurrencyCode);
+        Assert.Equal("ru", options.PreferredLocale);
+    }
+
+    [Fact]
+    public void LoadFromEnvironment_UsesPreferredLocaleEnvironmentVariable()
+    {
+        var options = OperatorAppOptions.LoadFromEnvironment(name =>
+            name == OperatorAppOptions.PreferredLocaleEnvironmentVariable ? "tg" : null);
+
+        Assert.Equal("tg", options.PreferredLocale);
+    }
+
+    [Fact]
+    public void LoadFromEnvironment_ClampsUnknownPreferredLocaleToRu()
+    {
+        var options = OperatorAppOptions.LoadFromEnvironment(name =>
+            name == OperatorAppOptions.PreferredLocaleEnvironmentVariable ? "fr" : null);
+
+        Assert.Equal("ru", options.PreferredLocale);
     }
 
     [Fact]

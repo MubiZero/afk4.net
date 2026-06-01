@@ -668,5 +668,8 @@
   "operator.connect.error.generic": "Танзими пайвасти оператор муяссар нашуд.",
   "operator.connect.error.notFound": "Клуб бо ин калидҳо ё рамзи пайваст ёфт нашуд. Маълумотро бо маъмур санҷед.",
   "operator.connect.error.setupCodeExpired": "Ин рамзи пайваст дигар эътибор надорад.",
-  "operator.connect.error.platformCode": "Рамзи хатои платформа:"
+  "operator.connect.error.platformCode": "Рамзи хатои платформа:",
+  "operator.host.loading": "Загрузка рабочего пространства оператора…",
+  "operator.host.failedTitle": "Не удалось запустить интерфейс оператора",
+  "operator.host.navFailed": "Не удалось загрузить интерфейс оператора: {0}"
 }

@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using AFK4.Localization;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Configuration;
 using AFK4.Operator.App.Connection;
@@ -29,6 +30,7 @@ public partial class WebViewOperatorWindow : Window
     private readonly OperatorWebShellOptions shellOptions;
     private readonly OperatorWebAssetResolver assetResolver;
     private readonly OperatorWebHostBridge hostBridge;
+    private readonly ILocalizationService localization;
     private bool browserInitializationStarted;
 
     public WebViewOperatorWindow()
@@ -72,8 +74,11 @@ public partial class WebViewOperatorWindow : Window
         this.shellOptions = shellOptions;
         this.assetResolver = assetResolver;
         this.hostBridge = hostBridge;
+        localization = LocalizationService.LoadEmbedded(appOptions.PreferredLocale);
 
         InitializeComponent();
+
+        StatusText.Text = localization.T("operator.host.loading");
     }
 
     protected override async void OnContentRendered(EventArgs e)
@@ -105,7 +110,7 @@ public partial class WebViewOperatorWindow : Window
         try
         {
             var launchTarget = assetResolver.Resolve(shellOptions);
-            StatusText.Text = $"Loading {launchTarget.Mode}...";
+            StatusText.Text = localization.T("operator.host.loading");
 
             var userDataFolder = OperatorWebView2UserDataFolder.EnsureExists();
             var webViewEnvironment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
@@ -140,7 +145,7 @@ public partial class WebViewOperatorWindow : Window
             return;
         }
 
-        ShowStartupFailure($"Operator UI navigation failed: {e.WebErrorStatus}");
+        ShowStartupFailure(string.Format(localization.T("operator.host.navFailed"), e.WebErrorStatus));
     }
 
     private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -250,7 +255,7 @@ public partial class WebViewOperatorWindow : Window
 
     private void ShowStartupFailure(string message)
     {
-        StatusTitle.Text = "Operator UI failed to start";
+        StatusTitle.Text = localization.T("operator.host.failedTitle");
         StatusText.Text = message;
         StartupOverlay.Visibility = Visibility.Visible;
     }

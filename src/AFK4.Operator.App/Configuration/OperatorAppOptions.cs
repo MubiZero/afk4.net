@@ -1,3 +1,5 @@
+using AFK4.Localization;
+
 namespace AFK4.Operator.App.Configuration;
 
 public sealed class OperatorAppOptions
@@ -6,6 +8,7 @@ public sealed class OperatorAppOptions
     public const string CurrencyCodeEnvironmentVariable = "AFK4_OPERATOR_CURRENCY_CODE";
     public const string OrganizationIdEnvironmentVariable = "AFK4_OPERATOR_ORGANIZATION_ID";
     public const string BranchIdEnvironmentVariable = "AFK4_OPERATOR_BRANCH_ID";
+    public const string PreferredLocaleEnvironmentVariable = "AFK4_OPERATOR_PREFERRED_LOCALE";
 
     public Uri PlatformBaseUrl { get; init; } = new("http://localhost:5074");
 
@@ -14,6 +17,13 @@ public sealed class OperatorAppOptions
     public Guid? OrganizationId { get; init; }
 
     public Guid? BranchId { get; init; }
+
+    /// <summary>
+    /// The operator host's locale for the native WebView chrome (loading/failure
+    /// overlay), provisioned into config and clamped to a supported locale. The React
+    /// operator UI inside the WebView manages its own per-operator switcher. Default <c>ru</c>.
+    /// </summary>
+    public string PreferredLocale { get; init; } = Locales.Default;
 
     public static OperatorAppOptions LoadFromEnvironment()
     {
@@ -96,6 +106,19 @@ public sealed class OperatorAppOptions
                 CurrencyCode = options.CurrencyCode,
                 OrganizationId = options.OrganizationId,
                 BranchId = branchId
+            };
+        }
+
+        var preferredLocaleValue = getEnvironmentVariable(PreferredLocaleEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(preferredLocaleValue))
+        {
+            options = new OperatorAppOptions
+            {
+                PlatformBaseUrl = options.PlatformBaseUrl,
+                CurrencyCode = options.CurrencyCode,
+                OrganizationId = options.OrganizationId,
+                BranchId = options.BranchId,
+                PreferredLocale = Locales.Clamp(preferredLocaleValue.Trim())
             };
         }
 
