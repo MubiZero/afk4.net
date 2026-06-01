@@ -584,6 +584,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(receipt => receipt.ReceiptNumber).HasMaxLength(32).IsRequired();
             entity.Property(receipt => receipt.ReceiptType).HasMaxLength(32).IsRequired();
             entity.Property(receipt => receipt.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(receipt => receipt.Locale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
             entity.HasIndex(receipt => new
             {
                 receipt.OrganizationId,

@@ -171,10 +171,38 @@ public sealed class EfPosServiceTests
         Assert.Equal("POS-20260513-0001", receipt.ReceiptNumber);
         Assert.Equal("sale", receipt.ReceiptType);
         Assert.Equal(2400, receipt.TotalMinorUnits);
+        Assert.Equal("ru", receipt.Locale);
 
         var movement = await db.StockMovements.SingleAsync(movement => movement.MovementType == StockMovementTypeNames.Sale);
         Assert.Equal(-2, movement.QuantityDelta);
         Assert.Equal(product.ProductId, movement.ProductId);
+    }
+
+    [Fact]
+    public async Task PaySaleAsync_StampsBranchPreferredLocaleOnReceipt()
+    {
+        await using var db = CreateDbContext();
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = TestIds.BranchId,
+            OrganizationId = TestIds.OrganizationId,
+            Slug = "main",
+            Name = "Main",
+            City = "Dushanbe",
+            PreferredLocale = "tg",
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        await SeedStockAsync(db, product.ProductId, quantityDelta: 5);
+        var service = CreateService(db);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
+
+        await service.PaySaleAsync(sale.PosSaleId, ActorStaffUserId, ManualPaymentRequest("pay-loc", 2400), CancellationToken.None);
+
+        var receipt = await db.Receipts.SingleAsync();
+        Assert.Equal("tg", receipt.Locale);
     }
 
     [Fact]
