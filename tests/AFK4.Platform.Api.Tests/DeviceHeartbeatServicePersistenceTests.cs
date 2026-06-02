@@ -74,6 +74,58 @@ public sealed class DeviceHeartbeatServicePersistenceTests
     }
 
     [Fact]
+    public async Task RecordHeartbeatAsync_ReturnsEffectiveGraceMinutesFromBranchOverride()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var deviceId = Guid.NewGuid();
+        var organizationId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+
+        await using var db = new PlatformDbContext(options);
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = branchId,
+            OrganizationId = organizationId,
+            Name = "Demo",
+            GraceLeaseMinutes = 45,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
+        });
+        db.Devices.Add(new DeviceEntity
+        {
+            DeviceId = deviceId,
+            OrganizationId = organizationId,
+            BranchId = branchId,
+            MachineName = "PC-001",
+            AgentVersion = "0.1.0",
+            ShellVersion = "0.1.0",
+            EnrolledAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var response = await service.RecordHeartbeatAsync(
+            deviceId,
+            new DeviceHeartbeatRequest(
+                OrganizationId: organizationId,
+                BranchId: branchId,
+                DeviceId: deviceId,
+                MachineName: "PC-001",
+                AgentVersion: "0.1.0",
+                ShellVersion: "0.1.0",
+                ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:02:00Z"),
+                IsLocked: false,
+                ActiveSessionId: null,
+                ActiveSessionLeaseExpiresAtUtc: null,
+                ActiveSessionLeaseSequence: null),
+            allowOperationalCommands: true,
+            CancellationToken.None);
+
+        Assert.Equal(45, response.EffectiveGraceMinutes);
+    }
+
+    [Fact]
     public async Task RecordHeartbeatAsync_ReturnsPendingCommandsForHeartbeatDevice()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -237,7 +289,8 @@ public sealed class DeviceHeartbeatServicePersistenceTests
             planner ?? new StaticHeartbeatSessionCommandPlanner(),
             new DeviceCommandDispatchService(
                 hubContext,
-                new EfDeviceCommandStore(dbContext)));
+                new EfDeviceCommandStore(dbContext)),
+            Microsoft.Extensions.Options.Options.Create(new SessionLeaseOptions { LeaseMinutes = 15 }));
     }
 
     private sealed class CapturingHubContext : IHubContext<DeviceHub>

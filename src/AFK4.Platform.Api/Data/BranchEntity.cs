@@ -17,5 +17,9 @@ public sealed class BranchEntity
     // Per-branch default ceiling for an open postpaid tab; null means unbounded.
     public long? PostpaidCreditLimitMinorUnits { get; set; }
 
+    // Per-branch offline grace window (minutes) overriding the global SessionLeaseOptions default;
+    // null means use the global default. Resolved + clamped to [1,120] by GraceLeasePolicy.
+    public int? GraceLeaseMinutes { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Devices;
 
@@ -11,7 +12,8 @@ public sealed class DeviceHeartbeatService(
     IHubContext<DeviceHub> hubContext,
     PlatformDbContext dbContext,
     IHeartbeatSessionCommandPlanner sessionCommandPlanner,
-    IDeviceCommandDispatchService commandDispatchService) : IDeviceHeartbeatService
+    IDeviceCommandDispatchService commandDispatchService,
+    IOptions<SessionLeaseOptions> leaseOptions) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
@@ -104,9 +106,16 @@ public sealed class DeviceHeartbeatService(
                 .ToList();
         }
 
+        var branchGraceMinutes = await dbContext.Branches
+            .AsNoTracking()
+            .Where(branch => branch.BranchId == request.BranchId)
+            .Select(branch => branch.GraceLeaseMinutes)
+            .FirstOrDefaultAsync(cancellationToken);
+
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: DateTimeOffset.UtcNow,
             HeartbeatIntervalSeconds: 10,
-            Commands: commands);
+            Commands: commands,
+            EffectiveGraceMinutes: GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes));
     }
 }
