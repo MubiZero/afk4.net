@@ -12,4 +12,6 @@ public sealed record AuditRecordWriteRequest(
     string DetailsJson)
 {
     public Guid? ActorPlatformAdminUserId { get; init; }
+
+    public long? AmountMinorUnits { get; init; }
 }

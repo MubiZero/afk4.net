@@ -6578,7 +6578,8 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
         result.Response!.LedgerEntryId.ToString("D"),
         AuditOutcome.Succeeded,
         new { request.LedgerEntryId, request.Amount },
-        cancellationToken);
+        cancellationToken,
+        amountMinorUnits: Math.Abs(request.Amount.MinorUnits));
 
     return Results.Ok(result.Response);
 });
@@ -6650,7 +6651,8 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
         playerAccountId.ToString("D"),
         AuditOutcome.Succeeded,
         new { request.AccountType, request.Amount, request.QuantitySeconds },
-        cancellationToken);
+        cancellationToken,
+        amountMinorUnits: Math.Abs(request.Amount.MinorUnits));
 
     return Results.Ok(result.Response);
 });
@@ -6752,7 +6754,8 @@ app.MapPost("/api/branches/{branchId:guid}/money-actions", async (
                 result.ResultingLedgerEntryId?.ToString("D"),
                 AuditOutcome.Succeeded,
                 new { request.ActionType, request.SignedAmountMinorUnits, request.CurrencyCode },
-                cancellationToken);
+                cancellationToken,
+                amountMinorUnits: Math.Abs(request.SignedAmountMinorUnits));
             return Results.Ok(new MoneyActionSubmitResponse("executed", result.ResultingLedgerEntryId, null));
 
         case MoneyActionRequestOutcome.PendingApproval:
@@ -6766,7 +6769,8 @@ app.MapPost("/api/branches/{branchId:guid}/money-actions", async (
                 result.MoneyActionRequestId?.ToString("D"),
                 AuditOutcome.Succeeded,
                 new { request.ActionType, request.SignedAmountMinorUnits, request.CurrencyCode },
-                cancellationToken);
+                cancellationToken,
+                amountMinorUnits: Math.Abs(request.SignedAmountMinorUnits));
             return Results.Json(
                 new MoneyActionSubmitResponse("pending_approval", null, result.MoneyActionRequestId),
                 statusCode: StatusCodes.Status202Accepted);
@@ -10033,6 +10037,9 @@ app.MapGet("/api/branches/{branchId:guid}/audit", async (
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmount,
+    long? maxAmount,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IAuditSearchService auditSearchService,
@@ -10065,7 +10072,7 @@ app.MapGet("/api/branches/{branchId:guid}/audit", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit);
+    var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit, actorStaffUserId, minAmount, maxAmount);
     var result = await auditSearchService.SearchAsync(
         authorization.StaffContext!.OrganizationId,
         branchId,
@@ -10368,7 +10375,8 @@ static async Task WriteAuditAsync(
     string? targetId,
     string outcome,
     object details,
-    CancellationToken cancellationToken)
+    CancellationToken cancellationToken,
+    long? amountMinorUnits = null)
 {
     await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
         organizationId,
@@ -10379,7 +10387,10 @@ static async Task WriteAuditAsync(
         targetId,
         outcome,
         "PlatformApi",
-        JsonSerializer.Serialize(details)),
+        JsonSerializer.Serialize(details))
+    {
+        AmountMinorUnits = amountMinorUnits
+    },
         cancellationToken);
 }
 

@@ -70,6 +70,10 @@ public sealed class MoneyActionEndpointTests
         Assert.Empty(await db.MoneyActionRequests.ToListAsync());
         var refund = await db.LedgerEntries.SingleAsync(e => e.EntryType == LedgerEntryTypeNames.Refund);
         Assert.Equal(-3000, refund.AmountMinorUnits);
+        // §5.5: the executed audit carries the amount for actor+amount review.
+        var executed = await db.AuditRecords.SingleAsync(a => a.Action == "billing.money_action.executed");
+        Assert.Equal(3000, executed.AmountMinorUnits);
+        Assert.Equal(Supervisor, executed.ActorStaffUserId);
     }
 
     [Fact]

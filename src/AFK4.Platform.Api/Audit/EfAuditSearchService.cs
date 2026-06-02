@@ -51,6 +51,25 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
             records = records.Where(record => record.CreatedAtUtc <= query.ToUtc.Value);
         }
 
+        if (query.ActorStaffUserId.HasValue)
+        {
+            records = records.Where(record => record.ActorStaffUserId == query.ActorStaffUserId.Value);
+        }
+
+        // Amount filters only match money-relevant records (those carrying an amount); records without
+        // an amount are excluded when an amount bound is set.
+        if (query.MinAmountMinorUnits.HasValue)
+        {
+            records = records.Where(record =>
+                record.AmountMinorUnits != null && record.AmountMinorUnits >= query.MinAmountMinorUnits.Value);
+        }
+
+        if (query.MaxAmountMinorUnits.HasValue)
+        {
+            records = records.Where(record =>
+                record.AmountMinorUnits != null && record.AmountMinorUnits <= query.MaxAmountMinorUnits.Value);
+        }
+
         var result = await records
             .OrderByDescending(record => record.CreatedAtUtc)
             .ThenByDescending(record => record.AuditRecordId)
@@ -68,7 +87,8 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
                 record.DetailsJson,
                 record.CreatedAtUtc)
             {
-                ActorPlatformAdminUserId = record.ActorPlatformAdminUserId
+                ActorPlatformAdminUserId = record.ActorPlatformAdminUserId,
+                AmountMinorUnits = record.AmountMinorUnits
             })
             .ToListAsync(cancellationToken);
 

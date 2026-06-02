@@ -14,4 +14,6 @@ public sealed record AuditRecordDto(
     DateTimeOffset CreatedAtUtc)
 {
     public Guid? ActorPlatformAdminUserId { get; init; }
+
+    public long? AmountMinorUnits { get; init; }
 }

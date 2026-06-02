@@ -21,6 +21,7 @@ public sealed class AuditRecordWriter(
             Outcome = request.Outcome,
             SourceApp = request.SourceApp,
             DetailsJson = request.DetailsJson,
+            AmountMinorUnits = request.AmountMinorUnits,
             CreatedAtUtc = timeProvider.GetUtcNow()
         });
 
