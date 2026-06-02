@@ -254,6 +254,52 @@ public sealed class EfReportServiceTests
             });
     }
 
+    [Fact]
+    public async Task GetOperatorActionReportAsync_FilterByActor_ReturnsOnlyThatActorsRows()
+    {
+        var otherActorId = Guid.Parse("66666666-6666-4666-8666-666666666666");
+        await using var db = CreateDbContext();
+        var service = new EfReportService(db);
+        SeedAuditRecord(db, ActorStaffUserId, "money_action.refund", "succeeded", ReportDay.AddHours(9));
+        SeedAuditRecord(db, ActorStaffUserId, "money_action.refund", "succeeded", ReportDay.AddHours(10));
+        SeedAuditRecord(db, otherActorId, "money_action.refund", "succeeded", ReportDay.AddHours(11));
+        await db.SaveChangesAsync();
+
+        var result = await service.GetOperatorActionReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10, ActorStaffUserId: ActorStaffUserId),
+            CancellationToken.None);
+
+        Assert.Equal(2, result.TotalActionCount);
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(ActorStaffUserId, row.ActorStaffUserId);
+        Assert.Equal("money_action.refund", row.Action);
+        Assert.Equal(2, row.Count);
+    }
+
+    [Fact]
+    public async Task GetOperatorActionReportAsync_FilterByAmountRange_ExcludesOutOfRangeAndAmountlessRows()
+    {
+        await using var db = CreateDbContext();
+        var service = new EfReportService(db);
+        SeedAuditRecord(db, ActorStaffUserId, "money_action.refund", "succeeded", ReportDay.AddHours(9), amountMinorUnits: 3000);
+        SeedAuditRecord(db, ActorStaffUserId, "money_action.refund", "succeeded", ReportDay.AddHours(10), amountMinorUnits: 8000);
+        SeedAuditRecord(db, ActorStaffUserId, "sessions.start", "succeeded", ReportDay.AddHours(11));
+        await db.SaveChangesAsync();
+
+        var result = await service.GetOperatorActionReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10, MinAmountMinorUnits: 5000),
+            CancellationToken.None);
+
+        Assert.Equal(1, result.TotalActionCount);
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("money_action.refund", row.Action);
+        Assert.Equal(1, row.Count);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -485,7 +531,8 @@ public sealed class EfReportServiceTests
         string action,
         string outcome,
         DateTimeOffset createdAtUtc,
-        Guid? branchId = null)
+        Guid? branchId = null,
+        long? amountMinorUnits = null)
     {
         db.AuditRecords.Add(new AuditRecordEntity
         {
@@ -499,6 +546,7 @@ public sealed class EfReportServiceTests
             Outcome = outcome,
             SourceApp = "test",
             DetailsJson = "{}",
+            AmountMinorUnits = amountMinorUnits,
             CreatedAtUtc = createdAtUtc
         });
     }

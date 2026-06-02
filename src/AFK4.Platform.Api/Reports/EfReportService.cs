@@ -432,6 +432,28 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             auditQuery = auditQuery.Where(record => record.CreatedAtUtc <= toUtc);
         }
 
+        if (query.ActorStaffUserId is not null)
+        {
+            var actorStaffUserId = query.ActorStaffUserId.Value;
+            auditQuery = auditQuery.Where(record => record.ActorStaffUserId == actorStaffUserId);
+        }
+
+        // Amount bounds only match money-relevant records (those carrying an amount); amountless rows
+        // are excluded when a bound is set.
+        if (query.MinAmountMinorUnits is not null)
+        {
+            var minAmount = query.MinAmountMinorUnits.Value;
+            auditQuery = auditQuery.Where(record =>
+                record.AmountMinorUnits != null && record.AmountMinorUnits >= minAmount);
+        }
+
+        if (query.MaxAmountMinorUnits is not null)
+        {
+            var maxAmount = query.MaxAmountMinorUnits.Value;
+            auditQuery = auditQuery.Where(record =>
+                record.AmountMinorUnits != null && record.AmountMinorUnits <= maxAmount);
+        }
+
         var auditRecords = await auditQuery.ToListAsync(cancellationToken);
         var actorIds = auditRecords
             .Where(record => record.ActorStaffUserId.HasValue)

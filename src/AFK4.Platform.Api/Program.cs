@@ -8754,6 +8754,9 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmountMinorUnits,
+    long? maxAmountMinorUnits,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IReportService reportService,
@@ -8786,7 +8789,7 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit, actorStaffUserId, minAmountMinorUnits, maxAmountMinorUnits);
     var result = await reportService.GetOperatorActionReportAsync(
         authorization.StaffContext!.OrganizationId,
         branchId,
@@ -8807,7 +8810,10 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
             Count = result.Rows.Count,
             result.Limit,
             fromUtc,
-            toUtc
+            toUtc,
+            actorStaffUserId,
+            minAmountMinorUnits,
+            maxAmountMinorUnits
         },
         cancellationToken);
 
@@ -8927,6 +8933,9 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions/export.csv", 
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmountMinorUnits,
+    long? maxAmountMinorUnits,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IReportService reportService,
@@ -8946,7 +8955,10 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions/export.csv", 
         static (service, organizationId, scopedBranchId, query, token) =>
             service.GetOperatorActionReportAsync(organizationId, scopedBranchId, query, token),
         ReportCsvExporter.ExportOperatorActionReport,
-        cancellationToken);
+        cancellationToken,
+        actorStaffUserId,
+        minAmountMinorUnits,
+        maxAmountMinorUnits);
 });
 
 app.MapGet("/api/branches/{branchId:guid}/diagnostics", async (
@@ -10522,7 +10534,10 @@ static async Task<IResult> ExportReportCsvAsync<TReport>(
     string fileName,
     Func<IReportService, Guid, Guid, ReportSearchQuery, CancellationToken, Task<TReport>> loadReportAsync,
     Func<TReport, string> exportCsv,
-    CancellationToken cancellationToken)
+    CancellationToken cancellationToken,
+    Guid? actorStaffUserId = null,
+    long? minAmountMinorUnits = null,
+    long? maxAmountMinorUnits = null)
 {
     var authorization = await authorizationService.RequireBranchPermissionAsync(
         branchId,
@@ -10551,7 +10566,7 @@ static async Task<IResult> ExportReportCsvAsync<TReport>(
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit, actorStaffUserId, minAmountMinorUnits, maxAmountMinorUnits);
     var result = await loadReportAsync(
         reportService,
         authorization.StaffContext!.OrganizationId,
