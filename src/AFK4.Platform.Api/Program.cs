@@ -16,6 +16,7 @@ using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Idempotency;
@@ -205,6 +206,10 @@ builder.Services.AddScoped<IStaffPasswordResetService, EfStaffPasswordResetServi
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
+builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection(OutboxOptions.ConfigurationSection));
+builder.Services.AddScoped<IBillingOutbox, EfBillingOutbox>();
+builder.Services.AddScoped<OutboxDispatchRunner>();
+builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();

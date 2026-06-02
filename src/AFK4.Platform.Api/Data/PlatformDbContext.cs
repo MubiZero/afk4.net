@@ -104,6 +104,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<InvoiceEntity> Invoices => Set<InvoiceEntity>();
 
+    public DbSet<OutboxMessageEntity> OutboxMessages => Set<OutboxMessageEntity>();
+
     public DbSet<NotificationOutboxEntity> NotificationOutbox => Set<NotificationOutboxEntity>();
 
     public DbSet<NotificationOutboxAttachmentEntity> NotificationOutboxAttachments => Set<NotificationOutboxAttachmentEntity>();
@@ -802,6 +804,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(record => record.ResponseBody).HasColumnType("jsonb").IsRequired();
             entity.HasIndex(record => new { record.Scope, record.IdempotencyKey }).IsUnique();
             entity.HasIndex(record => record.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<OutboxMessageEntity>(entity =>
+        {
+            entity.ToTable("outbox_messages");
+            entity.HasKey(row => row.OutboxMessageId);
+            entity.Property(row => row.Type).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.PayloadJson).IsRequired();
+            entity.Property(row => row.Status).HasMaxLength(16).IsRequired();
+            entity.Property(row => row.IdempotencyKey).HasMaxLength(256).IsRequired();
+            entity.Property(row => row.LastError).HasMaxLength(2000);
+            entity.HasIndex(row => row.IdempotencyKey).IsUnique();
+            entity.HasIndex(row => new { row.Status, row.AvailableAtUtc });
         });
 
         modelBuilder.Entity<NotificationOutboxEntity>(entity =>
