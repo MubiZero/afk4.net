@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using AFK4.Operator.App.Devices;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Operator.App.Sessions;
 using AFK4.Shared.Contracts.Devices;
@@ -14,12 +15,19 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
 {
     private const int StaleAfterSeconds = 30;
 
+    private static readonly IReadOnlyDictionary<string, string> EmptyCommandPayload =
+        new Dictionary<string, string>();
+
     private readonly IOperatorFloorMapApiClient apiClient;
     private readonly IFloorMapCache floorMapCache;
     private readonly TimeProvider timeProvider;
+    private readonly IOperatorDeviceApiClient deviceApiClient;
+    private readonly IActionOutbox actionOutbox;
     private readonly DeviceStatusStore deviceStatusStore;
     private readonly RelayCommand selectSeatCommand;
     private readonly RelayCommand selectFilterCommand;
+    private readonly AsyncRelayCommand lockSeatCommand;
+    private readonly AsyncRelayCommand unlockSeatCommand;
     private Guid? lastBranchId;
     private string branchName = "Филиал";
     private FloorMapSeatViewModel? selectedSeat;
@@ -51,15 +59,22 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
         IIdempotencyKeyFactory idempotencyKeyFactory,
         string currencyCode = "TJS",
         IFloorMapCache? floorMapCache = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IOperatorDeviceApiClient? deviceApiClient = null,
+        IActionOutbox? actionOutbox = null)
     {
         this.apiClient = apiClient;
         this.floorMapCache = floorMapCache ?? new FileFloorMapCache();
         this.timeProvider = timeProvider ?? TimeProvider.System;
+        this.deviceApiClient = deviceApiClient ?? new UnconfiguredOperatorDeviceApiClient();
+        this.actionOutbox = actionOutbox ?? new FileActionOutbox();
         Seats = [];
         deviceStatusStore = new DeviceStatusStore(Seats);
         SeatContext = new SeatContextPanelViewModel(sessionApiClient, idempotencyKeyFactory, RefreshAsync, currencyCode);
         RefreshCommand = new AsyncRelayCommand(RefreshAsync, () => lastBranchId is not null && !IsLoading);
+        // Lock/unlock stay available offline (spec §6.5): they queue locally instead of dispatching.
+        lockSeatCommand = new AsyncRelayCommand(token => QueueOrDispatchSeatActionAsync("lock", token), () => SelectedSeat?.HasDevice == true && !IsLoading);
+        unlockSeatCommand = new AsyncRelayCommand(token => QueueOrDispatchSeatActionAsync("unlock", token), () => SelectedSeat?.HasDevice == true && !IsLoading);
         selectSeatCommand = new RelayCommand(parameter => SelectedSeat = parameter as FloorMapSeatViewModel);
         selectFilterCommand = new RelayCommand(parameter => SelectFilter(parameter as FloorMapFilterOptionViewModel));
         FilterOptions =
@@ -166,6 +181,8 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
             }
 
             SeatContext.SelectSeat(value);
+            lockSeatCommand.NotifyCanExecuteChanged();
+            unlockSeatCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -177,6 +194,8 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
             if (SetField(ref isLoading, value))
             {
                 RefreshCommand.NotifyCanExecuteChanged();
+                lockSeatCommand.NotifyCanExecuteChanged();
+                unlockSeatCommand.NotifyCanExecuteChanged();
             }
         }
     }
@@ -246,6 +265,16 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
 
     public ICommand SelectFilterCommand => selectFilterCommand;
 
+    public ICommand LockSeatCommand => lockSeatCommand;
+
+    public ICommand UnlockSeatCommand => unlockSeatCommand;
+
+    /// <summary>
+    /// Operator-visible notes for offline lock/unlock actions that were dropped on reconnect because the
+    /// cloud state had already moved past them (spec §6.5 D9), so the operator knows they were not applied.
+    /// </summary>
+    public ObservableCollection<string> OfflineActionAudit { get; } = [];
+
     public void ApplyContext(Guid organizationId, Guid branchId)
     {
         SeatContext.ApplyContext(organizationId, branchId);
@@ -264,9 +293,12 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
             floorMapCache.Save(floorMap, now);
             PopulateSeats(floorMap);
 
-            // First good refresh exits degraded mode (spec §6.5 "Reconnect").
+            // First good refresh exits degraded mode and drains the offline action queue against the
+            // now-authoritative map (spec §6.5 "Reconnect").
             IsOffline = false;
             CachedAtUtc = now;
+            await DrainActionOutboxAsync(cancellationToken);
+            ApplyQueuedActionPills();
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
@@ -276,6 +308,7 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
             if (cached is not null)
             {
                 PopulateSeats(cached.FloorMap);
+                ApplyQueuedActionPills();
                 CachedAtUtc = cached.CachedAtUtc;
                 IsOffline = true;
             }
@@ -347,6 +380,84 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
         SelectedSeat = null;
         OnFloorSummaryChanged();
         OnPropertyChanged(nameof(FilteredSeats));
+    }
+
+    private async Task QueueOrDispatchSeatActionAsync(string commandType, CancellationToken cancellationToken)
+    {
+        var seat = SelectedSeat;
+        if (seat?.DeviceId is not { } deviceId)
+        {
+            return;
+        }
+
+        if (IsOffline)
+        {
+            // Record the intent locally; it replays (or is dropped if superseded) on reconnect (spec §6.5).
+            actionOutbox.Enqueue(new OperatorActionOutboxEntry(
+                IdempotencyKey: Guid.NewGuid(),
+                DeviceId: deviceId,
+                SeatId: seat.SeatId,
+                SeatName: seat.Name,
+                CommandType: commandType,
+                ExpectedSessionId: seat.ActiveSessionId,
+                QueuedAtUtc: timeProvider.GetUtcNow()));
+            ApplyQueuedActionPills();
+            return;
+        }
+
+        await deviceApiClient.DispatchDeviceCommandAsync(deviceId, commandType, EmptyCommandPayload, cancellationToken);
+    }
+
+    private async Task DrainActionOutboxAsync(CancellationToken cancellationToken)
+    {
+        foreach (var entry in actionOutbox.Pending)
+        {
+            var seat = Seats.FirstOrDefault(seat => seat.DeviceId == entry.DeviceId);
+            if (seat is null || seat.ActiveSessionId != entry.ExpectedSessionId)
+            {
+                // Superseded by current cloud state (D9): the seat or its session moved on while we were
+                // offline, so dropping the action with an audit note is safer than re-applying it.
+                OfflineActionAudit.Add(
+                    $"{entry.SeatName}: команда {entry.CommandType} отменена — состояние изменилось на сервере");
+                actionOutbox.Acknowledge(entry.IdempotencyKey);
+                continue;
+            }
+
+            try
+            {
+                await deviceApiClient.DispatchDeviceCommandAsync(
+                    entry.DeviceId,
+                    entry.CommandType,
+                    EmptyCommandPayload,
+                    cancellationToken);
+                actionOutbox.Acknowledge(entry.IdempotencyKey);
+            }
+            catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
+            {
+                // Connectivity dropped again mid-drain; keep the remaining actions queued for the next refresh.
+                break;
+            }
+        }
+    }
+
+    private void ApplyQueuedActionPills()
+    {
+        var queuedByDevice = actionOutbox.Pending
+            .Where(entry => entry.DeviceId != Guid.Empty)
+            .GroupBy(entry => entry.DeviceId)
+            .ToDictionary(group => group.Key, group => group.Last().CommandType);
+
+        foreach (var seat in Seats)
+        {
+            if (seat.DeviceId is { } deviceId && queuedByDevice.TryGetValue(deviceId, out var commandType))
+            {
+                seat.SetQueuedAction($"Очередь: {commandType}");
+            }
+            else
+            {
+                seat.SetQueuedAction(null);
+            }
+        }
     }
 
     private Task RefreshAsync(CancellationToken cancellationToken)

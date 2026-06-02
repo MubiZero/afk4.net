@@ -13,6 +13,7 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
     private DateTimeOffset? lastHeartbeatAtUtc;
     private int? remainingSeconds;
     private bool isSelected;
+    private string? queuedActionLabel;
 
     public FloorMapSeatViewModel(string name, string zone, string state)
         : this(
@@ -261,6 +262,29 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
         set => SetField(ref isSelected, value);
     }
 
+    /// <summary>
+    /// Label for a lock/unlock action queued locally while offline (spec §6.5), e.g. "Очередь: lock".
+    /// Null when nothing is queued for this seat.
+    /// </summary>
+    public string? QueuedActionLabel
+    {
+        get => queuedActionLabel;
+        private set
+        {
+            if (SetFieldChanged(ref queuedActionLabel, value))
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasQueuedAction)));
+            }
+        }
+    }
+
+    public bool HasQueuedAction => !string.IsNullOrEmpty(QueuedActionLabel);
+
+    public void SetQueuedAction(string? label)
+    {
+        QueuedActionLabel = label;
+    }
+
     public static FloorMapSeatViewModel FromDto(SeatStatusDto dto)
     {
         return new FloorMapSeatViewModel(
@@ -327,13 +351,19 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
+        SetFieldChanged(ref field, value, propertyName);
+    }
+
+    private bool SetFieldChanged<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
         if (EqualityComparer<T>.Default.Equals(field, value))
         {
-            return;
+            return false;
         }
 
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        return true;
     }
 
     private void OnDisplayStateChanged()

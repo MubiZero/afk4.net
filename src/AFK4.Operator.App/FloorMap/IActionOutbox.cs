@@ -25,4 +25,5 @@ public sealed record OperatorActionOutboxEntry(
     Guid SeatId,
     string SeatName,
     string CommandType,
+    Guid? ExpectedSessionId,
     DateTimeOffset QueuedAtUtc);
