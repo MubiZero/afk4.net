@@ -208,6 +208,7 @@ builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
 builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection(OutboxOptions.ConfigurationSection));
 builder.Services.AddScoped<IBillingOutbox, EfBillingOutbox>();
+builder.Services.AddScoped<IOutboxMessageHandler, SessionCheckoutOutboxHandler>();
 builder.Services.AddScoped<OutboxDispatchRunner>();
 builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddHostedService<NotificationDispatcher>();

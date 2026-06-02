@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
@@ -73,7 +74,45 @@ public sealed class EfSessionCheckoutServiceTests
 
         var lockCommand = Assert.Single(dispatcher.Enqueued);
         Assert.Equal(DeviceCommandTypeNames.Lock, lockCommand.Type);
-        Assert.Single(dispatcher.Notified);
+
+        // The realtime wake-up now rides the billing outbox (committed in the same TX as the charge),
+        // not a post-commit fire-and-forget call.
+        Assert.Empty(dispatcher.Notified);
+        var outboxRow = Assert.Single(db.OutboxMessages);
+        Assert.Equal(OutboxMessageTypes.SessionCheckout, outboxRow.Type);
+        Assert.Equal(OutboxMessageStatus.Pending, outboxRow.Status);
+    }
+
+    [Fact]
+    public async Task Checkout_OutboxRow_WhenDispatched_NotifiesDeviceAndMarksDispatched()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var dispatcher = new RecordingDispatch();
+        var service = CreateService(db, dispatcher);
+
+        await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge))],
+                "checkout-e2e"),
+            CancellationToken.None);
+
+        var runner = new OutboxDispatchRunner(
+            new EfBillingOutbox(db),
+            [new SessionCheckoutOutboxHandler(dispatcher)],
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Options.Options.Create(new OutboxOptions()));
+
+        var processed = await runner.RunAsync(50, CancellationToken.None);
+
+        Assert.Equal(1, processed);
+        var notified = Assert.Single(dispatcher.Notified);
+        Assert.Equal(DeviceCommandTypeNames.Lock, notified.Type);
+        Assert.Equal(OutboxMessageStatus.Dispatched, (await db.OutboxMessages.SingleAsync()).Status);
     }
 
     [Fact]
@@ -290,6 +329,7 @@ public sealed class EfSessionCheckoutServiceTests
             new ReceiptNumberGenerator(db),
             dispatcher,
             shiftService,
+            new EfBillingOutbox(db),
             timeProvider);
     }
 

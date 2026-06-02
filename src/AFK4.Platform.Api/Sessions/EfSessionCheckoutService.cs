@@ -3,6 +3,7 @@ using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
@@ -27,6 +28,7 @@ public sealed class EfSessionCheckoutService(
     IReceiptNumberGenerator receiptNumberGenerator,
     IDeviceCommandDispatchService deviceCommandDispatchService,
     IOpenShiftResolver openShiftResolver,
+    IBillingOutbox billingOutbox,
     TimeProvider timeProvider) : ISessionCheckoutService
 {
     private const string CheckoutOperation = "session-checkout";
@@ -145,8 +147,6 @@ public sealed class EfSessionCheckoutService(
         }
 
         var shiftId = openShift.Response;
-        Guid? deviceIdToNotify = null;
-        DeviceCommandDto? commandToNotify = null;
 
         var result = await ExecuteInTransactionAsync(async () =>
         {
@@ -330,8 +330,25 @@ public sealed class EfSessionCheckoutService(
                         ["reason"] = "session-checkout"
                     }),
                 cancellationToken);
-            deviceIdToNotify = trackedSession.DeviceId;
-            commandToNotify = command;
+
+            // The realtime wake-up for the lock command rides the billing outbox so it commits in the
+            // same transaction as the charge: a committed checkout can never be left un-notified, and a
+            // crash can never push a lock for an uncommitted charge. Redelivery is harmless (idempotent
+            // key per session) because the command row is itself durable and the push is just a nudge.
+            billingOutbox.Enqueue(new OutboxMessageEntity
+            {
+                OutboxMessageId = Guid.NewGuid(),
+                OrganizationId = trackedSession.OrganizationId,
+                BranchId = trackedSession.BranchId,
+                Type = OutboxMessageTypes.SessionCheckout,
+                PayloadJson = JsonSerializer.Serialize(
+                    new SessionCheckoutNotifyPayload(trackedSession.DeviceId, command),
+                    JsonOptions),
+                Status = OutboxMessageStatus.Pending,
+                AvailableAtUtc = now,
+                CreatedAtUtc = now,
+                IdempotencyKey = $"session-checkout-notify:{trackedSession.SessionId:D}"
+            });
 
             var response = new SessionCheckoutResponse(
                 IdempotencyKey: request.IdempotencyKey,
@@ -360,11 +377,6 @@ public sealed class EfSessionCheckoutService(
             request.IdempotencyKey,
             requestHashInput,
             cancellationToken), cancellationToken);
-
-        if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
-        {
-            await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
-        }
 
         return result;
     }
