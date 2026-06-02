@@ -10,4 +10,7 @@ public sealed record StartGuestSessionRequest(
     Guid? PlayerAccountId = null,
     string BillingMode = "",
     Guid? TariffVersionId = null,
-    Guid? PlayerPackageId = null);
+    Guid? PlayerPackageId = null,
+    // Anti-fraud §5.4: an explicit comp (free session). Requires a reason; routes to a session.comp audit.
+    bool IsComp = false,
+    string? CompReason = null);

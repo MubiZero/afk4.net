@@ -19,6 +19,7 @@ public sealed class EfSessionCommandService(
     ISessionBillingService sessionBillingService) : ISessionCommandService
 {
     private const int LeaseMinutes = 15;
+    private const int CompReasonMinLength = 8;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly string[] BlockingStates =
     [
@@ -65,6 +66,22 @@ public sealed class EfSessionCommandService(
 
         var isFixed = durationMode == SessionDurationModes.Fixed;
         var billingMode = (request.BillingMode ?? string.Empty).Trim();
+
+        // §5.4: an explicit comp is a free session — it must carry no billing mode and a real reason.
+        // The control fires only on the IsComp flag; the existing manual/guest path is untouched.
+        if (request.IsComp)
+        {
+            if (!string.IsNullOrEmpty(billingMode))
+            {
+                return SessionCommandServiceResult.Invalid("A comp (free) session cannot specify a billing mode.");
+            }
+
+            if ((request.CompReason?.Trim().Length ?? 0) < CompReasonMinLength)
+            {
+                return SessionCommandServiceResult.Invalid(
+                    $"A comp session requires a reason of at least {CompReasonMinLength} characters.");
+            }
+        }
 
         if (isFixed)
         {

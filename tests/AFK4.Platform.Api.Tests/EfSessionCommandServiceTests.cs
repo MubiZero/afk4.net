@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -65,6 +66,74 @@ public sealed class EfSessionCommandServiceTests
         Assert.Equal(session.SessionId.ToString("D"), call.Request.Payload["sessionId"]);
         Assert.Equal("session-start", call.Request.Payload["reason"]);
         Assert.False(string.IsNullOrWhiteSpace(call.Request.Payload["sessionLease"]));
+    }
+
+    // Anti-fraud §5.4: a comp (free) session must be explicit and reasoned. The control fires only on
+    // the IsComp flag — the existing manual/guest path (no flag) is untouched.
+    [Fact]
+    public async Task StartGuestSessionAsync_CompWithoutSufficientReason_ReturnsInvalidAndCreatesNothing()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var request = new StartGuestSessionRequest(
+            TestIds.OrganizationId,
+            SeatId,
+            TariffRuleVersionId: "guest",
+            IdempotencyKey: "start-comp-noreason",
+            DurationMode: SessionDurationModes.Open,
+            IsComp: true,
+            CompReason: "short"); // < 8 chars
+
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(await db.Sessions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_CompWithBillingMode_ReturnsInvalid()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var request = new StartGuestSessionRequest(
+            TestIds.OrganizationId,
+            SeatId,
+            TariffRuleVersionId: "guest",
+            IdempotencyKey: "start-comp-billingmode",
+            DurationMode: SessionDurationModes.Open,
+            BillingMode: BillingModeNames.PostpaidDebt,
+            IsComp: true,
+            CompReason: "birthday gift for loyal guest");
+
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(await db.Sessions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_CompWithValidReason_StartsSession()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var request = new StartGuestSessionRequest(
+            TestIds.OrganizationId,
+            SeatId,
+            TariffRuleVersionId: "guest",
+            IdempotencyKey: "start-comp-ok",
+            DurationMode: SessionDurationModes.Open,
+            IsComp: true,
+            CompReason: "birthday gift for loyal guest");
+
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(SessionStateNames.Active, result.Response.Session.State);
+        Assert.Equal(SessionStateNames.Active, (await db.Sessions.SingleAsync()).State);
     }
 
     [Fact]

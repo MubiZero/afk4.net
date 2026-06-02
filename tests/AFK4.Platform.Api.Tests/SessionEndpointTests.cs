@@ -60,6 +60,40 @@ public sealed class SessionEndpointTests
         Assert.Equal(body.Session.SessionId.ToString("D"), audit.TargetId);
     }
 
+    // Anti-fraud §5.4: an explicit comp routes to a first-class session.comp audit (with reason),
+    // so the owner summary / Review screen can surface free sessions distinctly.
+    [Fact]
+    public async Task StartSession_AsComp_WritesSessionCompAuditWithReason()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedLayoutAsync(factory, includeTargetSeat: false);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                TariffRuleVersionId: "guest",
+                IdempotencyKey: "start-comp-endpoint",
+                DurationMode: SessionDurationModes.Open,
+                IsComp: true,
+                CompReason: "birthday gift for loyal guest"));
+        var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.SessionComp, audit.Action);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+        Assert.Equal(body.Session.SessionId.ToString("D"), audit.TargetId);
+        Assert.Contains("birthday gift", audit.DetailsJson);
+    }
+
     [Fact]
     public async Task StartSession_WithRealPrepaidBilling_AppendsGameplayCharge()
     {

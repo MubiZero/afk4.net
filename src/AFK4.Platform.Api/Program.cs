@@ -4136,20 +4136,20 @@ app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
         return Results.BadRequest(new { Error = result.Error });
     }
 
+    // §5.4: a comp (free session) is audited as a first-class session.comp with its reason, so the
+    // owner summary / Review screen can surface free sessions distinctly from ordinary starts.
     await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
         authorization.StaffContext.OrganizationId,
         branchId,
         authorization.StaffContext.StaffUserId,
-        AuditActionNames.StartSession,
+        request.IsComp ? AuditActionNames.SessionComp : AuditActionNames.StartSession,
         "Session",
         result.Response!.Session.SessionId.ToString("D"),
         AuditOutcome.Succeeded,
         "PlatformApi",
-        JsonSerializer.Serialize(new
-        {
-            request.SeatId,
-            request.DurationMinutes
-        })),
+        request.IsComp
+            ? JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes, request.CompReason })
+            : JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes })),
         cancellationToken);
 
     return Results.Ok(result.Response);
