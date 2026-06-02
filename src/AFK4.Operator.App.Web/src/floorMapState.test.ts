@@ -53,6 +53,30 @@ describe('floor-map state', () => {
     });
   });
 
+  it('shows live accrued cost for an open-tab session instead of a countdown', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [
+        createSeat({
+          state: 'Active',
+          activeSessionId: '33333333-3333-3333-3333-333333333333',
+          remainingSeconds: null,
+          accruedCostMinorUnits: 2250,
+          currencyCode: 'TJS'
+        })
+      ]
+    });
+
+    expect(state.seats[0]).toMatchObject({
+      tone: 'active',
+      remaining: '≈ 22.50 TJS',
+      billing: 'Открытый счёт',
+      accruedCostMinorUnits: 2250,
+      currencyCode: 'TJS'
+    });
+  });
+
   it('applies SignalR device status by device id and updates free seats', () => {
     const state = mapFloorMapDtoToState({
       branchId,

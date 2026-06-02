@@ -23,6 +23,9 @@ export interface SeatStatusDto {
   shellVersion?: string | null;
   activeSessionId?: Guid | null;
   remainingSeconds?: number | null;
+  // Live accrued cost for an open-tab session (count-up); null for fixed sessions.
+  accruedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
 }
 
 export interface FloorMapDto {

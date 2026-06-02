@@ -33,6 +33,8 @@ export interface SeatSummary {
   rawState?: string;
   remainingSeconds?: number | null;
   remainingDeadlineMs?: number | null;
+  accruedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
   sortOrder?: number;
 }
 

@@ -1,3 +1,4 @@
+import { minorToMajor } from '@afk4/money';
 import type { FloorMapDto, SeatStatusDto } from './operatorApiClients';
 import { seats as fixtureSeats, type SeatSummary, type SeatTone } from './operatorData';
 import type { DeviceStatusChangedDto } from './operatorRealtime';
@@ -94,6 +95,10 @@ function mapFloorMapSeat(dto: SeatStatusDto, loadedAtMs: number): SeatSummary {
   const remainingDeadlineMs = remainingSeconds === null
     ? null
     : loadedAtMs + remainingSeconds * 1000;
+  const accruedCostMinorUnits = dto.accruedCostMinorUnits ?? null;
+  const currencyCode = dto.currencyCode ?? null;
+  // Open tabs (no countdown) show the live accruing cost where fixed sessions show time left.
+  const isOpenTab = hasActiveSession && remainingSeconds === null && accruedCostMinorUnits !== null;
 
   return {
     id: dto.seatId,
@@ -102,8 +107,10 @@ function mapFloorMapSeat(dto: SeatStatusDto, loadedAtMs: number): SeatSummary {
     tone,
     stateLabel: displayState(dto.state),
     player: hasActiveSession ? 'Активный клиент' : tone === 'ready' ? 'Гость' : 'Нет игрока',
-    remaining: remainingText(remainingSeconds, normalizedState, tone, hasActiveSession),
-    billing: hasActiveSession ? 'Wallet' : tone === 'ready' ? 'Fast guest' : 'N/A',
+    remaining: isOpenTab
+      ? accruedCostText(accruedCostMinorUnits, currencyCode)
+      : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession),
+    billing: isOpenTab ? 'Открытый счёт' : hasActiveSession ? 'Wallet' : tone === 'ready' ? 'Fast guest' : 'N/A',
     device: formatDeviceSummary({
       deviceName: dto.deviceName,
       isOnline: isDeviceOnline,
@@ -122,8 +129,19 @@ function mapFloorMapSeat(dto: SeatStatusDto, loadedAtMs: number): SeatSummary {
     rawState: dto.state,
     remainingSeconds,
     remainingDeadlineMs,
+    accruedCostMinorUnits,
+    currencyCode,
     sortOrder: dto.sortOrder
   };
+}
+
+function accruedCostText(minorUnits: number | null, currencyCode: string | null): string {
+  if (minorUnits === null) {
+    return 'играет сейчас';
+  }
+
+  const amount = minorToMajor(minorUnits).toFixed(2);
+  return currencyCode ? `≈ ${amount} ${currencyCode}` : `≈ ${amount}`;
 }
 
 function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedDto): SeatSummary {
