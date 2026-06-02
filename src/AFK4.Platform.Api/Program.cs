@@ -6501,6 +6501,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IBillingCommandService billingCommandService,
+    IMoneyActionPolicyResolver moneyActionPolicyResolver,
     CancellationToken cancellationToken) =>
 {
     var player = await LoadPlayerScopedEndpointAsync(
@@ -6557,6 +6558,24 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
         return Results.NotFound();
     }
 
+    // §5.2: gate the direct refund through the same guard as /money-actions. Over-threshold/over-cap
+    // refunds cannot be pushed straight to the ledger here — they must go through the approval front door.
+    var refundGate = await GuardLegacyMoneyActionAsync(
+        dbContext,
+        moneyActionPolicyResolver,
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.BranchId,
+        authorization.StaffContext.StaffUserId,
+        MoneyActionType.Refund,
+        originalEntry.AccountType,
+        -Math.Abs(request.Amount.MinorUnits),
+        cancellationToken);
+    if (refundGate is not null)
+    {
+        return refundGate;
+    }
+
     var result = await billingCommandService.RefundLedgerEntryAsync(
         player.BranchId,
         authorization.StaffContext.StaffUserId,
@@ -6592,6 +6611,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IBillingCommandService billingCommandService,
+    IMoneyActionPolicyResolver moneyActionPolicyResolver,
     CancellationToken cancellationToken) =>
 {
     var player = await LoadPlayerScopedEndpointAsync(
@@ -6627,6 +6647,24 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
     if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
     {
         return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    // §5.2: gate the direct correction through the same guard as /money-actions. Over-threshold/over-cap
+    // corrections (including debt write-offs) cannot bypass the approval front door here.
+    var correctionGate = await GuardLegacyMoneyActionAsync(
+        dbContext,
+        moneyActionPolicyResolver,
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.BranchId,
+        authorization.StaffContext.StaffUserId,
+        MoneyActionType.ManualCorrection,
+        request.AccountType,
+        request.Amount.MinorUnits,
+        cancellationToken);
+    if (correctionGate is not null)
+    {
+        return correctionGate;
     }
 
     var result = await billingCommandService.ManualCorrectionAsync(
@@ -10199,6 +10237,56 @@ static async Task<IReadOnlyCollection<string>> GetActorRoleNamesAsync(
         .Select(role => role.RoleName)
         .Distinct()
         .ToListAsync(cancellationToken);
+
+// Anti-fraud §5.2 enforcement: the legacy direct ledger endpoints share the same MoneyActionGuard as
+// the /money-actions front door. Returns null when the action may execute immediately (under threshold,
+// under cap) so the caller proceeds with its direct ledger write; otherwise returns the blocking result
+// (409 — must go through the approval front door; 422 — over cap) and writes the denied audit trail.
+static async Task<IResult?> GuardLegacyMoneyActionAsync(
+    PlatformDbContext dbContext,
+    IMoneyActionPolicyResolver policyResolver,
+    IAuditRecordWriter auditRecordWriter,
+    Guid organizationId,
+    Guid branchId,
+    Guid actorStaffUserId,
+    MoneyActionType requestedType,
+    string accountType,
+    long signedAmountMinorUnits,
+    CancellationToken cancellationToken)
+{
+    var roleNames = await GetActorRoleNamesAsync(dbContext, actorStaffUserId, organizationId, cancellationToken);
+    var assessment = await policyResolver.AssessAsync(
+        organizationId, branchId, actorStaffUserId, roleNames,
+        requestedType, accountType, signedAmountMinorUnits, cancellationToken);
+
+    if (assessment.Decision == MoneyActionDecision.ExecuteNow)
+    {
+        return null;
+    }
+
+    var amount = Math.Abs(signedAmountMinorUnits);
+    var requiresApproval = assessment.Decision == MoneyActionDecision.RequireApproval;
+    var blockedReason = requiresApproval
+        ? "Amount exceeds the approval threshold; submit via /money-actions for manager approval."
+        : "Amount exceeds the configured per-transaction or daily cap.";
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        organizationId,
+        branchId,
+        actorStaffUserId,
+        AuditActionNames.MoneyActionRequested,
+        "MoneyAction",
+        null,
+        AuditOutcome.Denied,
+        new { Decision = assessment.Decision.ToString(), Amount = amount, Reason = blockedReason },
+        cancellationToken,
+        amountMinorUnits: amount);
+
+    return requiresApproval
+        ? Results.Conflict(new { Error = blockedReason, RequiresApproval = true })
+        : Results.Json(new { Error = blockedReason }, statusCode: StatusCodes.Status422UnprocessableEntity);
+}
 
 static IResult ToHttpResult<TResponse>(BillingCommandServiceResult<TResponse> result)
 {
