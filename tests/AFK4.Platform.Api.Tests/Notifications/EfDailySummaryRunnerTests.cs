@@ -1,7 +1,9 @@
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Tests.Billing;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Shifts;
@@ -62,6 +64,29 @@ public sealed class EfDailySummaryRunnerTests
         OpenedAtUtc = closedAtUtc.AddHours(-8), ClosedAtUtc = closedAtUtc
     };
 
+    private static LedgerEntryEntity RefundEntry(long amountMinorUnits, DateTimeOffset createdAtUtc) => new()
+    {
+        LedgerEntryId = Guid.NewGuid(), OrganizationId = OrgId, BranchId = BranchId, PlayerAccountId = Guid.NewGuid(),
+        EntryType = LedgerEntryTypeNames.Refund, AccountType = LedgerAccountTypeNames.Wallet,
+        AmountMinorUnits = amountMinorUnits, CurrencyCode = "TJS",
+        CreatedByStaffUserId = Guid.NewGuid(), CreatedAtUtc = createdAtUtc
+    };
+
+    private static LedgerEntryEntity WriteOffEntry(long amountMinorUnits, DateTimeOffset createdAtUtc) => new()
+    {
+        LedgerEntryId = Guid.NewGuid(), OrganizationId = OrgId, BranchId = BranchId, PlayerAccountId = Guid.NewGuid(),
+        EntryType = LedgerEntryTypeNames.ManualCorrection, AccountType = LedgerAccountTypeNames.Debt,
+        AmountMinorUnits = amountMinorUnits, CurrencyCode = "TJS",
+        CreatedByStaffUserId = Guid.NewGuid(), CreatedAtUtc = createdAtUtc
+    };
+
+    private static AuditRecordEntity CompAudit(DateTimeOffset createdAtUtc) => new()
+    {
+        AuditRecordId = Guid.NewGuid(), OrganizationId = OrgId, BranchId = BranchId,
+        ActorStaffUserId = Guid.NewGuid(), Action = AuditActionNames.SessionComp, TargetType = "Session",
+        Outcome = AuditOutcome.Succeeded, SourceApp = "test", CreatedAtUtc = createdAtUtc
+    };
+
     private static EfDailySummaryRunner NewRunner(PlatformDbContext db, RecordingNotificationService recorder) =>
         new(db, new EfOrganizationOwnerResolver(db), recorder);
 
@@ -110,6 +135,44 @@ public sealed class EfDailySummaryRunnerTests
         var request = Assert.Single(recorder.Requests);
         Assert.Equal("50.00", request.Tokens["revenue"]);
         Assert.Equal("1", request.Tokens["salesCount"]);
+    }
+
+    [Fact]
+    public async Task RunAsync_IncludesAntiFraudRollupTokens()
+    {
+        await using var db = NewContext();
+        await SeedOrgWithOwnerAsync(db);
+        db.PosSales.Add(PaidSale(5000, Yesterday));
+        db.LedgerEntries.Add(RefundEntry(-4200, Yesterday));
+        db.LedgerEntries.Add(WriteOffEntry(-5000, Yesterday));
+        db.AuditRecords.Add(CompAudit(Yesterday));
+        db.AuditRecords.Add(CompAudit(Yesterday));
+        await db.SaveChangesAsync();
+        var recorder = new RecordingNotificationService();
+
+        await NewRunner(db, recorder).RunAsync(Now, CancellationToken.None);
+
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal("42.00", request.Tokens["refundTotal"]);
+        Assert.Equal("2", request.Tokens["compCount"]);
+        Assert.Equal("50.00", request.Tokens["writeOffTotal"]);
+        Assert.Equal("0.00", request.Tokens["manualCorrectionTotal"]);
+    }
+
+    [Fact]
+    public async Task RunAsync_OrgWithOnlyRefundsNoSalesOrShifts_StillSummarizes()
+    {
+        await using var db = NewContext();
+        await SeedOrgWithOwnerAsync(db);
+        db.LedgerEntries.Add(RefundEntry(-4200, Yesterday));
+        await db.SaveChangesAsync();
+        var recorder = new RecordingNotificationService();
+
+        var count = await NewRunner(db, recorder).RunAsync(Now, CancellationToken.None);
+
+        Assert.Equal(1, count);
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal("42.00", request.Tokens["refundTotal"]);
     }
 
     [Fact]

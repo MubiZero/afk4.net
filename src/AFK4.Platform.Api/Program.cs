@@ -8820,6 +8820,70 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
     return Results.Ok(result);
 });
 
+// Anti-fraud §5.6: on-demand owner daily summary (the report-endpoint fallback to the notification
+// digest). Defaults to the most recently ended UTC day when no date is given.
+app.MapGet("/api/branches/{branchId:guid}/reports/owner-daily-summary", async (
+    Guid branchId,
+    DateOnly? date,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewOwnerDailySummaryReport,
+            "Report",
+            "owner-daily-summary",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var summaryDate = date ?? DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime).AddDays(-1);
+    var result = await reportService.GetOwnerDailySummaryAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        summaryDate,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewOwnerDailySummaryReport,
+        "Report",
+        "owner-daily-summary",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Date = summaryDate.ToString("yyyy-MM-dd"),
+            ActorCount = result.Rows.Count
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
 app.MapGet("/api/branches/{branchId:guid}/reports/shifts/export.csv", async (
     Guid branchId,
     DateTimeOffset? fromUtc,
