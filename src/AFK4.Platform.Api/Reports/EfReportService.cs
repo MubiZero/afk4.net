@@ -164,7 +164,8 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .Where(payment =>
                 payment.OrganizationId == organizationId &&
                 payment.BranchId == branchId &&
-                saleIds.Contains(payment.PosSaleId))
+                payment.PosSaleId != null &&
+                saleIds.Contains(payment.PosSaleId.Value))
             .ToListAsync(cancellationToken);
 
         var rows = sales.Select(sale =>

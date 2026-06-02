@@ -128,6 +128,7 @@ public sealed class EfPosService(
                 ShiftId = shift.ShiftId,
                 CreatedByStaffUserId = actorStaffUserId,
                 PlayerAccountId = request.PlayerAccountId,
+                SessionId = request.SessionId,
                 State = PosSaleStateNames.Draft,
                 CurrencyCode = currencyCode.ToUpperInvariant(),
                 TotalMinorUnits = 0,

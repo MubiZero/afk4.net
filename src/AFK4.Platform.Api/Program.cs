@@ -232,6 +232,7 @@ builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
+builder.Services.AddScoped<ISessionCheckoutService, EfSessionCheckoutService>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
 builder.Services.AddScoped<ITariffService, EfTariffService>();
@@ -4399,6 +4400,95 @@ app.MapPost("/api/sessions/{sessionId:guid}/end", async (
         JsonSerializer.Serialize(new
         {
             request.Reason
+        })),
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/sessions/{sessionId:guid}/checkout", async (
+    Guid sessionId,
+    SessionCheckoutRequest request,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ISessionCheckoutService sessionCheckoutService,
+    CancellationToken cancellationToken) =>
+{
+    var session = await dbContext.Sessions
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        session.BranchId,
+        StaffPermissionNames.EndSession,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            authorization.StaffContext!.OrganizationId,
+            session.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CheckoutSession,
+            "Session",
+            sessionId.ToString("D"),
+            AuditOutcome.Denied,
+            "PlatformApi",
+            JsonSerializer.Serialize(new
+            {
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await sessionCheckoutService.CheckoutAsync(
+        sessionId,
+        authorization.StaffContext!.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { Error = result.Error });
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        authorization.StaffContext.OrganizationId,
+        session.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CheckoutSession,
+        "Session",
+        sessionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        "PlatformApi",
+        JsonSerializer.Serialize(new
+        {
+            GrandTotal = result.Response!.GrandTotal.MinorUnits,
+            result.Response.GrandTotal.CurrencyCode,
+            PaymentParts = result.Response.Payments.Count
         })),
         cancellationToken);
 

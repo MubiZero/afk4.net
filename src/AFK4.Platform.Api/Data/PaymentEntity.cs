@@ -8,7 +8,11 @@ public sealed class PaymentEntity
 
     public Guid BranchId { get; set; }
 
-    public Guid PosSaleId { get; set; }
+    // Exactly one of PosSaleId / SessionId is set: standalone POS payments carry
+    // PosSaleId; unified session-checkout payments carry SessionId.
+    public Guid? PosSaleId { get; set; }
+
+    public Guid? SessionId { get; set; }
 
     public Guid ShiftId { get; set; }
 

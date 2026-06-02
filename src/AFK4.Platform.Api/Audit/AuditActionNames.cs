@@ -32,6 +32,8 @@ public static class AuditActionNames
 
     public const string EndSession = "sessions.end";
 
+    public const string CheckoutSession = "sessions.checkout";
+
     public const string CreatePlayerAccount = "players.create";
 
     public const string ViewPlayers = "players.view";

@@ -568,6 +568,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
             entity.HasIndex(sale => sale.PlayerAccountId);
             entity.HasIndex(sale => sale.State);
+            entity.HasIndex(sale => sale.SessionId);
         });
 
         modelBuilder.Entity<PosSaleLineEntity>(entity =>
@@ -589,6 +590,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(payment => payment.CurrencyCode).HasMaxLength(3).IsRequired();
             entity.Property(payment => payment.Note).HasMaxLength(512).IsRequired();
             entity.HasIndex(payment => new { payment.PosSaleId, payment.CreatedAtUtc });
+            entity.HasIndex(payment => new { payment.SessionId, payment.CreatedAtUtc });
         });
 
         modelBuilder.Entity<ReceiptEntity>(entity =>
@@ -605,6 +607,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 receipt.ReceiptNumber
             }).IsUnique();
             entity.HasIndex(receipt => receipt.PosSaleId);
+            entity.HasIndex(receipt => receipt.SessionId);
         });
 
         modelBuilder.Entity<UpdatePackageEntity>(entity =>

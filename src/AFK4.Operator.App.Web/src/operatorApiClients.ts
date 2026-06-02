@@ -81,6 +81,29 @@ export interface SessionCommandResponse {
   deviceCommands: Array<Record<string, unknown>>;
 }
 
+export interface PaymentPartDto {
+  paymentMethod: string;
+  amount: MoneyDto;
+}
+
+export interface SessionCheckoutRequest {
+  organizationId: Guid;
+  payments: PaymentPartDto[];
+  idempotencyKey: string;
+}
+
+export interface SessionCheckoutResponse {
+  idempotencyKey: string;
+  sessionId: Guid;
+  timeCharge: MoneyDto;
+  posTotal: MoneyDto;
+  grandTotal: MoneyDto;
+  payments: PaymentPartDto[];
+  receipt: Record<string, unknown>;
+  session: Record<string, unknown>;
+  deviceCommands: Array<Record<string, unknown>>;
+}
+
 export interface PosSaleLineDto {
   productId: Guid;
   quantity: number;
@@ -93,6 +116,8 @@ export interface CreatePosSaleRequest {
   lines: PosSaleLineDto[];
   idempotencyKey: string;
   playerAccountId?: Guid | null;
+  // When set, the sale joins an open session tab and is settled at checkout.
+  sessionId?: Guid | null;
 }
 
 export interface ManualPaymentRequest {
@@ -436,6 +461,9 @@ export function createSessionClient(api: PlatformApiClient) {
     },
     endSession(sessionId: Guid, request: EndSessionRequest): Promise<SessionCommandResponse> {
       return api.post<SessionCommandResponse, EndSessionRequest>(`/api/sessions/${sessionId}/end`, request);
+    },
+    checkoutSession(sessionId: Guid, request: SessionCheckoutRequest): Promise<SessionCheckoutResponse> {
+      return api.post<SessionCheckoutResponse, SessionCheckoutRequest>(`/api/sessions/${sessionId}/checkout`, request);
     }
   };
 }
