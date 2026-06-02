@@ -198,7 +198,12 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(localStorage.length).toBe(0);
+    // The native bridge keeps the session in Windows protected storage — it must never leak auth/session
+    // state into browser storage. (The non-sensitive offline floor-map cache from §6.5 is allowed.)
+    const sessionishKeys = Object.keys(localStorage).filter((key) =>
+      /token|session|auth|connection|credential/i.test(key)
+    );
+    expect(sessionishKeys).toEqual([]);
     expect(sessionStorage.length).toBe(0);
   });
 

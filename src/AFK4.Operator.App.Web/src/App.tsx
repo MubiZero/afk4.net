@@ -31,11 +31,21 @@ import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOpe
 import {
   applyDeviceStatusToSeats,
   createFixtureFloorMapState,
+  hydrateFloorMapStateFromCache,
   mapFloorMapDtoToState,
+  offlineBannerText,
   refreshFloorMapRemaining,
   type FloorMapLoadStatus,
   type OperatorFloorMapState
 } from './floorMapState';
+import { loadFloorMapCache, saveFloorMapCache } from './floorMapCache';
+import {
+  acknowledgeAction,
+  enqueueAction,
+  loadActionOutbox,
+  reconcileActionOutbox,
+  type OperatorCommandType
+} from './actionOutbox';
 import { isHostBridgeUnavailableError, postHostRequest, postHostWindowCommand, postHostWindowResize, type HostWindowResizeEdge } from './hostBridge';
 import {
   buildCheckoutPayments,
@@ -1275,7 +1285,10 @@ async function loadBackendFloorMapState(
   branchId: string
 ): Promise<OperatorFloorMapState> {
   const clients = createAuthenticatedOperatorClients(config, session);
-  return mapFloorMapDtoToState(await clients.floorMap.getFloorMap(branchId));
+  const floorMap = await clients.floorMap.getFloorMap(branchId);
+  // Persist the last-known-good snapshot so the workspace can degrade to a read-only mirror offline (§6.5).
+  saveFloorMapCache(branchId, floorMap, Date.now());
+  return mapFloorMapDtoToState(floorMap);
 }
 
 function createIdempotencyKey(operationName: string): string {
@@ -1804,12 +1817,14 @@ function MapWorkspace({
   floorMap,
   canUsePcControl,
   selectedSeatId,
+  offlineActionAudit,
   onSelectSeat,
   onPcControlAction
 }: {
   floorMap: OperatorFloorMapState;
   canUsePcControl: boolean;
   selectedSeatId: string;
+  offlineActionAudit: string[];
   onSelectSeat: (seatId: string) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
 }) {
@@ -1824,6 +1839,7 @@ function MapWorkspace({
     [activeFilter, floorMap.seats]
   );
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
+  const offlineBanner = offlineBannerText(floorMap);
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
   const selectedHasSession = selectedSeat !== null && (Boolean(selectedSeat.activeSessionId) || selectedSeat.hasActiveSession === true);
 
@@ -1973,6 +1989,12 @@ function MapWorkspace({
       {floorMap.loadStatus === 'failed' && (
         <FeedbackNotice feedback={{ label: 'Карта', state: 'failed', detail: floorMap.error ?? 'Не удалось загрузить карту.' }} />
       )}
+      {offlineBanner !== null && (
+        <FeedbackNotice feedback={{ label: 'Офлайн', state: 'pending', detail: offlineBanner }} />
+      )}
+      {offlineActionAudit.map((note, index) => (
+        <FeedbackNotice key={`offline-audit-${index}`} feedback={{ label: 'Очередь', state: 'failed', detail: note }} />
+      ))}
       <FeedbackNotice feedback={feedback} />
 
       <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label="ПК зала">
@@ -9356,6 +9378,7 @@ export function App() {
   const [shellDashboardSummary, setShellDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
   const [shellLoadStatus, setShellLoadStatus] = useState<LoadStatus>('loading');
   const [shellLoadError, setShellLoadError] = useState<string | null>(null);
+  const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
   const displayedFloorMap = useMemo(
     () => refreshFloorMapRemaining(floorMap, remainingNowMs),
     [floorMap, remainingNowMs]
@@ -9576,6 +9599,7 @@ export function App() {
 
         setFloorMap(nextState);
         setSelectedSeatId(nextState.seats[0]?.id ?? seats[0].id);
+        void drainQueuedActions(nextState.seats);
       } catch (error) {
         if (isUnauthorizedPlatformError(error)) {
           try {
@@ -9610,6 +9634,16 @@ export function App() {
         }
 
         if (disposed) {
+          return;
+        }
+
+        // Platform unreachable: hydrate the last-known-good snapshot into a read-only mirror (§6.5).
+        // Fall back to the error surface only when there is nothing cached for this branch.
+        const cached = loadFloorMapCache(branchId);
+        if (cached) {
+          const degraded = hydrateFloorMapStateFromCache(cached, branchId);
+          setFloorMap(degraded);
+          setSelectedSeatId((current) => current ?? degraded.seats[0]?.id ?? seats[0].id);
           return;
         }
 
@@ -9918,6 +9952,46 @@ export function App() {
     return { detail };
   };
 
+  // On reconnect (§6.5): replay queued lock/unlock against the now-authoritative map; drop actions whose
+  // seat or session moved on while offline, recording an operator-visible audit note (D9).
+  const drainQueuedActions = async (liveSeats: SeatSummary[]): Promise<void> => {
+    const pending = loadActionOutbox();
+    if (pending.length === 0) {
+      return;
+    }
+
+    const { replay, dropped } = reconcileActionOutbox(pending, liveSeats);
+    for (const drop of dropped) {
+      acknowledgeAction(drop.entry.idempotencyKey);
+    }
+    if (dropped.length > 0) {
+      setOfflineActionAudit((current) => [...current, ...dropped.map((drop) => drop.note)]);
+    }
+
+    if (replay.length === 0) {
+      return;
+    }
+
+    const nextBackend = backendContext;
+    if (nextBackend === null || !hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
+      return;
+    }
+
+    const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+    for (const entry of replay) {
+      try {
+        await clients.devices.dispatchDeviceCommand(entry.deviceId, {
+          type: entry.commandType,
+          payload: { reason: 'operator-offline-replay', source: 'operator-map', seatId: entry.seatId }
+        });
+        acknowledgeAction(entry.idempotencyKey);
+      } catch {
+        // Connectivity dropped again mid-drain; keep the rest queued for the next refresh.
+        break;
+      }
+    }
+  };
+
   const handlePcControlAction = async (seat: SeatSummary, action: PcControlActionId): Promise<PcControlActionResult> => {
     const nextBackend = requireBackend(backendContext);
     if (!seat.deviceId) {
@@ -9942,6 +10016,21 @@ export function App() {
     if (action === 'lock' || action === 'unlock') {
       if (!hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
         throw new Error('Нет прав на отправку команд ПК.');
+      }
+
+      // Offline (§6.5): queue the idempotent lock/unlock locally instead of dispatching; it replays (or is
+      // dropped if superseded) on reconnect. Billing actions stay online-only (D2) and are gated elsewhere.
+      if (floorMapRef.current.isOffline) {
+        enqueueAction({
+          idempotencyKey: createIdempotencyKey(`device-${action}`),
+          deviceId: seat.deviceId,
+          seatId: seat.id,
+          seatName: seat.name,
+          commandType: action as OperatorCommandType,
+          expectedSessionId: seat.activeSessionId ?? null,
+          queuedAtMs: Date.now()
+        });
+        return { detail: `Команда «${action}» поставлена в очередь — будет отправлена после восстановления связи.` };
       }
 
       const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, {
@@ -10033,6 +10122,7 @@ export function App() {
           floorMap={displayedFloorMap}
           canUsePcControl={canUsePcControl}
           selectedSeatId={selectedSeat?.id ?? ''}
+          offlineActionAudit={offlineActionAudit}
           onSelectSeat={setSelectedSeatId}
           onPcControlAction={handlePcControlAction}
         />

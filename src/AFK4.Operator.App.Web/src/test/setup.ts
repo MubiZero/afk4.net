@@ -22,4 +22,7 @@ const { cleanup } = await import('@testing-library/react');
 
 afterEach(() => {
   cleanup();
+  // Keep tests isolated now that the offline floor-map cache / action outbox persist to web storage (§6.5).
+  localStorage.clear();
+  sessionStorage.clear();
 });
