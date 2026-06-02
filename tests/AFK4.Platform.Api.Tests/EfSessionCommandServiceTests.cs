@@ -26,6 +26,7 @@ public sealed class EfSessionCommandServiceTests
         var request = new StartGuestSessionRequest(
             TestIds.OrganizationId,
             SeatId,
+            DurationMode: SessionDurationModes.Fixed,
             DurationMinutes: 60,
             TariffRuleVersionId: "manual-v1",
             IdempotencyKey: "start-seat-1-20260513-1000");
@@ -76,6 +77,7 @@ public sealed class EfSessionCommandServiceTests
         var request = new StartGuestSessionRequest(
             TestIds.OrganizationId,
             SeatId,
+            DurationMode: SessionDurationModes.Fixed,
             DurationMinutes: 60,
             TariffRuleVersionId: "manual-v1",
             IdempotencyKey: "start-seat-1-20260513-1000");
@@ -101,6 +103,7 @@ public sealed class EfSessionCommandServiceTests
         var firstRequest = new StartGuestSessionRequest(
             TestIds.OrganizationId,
             SeatId,
+            DurationMode: SessionDurationModes.Fixed,
             DurationMinutes: 60,
             TariffRuleVersionId: "manual-v1",
             IdempotencyKey: "start-seat-1-20260513-1000");
@@ -126,7 +129,7 @@ public sealed class EfSessionCommandServiceTests
         var start = await service.StartGuestSessionAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-        new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"),
+        new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
             CancellationToken.None);
         Assert.NotNull(start.Response);
         dispatcher.Clear();
@@ -165,7 +168,7 @@ public sealed class EfSessionCommandServiceTests
         var start = await service.StartGuestSessionAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"),
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
             CancellationToken.None);
         Assert.NotNull(start.Response);
 
@@ -202,7 +205,7 @@ public sealed class EfSessionCommandServiceTests
         var start = await service.StartGuestSessionAsync(
             TestIds.BranchId,
             ActorStaffUserId,
-        new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"),
+        new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
             CancellationToken.None);
         Assert.NotNull(start.Response);
         dispatcher.Clear();

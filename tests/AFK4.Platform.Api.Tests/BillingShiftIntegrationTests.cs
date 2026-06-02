@@ -115,12 +115,13 @@ public sealed class BillingShiftIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-prepaid-001",
-                PlayerAccountId,
-                BillingModeNames.PrepaidWallet,
-                tariffVersion.TariffVersionId,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
             CancellationToken.None);
 

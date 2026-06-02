@@ -34,6 +34,7 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "manual-v1",
                 IdempotencyKey: "start-guest-no-billing-001"),
@@ -66,12 +67,13 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-prepaid-001",
-                PlayerAccountId,
-                BillingModeNames.PrepaidWallet,
-                tariffVersion.TariffVersionId,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
             CancellationToken.None);
 
@@ -104,12 +106,13 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-prepaid-insufficient-001",
-                PlayerAccountId,
-                BillingModeNames.PrepaidWallet,
-                tariffVersion.TariffVersionId,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
             CancellationToken.None);
 
@@ -137,12 +140,13 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-prepaid-currency-mismatch-001",
-                PlayerAccountId,
-                BillingModeNames.PrepaidWallet,
-                tariffVersion.TariffVersionId,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
             CancellationToken.None);
 
@@ -172,12 +176,13 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-prepaid-mixed-currency-001",
-                PlayerAccountId,
-                BillingModeNames.PrepaidWallet,
-                tariffVersion.TariffVersionId,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
             CancellationToken.None);
 
@@ -244,12 +249,13 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-postpaid-001",
-                PlayerAccountId,
-                BillingModeNames.PostpaidDebt,
-                tariffVersion.TariffVersionId,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PostpaidDebt,
+                TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
             CancellationToken.None);
 
@@ -281,13 +287,14 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-package-001",
-                PlayerAccountId,
-                BillingModeNames.Package,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.Package,
                 TariffVersionId: null,
-                PlayerPackageId),
+                PlayerPackageId: PlayerPackageId),
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -319,13 +326,14 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-package-insufficient-001",
-                PlayerAccountId,
-                BillingModeNames.Package,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.Package,
                 TariffVersionId: null,
-                PlayerPackageId),
+                PlayerPackageId: PlayerPackageId),
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
@@ -349,12 +357,13 @@ public sealed class EfSessionBillingIntegrationTests
         var request = new StartGuestSessionRequest(
             TestIds.OrganizationId,
             SeatId,
+            DurationMode: SessionDurationModes.Fixed,
             DurationMinutes: 60,
             TariffRuleVersionId: "ignored-manual-v1",
             IdempotencyKey: "start-prepaid-idempotent-001",
-            PlayerAccountId,
-            BillingModeNames.PrepaidWallet,
-            tariffVersion.TariffVersionId,
+            PlayerAccountId: PlayerAccountId,
+            BillingMode: BillingModeNames.PrepaidWallet,
+            TariffVersionId: tariffVersion.TariffVersionId,
             PlayerPackageId: null);
 
         var first = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
@@ -388,12 +397,13 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-prepaid-notify-001",
-                PlayerAccountId,
-                BillingModeNames.PrepaidWallet,
-                tariffVersion.TariffVersionId,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
             CancellationToken.None);
 
@@ -445,6 +455,203 @@ public sealed class EfSessionBillingIntegrationTests
         Assert.Equal("refresh-session-lease", notified.Command.Type);
     }
 
+    [Fact]
+    public async Task StartGuestSessionAsync_OpenTabPostpaid_StartsWithoutEndOrStartCharge()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMode: SessionDurationModes.Open,
+                DurationMinutes: null,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-open-postpaid-001",
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PostpaidDebt,
+                TariffVersionId: tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Active, session.State);
+        Assert.Null(session.EndsAtUtc);
+        // Open-tab postpaid defers the charge to checkout: no debt entry at start.
+        Assert.Empty(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.PostpaidDebt));
+        Assert.Single(dispatcher.Enqueued);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_OpenTabPrepaid_IsRejected()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMode: SessionDurationModes.Open,
+                DurationMinutes: null,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-open-prepaid-001",
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(db.Sessions);
+        Assert.Empty(dispatcher.Enqueued);
+    }
+
+    [Fact]
+    public async Task ComputeCheckoutChargeAsync_OpenTabPostpaid_ReturnsAccruedAmount()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMode: SessionDurationModes.Open,
+                DurationMinutes: null,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-open-postpaid-charge-001",
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PostpaidDebt,
+                TariffVersionId: tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+
+        var billing = CreateBillingService(db);
+        // 40 min elapsed -> max(40, min 30) = 40 -> round up to 15-min increment = 45 -> 45 * 50 = 2250.
+        var charge = await billing.ComputeCheckoutChargeAsync(
+            start.Response.Session.SessionId,
+            Now.AddMinutes(40),
+            CancellationToken.None);
+
+        Assert.True(charge.Succeeded);
+        Assert.Equal(2250, charge.AmountMinorUnits);
+        Assert.Equal(tariffVersion.TariffVersionId, charge.TariffVersionId);
+        Assert.Equal("TJS", charge.CurrencyCode);
+    }
+
+    [Fact]
+    public async Task AppendCheckoutLedgerEntriesAsync_OpenTabPostpaid_WritesSingleDebtEntry()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        await SeedPlayerAsync(db);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        await SeedOpenShiftAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMode: SessionDurationModes.Open,
+                DurationMinutes: null,
+                TariffRuleVersionId: "ignored-manual-v1",
+                IdempotencyKey: "start-open-postpaid-append-001",
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PostpaidDebt,
+                TariffVersionId: tariffVersion.TariffVersionId,
+                PlayerPackageId: null),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+        var sessionId = start.Response.Session.SessionId;
+
+        var billing = CreateBillingService(db);
+        var checkoutTime = Now.AddMinutes(40);
+        var charge = await billing.ComputeCheckoutChargeAsync(sessionId, checkoutTime, CancellationToken.None);
+        await billing.AppendCheckoutLedgerEntriesAsync(
+            sessionId,
+            ActorStaffUserId,
+            charge,
+            PlayerAccountId,
+            checkoutTime,
+            CancellationToken.None);
+        await db.SaveChangesAsync();
+
+        var debt = Assert.Single(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.PostpaidDebt));
+        Assert.Equal(2250, debt.AmountMinorUnits);
+        Assert.Equal(LedgerAccountTypeNames.Debt, debt.AccountType);
+        Assert.Equal(sessionId, debt.SessionId);
+    }
+
+    [Fact]
+    public async Task ComputeCheckoutChargeAsync_GuestSession_ReturnsZeroCharge()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        var dispatcher = new RecordingCommandDispatchService(db);
+        var service = CreateService(db, dispatcher);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId,
+                SeatId,
+                DurationMode: SessionDurationModes.Open,
+                DurationMinutes: null,
+                TariffRuleVersionId: "manual-v1",
+                IdempotencyKey: "start-open-guest-charge-001"),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+
+        var billing = CreateBillingService(db);
+        var charge = await billing.ComputeCheckoutChargeAsync(
+            start.Response.Session.SessionId,
+            Now.AddMinutes(40),
+            CancellationToken.None);
+
+        Assert.True(charge.Succeeded);
+        Assert.Equal(0, charge.AmountMinorUnits);
+    }
+
+    private static SessionBillingService CreateBillingService(PlatformDbContext db)
+    {
+        var timeProvider = new FixedTimeProvider(Now);
+        return new SessionBillingService(
+            db,
+            new EfTariffService(db, timeProvider),
+            new EfShiftService(db, timeProvider),
+            timeProvider);
+    }
+
     private static async Task<SessionCommandServiceResult> StartPrepaidSessionAsync(
         EfSessionCommandService service,
         Guid tariffVersionId,
@@ -456,12 +663,13 @@ public sealed class EfSessionBillingIntegrationTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: idempotencyKey,
-                PlayerAccountId,
-                BillingModeNames.PrepaidWallet,
-                tariffVersionId,
+                PlayerAccountId: PlayerAccountId,
+                BillingMode: BillingModeNames.PrepaidWallet,
+                TariffVersionId: tariffVersionId,
                 PlayerPackageId: null),
             CancellationToken.None);
     }

@@ -56,6 +56,25 @@ internal sealed class FakeSessionBillingService : ISessionBillingService
         return Task.CompletedTask;
     }
 
+    public Task<SessionBillingValidationResult> ComputeCheckoutChargeAsync(
+        Guid sessionId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(Valid(0));
+    }
+
+    public Task AppendCheckoutLedgerEntriesAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        SessionBillingValidationResult validation,
+        Guid playerAccountId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
     private static SessionBillingValidationResult Valid(int minutes)
     {
         return new SessionBillingValidationResult(

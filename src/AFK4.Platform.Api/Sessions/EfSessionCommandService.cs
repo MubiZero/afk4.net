@@ -3,6 +3,7 @@ using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
@@ -26,6 +27,17 @@ public sealed class EfSessionCommandService(
         SessionStateNames.Ending
     ];
 
+    private static string? NormalizeDurationMode(string? durationMode)
+    {
+        var normalized = (durationMode ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalized.Length == 0)
+        {
+            return SessionDurationModes.Open;
+        }
+
+        return SessionDurationModes.IsValid(normalized) ? normalized : null;
+    }
+
     public async Task<SessionCommandServiceResult> StartGuestSessionAsync(
         Guid branchId,
         Guid actorStaffUserId,
@@ -45,10 +57,32 @@ public sealed class EfSessionCommandService(
             return idempotency;
         }
 
-        if (request.DurationMinutes <= 0)
+        var durationMode = NormalizeDurationMode(request.DurationMode);
+        if (durationMode is null)
         {
-            return SessionCommandServiceResult.Invalid("Session duration must be positive.");
+            return SessionCommandServiceResult.Invalid("Unsupported session duration mode.");
         }
+
+        var isFixed = durationMode == SessionDurationModes.Fixed;
+        var billingMode = (request.BillingMode ?? string.Empty).Trim();
+
+        if (isFixed)
+        {
+            if (request.DurationMinutes is not > 0)
+            {
+                return SessionCommandServiceResult.Invalid("Fixed-duration sessions require a positive duration.");
+            }
+        }
+        else if (billingMode is not ("" or BillingModeNames.PostpaidDebt))
+        {
+            // Open tab has no known amount up front, so prepaid/package cannot use it.
+            return SessionCommandServiceResult.Invalid(
+                "Open-tab sessions support guest or postpaid billing only; choose a fixed duration for prepaid or package billing.");
+        }
+
+        // For validation we need a positive duration to resolve tariff/player/shift.
+        // Open tabs defer the real charge to checkout, so a nominal minute is enough here.
+        var validationMinutes = isFixed ? request.DurationMinutes!.Value : 1;
 
         var assignment = await LoadActiveAssignmentAsync(
             request.OrganizationId,
@@ -80,10 +114,10 @@ public sealed class EfSessionCommandService(
                 request.OrganizationId,
                 branchId,
                 request.PlayerAccountId,
-                request.BillingMode,
+                billingMode,
                 request.TariffVersionId,
                 request.PlayerPackageId,
-                request.DurationMinutes,
+                validationMinutes,
                 cancellationToken);
 
             if (!billingValidation.Succeeded)
@@ -93,7 +127,7 @@ public sealed class EfSessionCommandService(
 
             var now = timeProvider.GetUtcNow();
             var sessionId = Guid.NewGuid();
-            var endsAtUtc = now.AddMinutes(request.DurationMinutes);
+            DateTimeOffset? endsAtUtc = isFixed ? now.AddMinutes(request.DurationMinutes!.Value) : null;
             var lease = leaseSigner.Sign(
                 sessionId,
                 request.OrganizationId,
@@ -131,7 +165,9 @@ public sealed class EfSessionCommandService(
             AddEvent(session, "session-started", actorStaffUserId, deviceId: assignment.DeviceId, now);
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            if (request.PlayerAccountId is not null)
+            // Open-tab postpaid defers its charge to checkout; only fixed-duration
+            // (and prepaid/package) sessions write the charge at start.
+            if (isFixed && request.PlayerAccountId is not null)
             {
                 await sessionBillingService.AppendStartLedgerEntriesAsync(
                     sessionId,
@@ -139,7 +175,7 @@ public sealed class EfSessionCommandService(
                     billingValidation,
                     request.PlayerAccountId.Value,
                     request.PlayerPackageId,
-                    request.BillingMode,
+                    billingMode,
                     now,
                     cancellationToken);
                 await dbContext.SaveChangesAsync(cancellationToken);

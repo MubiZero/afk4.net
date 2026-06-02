@@ -9593,6 +9593,7 @@ export function App() {
       response = await clients.sessions.startGuestSession(branchId, {
         organizationId: session.organizationId,
         seatId: request.seat.id,
+        durationMode: 'fixed',
         durationMinutes: defaultSessionDurationMinutes,
         tariffRuleVersionId: billing.tariffRuleVersionId,
         idempotencyKey: createIdempotencyKey('session-start'),

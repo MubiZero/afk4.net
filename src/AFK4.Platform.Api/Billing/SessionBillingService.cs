@@ -440,6 +440,114 @@ public sealed class SessionBillingService(
         }
     }
 
+    public async Task<SessionBillingValidationResult> ComputeCheckoutChargeAsync(
+        Guid sessionId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var session = await dbContext.Sessions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+        if (session is null)
+        {
+            return Invalid("Session was not found.");
+        }
+
+        // A guest/unbilled session carries a non-GUID tariff rule id; nothing accrues.
+        if (!Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId))
+        {
+            return new SessionBillingValidationResult(
+                Succeeded: true,
+                Error: null,
+                session.TariffRuleVersionId,
+                TariffVersionId: null,
+                BillableSeconds: 0,
+                AmountMinorUnits: 0,
+                DefaultCurrencyCode);
+        }
+
+        var version = await dbContext.TariffVersions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.OrganizationId == session.OrganizationId &&
+                    candidate.BranchId == session.BranchId &&
+                    candidate.TariffVersionId == tariffVersionId,
+                cancellationToken);
+
+        // The session is bound to this version for its whole life, even if the
+        // tariff was retired after the session started, so no effective-window guard here.
+        if (version is null)
+        {
+            return Invalid("Tariff version for the session was not found.");
+        }
+
+        var startedAtUtc = session.StartedAtUtc ?? session.RequestedAtUtc;
+        var pricing = new TariffPricing(
+            version.PricePerMinuteMinorUnits,
+            version.MinimumBillableMinutes,
+            version.RoundingIncrementMinutes,
+            version.CurrencyCode);
+        var computation = TariffBilling.ComputeForElapsed(now - startedAtUtc, pricing);
+        if (computation is null)
+        {
+            return Invalid("Checkout charge could not be computed.");
+        }
+
+        var billableSeconds = (int)Math.Min(int.MaxValue, (long)computation.BillableMinutes * 60);
+        return new SessionBillingValidationResult(
+            Succeeded: true,
+            Error: null,
+            version.TariffVersionId.ToString("D"),
+            version.TariffVersionId,
+            billableSeconds,
+            computation.AmountMinorUnits,
+            computation.CurrencyCode);
+    }
+
+    public async Task AppendCheckoutLedgerEntriesAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        SessionBillingValidationResult validation,
+        Guid playerAccountId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        if (!validation.Succeeded)
+        {
+            throw new InvalidOperationException("Cannot append ledger entries for failed checkout charge validation.");
+        }
+
+        if (validation.AmountMinorUnits == 0)
+        {
+            // Open tab with zero billable time produces no debt entry.
+            return;
+        }
+
+        var session = await dbContext.Sessions
+            .SingleAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+        var shiftId = await GetRequiredOpenShiftIdAsync(session.OrganizationId, session.BranchId, cancellationToken);
+
+        dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+            session.OrganizationId,
+            session.BranchId,
+            playerAccountId,
+            sessionId,
+            playerPackageId: null,
+            LedgerEntryTypeNames.PostpaidDebt,
+            LedgerAccountTypeNames.Debt,
+            validation.AmountMinorUnits,
+            quantitySeconds: 0,
+            validation.CurrencyCode,
+            LedgerEntryTypeNames.PostpaidDebt,
+            "postpaid open-tab gameplay debt (checkout)",
+            reversesLedgerEntryId: null,
+            actorStaffUserId,
+            now,
+            shiftId));
+    }
+
     private async Task<Guid> GetRequiredOpenShiftIdAsync(
         Guid organizationId,
         Guid branchId,

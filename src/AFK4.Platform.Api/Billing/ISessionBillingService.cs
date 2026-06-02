@@ -50,4 +50,26 @@ public interface ISessionBillingService
         string billingMode,
         DateTimeOffset now,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Compute the time charge for an open-tab postpaid session at checkout from
+    /// the elapsed time (<c>StartedAtUtc → now</c>) and the session's tariff. A
+    /// guest/unbilled session yields a zero charge.
+    /// </summary>
+    Task<SessionBillingValidationResult> ComputeCheckoutChargeAsync(
+        Guid sessionId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Write the deferred time-charge ledger entry for an open-tab postpaid
+    /// session at checkout. A zero charge writes nothing.
+    /// </summary>
+    Task AppendCheckoutLedgerEntriesAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        SessionBillingValidationResult validation,
+        Guid playerAccountId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
 }

@@ -383,13 +383,14 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         var request = new StartGuestSessionRequest(
             organizationIdValue,
             seat.SeatId,
-            DurationMinutes,
             TariffRuleVersionId.Trim(),
             idempotencyKeyFactory.Create("session-start"),
-            playerAccountId,
-            BillingMode.Trim(),
-            tariffVersionId,
-            playerPackageId);
+            DurationMode: SessionDurationModes.Fixed,
+            DurationMinutes: DurationMinutes,
+            PlayerAccountId: playerAccountId,
+            BillingMode: BillingMode.Trim(),
+            TariffVersionId: tariffVersionId,
+            PlayerPackageId: playerPackageId);
 
         await ExecuteBackendCommandAsync(
             token => apiClient.StartGuestSessionAsync(branchIdValue, request, token),

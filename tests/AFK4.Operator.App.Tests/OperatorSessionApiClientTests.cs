@@ -28,9 +28,10 @@ public sealed class OperatorSessionApiClientTests
         var request = new StartGuestSessionRequest(
             OrganizationId,
             SeatId,
-            60,
             "default",
             "session-start-001",
+            SessionDurationModes.Fixed,
+            60,
             BillingMode: BillingModeNames.PostpaidDebt);
 
         var response = await client.StartGuestSessionAsync(BranchId, request, CancellationToken.None);

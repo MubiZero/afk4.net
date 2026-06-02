@@ -41,7 +41,9 @@ export interface FloorMapZoneDto {
 export interface StartGuestSessionRequest {
   organizationId: Guid;
   seatId: Guid;
-  durationMinutes: number;
+  // "open" (open tab, no end boundary) or "fixed" (reserves durationMinutes up front).
+  durationMode?: string;
+  durationMinutes?: number | null;
   tariffRuleVersionId: string;
   idempotencyKey: string;
   playerAccountId?: Guid | null;

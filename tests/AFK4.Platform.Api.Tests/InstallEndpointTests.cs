@@ -218,6 +218,7 @@ public sealed class InstallEndpointTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 TestIds.SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 30,
                 TariffRuleVersionId: "manual-v1",
                 IdempotencyKey: "pending-device-start"));

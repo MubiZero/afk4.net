@@ -256,6 +256,7 @@ public sealed class SessionReconciliationEndpointTests
             new StartGuestSessionRequest(
                 OrganizationId: TestIds.OrganizationId,
                 SeatId: SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "manual-v1",
                 IdempotencyKey: $"start-seat-1-{Guid.NewGuid():N}"));

@@ -27,7 +27,7 @@ public sealed class SessionEndpointTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"));
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -42,7 +42,7 @@ public sealed class SessionEndpointTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"));
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -76,6 +76,7 @@ public sealed class SessionEndpointTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
+                DurationMode: SessionDurationModes.Fixed,
                 DurationMinutes: 60,
                 TariffRuleVersionId: "ignored-manual-v1",
                 IdempotencyKey: "start-real-prepaid-001",
@@ -106,7 +107,7 @@ public sealed class SessionEndpointTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"));
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -124,7 +125,7 @@ public sealed class SessionEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
         await SeedLayoutAsync(factory, includeTargetSeat: false);
-        var request = new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1");
+        var request = new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60);
 
         var firstResponse = await client.PostAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/sessions/start", request);
         var secondResponse = await client.PostAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/sessions/start", request);
@@ -149,10 +150,10 @@ public sealed class SessionEndpointTests
 
         var firstResponse = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", "start-seat-1"));
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
         var conflict = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
-            new StartGuestSessionRequest(TestIds.OrganizationId, TargetSeatId, 60, "manual-v1", "start-seat-1"));
+            new StartGuestSessionRequest(TestIds.OrganizationId, TargetSeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
 
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
@@ -238,7 +239,7 @@ public sealed class SessionEndpointTests
     {
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", $"start-seat-1-{Guid.NewGuid():N}"));
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", $"start-seat-1-{Guid.NewGuid():N}", SessionDurationModes.Fixed, 60));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
