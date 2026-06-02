@@ -114,6 +114,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ReportScheduleEntity> ReportSchedules => Set<ReportScheduleEntity>();
 
+    public DbSet<StaffMoneyCapEntity> StaffMoneyCaps => Set<StaffMoneyCapEntity>();
+
     public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
 
     public DbSet<StaffInviteEntity> StaffInvites => Set<StaffInviteEntity>();
@@ -868,6 +870,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(schedule => schedule.Frequency).HasMaxLength(16).IsRequired();
             entity.HasIndex(schedule => new { schedule.IsActive, schedule.NextRunUtc });
             entity.HasIndex(schedule => new { schedule.OrganizationId, schedule.BranchId });
+        });
+
+        modelBuilder.Entity<StaffMoneyCapEntity>(entity =>
+        {
+            entity.ToTable("staff_money_caps");
+            entity.HasKey(cap => cap.StaffMoneyCapId);
+            entity.Property(cap => cap.RoleName).HasMaxLength(64).IsRequired();
+            entity.Property(cap => cap.ActionScope).HasMaxLength(32).IsRequired();
+            entity.HasIndex(cap => new { cap.BranchId, cap.RoleName, cap.ActionScope }).IsUnique();
         });
 
         modelBuilder.Entity<PasswordResetTokenEntity>(entity =>
