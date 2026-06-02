@@ -246,6 +246,8 @@ builder.Services.AddScoped<AutoProtectionRunner>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
 builder.Services.AddScoped<IMoneyActionPolicyResolver, EfMoneyActionPolicyResolver>();
+builder.Services.AddScoped<IMoneyActionExecutor, EfMoneyActionExecutor>();
+builder.Services.AddScoped<IMoneyActionApprovalService, MoneyActionApprovalService>();
 builder.Services.AddScoped<ITariffService, EfTariffService>();
 builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
