@@ -530,6 +530,30 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^session-start-/);
   });
 
+  it('starts a ready seat as an open tab when the duration toggle is set', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect((await screen.findAllByText(/Платформа подключена/)).length).toBeGreaterThan(0);
+    fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Открытый счёт оплата при завершении/ }));
+    const startButton = await screen.findByRole('button', { name: /Старт · открытый счёт/ });
+    expect(startButton).toBeEnabled();
+    fireEvent.click(startButton);
+
+    await waitFor(() => {
+      const postCall = fetchMock.mock.calls.find(([input, init]) =>
+        String(input).includes('/sessions/start') && init?.method === 'POST');
+      expect(postCall).toBeDefined();
+      const body = JSON.parse(String(postCall?.[1]?.body));
+      expect(body.durationMode).toBe('open');
+      expect(body.durationMinutes).toBeNull();
+      expect(body.billingMode).toBe('');
+    });
+  });
+
   it('starts a ready seat with player billing metadata and command status', async () => {
     installSessionBridge();
 

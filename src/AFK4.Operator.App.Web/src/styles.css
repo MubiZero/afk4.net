@@ -558,6 +558,14 @@ button {
   gap: 6px;
 }
 
+.duration-mode {
+  margin-top: 8px;
+}
+
+.duration-mode button {
+  flex: 1;
+}
+
 .map-load-state {
   display: inline-flex;
   align-items: center;

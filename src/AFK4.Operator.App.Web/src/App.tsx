@@ -122,8 +122,9 @@ type SessionBillingSelection = {
 type SeatActionResult = {
   detail?: string;
 };
+type SessionStartDurationMode = 'fixed' | 'open';
 type SeatActionRequest =
-  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection }
+  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode }
   | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
   | { type: 'end'; seat: SeatSummary }
@@ -3467,6 +3468,7 @@ function MapSidePanel({
   const activeBilling = billingLabel(seat.billing);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
+  const [durationMode, setDurationMode] = useState<SessionStartDurationMode>('fixed');
   const [playerSearch, setPlayerSearch] = useState('');
   const [billingPlayers, setBillingPlayers] = useState<PlayerClientItem[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
@@ -3533,6 +3535,10 @@ function MapSidePanel({
         ? 'выберите пакет игрока'
         : null;
   const billingReady = billingMissing === null;
+  // An open tab (no fixed duration, settled later at checkout) is only valid for
+  // an unbilled guest or a postpaid-debt player; other modes must be fixed.
+  const openTabAllowed = billingMode === 'guest' || billingMode === 'postpaid_debt';
+  const effectiveDurationMode: SessionStartDurationMode = openTabAllowed ? durationMode : 'fixed';
   const canStartSession = actionsEnabled && canStartPermission && billingReady && !hasActionableSession && seat.tone === 'ready';
   const canExtendSession = actionsEnabled && canExtendPermission && billingReady && hasActionableSession;
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
@@ -3719,7 +3725,7 @@ function MapSidePanel({
           </>
         ) : (
           <>
-            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction('Старт 60 мин', { type: 'start', seat, billing: billingSelection })}><Plus size={15} />Старт 60 мин</button>
+            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction(effectiveDurationMode === 'open' ? 'Старт (открытый счёт)' : 'Старт 60 мин', { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode })}><Plus size={15} />{effectiveDurationMode === 'open' ? 'Старт · открытый счёт' : 'Старт 60 мин'}</button>
             <button type="button" disabled><TimerReset size={15} />Нет сессии</button>
           </>
         )}
@@ -3824,6 +3830,30 @@ function MapSidePanel({
             );
           })}
         </div>
+        {!hasActiveSession && (
+          <div className="billing-mode duration-mode" aria-label="Длительность сессии">
+            <button
+              type="button"
+              className={effectiveDurationMode === 'fixed' ? 'active' : undefined}
+              disabled={!actionsEnabled || isBusy}
+              title="Фиксированные 60 минут"
+              onClick={() => setDurationMode('fixed')}
+            >
+              <span>60 мин</span>
+              <small>фиксировано</small>
+            </button>
+            <button
+              type="button"
+              className={effectiveDurationMode === 'open' ? 'active' : undefined}
+              disabled={!actionsEnabled || isBusy || !openTabAllowed}
+              title={openTabAllowed ? 'Время идёт, оплата при завершении' : 'Доступно для гостя или постоплаты'}
+              onClick={() => setDurationMode('open')}
+            >
+              <span>Открытый счёт</span>
+              <small>{openTabAllowed ? 'оплата при завершении' : 'гость / постоплата'}</small>
+            </button>
+          </div>
+        )}
         {billingMode !== 'guest' && (
           <>
             <label className="context-transfer-target billing-input-row">
@@ -9804,11 +9834,12 @@ export function App() {
       }
 
       const billing = request.billing;
+      const isOpenTab = request.durationMode === 'open';
       response = await clients.sessions.startGuestSession(branchId, {
         organizationId: session.organizationId,
         seatId: request.seat.id,
-        durationMode: 'fixed',
-        durationMinutes: defaultSessionDurationMinutes,
+        durationMode: isOpenTab ? 'open' : 'fixed',
+        durationMinutes: isOpenTab ? null : defaultSessionDurationMinutes,
         tariffRuleVersionId: billing.tariffRuleVersionId,
         idempotencyKey: createIdempotencyKey('session-start'),
         playerAccountId: billing.playerAccountId ?? null,
