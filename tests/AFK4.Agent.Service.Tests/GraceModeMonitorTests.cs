@@ -22,6 +22,7 @@ public sealed class GraceModeMonitorTests
             leaseStore,
             runtimeStore,
             lockController,
+            new OfflineLeaseExtender(new OfflineGraceState()),
             new FixedTimeProvider(Now),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance);
 
@@ -45,6 +46,7 @@ public sealed class GraceModeMonitorTests
             leaseStore,
             runtimeStore,
             lockController,
+            new OfflineLeaseExtender(new OfflineGraceState()),
             new FixedTimeProvider(Now),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance);
 
@@ -54,6 +56,31 @@ public sealed class GraceModeMonitorTests
         Assert.Null(leaseStore.Current);
         Assert.Equal(PlayerShellStateNames.Locked, runtimeStore.Current.State);
         Assert.Equal(1, lockController.LockCount);
+    }
+
+    [Fact]
+    public async Task EnforceAsync_WithExpiredLeaseButWithinOfflineGrace_DoesNotLock()
+    {
+        var leaseStore = new InMemorySessionLeaseStore();
+        var lease = CreateLease(Now.AddSeconds(-1));
+        leaseStore.Save(lease);
+        var runtimeStore = new RecordingRuntimeStateStore();
+        runtimeStore.MarkActive(lease, Now.AddMinutes(-15));
+        var lockController = new RecordingWorkstationLockController();
+        var grace = new OfflineGraceState();
+        grace.RecordSuccessfulContact(Now.AddMinutes(-3), effectiveGraceMinutes: 15); // dropped 3 min ago
+        var monitor = new GraceModeMonitor(
+            leaseStore,
+            runtimeStore,
+            lockController,
+            new OfflineLeaseExtender(grace),
+            new FixedTimeProvider(Now),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GraceModeMonitor>.Instance);
+
+        await monitor.EnforceAsync(CancellationToken.None);
+
+        Assert.Equal(lease, leaseStore.Current); // lease retained for reconnect
+        Assert.Equal(0, lockController.LockCount);
     }
 
     private static SessionLeaseDto CreateLease(DateTimeOffset expiresAtUtc)

@@ -46,7 +46,8 @@ public sealed class WorkerTests
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
-            new NoOpInstalledAppReporter());
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState());
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -54,6 +55,46 @@ public sealed class WorkerTests
 
         Assert.Equal($"/api/devices/{options.Value.DeviceId}/heartbeat", handler.RequestUri?.PathAndQuery);
         Assert.Equal("device-secret", handler.CredentialSecret);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OnSuccessfulHeartbeat_RecordsOfflineGraceContact()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        using var handler = new GraceAdvertisingHeartbeatHandler(effectiveGraceMinutes: 42);
+        var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001"
+        });
+        var graceState = new SignalingGraceState();
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            httpClientFactory,
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: false),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            graceState);
+
+        await worker.StartAsync(stopping.Token);
+        await graceState.Recorded.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.NotNull(graceState.LastSuccessfulContactUtc);
+        Assert.Equal(42, graceState.EffectiveGraceMinutes);
     }
 
     [Fact]
@@ -86,7 +127,8 @@ public sealed class WorkerTests
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
-            new NoOpInstalledAppReporter());
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState());
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -135,7 +177,8 @@ public sealed class WorkerTests
                     InstallLocation: null,
                     InstalledAtUtc: null)
             ]),
-            reporter);
+            reporter,
+            new OfflineGraceState());
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -185,7 +228,8 @@ public sealed class WorkerTests
                     InstallLocation: null,
                     InstalledAtUtc: null)
             ]),
-            new RecordingInstalledAppReporter(calls));
+            new RecordingInstalledAppReporter(calls),
+            new OfflineGraceState());
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -233,7 +277,8 @@ public sealed class WorkerTests
             commandHandler,
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
-            new NoOpInstalledAppReporter());
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState());
 
         await worker.StartAsync(stopping.Token);
         await resultPosted.Task.WaitAsync(WorkerObservationTimeout);
@@ -278,7 +323,8 @@ public sealed class WorkerTests
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
-            new NoOpInstalledAppReporter());
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState());
 
         await worker.StartAsync(stopping.Token);
         await recoveredHeartbeat.Task.WaitAsync(WorkerObservationTimeout);
@@ -504,6 +550,41 @@ public sealed class WorkerTests
             {
                 Content = JsonContent.Create(response)
             };
+        }
+    }
+
+    private sealed class GraceAdvertisingHeartbeatHandler(int effectiveGraceMinutes) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new DeviceHeartbeatResponse(
+                ServerTimeUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                HeartbeatIntervalSeconds: 10,
+                Commands: [],
+                EffectiveGraceMinutes: effectiveGraceMinutes);
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(response)
+            });
+        }
+    }
+
+    private sealed class SignalingGraceState : IOfflineGraceState
+    {
+        private readonly TaskCompletionSource recorded = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Recorded => recorded.Task;
+
+        public DateTimeOffset? LastSuccessfulContactUtc { get; private set; }
+
+        public int EffectiveGraceMinutes { get; private set; } = 15;
+
+        public void RecordSuccessfulContact(DateTimeOffset contactAtUtc, int effectiveGraceMinutes)
+        {
+            LastSuccessfulContactUtc = contactAtUtc;
+            EffectiveGraceMinutes = effectiveGraceMinutes;
+            recorded.TrySetResult();
         }
     }
 

@@ -20,7 +20,8 @@ public sealed class Worker(
     IDeviceCommandHandler commandHandler,
     ISessionReconciliationReporter sessionReconciliationReporter,
     IInstalledAppInventoryCollector installedAppInventoryCollector,
-    IInstalledAppReporter installedAppReporter) : BackgroundService
+    IInstalledAppReporter installedAppReporter,
+    IOfflineGraceState offlineGraceState) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -84,6 +85,9 @@ public sealed class Worker(
             var heartbeat = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>(cancellationToken: cancellationToken);
             if (heartbeat is not null)
             {
+                // Stamp the contact on the agent's own clock (spec §8) so offline grace is measured from
+                // when the network actually dropped, robust to absolute-clock drift on the gaming PC.
+                offlineGraceState.RecordSuccessfulContact(DateTimeOffset.UtcNow, heartbeat.EffectiveGraceMinutes);
                 await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
             }
 

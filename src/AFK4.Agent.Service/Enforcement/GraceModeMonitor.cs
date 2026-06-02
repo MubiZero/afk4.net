@@ -9,6 +9,7 @@ public sealed class GraceModeMonitor(
     ISessionLeaseStore leaseStore,
     IAgentRuntimeStateStore runtimeStateStore,
     IWorkstationLockController workstationLockController,
+    IOfflineLeaseExtender offlineLeaseExtender,
     TimeProvider timeProvider,
     ILogger<GraceModeMonitor> logger) : IGraceModeMonitor
 {
@@ -23,6 +24,18 @@ public sealed class GraceModeMonitor(
         var now = timeProvider.GetUtcNow();
         if (lease.ExpiresAtUtc > now)
         {
+            return;
+        }
+
+        // The signed lease has lapsed, but if the network only just dropped the customer paid for this
+        // time — keep the PC unlocked through the grace window (measured from last contact, not from the
+        // last lease refresh). The lease is retained so a reconnect can refresh or reconcile it.
+        if (offlineLeaseExtender.ShouldExtend(lease, now))
+        {
+            logger.LogInformation(
+                "Session lease {SessionId} lapsed at {ExpiresAtUtc} but is within the offline grace window. Keeping the workstation unlocked.",
+                lease.SessionId,
+                lease.ExpiresAtUtc);
             return;
         }
 

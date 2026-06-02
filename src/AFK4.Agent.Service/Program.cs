@@ -18,6 +18,8 @@ builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>()
 builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();
 builder.Services.AddSingleton<ISessionEnforcementCoordinator, SessionEnforcementCoordinator>();
+builder.Services.AddSingleton<IOfflineGraceState, OfflineGraceState>();
+builder.Services.AddSingleton<IOfflineLeaseExtender, OfflineLeaseExtender>();
 builder.Services.AddSingleton<IGraceModeMonitor, GraceModeMonitor>();
 builder.Services.AddSingleton<IProcessLauncher, ProcessLauncher>();
 builder.Services.AddSingleton<IRunningProcessTerminator, RunningProcessTerminator>();
