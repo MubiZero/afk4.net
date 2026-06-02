@@ -30,7 +30,9 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
             agentVersion: null,
             shellVersion: null,
             activeSessionId: null,
-            remainingSeconds: null)
+            remainingSeconds: null,
+            accruedCostMinorUnits: null,
+            currencyCode: null)
     {
     }
 
@@ -49,7 +51,9 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
         string? agentVersion,
         string? shellVersion,
         Guid? activeSessionId,
-        int? remainingSeconds)
+        int? remainingSeconds,
+        long? accruedCostMinorUnits,
+        string? currencyCode)
     {
         SeatId = seatId;
         Name = name;
@@ -66,6 +70,8 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
         ShellVersion = shellVersion;
         ActiveSessionId = activeSessionId;
         this.remainingSeconds = remainingSeconds;
+        AccruedCostMinorUnits = accruedCostMinorUnits;
+        CurrencyCode = currencyCode;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -90,7 +96,19 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
 
     public Guid? ActiveSessionId { get; }
 
+    public long? AccruedCostMinorUnits { get; }
+
+    public string? CurrencyCode { get; }
+
     public bool HasActiveSession => ActiveSessionId is not null;
+
+    // An open tab counts cost up instead of time down: active, no countdown, with
+    // a resolvable live accrued charge.
+    public bool IsOpenTab => HasActiveSession && RemainingSeconds is null && AccruedCostMinorUnits is not null;
+
+    public string AccruedCostText => AccruedCostMinorUnits is { } minorUnits
+        ? $"≈ {FormatMoney(minorUnits)} {CurrencyCode ?? "TJS"}"
+        : "";
 
     public bool HasDevice => DeviceId is not null;
 
@@ -192,7 +210,7 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
 
     public string OperatorActionText => StateTone switch
     {
-        "Active" => RemainingTimeText.Length == 0 ? "играет сейчас" : RemainingTimeText,
+        "Active" => RemainingTimeText.Length == 0 ? (IsOpenTab ? AccruedCostText : "играет сейчас") : RemainingTimeText,
         "Ready" => "ожидает",
         "Pending" => NormalizeState(State) == "ending" ? "команда в пути" : "ждет сервер",
         "Warning" when HasActiveSession && !IsOnline => "играет, ПК офлайн",
@@ -260,7 +278,14 @@ public sealed class FloorMapSeatViewModel : INotifyPropertyChanged
             dto.AgentVersion,
             dto.ShellVersion,
             dto.ActiveSessionId,
-            dto.RemainingSeconds);
+            dto.RemainingSeconds,
+            dto.AccruedCostMinorUnits,
+            dto.CurrencyCode);
+    }
+
+    private static string FormatMoney(long minorUnits)
+    {
+        return (minorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture);
     }
 
     public void ApplyDeviceState(bool isOnline, bool isLocked, DateTimeOffset observedAtUtc)

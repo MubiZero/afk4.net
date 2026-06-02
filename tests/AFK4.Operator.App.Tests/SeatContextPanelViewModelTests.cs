@@ -4,6 +4,7 @@ using AFK4.Operator.App.Sessions;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Operator.App.Tests;
@@ -215,6 +216,154 @@ public sealed class SeatContextPanelViewModelTests
         Assert.Equal("Для быстрого старта выберите гостя без учета или укажите аккаунт игрока для платного режима.", panel.ErrorMessage);
     }
 
+    [Fact]
+    public async Task StartGuestSessionAsync_OpenTabToggle_SendsOpenDurationModeForGuest()
+    {
+        var apiClient = new RecordingSessionApiClient();
+        var panel = new SeatContextPanelViewModel(apiClient, new FixedIdempotencyKeyFactory("session-start-open-001"));
+        panel.ApplyContext(OrganizationId, BranchId);
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(Seat("PC-010", state: "Free")));
+        panel.StartAsOpenTab = true;
+
+        await panel.StartGuestSessionAsync(CancellationToken.None);
+
+        Assert.Equal(SessionDurationModes.Open, apiClient.LastStartRequest?.DurationMode);
+        Assert.Null(apiClient.LastStartRequest?.DurationMinutes);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_OpenTabToggle_FallsBackToFixedForWalletBilling()
+    {
+        var apiClient = new RecordingSessionApiClient();
+        var panel = new SeatContextPanelViewModel(apiClient, new FixedIdempotencyKeyFactory("session-start-open-002"));
+        panel.ApplyContext(OrganizationId, BranchId);
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(Seat("PC-011", state: "Free")));
+        panel.BillingMode = BillingModeNames.PrepaidWallet;
+        panel.PlayerAccountIdText = PlayerAccountId.ToString("D");
+        panel.TariffVersionIdText = TargetSeatId.ToString("D");
+        panel.StartAsOpenTab = true;
+
+        Assert.False(panel.OpenTabAllowed);
+
+        await panel.StartGuestSessionAsync(CancellationToken.None);
+
+        Assert.Equal(SessionDurationModes.Fixed, apiClient.LastStartRequest?.DurationMode);
+        Assert.Equal(60, apiClient.LastStartRequest?.DurationMinutes);
+    }
+
+    [Fact]
+    public void MoneyImpactText_ReflectsAccruedCostForOpenTab()
+    {
+        var panel = new SeatContextPanelViewModel(new RecordingSessionApiClient(), new FixedIdempotencyKeyFactory("k"));
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(OpenTabSeat(accruedCostMinorUnits: 2250)));
+
+        Assert.Equal("22.50 TJS", panel.MoneyImpactText);
+    }
+
+    [Fact]
+    public async Task BeginCheckoutAsync_LoadsQuoteAndPreFillsCashPayment()
+    {
+        var apiClient = new RecordingSessionApiClient();
+        var panel = new SeatContextPanelViewModel(apiClient, new FixedIdempotencyKeyFactory("session-checkout-001"));
+        panel.ApplyContext(OrganizationId, BranchId);
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(OpenTabSeat(accruedCostMinorUnits: 2250)));
+
+        await panel.BeginCheckoutAsync(CancellationToken.None);
+
+        Assert.True(panel.IsCheckoutOpen);
+        var checkout = panel.Checkout!;
+        Assert.Equal(ActiveSessionId, apiClient.LastQuoteSessionId);
+        Assert.Equal("22.50 TJS", checkout.GrandTotalText);
+        Assert.Equal("45 мин", checkout.BilledDurationText);
+        var row = Assert.Single(checkout.Payments);
+        Assert.Equal("22.50", row.AmountText);
+        Assert.True(checkout.CanConfirm);
+    }
+
+    [Fact]
+    public async Task Checkout_Confirm_SendsSplitPaymentsAndCloses()
+    {
+        var apiClient = new RecordingSessionApiClient
+        {
+            QuoteResponse = new SessionCheckoutQuoteResponse(
+                ActiveSessionId,
+                new MoneyDto("TJS", 2000),
+                new MoneyDto("TJS", 250),
+                new MoneyDto("TJS", 2250),
+                2700,
+                PlayerAccountId,
+                new MoneyDto("TJS", 5000))
+        };
+        var panel = new SeatContextPanelViewModel(apiClient, new FixedIdempotencyKeyFactory("session-checkout-002"));
+        panel.ApplyContext(OrganizationId, BranchId);
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(OpenTabSeat(accruedCostMinorUnits: 2250)));
+        await panel.BeginCheckoutAsync(CancellationToken.None);
+        var checkout = panel.Checkout!;
+
+        // Split: deposit 20.00 + cash 2.50 = 22.50 grand total.
+        checkout.Payments[0].Method = PaymentMethodNames.Wallet;
+        checkout.Payments[0].AmountText = "20.00";
+        checkout.AddPaymentCommand.Execute(null);
+        checkout.Payments[1].AmountText = "2.50";
+
+        Assert.True(checkout.CanConfirm);
+        await checkout.ConfirmAsync(CancellationToken.None);
+
+        Assert.Equal(ActiveSessionId, apiClient.LastCheckoutSessionId);
+        Assert.Equal(2, apiClient.LastCheckoutRequest?.Payments.Count);
+        Assert.Contains(apiClient.LastCheckoutRequest!.Payments, part => part.PaymentMethod == PaymentMethodNames.Wallet && part.Amount.MinorUnits == 2000);
+        Assert.Contains(apiClient.LastCheckoutRequest!.Payments, part => part.PaymentMethod == PaymentMethodNames.Cash && part.Amount.MinorUnits == 250);
+        Assert.False(panel.IsCheckoutOpen); // onClosed cleared it.
+    }
+
+    [Fact]
+    public async Task Checkout_RejectsWalletOverBalance()
+    {
+        var apiClient = new RecordingSessionApiClient
+        {
+            QuoteResponse = new SessionCheckoutQuoteResponse(
+                ActiveSessionId,
+                new MoneyDto("TJS", 2250),
+                new MoneyDto("TJS", 0),
+                new MoneyDto("TJS", 2250),
+                2700,
+                PlayerAccountId,
+                new MoneyDto("TJS", 1000))
+        };
+        var panel = new SeatContextPanelViewModel(apiClient, new FixedIdempotencyKeyFactory("k"));
+        panel.ApplyContext(OrganizationId, BranchId);
+        panel.SelectSeat(FloorMapSeatViewModel.FromDto(OpenTabSeat(accruedCostMinorUnits: 2250)));
+        await panel.BeginCheckoutAsync(CancellationToken.None);
+        var checkout = panel.Checkout!;
+
+        checkout.Payments[0].Method = PaymentMethodNames.Wallet; // 22.50 from a 10.00 wallet.
+
+        Assert.False(checkout.CanConfirm);
+        Assert.Equal("Оплата с депозита превышает баланс.", checkout.ValidationMessage);
+    }
+
+    private static SeatStatusDto OpenTabSeat(long accruedCostMinorUnits)
+    {
+        return new SeatStatusDto(
+            SeatId: Guid.Parse("11111111-1111-4111-8111-111111111111"),
+            SeatName: "PC-OPEN",
+            ZoneId: Guid.Parse("22222222-2222-4222-8222-222222222222"),
+            ZoneName: "Main Hall",
+            SortOrder: 1,
+            State: "Active",
+            DeviceId: Guid.Parse("33333333-3333-4333-8333-333333333333"),
+            DeviceName: "PC-OPEN",
+            IsDeviceOnline: true,
+            IsDeviceLocked: false,
+            LastHeartbeatAtUtc: DateTimeOffset.Parse("2026-05-14T09:00:00Z"),
+            AgentVersion: "0.1.1",
+            ShellVersion: "0.1.2",
+            ActiveSessionId: ActiveSessionId,
+            RemainingSeconds: null,
+            AccruedCostMinorUnits: accruedCostMinorUnits,
+            CurrencyCode: "TJS");
+    }
+
     private static SeatStatusDto Seat(string name, string state, bool isOnline = true, bool? isLocked = null)
     {
         return new SeatStatusDto(
@@ -287,6 +436,14 @@ public sealed class SeatContextPanelViewModelTests
 
         public EndSessionRequest? LastEndRequest { get; private set; }
 
+        public Guid LastQuoteSessionId { get; private set; }
+
+        public Guid LastCheckoutSessionId { get; private set; }
+
+        public SessionCheckoutRequest? LastCheckoutRequest { get; private set; }
+
+        public SessionCheckoutQuoteResponse? QuoteResponse { get; set; }
+
         public TaskCompletionSource<SessionCommandResponse>? HoldRequest { get; init; }
 
         public Task<SessionCommandResponse> StartGuestSessionAsync(
@@ -327,6 +484,47 @@ public sealed class SeatContextPanelViewModelTests
             LastEndSessionId = sessionId;
             LastEndRequest = request;
             return CompleteAsync(Guid.Parse("11111111-1111-4111-8111-111111111111"));
+        }
+
+        public Task<SessionCheckoutQuoteResponse> GetCheckoutQuoteAsync(
+            Guid sessionId,
+            CancellationToken cancellationToken)
+        {
+            LastQuoteSessionId = sessionId;
+            return Task.FromResult(QuoteResponse ?? new SessionCheckoutQuoteResponse(
+                sessionId,
+                new MoneyDto("TJS", 2250),
+                new MoneyDto("TJS", 0),
+                new MoneyDto("TJS", 2250),
+                2700,
+                null,
+                null));
+        }
+
+        public Task<SessionCheckoutResponse> CheckoutSessionAsync(
+            Guid sessionId,
+            SessionCheckoutRequest request,
+            CancellationToken cancellationToken)
+        {
+            LastCheckoutSessionId = sessionId;
+            LastCheckoutRequest = request;
+            var grandTotal = request.Payments.Sum(part => part.Amount.MinorUnits);
+            return Task.FromResult(new SessionCheckoutResponse(
+                request.IdempotencyKey,
+                sessionId,
+                new MoneyDto("TJS", 2250),
+                new MoneyDto("TJS", 0),
+                new MoneyDto("TJS", grandTotal),
+                request.Payments,
+                new AFK4.Shared.Contracts.Receipts.ReceiptDto(
+                    Guid.NewGuid(), OrganizationId, BranchId, null, "R-1", "session_checkout",
+                    new MoneyDto("TJS", grandTotal), DateTimeOffset.Parse("2026-05-14T10:00:00Z"), sessionId),
+                new SessionDto(
+                    sessionId, OrganizationId, BranchId, Guid.Empty,
+                    Guid.Parse("33333333-3333-4333-8333-333333333333"),
+                    SessionStateNames.Ending, "default",
+                    DateTimeOffset.Parse("2026-05-14T09:00:00Z"), null, null, null, null),
+                []));
         }
 
         private Task<SessionCommandResponse> CompleteAsync(Guid seatId)
