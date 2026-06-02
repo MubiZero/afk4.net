@@ -14,6 +14,7 @@ builder.Services.AddWindowsService(options =>
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient("platform");
 builder.Services.AddSingleton<ISessionLeaseStore, FileSessionLeaseStore>();
+builder.Services.AddSingleton<ICommandResultOutbox, FileCommandResultOutbox>();
 builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();
 builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();

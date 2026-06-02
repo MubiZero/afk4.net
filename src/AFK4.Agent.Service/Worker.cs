@@ -21,7 +21,8 @@ public sealed class Worker(
     ISessionReconciliationReporter sessionReconciliationReporter,
     IInstalledAppInventoryCollector installedAppInventoryCollector,
     IInstalledAppReporter installedAppReporter,
-    IOfflineGraceState offlineGraceState) : BackgroundService
+    IOfflineGraceState offlineGraceState,
+    ICommandResultOutbox commandResultOutbox) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -122,27 +123,58 @@ public sealed class Worker(
     {
         foreach (var command in commands)
         {
+            // Persist the result locally the instant the command executes (spec §6.4), so a crash or a
+            // network drop between execution and delivery never loses the ack. Delivery is attempted by
+            // the drain below and retried on every subsequent heartbeat until the backend acks.
             var result = await commandHandler.HandleAsync(command, cancellationToken);
-            using var message = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"/api/devices/{result.DeviceId}/commands/{result.CommandId}/result")
-            {
-                Content = JsonContent.Create(result)
-            };
+            commandResultOutbox.Enqueue(result);
+        }
 
-            var credentialSecret = options.Value.DeviceCredentialSecret;
-            if (!string.IsNullOrWhiteSpace(credentialSecret))
+        await DrainCommandResultsAsync(client, cancellationToken);
+    }
+
+    private async Task DrainCommandResultsAsync(HttpClient client, CancellationToken cancellationToken)
+    {
+        foreach (var result in commandResultOutbox.Pending)
+        {
+            try
             {
-                message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
+                using var message = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"/api/devices/{result.DeviceId}/commands/{result.CommandId}/result")
+                {
+                    Content = JsonContent.Create(result)
+                };
+
+                var credentialSecret = options.Value.DeviceCredentialSecret;
+                if (!string.IsNullOrWhiteSpace(credentialSecret))
+                {
+                    message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
+                }
+
+                var response = await client.SendAsync(message, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                commandResultOutbox.Acknowledge(result.CommandId);
+
+                logger.LogInformation(
+                    "Heartbeat command {CommandId} acknowledged as {Status}.",
+                    result.CommandId,
+                    result.Status);
             }
-
-            var response = await client.SendAsync(message, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            logger.LogInformation(
-                "Heartbeat command {CommandId} acknowledged as {Status}.",
-                command.CommandId,
-                result.Status);
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // Idempotent on CommandId server-side; leave it queued and stop draining for now so the
+                // results are re-POSTed in order on the next heartbeat once connectivity returns.
+                logger.LogWarning(
+                    exception,
+                    "Command result {CommandId} delivery failed. Keeping it queued for the next heartbeat.",
+                    result.CommandId);
+                break;
+            }
         }
     }
 
