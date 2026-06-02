@@ -6,12 +6,17 @@ using System.Windows.Input;
 using AFK4.Operator.App.Mvvm;
 using AFK4.Operator.App.Sessions;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.FloorMap;
 
 namespace AFK4.Operator.App.FloorMap;
 
 public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
 {
+    private const int StaleAfterSeconds = 30;
+
     private readonly IOperatorFloorMapApiClient apiClient;
+    private readonly IFloorMapCache floorMapCache;
+    private readonly TimeProvider timeProvider;
     private readonly DeviceStatusStore deviceStatusStore;
     private readonly RelayCommand selectSeatCommand;
     private readonly RelayCommand selectFilterCommand;
@@ -21,6 +26,8 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
     private string selectedFilterKey = FloorMapFilterKeys.All;
     private bool isLoading;
     private string? errorMessage;
+    private bool isOffline;
+    private DateTimeOffset? cachedAtUtc;
 
     public FloorMapWorkspaceViewModel()
         : this(
@@ -42,9 +49,13 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
         IOperatorFloorMapApiClient apiClient,
         IOperatorSessionApiClient sessionApiClient,
         IIdempotencyKeyFactory idempotencyKeyFactory,
-        string currencyCode = "TJS")
+        string currencyCode = "TJS",
+        IFloorMapCache? floorMapCache = null,
+        TimeProvider? timeProvider = null)
     {
         this.apiClient = apiClient;
+        this.floorMapCache = floorMapCache ?? new FileFloorMapCache();
+        this.timeProvider = timeProvider ?? TimeProvider.System;
         Seats = [];
         deviceStatusStore = new DeviceStatusStore(Seats);
         SeatContext = new SeatContextPanelViewModel(sessionApiClient, idempotencyKeyFactory, RefreshAsync, currencyCode);
@@ -176,6 +187,59 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
         private set => SetField(ref errorMessage, value);
     }
 
+    /// <summary>
+    /// True when the last refresh failed and the workspace is rendering a cached, read-only mirror
+    /// (spec §6.5). Seats render muted and billing actions are disabled while this is set.
+    /// </summary>
+    public bool IsOffline
+    {
+        get => isOffline;
+        private set
+        {
+            if (SetField(ref isOffline, value))
+            {
+                SeatContext.IsOffline = value;
+                OnPropertyChanged(nameof(OfflineBanner));
+            }
+        }
+    }
+
+    /// <summary>UTC timestamp of the floor-map snapshot currently shown (live or cached).</summary>
+    public DateTimeOffset? CachedAtUtc
+    {
+        get => cachedAtUtc;
+        private set
+        {
+            if (SetField(ref cachedAtUtc, value))
+            {
+                OnPropertyChanged(nameof(OfflineBanner));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Operator-facing banner shown once the mirror is offline or the data has aged past 30s (D8):
+    /// "Офлайн — данные от HH:MM, только просмотр". Null while live and fresh.
+    /// </summary>
+    public string? OfflineBanner
+    {
+        get
+        {
+            if (cachedAtUtc is null)
+            {
+                return null;
+            }
+
+            var isStale = timeProvider.GetUtcNow() - cachedAtUtc.Value > TimeSpan.FromSeconds(StaleAfterSeconds);
+            if (!isOffline && !isStale)
+            {
+                return null;
+            }
+
+            return $"Офлайн — данные от {cachedAtUtc.Value.ToLocalTime():HH:mm}, только просмотр";
+        }
+    }
+
     public AsyncRelayCommand RefreshCommand { get; }
 
     public ICommand SelectSeatCommand => selectSeatCommand;
@@ -196,21 +260,29 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
         try
         {
             var floorMap = await apiClient.GetFloorMapAsync(branchId, cancellationToken);
-            BranchName = floorMap.BranchName;
-            Seats.Clear();
+            var now = timeProvider.GetUtcNow();
+            floorMapCache.Save(floorMap, now);
+            PopulateSeats(floorMap);
 
-            foreach (var seat in floorMap.Seats.OrderBy(seat => seat.SortOrder).ThenBy(seat => seat.SeatName))
-            {
-                Seats.Add(FloorMapSeatViewModel.FromDto(seat));
-            }
-
-            SelectedSeat = null;
-            OnFloorSummaryChanged();
-            OnPropertyChanged(nameof(FilteredSeats));
+            // First good refresh exits degraded mode (spec §6.5 "Reconnect").
+            IsOffline = false;
+            CachedAtUtc = now;
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException)
         {
-            ErrorMessage = exception.Message;
+            // The platform is unreachable. Hydrate the last-known-good snapshot and degrade to a
+            // read-only mirror (spec §6.5); if there is nothing cached, fall back to the error surface.
+            var cached = floorMapCache.Load(branchId);
+            if (cached is not null)
+            {
+                PopulateSeats(cached.FloorMap);
+                CachedAtUtc = cached.CachedAtUtc;
+                IsOffline = true;
+            }
+            else
+            {
+                ErrorMessage = exception.Message;
+            }
         }
         finally
         {
@@ -259,6 +331,21 @@ public sealed class FloorMapWorkspaceViewModel : INotifyPropertyChanged
             filter.IsSelected = filter.Key == selectedFilterKey;
         }
 
+        OnPropertyChanged(nameof(FilteredSeats));
+    }
+
+    private void PopulateSeats(FloorMapDto floorMap)
+    {
+        BranchName = floorMap.BranchName;
+        Seats.Clear();
+
+        foreach (var seat in floorMap.Seats.OrderBy(seat => seat.SortOrder).ThenBy(seat => seat.SeatName))
+        {
+            Seats.Add(FloorMapSeatViewModel.FromDto(seat));
+        }
+
+        SelectedSeat = null;
+        OnFloorSummaryChanged();
         OnPropertyChanged(nameof(FilteredSeats));
     }
 
