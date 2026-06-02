@@ -53,12 +53,18 @@ public sealed class Worker(
         {
             await TryEnforceGraceModeAsync(stoppingToken);
             await TryMaintainPlayerShellAsync(stoppingToken);
-            var intervalSeconds = await TrySendHeartbeatAsync(client, stoppingToken);
-            await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+            var outcome = await TrySendHeartbeatAsync(client, stoppingToken);
+            var delay = HeartbeatCadence.NextDelay(
+                outcome.Succeeded,
+                leaseStore.Current,
+                outcome.IntervalSeconds,
+                DateTimeOffset.UtcNow,
+                Random.Shared.NextDouble());
+            await Task.Delay(delay, stoppingToken);
         }
     }
 
-    private async Task<int> TrySendHeartbeatAsync(HttpClient client, CancellationToken cancellationToken)
+    private async Task<HeartbeatOutcome> TrySendHeartbeatAsync(HttpClient client, CancellationToken cancellationToken)
     {
         try
         {
@@ -94,7 +100,7 @@ public sealed class Worker(
             var intervalSeconds = heartbeat?.HeartbeatIntervalSeconds ?? HeartbeatRetryIntervalSeconds;
 
             logger.LogInformation("Heartbeat sent for {DeviceId}. Next heartbeat in {IntervalSeconds}s.", agentOptions.DeviceId, intervalSeconds);
-            return intervalSeconds;
+            return new HeartbeatOutcome(Succeeded: true, intervalSeconds);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -103,9 +109,11 @@ public sealed class Worker(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Heartbeat failed. Retrying without stopping the Agent Service.");
-            return HeartbeatRetryIntervalSeconds;
+            return new HeartbeatOutcome(Succeeded: false, HeartbeatRetryIntervalSeconds);
         }
     }
+
+    private readonly record struct HeartbeatOutcome(bool Succeeded, int IntervalSeconds);
 
     private async Task HandleHeartbeatCommandsAsync(
         HttpClient client,
