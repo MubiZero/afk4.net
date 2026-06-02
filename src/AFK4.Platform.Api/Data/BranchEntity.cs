@@ -14,5 +14,8 @@ public sealed class BranchEntity
 
     public bool RequireManualDeviceApproval { get; set; }
 
+    // Per-branch default ceiling for an open postpaid tab; null means unbounded.
+    public long? PostpaidCreditLimitMinorUnits { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

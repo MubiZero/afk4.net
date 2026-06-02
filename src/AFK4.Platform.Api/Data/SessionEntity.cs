@@ -32,5 +32,10 @@ public sealed class SessionEntity
 
     public Guid? CurrentLeaseId { get; set; }
 
+    // Auto-protection bookkeeping so a warning/lock is issued at most once.
+    public DateTimeOffset? AutoWarnedAtUtc { get; set; }
+
+    public DateTimeOffset? AutoLockedAtUtc { get; set; }
+
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }
