@@ -7941,8 +7941,24 @@ app.MapPost("/api/shifts/{shiftId:guid}/close", async (
         "Shift",
         shiftId.ToString("D"),
         AuditOutcome.Succeeded,
-        new { request.CountedCash },
+        new { request.CountedCash, result.Response!.Difference },
         cancellationToken);
+
+    // Anti-fraud §5.7: record the manager sign-off as its own audit fact when a discrepancy was cleared.
+    if (result.Response.ManagerSignOffStaffUserId is { } signOffStaffUserId)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext.OrganizationId,
+            shift.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ShiftSignOff,
+            "Shift",
+            shiftId.ToString("D"),
+            AuditOutcome.Succeeded,
+            new { SignOffStaffUserId = signOffStaffUserId, result.Response.Difference, request.SignOffReason },
+            cancellationToken);
+    }
 
     return Results.Ok(result.Response);
 });
