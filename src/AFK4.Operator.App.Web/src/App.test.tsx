@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn, type Mock } from 'bun:test';
 import type { HostBridgeMessageEvent } from './hostBridge';
 
@@ -381,6 +381,70 @@ describe('App', () => {
     const body = JSON.parse(String(postCall?.[1]?.body));
     expect(body.reason).toBe('operator');
     expect(body.idempotencyKey).toMatch(/^session-end-/);
+  });
+
+  it('checks out an active session with a cash payment through the backend', async () => {
+    installSessionBridge();
+    const sessionId = '22222222-2222-2222-2222-222222222222';
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.includes(`/api/sessions/${sessionId}/checkout/quote`)) {
+        return Promise.resolve(jsonResponse({
+          sessionId,
+          timeCharge: { currencyCode: 'TJS', minorUnits: 2250 },
+          posTotal: { currencyCode: 'TJS', minorUnits: 0 },
+          grandTotal: { currencyCode: 'TJS', minorUnits: 2250 },
+          billableSeconds: 2700,
+          playerAccountId: null,
+          walletBalance: null
+        }));
+      }
+
+      if (url.includes(`/api/sessions/${sessionId}/checkout`) && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse({
+          idempotencyKey: 'session-checkout-001',
+          sessionId,
+          timeCharge: { currencyCode: 'TJS', minorUnits: 2250 },
+          posTotal: { currencyCode: 'TJS', minorUnits: 0 },
+          grandTotal: { currencyCode: 'TJS', minorUnits: 2250 },
+          payments: [{ paymentMethod: 'cash', amount: { currencyCode: 'TJS', minorUnits: 2250 } }],
+          receipt: {},
+          session: { sessionId, state: 'Ending' },
+          deviceCommands: []
+        }));
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect((await screen.findAllByText(/Платформа подключена/)).length).toBeGreaterThan(0);
+    fireEvent.click(await screen.findByRole('button', { name: 'Завершить и принять оплату' }));
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Завершить и принять оплату' });
+    await within(dialog).findByText('Итого');
+    expect(dialog).toHaveTextContent('45м');
+    // Quote pre-fills a single cash row with the whole grand total.
+    await waitFor(() => expect(within(dialog).getByText('Сумма совпадает')).toBeInTheDocument());
+
+    const confirm = within(dialog).getByRole('button', { name: 'Принять оплату' });
+    expect(confirm).toBeEnabled();
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
+
+    await waitFor(() => {
+      const postCall = fetchMock.mock.calls.find(([input, init]) =>
+        String(input).includes(`/api/sessions/${sessionId}/checkout`) &&
+        !String(input).includes('/quote') &&
+        init?.method === 'POST');
+      expect(postCall).toBeDefined();
+      const body = JSON.parse(String(postCall?.[1]?.body));
+      expect(body.payments).toEqual([{ paymentMethod: 'cash', amount: { currencyCode: 'TJS', minorUnits: 2250 } }]);
+      expect(body.idempotencyKey).toMatch(/^session-checkout-/);
+    });
   });
 
   it('refreshes the selected seat when a session command result arrives over realtime', async () => {

@@ -37,6 +37,17 @@ import {
   type OperatorFloorMapState
 } from './floorMapState';
 import { isHostBridgeUnavailableError, postHostRequest, postHostWindowCommand, postHostWindowResize, type HostWindowResizeEdge } from './hostBridge';
+import {
+  buildCheckoutPayments,
+  checkoutMethods,
+  checkoutMethodLabels,
+  formatBilledDuration,
+  formatCheckoutAmount,
+  initialCheckoutDrafts,
+  validateCheckoutPayments,
+  type CheckoutMethod,
+  type CheckoutPaymentDraft
+} from './checkoutState';
 import { ConnectionResolutionScreen, isOperatorTenantBlocked } from './ConnectionResolutionScreen';
 import {
   BridgeOperatorConnectionStorage,
@@ -59,9 +70,11 @@ import {
   type PackageOptionDto,
   type PlayerPackageDto,
   type PlayerSearchResultDto,
+  type PaymentPartDto,
   type PosProductDto,
   type PosSaleDto,
   type ReceiptDto,
+  type SessionCheckoutQuoteResponse,
   type ReservationSearchResultDto,
   type ReportResultDto,
   type ShiftDto,
@@ -113,7 +126,8 @@ type SeatActionRequest =
   | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection }
   | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
-  | { type: 'end'; seat: SeatSummary };
+  | { type: 'end'; seat: SeatSummary }
+  | { type: 'checkout'; seat: SeatSummary; payments: PaymentPartDto[] };
 type PcControlActionId = 'status' | 'lock' | 'unlock' | 'reboot' | 'shutdown' | 'wake' | 'admin';
 type PcControlActionResult = {
   detail: string;
@@ -417,6 +431,187 @@ function CriticalActionConfirmation({
       <div className="critical-confirmation-actions">
         <button type="button" onClick={onCancel} disabled={disabled}>{cancelLabel}</button>
         <button type="button" className="danger" onClick={onConfirm} disabled={disabled}>{confirmLabel}</button>
+      </div>
+    </section>
+  );
+}
+
+const checkoutMethodIcons: Record<CheckoutMethod, ReactNode> = {
+  cash: <Banknote size={14} />,
+  card_manual: <CircleDollarSign size={14} />,
+  wallet: <ReceiptText size={14} />
+};
+
+/**
+ * "Завершить и принять оплату": fetches the read-only checkout quote, shows the
+ * unified bill (Наиграно • Время • Снеки • Итого), and lets the operator settle
+ * it with one or more split-payment parts (cash / card / deposit) before the PC
+ * is locked. Confirm routes the parts through the shared seat-action handler.
+ */
+function CheckoutDialog({
+  seat,
+  backend,
+  disabled,
+  onCancel,
+  onConfirm
+}: {
+  seat: SeatSummary;
+  backend: OperatorBackendContext;
+  disabled: boolean;
+  onCancel: () => void;
+  onConfirm: (payments: PaymentPartDto[]) => void;
+}) {
+  const [quote, setQuote] = useState<SessionCheckoutQuoteResponse | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [error, setError] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<CheckoutPaymentDraft[]>([{ method: 'cash', amountText: '' }]);
+
+  useEffect(() => {
+    let disposed = false;
+    const sessionId = seat.activeSessionId;
+    if (!sessionId) {
+      setStatus('failed');
+      setError('На выбранном ПК нет активной сессии.');
+      return undefined;
+    }
+
+    setStatus('loading');
+    setError(null);
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.sessions.getCheckoutQuote(sessionId)
+      .then((result) => {
+        if (disposed) {
+          return;
+        }
+
+        setQuote(result);
+        setDrafts(initialCheckoutDrafts(result.grandTotal.minorUnits));
+        setStatus('ready');
+      })
+      .catch((fetchError) => {
+        if (disposed) {
+          return;
+        }
+
+        setStatus('failed');
+        setError(projectOperatorError(fetchError).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [seat.activeSessionId, backend.config.platformBaseUrl, backend.session.accessToken]);
+
+  const currencyCode = quote?.grandTotal.currencyCode ?? '';
+  const grandTotal = quote?.grandTotal.minorUnits ?? 0;
+  const walletBalance = quote?.walletBalance?.minorUnits ?? null;
+  const validation = validateCheckoutPayments(drafts, grandTotal, walletBalance);
+  const canConfirm = status === 'ready' && !disabled && validation.canSubmit;
+
+  const updateDraft = (index: number, patch: Partial<CheckoutPaymentDraft>) => {
+    setDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, ...patch } : draft)));
+  };
+  const addDraft = () => {
+    setDrafts((current) => [...current, { method: 'cash', amountText: '' }]);
+  };
+  const removeDraft = (index: number) => {
+    setDrafts((current) => (current.length <= 1 ? current : current.filter((_, position) => position !== index)));
+  };
+  const suggestWallet = () => {
+    if (walletBalance === null) {
+      return;
+    }
+
+    const fromWallet = Math.min(walletBalance, grandTotal);
+    const remainder = grandTotal - fromWallet;
+    const next: CheckoutPaymentDraft[] = [{ method: 'wallet', amountText: formatCheckoutAmount(fromWallet) }];
+    if (remainder > 0) {
+      next.push({ method: 'cash', amountText: formatCheckoutAmount(remainder) });
+    }
+
+    setDrafts(next);
+  };
+
+  return (
+    <section className="critical-confirmation warning checkout-dialog" role="alertdialog" aria-label="Завершить и принять оплату">
+      <div>
+        <strong>Завершить и принять оплату</strong>
+        <span>{seat.name} · {seat.player}</span>
+        <em>После оплаты сессия закрывается, платформа блокирует ПК.</em>
+      </div>
+
+      {status === 'loading' && <p className="checkout-loading">Расчёт счёта…</p>}
+      {status === 'failed' && <p className="checkout-error">{error ?? 'Не удалось получить счёт.'}</p>}
+
+      {status === 'ready' && quote && (
+        <>
+          <dl className="checkout-breakdown">
+            <div><dt>Наиграно</dt><dd>{formatBilledDuration(quote.billableSeconds)}</dd></div>
+            <div><dt>Время</dt><dd>{formatMinorUnits(quote.timeCharge.minorUnits, currencyCode)}</dd></div>
+            <div><dt>Снеки</dt><dd>{formatMinorUnits(quote.posTotal.minorUnits, currencyCode)}</dd></div>
+            <div className="checkout-breakdown-total"><dt>Итого</dt><dd>{formatMinorUnits(grandTotal, currencyCode)}</dd></div>
+          </dl>
+
+          <div className="checkout-payments">
+            {drafts.map((draft, index) => (
+              <div className="checkout-payment-row" key={index}>
+                <select
+                  aria-label="Способ оплаты"
+                  value={draft.method}
+                  disabled={disabled}
+                  onChange={(event) => updateDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
+                >
+                  {checkoutMethods.map((method) => (
+                    <option key={method} value={method}>{checkoutMethodLabels[method]}</option>
+                  ))}
+                </select>
+                <span className="checkout-payment-icon">{checkoutMethodIcons[draft.method]}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  aria-label="Сумма"
+                  placeholder="0.00"
+                  value={draft.amountText}
+                  disabled={disabled}
+                  onChange={(event) => updateDraft(index, { amountText: event.currentTarget.value })}
+                />
+                <button
+                  type="button"
+                  className="checkout-payment-remove"
+                  aria-label="Убрать строку"
+                  disabled={disabled || drafts.length <= 1}
+                  onClick={() => removeDraft(index)}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            <div className="checkout-payment-controls">
+              <button type="button" disabled={disabled} onClick={addDraft}><Plus size={14} />Ещё способ</button>
+              {walletBalance !== null && walletBalance > 0 && (
+                <button type="button" disabled={disabled} onClick={suggestWallet}>
+                  <ReceiptText size={14} />Депозит ({formatMinorUnits(walletBalance, currencyCode)})
+                </button>
+              )}
+            </div>
+          </div>
+
+          {validation.error
+            ? <p className="checkout-error">{validation.error}</p>
+            : <p className="checkout-balanced">Сумма совпадает</p>}
+        </>
+      )}
+
+      <div className="critical-confirmation-actions">
+        <button type="button" onClick={onCancel} disabled={disabled}>Отмена</button>
+        <button
+          type="button"
+          className="danger"
+          disabled={!canConfirm}
+          onClick={() => onConfirm(buildCheckoutPayments(drafts, currencyCode))}
+        >
+          Принять оплату
+        </button>
       </div>
     </section>
   );
@@ -3281,7 +3476,7 @@ function MapSidePanel({
   const [selectedPlayerPackageId, setSelectedPlayerPackageId] = useState('');
   const [billingStatus, setBillingStatus] = useState<LoadStatus>('fixture');
   const [billingError, setBillingError] = useState<string | null>(null);
-  const [criticalAction, setCriticalAction] = useState<'end-session' | null>(null);
+  const [criticalAction, setCriticalAction] = useState<'end-session' | 'checkout' | null>(null);
   const transferCandidates = floorSeats.filter((candidate) =>
     candidate.id !== seat.id &&
     candidate.tone === 'ready' &&
@@ -3529,6 +3724,16 @@ function MapSidePanel({
           </>
         )}
       </section>
+      {hasActiveSession && backend !== null && (
+        <button
+          type="button"
+          className="checkout-action"
+          disabled={!canEndSession || isBusy}
+          onClick={() => setCriticalAction('checkout')}
+        >
+          <ReceiptText size={15} />Завершить и принять оплату
+        </button>
+      )}
       {hasActiveSession && (
         <label className="context-transfer-target">
           <span>Перенести на</span>
@@ -3549,6 +3754,15 @@ function MapSidePanel({
           disabled={isBusy}
           onCancel={() => setCriticalAction(null)}
           onConfirm={() => void runSeatAction('Стоп', { type: 'end', seat })}
+        />
+      )}
+      {criticalAction === 'checkout' && backend !== null && (
+        <CheckoutDialog
+          seat={seat}
+          backend={backend}
+          disabled={isBusy}
+          onCancel={() => setCriticalAction(null)}
+          onConfirm={(payments) => void runSeatAction('Оплата', { type: 'checkout', seat, payments })}
         />
       )}
       <FeedbackNotice feedback={feedback} />
@@ -9633,6 +9847,20 @@ export function App() {
       response = await clients.sessions.transferSession(request.seat.activeSessionId, {
         targetSeatId: request.targetSeatId,
         idempotencyKey: createIdempotencyKey('session-transfer')
+      });
+    } else if (request.type === 'checkout') {
+      if (!hasPermission(session, permissionNames.endSession)) {
+        throw new Error('Нет прав на завершение сессий.');
+      }
+
+      if (!request.seat.activeSessionId) {
+        throw new Error('На выбранном ПК нет активной сессии.');
+      }
+
+      response = await clients.sessions.checkoutSession(request.seat.activeSessionId, {
+        organizationId: session.organizationId,
+        payments: request.payments,
+        idempotencyKey: createIdempotencyKey('session-checkout')
       });
     } else {
       if (!hasPermission(session, permissionNames.endSession)) {

@@ -104,6 +104,16 @@ export interface SessionCheckoutResponse {
   deviceCommands: Array<Record<string, unknown>>;
 }
 
+export interface SessionCheckoutQuoteResponse {
+  sessionId: Guid;
+  timeCharge: MoneyDto;
+  posTotal: MoneyDto;
+  grandTotal: MoneyDto;
+  billableSeconds: number;
+  playerAccountId?: Guid | null;
+  walletBalance?: MoneyDto | null;
+}
+
 export interface PosSaleLineDto {
   productId: Guid;
   quantity: number;
@@ -464,6 +474,9 @@ export function createSessionClient(api: PlatformApiClient) {
     },
     checkoutSession(sessionId: Guid, request: SessionCheckoutRequest): Promise<SessionCheckoutResponse> {
       return api.post<SessionCheckoutResponse, SessionCheckoutRequest>(`/api/sessions/${sessionId}/checkout`, request);
+    },
+    getCheckoutQuote(sessionId: Guid): Promise<SessionCheckoutQuoteResponse> {
+      return api.get<SessionCheckoutQuoteResponse>(`/api/sessions/${sessionId}/checkout/quote`);
     }
   };
 }
