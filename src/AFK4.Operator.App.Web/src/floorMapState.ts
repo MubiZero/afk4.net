@@ -1,10 +1,13 @@
 import { minorToMajor } from '@afk4/money';
+import type { FloorMapCacheEntry } from './floorMapCache';
 import type { FloorMapDto, SeatStatusDto } from './operatorApiClients';
 import { seats as fixtureSeats, type SeatSummary, type SeatTone } from './operatorData';
 import type { DeviceStatusChangedDto } from './operatorRealtime';
 
 export type FloorMapLoadStatus = 'idle' | 'loading' | 'ready' | 'failed';
 export type FloorMapSource = 'fixture' | 'backend';
+
+const staleAfterMs = 30_000;
 
 export interface OperatorFloorMapState {
   branchId?: string;
@@ -13,6 +16,9 @@ export interface OperatorFloorMapState {
   source: FloorMapSource;
   loadStatus: FloorMapLoadStatus;
   error: string | null;
+  // Offline mirror (spec §6.5): degraded read-only flag and the timestamp of the snapshot on screen.
+  isOffline: boolean;
+  cachedAtMs: number | null;
 }
 
 export const fixtureBranchName = 'AFK4 Dushanbe · зал A';
@@ -23,7 +29,9 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
     seats: fixtureSeats,
     source: 'fixture',
     loadStatus: 'idle',
-    error: null
+    error: null,
+    isOffline: false,
+    cachedAtMs: null
   };
 }
 
@@ -34,8 +42,46 @@ export function mapFloorMapDtoToState(floorMap: FloorMapDto, loadedAtMs = Date.n
     seats: mapFloorMapSeats(floorMap.seats, loadedAtMs),
     source: 'backend',
     loadStatus: 'ready',
-    error: null
+    error: null,
+    isOffline: false,
+    cachedAtMs: loadedAtMs
   };
+}
+
+// Hydrate a degraded, read-only floor map from the last-known-good cache when the platform is unreachable
+// (spec §6.5). Seats render from the cached snapshot; billing actions are gated off elsewhere (D2).
+export function hydrateFloorMapStateFromCache(
+  entry: FloorMapCacheEntry,
+  branchId: string
+): OperatorFloorMapState {
+  return {
+    branchId,
+    branchName: entry.floorMap.branchName,
+    seats: mapFloorMapSeats(entry.floorMap.seats, entry.cachedAtMs),
+    source: 'backend',
+    loadStatus: 'ready',
+    error: null,
+    isOffline: true,
+    cachedAtMs: entry.cachedAtMs
+  };
+}
+
+// Operator-facing banner shown once the mirror is offline or the data has aged past 30s (D8):
+// "Офлайн — данные от HH:MM, только просмотр". Null while live and fresh.
+export function offlineBannerText(state: OperatorFloorMapState, nowMs = Date.now()): string | null {
+  if (state.cachedAtMs === null) {
+    return null;
+  }
+
+  const isStale = nowMs - state.cachedAtMs > staleAfterMs;
+  if (!state.isOffline && !isStale) {
+    return null;
+  }
+
+  const at = new Date(state.cachedAtMs);
+  const hh = String(at.getHours()).padStart(2, '0');
+  const mm = String(at.getMinutes()).padStart(2, '0');
+  return `Офлайн — данные от ${hh}:${mm}, только просмотр`;
 }
 
 export function mapFloorMapSeats(nextSeats: SeatStatusDto[], loadedAtMs = Date.now()): SeatSummary[] {

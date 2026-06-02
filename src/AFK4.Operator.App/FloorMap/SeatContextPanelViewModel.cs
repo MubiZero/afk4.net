@@ -57,6 +57,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     private string serverConfirmationStatus = "Выберите место";
     private string deviceCommandStatus = "Выберите место";
     private bool isBusy;
+    private bool isOffline;
     private CheckoutSessionViewModel? checkout;
 
     public SeatContextPanelViewModel(
@@ -70,13 +71,15 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         this.refreshAfterSuccess = refreshAfterSuccess;
         this.currencyCode = string.IsNullOrWhiteSpace(currencyCode) ? DefaultCurrencyCode : currencyCode.Trim().ToUpperInvariant();
 
-        startGuestSessionCommand = new AsyncRelayCommand(StartGuestSessionAsync, () => !IsBusy && CanStartGuestSession);
-        extendSessionCommand = new AsyncRelayCommand(ExtendSessionAsync, () => !IsBusy && HasActiveSession);
-        extendBy15Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(15, token), () => !IsBusy && HasActiveSession);
-        extendBy30Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(30, token), () => !IsBusy && HasActiveSession);
-        transferSessionCommand = new AsyncRelayCommand(TransferSessionAsync, () => !IsBusy && HasActiveSession);
-        endSessionCommand = new AsyncRelayCommand(EndSessionAsync, () => !IsBusy && HasActiveSession);
-        beginCheckoutCommand = new AsyncRelayCommand(BeginCheckoutAsync, () => !IsBusy && HasActiveSession && !IsCheckoutOpen);
+        // Billing actions stay online-only (spec §6.5 D2): they create irreversible ledger effects, so they
+        // are blocked while the workspace is showing a cached/offline mirror.
+        startGuestSessionCommand = new AsyncRelayCommand(StartGuestSessionAsync, () => !IsBusy && !IsOffline && CanStartGuestSession);
+        extendSessionCommand = new AsyncRelayCommand(ExtendSessionAsync, () => !IsBusy && !IsOffline && HasActiveSession);
+        extendBy15Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(15, token), () => !IsBusy && !IsOffline && HasActiveSession);
+        extendBy30Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(30, token), () => !IsBusy && !IsOffline && HasActiveSession);
+        transferSessionCommand = new AsyncRelayCommand(TransferSessionAsync, () => !IsBusy && !IsOffline && HasActiveSession);
+        endSessionCommand = new AsyncRelayCommand(EndSessionAsync, () => !IsBusy && !IsOffline && HasActiveSession);
+        beginCheckoutCommand = new AsyncRelayCommand(BeginCheckoutAsync, () => !IsBusy && !IsOffline && HasActiveSession && !IsCheckoutOpen);
         selectBillingModeCommand = new RelayCommand(parameter =>
         {
             if (parameter is BillingModeOptionViewModel option)
@@ -301,6 +304,22 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         private set
         {
             if (SetField(ref isBusy, value))
+            {
+                NotifyCommandStates();
+            }
+        }
+    }
+
+    /// <summary>
+    /// When the workspace is showing a cached/offline mirror (spec §6.5), billing actions are disabled
+    /// (D2) because they cannot be safely queued; the floor map sets this as it enters/leaves degraded mode.
+    /// </summary>
+    public bool IsOffline
+    {
+        get => isOffline;
+        set
+        {
+            if (SetField(ref isOffline, value))
             {
                 NotifyCommandStates();
             }

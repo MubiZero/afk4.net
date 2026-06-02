@@ -46,7 +46,9 @@ public sealed class WorkerTests
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
-            new NoOpInstalledAppReporter());
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox());
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -54,6 +56,47 @@ public sealed class WorkerTests
 
         Assert.Equal($"/api/devices/{options.Value.DeviceId}/heartbeat", handler.RequestUri?.PathAndQuery);
         Assert.Equal("device-secret", handler.CredentialSecret);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OnSuccessfulHeartbeat_RecordsOfflineGraceContact()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        using var handler = new GraceAdvertisingHeartbeatHandler(effectiveGraceMinutes: 42);
+        var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001"
+        });
+        var graceState = new SignalingGraceState();
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            httpClientFactory,
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: false),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            graceState,
+            new InMemoryCommandResultOutbox());
+
+        await worker.StartAsync(stopping.Token);
+        await graceState.Recorded.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.NotNull(graceState.LastSuccessfulContactUtc);
+        Assert.Equal(42, graceState.EffectiveGraceMinutes);
     }
 
     [Fact]
@@ -86,7 +129,9 @@ public sealed class WorkerTests
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
-            new NoOpInstalledAppReporter());
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox());
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -135,7 +180,9 @@ public sealed class WorkerTests
                     InstallLocation: null,
                     InstalledAtUtc: null)
             ]),
-            reporter);
+            reporter,
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox());
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -185,7 +232,9 @@ public sealed class WorkerTests
                     InstallLocation: null,
                     InstalledAtUtc: null)
             ]),
-            new RecordingInstalledAppReporter(calls));
+            new RecordingInstalledAppReporter(calls),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox());
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -216,9 +265,10 @@ public sealed class WorkerTests
             {
                 ["reason"] = "heartbeat-fallback"
             });
-        using var handler = new HeartbeatCommandResultHandler(command, resultPosted, stopping);
+        using var handler = new HeartbeatCommandResultHandler(command, resultPosted);
         var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
         var commandHandler = new RecordingDeviceCommandHandler(options.Value);
+        var commandResultOutbox = new InMemoryCommandResultOutbox();
 
         var worker = new Worker(
             NullLogger<Worker>.Instance,
@@ -233,7 +283,9 @@ public sealed class WorkerTests
             commandHandler,
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
-            new NoOpInstalledAppReporter());
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            commandResultOutbox);
 
         await worker.StartAsync(stopping.Token);
         await resultPosted.Task.WaitAsync(WorkerObservationTimeout);
@@ -246,6 +298,56 @@ public sealed class WorkerTests
         Assert.NotNull(handler.ResultBody);
         Assert.Equal(command.CommandId, handler.ResultBody.CommandId);
         Assert.Equal("Accepted", handler.ResultBody.Status);
+        Assert.Empty(commandResultOutbox.Pending);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCommandResultDeliveryFails_KeepsResultQueuedForRetry()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var resultAttempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = Options.Create(new AgentOptions
+        {
+            PlatformBaseUrl = new Uri("https://platform.example"),
+            OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+            MachineName = "PC-001",
+            DeviceCredentialSecret = "device-secret"
+        });
+        var command = new DeviceCommandDto(
+            Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+            "lock",
+            DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+            new Dictionary<string, string>());
+        using var handler = new FailingCommandResultHandler(command, resultAttempted, stopping);
+        var httpClientFactory = new TestHttpClientFactory(new HttpClient(handler));
+        var commandHandler = new RecordingDeviceCommandHandler(options.Value);
+        var commandResultOutbox = new InMemoryCommandResultOutbox();
+
+        var worker = new Worker(
+            NullLogger<Worker>.Instance,
+            httpClientFactory,
+            options,
+            new NoOpRealtimeClient(),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: true),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            commandHandler,
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            commandResultOutbox);
+
+        await worker.StartAsync(stopping.Token);
+        await resultAttempted.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        var queued = Assert.Single(commandResultOutbox.Pending);
+        Assert.Equal(command.CommandId, queued.CommandId);
     }
 
     [Fact]
@@ -278,7 +380,9 @@ public sealed class WorkerTests
             new NoOpDeviceCommandHandler(options.Value),
             new NoOpSessionReconciliationReporter(),
             new StaticInstalledAppInventoryCollector([]),
-            new NoOpInstalledAppReporter());
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox());
 
         await worker.StartAsync(stopping.Token);
         await recoveredHeartbeat.Task.WaitAsync(WorkerObservationTimeout);
@@ -507,10 +611,44 @@ public sealed class WorkerTests
         }
     }
 
+    private sealed class GraceAdvertisingHeartbeatHandler(int effectiveGraceMinutes) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new DeviceHeartbeatResponse(
+                ServerTimeUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                HeartbeatIntervalSeconds: 10,
+                Commands: [],
+                EffectiveGraceMinutes: effectiveGraceMinutes);
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(response)
+            });
+        }
+    }
+
+    private sealed class SignalingGraceState : IOfflineGraceState
+    {
+        private readonly TaskCompletionSource recorded = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Recorded => recorded.Task;
+
+        public DateTimeOffset? LastSuccessfulContactUtc { get; private set; }
+
+        public int EffectiveGraceMinutes { get; private set; } = 15;
+
+        public void RecordSuccessfulContact(DateTimeOffset contactAtUtc, int effectiveGraceMinutes)
+        {
+            LastSuccessfulContactUtc = contactAtUtc;
+            EffectiveGraceMinutes = effectiveGraceMinutes;
+            recorded.TrySetResult();
+        }
+    }
+
     private sealed class HeartbeatCommandResultHandler(
         DeviceCommandDto command,
-        TaskCompletionSource resultPosted,
-        CancellationTokenSource stopping) : HttpMessageHandler
+        TaskCompletionSource resultPosted) : HttpMessageHandler
     {
         public Uri? ResultRequestUri { get; private set; }
 
@@ -538,10 +676,75 @@ public sealed class WorkerTests
             ResultRequestUri = request.RequestUri;
             ResultCredentialSecret = request.Headers.GetValues(DeviceCredentialHeaders.CredentialSecret).Single();
             ResultBody = await request.Content!.ReadFromJsonAsync<DeviceCommandResultDto>(cancellationToken: cancellationToken);
-            resultPosted.TrySetResult();
-            stopping.Cancel();
 
-            return new HttpResponseMessage(HttpStatusCode.OK);
+            var ok = new HttpResponseMessage(HttpStatusCode.OK);
+            // Signal AFTER building the success response so the worker observes 200 and acknowledges the
+            // result (draining the outbox) before the test stops the loop. Do not cancel here — that would
+            // race the ack. StopAsync terminates the loop once the test has observed the post.
+            resultPosted.TrySetResult();
+            return ok;
+        }
+    }
+
+    private sealed class FailingCommandResultHandler(
+        DeviceCommandDto command,
+        TaskCompletionSource resultAttempted,
+        CancellationTokenSource stopping) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.RequestUri?.PathAndQuery.EndsWith("/heartbeat", StringComparison.Ordinal) == true)
+            {
+                var response = new DeviceHeartbeatResponse(
+                    ServerTimeUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+                    HeartbeatIntervalSeconds: 10,
+                    Commands: [command]);
+
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent.Create(response)
+                });
+            }
+
+            // Result delivery fails — the worker must keep it queued for the next heartbeat.
+            resultAttempted.TrySetResult();
+            stopping.Cancel();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError));
+        }
+    }
+
+    private sealed class InMemoryCommandResultOutbox : ICommandResultOutbox
+    {
+        private readonly List<DeviceCommandResultDto> pending = [];
+
+        public IReadOnlyList<DeviceCommandResultDto> Pending
+        {
+            get
+            {
+                lock (pending)
+                {
+                    return pending.ToArray();
+                }
+            }
+        }
+
+        public void Enqueue(DeviceCommandResultDto result)
+        {
+            lock (pending)
+            {
+                pending.RemoveAll(existing => existing.CommandId == result.CommandId);
+                pending.Add(result);
+            }
+        }
+
+        public void Acknowledge(Guid commandId)
+        {
+            lock (pending)
+            {
+                pending.RemoveAll(existing => existing.CommandId == commandId);
+            }
         }
     }
 
