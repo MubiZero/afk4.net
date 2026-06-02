@@ -77,44 +77,16 @@ public sealed class EfSessionCheckoutService(
         }
 
         var now = timeProvider.GetUtcNow();
-        var timeCharge = await sessionBillingService.ComputeCheckoutChargeAsync(sessionId, now, cancellationToken);
-        if (!timeCharge.Succeeded)
+        var (bill, billError) = await ComputeBillAsync(sessionId, now, cancellationToken);
+        if (bill is null)
         {
-            return SessionCheckoutResult.Invalid(timeCharge.Error ?? "Checkout charge could not be computed.");
+            return SessionCheckoutResult.Invalid(billError ?? "Checkout charge could not be computed.");
         }
 
-        var attachedSales = await dbContext.PosSales
-            .AsNoTracking()
-            .Where(sale => sale.SessionId == sessionId && UnpaidStates.Contains(sale.State))
-            .ToListAsync(cancellationToken);
-        var posTotal = attachedSales.Sum(sale => sale.TotalMinorUnits);
-
-        // Resolve the single bill currency across the time charge and POS tab.
-        string? currency = timeCharge.AmountMinorUnits > 0 ? timeCharge.CurrencyCode : null;
-        foreach (var sale in attachedSales)
-        {
-            if (currency is null)
-            {
-                currency = sale.CurrencyCode;
-            }
-            else if (!CurrencyEquals(currency, sale.CurrencyCode))
-            {
-                return SessionCheckoutResult.Invalid("Checkout cannot mix currencies.");
-            }
-        }
-
-        currency ??= timeCharge.CurrencyCode;
-        currency = currency.ToUpperInvariant();
-
-        long grandTotal;
-        try
-        {
-            grandTotal = checked(timeCharge.AmountMinorUnits + posTotal);
-        }
-        catch (OverflowException)
-        {
-            return SessionCheckoutResult.Invalid("Checkout total is too large.");
-        }
+        var timeCharge = bill.TimeCharge;
+        var posTotal = bill.PosTotal;
+        var currency = bill.Currency;
+        var grandTotal = bill.GrandTotal;
 
         var payments = request.Payments ?? [];
         long paidTotal = 0;
@@ -395,6 +367,112 @@ public sealed class EfSessionCheckoutService(
         }
 
         return result;
+    }
+
+    public async Task<SessionCheckoutQuoteResult> QuoteAsync(
+        Guid sessionId,
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        var session = await dbContext.Sessions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+        if (session is null)
+        {
+            return SessionCheckoutQuoteResult.Missing("Session was not found.");
+        }
+
+        if (organizationId != session.OrganizationId)
+        {
+            return SessionCheckoutQuoteResult.Invalid("Organization id does not match the session.");
+        }
+
+        if (!CheckoutableStates.Contains(session.State))
+        {
+            return SessionCheckoutQuoteResult.Invalid("Only an active session can be checked out.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var (bill, billError) = await ComputeBillAsync(sessionId, now, cancellationToken);
+        if (bill is null)
+        {
+            return SessionCheckoutQuoteResult.Invalid(billError ?? "Checkout charge could not be computed.");
+        }
+
+        MoneyDto? walletBalance = null;
+        if (session.PlayerAccountId is Guid playerId)
+        {
+            var summary = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, playerId, cancellationToken);
+            walletBalance = new MoneyDto(bill.Currency, summary?.WalletBalance.MinorUnits ?? 0);
+        }
+
+        var response = new SessionCheckoutQuoteResponse(
+            SessionId: sessionId,
+            TimeCharge: new MoneyDto(bill.Currency, bill.TimeCharge.AmountMinorUnits),
+            PosTotal: new MoneyDto(bill.Currency, bill.PosTotal),
+            GrandTotal: new MoneyDto(bill.Currency, bill.GrandTotal),
+            BillableSeconds: bill.TimeCharge.BillableSeconds,
+            PlayerAccountId: session.PlayerAccountId,
+            WalletBalance: walletBalance);
+        return SessionCheckoutQuoteResult.Ok(response);
+    }
+
+    private sealed record Bill(
+        SessionBillingValidationResult TimeCharge,
+        long PosTotal,
+        string Currency,
+        long GrandTotal);
+
+    /// <summary>
+    /// Computes the unified bill (time charge + attached unpaid POS) in a single
+    /// currency. Shared by the quote preview and the settling checkout so the two
+    /// never disagree. Returns a human-readable error instead of a bill on failure.
+    /// </summary>
+    private async Task<(Bill? Bill, string? Error)> ComputeBillAsync(
+        Guid sessionId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var timeCharge = await sessionBillingService.ComputeCheckoutChargeAsync(sessionId, now, cancellationToken);
+        if (!timeCharge.Succeeded)
+        {
+            return (null, timeCharge.Error ?? "Checkout charge could not be computed.");
+        }
+
+        var attachedSales = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale => sale.SessionId == sessionId && UnpaidStates.Contains(sale.State))
+            .ToListAsync(cancellationToken);
+        var posTotal = attachedSales.Sum(sale => sale.TotalMinorUnits);
+
+        // Resolve the single bill currency across the time charge and POS tab.
+        string? currency = timeCharge.AmountMinorUnits > 0 ? timeCharge.CurrencyCode : null;
+        foreach (var sale in attachedSales)
+        {
+            if (currency is null)
+            {
+                currency = sale.CurrencyCode;
+            }
+            else if (!CurrencyEquals(currency, sale.CurrencyCode))
+            {
+                return (null, "Checkout cannot mix currencies.");
+            }
+        }
+
+        currency ??= timeCharge.CurrencyCode;
+        currency = currency.ToUpperInvariant();
+
+        long grandTotal;
+        try
+        {
+            grandTotal = checked(timeCharge.AmountMinorUnits + posTotal);
+        }
+        catch (OverflowException)
+        {
+            return (null, "Checkout total is too large.");
+        }
+
+        return (new Bill(timeCharge, posTotal, currency, grandTotal), null);
     }
 
     private static readonly string[] UnpaidStates =

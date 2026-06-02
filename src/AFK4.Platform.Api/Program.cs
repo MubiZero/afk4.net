@@ -4498,6 +4498,55 @@ app.MapPost("/api/sessions/{sessionId:guid}/checkout", async (
     return Results.Ok(result.Response);
 });
 
+app.MapGet("/api/sessions/{sessionId:guid}/checkout/quote", async (
+    Guid sessionId,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    ISessionCheckoutService sessionCheckoutService,
+    CancellationToken cancellationToken) =>
+{
+    var session = await dbContext.Sessions
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        session.BranchId,
+        StaffPermissionNames.EndSession,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await sessionCheckoutService.QuoteAsync(
+        sessionId,
+        authorization.StaffContext!.OrganizationId,
+        cancellationToken);
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    return Results.Ok(result.Response);
+});
+
 app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
     Guid branchId,
     CreateDeviceEnrollmentCodeRequest request,

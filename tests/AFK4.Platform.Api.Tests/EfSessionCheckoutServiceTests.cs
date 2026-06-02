@@ -218,6 +218,50 @@ public sealed class EfSessionCheckoutServiceTests
         Assert.Single(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.DebtPayment));
     }
 
+    [Fact]
+    public async Task QuoteAsync_OpenTabWithPosAndWallet_ReportsBreakdownWithoutSettling()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        await SeedOpenPostpaidSessionAsync(db);
+        await SeedAttachedPosSaleAsync(db, totalMinorUnits: 1000, quantity: 2);
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.QuoteAsync(SessionId, TestIds.OrganizationId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(ExpectedTimeCharge, result.Response.TimeCharge.MinorUnits);
+        Assert.Equal(1000, result.Response.PosTotal.MinorUnits);
+        Assert.Equal(ExpectedTimeCharge + 1000, result.Response.GrandTotal.MinorUnits);
+        Assert.Equal(PlayerAccountId, result.Response.PlayerAccountId);
+        Assert.NotNull(result.Response.WalletBalance);
+        Assert.Equal(5000, result.Response.WalletBalance!.MinorUnits);
+        Assert.True(result.Response.BillableSeconds > 0);
+
+        // A quote settles nothing.
+        Assert.Empty(db.Payments);
+        Assert.Empty(db.Receipts);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Active, session.State);
+        var sale = await db.PosSales.SingleAsync();
+        Assert.Equal(PosSaleStateNames.Draft, sale.State);
+    }
+
+    [Fact]
+    public async Task QuoteAsync_WrongOrganization_IsRejected()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.QuoteAsync(SessionId, Guid.NewGuid(), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+    }
+
     private static async Task<long> DebtBalanceAsync(PlatformDbContext db) =>
         await db.LedgerEntries
             .Where(entry => entry.PlayerAccountId == PlayerAccountId && entry.AccountType == LedgerAccountTypeNames.Debt)
