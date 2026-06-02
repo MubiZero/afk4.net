@@ -116,6 +116,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StaffMoneyCapEntity> StaffMoneyCaps => Set<StaffMoneyCapEntity>();
 
+    public DbSet<MoneyActionRequestEntity> MoneyActionRequests => Set<MoneyActionRequestEntity>();
+
     public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
 
     public DbSet<StaffInviteEntity> StaffInvites => Set<StaffInviteEntity>();
@@ -879,6 +881,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(cap => cap.RoleName).HasMaxLength(64).IsRequired();
             entity.Property(cap => cap.ActionScope).HasMaxLength(32).IsRequired();
             entity.HasIndex(cap => new { cap.BranchId, cap.RoleName, cap.ActionScope }).IsUnique();
+        });
+
+        modelBuilder.Entity<MoneyActionRequestEntity>(entity =>
+        {
+            entity.ToTable("money_action_requests");
+            entity.HasKey(request => request.MoneyActionRequestId);
+            entity.Property(request => request.ActionType).HasMaxLength(32).IsRequired();
+            entity.Property(request => request.State).HasMaxLength(16).IsRequired();
+            entity.Property(request => request.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(request => request.Reason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(request => new { request.BranchId, request.State });
+            entity.HasIndex(request => new { request.OrganizationId, request.BranchId, request.CreatedAtUtc });
         });
 
         modelBuilder.Entity<PasswordResetTokenEntity>(entity =>
