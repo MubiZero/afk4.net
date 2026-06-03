@@ -82,10 +82,13 @@ export function App() {
   }, [setLocale]);
 
   const signOut = useCallback(() => {
-    void clearPlayerCaches();
-    onSessionChanged(null);
-    if (typeof window !== 'undefined') window.history.pushState(null, '', '/');
-    setRoute({ kind: 'dashboard' });
+    // Purge the authenticated /api/me/* caches BEFORE dropping the session, so on a shared
+    // club PC the next player can't be served the previous one's cached data.
+    void clearPlayerCaches().finally(() => {
+      onSessionChanged(null);
+      if (typeof window !== 'undefined') window.history.pushState(null, '', '/');
+      setRoute({ kind: 'dashboard' });
+    });
   }, [onSessionChanged]);
 
   const handleSignedIn = useCallback((response: PlayerSignInResponse) => {
