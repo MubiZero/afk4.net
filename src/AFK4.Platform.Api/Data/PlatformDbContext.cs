@@ -90,6 +90,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ReservationEntity> Reservations => Set<ReservationEntity>();
 
+    public DbSet<PaymentIntentEntity> PaymentIntents => Set<PaymentIntentEntity>();
+
     public DbSet<PlatformAdminUserEntity> PlatformAdminUsers => Set<PlatformAdminUserEntity>();
 
     public DbSet<PlatformAdminAccessTokenEntity> PlatformAdminAccessTokens => Set<PlatformAdminAccessTokenEntity>();
@@ -759,6 +761,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 reservation.State,
                 reservation.StartsAtUtc
             });
+        });
+
+        modelBuilder.Entity<PaymentIntentEntity>(entity =>
+        {
+            entity.ToTable("payment_intents");
+            entity.HasKey(intent => intent.PaymentIntentId);
+            entity.Property(intent => intent.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(intent => intent.Purpose).HasMaxLength(32).IsRequired();
+            entity.Property(intent => intent.State).HasMaxLength(32).IsRequired();
+            entity.Property(intent => intent.Method).HasMaxLength(32).IsRequired();
+            entity.HasIndex(intent => intent.PlayerAccountId);
+            entity.HasIndex(intent => new { intent.BranchId, intent.State });
         });
 
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>
