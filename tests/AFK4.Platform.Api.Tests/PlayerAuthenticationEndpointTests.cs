@@ -160,4 +160,26 @@ public sealed class PlayerAuthenticationEndpointTests
         // old refresh token is now revoked
         Assert.Null(await tokenService.RefreshAsync(new PlayerRefreshRequest(issued.RefreshToken), default));
     }
+
+    [Fact]
+    public async Task PlayerToken_Validate_RejectsDeactivatedAccount()
+    {
+        await using var factory = new PlatformApiFactory();
+        var (_, playerId) = await SeedPlayerWithPinAsync(factory, "1234");
+        string accessToken;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var tokenService = scope.ServiceProvider.GetRequiredService<IPlayerTokenService>();
+            var account = await db.PlayerAccounts.SingleAsync(p => p.PlayerAccountId == playerId);
+            accessToken = (await tokenService.IssueAsync(account, true, default)).AccessToken;
+            account.IsActive = false;
+            await db.SaveChangesAsync();
+        }
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var tokenService = scope.ServiceProvider.GetRequiredService<IPlayerTokenService>();
+            Assert.Null(await tokenService.ValidateAsync(accessToken, default));
+        }
+    }
 }

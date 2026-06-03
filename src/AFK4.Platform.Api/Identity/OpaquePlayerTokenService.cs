@@ -18,14 +18,14 @@ public sealed class OpaquePlayerTokenService(PlatformDbContext dbContext, TimePr
     {
         var now = timeProvider.GetUtcNow();
 
-        var accessToken = CreateToken();
-        var refreshToken = CreateToken();
+        var (accessTokenId, accessToken) = CreateToken();
+        var (refreshTokenId, refreshToken) = CreateToken();
         var accessExpires = now.Add(AccessTokenLifetime);
         var refreshExpires = now.Add(RefreshTokenLifetime);
 
         dbContext.PlayerAccessTokens.Add(new PlayerAccessTokenEntity
         {
-            PlayerAccessTokenId = Guid.NewGuid(),
+            PlayerAccessTokenId = accessTokenId,
             PlayerAccountId = account.PlayerAccountId,
             OrganizationId = account.OrganizationId,
             TokenHash = HashToken(accessToken),
@@ -34,7 +34,7 @@ public sealed class OpaquePlayerTokenService(PlatformDbContext dbContext, TimePr
         });
         dbContext.PlayerRefreshTokens.Add(new PlayerRefreshTokenEntity
         {
-            PlayerRefreshTokenId = Guid.NewGuid(),
+            PlayerRefreshTokenId = refreshTokenId,
             PlayerAccountId = account.PlayerAccountId,
             OrganizationId = account.OrganizationId,
             TokenHash = HashToken(refreshToken),
@@ -62,14 +62,23 @@ public sealed class OpaquePlayerTokenService(PlatformDbContext dbContext, TimePr
             return null;
         }
 
-        var now = timeProvider.GetUtcNow();
-        var hash = HashToken(request.RefreshToken);
-        var candidates = await dbContext.PlayerRefreshTokens
-            .Where(token => token.RevokedAtUtc == null && token.ExpiresAtUtc > now)
-            .ToArrayAsync(cancellationToken);
-        var stored = candidates.SingleOrDefault(token => token.TokenHash.SequenceEqual(hash));
+        var parts = request.RefreshToken.Split('.');
+        if (parts.Length != 2 || !Guid.TryParse(parts[0], out var tokenId))
+        {
+            return null;
+        }
 
-        if (stored is null)
+        var now = timeProvider.GetUtcNow();
+        // No AsNoTracking — we mutate RevokedAtUtc below.
+        var stored = await dbContext.PlayerRefreshTokens
+            .SingleOrDefaultAsync(t => t.PlayerRefreshTokenId == tokenId, cancellationToken);
+
+        if (stored is null || stored.RevokedAtUtc is not null || stored.ExpiresAtUtc <= now)
+        {
+            return null;
+        }
+
+        if (!stored.TokenHash.SequenceEqual(HashToken(request.RefreshToken)))
         {
             return null;
         }
@@ -94,29 +103,47 @@ public sealed class OpaquePlayerTokenService(PlatformDbContext dbContext, TimePr
             return null;
         }
 
-        var now = timeProvider.GetUtcNow();
-        var hash = HashToken(bearerToken);
-        var candidates = await dbContext.PlayerAccessTokens
-            .Where(token => token.RevokedAtUtc == null && token.ExpiresAtUtc > now)
-            .ToArrayAsync(cancellationToken);
-        var stored = candidates.SingleOrDefault(token => token.TokenHash.SequenceEqual(hash));
+        var parts = bearerToken.Split('.');
+        if (parts.Length != 2 || !Guid.TryParse(parts[0], out var tokenId))
+        {
+            return null;
+        }
 
-        if (stored is null)
+        var now = timeProvider.GetUtcNow();
+        var stored = await dbContext.PlayerAccessTokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(t => t.PlayerAccessTokenId == tokenId, cancellationToken);
+
+        if (stored is null || stored.RevokedAtUtc is not null || stored.ExpiresAtUtc <= now)
+        {
+            return null;
+        }
+
+        if (!stored.TokenHash.SequenceEqual(HashToken(bearerToken)))
+        {
+            return null;
+        }
+
+        var account = await dbContext.PlayerAccounts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(p => p.PlayerAccountId == stored.PlayerAccountId, cancellationToken);
+        if (account is null || !account.IsActive)
         {
             return null;
         }
 
         var credential = await dbContext.PlayerCredentials
+            .AsNoTracking()
             .SingleOrDefaultAsync(c => c.PlayerAccountId == stored.PlayerAccountId, cancellationToken);
 
         return new PlayerContext(stored.PlayerAccountId, stored.OrganizationId, credential?.PhoneVerified ?? false);
     }
 
-    private static string CreateToken()
+    private static (Guid TokenId, string Token) CreateToken()
     {
         var tokenId = Guid.NewGuid();
         var secret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        return $"{tokenId:N}.{secret}";
+        return (tokenId, $"{tokenId:N}.{secret}");
     }
 
     private static byte[] HashToken(string token)
