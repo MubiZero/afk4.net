@@ -955,6 +955,79 @@ app.MapPost("/api/me/reservations", async (
     return Results.Ok(ToPlayerReservationDto(result.Response!));
 }).RequireRateLimiting("player-me");
 
+app.MapGet("/api/me/reservations", async (
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var reservations = await dbContext.Reservations
+        .AsNoTracking()
+        .Where(reservation => reservation.PlayerAccountId == player.PlayerAccountId)
+        .OrderByDescending(reservation => reservation.StartsAtUtc)
+        .ToListAsync(cancellationToken);
+
+    var seatIds = reservations
+        .Where(r => r.SeatId is not null)
+        .Select(r => r.SeatId!.Value)
+        .Distinct()
+        .ToList();
+
+    var seatNames = seatIds.Count == 0
+        ? new Dictionary<Guid, string>()
+        : await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat => seatIds.Contains(seat.SeatId))
+            .ToDictionaryAsync(seat => seat.SeatId, seat => seat.Name, cancellationToken);
+
+    var dtos = reservations.Select(r => new PlayerReservationDto(
+        r.ReservationId,
+        r.SeatId,
+        r.SeatId is not null ? seatNames.GetValueOrDefault(r.SeatId.Value) : null,
+        r.StartsAtUtc,
+        r.EndsAtUtc,
+        r.State,
+        string.IsNullOrEmpty(r.Note) ? null : r.Note))
+        .ToList();
+
+    return Results.Ok(dtos);
+}).RequireRateLimiting("player-me");
+
+app.MapDelete("/api/me/reservations/{reservationId:guid}", async (
+    Guid reservationId,
+    IPlayerContextAccessor playerContextAccessor,
+    IReservationService reservationService,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await reservationService.CancelOnlineAsync(
+        reservationId,
+        player.PlayerAccountId,
+        cancellationToken);
+
+    if (result.NotFound)
+    {
+        return Results.NotFound();
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    return Results.Ok(ToPlayerReservationDto(result.Response!));
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
     Guid intentId,
     IStaffContextAccessor staffContextAccessor,

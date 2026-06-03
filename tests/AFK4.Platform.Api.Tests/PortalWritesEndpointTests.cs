@@ -819,4 +819,101 @@ public class PortalWritesEndpointTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    // ---- B3: GET /api/me/reservations + DELETE /api/me/reservations/{id} ----
+
+    [Fact]
+    public async Task ListReservations_ReturnsOwnReservations_Only()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p1 = await SeedPlayerAsync(factory, "1111");
+        var p2 = await SeedPlayerAsync(factory, "2222");
+        var (seatId, _) = await SeedSeatAsync(factory, p1.OrgId, p1.BranchId);
+
+        using var client1 = factory.CreateClient();
+        await AuthenticateAsync(client1, p1.OrgId, p1.Phone, "1111");
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        await client1.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(seatId, startsAt, startsAt.AddHours(1), null));
+
+        using var client2 = factory.CreateClient();
+        await AuthenticateAsync(client2, p2.OrgId, p2.Phone, "2222");
+        // p2 has its own org/branch; list only its reservations
+        var list2 = await (await client2.GetAsync("/api/me/reservations"))
+            .Content.ReadFromJsonAsync<IReadOnlyList<PlayerReservationDto>>();
+        Assert.Empty(list2!);
+
+        var list1 = await (await client1.GetAsync("/api/me/reservations"))
+            .Content.ReadFromJsonAsync<IReadOnlyList<PlayerReservationDto>>();
+        Assert.Single(list1!);
+        Assert.Equal(seatId, list1![0].SeatId);
+        Assert.Equal("PC-01", list1[0].SeatName);
+    }
+
+    [Fact]
+    public async Task ListReservations_WithoutToken_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/me/reservations");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelReservation_OwnReservation_Returns200WithCancelledState()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var created = await (await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(null, startsAt, startsAt.AddHours(1), null)))
+            .Content.ReadFromJsonAsync<PlayerReservationDto>();
+
+        var cancelResponse = await client.DeleteAsync($"/api/me/reservations/{created!.ReservationId}");
+
+        Assert.Equal(HttpStatusCode.OK, cancelResponse.StatusCode);
+        var dto = await cancelResponse.Content.ReadFromJsonAsync<PlayerReservationDto>();
+        Assert.Equal("cancelled", dto!.State);
+    }
+
+    [Fact]
+    public async Task CancelReservation_ForeignReservation_Returns404()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p1 = await SeedPlayerAsync(factory, "1111");
+        var p2 = await SeedPlayerAsync(factory, "2222");
+
+        using var client1 = factory.CreateClient();
+        await AuthenticateAsync(client1, p1.OrgId, p1.Phone, "1111");
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var created = await (await client1.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(null, startsAt, startsAt.AddHours(1), null)))
+            .Content.ReadFromJsonAsync<PlayerReservationDto>();
+
+        // p2 tries to cancel p1's reservation
+        using var client2 = factory.CreateClient();
+        await AuthenticateAsync(client2, p2.OrgId, p2.Phone, "2222");
+        var cancelResponse = await client2.DeleteAsync($"/api/me/reservations/{created!.ReservationId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, cancelResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelReservation_WithoutToken_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.DeleteAsync($"/api/me/reservations/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }
