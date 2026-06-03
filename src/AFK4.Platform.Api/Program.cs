@@ -791,6 +791,72 @@ app.MapGet("/api/me/purchases", async (
     return Results.Ok(page);
 }).RequireRateLimiting("player-me");
 
+app.MapPost("/api/me/wallet/top-up-intent", async (
+    PlayerTopUpIntentRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    // D8 gate: verified phone required for money actions.
+    if (!player.PhoneVerified)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.AmountMinorUnits <= 0)
+    {
+        return Results.BadRequest(new { Error = "Amount must be greater than zero." });
+    }
+
+    var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+        candidate => candidate.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+    if (account is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var currencyCode = string.IsNullOrWhiteSpace(request.CurrencyCode)
+        ? "TJS"
+        : request.CurrencyCode.Trim().ToUpperInvariant();
+
+    var now = DateTimeOffset.UtcNow;
+    var intent = new PaymentIntentEntity
+    {
+        PaymentIntentId = Guid.NewGuid(),
+        PlayerAccountId = player.PlayerAccountId,
+        OrganizationId = player.OrganizationId,
+        BranchId = account.HomeBranchId,
+        AmountMinorUnits = request.AmountMinorUnits,
+        CurrencyCode = currencyCode,
+        Purpose = "wallet_topup",
+        State = "pending",
+        Method = "counter",
+        FulfilledByLedgerEntryId = null,
+        CreatedAtUtc = now,
+        FulfilledAtUtc = null
+    };
+
+    dbContext.PaymentIntents.Add(intent);
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new PlayerTopUpIntentDto(
+        intent.PaymentIntentId,
+        intent.AmountMinorUnits,
+        intent.CurrencyCode,
+        intent.State,
+        intent.Purpose,
+        intent.Method,
+        intent.CreatedAtUtc,
+        intent.FulfilledAtUtc,
+        IsExpired: false));
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/auth/staff/forgot-password", async (
     StaffForgotPasswordRequest request,
     IStaffPasswordResetService passwordResetService,

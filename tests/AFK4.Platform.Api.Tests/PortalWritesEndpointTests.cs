@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
@@ -90,6 +91,145 @@ public class PortalWritesEndpointTests
             OpenedAtUtc = Now
         });
         await db.SaveChangesAsync();
+    }
+
+    // ---- A2: POST /api/me/wallet/top-up-intent ----
+
+    [Fact]
+    public async Task CreateTopUpIntent_WithVerifiedPhone_CreatesPendingIntent()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(10_000, null));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
+        Assert.NotNull(dto);
+        Assert.Equal(10_000, dto!.AmountMinorUnits);
+        Assert.Equal("TJS", dto.CurrencyCode);
+        Assert.Equal("pending", dto.State);
+        Assert.Equal("wallet_topup", dto.Purpose);
+        Assert.Equal("counter", dto.Method);
+        Assert.False(dto.IsExpired);
+        Assert.Null(dto.FulfilledAtUtc);
+
+        // Verify persisted to DB
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var intent = await db.PaymentIntents.FindAsync(dto.PaymentIntentId);
+        Assert.NotNull(intent);
+        Assert.Equal(p.PlayerId, intent!.PlayerAccountId);
+        Assert.Equal(p.BranchId, intent.BranchId);
+    }
+
+    [Fact]
+    public async Task CreateTopUpIntent_WithExplicitCurrency_UsesThatCurrency()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(5_000, "TJS"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
+        Assert.Equal("TJS", dto!.CurrencyCode);
+    }
+
+    [Fact]
+    public async Task CreateTopUpIntent_WithUnverifiedPhone_Returns403()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234", phoneVerified: false);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(10_000, null));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateTopUpIntent_WithZeroAmount_Returns400()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(0, null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateTopUpIntent_WithNegativeAmount_Returns400()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(-100, null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateTopUpIntent_WithoutToken_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(10_000, null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateTopUpIntent_Isolation_IntentTiedToTokenPlayer()
+    {
+        // Two different players; each creates an intent; each sees only their own.
+        await using var factory = new PlatformApiFactory();
+        var p1 = await SeedPlayerAsync(factory, "1111");
+        var p2 = await SeedPlayerAsync(factory, "2222");
+
+        using var client1 = factory.CreateClient();
+        await AuthenticateAsync(client1, p1.OrgId, p1.Phone, "1111");
+        var r1 = await client1.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(3_000, null));
+        var dto1 = await r1.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
+
+        using var client2 = factory.CreateClient();
+        await AuthenticateAsync(client2, p2.OrgId, p2.Phone, "2222");
+        var r2 = await client2.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(7_000, null));
+        var dto2 = await r2.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var intent1 = await db.PaymentIntents.FindAsync(dto1!.PaymentIntentId);
+        var intent2 = await db.PaymentIntents.FindAsync(dto2!.PaymentIntentId);
+        Assert.Equal(p1.PlayerId, intent1!.PlayerAccountId);
+        Assert.Equal(p2.PlayerId, intent2!.PlayerAccountId);
     }
 
     // ---- A1: round-trip persist test ----
