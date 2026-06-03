@@ -115,7 +115,9 @@ action). Meaningful view state (active tab, open receipt) reflected in the URL.
   hex string) on `OrganizationEntity` (which already has the public `Slug` and `Name`).
 - `GET /api/public/tenant/{tenantKey}/branding` in `Program.cs` (mirrors the `/api/public/player/*`
   pattern), `.RequireRateLimiting("player-public")`. `tenantKey == Organization.Slug`. Returns
-  `{ name, logoUrl, accentColor }`. 404 when the slug is unknown or the org is not `active`.
+  `{ organizationId, name, logoUrl, accentColor }` — `organizationId` is required because
+  `PlayerSignInRequest` carries `OrganizationId` (Guid), and the frontend only knows the slug.
+  404 when the slug is unknown or the org is not `active`.
 - Contract `TenantBrandingDto` in `Shared.Contracts`.
 - DevSeed sets a slug + demo branding so the frontend has something to render.
 
