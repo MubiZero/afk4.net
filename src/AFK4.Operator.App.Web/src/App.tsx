@@ -4,6 +4,7 @@ import {
   Banknote,
   CalendarClock,
   CircleDollarSign,
+  ClipboardCheck,
   Clock3,
   LockKeyhole,
   Maximize2,
@@ -93,6 +94,7 @@ import {
   type TariffOptionDto,
   type UpdatePackageDto,
   type UpdateRolloutStatusDto,
+  type MoneyActionRequestDto,
   type WalletSummaryDto,
   type ZoneDto
 } from './operatorApiClients';
@@ -106,7 +108,7 @@ import {
 import { navItems, seats, type SeatSummary, type SeatTone } from './operatorData';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 
-type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'logs' | 'settings';
+type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'logs' | 'settings' | 'review';
 type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
 type AuthStatus = 'checking' | 'signed-out' | 'signed-in';
 type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';
@@ -144,7 +146,7 @@ type PcControlActionResult = {
   detail: string;
 };
 
-const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'logs', 'settings'];
+const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'logs', 'settings', 'review'];
 const defaultSessionDurationMinutes = 60;
 const defaultTariffRuleVersionId = 'manual-v1';
 const shellOperationalRefreshMs = 30_000;
@@ -206,7 +208,8 @@ const permissionNames = {
   manageUpdatePackages: 'updates.packages.manage',
   manageUpdateRollouts: 'updates.rollouts.manage',
   viewDeviceCommandStatus: 'devices.commands.status.view',
-  viewAudit: 'audit.view'
+  viewAudit: 'audit.view',
+  approveMoneyAction: 'billing.money_action.approve'
 } as const;
 
 const staffRoleOptions = ['cashier_operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant_auditor'] as const;
@@ -253,7 +256,8 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.manageUpdateRollouts,
     permissionNames.manageTariffs,
     permissionNames.viewTariffs
-  ]
+  ],
+  review: [permissionNames.approveMoneyAction]
 };
 
 const toneLabels: Record<SeatTone, string> = {
@@ -6973,6 +6977,21 @@ function auditPeriodPresetRange(preset: AuditPeriodPreset, now = new Date()): Pi
   };
 }
 
+function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  void currencyCode;
+  void backend;
+  return (
+    <main className="workspace-screen review-screen">
+      <section className="screen-head">
+        <div>
+          <span>Проверка</span>
+          <h1>Проверка · заявки и журнал</h1>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const [eventSearch, setEventSearch] = useState('');
   const [activeLogFilter, setActiveLogFilter] = useState('Все события');
@@ -10153,6 +10172,7 @@ export function App() {
       {workspace === 'payments' && <BackendPaymentsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'logs' && <BackendLogsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'settings' && <BackendSettingsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'review' && <ReviewWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
 
       {workspace === 'map' && selectedSeat !== null && (
         <MapSidePanel
@@ -10164,7 +10184,7 @@ export function App() {
           onSeatAction={handleSeatAction}
         />
       )}
-      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings'
+      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review'
         && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">

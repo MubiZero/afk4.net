@@ -634,7 +634,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: /Продажи/ })).toBeInTheDocument();
 
     const workspaceButtons = within(screen.getByRole('navigation')).getAllByRole('button');
-    const settingsButton = workspaceButtons.at(-1);
+    const settingsButton = workspaceButtons.at(-2);
     expect(settingsButton).toBeDefined();
     expect(settingsButton).toBeEnabled();
 
@@ -2659,6 +2659,24 @@ describe('App', () => {
       reason: 'Пауза для проверки ошибок.'
     });
   });
+
+  it('locks the review workspace without the approve permission', async () => {
+    installSessionBridge(createSession({ permissions: ['floor_map.view'] }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+
+    const reviewNav = screen.getByTitle('Проверка');
+    expect(reviewNav.className).toContain('locked');
+  });
+
+  it('opens the review workspace for a manager', async () => {
+    installSessionBridge(createSession({ displayName: 'Manager One' }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+
+    fireEvent.click(screen.getByTitle('Проверка'));
+    expect(await screen.findByRole('heading', { name: /Проверка/ })).toBeInTheDocument();
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -3238,7 +3256,8 @@ const allOperatorPermissions = [
   'updates.packages.manage',
   'updates.rollouts.manage',
   'devices.commands.status.view',
-  'audit.view'
+  'audit.view',
+  'billing.money_action.approve'
 ];
 
 function createSession(overrides: Record<string, unknown> = {}) {
