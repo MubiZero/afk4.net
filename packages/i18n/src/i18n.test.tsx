@@ -29,6 +29,21 @@ describe('i18n', () => {
     render(<I18nProvider><MissingProbe /></I18nProvider>);
     expect(screen.getByText('out:does.not.exist')).toBeInTheDocument();
   });
+  it('seeds the initial locale from localStorage', () => {
+    localStorage.setItem('afk4.locale', 'en');
+    render(<I18nProvider><Probe /></I18nProvider>);
+    expect(screen.getByText('loc:en')).toBeInTheDocument();
+  });
+  it('clamps an unknown persisted locale to ru', () => {
+    localStorage.setItem('afk4.locale', 'zz');
+    render(<I18nProvider><Probe /></I18nProvider>);
+    expect(screen.getByText('loc:ru')).toBeInTheDocument();
+  });
+  it('persists the locale to localStorage on change', () => {
+    render(<I18nProvider><Probe /></I18nProvider>);
+    fireEvent.click(screen.getByRole('button')); // setLocale('en')
+    expect(localStorage.getItem('afk4.locale')).toBe('en');
+  });
 });
 
 function MissingProbe() {

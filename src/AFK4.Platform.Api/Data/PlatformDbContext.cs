@@ -192,6 +192,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.Name).HasMaxLength(160).IsRequired();
             entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();
             entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);
+            entity.Property(branch => branch.PreferredLocale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.BranchId }).IsUnique();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.Slug }).IsUnique();
         });
@@ -641,6 +642,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(receipt => receipt.ReceiptNumber).HasMaxLength(32).IsRequired();
             entity.Property(receipt => receipt.ReceiptType).HasMaxLength(32).IsRequired();
             entity.Property(receipt => receipt.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(receipt => receipt.Locale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
             entity.HasIndex(receipt => new
             {
                 receipt.OrganizationId,

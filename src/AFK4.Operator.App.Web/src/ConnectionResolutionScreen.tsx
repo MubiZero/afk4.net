@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import {
   ConnectionResolutionError,
   ConnectionResolver,
   OperatorTenantStatus,
   type ResolveOperatorConnectionResponse
 } from './connectionResolver';
+
+type Translate = (key: MessageKey) => string;
 
 export interface ConnectionResolutionScreenProps {
   resolver: ConnectionResolver;
@@ -14,6 +17,7 @@ export interface ConnectionResolutionScreenProps {
 type Mode = 'slug' | 'setup_code';
 
 export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionResolutionScreenProps) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>('slug');
   const [organizationSlug, setOrganizationSlug] = useState('');
   const [branchSlug, setBranchSlug] = useState('');
@@ -32,11 +36,11 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
       onResolved(resolution);
     } catch (cause) {
       if (cause instanceof ConnectionResolutionError) {
-        setError(buildResolutionMessage(cause));
+        setError(buildResolutionMessage(cause, t));
       } else if (cause instanceof Error) {
-        setError(localizeResolutionErrorDetail(cause.message));
+        setError(localizeResolutionErrorDetail(cause.message, t));
       } else {
-        setError('Не удалось настроить подключение оператора.');
+        setError(t('operator.connect.error.generic'));
       }
     } finally {
       setResolving(false);
@@ -45,10 +49,8 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
 
   return (
     <div className="operator-connection-screen">
-      <h1>Подключение клуба</h1>
-      <p>
-        Введите ключ клуба и ключ филиала или используйте код подключения от администратора.
-      </p>
+      <h1>{t('operator.connect.title')}</h1>
+      <p>{t('operator.connect.subtitle')}</p>
       <div className="operator-connection-modes">
         <button
           type="button"
@@ -56,7 +58,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           onClick={() => setMode('slug')}
           disabled={isResolving}
         >
-          Клуб и филиал
+          {t('operator.connect.mode.slug')}
         </button>
         <button
           type="button"
@@ -64,7 +66,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           onClick={() => setMode('setup_code')}
           disabled={isResolving}
         >
-          Код подключения
+          {t('operator.connect.mode.setupCode')}
         </button>
       </div>
       <form onSubmit={handleSubmit} className="operator-connection-form">
@@ -73,7 +75,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
         )}
         {mode === 'slug' ? (
           <>
-            <label htmlFor="org-slug">Ключ клуба</label>
+            <label htmlFor="org-slug">{t('operator.connect.field.orgSlug')}</label>
             <input
               id="org-slug"
               value={organizationSlug}
@@ -82,7 +84,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
               required
               disabled={isResolving}
             />
-            <label htmlFor="branch-slug">Ключ филиала</label>
+            <label htmlFor="branch-slug">{t('operator.connect.field.branchSlug')}</label>
             <input
               id="branch-slug"
               value={branchSlug}
@@ -94,7 +96,7 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           </>
         ) : (
           <>
-            <label htmlFor="setup-code">Код подключения</label>
+            <label htmlFor="setup-code">{t('operator.connect.field.setupCode')}</label>
             <input
               id="setup-code"
               value={setupCode}
@@ -106,32 +108,32 @@ export function ConnectionResolutionScreen({ resolver, onResolved }: ConnectionR
           </>
         )}
         <button type="submit" disabled={isResolving}>
-          {isResolving ? 'Проверяем' : 'Продолжить'}
+          {isResolving ? t('operator.connect.action.resolving') : t('operator.connect.action.submit')}
         </button>
       </form>
     </div>
   );
 }
 
-function buildResolutionMessage(error: ConnectionResolutionError): string {
+function buildResolutionMessage(error: ConnectionResolutionError, t: Translate): string {
   switch (error.status) {
     case 404:
-      return 'Не нашли клуб по этим ключам или коду подключения. Проверьте данные у администратора.';
+      return t('operator.connect.error.notFound');
     case 400:
-      return localizeResolutionErrorDetail(error.message);
+      return localizeResolutionErrorDetail(error.message, t);
     default:
-      return `${localizeResolutionErrorDetail(error.message)} Код ошибки платформы: ${error.status}.`;
+      return `${localizeResolutionErrorDetail(error.message, t)} ${t('operator.connect.error.platformCode')} ${error.status}.`;
   }
 }
 
-function localizeResolutionErrorDetail(message: string): string {
+function localizeResolutionErrorDetail(message: string, t: Translate): string {
   const normalized = message.trim();
   if (!normalized || normalized === 'Failed to resolve operator connection.') {
-    return 'Не удалось настроить подключение оператора.';
+    return t('operator.connect.error.generic');
   }
 
   if (/setup code is no longer usable/i.test(normalized)) {
-    return 'Код подключения больше не действует.';
+    return t('operator.connect.error.setupCodeExpired');
   }
 
   return normalized;

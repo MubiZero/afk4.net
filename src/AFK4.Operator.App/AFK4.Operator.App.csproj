@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AFK4.Shared.Contracts\AFK4.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\AFK4.Localization\AFK4.Localization.csproj" />
   </ItemGroup>
 
   <ItemGroup>

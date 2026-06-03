@@ -162,6 +162,13 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<long?>("PostpaidCreditLimitMinorUnits")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("PreferredLocale")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("ru");
+
                     b.Property<bool>("RefundReasonWhitelistEnabled")
                         .HasColumnType("boolean");
 
@@ -1995,6 +2002,13 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
+
+                    b.Property<string>("Locale")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("ru");
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");

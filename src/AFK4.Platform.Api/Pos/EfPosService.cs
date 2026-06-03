@@ -287,6 +287,10 @@ public sealed class EfPosService(
                 SaleReceiptType,
                 now,
                 cancellationToken);
+            var branchLocale = await dbContext.Branches
+                .Where(branch => branch.BranchId == sale.BranchId)
+                .Select(branch => branch.PreferredLocale)
+                .FirstOrDefaultAsync(cancellationToken) ?? "ru";
             var receipt = new ReceiptEntity
             {
                 ReceiptId = Guid.NewGuid(),
@@ -297,6 +301,7 @@ public sealed class EfPosService(
                 ReceiptType = SaleReceiptType,
                 CurrencyCode = sale.CurrencyCode,
                 TotalMinorUnits = sale.TotalMinorUnits,
+                Locale = branchLocale,
                 CreatedAtUtc = now
             };
             dbContext.Receipts.Add(receipt);
@@ -440,6 +445,10 @@ public sealed class EfPosService(
                 RefundReceiptType,
                 now,
                 cancellationToken);
+            var branchLocale = await dbContext.Branches
+                .Where(branch => branch.BranchId == sale.BranchId)
+                .Select(branch => branch.PreferredLocale)
+                .FirstOrDefaultAsync(cancellationToken) ?? "ru";
             var receipt = new ReceiptEntity
             {
                 ReceiptId = Guid.NewGuid(),
@@ -450,6 +459,7 @@ public sealed class EfPosService(
                 ReceiptType = RefundReceiptType,
                 CurrencyCode = sale.CurrencyCode,
                 TotalMinorUnits = sale.TotalMinorUnits,
+                Locale = branchLocale,
                 CreatedAtUtc = now
             };
             dbContext.Receipts.Add(receipt);

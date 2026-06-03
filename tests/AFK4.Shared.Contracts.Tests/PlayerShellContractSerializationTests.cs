@@ -32,6 +32,32 @@ public sealed class PlayerShellContractSerializationTests
     }
 
     [Fact]
+    public void State_CarriesBranchLocale_DefaultingToRu()
+    {
+        var defaulted = new PlayerShellStateDto(
+            OrganizationId: Guid.Empty,
+            BranchId: Guid.Empty,
+            DeviceId: Guid.Empty,
+            State: PlayerShellStateNames.Locked,
+            SessionId: null,
+            LeaseExpiresAtUtc: null,
+            RemainingSeconds: null,
+            IsOnline: false,
+            IsGraceMode: false,
+            WarningThresholdSeconds: 300,
+            Message: "This PC is locked.",
+            LauncherApps: []);
+
+        Assert.Equal("ru", defaulted.Locale);
+
+        var tg = defaulted with { Locale = "tg" };
+        var copy = JsonSerializer.Deserialize<PlayerShellStateDto>(JsonSerializer.Serialize(tg));
+
+        Assert.NotNull(copy);
+        Assert.Equal("tg", copy.Locale);
+    }
+
+    [Fact]
     public void ActiveState_RoundTripsSessionCountdownAndLauncherApps()
     {
         var app = new LauncherAppDto(

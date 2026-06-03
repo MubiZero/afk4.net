@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@afk4/formatting": "workspace:*",
+    "@afk4/i18n": "workspace:*",
     "@afk4/money": "workspace:*",
     "@microsoft/signalr": "^10.0.0",
     "lucide-react": "^1.16.0",

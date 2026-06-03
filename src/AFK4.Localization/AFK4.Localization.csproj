@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- The locale catalogs are the single source of truth (locales/*.json at the repo
+       root, also consumed by the React surfaces). Embed them so the WPF apps carry the
+       same catalog without a second copy. LogicalName keeps the manifest name stable
+       regardless of the on-disk path. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\locales\ru.json">
+      <LogicalName>AFK4.Localization.Catalog.ru.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\locales\en.json">
+      <LogicalName>AFK4.Localization.Catalog.en.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\locales\tg.json">
+      <LogicalName>AFK4.Localization.Catalog.tg.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

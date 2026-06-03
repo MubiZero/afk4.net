@@ -1,4 +1,5 @@
 using System.Windows;
+using AFK4.Localization;
 using AFK4.Player.Shell.Configuration;
 using AFK4.Player.Shell.Launcher;
 using AFK4.Player.Shell.Realtime;
@@ -13,7 +14,7 @@ public partial class MainWindow : Window
     private readonly IPlayerShellStateClient stateClient;
     private readonly PlayerShellViewModel viewModel;
 
-    public MainWindow()
+    public MainWindow(ILocalizationService localization)
     {
         InitializeComponent();
         var options = new PlayerShellOptions
@@ -23,7 +24,7 @@ public partial class MainWindow : Window
         };
 
         stateClient = new NamedPipePlayerShellStateClient(options);
-        viewModel = new PlayerShellViewModel(new LauncherCommandClient(options));
+        viewModel = new PlayerShellViewModel(new LauncherCommandClient(options), localization);
         viewModel.ApplyState(new PlayerShellStateDto(
             OrganizationId: Guid.Empty,
             BranchId: Guid.Empty,
@@ -36,7 +37,8 @@ public partial class MainWindow : Window
             IsGraceMode: false,
             WarningThresholdSeconds: 300,
             Message: "This PC is locked.",
-            LauncherApps: []));
+            LauncherApps: [],
+            Locale: localization.CurrentLocale));
         DataContext = viewModel;
 
         Loaded += OnLoaded;

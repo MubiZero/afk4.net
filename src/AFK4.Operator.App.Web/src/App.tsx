@@ -27,6 +27,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react';
 import { minorToMajor, majorToMinor } from '@afk4/money';
 import { formatNumber as formatLocaleNumber, formatDateParts } from '@afk4/formatting';
+import { I18nProvider } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
 import {
@@ -9599,6 +9600,14 @@ function createOperatorConnectionStorage(): OperatorConnectionStorage {
 }
 
 export function App() {
+  return (
+    <I18nProvider>
+      <AppInner />
+    </I18nProvider>
+  );
+}
+
+function AppInner() {
   const baseConfig = getOperatorConfig();
   const connectionStorage = useMemo(() => createOperatorConnectionStorage(), []);
   const [resolvedConnection, setResolvedConnection] = useState<ResolvedOperatorConnection | null>(

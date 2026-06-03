@@ -21,5 +21,11 @@ public sealed class ReceiptEntity
 
     public long TotalMinorUnits { get; set; }
 
+    /// <summary>
+    /// Locale stamped at receipt creation (= the branch <see cref="BranchEntity.PreferredLocale"/>)
+    /// so a re-print reproduces the original language even if the branch later switches locale.
+    /// </summary>
+    public string Locale { get; set; } = "ru";
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

@@ -497,7 +497,8 @@ app.MapGet("/api/branches/{branchId:guid}/settings", async (
     var response = new BranchSettingsDto(
         branch.OrganizationId,
         branch.BranchId,
-        branch.RequireManualDeviceApproval);
+        branch.RequireManualDeviceApproval,
+        branch.PreferredLocale);
 
     return Results.Ok(response);
 });
@@ -542,6 +543,12 @@ app.MapPut("/api/branches/{branchId:guid}/settings", async (
         return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
     }
 
+    var supportedLocales = new[] { "ru", "en", "tg" };
+    if (Array.IndexOf(supportedLocales, request.PreferredLocale) < 0)
+    {
+        return Results.BadRequest(new { Error = "PreferredLocale must be one of: ru, en, tg." });
+    }
+
     var branch = await dbContext.Branches
         .SingleOrDefaultAsync(
             candidate => candidate.OrganizationId == request.OrganizationId && candidate.BranchId == branchId,
@@ -552,17 +559,20 @@ app.MapPut("/api/branches/{branchId:guid}/settings", async (
         return Results.NotFound();
     }
 
-    var changed = branch.RequireManualDeviceApproval != request.RequireManualDeviceApproval;
+    var changed = branch.RequireManualDeviceApproval != request.RequireManualDeviceApproval
+        || branch.PreferredLocale != request.PreferredLocale;
     if (changed)
     {
         branch.RequireManualDeviceApproval = request.RequireManualDeviceApproval;
+        branch.PreferredLocale = request.PreferredLocale;
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     var response = new BranchSettingsDto(
         branch.OrganizationId,
         branch.BranchId,
-        branch.RequireManualDeviceApproval);
+        branch.RequireManualDeviceApproval,
+        branch.PreferredLocale);
 
     await WriteAuditAsync(
         auditRecordWriter,
@@ -573,7 +583,7 @@ app.MapPut("/api/branches/{branchId:guid}/settings", async (
         "BranchSettings",
         branchId.ToString("D"),
         AuditOutcome.Succeeded,
-        new { branch.RequireManualDeviceApproval, Changed = changed },
+        new { branch.RequireManualDeviceApproval, branch.PreferredLocale, Changed = changed },
         cancellationToken);
 
     return Results.Ok(response);

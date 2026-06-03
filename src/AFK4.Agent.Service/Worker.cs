@@ -256,7 +256,8 @@ public sealed class Worker(
             IsGraceMode: string.Equals(runtimeState.State, PlayerShellStateNames.Grace, StringComparison.Ordinal),
             WarningThresholdSeconds: 300,
             Message: CreatePlayerShellMessage(runtimeState),
-            LauncherApps: []);
+            LauncherApps: [],
+            Locale: agentOptions.PreferredLocale);
     }
 
     private static string CreatePlayerShellMessage(AgentRuntimeState runtimeState)

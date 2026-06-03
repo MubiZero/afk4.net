@@ -9,4 +9,6 @@ const { cleanup } = await import('@testing-library/react');
 
 afterEach(() => {
   cleanup();
+  // Isolate locale persistence between tests (the provider seeds from localStorage).
+  try { localStorage.clear(); } catch { /* no localStorage in this env */ }
 });

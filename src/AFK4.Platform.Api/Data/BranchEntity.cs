@@ -14,6 +14,12 @@ public sealed class BranchEntity
 
     public bool RequireManualDeviceApproval { get; set; }
 
+    /// <summary>
+    /// BCP-47-ish locale ("ru" | "en" | "tg") that drives the customer-facing shell language
+    /// for this branch and the default locale for its receipts and notifications.
+    /// </summary>
+    public string PreferredLocale { get; set; } = "ru";
+
     // Per-branch default ceiling for an open postpaid tab; null means unbounded.
     public long? PostpaidCreditLimitMinorUnits { get; set; }
 
