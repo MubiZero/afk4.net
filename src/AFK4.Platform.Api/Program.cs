@@ -27,6 +27,7 @@ using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Reports;
 using AFK4.Platform.Api.Reservations;
+using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Platform.Api.Tenancy;
@@ -675,6 +676,22 @@ app.MapGet("/api/me/profile", async (
         player.PhoneVerified,
         account.PreferredLocale,
         account.MarketingOptIn));
+}).RequireRateLimiting("player-me");
+
+app.MapGet("/api/me/dashboard", async (
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var dashboard = await PlayerDashboardProjector.GetDashboardAsync(
+        dbContext, player.PlayerAccountId, DateTimeOffset.UtcNow, cancellationToken);
+    return Results.Ok(dashboard);
 }).RequireRateLimiting("player-me");
 
 app.MapPost("/api/auth/staff/forgot-password", async (
