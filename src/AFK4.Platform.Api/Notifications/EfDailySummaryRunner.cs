@@ -1,5 +1,8 @@
 using System.Globalization;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Reports;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Shifts;
@@ -33,7 +36,28 @@ public sealed class EfDailySummaryRunner(
             .Distinct()
             .ToListAsync(cancellationToken);
 
-        var organizationIds = saleOrgIds.Union(shiftOrgIds).ToList();
+        // A day with refunds/comps but no sales or shift closes is exactly what the owner wants flagged.
+        var moneyOrgIds = await dbContext.LedgerEntries
+            .Where(entry => entry.CreatedAtUtc >= windowStart && entry.CreatedAtUtc < windowEnd
+                && (entry.EntryType == LedgerEntryTypeNames.Refund
+                    || entry.EntryType == LedgerEntryTypeNames.Reversal
+                    || entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
+            .Select(entry => entry.OrganizationId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var compOrgIds = await dbContext.AuditRecords
+            .Where(record => record.Action == AuditActionNames.SessionComp
+                && record.CreatedAtUtc >= windowStart && record.CreatedAtUtc < windowEnd)
+            .Select(record => record.OrganizationId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var organizationIds = saleOrgIds
+            .Union(shiftOrgIds)
+            .Union(moneyOrgIds)
+            .Union(compOrgIds)
+            .ToList();
 
         var enqueued = 0;
         foreach (var organizationId in organizationIds)
@@ -72,12 +96,32 @@ public sealed class EfDailySummaryRunner(
                 && shift.ClosedAtUtc >= windowStart && shift.ClosedAtUtc < windowEnd)
             .ToListAsync(cancellationToken);
 
+        var moneyEntries = await dbContext.LedgerEntries
+            .Where(entry => entry.OrganizationId == organizationId
+                && entry.CreatedAtUtc >= windowStart && entry.CreatedAtUtc < windowEnd
+                && (entry.EntryType == LedgerEntryTypeNames.Refund
+                    || entry.EntryType == LedgerEntryTypeNames.Reversal
+                    || entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
+            .ToListAsync(cancellationToken);
+
+        var compAudits = await dbContext.AuditRecords
+            .Where(record => record.OrganizationId == organizationId
+                && record.Action == AuditActionNames.SessionComp
+                && record.CreatedAtUtc >= windowStart && record.CreatedAtUtc < windowEnd)
+            .ToListAsync(cancellationToken);
+
         var revenueMinorUnits = sales.Sum(sale => sale.TotalMinorUnits);
         var discrepancyTotalMinorUnits = shifts.Sum(shift => shift.DifferenceMinorUnits);
         var discrepancyCount = shifts.Count(shift => shift.DifferenceMinorUnits != 0);
         var currency = sales.FirstOrDefault()?.CurrencyCode
             ?? shifts.FirstOrDefault()?.CurrencyCode
+            ?? moneyEntries.FirstOrDefault()?.CurrencyCode
             ?? string.Empty;
+
+        // Reuse the §5.6 aggregator for the org-wide high-risk rollup (per-actor detail lives in the
+        // on-demand owner-daily-summary report). Discrepancy stays in its own tokens above.
+        var antiFraud = OwnerDailySummaryAggregator.Build(
+            summaryDate, currency, moneyEntries, compAudits, [], new Dictionary<Guid, string>());
 
         var request = new NotificationRequest(
             TemplateKey: NotificationTemplateKeys.OwnerDailySummary,
@@ -97,6 +141,11 @@ public sealed class EfDailySummaryRunner(
                 ["shiftsClosed"] = shifts.Count.ToString(CultureInfo.InvariantCulture),
                 ["discrepancyCount"] = discrepancyCount.ToString(CultureInfo.InvariantCulture),
                 ["discrepancyTotal"] = Money(discrepancyTotalMinorUnits),
+                ["refundTotal"] = Money(antiFraud.TotalRefundMinorUnits),
+                ["compCount"] = antiFraud.TotalCompCount.ToString(CultureInfo.InvariantCulture),
+                ["compValueTotal"] = Money(antiFraud.TotalCompValueMinorUnits),
+                ["manualCorrectionTotal"] = Money(antiFraud.TotalManualCorrectionMinorUnits),
+                ["writeOffTotal"] = Money(antiFraud.TotalWriteOffMinorUnits),
             },
             IdempotencyKey: $"daily-summary:{organizationId:N}:{summaryDate:yyyy-MM-dd}",
             OrganizationId: organizationId);

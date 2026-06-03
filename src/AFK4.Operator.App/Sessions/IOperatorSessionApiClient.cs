@@ -23,6 +23,15 @@ public interface IOperatorSessionApiClient
         Guid sessionId,
         EndSessionRequest request,
         CancellationToken cancellationToken);
+
+    Task<SessionCheckoutQuoteResponse> GetCheckoutQuoteAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken);
+
+    Task<SessionCheckoutResponse> CheckoutSessionAsync(
+        Guid sessionId,
+        SessionCheckoutRequest request,
+        CancellationToken cancellationToken);
 }
 
 public sealed class UnconfiguredOperatorSessionApiClient : IOperatorSessionApiClient
@@ -54,6 +63,21 @@ public sealed class UnconfiguredOperatorSessionApiClient : IOperatorSessionApiCl
     public Task<SessionCommandResponse> EndSessionAsync(
         Guid sessionId,
         EndSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<SessionCheckoutQuoteResponse> GetCheckoutQuoteAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        throw CreateException();
+    }
+
+    public Task<SessionCheckoutResponse> CheckoutSessionAsync(
+        Guid sessionId,
+        SessionCheckoutRequest request,
         CancellationToken cancellationToken)
     {
         throw CreateException();

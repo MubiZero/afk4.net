@@ -4,6 +4,26 @@ namespace AFK4.Platform.Api.Tests;
 
 internal sealed class FakeSessionBillingService : ISessionBillingService
 {
+    // The comp value the fake returns from ComputeCompValueAsync; lets a test drive the §5.4 gate.
+    public long CompValueMinorUnits { get; set; }
+
+    public Task<SessionBillingValidationResult> ComputeCompValueAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid tariffVersionId,
+        int durationMinutes,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(new SessionBillingValidationResult(
+            Succeeded: true,
+            Error: null,
+            TariffRuleVersionId: tariffVersionId.ToString("D"),
+            TariffVersionId: tariffVersionId,
+            BillableSeconds: Math.Max(0, durationMinutes) * 60,
+            AmountMinorUnits: CompValueMinorUnits,
+            CurrencyCode: "TJS"));
+    }
+
     public Task<SessionBillingValidationResult> ValidateStartAsync(
         Guid organizationId,
         Guid branchId,
@@ -50,6 +70,25 @@ internal sealed class FakeSessionBillingService : ISessionBillingService
         Guid playerAccountId,
         Guid? playerPackageId,
         string billingMode,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task<SessionBillingValidationResult> ComputeCheckoutChargeAsync(
+        Guid sessionId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(Valid(0));
+    }
+
+    public Task AppendCheckoutLedgerEntriesAsync(
+        Guid sessionId,
+        Guid actorStaffUserId,
+        SessionBillingValidationResult validation,
+        Guid playerAccountId,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {

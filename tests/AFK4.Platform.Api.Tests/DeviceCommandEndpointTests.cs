@@ -606,7 +606,7 @@ public sealed class DeviceCommandEndpointTests
     {
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
-            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, 60, "manual-v1", idempotencyKey));
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", idempotencyKey, SessionDurationModes.Fixed, 60));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

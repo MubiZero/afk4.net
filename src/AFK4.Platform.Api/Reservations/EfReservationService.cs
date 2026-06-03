@@ -573,4 +573,138 @@ public sealed class EfReservationService(
     {
         return Math.Max(1, (int)Math.Round((reservation.EndsAtUtc - reservation.StartsAtUtc).TotalMinutes));
     }
+
+    public async Task<ReservationServiceResult<ReservationDto>> CreateOnlineAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        CreatePlayerReservationRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.StartsAtUtc >= request.EndsAtUtc)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Reservation end time must be after start time.");
+        }
+
+        // Compute duration in minutes from the absolute times.
+        var durationMinutes = (int)Math.Round((request.EndsAtUtc - request.StartsAtUtc).TotalMinutes);
+
+        // Load the player's display name and phone for the reservation record.
+        var account = await dbContext.PlayerAccounts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                player =>
+                    player.OrganizationId == organizationId &&
+                    player.HomeBranchId == branchId &&
+                    player.PlayerAccountId == playerAccountId,
+                cancellationToken);
+
+        if (account is null)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Player account was not found in this branch.");
+        }
+
+        var validation = await ValidateReservationShapeAsync(
+            organizationId,
+            branchId,
+            playerAccountId,
+            request.SeatId,
+            account.DisplayName,
+            request.StartsAtUtc,
+            durationMinutes,
+            ReservationSourceNames.Online,
+            cancellationToken);
+
+        if (validation is not null)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(validation);
+        }
+
+        var endsAtUtc = request.StartsAtUtc.AddMinutes(durationMinutes);
+        var conflict = await FindConflictAsync(
+            organizationId,
+            branchId,
+            request.SeatId,
+            request.StartsAtUtc,
+            endsAtUtc,
+            excludedReservationId: null,
+            cancellationToken);
+
+        if (conflict is not null)
+        {
+            return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var reservation = new ReservationEntity
+        {
+            ReservationId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            BranchId = branchId,
+            PlayerAccountId = playerAccountId,
+            SeatId = request.SeatId,
+            CustomerName = account.DisplayName,
+            PhoneNumber = account.PhoneNumber,
+            StartsAtUtc = request.StartsAtUtc,
+            EndsAtUtc = endsAtUtc,
+            // Online source → Pending state (same logic as CreateAsync)
+            State = ReservationStateNames.Pending,
+            Source = ReservationSourceNames.Online,
+            Note = NormalizeText(request.Note),
+            // Guid.Empty = self-service sentinel; no staff actor for online bookings.
+            CreatedByStaffUserId = Guid.Empty,
+            UpdatedByStaffUserId = Guid.Empty,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now,
+            CancelReason = string.Empty
+        };
+
+        dbContext.Reservations.Add(reservation);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ReservationServiceResult<ReservationDto>.Ok(
+            (await ProjectAsync([reservation], cancellationToken))[0]);
+    }
+
+    public async Task<ReservationServiceResult<ReservationDto>> CancelOnlineAsync(
+        Guid reservationId,
+        Guid playerAccountId,
+        CancellationToken cancellationToken)
+    {
+        var reservation = await dbContext.Reservations
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.ReservationId == reservationId &&
+                    candidate.PlayerAccountId == playerAccountId,
+                cancellationToken);
+
+        // Return NotFound (not Forbidden) to avoid existence disclosure.
+        if (reservation is null)
+        {
+            return ReservationServiceResult<ReservationDto>.Missing(
+                "Reservation was not found.");
+        }
+
+        if (reservation.State is not ReservationStateNames.Pending and not ReservationStateNames.Confirmed and not ReservationStateNames.Cancelled)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Only pending or confirmed reservations can be cancelled.");
+        }
+
+        if (reservation.State != ReservationStateNames.Cancelled)
+        {
+            var now = timeProvider.GetUtcNow();
+            reservation.State = ReservationStateNames.Cancelled;
+            reservation.CancelReason = "player-initiated";
+            reservation.CancelledAtUtc = now;
+            reservation.UpdatedByStaffUserId = Guid.Empty;
+            reservation.UpdatedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return ReservationServiceResult<ReservationDto>.Ok(
+            (await ProjectAsync([reservation], cancellationToken))[0]);
+    }
 }

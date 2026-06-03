@@ -16,7 +16,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
         StartGuestSessionRequest request,
         CancellationToken cancellationToken)
     {
-        return SendAsync(
+        return SendAsync<StartGuestSessionRequest, SessionCommandResponse>(
             HttpMethod.Post,
             $"/api/branches/{branchId:D}/sessions/start",
             request,
@@ -28,7 +28,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
         ExtendSessionRequest request,
         CancellationToken cancellationToken)
     {
-        return SendAsync(
+        return SendAsync<ExtendSessionRequest, SessionCommandResponse>(
             HttpMethod.Post,
             $"/api/sessions/{sessionId:D}/extend",
             request,
@@ -40,7 +40,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
         TransferSessionRequest request,
         CancellationToken cancellationToken)
     {
-        return SendAsync(
+        return SendAsync<TransferSessionRequest, SessionCommandResponse>(
             HttpMethod.Post,
             $"/api/sessions/{sessionId:D}/transfer",
             request,
@@ -52,14 +52,35 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
         EndSessionRequest request,
         CancellationToken cancellationToken)
     {
-        return SendAsync(
+        return SendAsync<EndSessionRequest, SessionCommandResponse>(
             HttpMethod.Post,
             $"/api/sessions/{sessionId:D}/end",
             request,
             cancellationToken);
     }
 
-    private async Task<SessionCommandResponse> SendAsync<TRequest>(
+    public Task<SessionCheckoutQuoteResponse> GetCheckoutQuoteAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        return GetAsync<SessionCheckoutQuoteResponse>(
+            $"/api/sessions/{sessionId:D}/checkout/quote",
+            cancellationToken);
+    }
+
+    public Task<SessionCheckoutResponse> CheckoutSessionAsync(
+        Guid sessionId,
+        SessionCheckoutRequest request,
+        CancellationToken cancellationToken)
+    {
+        return SendAsync<SessionCheckoutRequest, SessionCheckoutResponse>(
+            HttpMethod.Post,
+            $"/api/sessions/{sessionId:D}/checkout",
+            request,
+            cancellationToken);
+    }
+
+    private async Task<TResponse> SendAsync<TRequest, TResponse>(
         HttpMethod method,
         string requestUri,
         TRequest body,
@@ -67,7 +88,21 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
     {
         using var request = await CreateRequestAsync(method, requestUri, cancellationToken);
         request.Content = JsonContent.Create(body, options: JsonOptions);
+        return await ReadResponseAsync<TResponse>(request, cancellationToken);
+    }
 
+    private async Task<TResponse> GetAsync<TResponse>(
+        string requestUri,
+        CancellationToken cancellationToken)
+    {
+        using var request = await CreateRequestAsync(HttpMethod.Get, requestUri, cancellationToken);
+        return await ReadResponseAsync<TResponse>(request, cancellationToken);
+    }
+
+    private async Task<TResponse> ReadResponseAsync<TResponse>(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
         using var response = await httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -78,10 +113,10 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
                 response.StatusCode);
         }
 
-        var commandResponse = await response.Content.ReadFromJsonAsync<SessionCommandResponse>(
+        var payload = await response.Content.ReadFromJsonAsync<TResponse>(
             JsonOptions,
             cancellationToken);
-        return commandResponse ?? throw new InvalidOperationException("Platform API returned an empty session command response.");
+        return payload ?? throw new InvalidOperationException("Platform API returned an empty response.");
     }
 
     private async Task<HttpRequestMessage> CreateRequestAsync(

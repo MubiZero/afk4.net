@@ -27,17 +27,20 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
     private readonly ILogger<DeviceRealtimeClient> logger;
     private readonly IDeviceHubConnection connection;
     private readonly ISessionLeaseStore? leaseStore;
+    private readonly ICommandResultOutbox? commandResultOutbox;
 
     public DeviceRealtimeClient(
         IOptions<AgentOptions> options,
         IDeviceCommandHandler commandHandler,
         ILogger<DeviceRealtimeClient> logger,
-        ISessionLeaseStore leaseStore)
+        ISessionLeaseStore leaseStore,
+        ICommandResultOutbox commandResultOutbox)
         : this(
             options,
             commandHandler,
             logger,
             leaseStore,
+            commandResultOutbox,
             new SignalRDeviceHubConnection(
                 new HubConnectionBuilder()
                     .WithUrl(new Uri(options.Value.PlatformBaseUrl, "/hubs/devices"))
@@ -51,7 +54,7 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         IDeviceCommandHandler commandHandler,
         ILogger<DeviceRealtimeClient> logger,
         IDeviceHubConnection connection)
-        : this(options, commandHandler, logger, leaseStore: null, connection)
+        : this(options, commandHandler, logger, leaseStore: null, commandResultOutbox: null, connection)
     {
     }
 
@@ -60,12 +63,14 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         IDeviceCommandHandler commandHandler,
         ILogger<DeviceRealtimeClient> logger,
         ISessionLeaseStore? leaseStore,
+        ICommandResultOutbox? commandResultOutbox,
         IDeviceHubConnection connection)
     {
         this.options = options.Value;
         this.commandHandler = commandHandler;
         this.logger = logger;
         this.leaseStore = leaseStore;
+        this.commandResultOutbox = commandResultOutbox;
         this.connection = connection;
 
         this.connection.On<DeviceCommandDto>(DeviceRealtimeEvents.DeviceCommand, HandleCommandAsync);
@@ -93,8 +98,14 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
 
     private async Task HandleCommandAsync(DeviceCommandDto command)
     {
+        // Persist the result before delivery so SignalR shares the same durable return path as the HTTP
+        // heartbeat (spec §6.4). If the realtime invoke fails, the result stays queued and the heartbeat
+        // drain re-POSTs it; the backend dedupes on CommandId.
         var result = await commandHandler.HandleAsync(command, CancellationToken.None);
+        commandResultOutbox?.Enqueue(result);
+
         await connection.InvokeAsync(DeviceRealtimeMethods.ReportCommandResultAsync, result);
+        commandResultOutbox?.Acknowledge(result.CommandId);
 
         logger.LogInformation(
             "Command {CommandId} acknowledged as {Status}.",

@@ -44,6 +44,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlayerAccountEntity> PlayerAccounts => Set<PlayerAccountEntity>();
 
+    public DbSet<PlayerCredentialEntity> PlayerCredentials => Set<PlayerCredentialEntity>();
+
+    public DbSet<PlayerAccessTokenEntity> PlayerAccessTokens => Set<PlayerAccessTokenEntity>();
+
+    public DbSet<PlayerRefreshTokenEntity> PlayerRefreshTokens => Set<PlayerRefreshTokenEntity>();
+
     public DbSet<LedgerEntryEntity> LedgerEntries => Set<LedgerEntryEntity>();
 
     public DbSet<BillingCommandIdempotencyEntity> BillingCommandIdempotency => Set<BillingCommandIdempotencyEntity>();
@@ -84,6 +90,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ReservationEntity> Reservations => Set<ReservationEntity>();
 
+    public DbSet<PaymentIntentEntity> PaymentIntents => Set<PaymentIntentEntity>();
+
     public DbSet<PlatformAdminUserEntity> PlatformAdminUsers => Set<PlatformAdminUserEntity>();
 
     public DbSet<PlatformAdminAccessTokenEntity> PlatformAdminAccessTokens => Set<PlatformAdminAccessTokenEntity>();
@@ -104,6 +112,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<InvoiceEntity> Invoices => Set<InvoiceEntity>();
 
+    public DbSet<OutboxMessageEntity> OutboxMessages => Set<OutboxMessageEntity>();
+
     public DbSet<NotificationOutboxEntity> NotificationOutbox => Set<NotificationOutboxEntity>();
 
     public DbSet<NotificationOutboxAttachmentEntity> NotificationOutboxAttachments => Set<NotificationOutboxAttachmentEntity>();
@@ -111,6 +121,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
 
     public DbSet<ReportScheduleEntity> ReportSchedules => Set<ReportScheduleEntity>();
+
+    public DbSet<StaffMoneyCapEntity> StaffMoneyCaps => Set<StaffMoneyCapEntity>();
+
+    public DbSet<MoneyActionRequestEntity> MoneyActionRequests => Set<MoneyActionRequestEntity>();
 
     public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
 
@@ -405,6 +419,33 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(player => new { player.OrganizationId, player.HomeBranchId });
         });
 
+        modelBuilder.Entity<PlayerCredentialEntity>(entity =>
+        {
+            entity.ToTable("player_credentials");
+            entity.HasKey(credential => credential.PlayerCredentialId);
+            entity.Property(credential => credential.PasswordHash).HasMaxLength(512);
+            entity.HasIndex(credential => credential.PlayerAccountId).IsUnique();
+            entity.HasIndex(credential => new { credential.OrganizationId, credential.PlayerAccountId });
+        });
+
+        modelBuilder.Entity<PlayerAccessTokenEntity>(entity =>
+        {
+            entity.ToTable("player_access_tokens");
+            entity.HasKey(accessToken => accessToken.PlayerAccessTokenId);
+            entity.Property(accessToken => accessToken.TokenHash).IsRequired();
+            entity.HasIndex(accessToken => accessToken.TokenHash);
+            entity.HasIndex(accessToken => new { accessToken.PlayerAccountId, accessToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlayerRefreshTokenEntity>(entity =>
+        {
+            entity.ToTable("player_refresh_tokens");
+            entity.HasKey(refreshToken => refreshToken.PlayerRefreshTokenId);
+            entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
+            entity.HasIndex(refreshToken => refreshToken.TokenHash);
+            entity.HasIndex(refreshToken => new { refreshToken.PlayerAccountId, refreshToken.ExpiresAtUtc });
+        });
+
         modelBuilder.Entity<LedgerEntryEntity>(entity =>
         {
             entity.ToTable("ledger_entries");
@@ -568,6 +609,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
             entity.HasIndex(sale => sale.PlayerAccountId);
             entity.HasIndex(sale => sale.State);
+            entity.HasIndex(sale => sale.SessionId);
         });
 
         modelBuilder.Entity<PosSaleLineEntity>(entity =>
@@ -589,6 +631,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(payment => payment.CurrencyCode).HasMaxLength(3).IsRequired();
             entity.Property(payment => payment.Note).HasMaxLength(512).IsRequired();
             entity.HasIndex(payment => new { payment.PosSaleId, payment.CreatedAtUtc });
+            entity.HasIndex(payment => new { payment.SessionId, payment.CreatedAtUtc });
         });
 
         modelBuilder.Entity<ReceiptEntity>(entity =>
@@ -605,6 +648,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 receipt.ReceiptNumber
             }).IsUnique();
             entity.HasIndex(receipt => receipt.PosSaleId);
+            entity.HasIndex(receipt => receipt.SessionId);
         });
 
         modelBuilder.Entity<UpdatePackageEntity>(entity =>
@@ -719,6 +763,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
         });
 
+        modelBuilder.Entity<PaymentIntentEntity>(entity =>
+        {
+            entity.ToTable("payment_intents");
+            entity.HasKey(intent => intent.PaymentIntentId);
+            entity.Property(intent => intent.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(intent => intent.Purpose).HasMaxLength(32).IsRequired();
+            entity.Property(intent => intent.State).HasMaxLength(32).IsRequired();
+            entity.Property(intent => intent.Method).HasMaxLength(32).IsRequired();
+            entity.HasIndex(intent => intent.PlayerAccountId);
+            entity.HasIndex(intent => new { intent.BranchId, intent.State });
+        });
+
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>
         {
             entity.ToTable("platform_admin_users");
@@ -801,6 +857,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(record => record.ExpiresAtUtc);
         });
 
+        modelBuilder.Entity<OutboxMessageEntity>(entity =>
+        {
+            entity.ToTable("outbox_messages");
+            entity.HasKey(row => row.OutboxMessageId);
+            entity.Property(row => row.Type).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.PayloadJson).IsRequired();
+            entity.Property(row => row.Status).HasMaxLength(16).IsRequired();
+            entity.Property(row => row.IdempotencyKey).HasMaxLength(256).IsRequired();
+            entity.Property(row => row.LastError).HasMaxLength(2000);
+            entity.HasIndex(row => row.IdempotencyKey).IsUnique();
+            entity.HasIndex(row => new { row.Status, row.AvailableAtUtc });
+        });
+
         modelBuilder.Entity<NotificationOutboxEntity>(entity =>
         {
             entity.ToTable("notification_outbox");
@@ -850,6 +919,27 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(schedule => schedule.Frequency).HasMaxLength(16).IsRequired();
             entity.HasIndex(schedule => new { schedule.IsActive, schedule.NextRunUtc });
             entity.HasIndex(schedule => new { schedule.OrganizationId, schedule.BranchId });
+        });
+
+        modelBuilder.Entity<StaffMoneyCapEntity>(entity =>
+        {
+            entity.ToTable("staff_money_caps");
+            entity.HasKey(cap => cap.StaffMoneyCapId);
+            entity.Property(cap => cap.RoleName).HasMaxLength(64).IsRequired();
+            entity.Property(cap => cap.ActionScope).HasMaxLength(32).IsRequired();
+            entity.HasIndex(cap => new { cap.BranchId, cap.RoleName, cap.ActionScope }).IsUnique();
+        });
+
+        modelBuilder.Entity<MoneyActionRequestEntity>(entity =>
+        {
+            entity.ToTable("money_action_requests");
+            entity.HasKey(request => request.MoneyActionRequestId);
+            entity.Property(request => request.ActionType).HasMaxLength(32).IsRequired();
+            entity.Property(request => request.State).HasMaxLength(16).IsRequired();
+            entity.Property(request => request.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(request => request.Reason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(request => new { request.BranchId, request.State });
+            entity.HasIndex(request => new { request.OrganizationId, request.BranchId, request.CreatedAtUtc });
         });
 
         modelBuilder.Entity<PasswordResetTokenEntity>(entity =>

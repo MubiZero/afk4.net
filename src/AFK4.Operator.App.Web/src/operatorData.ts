@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   CalendarClock,
   CircleDollarSign,
+  ClipboardCheck,
   LayoutDashboard,
   Monitor,
   ReceiptText,
@@ -33,6 +34,8 @@ export interface SeatSummary {
   rawState?: string;
   remainingSeconds?: number | null;
   remainingDeadlineMs?: number | null;
+  accruedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
   sortOrder?: number;
 }
 
@@ -50,7 +53,8 @@ export const navItems: NavItem[] = [
   { label: 'Клиенты', icon: Users },
   { label: 'Платежи', icon: CircleDollarSign },
   { label: 'Логи', icon: ScrollText },
-  { label: 'Настройки', icon: Settings }
+  { label: 'Настройки', icon: Settings },
+  { label: 'Проверка', icon: ClipboardCheck }
 ];
 export const seats: SeatSummary[] = [
   {

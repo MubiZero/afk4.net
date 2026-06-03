@@ -15,4 +15,8 @@ public sealed record SeatStatusDto(
     string? AgentVersion,
     string? ShellVersion,
     Guid? ActiveSessionId,
-    int? RemainingSeconds);
+    int? RemainingSeconds,
+    // Live accrued time cost for an open-tab session (count-up). Null for fixed
+    // sessions (which expose RemainingSeconds instead) and unbilled guests.
+    long? AccruedCostMinorUnits = null,
+    string? CurrencyCode = null);

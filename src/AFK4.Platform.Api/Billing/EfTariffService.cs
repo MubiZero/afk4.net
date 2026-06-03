@@ -414,34 +414,28 @@ public sealed class EfTariffService(
             return null;
         }
 
-        var billableMinutes = Math.Max(request.DurationMinutes, version.MinimumBillableMinutes);
-        if (version.RoundingIncrementMinutes > 1)
-        {
-            var roundedBillableMinutes = RoundUp(billableMinutes, version.RoundingIncrementMinutes);
-            if (roundedBillableMinutes is null)
-            {
-                return null;
-            }
-
-            billableMinutes = roundedBillableMinutes.Value;
-        }
-
-        try
-        {
-            var amountMinorUnits = checked(billableMinutes * version.PricePerMinuteMinorUnits);
-
-            return new TariffCalculationResult(
-                version.TariffId,
-                version.TariffVersionId,
-                version.TariffVersionId.ToString("D"),
-                request.DurationMinutes,
-                billableMinutes,
-                new MoneyDto(version.CurrencyCode, amountMinorUnits));
-        }
-        catch (OverflowException)
+        var computation = TariffBilling.ComputeForMinutes(request.DurationMinutes, ToPricing(version));
+        if (computation is null)
         {
             return null;
         }
+
+        return new TariffCalculationResult(
+            version.TariffId,
+            version.TariffVersionId,
+            version.TariffVersionId.ToString("D"),
+            request.DurationMinutes,
+            computation.BillableMinutes,
+            new MoneyDto(computation.CurrencyCode, computation.AmountMinorUnits));
+    }
+
+    private static TariffPricing ToPricing(TariffVersionEntity version)
+    {
+        return new TariffPricing(
+            version.PricePerMinuteMinorUnits,
+            version.MinimumBillableMinutes,
+            version.RoundingIncrementMinutes,
+            version.CurrencyCode);
     }
 
     private async Task<BillingCommandServiceResult<TResponse>?> GetExistingIdempotencyAsync<TResponse, TRequest>(
@@ -618,15 +612,6 @@ public sealed class EfTariffService(
             version.EffectiveFromUtc,
             version.RetiredAtUtc,
             version.CreatedAtUtc);
-    }
-
-    private static int? RoundUp(int value, int increment)
-    {
-        var rounded = ((long)value + increment - 1) / increment * increment;
-
-        return rounded > int.MaxValue
-            ? null
-            : (int)rounded;
     }
 
     private static bool IsValidCurrencyCode(string? currencyCode)

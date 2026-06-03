@@ -58,6 +58,9 @@ public sealed class ShiftDiscrepancyHookTests
     {
         await using var db = CreateDb();
         await SeedOwnerAsync(db);
+        // A 50.00 short close exceeds the default tolerance, so it needs a different manager's sign-off
+        // (anti-fraud §5.7); the owner alert still fires on the signed-off discrepancy.
+        var managerId = await SeedManagerAsync(db);
         var recorder = new RecordingNotificationService();
         var service = NewService(db, recorder);
 
@@ -65,11 +68,24 @@ public sealed class ShiftDiscrepancyHookTests
             new OpenShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 50000), "front", "open-1"), CancellationToken.None);
         // No movements/payments → expected = starting 50000; count 45000 → 50.00 short.
         await service.CloseShiftAsync(open.Response!.ShiftId, ActorStaffUserId,
-            new CloseShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 45000), "short", "close-1"), CancellationToken.None);
+            new CloseShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 45000), "short", "close-1",
+                ManagerSignOffStaffUserId: managerId, SignOffReason: "till genuinely short"), CancellationToken.None);
 
         var request = Assert.Single(recorder.Requests);
         Assert.Equal(NotificationTemplateKeys.ShiftDiscrepancy, request.TemplateKey);
         Assert.Equal("-50.00", request.Tokens["difference"]);
+    }
+
+    private static async Task<Guid> SeedManagerAsync(PlatformDbContext db)
+    {
+        var managerId = Guid.NewGuid();
+        db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = managerId,
+            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = StaffRoleNames.BranchManager
+        });
+        await db.SaveChangesAsync();
+        return managerId;
     }
 
     [Fact]

@@ -190,7 +190,8 @@ public sealed class EfOperatorDashboardService(
                 payment.PaymentKind,
                 payment.PaymentMethod,
                 Money(payment.CurrencyCode, payment.AmountMinorUnits),
-                payment.CreatedAtUtc)).ToList());
+                payment.CreatedAtUtc,
+                payment.SessionId)).ToList());
     }
 
     private static IReadOnlyList<OperatorDashboardQueueItemDto> BuildFocusQueue(

@@ -28,6 +28,12 @@ public sealed class ShiftEntity
 
     public string ClosingNote { get; set; } = string.Empty;
 
+    // Anti-fraud §5.7: when the close discrepancy exceeds tolerance, a second manager (≠ opener/closer)
+    // must sign off. Null when the close was within tolerance.
+    public Guid? ManagerSignOffStaffUserId { get; set; }
+
+    public string? SignOffReason { get; set; }
+
     public DateTimeOffset OpenedAtUtc { get; set; }
 
     public DateTimeOffset? ClosedAtUtc { get; set; }

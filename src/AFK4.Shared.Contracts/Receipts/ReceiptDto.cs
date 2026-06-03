@@ -6,8 +6,9 @@ public sealed record ReceiptDto(
     Guid ReceiptId,
     Guid OrganizationId,
     Guid BranchId,
-    Guid PosSaleId,
+    Guid? PosSaleId,
     string ReceiptNumber,
     string ReceiptType,
     MoneyDto Total,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    Guid? SessionId = null);

@@ -12,5 +12,6 @@ public static class LedgerEntryTypeNames
     public const string ManualCorrection = "manual_correction";
     public const string PostpaidDebt = "postpaid_debt";
     public const string DebtPayment = "debt_payment";
+    public const string WalletPayment = "wallet_payment";
     public const string Reversal = "reversal";
 }

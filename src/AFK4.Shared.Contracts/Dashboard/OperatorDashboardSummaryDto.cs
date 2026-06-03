@@ -63,10 +63,11 @@ public sealed record OperatorDashboardQueueItemDto(
 
 public sealed record OperatorDashboardRecentPaymentDto(
     Guid PaymentId,
-    Guid PosSaleId,
+    Guid? PosSaleId,
     Guid ShiftId,
     Guid CreatedByStaffUserId,
     string PaymentKind,
     string PaymentMethod,
     MoneyDto Amount,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    Guid? SessionId = null);

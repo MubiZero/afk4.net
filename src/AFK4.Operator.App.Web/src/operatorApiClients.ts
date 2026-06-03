@@ -23,6 +23,9 @@ export interface SeatStatusDto {
   shellVersion?: string | null;
   activeSessionId?: Guid | null;
   remainingSeconds?: number | null;
+  // Live accrued cost for an open-tab session (count-up); null for fixed sessions.
+  accruedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
 }
 
 export interface FloorMapDto {
@@ -41,7 +44,9 @@ export interface FloorMapZoneDto {
 export interface StartGuestSessionRequest {
   organizationId: Guid;
   seatId: Guid;
-  durationMinutes: number;
+  // "open" (open tab, no end boundary) or "fixed" (reserves durationMinutes up front).
+  durationMode?: string;
+  durationMinutes?: number | null;
   tariffRuleVersionId: string;
   idempotencyKey: string;
   playerAccountId?: Guid | null;
@@ -76,6 +81,39 @@ export interface SessionCommandResponse {
   deviceCommands: Array<Record<string, unknown>>;
 }
 
+export interface PaymentPartDto {
+  paymentMethod: string;
+  amount: MoneyDto;
+}
+
+export interface SessionCheckoutRequest {
+  organizationId: Guid;
+  payments: PaymentPartDto[];
+  idempotencyKey: string;
+}
+
+export interface SessionCheckoutResponse {
+  idempotencyKey: string;
+  sessionId: Guid;
+  timeCharge: MoneyDto;
+  posTotal: MoneyDto;
+  grandTotal: MoneyDto;
+  payments: PaymentPartDto[];
+  receipt: Record<string, unknown>;
+  session: Record<string, unknown>;
+  deviceCommands: Array<Record<string, unknown>>;
+}
+
+export interface SessionCheckoutQuoteResponse {
+  sessionId: Guid;
+  timeCharge: MoneyDto;
+  posTotal: MoneyDto;
+  grandTotal: MoneyDto;
+  billableSeconds: number;
+  playerAccountId?: Guid | null;
+  walletBalance?: MoneyDto | null;
+}
+
 export interface PosSaleLineDto {
   productId: Guid;
   quantity: number;
@@ -88,6 +126,8 @@ export interface CreatePosSaleRequest {
   lines: PosSaleLineDto[];
   idempotencyKey: string;
   playerAccountId?: Guid | null;
+  // When set, the sale joins an open session tab and is settled at checkout.
+  sessionId?: Guid | null;
 }
 
 export interface ManualPaymentRequest {
@@ -389,8 +429,36 @@ export interface AuditSearchRequest {
   targetType?: string | null;
   fromUtc?: string | Date | null;
   toUtc?: string | Date | null;
+  actorStaffUserId?: string | null;
+  minAmount?: number | null;
+  maxAmount?: number | null;
   limit?: number | null;
 }
+
+export interface MoneyActionRequestDto {
+  moneyActionRequestId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  shiftId: Guid;
+  actionType: string;
+  requestedByStaffUserId: Guid;
+  amountMinorUnits: number;
+  currencyCode: string;
+  reason: string;
+  state: string;
+  createdAtUtc: string;
+  expiresAtUtc: string;
+}
+
+export interface MoneyActionRequestListResponse {
+  requests: MoneyActionRequestDto[];
+}
+
+export interface MoneyActionDecisionRequest extends Record<string, unknown> {
+  decisionReason?: string | null;
+}
+
+export type MoneyActionDecisionResponse = Record<string, unknown>;
 
 export function createOperatorApiClients(api: PlatformApiClient) {
   return {
@@ -406,7 +474,8 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     devices: createDeviceClient(api),
     diagnostics: createDiagnosticsClient(api),
     updates: createUpdateClient(api),
-    audit: createAuditClient(api)
+    audit: createAuditClient(api),
+    moneyActions: createMoneyActionClient(api)
   };
 }
 
@@ -431,6 +500,12 @@ export function createSessionClient(api: PlatformApiClient) {
     },
     endSession(sessionId: Guid, request: EndSessionRequest): Promise<SessionCommandResponse> {
       return api.post<SessionCommandResponse, EndSessionRequest>(`/api/sessions/${sessionId}/end`, request);
+    },
+    checkoutSession(sessionId: Guid, request: SessionCheckoutRequest): Promise<SessionCheckoutResponse> {
+      return api.post<SessionCheckoutResponse, SessionCheckoutRequest>(`/api/sessions/${sessionId}/checkout`, request);
+    },
+    getCheckoutQuote(sessionId: Guid): Promise<SessionCheckoutQuoteResponse> {
+      return api.get<SessionCheckoutQuoteResponse>(`/api/sessions/${sessionId}/checkout/quote`);
     }
   };
 }
@@ -730,6 +805,20 @@ export function createAuditClient(api: PlatformApiClient) {
     search(request: AuditSearchRequest): Promise<AuditSearchResultDto> {
       const { branchId, ...query } = request;
       return api.get<AuditSearchResultDto>(`/api/branches/${branchId}/audit`, normalizeReportQuery(query));
+    }
+  };
+}
+
+export function createMoneyActionClient(api: PlatformApiClient) {
+  return {
+    listPending(branchId: Guid): Promise<MoneyActionRequestListResponse> {
+      return api.get<MoneyActionRequestListResponse>(`/api/branches/${branchId}/money-actions`);
+    },
+    approve(branchId: Guid, requestId: Guid, request: MoneyActionDecisionRequest): Promise<MoneyActionDecisionResponse> {
+      return api.post<MoneyActionDecisionResponse, MoneyActionDecisionRequest>(`/api/branches/${branchId}/money-actions/${requestId}/approve`, request);
+    },
+    reject(branchId: Guid, requestId: Guid, request: MoneyActionDecisionRequest): Promise<MoneyActionDecisionResponse> {
+      return api.post<MoneyActionDecisionResponse, MoneyActionDecisionRequest>(`/api/branches/${branchId}/money-actions/${requestId}/reject`, request);
     }
   };
 }

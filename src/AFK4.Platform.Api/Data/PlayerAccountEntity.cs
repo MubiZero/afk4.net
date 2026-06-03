@@ -18,7 +18,14 @@ public sealed class PlayerAccountEntity
     /// <summary>Preferred notification locale; null falls back to the branch/default locale at resolution.</summary>
     public string? PreferredLocale { get; set; }
 
+    /// <summary>Player consent to marketing messages. Defaults false; toggled from the portal profile.</summary>
+    public bool MarketingOptIn { get; set; }
+
     public bool IsActive { get; set; } = true;
+
+    // Optional per-player override of the branch postpaid credit limit; null falls
+    // back to the branch default (and null there means unbounded).
+    public long? PostpaidCreditLimitMinorUnits { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

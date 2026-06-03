@@ -1,0 +1,281 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using AFK4.Platform.Api.Common;
+using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Common;
+using AFK4.Shared.Contracts.Players;
+using AFK4.Shared.Contracts.Sessions;
+using Microsoft.EntityFrameworkCore;
+
+namespace AFK4.Platform.Api.Players;
+
+// Player-scoped history reads: past visits (ended sessions) and standalone POS
+// purchases. Totals for a visit are read from the session_checkout receipt the
+// counter-loop writes — the portal renders, never re-computes the charge.
+public static class PlayerHistoryProjector
+{
+    private const int PageSize = 20;
+
+    public static async Task<CursorPage<PlayerVisitDto>> GetVisitsAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        string? cursor,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.Sessions
+            .AsNoTracking()
+            .Where(session =>
+                session.PlayerAccountId == playerAccountId &&
+                session.State == SessionStateNames.Ended &&
+                session.EndedAtUtc != null);
+
+        // EF Core InMemory does not translate Guid.CompareTo inside LINQ Where.
+        // Filter by timestamp boundary only in SQL/InMemory, then apply the precise
+        // (EndedAtUtc, SessionId) tie-break in memory after materializing.
+        DateTimeOffset afterTs = default;
+        Guid afterId = default;
+        bool hasCursor = CursorToken.TryDecode(cursor, out afterTs, out afterId);
+
+        if (hasCursor)
+        {
+            query = query.Where(session => session.EndedAtUtc <= afterTs);
+        }
+
+        // Fetch a larger window so we can apply the in-memory tie-break and still
+        // have PageSize+1 candidates to determine hasMore.
+        var windowSize = hasCursor ? (PageSize + 1) * 2 : PageSize + 1;
+        var candidates = await query
+            .OrderByDescending(session => session.EndedAtUtc)
+            .ThenByDescending(session => session.SessionId)
+            .Take(windowSize)
+            .ToListAsync(cancellationToken);
+
+        // Apply the (EndedAtUtc DESC, SessionId DESC) keyset tie-break in memory.
+        List<SessionEntity> sessions;
+        if (hasCursor)
+        {
+            sessions = candidates
+                .Where(session =>
+                    session.EndedAtUtc < afterTs ||
+                    (session.EndedAtUtc == afterTs && session.SessionId.CompareTo(afterId) < 0))
+                .Take(PageSize + 1)
+                .ToList();
+        }
+        else
+        {
+            sessions = candidates.Take(PageSize + 1).ToList();
+        }
+
+        var hasMore = sessions.Count > PageSize;
+        if (hasMore)
+        {
+            sessions.RemoveAt(sessions.Count - 1);
+        }
+
+        var sessionIds = sessions.Select(s => s.SessionId).ToList();
+        var seatIds = sessions.Select(s => s.SeatId).Distinct().ToList();
+
+        var seatNames = await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat => seatIds.Contains(seat.SeatId))
+            .ToDictionaryAsync(seat => seat.SeatId, seat => seat.Name, cancellationToken);
+
+        var receipts = await dbContext.Receipts
+            .AsNoTracking()
+            .Where(receipt => receipt.SessionId != null && sessionIds.Contains(receipt.SessionId.Value))
+            .ToListAsync(cancellationToken);
+        var receiptBySession = receipts
+            .GroupBy(receipt => receipt.SessionId!.Value)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        var posTotals = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale => sale.SessionId != null && sessionIds.Contains(sale.SessionId.Value))
+            .GroupBy(sale => sale.SessionId!.Value)
+            .Select(group => new { SessionId = group.Key, Total = group.Sum(sale => sale.TotalMinorUnits) })
+            .ToDictionaryAsync(row => row.SessionId, row => row.Total, cancellationToken);
+
+        var items = new List<PlayerVisitDto>(sessions.Count);
+        foreach (var session in sessions)
+        {
+            var posTotal = posTotals.GetValueOrDefault(session.SessionId, 0);
+            var hasReceipt = receiptBySession.TryGetValue(session.SessionId, out var receipt);
+            var grandTotal = hasReceipt ? receipt!.TotalMinorUnits : posTotal;
+            var timeCharge = grandTotal - posTotal;
+            var currency = hasReceipt ? receipt!.CurrencyCode : "TJS";
+
+            items.Add(new PlayerVisitDto(
+                session.SessionId,
+                session.SeatId,
+                seatNames.GetValueOrDefault(session.SeatId, string.Empty),
+                session.StartedAtUtc ?? session.RequestedAtUtc,
+                session.EndedAtUtc,
+                timeCharge,
+                posTotal,
+                grandTotal,
+                currency,
+                hasReceipt));
+        }
+
+        string? nextCursor = hasMore && items.Count > 0
+            ? CursorToken.Encode(items[^1].EndedAtUtc!.Value, items[^1].SessionId)
+            : null;
+
+        return new CursorPage<PlayerVisitDto>(items, nextCursor);
+    }
+
+    public static async Task<CursorPage<PlayerPurchaseDto>> GetPurchasesAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        string? cursor,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale =>
+                sale.PlayerAccountId == playerAccountId &&
+                sale.SessionId == null);
+
+        // EF Core InMemory does not translate Guid.CompareTo inside LINQ Where.
+        // Filter by timestamp boundary only, then apply the (CreatedAtUtc, PosSaleId)
+        // tie-break in memory — same strategy as GetVisitsAsync.
+        DateTimeOffset afterTs = default;
+        Guid afterId = default;
+        bool hasCursor = CursorToken.TryDecode(cursor, out afterTs, out afterId);
+
+        if (hasCursor)
+        {
+            query = query.Where(sale => sale.CreatedAtUtc <= afterTs);
+        }
+
+        var windowSize = hasCursor ? (PageSize + 1) * 2 : PageSize + 1;
+        var candidates = await query
+            .OrderByDescending(sale => sale.CreatedAtUtc)
+            .ThenByDescending(sale => sale.PosSaleId)
+            .Take(windowSize)
+            .ToListAsync(cancellationToken);
+
+        List<PosSaleEntity> sales;
+        if (hasCursor)
+        {
+            sales = candidates
+                .Where(sale =>
+                    sale.CreatedAtUtc < afterTs ||
+                    (sale.CreatedAtUtc == afterTs && sale.PosSaleId.CompareTo(afterId) < 0))
+                .Take(PageSize + 1)
+                .ToList();
+        }
+        else
+        {
+            sales = candidates.Take(PageSize + 1).ToList();
+        }
+
+        var hasMore = sales.Count > PageSize;
+        if (hasMore)
+        {
+            sales.RemoveAt(sales.Count - 1);
+        }
+
+        var saleIds = sales.Select(sale => sale.PosSaleId).ToList();
+
+        var lines = await dbContext.PosSaleLines
+            .AsNoTracking()
+            .Where(line => saleIds.Contains(line.PosSaleId))
+            .ToListAsync(cancellationToken);
+        var linesBySale = lines
+            .GroupBy(line => line.PosSaleId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        var items = sales.Select(sale => new PlayerPurchaseDto(
+            sale.PosSaleId,
+            sale.CreatedAtUtc,
+            sale.TotalMinorUnits,
+            sale.CurrencyCode,
+            (linesBySale.GetValueOrDefault(sale.PosSaleId) ?? new List<PosSaleLineEntity>())
+                .Select(line => new PlayerPurchaseLineDto(
+                    line.ProductName, line.Quantity, line.UnitPriceMinorUnits, line.LineTotalMinorUnits))
+                .ToList()))
+            .ToList();
+
+        string? nextCursor = hasMore && items.Count > 0
+            ? CursorToken.Encode(items[^1].CreatedAtUtc, items[^1].PosSaleId)
+            : null;
+
+        return new CursorPage<PlayerPurchaseDto>(items, nextCursor);
+    }
+
+    public static async Task<PlayerVisitReceiptDto?> GetVisitReceiptAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var session = await dbContext.Sessions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                candidate =>
+                    candidate.SessionId == sessionId &&
+                    candidate.PlayerAccountId == playerAccountId,
+                cancellationToken);
+
+        if (session is null)
+        {
+            return null;
+        }
+
+        var receipt = await dbContext.Receipts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                candidate => candidate.SessionId == sessionId,
+                cancellationToken);
+
+        if (receipt is null)
+        {
+            return null;
+        }
+
+        var seatName = await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat => seat.SeatId == session.SeatId)
+            .Select(seat => seat.Name)
+            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+
+        var posSaleIds = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale => sale.SessionId == sessionId)
+            .Select(sale => sale.PosSaleId)
+            .ToListAsync(cancellationToken);
+
+        var posLines = await dbContext.PosSaleLines
+            .AsNoTracking()
+            .Where(line => posSaleIds.Contains(line.PosSaleId))
+            .Select(line => new PlayerPurchaseLineDto(
+                line.ProductName, line.Quantity, line.UnitPriceMinorUnits, line.LineTotalMinorUnits))
+            .ToListAsync(cancellationToken);
+
+        // PosTotal: use the PosSale.TotalMinorUnits sum (authoritative) rather than re-summing
+        // lines, to stay consistent with the visit history totals.
+        var posTotal = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale => sale.SessionId == sessionId)
+            .SumAsync(sale => sale.TotalMinorUnits, cancellationToken);
+
+        var grandTotal = receipt.TotalMinorUnits;
+
+        return new PlayerVisitReceiptDto(
+            receipt.ReceiptNumber,
+            receipt.CreatedAtUtc,
+            session.SessionId,
+            seatName,
+            session.StartedAtUtc ?? session.RequestedAtUtc,
+            session.EndedAtUtc,
+            grandTotal - posTotal,
+            posLines,
+            posTotal,
+            grandTotal,
+            receipt.CurrencyCode);
+    }
+}

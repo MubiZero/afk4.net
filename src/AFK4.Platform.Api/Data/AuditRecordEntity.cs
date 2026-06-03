@@ -24,5 +24,9 @@ public sealed class AuditRecordEntity
 
     public string DetailsJson { get; set; } = "{}";
 
+    // Anti-fraud §5.5: denormalised amount for money-relevant actions so the owner can filter the
+    // audit feed by amount range ("refunds over 50 TJS"). Null for non-money actions.
+    public long? AmountMinorUnits { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

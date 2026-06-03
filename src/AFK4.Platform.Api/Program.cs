@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
+using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -16,6 +17,7 @@ using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Idempotency;
@@ -25,6 +27,7 @@ using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Reports;
 using AFK4.Platform.Api.Reservations;
+using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Platform.Api.Tenancy;
@@ -36,12 +39,14 @@ using AFK4.Shared.Contracts.Diagnostics;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Layout;
 using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
+using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Invites;
@@ -57,8 +62,10 @@ using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 
 const string OperatorWebCorsPolicyName = "operator-web";
 const string PlatformWebCorsPolicyName = "platform-web";
@@ -154,6 +161,9 @@ builder.Services.AddScoped<IDeviceHeartbeatService, DeviceHeartbeatService>();
 builder.Services.AddScoped<IFloorMapReadService, EfFloorMapReadService>();
 builder.Services.AddScoped<IFloorMapEditService, EfFloorMapEditService>();
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
+builder.Services.AddScoped<IPlayerTokenService, OpaquePlayerTokenService>();
+builder.Services.AddScoped<IPlayerCredentialService, PlayerCredentialService>();
+builder.Services.AddScoped<IPlayerContextAccessor, PlayerContextAccessor>();
 builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
 builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();
@@ -205,8 +215,14 @@ builder.Services.AddScoped<IStaffPasswordResetService, EfStaffPasswordResetServi
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
+builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection(OutboxOptions.ConfigurationSection));
+builder.Services.AddScoped<IBillingOutbox, EfBillingOutbox>();
+builder.Services.AddScoped<IOutboxMessageHandler, SessionCheckoutOutboxHandler>();
+builder.Services.AddScoped<OutboxDispatchRunner>();
+builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddHostedService<DailySummaryHostedService>();
+builder.Services.AddHostedService<AutoProtectionHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
@@ -232,13 +248,44 @@ builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
+builder.Services.AddScoped<ISessionCheckoutService, EfSessionCheckoutService>();
+builder.Services.AddSingleton(new AutoProtectionOptions());
+builder.Services.AddScoped<AutoProtectionRunner>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
+builder.Services.AddScoped<IMoneyActionPolicyResolver, EfMoneyActionPolicyResolver>();
+builder.Services.AddScoped<IMoneyActionExecutor, EfMoneyActionExecutor>();
+builder.Services.AddScoped<IMoneyActionApprovalService, MoneyActionApprovalService>();
 builder.Services.AddScoped<ITariffService, EfTariffService>();
 builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
 builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
 builder.Services.AddScoped<IUpdateService, EfUpdateService>();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("player-public", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    options.AddPolicy("player-me", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Request.Headers.Authorization.ToString() is { Length: > 0 } auth
+                ? auth
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});
 
 var app = builder.Build();
 
@@ -273,8 +320,10 @@ app.Use(async (httpContext, next) =>
 
     await next(httpContext);
 });
+app.UseRateLimiter();
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
+app.UseMiddleware<PlayerAuthenticationMiddleware>();
 app.UseMiddleware<TenantSuspensionMiddleware>();
 
 app.MapGet("/api/health", () =>
@@ -583,6 +632,544 @@ app.MapPost("/api/auth/staff/refresh", async (
     return response is null
         ? Results.Unauthorized()
         : Results.Ok(response);
+});
+
+app.MapPost("/api/public/player/sign-in", async (
+    PlayerSignInRequest request,
+    IPlayerCredentialService credentialService,
+    CancellationToken cancellationToken) =>
+{
+    var response = await credentialService.SignInAsync(request, cancellationToken);
+    return response is null ? Results.Unauthorized() : Results.Ok(response);
+}).RequireRateLimiting("player-public");
+
+app.MapPost("/api/public/player/refresh", async (
+    PlayerRefreshRequest request,
+    IPlayerTokenService tokenService,
+    CancellationToken cancellationToken) =>
+{
+    var response = await tokenService.RefreshAsync(request, cancellationToken);
+    return response is null ? Results.Unauthorized() : Results.Ok(response);
+}).RequireRateLimiting("player-public");
+
+app.MapGet("/api/public/tenant/{tenantKey}/branding", async (
+    string tenantKey,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var normalizedKey = SlugValidator.Normalize(tenantKey);
+    var org = await dbContext.Organizations
+        .AsNoTracking()
+        .Where(o => o.Slug == normalizedKey && o.Status == "active")
+        .Select(o => new TenantBrandingDto(o.OrganizationId, o.Name, o.LogoUrl, o.AccentColor))
+        .FirstOrDefaultAsync(cancellationToken);
+    return org is null ? Results.NotFound() : Results.Ok(org);
+}).RequireRateLimiting("player-public");
+
+app.MapGet("/api/me/profile", async (
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+        p => p.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+    if (account is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(new PlayerProfileDto(
+        account.PlayerAccountId,
+        account.DisplayName,
+        account.PhoneNumber,
+        player.PhoneVerified,
+        account.PreferredLocale,
+        account.MarketingOptIn));
+}).RequireRateLimiting("player-me");
+
+app.MapPatch("/api/me/profile", async (
+    UpdatePlayerProfileRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+        candidate => candidate.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+    if (account is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (request.PreferredLocale is not null)
+    {
+        var locale = request.PreferredLocale.Trim();
+        if (locale.Length is 0 or > 16)
+        {
+            return Results.BadRequest(new { Error = "PreferredLocale must be 1-16 characters." });
+        }
+
+        account.PreferredLocale = locale;
+    }
+
+    if (request.MarketingOptIn is not null)
+    {
+        account.MarketingOptIn = request.MarketingOptIn.Value;
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new PlayerProfileDto(
+        account.PlayerAccountId,
+        account.DisplayName,
+        account.PhoneNumber,
+        player.PhoneVerified,
+        account.PreferredLocale,
+        account.MarketingOptIn));
+}).RequireRateLimiting("player-me");
+
+app.MapGet("/api/me/dashboard", async (
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var dashboard = await PlayerDashboardProjector.GetDashboardAsync(
+        dbContext, player.PlayerAccountId, DateTimeOffset.UtcNow, cancellationToken);
+    return Results.Ok(dashboard);
+}).RequireRateLimiting("player-me");
+
+app.MapGet("/api/me/visits", async (
+    string? cursor,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var page = await PlayerHistoryProjector.GetVisitsAsync(
+        dbContext, player.PlayerAccountId, cursor, cancellationToken);
+    return Results.Ok(page);
+}).RequireRateLimiting("player-me");
+
+app.MapGet("/api/me/visits/{sessionId:guid}/receipt", async (
+    Guid sessionId,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var receipt = await PlayerHistoryProjector.GetVisitReceiptAsync(
+        dbContext, player.PlayerAccountId, sessionId, cancellationToken);
+    return receipt is null ? Results.NotFound() : Results.Ok(receipt);
+}).RequireRateLimiting("player-me");
+
+app.MapGet("/api/me/purchases", async (
+    string? cursor,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var page = await PlayerHistoryProjector.GetPurchasesAsync(
+        dbContext, player.PlayerAccountId, cursor, cancellationToken);
+    return Results.Ok(page);
+}).RequireRateLimiting("player-me");
+
+app.MapPost("/api/me/wallet/top-up-intent", async (
+    PlayerTopUpIntentRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    // D8 gate: verified phone required for money actions.
+    if (!player.PhoneVerified)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (request.AmountMinorUnits <= 0)
+    {
+        return Results.BadRequest(new { Error = "Amount must be greater than zero." });
+    }
+
+    var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+        candidate => candidate.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+    if (account is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var currencyCode = string.IsNullOrWhiteSpace(request.CurrencyCode)
+        ? "TJS"
+        : request.CurrencyCode.Trim().ToUpperInvariant();
+
+    var now = DateTimeOffset.UtcNow;
+    var intent = new PaymentIntentEntity
+    {
+        PaymentIntentId = Guid.NewGuid(),
+        PlayerAccountId = player.PlayerAccountId,
+        OrganizationId = player.OrganizationId,
+        BranchId = account.HomeBranchId,
+        AmountMinorUnits = request.AmountMinorUnits,
+        CurrencyCode = currencyCode,
+        Purpose = "wallet_topup",
+        State = "pending",
+        Method = "counter",
+        FulfilledByLedgerEntryId = null,
+        CreatedAtUtc = now,
+        FulfilledAtUtc = null
+    };
+
+    dbContext.PaymentIntents.Add(intent);
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new PlayerTopUpIntentDto(
+        intent.PaymentIntentId,
+        intent.AmountMinorUnits,
+        intent.CurrencyCode,
+        intent.State,
+        intent.Purpose,
+        intent.Method,
+        intent.CreatedAtUtc,
+        intent.FulfilledAtUtc,
+        IsExpired: false));
+}).RequireRateLimiting("player-me");
+
+app.MapGet("/api/me/wallet/top-up-intents", async (
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var now = DateTimeOffset.UtcNow;
+    var expiryCutoff = now.AddHours(-24);
+
+    var intents = await dbContext.PaymentIntents
+        .AsNoTracking()
+        .Where(intent => intent.PlayerAccountId == player.PlayerAccountId)
+        .OrderByDescending(intent => intent.CreatedAtUtc)
+        .ToListAsync(cancellationToken);
+
+    var dtos = intents.Select(intent => new PlayerTopUpIntentDto(
+        intent.PaymentIntentId,
+        intent.AmountMinorUnits,
+        intent.CurrencyCode,
+        intent.State,
+        intent.Purpose,
+        intent.Method,
+        intent.CreatedAtUtc,
+        intent.FulfilledAtUtc,
+        IsExpired: intent.State == "pending" && intent.CreatedAtUtc < expiryCutoff))
+        .ToList();
+
+    return Results.Ok(dtos);
+}).RequireRateLimiting("player-me");
+
+app.MapPost("/api/me/reservations", async (
+    CreatePlayerReservationRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    IReservationService reservationService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    // D8 gate: verified phone required for booking actions.
+    if (!player.PhoneVerified)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var now = DateTimeOffset.UtcNow;
+    if (request.StartsAtUtc >= request.EndsAtUtc)
+    {
+        return Results.BadRequest(new { Error = "End time must be after start time." });
+    }
+
+    if (request.StartsAtUtc <= now)
+    {
+        return Results.BadRequest(new { Error = "Start time must be in the future." });
+    }
+
+    var account = await dbContext.PlayerAccounts
+        .AsNoTracking()
+        .SingleOrDefaultAsync(a => a.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+    if (account is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await reservationService.CreateOnlineAsync(
+        player.PlayerAccountId,
+        player.OrganizationId,
+        account.HomeBranchId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        if (result.Conflict)
+        {
+            return Results.Conflict(new { Error = result.Error });
+        }
+
+        if (result.NotFound)
+        {
+            return Results.NotFound(new { Error = result.Error });
+        }
+
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    return Results.Ok(ToPlayerReservationDto(result.Response!));
+}).RequireRateLimiting("player-me");
+
+app.MapGet("/api/me/reservations", async (
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var reservations = await dbContext.Reservations
+        .AsNoTracking()
+        .Where(reservation => reservation.PlayerAccountId == player.PlayerAccountId)
+        .OrderByDescending(reservation => reservation.StartsAtUtc)
+        .ToListAsync(cancellationToken);
+
+    var seatIds = reservations
+        .Where(r => r.SeatId is not null)
+        .Select(r => r.SeatId!.Value)
+        .Distinct()
+        .ToList();
+
+    var seatNames = seatIds.Count == 0
+        ? new Dictionary<Guid, string>()
+        : await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat => seatIds.Contains(seat.SeatId))
+            .ToDictionaryAsync(seat => seat.SeatId, seat => seat.Name, cancellationToken);
+
+    var dtos = reservations.Select(r => new PlayerReservationDto(
+        r.ReservationId,
+        r.SeatId,
+        r.SeatId is not null ? seatNames.GetValueOrDefault(r.SeatId.Value) : null,
+        r.StartsAtUtc,
+        r.EndsAtUtc,
+        r.State,
+        string.IsNullOrEmpty(r.Note) ? null : r.Note))
+        .ToList();
+
+    return Results.Ok(dtos);
+}).RequireRateLimiting("player-me");
+
+app.MapDelete("/api/me/reservations/{reservationId:guid}", async (
+    Guid reservationId,
+    IPlayerContextAccessor playerContextAccessor,
+    IReservationService reservationService,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await reservationService.CancelOnlineAsync(
+        reservationId,
+        player.PlayerAccountId,
+        cancellationToken);
+
+    if (result.NotFound)
+    {
+        return Results.NotFound();
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    return Results.Ok(ToPlayerReservationDto(result.Response!));
+}).RequireRateLimiting("player-me");
+
+app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
+    Guid intentId,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IBillingCommandService billingCommandService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var staffContext = staffContextAccessor.Current;
+
+    var intent = await dbContext.PaymentIntents
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == staffContext.OrganizationId &&
+                candidate.PaymentIntentId == intentId,
+            cancellationToken);
+
+    if (intent is null)
+    {
+        return Results.NotFound(new { Error = "Payment intent was not found." });
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        intent.BranchId,
+        StaffPermissionNames.TopUpWallet,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            staffContext.OrganizationId,
+            intent.BranchId,
+            staffContext.StaffUserId,
+            AuditActionNames.FulfilPaymentIntent,
+            "PaymentIntent",
+            intentId.ToString("D"),
+            AuditOutcome.Denied,
+            new { intent.AmountMinorUnits, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    // Idempotency guard: already fulfilled → return current state, no second credit.
+    if (intent.State == "fulfilled")
+    {
+        return Results.Ok(new PlayerTopUpIntentDto(
+            intent.PaymentIntentId,
+            intent.AmountMinorUnits,
+            intent.CurrencyCode,
+            intent.State,
+            intent.Purpose,
+            intent.Method,
+            intent.CreatedAtUtc,
+            intent.FulfilledAtUtc,
+            IsExpired: false));
+    }
+
+    // Expiry guard: pending but >24h old → 409 Conflict.
+    if (intent.State == "pending" && intent.CreatedAtUtc < DateTimeOffset.UtcNow.AddHours(-24))
+    {
+        return Results.Conflict(new { Error = "Payment intent has expired." });
+    }
+
+    // The intent id is the idempotency key: it is the authoritative guard against a
+    // double wallet credit. If two operators fulfil the same intent concurrently, both
+    // pass the in-memory State == "pending" fast-path above, but TopUpWalletAsync
+    // deduplicates on this key and writes exactly one ledger entry. The State flip below
+    // is then idempotent (same values written twice is harmless).
+    var topUpRequest = new TopUpWalletRequest(
+        intent.OrganizationId,
+        new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
+        "wallet top-up via portal intent",
+        intent.PaymentIntentId.ToString("N"));
+
+    var billingResult = await billingCommandService.TopUpWalletAsync(
+        intent.PlayerAccountId,
+        intent.BranchId,
+        staffContext.StaffUserId,
+        topUpRequest,
+        cancellationToken);
+
+    if (!billingResult.Succeeded)
+    {
+        return ToHttpResult(billingResult);
+    }
+
+    intent.State = "fulfilled";
+    intent.FulfilledAtUtc = DateTimeOffset.UtcNow;
+    // FulfilledByLedgerEntryId left null (v1): TopUpWalletAsync returns WalletSummaryDto,
+    // not the created ledger entry id.
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        staffContext.OrganizationId,
+        intent.BranchId,
+        staffContext.StaffUserId,
+        AuditActionNames.FulfilPaymentIntent,
+        "PaymentIntent",
+        intentId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { intent.AmountMinorUnits, intent.CurrencyCode },
+        cancellationToken);
+
+    return Results.Ok(new PlayerTopUpIntentDto(
+        intent.PaymentIntentId,
+        intent.AmountMinorUnits,
+        intent.CurrencyCode,
+        intent.State,
+        intent.Purpose,
+        intent.Method,
+        intent.CreatedAtUtc,
+        intent.FulfilledAtUtc,
+        IsExpired: false));
 });
 
 app.MapPost("/api/auth/staff/forgot-password", async (
@@ -4105,7 +4692,8 @@ app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
         branchId,
         authorization.StaffContext.StaffUserId,
         request,
-        cancellationToken);
+        cancellationToken,
+        actorCanApproveComp: authorization.StaffContext.Permissions.Contains(StaffPermissionNames.ApproveMoneyAction));
 
     if (result.Conflict)
     {
@@ -4122,20 +4710,23 @@ app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
         return Results.BadRequest(new { Error = result.Error });
     }
 
+    // §5.4: a comp (free session) is audited as a first-class session.comp with its reason and its
+    // assessed value, so the owner summary / Review screen can surface free sessions in money terms.
     await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
         authorization.StaffContext.OrganizationId,
         branchId,
         authorization.StaffContext.StaffUserId,
-        AuditActionNames.StartSession,
+        request.IsComp ? AuditActionNames.SessionComp : AuditActionNames.StartSession,
         "Session",
         result.Response!.Session.SessionId.ToString("D"),
         AuditOutcome.Succeeded,
         "PlatformApi",
-        JsonSerializer.Serialize(new
-        {
-            request.SeatId,
-            request.DurationMinutes
-        })),
+        request.IsComp
+            ? JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes, request.CompReason, CompValueMinorUnits = result.Response.CompValueMinorUnits })
+            : JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes }))
+    {
+        AmountMinorUnits = request.IsComp ? result.Response.CompValueMinorUnits : null
+    },
         cancellationToken);
 
     return Results.Ok(result.Response);
@@ -4401,6 +4992,144 @@ app.MapPost("/api/sessions/{sessionId:guid}/end", async (
             request.Reason
         })),
         cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/sessions/{sessionId:guid}/checkout", async (
+    Guid sessionId,
+    SessionCheckoutRequest request,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    ISessionCheckoutService sessionCheckoutService,
+    CancellationToken cancellationToken) =>
+{
+    var session = await dbContext.Sessions
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        session.BranchId,
+        StaffPermissionNames.EndSession,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+            authorization.StaffContext!.OrganizationId,
+            session.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.CheckoutSession,
+            "Session",
+            sessionId.ToString("D"),
+            AuditOutcome.Denied,
+            "PlatformApi",
+            JsonSerializer.Serialize(new
+            {
+                authorization.DenialReason
+            })),
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await sessionCheckoutService.CheckoutAsync(
+        sessionId,
+        authorization.StaffContext!.StaffUserId,
+        request,
+        cancellationToken);
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { Error = result.Error });
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+        authorization.StaffContext.OrganizationId,
+        session.BranchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.CheckoutSession,
+        "Session",
+        sessionId.ToString("D"),
+        AuditOutcome.Succeeded,
+        "PlatformApi",
+        JsonSerializer.Serialize(new
+        {
+            GrandTotal = result.Response!.GrandTotal.MinorUnits,
+            result.Response.GrandTotal.CurrencyCode,
+            PaymentParts = result.Response.Payments.Count
+        })),
+        cancellationToken);
+
+    return Results.Ok(result.Response);
+});
+
+app.MapGet("/api/sessions/{sessionId:guid}/checkout/quote", async (
+    Guid sessionId,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    ISessionCheckoutService sessionCheckoutService,
+    CancellationToken cancellationToken) =>
+{
+    var session = await dbContext.Sessions
+        .AsNoTracking()
+        .SingleOrDefaultAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
+
+    if (session is null)
+    {
+        return Results.NotFound();
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        session.BranchId,
+        StaffPermissionNames.EndSession,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var result = await sessionCheckoutService.QuoteAsync(
+        sessionId,
+        authorization.StaffContext!.OrganizationId,
+        cancellationToken);
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { Error = result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { Error = result.Error });
+    }
 
     return Results.Ok(result.Response);
 });
@@ -6191,6 +6920,48 @@ app.MapPost("/api/branches/{branchId:guid}/players", async (
     return Results.Ok(result.Response);
 });
 
+app.MapPost("/api/branches/{branchId:guid}/players/{playerAccountId:guid}/pin", async (
+    Guid branchId,
+    Guid playerAccountId,
+    SetPlayerPinRequest request,
+    StaffAuthorizationService authorizationService,
+    IPlayerCredentialService credentialService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.CreatePlayerAccount,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Pin) || request.Pin.Length < 4)
+    {
+        return Results.BadRequest(new { error = "PIN must be at least 4 characters." });
+    }
+
+    var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+        p => p.PlayerAccountId == playerAccountId
+            && p.OrganizationId == authorization.StaffContext!.OrganizationId,
+        cancellationToken);
+    if (account is null)
+    {
+        return Results.NotFound();
+    }
+
+    await credentialService.SetPasswordAsync(playerAccountId, request.Pin, cancellationToken);
+    return Results.NoContent();
+});
+
 app.MapGet("/api/branches/{branchId:guid}/players", async (
     Guid branchId,
     string? query,
@@ -6349,6 +7120,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IBillingCommandService billingCommandService,
+    IMoneyActionPolicyResolver moneyActionPolicyResolver,
     CancellationToken cancellationToken) =>
 {
     var player = await LoadPlayerScopedEndpointAsync(
@@ -6405,6 +7177,24 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
         return Results.NotFound();
     }
 
+    // §5.2: gate the direct refund through the same guard as /money-actions. Over-threshold/over-cap
+    // refunds cannot be pushed straight to the ledger here — they must go through the approval front door.
+    var refundGate = await GuardLegacyMoneyActionAsync(
+        dbContext,
+        moneyActionPolicyResolver,
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.BranchId,
+        authorization.StaffContext.StaffUserId,
+        MoneyActionType.Refund,
+        originalEntry.AccountType,
+        -Math.Abs(request.Amount.MinorUnits),
+        cancellationToken);
+    if (refundGate is not null)
+    {
+        return refundGate;
+    }
+
     var result = await billingCommandService.RefundLedgerEntryAsync(
         player.BranchId,
         authorization.StaffContext.StaffUserId,
@@ -6426,7 +7216,8 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
         result.Response!.LedgerEntryId.ToString("D"),
         AuditOutcome.Succeeded,
         new { request.LedgerEntryId, request.Amount },
-        cancellationToken);
+        cancellationToken,
+        amountMinorUnits: Math.Abs(request.Amount.MinorUnits));
 
     return Results.Ok(result.Response);
 });
@@ -6439,6 +7230,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IBillingCommandService billingCommandService,
+    IMoneyActionPolicyResolver moneyActionPolicyResolver,
     CancellationToken cancellationToken) =>
 {
     var player = await LoadPlayerScopedEndpointAsync(
@@ -6476,6 +7268,24 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
         return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
     }
 
+    // §5.2: gate the direct correction through the same guard as /money-actions. Over-threshold/over-cap
+    // corrections (including debt write-offs) cannot bypass the approval front door here.
+    var correctionGate = await GuardLegacyMoneyActionAsync(
+        dbContext,
+        moneyActionPolicyResolver,
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.BranchId,
+        authorization.StaffContext.StaffUserId,
+        MoneyActionType.ManualCorrection,
+        request.AccountType,
+        request.Amount.MinorUnits,
+        cancellationToken);
+    if (correctionGate is not null)
+    {
+        return correctionGate;
+    }
+
     var result = await billingCommandService.ManualCorrectionAsync(
         playerAccountId,
         player.BranchId,
@@ -6498,9 +7308,324 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
         playerAccountId.ToString("D"),
         AuditOutcome.Succeeded,
         new { request.AccountType, request.Amount, request.QuantitySeconds },
-        cancellationToken);
+        cancellationToken,
+        amountMinorUnits: Math.Abs(request.Amount.MinorUnits));
 
     return Results.Ok(result.Response);
+});
+
+// Anti-fraud control layer (§5.2): the guarded front door for high-risk money actions. The guard
+// decides execute-now / hold-for-approval / refuse before any ledger write; approval replays the
+// action through the verified billing path with a second pair of eyes.
+app.MapPost("/api/branches/{branchId:guid}/money-actions", async (
+    Guid branchId,
+    MoneyActionSubmitRequest request,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IOpenShiftResolver openShiftResolver,
+    IMoneyActionApprovalService approvalService,
+    CancellationToken cancellationToken) =>
+{
+    if (!TryParseMoneyActionType(request.ActionType, out var requestedType, out var requiredPermission))
+    {
+        return Results.BadRequest(new { Error = "ActionType must be 'refund' or 'manual_correction'." });
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId, requiredPermission, cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.MoneyActionRequested,
+            "MoneyAction",
+            null,
+            AuditOutcome.Denied,
+            new { request.ActionType, request.SignedAmountMinorUnits, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    if (request.OrganizationId != staffContext.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+    {
+        return Results.BadRequest(new { Error = "IdempotencyKey is required." });
+    }
+
+    if (requestedType == MoneyActionType.Refund && request.LedgerEntryId is null)
+    {
+        return Results.BadRequest(new { Error = "A refund requires the target LedgerEntryId." });
+    }
+
+    var openShift = await openShiftResolver.GetOpenShiftIdAsync(
+        staffContext.OrganizationId, branchId, cancellationToken);
+    if (!openShift.Succeeded || openShift.Response == Guid.Empty)
+    {
+        return Results.Conflict(new { Error = openShift.Error ?? "An open shift is required." });
+    }
+
+    var roleNames = await GetActorRoleNamesAsync(
+        dbContext, staffContext.StaffUserId, staffContext.OrganizationId, cancellationToken);
+
+    var command = new MoneyActionCommand(
+        requestedType,
+        request.PlayerAccountId,
+        request.LedgerEntryId,
+        request.AccountType,
+        request.SignedAmountMinorUnits,
+        request.CurrencyCode,
+        request.QuantitySeconds,
+        request.Reason,
+        request.IdempotencyKey);
+
+    var result = await approvalService.RequestAsync(
+        staffContext.OrganizationId, branchId, openShift.Response, staffContext.StaffUserId,
+        roleNames, command, cancellationToken);
+
+    switch (result.Outcome)
+    {
+        case MoneyActionRequestOutcome.Executed:
+            await WriteAuditAsync(
+                auditRecordWriter,
+                staffContext.OrganizationId,
+                branchId,
+                staffContext.StaffUserId,
+                AuditActionNames.MoneyActionExecuted,
+                "MoneyAction",
+                result.ResultingLedgerEntryId?.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { request.ActionType, request.SignedAmountMinorUnits, request.CurrencyCode },
+                cancellationToken,
+                amountMinorUnits: Math.Abs(request.SignedAmountMinorUnits));
+            return Results.Ok(new MoneyActionSubmitResponse("executed", result.ResultingLedgerEntryId, null));
+
+        case MoneyActionRequestOutcome.PendingApproval:
+            await WriteAuditAsync(
+                auditRecordWriter,
+                staffContext.OrganizationId,
+                branchId,
+                staffContext.StaffUserId,
+                AuditActionNames.MoneyActionRequested,
+                "MoneyAction",
+                result.MoneyActionRequestId?.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { request.ActionType, request.SignedAmountMinorUnits, request.CurrencyCode },
+                cancellationToken,
+                amountMinorUnits: Math.Abs(request.SignedAmountMinorUnits));
+            return Results.Json(
+                new MoneyActionSubmitResponse("pending_approval", null, result.MoneyActionRequestId),
+                statusCode: StatusCodes.Status202Accepted);
+
+        default:
+            if (result.NotFound)
+            {
+                return Results.NotFound(new { result.Error });
+            }
+
+            return result.Conflict
+                ? Results.Conflict(new { result.Error })
+                : Results.Json(new { result.Error }, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+});
+
+app.MapPost("/api/branches/{branchId:guid}/money-actions/{moneyActionRequestId:guid}/approve", async (
+    Guid branchId,
+    Guid moneyActionRequestId,
+    MoneyActionDecisionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IMoneyActionApprovalService approvalService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.MoneyActionApproved,
+            "MoneyAction",
+            moneyActionRequestId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    var result = await approvalService.ApproveAsync(
+        staffContext.OrganizationId, branchId, moneyActionRequestId,
+        staffContext.StaffUserId, request.DecisionReason, cancellationToken);
+
+    if (result.Forbidden)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            staffContext.OrganizationId,
+            branchId,
+            staffContext.StaffUserId,
+            AuditActionNames.MoneyActionApproved,
+            "MoneyAction",
+            moneyActionRequestId.ToString("D"),
+            AuditOutcome.Denied,
+            new { result.Error },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { result.Error });
+    }
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.Json(new { result.Error }, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        staffContext.OrganizationId,
+        branchId,
+        staffContext.StaffUserId,
+        AuditActionNames.MoneyActionApproved,
+        "MoneyAction",
+        moneyActionRequestId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { result.ResultingLedgerEntryId },
+        cancellationToken);
+
+    return Results.Ok(new MoneyActionSubmitResponse("approved", result.ResultingLedgerEntryId, moneyActionRequestId));
+});
+
+app.MapPost("/api/branches/{branchId:guid}/money-actions/{moneyActionRequestId:guid}/reject", async (
+    Guid branchId,
+    Guid moneyActionRequestId,
+    MoneyActionDecisionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IMoneyActionApprovalService approvalService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    var result = await approvalService.RejectAsync(
+        staffContext.OrganizationId, branchId, moneyActionRequestId,
+        staffContext.StaffUserId, request.DecisionReason, cancellationToken);
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { result.Error });
+    }
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.Json(new { result.Error }, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        staffContext.OrganizationId,
+        branchId,
+        staffContext.StaffUserId,
+        AuditActionNames.MoneyActionRejected,
+        "MoneyAction",
+        moneyActionRequestId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.DecisionReason },
+        cancellationToken);
+
+    return Results.Ok(new MoneyActionSubmitResponse("rejected", null, moneyActionRequestId));
+});
+
+app.MapGet("/api/branches/{branchId:guid}/money-actions", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IMoneyActionApprovalService approvalService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    var pending = await approvalService.ListPendingAsync(
+        staffContext.OrganizationId, branchId, cancellationToken);
+
+    var dtos = pending
+        .Select(request => new MoneyActionRequestDto(
+            request.MoneyActionRequestId,
+            request.OrganizationId,
+            request.BranchId,
+            request.ShiftId,
+            request.ActionType,
+            request.RequestedByStaffUserId,
+            request.AmountMinorUnits,
+            request.CurrencyCode,
+            request.Reason,
+            request.State,
+            request.CreatedAtUtc,
+            request.ExpiresAtUtc))
+        .ToList();
+
+    return Results.Ok(new MoneyActionRequestListResponse(dtos));
 });
 
 app.MapPost("/api/players/{playerAccountId:guid}/debts/payments", async (
@@ -7477,8 +8602,24 @@ app.MapPost("/api/shifts/{shiftId:guid}/close", async (
         "Shift",
         shiftId.ToString("D"),
         AuditOutcome.Succeeded,
-        new { request.CountedCash },
+        new { request.CountedCash, result.Response!.Difference },
         cancellationToken);
+
+    // Anti-fraud §5.7: record the manager sign-off as its own audit fact when a discrepancy was cleared.
+    if (result.Response.ManagerSignOffStaffUserId is { } signOffStaffUserId)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext.OrganizationId,
+            shift.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ShiftSignOff,
+            "Shift",
+            shiftId.ToString("D"),
+            AuditOutcome.Succeeded,
+            new { SignOffStaffUserId = signOffStaffUserId, result.Response.Difference, request.SignOffReason },
+            cancellationToken);
+    }
 
     return Results.Ok(result.Response);
 });
@@ -8232,6 +9373,9 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmountMinorUnits,
+    long? maxAmountMinorUnits,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IReportService reportService,
@@ -8264,7 +9408,7 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit, actorStaffUserId, minAmountMinorUnits, maxAmountMinorUnits);
     var result = await reportService.GetOperatorActionReportAsync(
         authorization.StaffContext!.OrganizationId,
         branchId,
@@ -8285,7 +9429,74 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
             Count = result.Rows.Count,
             result.Limit,
             fromUtc,
-            toUtc
+            toUtc,
+            actorStaffUserId,
+            minAmountMinorUnits,
+            maxAmountMinorUnits
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
+// Anti-fraud §5.6: on-demand owner daily summary (the report-endpoint fallback to the notification
+// digest). Defaults to the most recently ended UTC day when no date is given.
+app.MapGet("/api/branches/{branchId:guid}/reports/owner-daily-summary", async (
+    Guid branchId,
+    DateOnly? date,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewOwnerDailySummaryReport,
+            "Report",
+            "owner-daily-summary",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var summaryDate = date ?? DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime).AddDays(-1);
+    var result = await reportService.GetOwnerDailySummaryAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        summaryDate,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewOwnerDailySummaryReport,
+        "Report",
+        "owner-daily-summary",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Date = summaryDate.ToString("yyyy-MM-dd"),
+            ActorCount = result.Rows.Count
         },
         cancellationToken);
 
@@ -8405,6 +9616,9 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions/export.csv", 
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmountMinorUnits,
+    long? maxAmountMinorUnits,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IReportService reportService,
@@ -8424,7 +9638,10 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions/export.csv", 
         static (service, organizationId, scopedBranchId, query, token) =>
             service.GetOperatorActionReportAsync(organizationId, scopedBranchId, query, token),
         ReportCsvExporter.ExportOperatorActionReport,
-        cancellationToken);
+        cancellationToken,
+        actorStaffUserId,
+        minAmountMinorUnits,
+        maxAmountMinorUnits);
 });
 
 app.MapGet("/api/branches/{branchId:guid}/diagnostics", async (
@@ -9553,6 +10770,9 @@ app.MapGet("/api/branches/{branchId:guid}/audit", async (
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmount,
+    long? maxAmount,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IAuditSearchService auditSearchService,
@@ -9585,7 +10805,7 @@ app.MapGet("/api/branches/{branchId:guid}/audit", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit);
+    var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit, actorStaffUserId, minAmount, maxAmount);
     var result = await auditSearchService.SearchAsync(
         authorization.StaffContext!.OrganizationId,
         branchId,
@@ -9681,6 +10901,87 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/status", async (
 app.MapHub<DeviceHub>("/hubs/devices");
 
 app.Run();
+
+static bool TryParseMoneyActionType(string? actionType, out MoneyActionType requestedType, out string requiredPermission)
+{
+    switch (actionType?.Trim().ToLowerInvariant())
+    {
+        case MoneyActionTypeNames.Refund:
+            requestedType = MoneyActionType.Refund;
+            requiredPermission = StaffPermissionNames.RefundLedgerEntry;
+            return true;
+        case MoneyActionTypeNames.ManualCorrection:
+            requestedType = MoneyActionType.ManualCorrection;
+            requiredPermission = StaffPermissionNames.ManualLedgerCorrection;
+            return true;
+        default:
+            requestedType = default;
+            requiredPermission = string.Empty;
+            return false;
+    }
+}
+
+static async Task<IReadOnlyCollection<string>> GetActorRoleNamesAsync(
+    PlatformDbContext dbContext,
+    Guid staffUserId,
+    Guid organizationId,
+    CancellationToken cancellationToken) =>
+    await dbContext.StaffRoleAssignments
+        .AsNoTracking()
+        .Where(role => role.StaffUserId == staffUserId && role.OrganizationId == organizationId)
+        .Select(role => role.RoleName)
+        .Distinct()
+        .ToListAsync(cancellationToken);
+
+// Anti-fraud §5.2 enforcement: the legacy direct ledger endpoints share the same MoneyActionGuard as
+// the /money-actions front door. Returns null when the action may execute immediately (under threshold,
+// under cap) so the caller proceeds with its direct ledger write; otherwise returns the blocking result
+// (409 — must go through the approval front door; 422 — over cap) and writes the denied audit trail.
+static async Task<IResult?> GuardLegacyMoneyActionAsync(
+    PlatformDbContext dbContext,
+    IMoneyActionPolicyResolver policyResolver,
+    IAuditRecordWriter auditRecordWriter,
+    Guid organizationId,
+    Guid branchId,
+    Guid actorStaffUserId,
+    MoneyActionType requestedType,
+    string accountType,
+    long signedAmountMinorUnits,
+    CancellationToken cancellationToken)
+{
+    var roleNames = await GetActorRoleNamesAsync(dbContext, actorStaffUserId, organizationId, cancellationToken);
+    var assessment = await policyResolver.AssessAsync(
+        organizationId, branchId, actorStaffUserId, roleNames,
+        requestedType, accountType, signedAmountMinorUnits, cancellationToken);
+
+    if (assessment.Decision == MoneyActionDecision.ExecuteNow)
+    {
+        return null;
+    }
+
+    var amount = Math.Abs(signedAmountMinorUnits);
+    var requiresApproval = assessment.Decision == MoneyActionDecision.RequireApproval;
+    var blockedReason = requiresApproval
+        ? "Amount exceeds the approval threshold; submit via /money-actions for manager approval."
+        : "Amount exceeds the configured per-transaction or daily cap.";
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        organizationId,
+        branchId,
+        actorStaffUserId,
+        AuditActionNames.MoneyActionRequested,
+        "MoneyAction",
+        null,
+        AuditOutcome.Denied,
+        new { Decision = assessment.Decision.ToString(), Amount = amount, Reason = blockedReason },
+        cancellationToken,
+        amountMinorUnits: amount);
+
+    return requiresApproval
+        ? Results.Conflict(new { Error = blockedReason, RequiresApproval = true })
+        : Results.Json(new { Error = blockedReason }, statusCode: StatusCodes.Status422UnprocessableEntity);
+}
 
 static IResult ToHttpResult<TResponse>(BillingCommandServiceResult<TResponse> result)
 {
@@ -9857,7 +11158,8 @@ static async Task WriteAuditAsync(
     string? targetId,
     string outcome,
     object details,
-    CancellationToken cancellationToken)
+    CancellationToken cancellationToken,
+    long? amountMinorUnits = null)
 {
     await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
         organizationId,
@@ -9868,7 +11170,10 @@ static async Task WriteAuditAsync(
         targetId,
         outcome,
         "PlatformApi",
-        JsonSerializer.Serialize(details)),
+        JsonSerializer.Serialize(details))
+    {
+        AmountMinorUnits = amountMinorUnits
+    },
         cancellationToken);
 }
 
@@ -9912,7 +11217,10 @@ static async Task<IResult> ExportReportCsvAsync<TReport>(
     string fileName,
     Func<IReportService, Guid, Guid, ReportSearchQuery, CancellationToken, Task<TReport>> loadReportAsync,
     Func<TReport, string> exportCsv,
-    CancellationToken cancellationToken)
+    CancellationToken cancellationToken,
+    Guid? actorStaffUserId = null,
+    long? minAmountMinorUnits = null,
+    long? maxAmountMinorUnits = null)
 {
     var authorization = await authorizationService.RequireBranchPermissionAsync(
         branchId,
@@ -9941,7 +11249,7 @@ static async Task<IResult> ExportReportCsvAsync<TReport>(
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit, actorStaffUserId, minAmountMinorUnits, maxAmountMinorUnits);
     var result = await loadReportAsync(
         reportService,
         authorization.StaffContext!.OrganizationId,
@@ -10678,6 +11986,9 @@ static async Task<ScopedEntityEndpointResult<TEntity>> LoadScopedEntityEndpointA
         ? new ScopedEntityEndpointResult<TEntity>(null, branchId, authorization, Results.NotFound())
         : new ScopedEntityEndpointResult<TEntity>(entity, branchId, authorization, null);
 }
+
+static PlayerReservationDto ToPlayerReservationDto(ReservationDto r) =>
+    new(r.ReservationId, r.SeatId, r.SeatName, r.StartsAtUtc, r.EndsAtUtc, r.State, r.Note);
 
 static ReceiptDto ToDto(ReceiptEntity receipt)
 {

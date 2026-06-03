@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Payments;
@@ -164,7 +165,8 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .Where(payment =>
                 payment.OrganizationId == organizationId &&
                 payment.BranchId == branchId &&
-                saleIds.Contains(payment.PosSaleId))
+                payment.PosSaleId != null &&
+                saleIds.Contains(payment.PosSaleId.Value))
             .ToListAsync(cancellationToken);
 
         var rows = sales.Select(sale =>
@@ -431,6 +433,28 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             auditQuery = auditQuery.Where(record => record.CreatedAtUtc <= toUtc);
         }
 
+        if (query.ActorStaffUserId is not null)
+        {
+            var actorStaffUserId = query.ActorStaffUserId.Value;
+            auditQuery = auditQuery.Where(record => record.ActorStaffUserId == actorStaffUserId);
+        }
+
+        // Amount bounds only match money-relevant records (those carrying an amount); amountless rows
+        // are excluded when a bound is set.
+        if (query.MinAmountMinorUnits is not null)
+        {
+            var minAmount = query.MinAmountMinorUnits.Value;
+            auditQuery = auditQuery.Where(record =>
+                record.AmountMinorUnits != null && record.AmountMinorUnits >= minAmount);
+        }
+
+        if (query.MaxAmountMinorUnits is not null)
+        {
+            var maxAmount = query.MaxAmountMinorUnits.Value;
+            auditQuery = auditQuery.Where(record =>
+                record.AmountMinorUnits != null && record.AmountMinorUnits <= maxAmount);
+        }
+
         var auditRecords = await auditQuery.ToListAsync(cancellationToken);
         var actorIds = auditRecords
             .Where(record => record.ActorStaffUserId.HasValue)
@@ -463,6 +487,61 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .ToList();
 
         return new OperatorActionReportResultDto(rows, limit, auditRecords.Count);
+    }
+
+    public async Task<OwnerDailySummaryResultDto> GetOwnerDailySummaryAsync(
+        Guid organizationId,
+        Guid branchId,
+        DateOnly date,
+        CancellationToken cancellationToken)
+    {
+        var windowStart = new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var windowEnd = windowStart.AddDays(1);
+
+        var moneyEntries = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry => entry.OrganizationId == organizationId
+                && entry.BranchId == branchId
+                && entry.CreatedAtUtc >= windowStart && entry.CreatedAtUtc < windowEnd
+                && (entry.EntryType == LedgerEntryTypeNames.Refund
+                    || entry.EntryType == LedgerEntryTypeNames.Reversal
+                    || entry.EntryType == LedgerEntryTypeNames.ManualCorrection))
+            .ToListAsync(cancellationToken);
+
+        var compAudits = await dbContext.AuditRecords
+            .AsNoTracking()
+            .Where(record => record.OrganizationId == organizationId
+                && record.BranchId == branchId
+                && record.Action == AuditActionNames.SessionComp
+                && record.CreatedAtUtc >= windowStart && record.CreatedAtUtc < windowEnd)
+            .ToListAsync(cancellationToken);
+
+        var closedShifts = await dbContext.Shifts
+            .AsNoTracking()
+            .Where(shift => shift.OrganizationId == organizationId
+                && shift.BranchId == branchId
+                && shift.State == ShiftStateNames.Closed
+                && shift.ClosedAtUtc >= windowStart && shift.ClosedAtUtc < windowEnd)
+            .ToListAsync(cancellationToken);
+
+        var actorIds = moneyEntries.Select(entry => entry.CreatedByStaffUserId)
+            .Concat(compAudits.Where(record => record.ActorStaffUserId.HasValue)
+                .Select(record => record.ActorStaffUserId!.Value))
+            .Concat(closedShifts.Where(shift => shift.ClosedByStaffUserId.HasValue)
+                .Select(shift => shift.ClosedByStaffUserId!.Value))
+            .Distinct()
+            .ToList();
+        var actorNames = await dbContext.StaffUsers
+            .AsNoTracking()
+            .Where(user => user.OrganizationId == organizationId && actorIds.Contains(user.StaffUserId))
+            .ToDictionaryAsync(user => user.StaffUserId, user => user.DisplayName, cancellationToken);
+
+        var currencyCode = moneyEntries.FirstOrDefault()?.CurrencyCode
+            ?? closedShifts.FirstOrDefault()?.CurrencyCode
+            ?? DefaultCurrencyCode;
+
+        return OwnerDailySummaryAggregator.Build(
+            date, currencyCode, moneyEntries, compAudits, closedShifts, actorNames);
     }
 
     private static int NormalizeLimit(int? limit)

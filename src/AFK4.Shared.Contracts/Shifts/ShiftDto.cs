@@ -16,4 +16,6 @@ public sealed record ShiftDto(
     string OpeningNote,
     string ClosingNote,
     DateTimeOffset OpenedAtUtc,
-    DateTimeOffset? ClosedAtUtc);
+    DateTimeOffset? ClosedAtUtc,
+    Guid? ManagerSignOffStaffUserId = null,
+    string? SignOffReason = null);

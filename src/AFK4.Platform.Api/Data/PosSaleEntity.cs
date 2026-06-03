@@ -14,6 +14,10 @@ public sealed class PosSaleEntity
 
     public Guid? PlayerAccountId { get; set; }
 
+    // When set, this sale is rung up against an open session tab and stays unpaid
+    // until the session is checked out (rather than being settled on its own).
+    public Guid? SessionId { get; set; }
+
     public string State { get; set; } = string.Empty;
 
     public string CurrencyCode { get; set; } = string.Empty;

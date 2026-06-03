@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Diagnostics;
 using AFK4.Shared.Contracts.FloorMap;
@@ -78,8 +79,22 @@ public sealed class EfFloorMapReadService(
             .GroupBy(session => session.SeatId)
             .ToDictionary(group => group.Key, group => group.OrderByDescending(session => session.UpdatedAtUtc).First());
 
+        // Open tabs accrue live cost; load the tariff versions they bill against.
+        var openTabTariffVersionIds = sessionsBySeat.Values
+            .Where(session => session.EndsAtUtc is null)
+            .Select(session => Guid.TryParse(session.TariffRuleVersionId, out var id) ? (Guid?)id : null)
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .ToHashSet();
+        var tariffVersionsById = openTabTariffVersionIds.Count == 0
+            ? new Dictionary<Guid, TariffVersionEntity>()
+            : await dbContext.TariffVersions
+                .AsNoTracking()
+                .Where(version => version.BranchId == branchId && openTabTariffVersionIds.Contains(version.TariffVersionId))
+                .ToDictionaryAsync(version => version.TariffVersionId, cancellationToken);
+
         var seatStatuses = seats
-            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, now))
+            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, now))
             .OrderBy(seat => zonesById.TryGetValue(seat.ZoneId, out var zone) ? zone.SortOrder : int.MaxValue)
             .ThenBy(seat => seat.SortOrder)
             .ThenBy(seat => seat.SeatName, StringComparer.OrdinalIgnoreCase)
@@ -110,6 +125,7 @@ public sealed class EfFloorMapReadService(
         IReadOnlyDictionary<Guid, DeviceSeatAssignmentEntity> assignmentsBySeat,
         IReadOnlyDictionary<Guid, DeviceEntity> devices,
         IReadOnlyDictionary<Guid, SessionEntity> sessionsBySeat,
+        IReadOnlyDictionary<Guid, TariffVersionEntity> tariffVersionsById,
         DateTimeOffset now)
     {
         zones.TryGetValue(seat.ZoneId, out var zone);
@@ -122,6 +138,7 @@ public sealed class EfFloorMapReadService(
 
         sessionsBySeat.TryGetValue(seat.SeatId, out var activeSession);
         var isDeviceOnline = device is null ? (bool?)null : IsHeartbeatFresh(device, now);
+        var (accruedCostMinorUnits, currencyCode) = GetAccruedCost(activeSession, tariffVersionsById, now);
 
         return new SeatStatusDto(
             SeatId: seat.SeatId,
@@ -138,7 +155,39 @@ public sealed class EfFloorMapReadService(
             AgentVersion: device?.AgentVersion,
             ShellVersion: device?.ShellVersion,
             ActiveSessionId: activeSession?.SessionId,
-            RemainingSeconds: GetRemainingSeconds(activeSession, now));
+            RemainingSeconds: GetRemainingSeconds(activeSession, now),
+            AccruedCostMinorUnits: accruedCostMinorUnits,
+            CurrencyCode: currencyCode);
+    }
+
+    private static (long? AccruedCostMinorUnits, string? CurrencyCode) GetAccruedCost(
+        SessionEntity? activeSession,
+        IReadOnlyDictionary<Guid, TariffVersionEntity> tariffVersionsById,
+        DateTimeOffset now)
+    {
+        // Only open tabs accrue live cost; fixed sessions expose RemainingSeconds.
+        if (activeSession?.EndsAtUtc is not null)
+        {
+            return (null, null);
+        }
+
+        if (activeSession is null ||
+            !Guid.TryParse(activeSession.TariffRuleVersionId, out var tariffVersionId) ||
+            !tariffVersionsById.TryGetValue(tariffVersionId, out var version))
+        {
+            return (null, null);
+        }
+
+        var startedAtUtc = activeSession.StartedAtUtc ?? now;
+        var pricing = new TariffPricing(
+            version.PricePerMinuteMinorUnits,
+            version.MinimumBillableMinutes,
+            version.RoundingIncrementMinutes,
+            version.CurrencyCode);
+        var computation = TariffBilling.ComputeForElapsed(now - startedAtUtc, pricing);
+        return computation is null
+            ? (null, null)
+            : (computation.AmountMinorUnits, computation.CurrencyCode);
     }
 
     private static int? GetRemainingSeconds(SessionEntity? activeSession, DateTimeOffset now)

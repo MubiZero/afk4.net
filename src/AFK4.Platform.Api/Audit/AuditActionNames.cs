@@ -32,6 +32,8 @@ public static class AuditActionNames
 
     public const string EndSession = "sessions.end";
 
+    public const string CheckoutSession = "sessions.checkout";
+
     public const string CreatePlayerAccount = "players.create";
 
     public const string ViewPlayers = "players.view";
@@ -43,6 +45,19 @@ public static class AuditActionNames
     public const string ManualLedgerCorrection = "billing.manual_correction";
 
     public const string PayDebt = "billing.debt.pay";
+
+    // Anti-fraud (§5.2/§5.4/§5.7) — money-action approval lifecycle, comped sessions, shift sign-off.
+    public const string MoneyActionRequested = "billing.money_action.requested";
+
+    public const string MoneyActionApproved = "billing.money_action.approved";
+
+    public const string MoneyActionRejected = "billing.money_action.rejected";
+
+    public const string MoneyActionExecuted = "billing.money_action.executed";
+
+    public const string SessionComp = "session.comp";
+
+    public const string ShiftSignOff = "shifts.signoff";
 
     public const string CreateTariff = "tariffs.create";
 
@@ -77,6 +92,8 @@ public static class AuditActionNames
     public const string ViewCashOperationReport = "reports.cash_operations.view";
 
     public const string ViewOperatorActionReport = "reports.operator_actions.view";
+
+    public const string ViewOwnerDailySummaryReport = "reports.owner_daily_summary.view";
 
     public const string CreateReportSchedule = "reports.schedules.create";
 
@@ -221,4 +238,6 @@ public static class AuditActionNames
     public const string MarkInvoicePaid = "billing.invoice.mark_paid";
 
     public const string VoidInvoice = "billing.invoice.void";
+
+    public const string FulfilPaymentIntent = "billing.payment_intent.fulfil";
 }
