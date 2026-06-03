@@ -5859,3 +5859,96 @@ button {
 .signals-strip .rail-feedback {
   color: #fecaca;
 }
+
+.review-segments {
+  display: flex;
+  gap: 8px;
+  padding: 0 24px;
+  margin-bottom: 12px;
+}
+
+.review-segments button {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #2b3748);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.review-segments button.active {
+  background: var(--accent-soft, #142846);
+  border-color: var(--accent, #1f6feb);
+}
+
+.review-panel {
+  margin: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-request-row,
+.review-audit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line, #2b3748);
+  background: var(--panel, #111821);
+}
+
+.review-request-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.review-request-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.review-request-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.review-request-actions button {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line, #2b3748);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.review-reject-form label,
+.review-audit-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.review-audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.review-audit-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr 120px;
+  align-items: center;
+}
+
+.review-empty {
+  opacity: 0.7;
+  padding: 16px;
+}

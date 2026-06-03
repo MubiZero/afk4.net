@@ -3965,7 +3965,8 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
     players: 'Amir K.',
     payments: 'Платеж 14:30',
     logs: 'Событие журнала',
-    settings: 'Настройки'
+    settings: 'Настройки',
+    review: 'Проверка'
   }[workspace];
 
   return (
