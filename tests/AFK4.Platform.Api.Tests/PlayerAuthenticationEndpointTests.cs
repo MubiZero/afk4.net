@@ -219,4 +219,57 @@ public sealed class PlayerAuthenticationEndpointTests
         Assert.NotNull(result);
         Assert.False(string.IsNullOrWhiteSpace(result!.AccessToken));
     }
+
+    [Fact]
+    public async Task PostPlayerSignIn_ValidPin_ReturnsTokens_ThenRefreshWorks()
+    {
+        await using var factory = new PlatformApiFactory();
+        var (orgId, _) = await SeedPlayerWithPinAsync(factory, "1234");
+        using var client = factory.CreateClient();
+
+        var signIn = await client.PostAsJsonAsync(
+            "/api/public/player/sign-in",
+            new PlayerSignInRequest(orgId, "+992900000001", "1234"));
+        Assert.Equal(HttpStatusCode.OK, signIn.StatusCode);
+        var body = await signIn.Content.ReadFromJsonAsync<PlayerSignInResponse>();
+        Assert.NotNull(body);
+        Assert.False(string.IsNullOrWhiteSpace(body!.AccessToken));
+
+        var refresh = await client.PostAsJsonAsync(
+            "/api/public/player/refresh",
+            new PlayerRefreshRequest(body.RefreshToken));
+        Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostPlayerSignIn_WrongPin_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        var (orgId, _) = await SeedPlayerWithPinAsync(factory, "1234");
+        using var client = factory.CreateClient();
+
+        var signIn = await client.PostAsJsonAsync(
+            "/api/public/player/sign-in",
+            new PlayerSignInRequest(orgId, "+992900000001", "9999"));
+        Assert.Equal(HttpStatusCode.Unauthorized, signIn.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostPlayerSignIn_ExceedsRateLimit_Returns429()
+    {
+        await using var factory = new PlatformApiFactory();
+        var (orgId, _) = await SeedPlayerWithPinAsync(factory, "1234");
+        using var client = factory.CreateClient();
+
+        // player-public policy = 10 requests / minute per IP. The 11th must be rejected.
+        HttpStatusCode last = HttpStatusCode.OK;
+        for (var i = 0; i < 11; i++)
+        {
+            var resp = await client.PostAsJsonAsync(
+                "/api/public/player/sign-in",
+                new PlayerSignInRequest(orgId, "+992900000001", "9999"));
+            last = resp.StatusCode;
+        }
+        Assert.Equal(HttpStatusCode.TooManyRequests, last);
+    }
 }

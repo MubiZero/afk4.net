@@ -38,6 +38,7 @@ using AFK4.Shared.Contracts.Diagnostics;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Layout;
@@ -630,6 +631,24 @@ app.MapPost("/api/auth/staff/refresh", async (
         ? Results.Unauthorized()
         : Results.Ok(response);
 });
+
+app.MapPost("/api/public/player/sign-in", async (
+    PlayerSignInRequest request,
+    IPlayerCredentialService credentialService,
+    CancellationToken cancellationToken) =>
+{
+    var response = await credentialService.SignInAsync(request, cancellationToken);
+    return response is null ? Results.Unauthorized() : Results.Ok(response);
+}).RequireRateLimiting("player-public");
+
+app.MapPost("/api/public/player/refresh", async (
+    PlayerRefreshRequest request,
+    IPlayerTokenService tokenService,
+    CancellationToken cancellationToken) =>
+{
+    var response = await tokenService.RefreshAsync(request, cancellationToken);
+    return response is null ? Results.Unauthorized() : Results.Ok(response);
+}).RequireRateLimiting("player-public");
 
 app.MapPost("/api/auth/staff/forgot-password", async (
     StaffForgotPasswordRequest request,
@@ -6377,6 +6396,48 @@ app.MapPost("/api/branches/{branchId:guid}/players", async (
         cancellationToken);
 
     return Results.Ok(result.Response);
+});
+
+app.MapPost("/api/branches/{branchId:guid}/players/{playerAccountId:guid}/pin", async (
+    Guid branchId,
+    Guid playerAccountId,
+    SetPlayerPinRequest request,
+    StaffAuthorizationService authorizationService,
+    IPlayerCredentialService credentialService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.CreatePlayerAccount,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Pin) || request.Pin.Length < 4)
+    {
+        return Results.BadRequest(new { error = "PIN must be at least 4 characters." });
+    }
+
+    var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+        p => p.PlayerAccountId == playerAccountId
+            && p.OrganizationId == authorization.StaffContext!.OrganizationId,
+        cancellationToken);
+    if (account is null)
+    {
+        return Results.NotFound();
+    }
+
+    await credentialService.SetPasswordAsync(playerAccountId, request.Pin, cancellationToken);
+    return Results.NoContent();
 });
 
 app.MapGet("/api/branches/{branchId:guid}/players", async (
