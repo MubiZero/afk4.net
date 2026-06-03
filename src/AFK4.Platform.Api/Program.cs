@@ -650,6 +650,33 @@ app.MapPost("/api/public/player/refresh", async (
     return response is null ? Results.Unauthorized() : Results.Ok(response);
 }).RequireRateLimiting("player-public");
 
+app.MapGet("/api/me/profile", async (
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+        p => p.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+    if (account is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(new PlayerProfileDto(
+        account.PlayerAccountId,
+        account.DisplayName,
+        account.PhoneNumber,
+        player.PhoneVerified,
+        account.PreferredLocale,
+        account.MarketingOptIn));
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/auth/staff/forgot-password", async (
     StaffForgotPasswordRequest request,
     IStaffPasswordResetService passwordResetService,

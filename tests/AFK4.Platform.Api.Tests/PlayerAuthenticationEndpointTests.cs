@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
@@ -271,5 +272,56 @@ public sealed class PlayerAuthenticationEndpointTests
             last = resp.StatusCode;
         }
         Assert.Equal(HttpStatusCode.TooManyRequests, last);
+    }
+
+    [Fact]
+    public async Task GetMeProfile_WithPlayerToken_ReturnsOwnProfile()
+    {
+        await using var factory = new PlatformApiFactory();
+        var (orgId, playerId) = await SeedPlayerWithPinAsync(factory, "1234");
+        using var client = factory.CreateClient();
+
+        var signIn = await client.PostAsJsonAsync(
+            "/api/public/player/sign-in",
+            new PlayerSignInRequest(orgId, "+992900000001", "1234"));
+        var tokens = await signIn.Content.ReadFromJsonAsync<PlayerSignInResponse>();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
+
+        var profileResponse = await client.GetAsync("/api/me/profile");
+        Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
+        var profile = await profileResponse.Content.ReadFromJsonAsync<PlayerProfileDto>();
+        Assert.Equal(playerId, profile!.PlayerAccountId);
+        Assert.Equal("+992900000001", profile.PhoneNumber);
+    }
+
+    [Fact]
+    public async Task GetMeProfile_WithoutToken_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var response = await client.GetAsync("/api/me/profile");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PlayerToken_RejectedOnStaffRoute()
+    {
+        await using var factory = new PlatformApiFactory();
+        var (orgId, _) = await SeedPlayerWithPinAsync(factory, "1234");
+        using var client = factory.CreateClient();
+
+        var signIn = await client.PostAsJsonAsync(
+            "/api/public/player/sign-in",
+            new PlayerSignInRequest(orgId, "+992900000001", "1234"));
+        var tokens = await signIn.Content.ReadFromJsonAsync<PlayerSignInResponse>();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
+
+        // A staff-protected route must not accept a player token.
+        var staffResponse = await client.GetAsync($"/api/branches/{Guid.NewGuid()}/players");
+        Assert.True(
+            staffResponse.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden,
+            $"expected 401/403, got {(int)staffResponse.StatusCode}");
     }
 }
