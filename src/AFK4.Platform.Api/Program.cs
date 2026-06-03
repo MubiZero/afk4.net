@@ -158,6 +158,7 @@ builder.Services.AddScoped<IFloorMapEditService, EfFloorMapEditService>();
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
 builder.Services.AddScoped<IPlayerTokenService, OpaquePlayerTokenService>();
 builder.Services.AddScoped<IPlayerCredentialService, PlayerCredentialService>();
+builder.Services.AddScoped<IPlayerContextAccessor, PlayerContextAccessor>();
 builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
 builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();
@@ -291,6 +292,7 @@ app.Use(async (httpContext, next) =>
 });
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
+app.UseMiddleware<PlayerAuthenticationMiddleware>();
 app.UseMiddleware<TenantSuspensionMiddleware>();
 
 app.MapGet("/api/health", () =>
