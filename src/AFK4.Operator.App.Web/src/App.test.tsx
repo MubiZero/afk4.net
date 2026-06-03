@@ -2719,6 +2719,29 @@ describe('App', () => {
       expect(JSON.parse(String((rejected![1] as RequestInit).body))).toEqual({ decisionReason: 'Нет чека' });
     });
   });
+
+  it('builds an audit query from staff and amount filters', async () => {
+    installSessionBridge(createSession({ displayName: 'Manager One' }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    fireEvent.click(screen.getByTitle('Проверка'));
+    await screen.findByText('Клиент отменил заказ');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Журнал операций' }));
+    fireEvent.change(screen.getByLabelText('Сотрудник'), { target: { value: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134' } });
+    fireEvent.change(screen.getByLabelText('Сумма от'), { target: { value: '1000' } });
+    fireEvent.change(screen.getByLabelText('Сумма до'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
+
+    await waitFor(() => {
+      const auditCall = fetchMock.mock.calls.find(([input]) =>
+        String(input).includes('/audit?') && String(input).includes('actorStaffUserId=3db1367b'));
+      expect(auditCall).toBeDefined();
+      const url = String(auditCall![0]);
+      expect(url).toContain('minAmount=1000');
+      expect(url).toContain('maxAmount=5000');
+    });
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
