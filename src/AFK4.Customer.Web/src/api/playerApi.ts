@@ -1,7 +1,11 @@
 import type { PlayerSession } from '../auth/playerTokenStore';
 import { playerSessionFromSignInResponse } from '../auth/playerTokenStore';
 import type {
-  PlayerSignInRequest, PlayerSignInResponse, PlayerDashboardDto
+  PlayerSignInRequest, PlayerSignInResponse, PlayerDashboardDto,
+  CursorPage, PlayerVisitDto, PlayerVisitReceiptDto, PlayerPurchaseDto,
+  PlayerProfileDto, UpdatePlayerProfileRequest,
+  PlayerTopUpIntentRequest, PlayerTopUpIntentDto,
+  CreatePlayerReservationRequest, PlayerReservationDto
 } from './types';
 
 export class PlayerApiError extends Error {
@@ -39,6 +43,48 @@ export class PlayerApiClient {
     return this.authedGet<PlayerDashboardDto>('/api/me/dashboard');
   }
 
+  getVisits(cursor?: string): Promise<CursorPage<PlayerVisitDto>> {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    return this.authedGet<CursorPage<PlayerVisitDto>>(`/api/me/visits${query}`);
+  }
+
+  getVisitReceipt(sessionId: string): Promise<PlayerVisitReceiptDto> {
+    return this.authedGet<PlayerVisitReceiptDto>(`/api/me/visits/${encodeURIComponent(sessionId)}/receipt`);
+  }
+
+  getPurchases(cursor?: string): Promise<CursorPage<PlayerPurchaseDto>> {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    return this.authedGet<CursorPage<PlayerPurchaseDto>>(`/api/me/purchases${query}`);
+  }
+
+  getProfile(): Promise<PlayerProfileDto> {
+    return this.authedGet<PlayerProfileDto>('/api/me/profile');
+  }
+
+  updateProfile(request: UpdatePlayerProfileRequest): Promise<PlayerProfileDto> {
+    return this.authedSend<PlayerProfileDto>('PATCH', '/api/me/profile', request);
+  }
+
+  createTopUpIntent(request: PlayerTopUpIntentRequest): Promise<PlayerTopUpIntentDto> {
+    return this.authedSend<PlayerTopUpIntentDto>('POST', '/api/me/wallet/top-up-intent', request);
+  }
+
+  getTopUpIntents(): Promise<PlayerTopUpIntentDto[]> {
+    return this.authedGet<PlayerTopUpIntentDto[]>('/api/me/wallet/top-up-intents');
+  }
+
+  getReservations(): Promise<PlayerReservationDto[]> {
+    return this.authedGet<PlayerReservationDto[]>('/api/me/reservations');
+  }
+
+  createReservation(request: CreatePlayerReservationRequest): Promise<PlayerReservationDto> {
+    return this.authedSend<PlayerReservationDto>('POST', '/api/me/reservations', request);
+  }
+
+  cancelReservation(reservationId: string): Promise<PlayerReservationDto> {
+    return this.authedSend<PlayerReservationDto>('DELETE', `/api/me/reservations/${encodeURIComponent(reservationId)}`);
+  }
+
   // Lets a long-lived client adopt a new session (e.g. after sign-in) without
   // being rebuilt, so consumers keep a stable client identity across auth changes.
   updateSession(session: PlayerSession | null): void {
@@ -59,6 +105,22 @@ export class PlayerApiClient {
     let response = await this.fetchImpl(`${this.baseUrl}${path}`, { method: 'GET', headers: this.buildHeaders() });
     if (response.status === 401 && (await this.refreshOnce())) {
       response = await this.fetchImpl(`${this.baseUrl}${path}`, { method: 'GET', headers: this.buildHeaders() });
+    }
+    if (!response.ok) throw await PlayerApiClient.toError(response);
+    return JSON.parse(await response.text()) as T;
+  }
+
+  // Authenticated mutating request. Like authedGet, refreshes once on 401 and retries;
+  // re-sends the same body with the refreshed token. Body omitted for verb-only calls (DELETE).
+  private async authedSend<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const buildInit = (): RequestInit => {
+      const headers = this.buildHeaders();
+      if (body !== undefined) headers['Content-Type'] = 'application/json';
+      return { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined };
+    };
+    let response = await this.fetchImpl(`${this.baseUrl}${path}`, buildInit());
+    if (response.status === 401 && (await this.refreshOnce())) {
+      response = await this.fetchImpl(`${this.baseUrl}${path}`, buildInit());
     }
     if (!response.ok) throw await PlayerApiClient.toError(response);
     return JSON.parse(await response.text()) as T;
