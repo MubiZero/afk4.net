@@ -62,4 +62,37 @@ public sealed class PlayerAuthenticationEndpointTests
         var reloaded = await db.PlayerAccounts.SingleAsync(p => p.PlayerAccountId == id);
         Assert.True(reloaded.MarketingOptIn);
     }
+
+    [Fact]
+    public async Task PlayerTokenEntities_RoundTrip()
+    {
+        await using var factory = new PlatformApiFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+
+        var playerAccountId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+        db.PlayerAccessTokens.Add(new PlayerAccessTokenEntity
+        {
+            PlayerAccessTokenId = Guid.NewGuid(),
+            PlayerAccountId = playerAccountId,
+            OrganizationId = orgId,
+            TokenHash = new byte[] { 1, 2, 3 },
+            CreatedAtUtc = DateTimeOffset.Parse("2026-06-03T00:00:00Z"),
+            ExpiresAtUtc = DateTimeOffset.Parse("2026-06-03T01:00:00Z")
+        });
+        db.PlayerRefreshTokens.Add(new PlayerRefreshTokenEntity
+        {
+            PlayerRefreshTokenId = Guid.NewGuid(),
+            PlayerAccountId = playerAccountId,
+            OrganizationId = orgId,
+            TokenHash = new byte[] { 4, 5, 6 },
+            CreatedAtUtc = DateTimeOffset.Parse("2026-06-03T00:00:00Z"),
+            ExpiresAtUtc = DateTimeOffset.Parse("2026-07-03T00:00:00Z")
+        });
+        await db.SaveChangesAsync();
+
+        Assert.Equal(1, await db.PlayerAccessTokens.CountAsync(t => t.PlayerAccountId == playerAccountId));
+        Assert.Equal(1, await db.PlayerRefreshTokens.CountAsync(t => t.PlayerAccountId == playerAccountId));
+    }
 }

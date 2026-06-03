@@ -46,6 +46,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlayerCredentialEntity> PlayerCredentials => Set<PlayerCredentialEntity>();
 
+    public DbSet<PlayerAccessTokenEntity> PlayerAccessTokens => Set<PlayerAccessTokenEntity>();
+
+    public DbSet<PlayerRefreshTokenEntity> PlayerRefreshTokens => Set<PlayerRefreshTokenEntity>();
+
     public DbSet<LedgerEntryEntity> LedgerEntries => Set<LedgerEntryEntity>();
 
     public DbSet<BillingCommandIdempotencyEntity> BillingCommandIdempotency => Set<BillingCommandIdempotencyEntity>();
@@ -420,6 +424,24 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(credential => credential.PasswordHash).HasMaxLength(512);
             entity.HasIndex(credential => credential.PlayerAccountId).IsUnique();
             entity.HasIndex(credential => new { credential.OrganizationId, credential.PlayerAccountId });
+        });
+
+        modelBuilder.Entity<PlayerAccessTokenEntity>(entity =>
+        {
+            entity.ToTable("player_access_tokens");
+            entity.HasKey(accessToken => accessToken.PlayerAccessTokenId);
+            entity.Property(accessToken => accessToken.TokenHash).IsRequired();
+            entity.HasIndex(accessToken => accessToken.TokenHash);
+            entity.HasIndex(accessToken => new { accessToken.PlayerAccountId, accessToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlayerRefreshTokenEntity>(entity =>
+        {
+            entity.ToTable("player_refresh_tokens");
+            entity.HasKey(refreshToken => refreshToken.PlayerRefreshTokenId);
+            entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
+            entity.HasIndex(refreshToken => refreshToken.TokenHash);
+            entity.HasIndex(refreshToken => new { refreshToken.PlayerAccountId, refreshToken.ExpiresAtUtc });
         });
 
         modelBuilder.Entity<LedgerEntryEntity>(entity =>
