@@ -59,8 +59,10 @@ using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 
 const string OperatorWebCorsPolicyName = "operator-web";
 const string PlatformWebCorsPolicyName = "platform-web";
@@ -257,6 +259,31 @@ builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
 builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
 builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("player-public", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    options.AddPolicy("player-me", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Request.Headers.Authorization.ToString() is { Length: > 0 } auth
+                ? auth
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});
+
 var app = builder.Build();
 
 // Fail fast at startup if any registered notification template key is missing its file (§8),
@@ -290,6 +317,7 @@ app.Use(async (httpContext, next) =>
 
     await next(httpContext);
 });
+app.UseRateLimiter();
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<PlayerAuthenticationMiddleware>();
