@@ -23,8 +23,8 @@ public sealed class PaymentIntentEntity
     public string Method { get; set; } = "counter";
 
     // FulfilledByLedgerEntryId is left null (v1): TopUpWalletAsync returns
-    // WalletSummaryDto, not the created ledger entry id. The State flip is
-    // the idempotency guard.
+    // WalletSummaryDto, not the created ledger entry id. Double-credit is guarded by
+    // the billing idempotency key (the intent id), not by this column.
     public Guid? FulfilledByLedgerEntryId { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }

@@ -1104,6 +1104,11 @@ app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
         return Results.Conflict(new { Error = "Payment intent has expired." });
     }
 
+    // The intent id is the idempotency key: it is the authoritative guard against a
+    // double wallet credit. If two operators fulfil the same intent concurrently, both
+    // pass the in-memory State == "pending" fast-path above, but TopUpWalletAsync
+    // deduplicates on this key and writes exactly one ledger entry. The State flip below
+    // is then idempotent (same values written twice is harmless).
     var topUpRequest = new TopUpWalletRequest(
         intent.OrganizationId,
         new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
