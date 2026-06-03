@@ -114,7 +114,58 @@ public sealed class EfSessionCommandServiceTests
     }
 
     [Fact]
-    public async Task StartGuestSessionAsync_CompWithValidReason_StartsSession()
+    public async Task StartGuestSessionAsync_CompUnderThreshold_StartsValuedFreeSession()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var billing = new FakeSessionBillingService { CompValueMinorUnits = 3000 }; // < default 5000 threshold
+        var service = CreateService(db, new RecordingCommandDispatchService(), billing);
+        var request = CompRequest("start-comp-ok");
+
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(3000, result.Response.CompValueMinorUnits);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Active, session.State);
+        Assert.True(session.IsComp);
+        Assert.Equal(3000, session.CompValueMinorUnits);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_CompOverThresholdWithoutAuthority_ReturnsInvalidAndCreatesNothing()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var billing = new FakeSessionBillingService { CompValueMinorUnits = 9000 }; // > default 5000 threshold
+        var service = CreateService(db, new RecordingCommandDispatchService(), billing);
+        var request = CompRequest("start-comp-over");
+
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(await db.Sessions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_CompOverThresholdWithApprovalAuthority_StartsSession()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var billing = new FakeSessionBillingService { CompValueMinorUnits = 9000 };
+        var service = CreateService(db, new RecordingCommandDispatchService(), billing);
+        var request = CompRequest("start-comp-over-ok");
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None, actorCanApproveComp: true);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(9000, (await db.Sessions.SingleAsync()).CompValueMinorUnits);
+    }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_OpenTabComp_ReturnsInvalid()
     {
         await using var db = CreateDbContext();
         await SeedLayoutAsync(db, includeTargetSeat: false);
@@ -123,18 +174,51 @@ public sealed class EfSessionCommandServiceTests
             TestIds.OrganizationId,
             SeatId,
             TariffRuleVersionId: "guest",
-            IdempotencyKey: "start-comp-ok",
+            IdempotencyKey: "start-comp-opentab",
             DurationMode: SessionDurationModes.Open,
+            TariffVersionId: Guid.NewGuid(),
             IsComp: true,
             CompReason: "birthday gift for loyal guest");
 
         var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
 
-        Assert.True(result.Succeeded);
-        Assert.NotNull(result.Response);
-        Assert.Equal(SessionStateNames.Active, result.Response.Session.State);
-        Assert.Equal(SessionStateNames.Active, (await db.Sessions.SingleAsync()).State);
+        Assert.False(result.Succeeded);
+        Assert.Empty(await db.Sessions.ToListAsync());
     }
+
+    [Fact]
+    public async Task StartGuestSessionAsync_CompWithoutTariff_ReturnsInvalid()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var request = new StartGuestSessionRequest(
+            TestIds.OrganizationId,
+            SeatId,
+            TariffRuleVersionId: "guest",
+            IdempotencyKey: "start-comp-notariff",
+            DurationMode: SessionDurationModes.Fixed,
+            DurationMinutes: 60,
+            IsComp: true,
+            CompReason: "birthday gift for loyal guest");
+
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(await db.Sessions.ToListAsync());
+    }
+
+    private static StartGuestSessionRequest CompRequest(string idempotencyKey) =>
+        new(
+            TestIds.OrganizationId,
+            SeatId,
+            TariffRuleVersionId: "guest",
+            IdempotencyKey: idempotencyKey,
+            DurationMode: SessionDurationModes.Fixed,
+            DurationMinutes: 60,
+            TariffVersionId: Guid.NewGuid(),
+            IsComp: true,
+            CompReason: "birthday gift for loyal guest");
 
     [Fact]
     public async Task StartGuestSessionAsync_RepeatedWithSameIdempotencyKeyAndRequestReturnsOriginalResponse()
@@ -317,14 +401,15 @@ public sealed class EfSessionCommandServiceTests
 
     private static EfSessionCommandService CreateService(
         PlatformDbContext db,
-        RecordingCommandDispatchService dispatcher)
+        RecordingCommandDispatchService dispatcher,
+        FakeSessionBillingService? billing = null)
     {
         return new EfSessionCommandService(
             db,
             dispatcher,
             new FakeSessionLeaseSigner(),
             new FixedTimeProvider(Now),
-            new FakeSessionBillingService());
+            billing ?? new FakeSessionBillingService());
     }
 
     private static async Task SeedLayoutAsync(PlatformDbContext db, bool includeTargetSeat)

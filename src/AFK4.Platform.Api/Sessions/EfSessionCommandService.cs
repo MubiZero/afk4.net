@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
@@ -43,7 +44,8 @@ public sealed class EfSessionCommandService(
         Guid branchId,
         Guid actorStaffUserId,
         StartGuestSessionRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool actorCanApproveComp = false)
     {
         var idempotency = await GetExistingIdempotencyAsync(
             request.OrganizationId,
@@ -69,6 +71,7 @@ public sealed class EfSessionCommandService(
 
         // §5.4: an explicit comp is a free session — it must carry no billing mode and a real reason.
         // The control fires only on the IsComp flag; the existing manual/guest path is untouched.
+        long? compValue = null;
         if (request.IsComp)
         {
             if (!string.IsNullOrEmpty(billingMode))
@@ -80,6 +83,52 @@ public sealed class EfSessionCommandService(
             {
                 return SessionCommandServiceResult.Invalid(
                     $"A comp session requires a reason of at least {CompReasonMinLength} characters.");
+            }
+
+            // A comp grants a fixed amount of free time at a real tariff, so its value
+            // (duration × tariff) is known up front and the gate is always preventive.
+            if (!isFixed || request.DurationMinutes is not > 0)
+            {
+                return SessionCommandServiceResult.Invalid(
+                    "A comp session must have a fixed duration so its value can be assessed.");
+            }
+
+            if (request.TariffVersionId is null)
+            {
+                return SessionCommandServiceResult.Invalid(
+                    "A comp session requires a tariff version to value the free time.");
+            }
+
+            var valuation = await sessionBillingService.ComputeCompValueAsync(
+                request.OrganizationId,
+                branchId,
+                request.TariffVersionId.Value,
+                request.DurationMinutes.Value,
+                cancellationToken);
+            if (!valuation.Succeeded)
+            {
+                return SessionCommandServiceResult.Invalid(valuation.Error ?? "Comp value could not be computed.");
+            }
+
+            compValue = valuation.AmountMinorUnits;
+
+            var branch = await dbContext.Branches
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    candidate => candidate.OrganizationId == request.OrganizationId && candidate.BranchId == branchId,
+                    cancellationToken);
+            var compThreshold = MoneyControlPolicy.ResolveCompThreshold(
+                branch?.CompApprovalThresholdMinorUnits,
+                MoneyControlPolicy.ResolveApprovalThreshold(
+                    branch?.HighRiskApprovalThresholdMinorUnits,
+                    MoneyControlPolicy.DefaultApprovalThresholdMinorUnits));
+
+            // Over the comp threshold, only an actor who can approve money actions may proceed
+            // (a manager comping directly). Otherwise the free session is blocked.
+            if (compValue > compThreshold && !actorCanApproveComp)
+            {
+                return SessionCommandServiceResult.Invalid(
+                    $"Comp value {compValue} exceeds the {compThreshold} approval threshold; manager approval is required.");
             }
         }
 
@@ -174,6 +223,8 @@ public sealed class EfSessionCommandService(
                 StartedAtUtc = now,
                 EndsAtUtc = endsAtUtc,
                 CurrentLeaseId = leaseEntity.SessionLeaseId,
+                IsComp = request.IsComp,
+                CompValueMinorUnits = compValue,
                 UpdatedAtUtc = now
             };
 
@@ -780,7 +831,8 @@ public sealed class EfSessionCommandService(
                     ? null
                     : Math.Max(0, (int)(session.EndsAtUtc.Value - now).TotalSeconds),
                 CurrentLease: CurrentLease),
-            DeviceCommands: commands);
+            DeviceCommands: commands,
+            CompValueMinorUnits: session.CompValueMinorUnits);
     }
 
     private static DeviceCommandDto ToDeviceCommandDto(DeviceCommandEntity command)

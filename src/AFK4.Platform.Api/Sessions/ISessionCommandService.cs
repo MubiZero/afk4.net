@@ -24,7 +24,10 @@ public interface ISessionCommandService
         Guid branchId,
         Guid actorStaffUserId,
         StartGuestSessionRequest request,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        // Anti-fraud §5.4: whether the actor may authorise a comp above the comp threshold
+        // (holds ApproveMoneyAction). Supplied by the endpoint from the staff context.
+        bool actorCanApproveComp = false);
 
     Task<SessionCommandServiceResult> ExtendSessionAsync(
         Guid sessionId,

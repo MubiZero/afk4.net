@@ -4119,7 +4119,8 @@ app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
         branchId,
         authorization.StaffContext.StaffUserId,
         request,
-        cancellationToken);
+        cancellationToken,
+        actorCanApproveComp: authorization.StaffContext.Permissions.Contains(StaffPermissionNames.ApproveMoneyAction));
 
     if (result.Conflict)
     {
@@ -4136,8 +4137,8 @@ app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
         return Results.BadRequest(new { Error = result.Error });
     }
 
-    // §5.4: a comp (free session) is audited as a first-class session.comp with its reason, so the
-    // owner summary / Review screen can surface free sessions distinctly from ordinary starts.
+    // §5.4: a comp (free session) is audited as a first-class session.comp with its reason and its
+    // assessed value, so the owner summary / Review screen can surface free sessions in money terms.
     await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
         authorization.StaffContext.OrganizationId,
         branchId,
@@ -4148,8 +4149,11 @@ app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
         AuditOutcome.Succeeded,
         "PlatformApi",
         request.IsComp
-            ? JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes, request.CompReason })
-            : JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes })),
+            ? JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes, request.CompReason, CompValueMinorUnits = result.Response.CompValueMinorUnits })
+            : JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes }))
+    {
+        AmountMinorUnits = request.IsComp ? result.Response.CompValueMinorUnits : null
+    },
         cancellationToken);
 
     return Results.Ok(result.Response);

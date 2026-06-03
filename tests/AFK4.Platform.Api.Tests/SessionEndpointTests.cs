@@ -60,15 +60,16 @@ public sealed class SessionEndpointTests
         Assert.Equal(body.Session.SessionId.ToString("D"), audit.TargetId);
     }
 
-    // Anti-fraud §5.4: an explicit comp routes to a first-class session.comp audit (with reason),
-    // so the owner summary / Review screen can surface free sessions distinctly.
+    // Anti-fraud §5.4: an explicit comp routes to a first-class session.comp audit carrying its
+    // reason and its assessed value, so the owner summary / Review screen surface it in money terms.
     [Fact]
-    public async Task StartSession_AsComp_WritesSessionCompAuditWithReason()
+    public async Task StartSession_AsComp_WritesSessionCompAuditWithReasonAndValue()
     {
-        await using var factory = new PlatformApiFactory();
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
         await SeedLayoutAsync(factory, includeTargetSeat: false);
+        var tariffVersion = await SeedBillingAsync(factory, Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
@@ -77,13 +78,16 @@ public sealed class SessionEndpointTests
                 SeatId,
                 TariffRuleVersionId: "guest",
                 IdempotencyKey: "start-comp-endpoint",
-                DurationMode: SessionDurationModes.Open,
+                DurationMode: SessionDurationModes.Fixed,
+                DurationMinutes: 60,
+                TariffVersionId: tariffVersion.TariffVersionId,
                 IsComp: true,
                 CompReason: "birthday gift for loyal guest"));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
+        Assert.Equal(3000, body.CompValueMinorUnits); // 60 min × 50/min
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -92,6 +96,7 @@ public sealed class SessionEndpointTests
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
         Assert.Equal(body.Session.SessionId.ToString("D"), audit.TargetId);
         Assert.Contains("birthday gift", audit.DetailsJson);
+        Assert.Equal(3000, audit.AmountMinorUnits);
     }
 
     [Fact]
