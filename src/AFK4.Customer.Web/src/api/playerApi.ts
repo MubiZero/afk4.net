@@ -39,6 +39,12 @@ export class PlayerApiClient {
     return this.authedGet<PlayerDashboardDto>('/api/me/dashboard');
   }
 
+  // Lets a long-lived client adopt a new session (e.g. after sign-in) without
+  // being rebuilt, so consumers keep a stable client identity across auth changes.
+  updateSession(session: PlayerSession | null): void {
+    this.session = session;
+  }
+
   private async publicPost<T>(path: string, body: unknown): Promise<T> {
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method: 'POST',
