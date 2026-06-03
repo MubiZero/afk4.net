@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bg: #101314;
+  --color-surface: #181c1d;
+  --color-surface-2: #1f2625;
+  --color-border: #262c2c;
+  --color-accent: #c8ff00;
+  --color-accent-fg: #101314;
+}
+
+:root {
+  /* tenant-overridable accent (applyTheme writes here) */
+  --accent: #c8ff00;
+  --accent-fg: #101314;
+  /* text opacities per dark-theme rule */
+  --text-1: rgba(255, 255, 255, 0.87);
+  --text-2: rgba(255, 255, 255, 0.60);
+  --text-3: rgba(255, 255, 255, 0.38);
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--text-1);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
