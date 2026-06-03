@@ -7,6 +7,7 @@ import {
 } from './auth/playerTokenStore';
 import { resolvePlayerRoute, routePath, type PlayerRoute, type PlayerTab } from './routing';
 import { AppShell } from './components/AppShell';
+import { ToastProvider } from './components/ui/toast';
 import { SignInScreen } from './screens/auth/SignInScreen';
 import { DashboardScreen } from './screens/dashboard/DashboardScreen';
 import { useBranding } from './branding/useBranding';
@@ -82,11 +83,13 @@ export function App() {
   }
 
   return (
-    <AppShell active={tabForRoute(route)} onNavigate={navigate}>
-      {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={session.displayName} />}
-      {route.kind !== 'dashboard' && (
-        <section className="px-6 py-10 text-[var(--text-2)]">Скоро здесь появится этот раздел.</section>
-      )}
-    </AppShell>
+    <ToastProvider>
+      <AppShell active={tabForRoute(route)} onNavigate={navigate}>
+        {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={session.displayName} />}
+        {route.kind !== 'dashboard' && (
+          <section className="px-6 py-10 text-[var(--text-2)]">Скоро здесь появится этот раздел.</section>
+        )}
+      </AppShell>
+    </ToastProvider>
   );
 }
