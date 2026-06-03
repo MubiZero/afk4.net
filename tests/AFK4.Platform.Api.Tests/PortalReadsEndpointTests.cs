@@ -138,6 +138,117 @@ public class PortalReadsEndpointTests
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    // Seeds an ENDED session for the player, with optional checkout receipt and
+    // optional attached POS sale. Returns the sessionId.
+    private static async Task<Guid> SeedEndedVisitAsync(
+        PlatformApiFactory factory, SeededPlayer p, string seatName,
+        DateTimeOffset endedAtUtc, long? receiptTotal, long attachedPosTotal)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var seatId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        db.Seats.Add(new SeatEntity
+        {
+            SeatId = seatId, OrganizationId = p.OrgId, BranchId = p.BranchId,
+            ZoneId = Guid.NewGuid(), Name = seatName, SortOrder = 0, CreatedAtUtc = Now
+        });
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = sessionId, OrganizationId = p.OrgId, BranchId = p.BranchId,
+            SeatId = seatId, DeviceId = Guid.NewGuid(), CreatedByStaffUserId = Guid.NewGuid(),
+            PlayerKind = "player", PlayerAccountId = p.PlayerId,
+            TariffRuleVersionId = Guid.NewGuid().ToString("D"), State = "ended",
+            RequestedAtUtc = endedAtUtc.AddHours(-1), StartedAtUtc = endedAtUtc.AddHours(-1),
+            EndsAtUtc = null, EndedAtUtc = endedAtUtc, UpdatedAtUtc = endedAtUtc
+        });
+        if (attachedPosTotal > 0)
+        {
+            db.PosSales.Add(new PosSaleEntity
+            {
+                PosSaleId = Guid.NewGuid(), OrganizationId = p.OrgId, BranchId = p.BranchId,
+                ShiftId = Guid.NewGuid(), CreatedByStaffUserId = Guid.NewGuid(),
+                PlayerAccountId = p.PlayerId, SessionId = sessionId, State = "paid",
+                CurrencyCode = "TJS", TotalMinorUnits = attachedPosTotal,
+                CreatedAtUtc = endedAtUtc, PaidAtUtc = endedAtUtc
+            });
+        }
+        if (receiptTotal is not null)
+        {
+            db.Receipts.Add(new ReceiptEntity
+            {
+                ReceiptId = Guid.NewGuid(), OrganizationId = p.OrgId, BranchId = p.BranchId,
+                SessionId = sessionId, PosSaleId = null,
+                ReceiptNumber = "POS-20260603-0001", ReceiptType = "session_checkout",
+                CurrencyCode = "TJS", TotalMinorUnits = receiptTotal.Value, CreatedAtUtc = endedAtUtc
+            });
+        }
+        await db.SaveChangesAsync();
+        return sessionId;
+    }
+
+    [Fact]
+    public async Task Visits_ReturnsOwnEndedSessions_NewestFirst_WithDerivedTotals()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        await SeedEndedVisitAsync(factory, p, "Seat A", Now.AddDays(-2), receiptTotal: 5_000, attachedPosTotal: 1_500);
+        await SeedEndedVisitAsync(factory, p, "Seat B", Now.AddDays(-1), receiptTotal: null, attachedPosTotal: 0);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var page = await (await client.GetAsync("/api/me/visits"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerVisitDto>>();
+
+        Assert.Equal(2, page!.Items.Count);
+        Assert.Equal("Seat B", page.Items[0].SeatName);     // newest first
+        Assert.False(page.Items[0].HasReceipt);
+        var seatA = page.Items[1];
+        Assert.True(seatA.HasReceipt);
+        Assert.Equal(5_000, seatA.GrandTotalMinorUnits);
+        Assert.Equal(1_500, seatA.PosTotalMinorUnits);
+        Assert.Equal(3_500, seatA.TimeChargeMinorUnits);    // grand - pos
+    }
+
+    [Fact]
+    public async Task Visits_DoesNotReturnOtherPlayersSessions()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var other = await SeedPlayerAsync(factory, "9999");
+        await SeedEndedVisitAsync(factory, other, "Seat X", Now.AddDays(-1), receiptTotal: 9_000, attachedPosTotal: 0);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var page = await (await client.GetAsync("/api/me/visits"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerVisitDto>>();
+
+        Assert.Empty(page!.Items);
+    }
+
+    [Fact]
+    public async Task Visits_Paginates_WithCursor()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        for (var i = 0; i < 25; i++)
+        {
+            await SeedEndedVisitAsync(factory, p, $"Seat {i}", Now.AddMinutes(-i), receiptTotal: 1_000, attachedPosTotal: 0);
+        }
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var first = await (await client.GetAsync("/api/me/visits"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerVisitDto>>();
+        Assert.Equal(20, first!.Items.Count);
+        Assert.NotNull(first.NextCursor);
+
+        var second = await (await client.GetAsync($"/api/me/visits?cursor={Uri.EscapeDataString(first.NextCursor!)}"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerVisitDto>>();
+        Assert.Equal(5, second!.Items.Count);
+        Assert.Null(second.NextCursor);
+    }
+
     // Seeds a seat, a tariff version, and an active OPEN session for the player.
     private static async Task SeedActiveOpenSessionAsync(
         PlatformApiFactory factory, SeededPlayer p, long pricePerMinute, int startedMinutesAgo)
