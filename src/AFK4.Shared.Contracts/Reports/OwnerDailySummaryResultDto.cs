@@ -8,6 +8,7 @@ public sealed record OwnerDailySummaryActorRowDto(
     int RefundCount,
     long RefundTotalMinorUnits,
     int CompCount,
+    long CompValueMinorUnits,
     int ManualCorrectionCount,
     long ManualCorrectionTotalMinorUnits,
     int WriteOffCount,
@@ -21,6 +22,7 @@ public sealed record OwnerDailySummaryResultDto(
     IReadOnlyList<OwnerDailySummaryActorRowDto> Rows,
     long TotalRefundMinorUnits,
     int TotalCompCount,
+    long TotalCompValueMinorUnits,
     long TotalManualCorrectionMinorUnits,
     long TotalWriteOffMinorUnits,
     long TotalDiscrepancyMinorUnits);

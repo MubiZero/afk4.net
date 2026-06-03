@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Shifts;
 using Microsoft.EntityFrameworkCore;
@@ -82,12 +83,39 @@ public sealed class EfMoneyActionPolicyResolver(
             return 0;
         }
 
-        return await dbContext.LedgerEntries
+        var ledgerSpent = await dbContext.LedgerEntries
             .AsNoTracking()
             .Where(entry =>
                 entry.ShiftId == openShift.Response
                 && entry.CreatedByStaffUserId == actorStaffUserId
                 && MoneyActionEntryTypes.HighRisk.Contains(entry.EntryType))
             .SumAsync(entry => (long?)Math.Abs(entry.AmountMinorUnits), cancellationToken) ?? 0;
+
+        // §5.4: comps carry no ledger entry, so their assessed value is summed from the
+        // session.comp audit feed. Audits hold no ShiftId, so the window is bounded by when
+        // the open shift opened — keeping comps in the actor's daily high-risk spend.
+        var shiftOpenedAtUtc = await dbContext.Shifts
+            .AsNoTracking()
+            .Where(shift => shift.ShiftId == openShift.Response)
+            .Select(shift => (DateTimeOffset?)shift.OpenedAtUtc)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (shiftOpenedAtUtc is null)
+        {
+            return ledgerSpent;
+        }
+
+        var compSpent = await dbContext.AuditRecords
+            .AsNoTracking()
+            .Where(record =>
+                record.OrganizationId == organizationId
+                && record.BranchId == branchId
+                && record.ActorStaffUserId == actorStaffUserId
+                && record.Action == AuditActionNames.SessionComp
+                && record.AmountMinorUnits != null
+                && record.CreatedAtUtc >= shiftOpenedAtUtc.Value)
+            .SumAsync(record => (long?)Math.Abs(record.AmountMinorUnits!.Value), cancellationToken) ?? 0;
+
+        return ledgerSpent + compSpent;
     }
 }

@@ -80,11 +80,11 @@ public sealed class EfDailySummaryRunnerTests
         CreatedByStaffUserId = Guid.NewGuid(), CreatedAtUtc = createdAtUtc
     };
 
-    private static AuditRecordEntity CompAudit(DateTimeOffset createdAtUtc) => new()
+    private static AuditRecordEntity CompAudit(DateTimeOffset createdAtUtc, long amount = 0) => new()
     {
         AuditRecordId = Guid.NewGuid(), OrganizationId = OrgId, BranchId = BranchId,
         ActorStaffUserId = Guid.NewGuid(), Action = AuditActionNames.SessionComp, TargetType = "Session",
-        Outcome = AuditOutcome.Succeeded, SourceApp = "test", CreatedAtUtc = createdAtUtc
+        Outcome = AuditOutcome.Succeeded, SourceApp = "test", AmountMinorUnits = amount, CreatedAtUtc = createdAtUtc
     };
 
     private static EfDailySummaryRunner NewRunner(PlatformDbContext db, RecordingNotificationService recorder) =>
@@ -145,8 +145,8 @@ public sealed class EfDailySummaryRunnerTests
         db.PosSales.Add(PaidSale(5000, Yesterday));
         db.LedgerEntries.Add(RefundEntry(-4200, Yesterday));
         db.LedgerEntries.Add(WriteOffEntry(-5000, Yesterday));
-        db.AuditRecords.Add(CompAudit(Yesterday));
-        db.AuditRecords.Add(CompAudit(Yesterday));
+        db.AuditRecords.Add(CompAudit(Yesterday, 3000));
+        db.AuditRecords.Add(CompAudit(Yesterday, 1500));
         await db.SaveChangesAsync();
         var recorder = new RecordingNotificationService();
 
@@ -155,6 +155,7 @@ public sealed class EfDailySummaryRunnerTests
         var request = Assert.Single(recorder.Requests);
         Assert.Equal("42.00", request.Tokens["refundTotal"]);
         Assert.Equal("2", request.Tokens["compCount"]);
+        Assert.Equal("45.00", request.Tokens["compValueTotal"]);
         Assert.Equal("50.00", request.Tokens["writeOffTotal"]);
         Assert.Equal("0.00", request.Tokens["manualCorrectionTotal"]);
     }

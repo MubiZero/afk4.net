@@ -22,8 +22,8 @@ public sealed class OwnerDailySummaryAggregatorTests
         };
         var comps = new[]
         {
-            CompAudit(Alice),
-            CompAudit(Alice),
+            CompAudit(Alice, 3000),
+            CompAudit(Alice, 2000),
         };
         var shifts = new[]
         {
@@ -37,6 +37,7 @@ public sealed class OwnerDailySummaryAggregatorTests
         Assert.Equal(Day, result.Date);
         Assert.Equal(3000, result.TotalRefundMinorUnits);
         Assert.Equal(2, result.TotalCompCount);
+        Assert.Equal(5000, result.TotalCompValueMinorUnits);
         Assert.Equal(1500, result.TotalManualCorrectionMinorUnits);
         Assert.Equal(5000, result.TotalWriteOffMinorUnits);
         Assert.Equal(-2500, result.TotalDiscrepancyMinorUnits);
@@ -49,6 +50,7 @@ public sealed class OwnerDailySummaryAggregatorTests
         Assert.Equal(1500, alice.ManualCorrectionTotalMinorUnits);
         Assert.Equal(0, alice.WriteOffCount);
         Assert.Equal(2, alice.CompCount);
+        Assert.Equal(5000, alice.CompValueMinorUnits);
 
         var bob = Assert.Single(result.Rows, row => row.ActorStaffUserId == Bob);
         Assert.Equal(1, bob.WriteOffCount);
@@ -84,7 +86,7 @@ public sealed class OwnerDailySummaryAggregatorTests
             CreatedAtUtc = DateTimeOffset.Parse("2026-06-01T10:00:00Z")
         };
 
-    private static AuditRecordEntity CompAudit(Guid actor) =>
+    private static AuditRecordEntity CompAudit(Guid actor, long amount) =>
         new()
         {
             AuditRecordId = Guid.NewGuid(),
@@ -95,6 +97,7 @@ public sealed class OwnerDailySummaryAggregatorTests
             TargetType = "Session",
             Outcome = AuditOutcome.Succeeded,
             SourceApp = "test",
+            AmountMinorUnits = amount,
             CreatedAtUtc = DateTimeOffset.Parse("2026-06-01T11:00:00Z")
         };
 

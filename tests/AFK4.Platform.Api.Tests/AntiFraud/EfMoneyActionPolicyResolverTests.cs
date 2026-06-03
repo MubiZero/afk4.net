@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.AntiFraud;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
@@ -122,6 +123,23 @@ public sealed class EfMoneyActionPolicyResolverTests
         Assert.Equal(7000, assessment.SpentTodayMinorUnits); // 5000 + 2000 only
     }
 
+    [Fact]
+    public async Task Assess_SpentToday_IncludesCompValuesInOpenShift()
+    {
+        await using var db = CreateDbContext();
+        await SeedBranchAsync(db);
+        await SeedOpenShiftAsync(db);
+        await SeedHighRiskEntryAsync(db, ActorStaffUserId, LedgerEntryTypeNames.Refund, -3000);
+        await SeedCompAuditAsync(db, ActorStaffUserId, 4000, Now); // in-shift comp counts
+        await SeedCompAuditAsync(db, ActorStaffUserId, 1000, Now.AddHours(-3)); // before shift open → excluded
+        await SeedCompAuditAsync(db, OtherStaffUserId, 9000, Now); // other actor → excluded
+        var resolver = CreateResolver(db);
+
+        var assessment = await Assess(resolver, [StaffRoleNames.ShiftSupervisor], amount: -1000);
+
+        Assert.Equal(7000, assessment.SpentTodayMinorUnits); // 3000 ledger + 4000 comp
+    }
+
     private static Task<MoneyActionAssessment> Assess(
         IMoneyActionPolicyResolver resolver, string[] roles, long amount) =>
         resolver.AssessAsync(
@@ -139,6 +157,39 @@ public sealed class EfMoneyActionPolicyResolverTests
             City = "Dushanbe",
             HighRiskApprovalThresholdMinorUnits = approvalThreshold,
             CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedOpenShiftAsync(PlatformDbContext db)
+    {
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = OpenShiftId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = ActorStaffUserId,
+            State = "open",
+            CurrencyCode = "TJS",
+            OpenedAtUtc = Now.AddHours(-2)
+        });
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedCompAuditAsync(PlatformDbContext db, Guid actor, long amount, DateTimeOffset at)
+    {
+        db.AuditRecords.Add(new AuditRecordEntity
+        {
+            AuditRecordId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ActorStaffUserId = actor,
+            Action = AuditActionNames.SessionComp,
+            TargetType = "Session",
+            Outcome = AuditOutcome.Succeeded,
+            SourceApp = "test",
+            AmountMinorUnits = amount,
+            CreatedAtUtc = at
         });
         await db.SaveChangesAsync();
     }

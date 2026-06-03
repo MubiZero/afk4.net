@@ -143,6 +143,7 @@ public sealed class EfDailySummaryRunner(
                 ["discrepancyTotal"] = Money(discrepancyTotalMinorUnits),
                 ["refundTotal"] = Money(antiFraud.TotalRefundMinorUnits),
                 ["compCount"] = antiFraud.TotalCompCount.ToString(CultureInfo.InvariantCulture),
+                ["compValueTotal"] = Money(antiFraud.TotalCompValueMinorUnits),
                 ["manualCorrectionTotal"] = Money(antiFraud.TotalManualCorrectionMinorUnits),
                 ["writeOffTotal"] = Money(antiFraud.TotalWriteOffMinorUnits),
             },

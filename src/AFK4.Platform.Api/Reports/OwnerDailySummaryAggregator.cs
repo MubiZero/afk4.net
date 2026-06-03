@@ -7,10 +7,10 @@ namespace AFK4.Platform.Api.Reports;
 /// <summary>
 /// Anti-fraud §5.6: pure aggregation of a single branch-day's high-risk money activity, grouped by
 /// the staff member who performed it. Refunds, manual corrections and debt write-offs are read from
-/// the ledger (their real signed amounts); comps are counted from the <c>session.comp</c> audit feed
-/// (they carry no value until §5.4 checkout valuation lands — count only, deliberately); shift
-/// discrepancies come from closed shifts. Money totals are magnitudes; the discrepancy total keeps
-/// its sign (a shortfall stays negative).
+/// the ledger (their real signed amounts); comps are read from the <c>session.comp</c> audit feed
+/// (count plus their assessed value from §5.4 — the denormalised audit amount); shift discrepancies
+/// come from closed shifts. Money totals are magnitudes; the discrepancy total keeps its sign (a
+/// shortfall stays negative).
 /// </summary>
 public static class OwnerDailySummaryAggregator
 {
@@ -60,7 +60,9 @@ public static class OwnerDailySummaryAggregator
 
         foreach (var comp in compAudits)
         {
-            For(comp.ActorStaffUserId).CompCount++;
+            var accumulator = For(comp.ActorStaffUserId);
+            accumulator.CompCount++;
+            accumulator.CompValueMinorUnits += comp.AmountMinorUnits ?? 0;
         }
 
         foreach (var shift in closedShifts)
@@ -87,6 +89,7 @@ public static class OwnerDailySummaryAggregator
             rows,
             rows.Sum(row => row.RefundTotalMinorUnits),
             rows.Sum(row => row.CompCount),
+            rows.Sum(row => row.CompValueMinorUnits),
             rows.Sum(row => row.ManualCorrectionTotalMinorUnits),
             rows.Sum(row => row.WriteOffTotalMinorUnits),
             rows.Sum(row => row.DiscrepancyTotalMinorUnits));
@@ -102,6 +105,7 @@ public static class OwnerDailySummaryAggregator
 
     private static long Weight(OwnerDailySummaryActorRowDto row) =>
         row.RefundTotalMinorUnits
+        + row.CompValueMinorUnits
         + row.ManualCorrectionTotalMinorUnits
         + row.WriteOffTotalMinorUnits
         + Math.Abs(row.DiscrepancyTotalMinorUnits);
@@ -111,6 +115,7 @@ public static class OwnerDailySummaryAggregator
         public int RefundCount;
         public long RefundTotalMinorUnits;
         public int CompCount;
+        public long CompValueMinorUnits;
         public int ManualCorrectionCount;
         public long ManualCorrectionTotalMinorUnits;
         public int WriteOffCount;
@@ -125,6 +130,7 @@ public static class OwnerDailySummaryAggregator
                 RefundCount,
                 RefundTotalMinorUnits,
                 CompCount,
+                CompValueMinorUnits,
                 ManualCorrectionCount,
                 ManualCorrectionTotalMinorUnits,
                 WriteOffCount,
