@@ -9,6 +9,7 @@ import { resolvePlayerRoute, routePath, type PlayerRoute, type PlayerTab } from 
 import { AppShell } from './components/AppShell';
 import { SignInScreen } from './screens/auth/SignInScreen';
 import { DashboardScreen } from './screens/dashboard/DashboardScreen';
+import { useBranding } from './branding/useBranding';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
@@ -36,6 +37,13 @@ export function App() {
   }
   const api = apiRef.current;
 
+  const branding = useBranding({
+    hostname: typeof window === 'undefined' ? '' : window.location.hostname,
+    search: typeof window === 'undefined' ? '' : window.location.search,
+    baseUrl: API_BASE,
+    fallbackOrganizationId: import.meta.env.VITE_DEMO_ORG_ID ?? '',
+  });
+
   // Keep route state in sync with browser/OS back-forward navigation.
   useEffect(() => {
     function onPopState() {
@@ -56,10 +64,17 @@ export function App() {
   }, [onSessionChanged]);
 
   if (!session) {
+    if (branding.status === 'loading') {
+      return (
+        <main className="flex min-h-dvh items-center justify-center" role="status" aria-label="Загрузка">
+          <div className="h-10 w-10 animate-pulse rounded-full bg-[var(--color-surface)]" />
+        </main>
+      );
+    }
     return (
       <SignInScreen
-        organizationId={import.meta.env.VITE_DEMO_ORG_ID ?? ''}
-        brandName="AFK4"
+        organizationId={branding.organizationId}
+        brandName={branding.brandName}
         signIn={(req) => api.signIn(req)}
         onSignedIn={handleSignedIn}
       />
