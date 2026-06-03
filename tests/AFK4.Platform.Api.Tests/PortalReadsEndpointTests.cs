@@ -249,6 +249,54 @@ public class PortalReadsEndpointTests
         Assert.Null(second.NextCursor);
     }
 
+    [Fact]
+    public async Task Receipt_ForOwnSession_ReturnsReceiptWithBreakdown()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var sessionId = await SeedEndedVisitAsync(factory, p, "Seat A", Now.AddDays(-1), receiptTotal: 5_000, attachedPosTotal: 1_500);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var response = await client.GetAsync($"/api/me/visits/{sessionId}/receipt");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<PlayerVisitReceiptDto>();
+        Assert.Equal("POS-20260603-0001", dto!.ReceiptNumber);
+        Assert.Equal(5_000, dto.GrandTotalMinorUnits);
+        Assert.Equal(1_500, dto.PosTotalMinorUnits);
+        Assert.Equal(3_500, dto.TimeChargeMinorUnits);
+    }
+
+    [Fact]
+    public async Task Receipt_ForOtherPlayersSession_Returns404()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var other = await SeedPlayerAsync(factory, "9999");
+        var otherSession = await SeedEndedVisitAsync(factory, other, "Seat X", Now.AddDays(-1), receiptTotal: 9_000, attachedPosTotal: 0);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var response = await client.GetAsync($"/api/me/visits/{otherSession}/receipt");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Receipt_WhenNoReceiptExists_Returns404()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var sessionId = await SeedEndedVisitAsync(factory, p, "Seat A", Now.AddDays(-1), receiptTotal: null, attachedPosTotal: 0);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var response = await client.GetAsync($"/api/me/visits/{sessionId}/receipt");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     // Seeds a seat, a tariff version, and an active OPEN session for the player.
     private static async Task SeedActiveOpenSessionAsync(
         PlatformApiFactory factory, SeededPlayer p, long pricePerMinute, int startedMinutesAgo)

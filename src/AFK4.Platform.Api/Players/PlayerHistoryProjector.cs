@@ -126,4 +126,76 @@ public static class PlayerHistoryProjector
 
         return new CursorPage<PlayerVisitDto>(items, nextCursor);
     }
+
+    public static async Task<PlayerVisitReceiptDto?> GetVisitReceiptAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var session = await dbContext.Sessions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                candidate =>
+                    candidate.SessionId == sessionId &&
+                    candidate.PlayerAccountId == playerAccountId,
+                cancellationToken);
+
+        if (session is null)
+        {
+            return null;
+        }
+
+        var receipt = await dbContext.Receipts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                candidate => candidate.SessionId == sessionId,
+                cancellationToken);
+
+        if (receipt is null)
+        {
+            return null;
+        }
+
+        var seatName = await dbContext.Seats
+            .AsNoTracking()
+            .Where(seat => seat.SeatId == session.SeatId)
+            .Select(seat => seat.Name)
+            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+
+        var posSaleIds = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale => sale.SessionId == sessionId)
+            .Select(sale => sale.PosSaleId)
+            .ToListAsync(cancellationToken);
+
+        var posLines = await dbContext.PosSaleLines
+            .AsNoTracking()
+            .Where(line => posSaleIds.Contains(line.PosSaleId))
+            .Select(line => new PlayerPurchaseLineDto(
+                line.ProductName, line.Quantity, line.UnitPriceMinorUnits, line.LineTotalMinorUnits))
+            .ToListAsync(cancellationToken);
+
+        // PosTotal: use the PosSale.TotalMinorUnits sum (authoritative) rather than re-summing
+        // lines, to stay consistent with the visit history totals.
+        var posTotal = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale => sale.SessionId == sessionId)
+            .SumAsync(sale => sale.TotalMinorUnits, cancellationToken);
+
+        var grandTotal = receipt.TotalMinorUnits;
+
+        return new PlayerVisitReceiptDto(
+            receipt.ReceiptNumber,
+            receipt.CreatedAtUtc,
+            session.SessionId,
+            seatName,
+            session.StartedAtUtc ?? session.RequestedAtUtc,
+            session.EndedAtUtc,
+            grandTotal - posTotal,
+            posLines,
+            posTotal,
+            grandTotal,
+            receipt.CurrencyCode);
+    }
 }
