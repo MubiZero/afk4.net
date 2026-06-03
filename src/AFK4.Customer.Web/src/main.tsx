@@ -11,3 +11,7 @@ if (root) {
     </StrictMode>
   );
 }
+
+if (import.meta.env.PROD) {
+  void import('./pwa/registerSW').then((m) => m.registerServiceWorker());
+}

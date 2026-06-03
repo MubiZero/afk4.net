@@ -7,10 +7,12 @@ import {
 } from './auth/playerTokenStore';
 import { resolvePlayerRoute, routePath, type PlayerRoute, type PlayerTab } from './routing';
 import { AppShell } from './components/AppShell';
+import { OfflineBanner } from './components/OfflineBanner';
 import { ToastProvider } from './components/ui/toast';
 import { SignInScreen } from './screens/auth/SignInScreen';
 import { DashboardScreen } from './screens/dashboard/DashboardScreen';
 import { useBranding } from './branding/useBranding';
+import { clearPlayerCaches } from './pwa/offlineCache';
 import { VisitsScreen } from './screens/history/VisitsScreen';
 import { ReceiptScreen } from './screens/history/ReceiptScreen';
 import { PurchasesScreen } from './screens/purchases/PurchasesScreen';
@@ -73,6 +75,7 @@ export function App() {
   }, []);
 
   const signOut = useCallback(() => {
+    void clearPlayerCaches();
     onSessionChanged(null);
     if (typeof window !== 'undefined') window.history.pushState(null, '', '/');
     setRoute({ kind: 'dashboard' });
@@ -103,6 +106,7 @@ export function App() {
   return (
     <ToastProvider>
       <AppShell active={tabForRoute(route)} onNavigate={navigate}>
+        <OfflineBanner />
         {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={session.displayName} phoneVerified={session.phoneVerified} />}
         {route.kind === 'history' && (
           <>
