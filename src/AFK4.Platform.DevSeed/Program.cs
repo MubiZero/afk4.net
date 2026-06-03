@@ -115,7 +115,10 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         dbContext.Organizations.Add(new OrganizationEntity
         {
             OrganizationId = OrganizationId,
+            Slug = "demo",
             Name = "AFK4 Demo",
+            LogoUrl = null,
+            AccentColor = "#c8ff00",
             CreatedAtUtc = now.AddDays(-10)
         });
 

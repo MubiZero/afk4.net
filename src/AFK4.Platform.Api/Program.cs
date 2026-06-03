@@ -46,6 +46,7 @@ using AFK4.Shared.Contracts.Layout;
 using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
+using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Invites;
@@ -649,6 +650,20 @@ app.MapPost("/api/public/player/refresh", async (
 {
     var response = await tokenService.RefreshAsync(request, cancellationToken);
     return response is null ? Results.Unauthorized() : Results.Ok(response);
+}).RequireRateLimiting("player-public");
+
+app.MapGet("/api/public/tenant/{tenantKey}/branding", async (
+    string tenantKey,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var normalizedKey = SlugValidator.Normalize(tenantKey);
+    var org = await dbContext.Organizations
+        .AsNoTracking()
+        .Where(o => o.Slug == normalizedKey && o.Status == "active")
+        .Select(o => new TenantBrandingDto(o.OrganizationId, o.Name, o.LogoUrl, o.AccentColor))
+        .FirstOrDefaultAsync(cancellationToken);
+    return org is null ? Results.NotFound() : Results.Ok(org);
 }).RequireRateLimiting("player-public");
 
 app.MapGet("/api/me/profile", async (
