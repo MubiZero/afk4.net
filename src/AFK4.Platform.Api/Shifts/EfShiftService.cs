@@ -1,8 +1,11 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +14,8 @@ namespace AFK4.Platform.Api.Shifts;
 
 public sealed class EfShiftService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IShiftService, IOpenShiftResolver
+    TimeProvider timeProvider,
+    IShiftDiscrepancyNotifier? discrepancyNotifier = null) : IShiftService, IOpenShiftResolver
 {
     private const string ShiftOpenOperation = "shift-open";
     private const string CashMovementOperation = "shift-cash-movement";
@@ -338,6 +342,40 @@ public sealed class EfShiftService(
             var difference = request.CountedCash.MinorUnits - expectedCash;
             var now = timeProvider.GetUtcNow();
 
+            // Anti-fraud §5.7: a discrepancy over the branch tolerance cannot be closed over silently —
+            // it needs a second manager's sign-off (≠ opener/closer), which itself holds the authority.
+            // This blocks the "close over a shortfall, then quietly correct it away" path.
+            var toleranceMinorUnits = MoneyControlPolicy.ResolveDiscrepancyTolerance(
+                await dbContext.Branches
+                    .Where(branch => branch.BranchId == shift.BranchId)
+                    .Select(branch => branch.ShiftDiscrepancyToleranceMinorUnits)
+                    .FirstOrDefaultAsync(cancellationToken),
+                MoneyControlPolicy.DefaultDiscrepancyToleranceMinorUnits);
+
+            if (Math.Abs(difference) > toleranceMinorUnits)
+            {
+                if (request.ManagerSignOffStaffUserId is not { } signOffUserId)
+                {
+                    return BillingCommandServiceResult<ShiftDto>.Invalid(
+                        $"Cash discrepancy of {Math.Abs(difference)} exceeds the {toleranceMinorUnits} tolerance; a manager sign-off is required to close.");
+                }
+
+                if (signOffUserId == actorStaffUserId || signOffUserId == shift.OpenedByStaffUserId)
+                {
+                    return BillingCommandServiceResult<ShiftDto>.Invalid(
+                        "Shift sign-off must be a manager other than the operator who opened or closed the shift.");
+                }
+
+                if (!await SignOffUserCanSignOffAsync(shift.OrganizationId, signOffUserId, cancellationToken))
+                {
+                    return BillingCommandServiceResult<ShiftDto>.Invalid(
+                        "The sign-off user is not authorised to sign off a shift discrepancy.");
+                }
+
+                shift.ManagerSignOffStaffUserId = signOffUserId;
+                shift.SignOffReason = request.SignOffReason?.Trim();
+            }
+
             shift.State = ShiftStateNames.Closed;
             shift.ClosedByStaffUserId = actorStaffUserId;
             shift.CountedCashMinorUnits = request.CountedCash.MinorUnits;
@@ -347,6 +385,13 @@ public sealed class EfShiftService(
             shift.ClosedAtUtc = now;
 
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            // Anti-fraud: alert the owner on cash variance over tolerance. The outbox write
+            // participates in this transaction, so a rolled-back close never leaks an alert.
+            if (discrepancyNotifier is not null)
+            {
+                await discrepancyNotifier.NotifyIfOverToleranceAsync(shift, cancellationToken);
+            }
 
             var response = ToDto(shift);
             AddIdempotencyRecord(
@@ -369,6 +414,27 @@ public sealed class EfShiftService(
             cancellationToken),
             IsolationLevel.Serializable,
             cancellationToken);
+    }
+
+    private async Task<bool> SignOffUserCanSignOffAsync(
+        Guid organizationId,
+        Guid signOffUserId,
+        CancellationToken cancellationToken)
+    {
+        var roles = await dbContext.StaffRoleAssignments
+            .AsNoTracking()
+            .Where(role => role.StaffUserId == signOffUserId && role.OrganizationId == organizationId)
+            .Select(role => role.RoleName)
+            .ToListAsync(cancellationToken);
+
+        if (roles.Count == 0)
+        {
+            return false;
+        }
+
+        var permissions = PermissionCatalog.GetPermissions(roles);
+        return permissions.Contains(StaffPermissionNames.CloseShift)
+            || permissions.Contains(StaffPermissionNames.ManageShiftCash);
     }
 
     private async Task<Guid?> GetShiftBranchAsync(Guid organizationId, Guid shiftId, CancellationToken cancellationToken)
@@ -570,7 +636,9 @@ public sealed class EfShiftService(
             shift.OpeningNote,
             shift.ClosingNote,
             shift.OpenedAtUtc,
-            shift.ClosedAtUtc);
+            shift.ClosedAtUtc,
+            shift.ManagerSignOffStaffUserId,
+            shift.SignOffReason);
     }
 
     private static CashMovementDto ToDto(CashMovementEntity movement)

@@ -400,6 +400,31 @@ describe('operator API clients', () => {
     expect(calls[23].body).toEqual({ type: 'lock', payload: { reason: 'operator' } });
   });
 
+  it('maps money-action review endpoints and audit amount filters', async () => {
+    const { clients, calls } = createRecordedClients();
+    const requestId = '77777777-7777-7777-7777-777777777777';
+
+    await clients.moneyActions.listPending(branchId);
+    await clients.moneyActions.approve(branchId, requestId, { decisionReason: null });
+    await clients.moneyActions.reject(branchId, requestId, { decisionReason: 'Нет чека' });
+    await clients.audit.search({
+      branchId,
+      actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+      minAmount: 1000,
+      maxAmount: 5000,
+      limit: 50
+    });
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      `GET /api/branches/${branchId}/money-actions`,
+      `POST /api/branches/${branchId}/money-actions/${requestId}/approve`,
+      `POST /api/branches/${branchId}/money-actions/${requestId}/reject`,
+      `GET /api/branches/${branchId}/audit?actorStaffUserId=3db1367b-88c6-4b1c-99c3-bcbb5f4d5134&minAmount=1000&maxAmount=5000&limit=50`
+    ]);
+    expect(calls[1].body).toEqual({ decisionReason: null });
+    expect(calls[2].body).toEqual({ decisionReason: 'Нет чека' });
+  });
+
   it('maps layout delete clients with organization scoping', async () => {
     const { clients, calls } = createRecordedClients();
 

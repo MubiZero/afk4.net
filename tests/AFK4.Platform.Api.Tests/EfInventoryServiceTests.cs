@@ -1,7 +1,11 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Tests.Billing;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Pos;
 using Microsoft.EntityFrameworkCore;
 
@@ -79,6 +83,50 @@ public sealed class EfInventoryServiceTests
         var product = await db.PosProducts.SingleAsync();
         Assert.Equal(first.Response.ProductId, product.ProductId);
         Assert.True(product.IsActive);
+    }
+
+    [Fact]
+    public async Task CreateProductAsync_PersistsReorderThreshold()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var category = await CreateCategoryAsync(service);
+
+        var result = await service.CreateProductAsync(TestIds.BranchId, ActorStaffUserId,
+            ProductRequest(category.CategoryId, "product-rt") with { ReorderThreshold = 5 }, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(5, result.Response!.ReorderThreshold);
+        Assert.Equal(5, (await db.PosProducts.SingleAsync()).ReorderThreshold);
+    }
+
+    [Fact]
+    public async Task CreateProductAsync_RejectsNegativeReorderThreshold()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var category = await CreateCategoryAsync(service);
+
+        var result = await service.CreateProductAsync(TestIds.BranchId, ActorStaffUserId,
+            ProductRequest(category.CategoryId, "product-neg") with { ReorderThreshold = -1 }, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task UpdateProductAsync_UpdatesReorderThreshold()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+
+        var result = await service.UpdateProductAsync(TestIds.BranchId, product.ProductId, ActorStaffUserId,
+            new UpdateProductRequest(TestIds.OrganizationId, product.CategoryId, product.Name, product.Sku, product.Price,
+                TrackStock: true, AllowNegativeStock: false, IsActive: true, ReorderThreshold: 7),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(7, result.Response!.ReorderThreshold);
     }
 
     [Fact]
@@ -291,6 +339,32 @@ public sealed class EfInventoryServiceTests
     }
 
     [Fact]
+    public async Task CreateStockMovementAsync_DropToReorderThreshold_EnqueuesLowStockAlertOnce()
+    {
+        await using var db = CreateDbContext();
+        await SeedOwnerAsync(db);
+        var recorder = new RecordingNotificationService();
+        var service = CreateService(db, new EfLowStockNotifier(new EfOrganizationOwnerResolver(db), recorder, db));
+        var category = await CreateCategoryAsync(service);
+        var created = await service.CreateProductAsync(TestIds.BranchId, ActorStaffUserId,
+            ProductRequest(category.CategoryId, "p-ls") with { ReorderThreshold = 3 }, CancellationToken.None);
+        var productId = created.Response!.ProductId;
+
+        // Purchase to 5 (above threshold) → no alert.
+        await service.CreateStockMovementAsync(TestIds.BranchId, ActorStaffUserId,
+            StockMovement(productId, StockMovementTypeNames.Purchase, 5, "mv-purchase"), CancellationToken.None);
+        Assert.Empty(recorder.Requests);
+
+        // Adjust down to 3 (== threshold) → alert once.
+        await service.CreateStockMovementAsync(TestIds.BranchId, ActorStaffUserId,
+            StockMovement(productId, StockMovementTypeNames.Adjustment, -2, "mv-adjust"), CancellationToken.None);
+
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal(NotificationTemplateKeys.LowStock, request.TemplateKey);
+        Assert.Equal("3", request.Tokens["stockOnHand"]);
+    }
+
+    [Fact]
     public async Task CreateStockMovementAsync_RejectsNonStockProduct()
     {
         await using var db = CreateDbContext();
@@ -421,9 +495,31 @@ public sealed class EfInventoryServiceTests
         return new PlatformDbContext(options);
     }
 
-    private static EfInventoryService CreateService(PlatformDbContext db)
+    private static EfInventoryService CreateService(PlatformDbContext db, ILowStockNotifier? lowStockNotifier = null)
     {
-        return new EfInventoryService(db, new FixedTimeProvider(Now));
+        return new EfInventoryService(db, new FixedTimeProvider(Now), lowStockNotifier);
+    }
+
+    private static async Task SeedOwnerAsync(PlatformDbContext db)
+    {
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = TestIds.OrganizationId, Slug = "club", Name = "Demo Club", Status = "active",
+            PlanCode = "starter", SubscriptionStatus = "active", LimitsJson = "{}", CreatedAtUtc = Now, UpdatedAtUtc = Now
+        });
+        db.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Name = "Central", CreatedAtUtc = Now });
+        var ownerId = Guid.NewGuid();
+        db.StaffUsers.Add(new StaffUserEntity
+        {
+            StaffUserId = ownerId, OrganizationId = TestIds.OrganizationId, UserName = "owner", NormalizedUserName = "OWNER",
+            DisplayName = "Club Owner", Email = "owner@club.example", PasswordHash = "x", IsActive = true, CreatedAtUtc = Now
+        });
+        db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
+            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = StaffRoleNames.Owner
+        });
+        await db.SaveChangesAsync();
     }
 
     private static async Task<PosProductCategoryDto> CreateCategoryAsync(EfInventoryService service)

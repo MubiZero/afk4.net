@@ -7,6 +7,7 @@ namespace AFK4.Platform.Api.Platform.Billing;
 public sealed class EfInvoiceService(
     PlatformDbContext dbContext,
     IInvoiceGenerationRunner generationRunner,
+    IInvoiceNotifier invoiceNotifier,
     TimeProvider timeProvider) : IInvoiceService
 {
     private const int MaxVoidReasonLength = 512;
@@ -73,6 +74,7 @@ public sealed class EfInvoiceService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
 
@@ -105,6 +107,7 @@ public sealed class EfInvoiceService(
         invoice.PaidAtUtc = now;
         invoice.UpdatedAtUtc = now;
         await dbContext.SaveChangesAsync(cancellationToken);
+        await invoiceNotifier.NotifyPaidAsync(invoice, cancellationToken);
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
 

@@ -1,0 +1,5 @@
+{
+  "subject": "AFK4: \"{{reportType}}\" report for {{periodStart}} — {{organizationName}}",
+  "bodyText": "Hello {{displayName}}. Attached is the scheduled \"{{reportType}}\" report for \"{{organizationName}}\" covering {{periodStart}} — {{periodEnd}} (CSV).",
+  "bodyHtml": "<p>Hello {{displayName}}.</p><p>Attached is the scheduled <strong>\"{{reportType}}\"</strong> report for \"{{organizationName}}\" covering {{periodStart}} — {{periodEnd}} (CSV).</p>"
+}

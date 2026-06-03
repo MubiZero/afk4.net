@@ -77,6 +77,34 @@ public sealed class EfHeartbeatSessionCommandPlannerTests
     }
 
     [Fact]
+    public async Task PlanAsync_WithBranchGraceOverride_IssuesLeaseWithBranchTtl()
+    {
+        await using var db = CreateDbContext();
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = BranchId,
+            OrganizationId = OrganizationId,
+            Name = "Demo",
+            GraceLeaseMinutes = 30,
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        await SeedSessionAsync(db, SessionStateNames.Active);
+        var planner = CreatePlanner(db);
+
+        var plans = await planner.PlanAsync(
+            DeviceId,
+            CreateHeartbeat(activeSessionId: null),
+            CancellationToken.None);
+
+        var payloadLease = JsonSerializer.Deserialize<SessionLeaseDto>(
+            Assert.Single(plans).Command.Payload["sessionLease"],
+            JsonOptions);
+        Assert.NotNull(payloadLease);
+        Assert.Equal(Now.AddMinutes(30), payloadLease.ExpiresAtUtc);
+    }
+
+    [Fact]
     public async Task PlanAsync_WithMatchingLeaseNearExpiry_IssuesRefreshLeaseCommand()
     {
         await using var db = CreateDbContext();

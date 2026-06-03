@@ -284,6 +284,12 @@ public sealed class EfHeartbeatSessionCommandPlanner(
         CancellationToken cancellationToken)
     {
         var previousSequence = await LoadLatestLeaseSequenceAsync(session.SessionId, cancellationToken);
+        var branchGraceMinutes = await dbContext.Branches
+            .AsNoTracking()
+            .Where(branch => branch.BranchId == session.BranchId)
+            .Select(branch => branch.GraceLeaseMinutes)
+            .FirstOrDefaultAsync(cancellationToken);
+        var effectiveGraceMinutes = GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes);
         var lease = leaseSigner.Sign(
             session.SessionId,
             session.OrganizationId,
@@ -293,7 +299,7 @@ public sealed class EfHeartbeatSessionCommandPlanner(
             session.State,
             previousSequence + 1,
             now,
-            now.AddMinutes(leaseOptions.Value.LeaseMinutes));
+            now.AddMinutes(effectiveGraceMinutes));
         var leaseEntity = CreateLeaseEntity(lease);
 
         session.CurrentLeaseId = leaseEntity.SessionLeaseId;

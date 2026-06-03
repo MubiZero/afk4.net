@@ -72,6 +72,7 @@ public sealed class BillingContractSerializationTests
         var start = new StartGuestSessionRequest(
             OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
             SeatId: Guid.Parse("11111111-1111-4111-8111-111111111111"),
+            DurationMode: SessionDurationModes.Fixed,
             DurationMinutes: 60,
             TariffRuleVersionId: tariffVersionId.ToString("D"),
             IdempotencyKey: "start-prepaid-001",

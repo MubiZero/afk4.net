@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Shared.Contracts.Billing;
@@ -18,7 +19,8 @@ public sealed class EfPosService(
     PlatformDbContext dbContext,
     IPaymentProvider paymentProvider,
     IReceiptNumberGenerator receiptNumberGenerator,
-    TimeProvider timeProvider) : IPosService
+    TimeProvider timeProvider,
+    ILowStockNotifier? lowStockNotifier = null) : IPosService
 {
     private const string CreateSaleOperation = "pos-sale-create";
     private const string PaySaleOperation = "pos-sale-pay";
@@ -126,6 +128,7 @@ public sealed class EfPosService(
                 ShiftId = shift.ShiftId,
                 CreatedByStaffUserId = actorStaffUserId,
                 PlayerAccountId = request.PlayerAccountId,
+                SessionId = request.SessionId,
                 State = PosSaleStateNames.Draft,
                 CurrencyCode = currencyCode.ToUpperInvariant(),
                 TotalMinorUnits = 0,
@@ -306,6 +309,15 @@ public sealed class EfPosService(
             sale.State = PosSaleStateNames.Paid;
             sale.PaidAtUtc = now;
             await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (lowStockNotifier is not null)
+            {
+                var soldProductIds = lines.Where(line => line.TrackStock).Select(line => line.ProductId).Distinct().ToList();
+                if (soldProductIds.Count > 0)
+                {
+                    await lowStockNotifier.EvaluateProductsAsync(sale.OrganizationId, sale.BranchId, soldProductIds, cancellationToken);
+                }
+            }
 
             var response = ToDto(sale, lines, receipt);
             AddIdempotencyRecord(

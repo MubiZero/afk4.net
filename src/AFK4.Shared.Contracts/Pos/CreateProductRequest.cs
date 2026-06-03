@@ -12,7 +12,8 @@ public sealed record CreateProductRequest
         MoneyDto price,
         bool trackStock,
         bool allowNegativeStock,
-        string idempotencyKey)
+        string idempotencyKey,
+        int reorderThreshold = 0)
     {
         OrganizationId = organizationId;
         CategoryId = categoryId;
@@ -22,6 +23,7 @@ public sealed record CreateProductRequest
         TrackStock = trackStock;
         AllowNegativeStock = allowNegativeStock;
         IdempotencyKey = idempotencyKey;
+        ReorderThreshold = reorderThreshold;
     }
 
     public Guid OrganizationId { get; init; }
@@ -39,4 +41,6 @@ public sealed record CreateProductRequest
     public bool AllowNegativeStock { get; init; }
 
     public string IdempotencyKey { get; init; }
+
+    public int ReorderThreshold { get; init; }
 }

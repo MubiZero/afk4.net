@@ -1,0 +1,5 @@
+{
+  "subject": "AFK4: отчёт «{{reportType}}» за {{periodStart}} — {{organizationName}}",
+  "bodyText": "Здравствуйте, {{displayName}}. Во вложении запланированный отчёт «{{reportType}}» по «{{organizationName}}» за период {{periodStart}} — {{periodEnd}} (CSV).",
+  "bodyHtml": "<p>Здравствуйте, {{displayName}}.</p><p>Во вложении запланированный отчёт <strong>«{{reportType}}»</strong> по «{{organizationName}}» за период {{periodStart}} — {{periodEnd}} (CSV).</p>"
+}

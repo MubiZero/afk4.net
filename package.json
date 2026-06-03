@@ -5,6 +5,7 @@
   "workspaces": [
     "packages/*",
     "src/AFK4.Platform.Web",
-    "src/AFK4.Operator.App.Web"
+    "src/AFK4.Operator.App.Web",
+    "src/AFK4.Customer.Web"
   ]
 }

@@ -32,6 +32,8 @@ public static class AuditActionNames
 
     public const string EndSession = "sessions.end";
 
+    public const string CheckoutSession = "sessions.checkout";
+
     public const string CreatePlayerAccount = "players.create";
 
     public const string ViewPlayers = "players.view";
@@ -43,6 +45,19 @@ public static class AuditActionNames
     public const string ManualLedgerCorrection = "billing.manual_correction";
 
     public const string PayDebt = "billing.debt.pay";
+
+    // Anti-fraud (§5.2/§5.4/§5.7) — money-action approval lifecycle, comped sessions, shift sign-off.
+    public const string MoneyActionRequested = "billing.money_action.requested";
+
+    public const string MoneyActionApproved = "billing.money_action.approved";
+
+    public const string MoneyActionRejected = "billing.money_action.rejected";
+
+    public const string MoneyActionExecuted = "billing.money_action.executed";
+
+    public const string SessionComp = "session.comp";
+
+    public const string ShiftSignOff = "shifts.signoff";
 
     public const string CreateTariff = "tariffs.create";
 
@@ -77,6 +92,12 @@ public static class AuditActionNames
     public const string ViewCashOperationReport = "reports.cash_operations.view";
 
     public const string ViewOperatorActionReport = "reports.operator_actions.view";
+
+    public const string ViewOwnerDailySummaryReport = "reports.owner_daily_summary.view";
+
+    public const string CreateReportSchedule = "reports.schedules.create";
+
+    public const string DeleteReportSchedule = "reports.schedules.delete";
 
     public const string ViewDashboardSummary = "dashboard.summary.view";
 
@@ -122,7 +143,7 @@ public static class AuditActionNames
 
     public const string ViewAudit = "audit.view";
 
-    public const string CreateStaffUser = "identity.staff.create";
+    public const string CreateStaffInvite = "identity.staff.invite.create";
 
     public const string ViewStaffUsers = "identity.staff.view";
 
@@ -176,6 +197,8 @@ public static class AuditActionNames
 
     public const string RevokeOwnerInvite = "tenancy.owner_invite.revoke";
 
+    public const string ResendOwnerInvite = "tenancy.owner_invite.resend";
+
     public const string CreateTenantSupportNote = "tenancy.support_note.create";
 
     public const string UpdateTenantSupportNote = "tenancy.support_note.update";
@@ -215,4 +238,6 @@ public static class AuditActionNames
     public const string MarkInvoicePaid = "billing.invoice.mark_paid";
 
     public const string VoidInvoice = "billing.invoice.void";
+
+    public const string FulfilPaymentIntent = "billing.payment_intent.fulfil";
 }

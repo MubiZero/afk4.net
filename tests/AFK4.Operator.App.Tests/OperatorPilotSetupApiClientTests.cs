@@ -42,26 +42,27 @@ public sealed class OperatorPilotSetupApiClientTests
     }
 
     [Fact]
-    public async Task CreateStaffUserAsync_PostsStaffUserToBranch()
+    public async Task CreateStaffInviteAsync_PostsInviteToBranch()
     {
-        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(CreateStaffUser()));
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(CreateStaffInvite()));
         var client = CreateClient(handler);
-        var request = new CreateStaffUserRequest(
+        var request = new CreateStaffInviteRequest(
             OrganizationId,
             "cashier.pilot@afk4.test",
             "Pilot Cashier",
-            "TemporaryPassword123!",
+            "cashier.pilot@afk4.test",
             ["cashier"]);
 
-        var staffUser = await client.CreateStaffUserAsync(BranchId, request, CancellationToken.None);
+        var invite = await client.CreateStaffInviteAsync(BranchId, request, CancellationToken.None);
 
-        Assert.Equal(StaffUserId, staffUser.StaffUserId);
+        Assert.Equal("pilot-invite-code", invite.Code);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/staff", handler.LastPathAndQuery);
+        Assert.Equal($"/api/branches/{BranchId:D}/staff/invites", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
 
-        var body = DeserializeRequest<CreateStaffUserRequest>(handler.LastRequestBody);
+        var body = DeserializeRequest<CreateStaffInviteRequest>(handler.LastRequestBody);
         Assert.Equal("cashier.pilot@afk4.test", body.UserName);
+        Assert.Equal("cashier.pilot@afk4.test", body.Email);
         Assert.Equal("cashier", body.RoleNames[0]);
     }
 
@@ -232,7 +233,7 @@ public sealed class OperatorPilotSetupApiClientTests
     public async Task UnconfiguredClient_ThrowsConfiguredMessageForEveryMethod()
     {
         IOperatorPilotSetupApiClient client = new UnconfiguredOperatorPilotSetupApiClient();
-        var staffRequest = new CreateStaffUserRequest(OrganizationId, "user", "User", "password", ["cashier"]);
+        var staffRequest = new CreateStaffInviteRequest(OrganizationId, "user", "User", "user@club.example", ["cashier"]);
         var zoneRequest = new CreateZoneRequest(OrganizationId, "Main Hall", 10);
         var seatRequest = new CreateSeatRequest(OrganizationId, ZoneId, "PC-001", 1);
         var tariffRequest = new CreateTariffRequest(OrganizationId, "Standard", "tariff-create-001");
@@ -258,7 +259,7 @@ public sealed class OperatorPilotSetupApiClientTests
         var assignmentRequest = new AssignDeviceSeatRequest(OrganizationId, SeatId);
 
         await AssertUnconfiguredAsync(() => client.GetStaffUsersAsync(BranchId, CancellationToken.None));
-        await AssertUnconfiguredAsync(() => client.CreateStaffUserAsync(BranchId, staffRequest, CancellationToken.None));
+        await AssertUnconfiguredAsync(() => client.CreateStaffInviteAsync(BranchId, staffRequest, CancellationToken.None));
         await AssertUnconfiguredAsync(() => client.GetLayoutZonesAsync(BranchId, CancellationToken.None));
         await AssertUnconfiguredAsync(() => client.CreateZoneAsync(BranchId, zoneRequest, CancellationToken.None));
         await AssertUnconfiguredAsync(() => client.CreateSeatAsync(BranchId, seatRequest, CancellationToken.None));
@@ -287,6 +288,14 @@ public sealed class OperatorPilotSetupApiClientTests
             IsActive: true,
             ["cashier"],
             DateTimeOffset.Parse("2026-05-19T07:00:00Z"));
+    }
+
+    private static StaffInviteDto CreateStaffInvite()
+    {
+        return new StaffInviteDto(
+            Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+            "pilot-invite-code",
+            DateTimeOffset.Parse("2026-05-26T07:00:00Z"));
     }
 
     private static ZoneDto CreateZone()

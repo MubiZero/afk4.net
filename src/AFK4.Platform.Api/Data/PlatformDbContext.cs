@@ -44,6 +44,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlayerAccountEntity> PlayerAccounts => Set<PlayerAccountEntity>();
 
+    public DbSet<PlayerCredentialEntity> PlayerCredentials => Set<PlayerCredentialEntity>();
+
+    public DbSet<PlayerAccessTokenEntity> PlayerAccessTokens => Set<PlayerAccessTokenEntity>();
+
+    public DbSet<PlayerRefreshTokenEntity> PlayerRefreshTokens => Set<PlayerRefreshTokenEntity>();
+
     public DbSet<LedgerEntryEntity> LedgerEntries => Set<LedgerEntryEntity>();
 
     public DbSet<BillingCommandIdempotencyEntity> BillingCommandIdempotency => Set<BillingCommandIdempotencyEntity>();
@@ -84,6 +90,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ReservationEntity> Reservations => Set<ReservationEntity>();
 
+    public DbSet<PaymentIntentEntity> PaymentIntents => Set<PaymentIntentEntity>();
+
     public DbSet<PlatformAdminUserEntity> PlatformAdminUsers => Set<PlatformAdminUserEntity>();
 
     public DbSet<PlatformAdminAccessTokenEntity> PlatformAdminAccessTokens => Set<PlatformAdminAccessTokenEntity>();
@@ -103,6 +111,24 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<TenantSubscriptionEntity> TenantSubscriptions => Set<TenantSubscriptionEntity>();
 
     public DbSet<InvoiceEntity> Invoices => Set<InvoiceEntity>();
+
+    public DbSet<OutboxMessageEntity> OutboxMessages => Set<OutboxMessageEntity>();
+
+    public DbSet<NotificationOutboxEntity> NotificationOutbox => Set<NotificationOutboxEntity>();
+
+    public DbSet<NotificationOutboxAttachmentEntity> NotificationOutboxAttachments => Set<NotificationOutboxAttachmentEntity>();
+
+    public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
+
+    public DbSet<ReportScheduleEntity> ReportSchedules => Set<ReportScheduleEntity>();
+
+    public DbSet<StaffMoneyCapEntity> StaffMoneyCaps => Set<StaffMoneyCapEntity>();
+
+    public DbSet<MoneyActionRequestEntity> MoneyActionRequests => Set<MoneyActionRequestEntity>();
+
+    public DbSet<PasswordResetTokenEntity> PasswordResetTokens => Set<PasswordResetTokenEntity>();
+
+    public DbSet<StaffInviteEntity> StaffInvites => Set<StaffInviteEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -178,6 +204,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(staffUser => staffUser.UserName).HasMaxLength(256).IsRequired();
             entity.Property(staffUser => staffUser.NormalizedUserName).HasMaxLength(256).IsRequired();
             entity.Property(staffUser => staffUser.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(staffUser => staffUser.Email).HasMaxLength(320);
             entity.Property(staffUser => staffUser.PasswordHash).IsRequired();
             entity.HasIndex(staffUser => new { staffUser.OrganizationId, staffUser.NormalizedUserName }).IsUnique();
         });
@@ -388,7 +415,36 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(player => player.PlayerAccountId);
             entity.Property(player => player.DisplayName).HasMaxLength(160).IsRequired();
             entity.Property(player => player.PhoneNumber).HasMaxLength(64);
+            entity.Property(player => player.Email).HasMaxLength(320);
+            entity.Property(player => player.PreferredLocale).HasMaxLength(16);
             entity.HasIndex(player => new { player.OrganizationId, player.HomeBranchId });
+        });
+
+        modelBuilder.Entity<PlayerCredentialEntity>(entity =>
+        {
+            entity.ToTable("player_credentials");
+            entity.HasKey(credential => credential.PlayerCredentialId);
+            entity.Property(credential => credential.PasswordHash).HasMaxLength(512);
+            entity.HasIndex(credential => credential.PlayerAccountId).IsUnique();
+            entity.HasIndex(credential => new { credential.OrganizationId, credential.PlayerAccountId });
+        });
+
+        modelBuilder.Entity<PlayerAccessTokenEntity>(entity =>
+        {
+            entity.ToTable("player_access_tokens");
+            entity.HasKey(accessToken => accessToken.PlayerAccessTokenId);
+            entity.Property(accessToken => accessToken.TokenHash).IsRequired();
+            entity.HasIndex(accessToken => accessToken.TokenHash);
+            entity.HasIndex(accessToken => new { accessToken.PlayerAccountId, accessToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlayerRefreshTokenEntity>(entity =>
+        {
+            entity.ToTable("player_refresh_tokens");
+            entity.HasKey(refreshToken => refreshToken.PlayerRefreshTokenId);
+            entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
+            entity.HasIndex(refreshToken => refreshToken.TokenHash);
+            entity.HasIndex(refreshToken => new { refreshToken.PlayerAccountId, refreshToken.ExpiresAtUtc });
         });
 
         modelBuilder.Entity<LedgerEntryEntity>(entity =>
@@ -554,6 +610,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
             entity.HasIndex(sale => sale.PlayerAccountId);
             entity.HasIndex(sale => sale.State);
+            entity.HasIndex(sale => sale.SessionId);
         });
 
         modelBuilder.Entity<PosSaleLineEntity>(entity =>
@@ -575,6 +632,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(payment => payment.CurrencyCode).HasMaxLength(3).IsRequired();
             entity.Property(payment => payment.Note).HasMaxLength(512).IsRequired();
             entity.HasIndex(payment => new { payment.PosSaleId, payment.CreatedAtUtc });
+            entity.HasIndex(payment => new { payment.SessionId, payment.CreatedAtUtc });
         });
 
         modelBuilder.Entity<ReceiptEntity>(entity =>
@@ -592,6 +650,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 receipt.ReceiptNumber
             }).IsUnique();
             entity.HasIndex(receipt => receipt.PosSaleId);
+            entity.HasIndex(receipt => receipt.SessionId);
         });
 
         modelBuilder.Entity<UpdatePackageEntity>(entity =>
@@ -706,6 +765,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             });
         });
 
+        modelBuilder.Entity<PaymentIntentEntity>(entity =>
+        {
+            entity.ToTable("payment_intents");
+            entity.HasKey(intent => intent.PaymentIntentId);
+            entity.Property(intent => intent.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(intent => intent.Purpose).HasMaxLength(32).IsRequired();
+            entity.Property(intent => intent.State).HasMaxLength(32).IsRequired();
+            entity.Property(intent => intent.Method).HasMaxLength(32).IsRequired();
+            entity.HasIndex(intent => intent.PlayerAccountId);
+            entity.HasIndex(intent => new { intent.BranchId, intent.State });
+        });
+
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>
         {
             entity.ToTable("platform_admin_users");
@@ -745,6 +816,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(invite => invite.Status).HasMaxLength(32).IsRequired();
             entity.Property(invite => invite.OwnerUserName).HasMaxLength(256);
             entity.Property(invite => invite.OwnerDisplayName).HasMaxLength(160);
+            entity.Property(invite => invite.OwnerEmail).HasMaxLength(320);
             entity.Property(invite => invite.RevokedReason).HasMaxLength(512);
             entity.HasIndex(invite => invite.NormalizedCode).IsUnique();
             entity.HasIndex(invite => new { invite.OrganizationId, invite.BranchId, invite.Status });
@@ -785,6 +857,114 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(record => record.ResponseBody).HasColumnType("jsonb").IsRequired();
             entity.HasIndex(record => new { record.Scope, record.IdempotencyKey }).IsUnique();
             entity.HasIndex(record => record.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<OutboxMessageEntity>(entity =>
+        {
+            entity.ToTable("outbox_messages");
+            entity.HasKey(row => row.OutboxMessageId);
+            entity.Property(row => row.Type).HasMaxLength(64).IsRequired();
+            entity.Property(row => row.PayloadJson).IsRequired();
+            entity.Property(row => row.Status).HasMaxLength(16).IsRequired();
+            entity.Property(row => row.IdempotencyKey).HasMaxLength(256).IsRequired();
+            entity.Property(row => row.LastError).HasMaxLength(2000);
+            entity.HasIndex(row => row.IdempotencyKey).IsUnique();
+            entity.HasIndex(row => new { row.Status, row.AvailableAtUtc });
+        });
+
+        modelBuilder.Entity<NotificationOutboxEntity>(entity =>
+        {
+            entity.ToTable("notification_outbox");
+            entity.HasKey(row => row.NotificationOutboxId);
+            entity.Property(row => row.IdempotencyKey).HasMaxLength(256).IsRequired();
+            entity.Property(row => row.Channel).HasMaxLength(16).IsRequired();
+            entity.Property(row => row.Category).HasMaxLength(16).IsRequired();
+            entity.Property(row => row.TemplateKey).HasMaxLength(128).IsRequired();
+            entity.Property(row => row.Locale).HasMaxLength(16).IsRequired();
+            entity.Property(row => row.RecipientAddress).HasMaxLength(320);
+            entity.Property(row => row.Subject).HasMaxLength(512);
+            entity.Property(row => row.Status).HasMaxLength(16).IsRequired();
+            entity.Property(row => row.LastError).HasMaxLength(2000);
+            entity.HasIndex(row => row.IdempotencyKey).IsUnique();
+            entity.HasIndex(row => new { row.Status, row.NextAttemptUtc });
+            entity.HasMany(row => row.Attachments)
+                .WithOne()
+                .HasForeignKey(attachment => attachment.NotificationOutboxId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<NotificationOutboxAttachmentEntity>(entity =>
+        {
+            entity.ToTable("notification_outbox_attachments");
+            entity.HasKey(attachment => attachment.NotificationOutboxAttachmentId);
+            entity.Property(attachment => attachment.FileName).HasMaxLength(256).IsRequired();
+            entity.Property(attachment => attachment.ContentType).HasMaxLength(128).IsRequired();
+            entity.Property(attachment => attachment.Content).IsRequired();
+            entity.HasIndex(attachment => attachment.NotificationOutboxId);
+        });
+
+        modelBuilder.Entity<NotificationPreferenceEntity>(entity =>
+        {
+            entity.ToTable("notification_preferences");
+            entity.HasKey(preference => preference.NotificationPreferenceId);
+            entity.Property(preference => preference.Category).HasMaxLength(16).IsRequired();
+            entity.Property(preference => preference.Channel).HasMaxLength(16).IsRequired();
+            entity.HasIndex(preference => new { preference.StaffUserId, preference.Category, preference.Channel });
+            entity.HasIndex(preference => new { preference.PlayerAccountId, preference.Category, preference.Channel });
+        });
+
+        modelBuilder.Entity<ReportScheduleEntity>(entity =>
+        {
+            entity.ToTable("report_schedules");
+            entity.HasKey(schedule => schedule.ReportScheduleId);
+            entity.Property(schedule => schedule.ReportType).HasMaxLength(32).IsRequired();
+            entity.Property(schedule => schedule.Frequency).HasMaxLength(16).IsRequired();
+            entity.HasIndex(schedule => new { schedule.IsActive, schedule.NextRunUtc });
+            entity.HasIndex(schedule => new { schedule.OrganizationId, schedule.BranchId });
+        });
+
+        modelBuilder.Entity<StaffMoneyCapEntity>(entity =>
+        {
+            entity.ToTable("staff_money_caps");
+            entity.HasKey(cap => cap.StaffMoneyCapId);
+            entity.Property(cap => cap.RoleName).HasMaxLength(64).IsRequired();
+            entity.Property(cap => cap.ActionScope).HasMaxLength(32).IsRequired();
+            entity.HasIndex(cap => new { cap.BranchId, cap.RoleName, cap.ActionScope }).IsUnique();
+        });
+
+        modelBuilder.Entity<MoneyActionRequestEntity>(entity =>
+        {
+            entity.ToTable("money_action_requests");
+            entity.HasKey(request => request.MoneyActionRequestId);
+            entity.Property(request => request.ActionType).HasMaxLength(32).IsRequired();
+            entity.Property(request => request.State).HasMaxLength(16).IsRequired();
+            entity.Property(request => request.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(request => request.Reason).HasMaxLength(512).IsRequired();
+            entity.HasIndex(request => new { request.BranchId, request.State });
+            entity.HasIndex(request => new { request.OrganizationId, request.BranchId, request.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<PasswordResetTokenEntity>(entity =>
+        {
+            entity.ToTable("password_reset_tokens");
+            entity.HasKey(token => token.PasswordResetTokenId);
+            entity.Property(token => token.TokenHash).IsRequired();
+            entity.HasIndex(token => token.TokenHash);
+            entity.HasIndex(token => new { token.StaffUserId, token.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<StaffInviteEntity>(entity =>
+        {
+            entity.ToTable("staff_invites");
+            entity.HasKey(invite => invite.StaffInviteId);
+            entity.Property(invite => invite.UserName).HasMaxLength(256).IsRequired();
+            entity.Property(invite => invite.NormalizedUserName).HasMaxLength(256).IsRequired();
+            entity.Property(invite => invite.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(invite => invite.Email).HasMaxLength(320).IsRequired();
+            entity.Property(invite => invite.RoleNamesCsv).HasMaxLength(512).IsRequired();
+            entity.Property(invite => invite.TokenHash).IsRequired();
+            entity.HasIndex(invite => invite.TokenHash);
+            entity.HasIndex(invite => new { invite.OrganizationId, invite.NormalizedUserName });
         });
     }
 }

@@ -20,7 +20,9 @@ public sealed class Worker(
     IDeviceCommandHandler commandHandler,
     ISessionReconciliationReporter sessionReconciliationReporter,
     IInstalledAppInventoryCollector installedAppInventoryCollector,
-    IInstalledAppReporter installedAppReporter) : BackgroundService
+    IInstalledAppReporter installedAppReporter,
+    IOfflineGraceState offlineGraceState,
+    ICommandResultOutbox commandResultOutbox) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -52,12 +54,18 @@ public sealed class Worker(
         {
             await TryEnforceGraceModeAsync(stoppingToken);
             await TryMaintainPlayerShellAsync(stoppingToken);
-            var intervalSeconds = await TrySendHeartbeatAsync(client, stoppingToken);
-            await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+            var outcome = await TrySendHeartbeatAsync(client, stoppingToken);
+            var delay = HeartbeatCadence.NextDelay(
+                outcome.Succeeded,
+                leaseStore.Current,
+                outcome.IntervalSeconds,
+                DateTimeOffset.UtcNow,
+                Random.Shared.NextDouble());
+            await Task.Delay(delay, stoppingToken);
         }
     }
 
-    private async Task<int> TrySendHeartbeatAsync(HttpClient client, CancellationToken cancellationToken)
+    private async Task<HeartbeatOutcome> TrySendHeartbeatAsync(HttpClient client, CancellationToken cancellationToken)
     {
         try
         {
@@ -84,13 +92,16 @@ public sealed class Worker(
             var heartbeat = await response.Content.ReadFromJsonAsync<DeviceHeartbeatResponse>(cancellationToken: cancellationToken);
             if (heartbeat is not null)
             {
+                // Stamp the contact on the agent's own clock (spec §8) so offline grace is measured from
+                // when the network actually dropped, robust to absolute-clock drift on the gaming PC.
+                offlineGraceState.RecordSuccessfulContact(DateTimeOffset.UtcNow, heartbeat.EffectiveGraceMinutes);
                 await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
             }
 
             var intervalSeconds = heartbeat?.HeartbeatIntervalSeconds ?? HeartbeatRetryIntervalSeconds;
 
             logger.LogInformation("Heartbeat sent for {DeviceId}. Next heartbeat in {IntervalSeconds}s.", agentOptions.DeviceId, intervalSeconds);
-            return intervalSeconds;
+            return new HeartbeatOutcome(Succeeded: true, intervalSeconds);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -99,9 +110,11 @@ public sealed class Worker(
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Heartbeat failed. Retrying without stopping the Agent Service.");
-            return HeartbeatRetryIntervalSeconds;
+            return new HeartbeatOutcome(Succeeded: false, HeartbeatRetryIntervalSeconds);
         }
     }
+
+    private readonly record struct HeartbeatOutcome(bool Succeeded, int IntervalSeconds);
 
     private async Task HandleHeartbeatCommandsAsync(
         HttpClient client,
@@ -110,27 +123,58 @@ public sealed class Worker(
     {
         foreach (var command in commands)
         {
+            // Persist the result locally the instant the command executes (spec §6.4), so a crash or a
+            // network drop between execution and delivery never loses the ack. Delivery is attempted by
+            // the drain below and retried on every subsequent heartbeat until the backend acks.
             var result = await commandHandler.HandleAsync(command, cancellationToken);
-            using var message = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"/api/devices/{result.DeviceId}/commands/{result.CommandId}/result")
-            {
-                Content = JsonContent.Create(result)
-            };
+            commandResultOutbox.Enqueue(result);
+        }
 
-            var credentialSecret = options.Value.DeviceCredentialSecret;
-            if (!string.IsNullOrWhiteSpace(credentialSecret))
+        await DrainCommandResultsAsync(client, cancellationToken);
+    }
+
+    private async Task DrainCommandResultsAsync(HttpClient client, CancellationToken cancellationToken)
+    {
+        foreach (var result in commandResultOutbox.Pending)
+        {
+            try
             {
-                message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
+                using var message = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"/api/devices/{result.DeviceId}/commands/{result.CommandId}/result")
+                {
+                    Content = JsonContent.Create(result)
+                };
+
+                var credentialSecret = options.Value.DeviceCredentialSecret;
+                if (!string.IsNullOrWhiteSpace(credentialSecret))
+                {
+                    message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
+                }
+
+                var response = await client.SendAsync(message, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                commandResultOutbox.Acknowledge(result.CommandId);
+
+                logger.LogInformation(
+                    "Heartbeat command {CommandId} acknowledged as {Status}.",
+                    result.CommandId,
+                    result.Status);
             }
-
-            var response = await client.SendAsync(message, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            logger.LogInformation(
-                "Heartbeat command {CommandId} acknowledged as {Status}.",
-                command.CommandId,
-                result.Status);
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // Idempotent on CommandId server-side; leave it queued and stop draining for now so the
+                // results are re-POSTed in order on the next heartbeat once connectivity returns.
+                logger.LogWarning(
+                    exception,
+                    "Command result {CommandId} delivery failed. Keeping it queued for the next heartbeat.",
+                    result.CommandId);
+                break;
+            }
         }
     }
 

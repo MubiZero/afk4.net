@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Reports;
 using AFK4.Shared.Contracts.Billing;
@@ -254,6 +255,121 @@ public sealed class EfReportServiceTests
             });
     }
 
+    [Fact]
+    public async Task GetOperatorActionReportAsync_FilterByActor_ReturnsOnlyThatActorsRows()
+    {
+        var otherActorId = Guid.Parse("66666666-6666-4666-8666-666666666666");
+        await using var db = CreateDbContext();
+        var service = new EfReportService(db);
+        SeedAuditRecord(db, ActorStaffUserId, "money_action.refund", "succeeded", ReportDay.AddHours(9));
+        SeedAuditRecord(db, ActorStaffUserId, "money_action.refund", "succeeded", ReportDay.AddHours(10));
+        SeedAuditRecord(db, otherActorId, "money_action.refund", "succeeded", ReportDay.AddHours(11));
+        await db.SaveChangesAsync();
+
+        var result = await service.GetOperatorActionReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10, ActorStaffUserId: ActorStaffUserId),
+            CancellationToken.None);
+
+        Assert.Equal(2, result.TotalActionCount);
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(ActorStaffUserId, row.ActorStaffUserId);
+        Assert.Equal("money_action.refund", row.Action);
+        Assert.Equal(2, row.Count);
+    }
+
+    [Fact]
+    public async Task GetOperatorActionReportAsync_FilterByAmountRange_ExcludesOutOfRangeAndAmountlessRows()
+    {
+        await using var db = CreateDbContext();
+        var service = new EfReportService(db);
+        SeedAuditRecord(db, ActorStaffUserId, "money_action.refund", "succeeded", ReportDay.AddHours(9), amountMinorUnits: 3000);
+        SeedAuditRecord(db, ActorStaffUserId, "money_action.refund", "succeeded", ReportDay.AddHours(10), amountMinorUnits: 8000);
+        SeedAuditRecord(db, ActorStaffUserId, "sessions.start", "succeeded", ReportDay.AddHours(11));
+        await db.SaveChangesAsync();
+
+        var result = await service.GetOperatorActionReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10, MinAmountMinorUnits: 5000),
+            CancellationToken.None);
+
+        Assert.Equal(1, result.TotalActionCount);
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("money_action.refund", row.Action);
+        Assert.Equal(1, row.Count);
+    }
+
+    [Fact]
+    public async Task GetOwnerDailySummaryAsync_AggregatesRefundsCompsAndDiscrepanciesForTheDay()
+    {
+        await using var db = CreateDbContext();
+        var service = new EfReportService(db);
+        db.StaffUsers.Add(new StaffUserEntity
+        {
+            StaffUserId = ActorStaffUserId,
+            OrganizationId = TestIds.OrganizationId,
+            UserName = "cashier",
+            NormalizedUserName = "CASHIER",
+            DisplayName = "Cashier One",
+            PasswordHash = "hash",
+            IsActive = true,
+            CreatedAtUtc = ReportDay
+        });
+        db.LedgerEntries.Add(new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = Guid.NewGuid(),
+            EntryType = LedgerEntryTypeNames.Refund,
+            AccountType = LedgerAccountTypeNames.Wallet,
+            AmountMinorUnits = -4200,
+            CurrencyCode = "TJS",
+            CreatedByStaffUserId = ActorStaffUserId,
+            CreatedAtUtc = ReportDay.AddHours(10)
+        });
+        SeedAuditRecord(db, ActorStaffUserId, AuditActionNames.SessionComp, AuditOutcome.Succeeded, ReportDay.AddHours(11));
+        var shiftId = Guid.Parse("44444444-4444-4444-8444-444444444444");
+        SeedShift(db, shiftId, ShiftStateNames.Closed, ReportDay.AddHours(9), countedCash: 47500);
+        var shift = await db.Shifts.FindAsync(shiftId);
+        shift!.DifferenceMinorUnits = -2500;
+        // A different day's refund must be excluded.
+        db.LedgerEntries.Add(new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = Guid.NewGuid(),
+            EntryType = LedgerEntryTypeNames.Refund,
+            AccountType = LedgerAccountTypeNames.Wallet,
+            AmountMinorUnits = -9900,
+            CurrencyCode = "TJS",
+            CreatedByStaffUserId = ActorStaffUserId,
+            CreatedAtUtc = ReportDay.AddDays(1).AddHours(10)
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.GetOwnerDailySummaryAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new DateOnly(2026, 5, 14),
+            CancellationToken.None);
+
+        Assert.Equal(new DateOnly(2026, 5, 14), result.Date);
+        Assert.Equal(4200, result.TotalRefundMinorUnits);
+        Assert.Equal(1, result.TotalCompCount);
+        Assert.Equal(-2500, result.TotalDiscrepancyMinorUnits);
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(ActorStaffUserId, row.ActorStaffUserId);
+        Assert.Equal("Cashier One", row.ActorDisplayName);
+        Assert.Equal(1, row.RefundCount);
+        Assert.Equal(4200, row.RefundTotalMinorUnits);
+        Assert.Equal(1, row.CompCount);
+        Assert.Equal(1, row.DiscrepancyShiftCount);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -485,7 +601,8 @@ public sealed class EfReportServiceTests
         string action,
         string outcome,
         DateTimeOffset createdAtUtc,
-        Guid? branchId = null)
+        Guid? branchId = null,
+        long? amountMinorUnits = null)
     {
         db.AuditRecords.Add(new AuditRecordEntity
         {
@@ -499,6 +616,7 @@ public sealed class EfReportServiceTests
             Outcome = outcome,
             SourceApp = "test",
             DetailsJson = "{}",
+            AmountMinorUnits = amountMinorUnits,
             CreatedAtUtc = createdAtUtc
         });
     }

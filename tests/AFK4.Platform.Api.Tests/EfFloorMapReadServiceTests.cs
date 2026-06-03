@@ -127,6 +127,129 @@ public sealed class EfFloorMapReadServiceTests
     }
 
     [Fact]
+    public async Task GetFloorMapAsync_OpenTabSession_ReportsLiveAccruedCost()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var zoneId = Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
+        var seatId = Guid.Parse("e5edae8b-a833-4d92-ad8c-5864376d0414");
+        var tariffVersionId = Guid.Parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+        var sessionId = Guid.Parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+        var now = DateTimeOffset.Parse("2026-05-12T00:00:00Z");
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.Organizations.Add(new OrganizationEntity
+            {
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Demo Org",
+                CreatedAtUtc = now
+            });
+            db.Branches.Add(new BranchEntity
+            {
+                BranchId = TestIds.BranchId,
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Downtown Branch",
+                CreatedAtUtc = now
+            });
+            db.Zones.Add(new ZoneEntity
+            {
+                ZoneId = zoneId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                Name = "Main Hall",
+                SortOrder = 1,
+                CreatedAtUtc = now
+            });
+            db.Seats.Add(new SeatEntity
+            {
+                SeatId = seatId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                ZoneId = zoneId,
+                Name = "PC-001",
+                SortOrder = 10,
+                CreatedAtUtc = now
+            });
+            db.Devices.Add(new DeviceEntity
+            {
+                DeviceId = TestIds.DeviceId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                MachineName = "PC-001",
+                EnrolledAtUtc = now,
+                LastHeartbeatAtUtc = now,
+                IsOnline = true,
+                IsLocked = false
+            });
+            db.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+            {
+                DeviceSeatAssignmentId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                SeatId = seatId,
+                DeviceId = TestIds.DeviceId,
+                AttachedAtUtc = now
+            });
+            db.Tariffs.Add(new TariffEntity
+            {
+                TariffId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                Name = "Standard",
+                IsActive = true,
+                CreatedAtUtc = now
+            });
+            db.TariffVersions.Add(new TariffVersionEntity
+            {
+                TariffVersionId = tariffVersionId,
+                TariffId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                VersionNumber = 1,
+                CurrencyCode = "TJS",
+                PricePerMinuteMinorUnits = 50,
+                MinimumBillableMinutes = 30,
+                RoundingIncrementMinutes = 15,
+                EffectiveFromUtc = now.AddDays(-1),
+                CreatedAtUtc = now
+            });
+            db.Sessions.Add(new SessionEntity
+            {
+                SessionId = sessionId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                SeatId = seatId,
+                DeviceId = TestIds.DeviceId,
+                CreatedByStaffUserId = Guid.NewGuid(),
+                PlayerKind = "guest",
+                PlayerAccountId = Guid.NewGuid(),
+                TariffRuleVersionId = tariffVersionId.ToString("D"),
+                State = SessionStateNames.Active,
+                RequestedAtUtc = now.AddMinutes(-40),
+                StartedAtUtc = now.AddMinutes(-40),
+                EndsAtUtc = null,
+                UpdatedAtUtc = now.AddMinutes(-40)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        await using var readDb = new PlatformDbContext(options);
+        var service = new EfFloorMapReadService(readDb, new FixedTimeProvider(now));
+
+        var result = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        var seat = Assert.Single(result.FloorMap.Seats);
+        Assert.Equal(sessionId, seat.ActiveSessionId);
+        Assert.Null(seat.RemainingSeconds);
+        // 40 min elapsed -> max(40, min 30) = 40 -> round up to 15-min increment = 45 -> 45 * 50 = 2250.
+        Assert.Equal(2250, seat.AccruedCostMinorUnits);
+        Assert.Equal("TJS", seat.CurrencyCode);
+    }
+
+    [Fact]
     public async Task GetFloorMapAsync_ReturnsEmptyZonesWithoutSeats()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()

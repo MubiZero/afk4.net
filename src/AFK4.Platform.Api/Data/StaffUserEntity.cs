@@ -12,6 +12,9 @@ public sealed class StaffUserEntity
 
     public string DisplayName { get; set; } = string.Empty;
 
+    /// <summary>Contact email for staff/owner notifications (invite, password reset). Null on legacy rows.</summary>
+    public string? Email { get; set; }
+
     public string PasswordHash { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;

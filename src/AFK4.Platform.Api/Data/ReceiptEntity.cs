@@ -8,7 +8,10 @@ public sealed class ReceiptEntity
 
     public Guid BranchId { get; set; }
 
-    public Guid PosSaleId { get; set; }
+    // Exactly one of PosSaleId / SessionId is set, mirroring PaymentEntity.
+    public Guid? PosSaleId { get; set; }
+
+    public Guid? SessionId { get; set; }
 
     public string ReceiptNumber { get; set; } = string.Empty;
 

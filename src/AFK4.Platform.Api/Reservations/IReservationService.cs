@@ -4,6 +4,19 @@ namespace AFK4.Platform.Api.Reservations;
 
 public interface IReservationService
 {
+    Task<ReservationServiceResult<ReservationDto>> CreateOnlineAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        CreatePlayerReservationRequest request,
+        CancellationToken cancellationToken);
+
+    Task<ReservationServiceResult<ReservationDto>> CancelOnlineAsync(
+        Guid reservationId,
+        Guid playerAccountId,
+        CancellationToken cancellationToken);
+
+
     Task<ReservationSearchResultDto> SearchAsync(
         Guid organizationId,
         Guid branchId,

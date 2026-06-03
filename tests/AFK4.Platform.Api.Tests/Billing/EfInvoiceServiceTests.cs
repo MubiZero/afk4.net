@@ -16,8 +16,11 @@ public sealed class EfInvoiceServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options);
 
-    private static EfInvoiceService NewService(PlatformDbContext db, TimeProvider time) =>
-        new(db, new EfInvoiceGenerationRunner(db, Options.Create(new BillingOptions())), time);
+    private static EfInvoiceService NewService(PlatformDbContext db, TimeProvider time, IInvoiceNotifier? notifier = null)
+    {
+        notifier ??= new RecordingInvoiceNotifier();
+        return new(db, new EfInvoiceGenerationRunner(db, Options.Create(new BillingOptions()), notifier), notifier, time);
+    }
 
     private static async Task<Guid> SeedTenantWithSubscriptionAsync(PlatformDbContext db)
     {
@@ -101,6 +104,37 @@ public sealed class EfInvoiceServiceTests
         Assert.True(result.Succeeded);
         Assert.Equal(InvoiceStatusNames.Paid, result.Value!.Status);
         Assert.Equal(time.Now, result.Value.PaidAtUtc);
+    }
+
+    [Fact]
+    public async Task MarkPaidAsync_NotifiesPaid()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var notifier = new RecordingInvoiceNotifier();
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)), notifier);
+        var generated = await service.GenerateAsync(orgId, CancellationToken.None);
+
+        await service.MarkPaidAsync(generated.Value!.InvoiceId, new MarkInvoicePaidRequest("ref-1"), CancellationToken.None);
+
+        var paid = Assert.Single(notifier.Paid);
+        Assert.Equal(generated.Value.InvoiceId, paid.InvoiceId);
+        Assert.Equal(InvoiceStatusNames.Paid, paid.Status);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_NotifiesIssued()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var notifier = new RecordingInvoiceNotifier();
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)), notifier);
+
+        await service.GenerateAsync(orgId, CancellationToken.None);
+
+        var issued = Assert.Single(notifier.Issued);
+        Assert.Equal(InvoiceStatusNames.Issued, issued.Status);
+        Assert.Empty(notifier.Paid);
     }
 
     [Fact]

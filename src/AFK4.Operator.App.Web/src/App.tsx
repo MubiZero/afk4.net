@@ -4,6 +4,7 @@ import {
   Banknote,
   CalendarClock,
   CircleDollarSign,
+  ClipboardCheck,
   Clock3,
   LockKeyhole,
   Maximize2,
@@ -32,12 +33,33 @@ import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOpe
 import {
   applyDeviceStatusToSeats,
   createFixtureFloorMapState,
+  hydrateFloorMapStateFromCache,
   mapFloorMapDtoToState,
+  offlineBannerText,
   refreshFloorMapRemaining,
   type FloorMapLoadStatus,
   type OperatorFloorMapState
 } from './floorMapState';
+import { loadFloorMapCache, saveFloorMapCache } from './floorMapCache';
+import {
+  acknowledgeAction,
+  enqueueAction,
+  loadActionOutbox,
+  reconcileActionOutbox,
+  type OperatorCommandType
+} from './actionOutbox';
 import { isHostBridgeUnavailableError, postHostRequest, postHostWindowCommand, postHostWindowResize, type HostWindowResizeEdge } from './hostBridge';
+import {
+  buildCheckoutPayments,
+  checkoutMethods,
+  checkoutMethodLabels,
+  formatBilledDuration,
+  formatCheckoutAmount,
+  initialCheckoutDrafts,
+  validateCheckoutPayments,
+  type CheckoutMethod,
+  type CheckoutPaymentDraft
+} from './checkoutState';
 import { ConnectionResolutionScreen, isOperatorTenantBlocked } from './ConnectionResolutionScreen';
 import {
   BridgeOperatorConnectionStorage,
@@ -60,9 +82,11 @@ import {
   type PackageOptionDto,
   type PlayerPackageDto,
   type PlayerSearchResultDto,
+  type PaymentPartDto,
   type PosProductDto,
   type PosSaleDto,
   type ReceiptDto,
+  type SessionCheckoutQuoteResponse,
   type ReservationSearchResultDto,
   type ReportResultDto,
   type ShiftDto,
@@ -71,6 +95,7 @@ import {
   type TariffOptionDto,
   type UpdatePackageDto,
   type UpdateRolloutStatusDto,
+  type MoneyActionRequestDto,
   type WalletSummaryDto,
   type ZoneDto
 } from './operatorApiClients';
@@ -84,7 +109,7 @@ import {
 import { navItems, seats, type SeatSummary, type SeatTone } from './operatorData';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 
-type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'logs' | 'settings';
+type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'logs' | 'settings' | 'review';
 type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
 type AuthStatus = 'checking' | 'signed-out' | 'signed-in';
 type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';
@@ -110,17 +135,19 @@ type SessionBillingSelection = {
 type SeatActionResult = {
   detail?: string;
 };
+type SessionStartDurationMode = 'fixed' | 'open';
 type SeatActionRequest =
-  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection }
+  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode }
   | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
-  | { type: 'end'; seat: SeatSummary };
+  | { type: 'end'; seat: SeatSummary }
+  | { type: 'checkout'; seat: SeatSummary; payments: PaymentPartDto[] };
 type PcControlActionId = 'status' | 'lock' | 'unlock' | 'reboot' | 'shutdown' | 'wake' | 'admin';
 type PcControlActionResult = {
   detail: string;
 };
 
-const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'logs', 'settings'];
+const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'logs', 'settings', 'review'];
 const defaultSessionDurationMinutes = 60;
 const defaultTariffRuleVersionId = 'manual-v1';
 const shellOperationalRefreshMs = 30_000;
@@ -182,7 +209,8 @@ const permissionNames = {
   manageUpdatePackages: 'updates.packages.manage',
   manageUpdateRollouts: 'updates.rollouts.manage',
   viewDeviceCommandStatus: 'devices.commands.status.view',
-  viewAudit: 'audit.view'
+  viewAudit: 'audit.view',
+  approveMoneyAction: 'billing.money_action.approve'
 } as const;
 
 const staffRoleOptions = ['cashier_operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant_auditor'] as const;
@@ -229,7 +257,8 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.manageUpdateRollouts,
     permissionNames.manageTariffs,
     permissionNames.viewTariffs
-  ]
+  ],
+  review: [permissionNames.approveMoneyAction]
 };
 
 const toneLabels: Record<SeatTone, string> = {
@@ -418,6 +447,187 @@ function CriticalActionConfirmation({
       <div className="critical-confirmation-actions">
         <button type="button" onClick={onCancel} disabled={disabled}>{cancelLabel}</button>
         <button type="button" className="danger" onClick={onConfirm} disabled={disabled}>{confirmLabel}</button>
+      </div>
+    </section>
+  );
+}
+
+const checkoutMethodIcons: Record<CheckoutMethod, ReactNode> = {
+  cash: <Banknote size={14} />,
+  card_manual: <CircleDollarSign size={14} />,
+  wallet: <ReceiptText size={14} />
+};
+
+/**
+ * "Завершить и принять оплату": fetches the read-only checkout quote, shows the
+ * unified bill (Наиграно • Время • Снеки • Итого), and lets the operator settle
+ * it with one or more split-payment parts (cash / card / deposit) before the PC
+ * is locked. Confirm routes the parts through the shared seat-action handler.
+ */
+function CheckoutDialog({
+  seat,
+  backend,
+  disabled,
+  onCancel,
+  onConfirm
+}: {
+  seat: SeatSummary;
+  backend: OperatorBackendContext;
+  disabled: boolean;
+  onCancel: () => void;
+  onConfirm: (payments: PaymentPartDto[]) => void;
+}) {
+  const [quote, setQuote] = useState<SessionCheckoutQuoteResponse | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [error, setError] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<CheckoutPaymentDraft[]>([{ method: 'cash', amountText: '' }]);
+
+  useEffect(() => {
+    let disposed = false;
+    const sessionId = seat.activeSessionId;
+    if (!sessionId) {
+      setStatus('failed');
+      setError('На выбранном ПК нет активной сессии.');
+      return undefined;
+    }
+
+    setStatus('loading');
+    setError(null);
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.sessions.getCheckoutQuote(sessionId)
+      .then((result) => {
+        if (disposed) {
+          return;
+        }
+
+        setQuote(result);
+        setDrafts(initialCheckoutDrafts(result.grandTotal.minorUnits));
+        setStatus('ready');
+      })
+      .catch((fetchError) => {
+        if (disposed) {
+          return;
+        }
+
+        setStatus('failed');
+        setError(projectOperatorError(fetchError).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [seat.activeSessionId, backend.config.platformBaseUrl, backend.session.accessToken]);
+
+  const currencyCode = quote?.grandTotal.currencyCode ?? '';
+  const grandTotal = quote?.grandTotal.minorUnits ?? 0;
+  const walletBalance = quote?.walletBalance?.minorUnits ?? null;
+  const validation = validateCheckoutPayments(drafts, grandTotal, walletBalance);
+  const canConfirm = status === 'ready' && !disabled && validation.canSubmit;
+
+  const updateDraft = (index: number, patch: Partial<CheckoutPaymentDraft>) => {
+    setDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, ...patch } : draft)));
+  };
+  const addDraft = () => {
+    setDrafts((current) => [...current, { method: 'cash', amountText: '' }]);
+  };
+  const removeDraft = (index: number) => {
+    setDrafts((current) => (current.length <= 1 ? current : current.filter((_, position) => position !== index)));
+  };
+  const suggestWallet = () => {
+    if (walletBalance === null) {
+      return;
+    }
+
+    const fromWallet = Math.min(walletBalance, grandTotal);
+    const remainder = grandTotal - fromWallet;
+    const next: CheckoutPaymentDraft[] = [{ method: 'wallet', amountText: formatCheckoutAmount(fromWallet) }];
+    if (remainder > 0) {
+      next.push({ method: 'cash', amountText: formatCheckoutAmount(remainder) });
+    }
+
+    setDrafts(next);
+  };
+
+  return (
+    <section className="critical-confirmation warning checkout-dialog" role="alertdialog" aria-label="Завершить и принять оплату">
+      <div>
+        <strong>Завершить и принять оплату</strong>
+        <span>{seat.name} · {seat.player}</span>
+        <em>После оплаты сессия закрывается, платформа блокирует ПК.</em>
+      </div>
+
+      {status === 'loading' && <p className="checkout-loading">Расчёт счёта…</p>}
+      {status === 'failed' && <p className="checkout-error">{error ?? 'Не удалось получить счёт.'}</p>}
+
+      {status === 'ready' && quote && (
+        <>
+          <dl className="checkout-breakdown">
+            <div><dt>Наиграно</dt><dd>{formatBilledDuration(quote.billableSeconds)}</dd></div>
+            <div><dt>Время</dt><dd>{formatMinorUnits(quote.timeCharge.minorUnits, currencyCode)}</dd></div>
+            <div><dt>Снеки</dt><dd>{formatMinorUnits(quote.posTotal.minorUnits, currencyCode)}</dd></div>
+            <div className="checkout-breakdown-total"><dt>Итого</dt><dd>{formatMinorUnits(grandTotal, currencyCode)}</dd></div>
+          </dl>
+
+          <div className="checkout-payments">
+            {drafts.map((draft, index) => (
+              <div className="checkout-payment-row" key={index}>
+                <select
+                  aria-label="Способ оплаты"
+                  value={draft.method}
+                  disabled={disabled}
+                  onChange={(event) => updateDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
+                >
+                  {checkoutMethods.map((method) => (
+                    <option key={method} value={method}>{checkoutMethodLabels[method]}</option>
+                  ))}
+                </select>
+                <span className="checkout-payment-icon">{checkoutMethodIcons[draft.method]}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  aria-label="Сумма"
+                  placeholder="0.00"
+                  value={draft.amountText}
+                  disabled={disabled}
+                  onChange={(event) => updateDraft(index, { amountText: event.currentTarget.value })}
+                />
+                <button
+                  type="button"
+                  className="checkout-payment-remove"
+                  aria-label="Убрать строку"
+                  disabled={disabled || drafts.length <= 1}
+                  onClick={() => removeDraft(index)}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            <div className="checkout-payment-controls">
+              <button type="button" disabled={disabled} onClick={addDraft}><Plus size={14} />Ещё способ</button>
+              {walletBalance !== null && walletBalance > 0 && (
+                <button type="button" disabled={disabled} onClick={suggestWallet}>
+                  <ReceiptText size={14} />Депозит ({formatMinorUnits(walletBalance, currencyCode)})
+                </button>
+              )}
+            </div>
+          </div>
+
+          {validation.error
+            ? <p className="checkout-error">{validation.error}</p>
+            : <p className="checkout-balanced">Сумма совпадает</p>}
+        </>
+      )}
+
+      <div className="critical-confirmation-actions">
+        <button type="button" onClick={onCancel} disabled={disabled}>Отмена</button>
+        <button
+          type="button"
+          className="danger"
+          disabled={!canConfirm}
+          onClick={() => onConfirm(buildCheckoutPayments(drafts, currencyCode))}
+        >
+          Принять оплату
+        </button>
       </div>
     </section>
   );
@@ -1080,7 +1290,10 @@ async function loadBackendFloorMapState(
   branchId: string
 ): Promise<OperatorFloorMapState> {
   const clients = createAuthenticatedOperatorClients(config, session);
-  return mapFloorMapDtoToState(await clients.floorMap.getFloorMap(branchId));
+  const floorMap = await clients.floorMap.getFloorMap(branchId);
+  // Persist the last-known-good snapshot so the workspace can degrade to a read-only mirror offline (§6.5).
+  saveFloorMapCache(branchId, floorMap, Date.now());
+  return mapFloorMapDtoToState(floorMap);
 }
 
 function createIdempotencyKey(operationName: string): string {
@@ -1609,12 +1822,14 @@ function MapWorkspace({
   floorMap,
   canUsePcControl,
   selectedSeatId,
+  offlineActionAudit,
   onSelectSeat,
   onPcControlAction
 }: {
   floorMap: OperatorFloorMapState;
   canUsePcControl: boolean;
   selectedSeatId: string;
+  offlineActionAudit: string[];
   onSelectSeat: (seatId: string) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
 }) {
@@ -1629,6 +1844,7 @@ function MapWorkspace({
     [activeFilter, floorMap.seats]
   );
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
+  const offlineBanner = offlineBannerText(floorMap);
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
   const selectedHasSession = selectedSeat !== null && (Boolean(selectedSeat.activeSessionId) || selectedSeat.hasActiveSession === true);
 
@@ -1778,6 +1994,12 @@ function MapWorkspace({
       {floorMap.loadStatus === 'failed' && (
         <FeedbackNotice feedback={{ label: 'Карта', state: 'failed', detail: floorMap.error ?? 'Не удалось загрузить карту.' }} />
       )}
+      {offlineBanner !== null && (
+        <FeedbackNotice feedback={{ label: 'Офлайн', state: 'pending', detail: offlineBanner }} />
+      )}
+      {offlineActionAudit.map((note, index) => (
+        <FeedbackNotice key={`offline-audit-${index}`} feedback={{ label: 'Очередь', state: 'failed', detail: note }} />
+      ))}
       <FeedbackNotice feedback={feedback} />
 
       <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label="ПК зала">
@@ -3273,6 +3495,7 @@ function MapSidePanel({
   const activeBilling = billingLabel(seat.billing);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
+  const [durationMode, setDurationMode] = useState<SessionStartDurationMode>('fixed');
   const [playerSearch, setPlayerSearch] = useState('');
   const [billingPlayers, setBillingPlayers] = useState<PlayerClientItem[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
@@ -3282,7 +3505,7 @@ function MapSidePanel({
   const [selectedPlayerPackageId, setSelectedPlayerPackageId] = useState('');
   const [billingStatus, setBillingStatus] = useState<LoadStatus>('fixture');
   const [billingError, setBillingError] = useState<string | null>(null);
-  const [criticalAction, setCriticalAction] = useState<'end-session' | null>(null);
+  const [criticalAction, setCriticalAction] = useState<'end-session' | 'checkout' | null>(null);
   const transferCandidates = floorSeats.filter((candidate) =>
     candidate.id !== seat.id &&
     candidate.tone === 'ready' &&
@@ -3339,6 +3562,10 @@ function MapSidePanel({
         ? 'выберите пакет игрока'
         : null;
   const billingReady = billingMissing === null;
+  // An open tab (no fixed duration, settled later at checkout) is only valid for
+  // an unbilled guest or a postpaid-debt player; other modes must be fixed.
+  const openTabAllowed = billingMode === 'guest' || billingMode === 'postpaid_debt';
+  const effectiveDurationMode: SessionStartDurationMode = openTabAllowed ? durationMode : 'fixed';
   const canStartSession = actionsEnabled && canStartPermission && billingReady && !hasActionableSession && seat.tone === 'ready';
   const canExtendSession = actionsEnabled && canExtendPermission && billingReady && hasActionableSession;
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
@@ -3525,11 +3752,21 @@ function MapSidePanel({
           </>
         ) : (
           <>
-            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction('Старт 60 мин', { type: 'start', seat, billing: billingSelection })}><Plus size={15} />Старт 60 мин</button>
+            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction(effectiveDurationMode === 'open' ? 'Старт (открытый счёт)' : 'Старт 60 мин', { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode })}><Plus size={15} />{effectiveDurationMode === 'open' ? 'Старт · открытый счёт' : 'Старт 60 мин'}</button>
             <button type="button" disabled><TimerReset size={15} />Нет сессии</button>
           </>
         )}
       </section>
+      {hasActiveSession && backend !== null && (
+        <button
+          type="button"
+          className="checkout-action"
+          disabled={!canEndSession || isBusy}
+          onClick={() => setCriticalAction('checkout')}
+        >
+          <ReceiptText size={15} />Завершить и принять оплату
+        </button>
+      )}
       {hasActiveSession && (
         <label className="context-transfer-target">
           <span>Перенести на</span>
@@ -3550,6 +3787,15 @@ function MapSidePanel({
           disabled={isBusy}
           onCancel={() => setCriticalAction(null)}
           onConfirm={() => void runSeatAction('Стоп', { type: 'end', seat })}
+        />
+      )}
+      {criticalAction === 'checkout' && backend !== null && (
+        <CheckoutDialog
+          seat={seat}
+          backend={backend}
+          disabled={isBusy}
+          onCancel={() => setCriticalAction(null)}
+          onConfirm={(payments) => void runSeatAction('Оплата', { type: 'checkout', seat, payments })}
         />
       )}
       <FeedbackNotice feedback={feedback} />
@@ -3611,6 +3857,30 @@ function MapSidePanel({
             );
           })}
         </div>
+        {!hasActiveSession && (
+          <div className="billing-mode duration-mode" aria-label="Длительность сессии">
+            <button
+              type="button"
+              className={effectiveDurationMode === 'fixed' ? 'active' : undefined}
+              disabled={!actionsEnabled || isBusy}
+              title="Фиксированные 60 минут"
+              onClick={() => setDurationMode('fixed')}
+            >
+              <span>60 мин</span>
+              <small>фиксировано</small>
+            </button>
+            <button
+              type="button"
+              className={effectiveDurationMode === 'open' ? 'active' : undefined}
+              disabled={!actionsEnabled || isBusy || !openTabAllowed}
+              title={openTabAllowed ? 'Время идёт, оплата при завершении' : 'Доступно для гостя или постоплаты'}
+              onClick={() => setDurationMode('open')}
+            >
+              <span>Открытый счёт</span>
+              <small>{openTabAllowed ? 'оплата при завершении' : 'гость / постоплата'}</small>
+            </button>
+          </div>
+        )}
         {billingMode !== 'guest' && (
           <>
             <label className="context-transfer-target billing-input-row">
@@ -3696,7 +3966,8 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
     players: 'Amir K.',
     payments: 'Платеж 14:30',
     logs: 'Событие журнала',
-    settings: 'Настройки'
+    settings: 'Настройки',
+    review: 'Проверка'
   }[workspace];
 
   return (
@@ -6708,6 +6979,261 @@ function auditPeriodPresetRange(preset: AuditPeriodPreset, now = new Date()): Pi
   };
 }
 
+type ReviewSegment = 'queue' | 'audit';
+
+function reviewActionTypeLabel(actionType: string): string {
+  switch (actionType) {
+    case 'refund':
+      return 'Возврат';
+    case 'manual_correction':
+      return 'Коррекция';
+    case 'debt_write_off':
+      return 'Списание долга';
+    default:
+      return actionType;
+  }
+}
+
+function reviewExpiryBadge(expiresAtUtc: string, nowMs: number): { label: string; tone: 'overdue' | 'soon' } | null {
+  const expiresMs = Date.parse(expiresAtUtc);
+  if (!Number.isFinite(expiresMs)) {
+    return null;
+  }
+  const remainingMs = expiresMs - nowMs;
+  if (remainingMs <= 0) {
+    return { label: 'Просрочена', tone: 'overdue' };
+  }
+  if (remainingMs <= 2 * 60 * 60 * 1000) {
+    return { label: 'Истекает скоро', tone: 'soon' };
+  }
+  return null;
+}
+
+function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const [activeSegment, setActiveSegment] = useState<ReviewSegment>('queue');
+  const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [requests, setRequests] = useState<MoneyActionRequestDto[]>([]);
+  const [staffNames, setStaffNames] = useState<Record<string, string>>({});
+  const [rejectingId, setRejectingId] = useState('');
+  const [decisionReason, setDecisionReason] = useState('');
+
+  const [auditResult, setAuditResult] = useState<AuditSearchResultDto | null>(null);
+  const [auditActor, setAuditActor] = useState('');
+  const [auditMinAmount, setAuditMinAmount] = useState('');
+  const [auditMaxAmount, setAuditMaxAmount] = useState('');
+
+  const resolveStaffName = (staffUserId: string) =>
+    staffNames[staffUserId.toLowerCase()] ?? `${staffUserId.slice(0, 8)}…`;
+
+  const reviewAuditActorLabel = (record: Record<string, unknown>) => {
+    const actorStaffUserId = readString(record, 'actorStaffUserId');
+    const resolved = actorStaffUserId ? staffNames[actorStaffUserId.toLowerCase()] : '';
+    return resolved || auditActorLabel(record, backend);
+  };
+
+  const loadQueue = async (nextBackend = backend) => {
+    if (nextBackend === null) {
+      setLoadStatus('fixture');
+      setLoadError(null);
+      return;
+    }
+    setLoadStatus('loading');
+    setLoadError(null);
+    try {
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const [feed, staff] = await Promise.all([
+        apiClients.moneyActions.listPending(nextBackend.branchId),
+        apiClients.settings.getStaffUsers(nextBackend.branchId)
+      ]);
+      setRequests(readArray<MoneyActionRequestDto>(feed, 'requests'));
+      const names: Record<string, string> = {};
+      for (const user of staff) {
+        names[readString(user, 'staffUserId').toLowerCase()] = operatorDisplayNameLabel(readString(user, 'displayName'));
+      }
+      setStaffNames(names);
+      setLoadStatus('backend');
+    } catch (error) {
+      const detail = projectOperatorError(error).detail;
+      setLoadStatus('failed');
+      setLoadError(detail);
+      setFeedback({ label: 'Проверка', state: 'failed', detail });
+    }
+  };
+
+  useEffect(() => {
+    void loadQueue();
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
+
+  const approveRequest = async (request: MoneyActionRequestDto) => {
+    setFeedback({ label: 'Одобрение', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await apiClients.moneyActions.approve(nextBackend.branchId, request.moneyActionRequestId, { decisionReason: null });
+      setFeedback({ label: 'Одобрение', state: 'confirmed' });
+      await loadQueue();
+    } catch (error) {
+      setFeedback({ label: 'Одобрение', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  const confirmReject = async (request: MoneyActionRequestDto) => {
+    const reason = decisionReason.trim();
+    if (reason.length === 0) {
+      setFeedback({ label: 'Отклонение', state: 'failed', detail: 'Укажите причину отклонения.' });
+      return;
+    }
+    setFeedback({ label: 'Отклонение', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await apiClients.moneyActions.reject(nextBackend.branchId, request.moneyActionRequestId, { decisionReason: reason });
+      setRejectingId('');
+      setDecisionReason('');
+      setFeedback({ label: 'Отклонение', state: 'confirmed' });
+      await loadQueue();
+    } catch (error) {
+      setFeedback({ label: 'Отклонение', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  const applyAuditSearch = async () => {
+    setFeedback({ label: 'Журнал', state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const parsedMin = auditMinAmount.trim() === '' ? null : Number(auditMinAmount);
+      const parsedMax = auditMaxAmount.trim() === '' ? null : Number(auditMaxAmount);
+      const maxAmount = parsedMax !== null && Number.isFinite(parsedMax) ? parsedMax : null;
+      // Default to amount-bearing (money / high-risk) records when no amount bound is set:
+      // the audit query drops null-amount rows once a bound is present (§5.5).
+      const minAmount = parsedMin !== null && Number.isFinite(parsedMin)
+        ? parsedMin
+        : (maxAmount === null ? 0 : null);
+      const result = await apiClients.audit.search({
+        branchId: nextBackend.branchId,
+        actorStaffUserId: auditActor.trim() === '' ? null : auditActor.trim(),
+        minAmount,
+        maxAmount,
+        limit: 50
+      });
+      setAuditResult(result);
+      setFeedback({ label: 'Журнал', state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label: 'Журнал', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  const auditRecords = readArray<Record<string, unknown>>(auditResult, 'records');
+  const staffOptions = Object.entries(staffNames);
+
+  return (
+    <main className="workspace-screen review-screen">
+      <section className="screen-head review-head">
+        <div>
+          <span>Проверка</span>
+          <h1>Проверка · заявки и журнал</h1>
+        </div>
+        <div className="screen-actions">
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Заявки загружены')}</span>
+        </div>
+      </section>
+
+      <section className="state-strip review-state-strip" aria-label="Сводка проверки">
+        <StateFlag label="Заявки" value={String(requests.length)} critical={requests.length > 0} />
+        <StateFlag label="Источник" value={workspaceLoadStatusLabel(loadStatus, 'Платформа')} critical={loadStatus !== 'backend'} />
+      </section>
+
+      <div className="review-segments" role="tablist">
+        <button type="button" role="tab" aria-selected={activeSegment === 'queue'} className={activeSegment === 'queue' ? 'active' : undefined} onClick={() => setActiveSegment('queue')}>Заявки на одобрение</button>
+        <button type="button" role="tab" aria-selected={activeSegment === 'audit'} className={activeSegment === 'audit' ? 'active' : undefined} onClick={() => setActiveSegment('audit')}>Журнал операций</button>
+      </div>
+
+      {activeSegment === 'queue' && (
+        <section className="review-panel review-queue-panel">
+          {requests.length === 0 ? (
+            <p className="review-empty">{loadError ?? 'Нет заявок на одобрение'}</p>
+          ) : (
+            requests.map((request) => {
+              const expiryBadge = reviewExpiryBadge(request.expiresAtUtc, Date.now());
+              return (
+              <article key={request.moneyActionRequestId} className="review-request-row">
+                <div className="review-request-head">
+                  <strong>{reviewActionTypeLabel(request.actionType)}</strong>
+                  <b>{formatMinorUnits(request.amountMinorUnits, request.currencyCode || currencyCode)}</b>
+                </div>
+                <em>{request.reason}</em>
+                <div className="review-request-meta">
+                  <span>Запросил: {resolveStaffName(request.requestedByStaffUserId)}</span>
+                  <span>Создано: {formatTime(request.createdAtUtc)}</span>
+                  <span>Истекает: {formatTime(request.expiresAtUtc)}</span>
+                  {expiryBadge && <span className={`review-expiry-badge ${expiryBadge.tone}`}>{expiryBadge.label}</span>}
+                </div>
+                {rejectingId === request.moneyActionRequestId ? (
+                  <div className="review-reject-form">
+                    <label>
+                      Причина отклонения
+                      <input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder="почему отклонено" />
+                    </label>
+                    <div className="review-request-actions">
+                      <button type="button" onClick={() => void confirmReject(request)}>Подтвердить отклонение</button>
+                      <button type="button" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>Отмена</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="review-request-actions">
+                    <button type="button" onClick={() => void approveRequest(request)}>Одобрить</button>
+                    <button type="button" onClick={() => { setRejectingId(request.moneyActionRequestId); setDecisionReason(''); }}>Отклонить</button>
+                  </div>
+                )}
+              </article>
+              );
+            })
+          )}
+          <FeedbackNotice feedback={feedback} />
+        </section>
+      )}
+
+      {activeSegment === 'audit' && (
+        <section className="review-panel review-audit-panel">
+          <div className="review-audit-filters">
+            <label>
+              Сотрудник
+              <select value={auditActor} onChange={(event) => setAuditActor(event.currentTarget.value)}>
+                <option value="">Все сотрудники</option>
+                {staffOptions.map(([staffUserId, name]) => (
+                  <option key={staffUserId} value={staffUserId}>{name}</option>
+                ))}
+              </select>
+            </label>
+            <label>Сумма от<input inputMode="numeric" value={auditMinAmount} onChange={(event) => setAuditMinAmount(event.currentTarget.value)} placeholder="мин" /></label>
+            <label>Сумма до<input inputMode="numeric" value={auditMaxAmount} onChange={(event) => setAuditMaxAmount(event.currentTarget.value)} placeholder="макс" /></label>
+            <button type="button" onClick={() => void applyAuditSearch()}>Применить фильтр</button>
+          </div>
+          <div className="review-audit-list">
+            {auditRecords.length === 0 ? (
+              <p className="review-empty">Записей нет — задайте фильтр</p>
+            ) : (
+              auditRecords.map((record) => (
+                <article key={readString(record, 'auditRecordId')} className="review-audit-row">
+                  <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
+                  <strong>{reviewAuditActorLabel(record)}</strong>
+                  <em>{auditActionLabel(readString(record, 'action'))}</em>
+                  <b>{readNumber(record, 'amountMinorUnits', 0) > 0 ? formatMinorUnits(readNumber(record, 'amountMinorUnits', 0), currencyCode) : '—'}</b>
+                </article>
+              ))
+            )}
+          </div>
+          <FeedbackNotice feedback={feedback} />
+        </section>
+      )}
+    </main>
+  );
+}
+
 function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const [eventSearch, setEventSearch] = useState('');
   const [activeLogFilter, setActiveLogFilter] = useState('Все события');
@@ -7101,7 +7627,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
   const [selectedLayoutSeatId, setSelectedLayoutSeatId] = useState('');
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор');
-  const [invitePassword, setInvitePassword] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
   const [selectedStaffUserId, setSelectedStaffUserId] = useState('');
@@ -7760,25 +8287,23 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
 
         const userName = inviteUserName.trim();
         const displayName = inviteDisplayName.trim();
-        if (!userName || !displayName || !invitePassword) {
-          throw new Error('Заполните имя пользователя, имя сотрудника и временный пароль.');
+        const email = inviteEmail.trim();
+        if (!userName || !displayName || !email) {
+          throw new Error('Заполните имя пользователя, имя сотрудника и email.');
         }
 
-        const staffUser = await apiClients.settings.createStaffUser(nextBackend.branchId, {
+        const invite = await apiClients.settings.createStaffInvite(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
           userName,
           displayName,
-          password: invitePassword,
+          email,
           roleNames: [inviteRoleName || 'cashier_operator']
         });
-        setStaffUsers((items) => [...items, staffUser]);
-        setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
-        setStaffProfileUserName(readString(staffUser, 'userName'));
-        setStaffProfileDisplayName(operatorDisplayNameLabel(readString(staffUser, 'displayName')));
-        setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? 'cashier_operator');
+        // The invitee appears in the staff list only after they accept and set a password.
+        setInviteCode(invite.code);
         setInviteUserName(`operator${staffUsers.length + 2}`);
         setInviteDisplayName('Новый оператор');
-        setInvitePassword('');
+        setInviteEmail('');
       } else if (label === 'Обновить профиль сотрудника') {
         if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
           throw new Error('Нет прав на управление сотрудниками.');
@@ -8380,7 +8905,7 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
           <div className="settings-section-title">
             <span>Сотрудники</span>
             <div className="settings-section-actions">
-              <button type="button" disabled={!canManageBranchStaff} onClick={() => runSettingsAction('Пригласить сотрудника')}>Создать сотрудника</button>
+              <button type="button" disabled={!canManageBranchStaff} onClick={() => runSettingsAction('Пригласить сотрудника')}>Пригласить сотрудника</button>
               <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction(selectedStaffIsActive ? 'Отключить сотрудника' : 'Включить сотрудника')}>
                 {selectedStaffIsActive ? 'Отключить сотрудника' : 'Включить сотрудника'}
               </button>
@@ -8411,7 +8936,8 @@ function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: str
             <div className="settings-form-grid settings-staff-form">
               <label>Логин для входа<input value={inviteUserName} disabled={!canManageBranchStaff} onChange={(event) => setInviteUserName(event.currentTarget.value)} /></label>
               <label>Имя в смене<input value={inviteDisplayName} disabled={!canManageBranchStaff} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} /></label>
-              <label>Пароль на первый вход<input type="password" value={invitePassword} disabled={!canManageBranchStaff} onChange={(event) => setInvitePassword(event.currentTarget.value)} /></label>
+              <label>Email для приглашения<input type="email" value={inviteEmail} disabled={!canManageBranchStaff} onChange={(event) => setInviteEmail(event.currentTarget.value)} /></label>
+              {inviteCode && <label>Код приглашения<input readOnly value={inviteCode} onFocus={(event) => event.currentTarget.select()} /></label>}
               <label>Роль доступа
                 <select value={inviteRoleName} disabled={!canManageBranchStaff} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
                   {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
@@ -9121,6 +9647,7 @@ function AppInner() {
   const [shellDashboardSummary, setShellDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
   const [shellLoadStatus, setShellLoadStatus] = useState<LoadStatus>('loading');
   const [shellLoadError, setShellLoadError] = useState<string | null>(null);
+  const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
   const displayedFloorMap = useMemo(
     () => refreshFloorMapRemaining(floorMap, remainingNowMs),
     [floorMap, remainingNowMs]
@@ -9341,6 +9868,7 @@ function AppInner() {
 
         setFloorMap(nextState);
         setSelectedSeatId(nextState.seats[0]?.id ?? seats[0].id);
+        void drainQueuedActions(nextState.seats);
       } catch (error) {
         if (isUnauthorizedPlatformError(error)) {
           try {
@@ -9375,6 +9903,16 @@ function AppInner() {
         }
 
         if (disposed) {
+          return;
+        }
+
+        // Platform unreachable: hydrate the last-known-good snapshot into a read-only mirror (§6.5).
+        // Fall back to the error surface only when there is nothing cached for this branch.
+        const cached = loadFloorMapCache(branchId);
+        if (cached) {
+          const degraded = hydrateFloorMapStateFromCache(cached, branchId);
+          setFloorMap(degraded);
+          setSelectedSeatId((current) => current ?? degraded.seats[0]?.id ?? seats[0].id);
           return;
         }
 
@@ -9599,10 +10137,12 @@ function AppInner() {
       }
 
       const billing = request.billing;
+      const isOpenTab = request.durationMode === 'open';
       response = await clients.sessions.startGuestSession(branchId, {
         organizationId: session.organizationId,
         seatId: request.seat.id,
-        durationMinutes: defaultSessionDurationMinutes,
+        durationMode: isOpenTab ? 'open' : 'fixed',
+        durationMinutes: isOpenTab ? null : defaultSessionDurationMinutes,
         tariffRuleVersionId: billing.tariffRuleVersionId,
         idempotencyKey: createIdempotencyKey('session-start'),
         playerAccountId: billing.playerAccountId ?? null,
@@ -9642,6 +10182,20 @@ function AppInner() {
         targetSeatId: request.targetSeatId,
         idempotencyKey: createIdempotencyKey('session-transfer')
       });
+    } else if (request.type === 'checkout') {
+      if (!hasPermission(session, permissionNames.endSession)) {
+        throw new Error('Нет прав на завершение сессий.');
+      }
+
+      if (!request.seat.activeSessionId) {
+        throw new Error('На выбранном ПК нет активной сессии.');
+      }
+
+      response = await clients.sessions.checkoutSession(request.seat.activeSessionId, {
+        organizationId: session.organizationId,
+        payments: request.payments,
+        idempotencyKey: createIdempotencyKey('session-checkout')
+      });
     } else {
       if (!hasPermission(session, permissionNames.endSession)) {
         throw new Error('Нет прав на завершение сессий.');
@@ -9665,6 +10219,46 @@ function AppInner() {
       ? preferredSeatId
       : nextState.seats[0]?.id ?? '');
     return { detail };
+  };
+
+  // On reconnect (§6.5): replay queued lock/unlock against the now-authoritative map; drop actions whose
+  // seat or session moved on while offline, recording an operator-visible audit note (D9).
+  const drainQueuedActions = async (liveSeats: SeatSummary[]): Promise<void> => {
+    const pending = loadActionOutbox();
+    if (pending.length === 0) {
+      return;
+    }
+
+    const { replay, dropped } = reconcileActionOutbox(pending, liveSeats);
+    for (const drop of dropped) {
+      acknowledgeAction(drop.entry.idempotencyKey);
+    }
+    if (dropped.length > 0) {
+      setOfflineActionAudit((current) => [...current, ...dropped.map((drop) => drop.note)]);
+    }
+
+    if (replay.length === 0) {
+      return;
+    }
+
+    const nextBackend = backendContext;
+    if (nextBackend === null || !hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
+      return;
+    }
+
+    const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+    for (const entry of replay) {
+      try {
+        await clients.devices.dispatchDeviceCommand(entry.deviceId, {
+          type: entry.commandType,
+          payload: { reason: 'operator-offline-replay', source: 'operator-map', seatId: entry.seatId }
+        });
+        acknowledgeAction(entry.idempotencyKey);
+      } catch {
+        // Connectivity dropped again mid-drain; keep the rest queued for the next refresh.
+        break;
+      }
+    }
   };
 
   const handlePcControlAction = async (seat: SeatSummary, action: PcControlActionId): Promise<PcControlActionResult> => {
@@ -9691,6 +10285,21 @@ function AppInner() {
     if (action === 'lock' || action === 'unlock') {
       if (!hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
         throw new Error('Нет прав на отправку команд ПК.');
+      }
+
+      // Offline (§6.5): queue the idempotent lock/unlock locally instead of dispatching; it replays (or is
+      // dropped if superseded) on reconnect. Billing actions stay online-only (D2) and are gated elsewhere.
+      if (floorMapRef.current.isOffline) {
+        enqueueAction({
+          idempotencyKey: createIdempotencyKey(`device-${action}`),
+          deviceId: seat.deviceId,
+          seatId: seat.id,
+          seatName: seat.name,
+          commandType: action as OperatorCommandType,
+          expectedSessionId: seat.activeSessionId ?? null,
+          queuedAtMs: Date.now()
+        });
+        return { detail: `Команда «${action}» поставлена в очередь — будет отправлена после восстановления связи.` };
       }
 
       const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, {
@@ -9782,6 +10391,7 @@ function AppInner() {
           floorMap={displayedFloorMap}
           canUsePcControl={canUsePcControl}
           selectedSeatId={selectedSeat?.id ?? ''}
+          offlineActionAudit={offlineActionAudit}
           onSelectSeat={setSelectedSeatId}
           onPcControlAction={handlePcControlAction}
         />
@@ -9812,6 +10422,7 @@ function AppInner() {
       {workspace === 'payments' && <BackendPaymentsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'logs' && <BackendLogsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'settings' && <BackendSettingsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'review' && <ReviewWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
 
       {workspace === 'map' && selectedSeat !== null && (
         <MapSidePanel
@@ -9823,7 +10434,7 @@ function AppInner() {
           onSeatAction={handleSeatAction}
         />
       )}
-      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings'
+      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review'
         && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">

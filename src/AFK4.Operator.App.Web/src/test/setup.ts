@@ -22,6 +22,7 @@ const { cleanup } = await import('@testing-library/react');
 
 afterEach(() => {
   cleanup();
-  // Isolate locale persistence between tests (the i18n provider seeds from localStorage).
-  try { localStorage.clear(); } catch { /* no localStorage in this env */ }
+  // Isolate persisted web storage between tests: the i18n provider seeds locale from localStorage,
+  // and the offline floor-map cache / action outbox persist to both stores (§6.5).
+  try { localStorage.clear(); sessionStorage.clear(); } catch { /* no web storage in this env */ }
 });

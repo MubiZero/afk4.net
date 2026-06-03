@@ -35,6 +35,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     private readonly AsyncRelayCommand extendBy30Command;
     private readonly AsyncRelayCommand transferSessionCommand;
     private readonly AsyncRelayCommand endSessionCommand;
+    private readonly AsyncRelayCommand beginCheckoutCommand;
     private readonly RelayCommand selectBillingModeCommand;
     private readonly string currencyCode;
     private Guid? organizationId;
@@ -48,6 +49,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     private string tariffVersionIdText = "";
     private string playerPackageIdText = "";
     private string targetSeatIdText = "";
+    private bool startAsOpenTab;
     private string reason = "запрос оператора";
     private string? errorMessage;
     private string? pendingOperation;
@@ -55,6 +57,8 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
     private string serverConfirmationStatus = "Выберите место";
     private string deviceCommandStatus = "Выберите место";
     private bool isBusy;
+    private bool isOffline;
+    private CheckoutSessionViewModel? checkout;
 
     public SeatContextPanelViewModel(
         IOperatorSessionApiClient apiClient,
@@ -67,12 +71,15 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         this.refreshAfterSuccess = refreshAfterSuccess;
         this.currencyCode = string.IsNullOrWhiteSpace(currencyCode) ? DefaultCurrencyCode : currencyCode.Trim().ToUpperInvariant();
 
-        startGuestSessionCommand = new AsyncRelayCommand(StartGuestSessionAsync, () => !IsBusy && CanStartGuestSession);
-        extendSessionCommand = new AsyncRelayCommand(ExtendSessionAsync, () => !IsBusy && HasActiveSession);
-        extendBy15Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(15, token), () => !IsBusy && HasActiveSession);
-        extendBy30Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(30, token), () => !IsBusy && HasActiveSession);
-        transferSessionCommand = new AsyncRelayCommand(TransferSessionAsync, () => !IsBusy && HasActiveSession);
-        endSessionCommand = new AsyncRelayCommand(EndSessionAsync, () => !IsBusy && HasActiveSession);
+        // Billing actions stay online-only (spec §6.5 D2): they create irreversible ledger effects, so they
+        // are blocked while the workspace is showing a cached/offline mirror.
+        startGuestSessionCommand = new AsyncRelayCommand(StartGuestSessionAsync, () => !IsBusy && !IsOffline && CanStartGuestSession);
+        extendSessionCommand = new AsyncRelayCommand(ExtendSessionAsync, () => !IsBusy && !IsOffline && HasActiveSession);
+        extendBy15Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(15, token), () => !IsBusy && !IsOffline && HasActiveSession);
+        extendBy30Command = new AsyncRelayCommand(token => ExtendByMinutesAsync(30, token), () => !IsBusy && !IsOffline && HasActiveSession);
+        transferSessionCommand = new AsyncRelayCommand(TransferSessionAsync, () => !IsBusy && !IsOffline && HasActiveSession);
+        endSessionCommand = new AsyncRelayCommand(EndSessionAsync, () => !IsBusy && !IsOffline && HasActiveSession);
+        beginCheckoutCommand = new AsyncRelayCommand(BeginCheckoutAsync, () => !IsBusy && !IsOffline && HasActiveSession && !IsCheckoutOpen);
         selectBillingModeCommand = new RelayCommand(parameter =>
         {
             if (parameter is BillingModeOptionViewModel option)
@@ -170,7 +177,29 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         }
     }
 
-    public string MoneyImpactText => $"0.00 {currencyCode}";
+    public string MoneyImpactText => SelectedSeat?.AccruedCostMinorUnits is { } minorUnits
+        ? $"{FormatMoney(minorUnits)} {SelectedSeat.CurrencyCode ?? currencyCode}"
+        : $"0.00 {currencyCode}";
+
+    // An open tab is only valid for an unbilled guest or a postpaid-debt player;
+    // other modes must reserve a fixed duration up front.
+    public bool OpenTabAllowed => string.IsNullOrWhiteSpace(BillingMode) || BillingMode == BillingModeNames.PostpaidDebt;
+
+    public bool StartAsOpenTab
+    {
+        get => startAsOpenTab;
+        set
+        {
+            if (SetField(ref startAsOpenTab, value))
+            {
+                OnPropertyChanged(nameof(StartDurationModeText));
+            }
+        }
+    }
+
+    private bool EffectiveOpenTab => StartAsOpenTab && OpenTabAllowed;
+
+    public string StartDurationModeText => EffectiveOpenTab ? "Открытый счёт (оплата при завершении)" : "Фиксированная длительность";
 
     public string LedgerImpactText => string.IsNullOrWhiteSpace(BillingMode)
         ? "ledger не пишется"
@@ -215,6 +244,8 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(IsPlayerBillingRequired));
                 OnPropertyChanged(nameof(BillingModeDescription));
                 OnPropertyChanged(nameof(LedgerImpactText));
+                OnPropertyChanged(nameof(OpenTabAllowed));
+                OnPropertyChanged(nameof(StartDurationModeText));
             }
         }
     }
@@ -279,6 +310,22 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// When the workspace is showing a cached/offline mirror (spec §6.5), billing actions are disabled
+    /// (D2) because they cannot be safely queued; the floor map sets this as it enters/leaves degraded mode.
+    /// </summary>
+    public bool IsOffline
+    {
+        get => isOffline;
+        set
+        {
+            if (SetField(ref isOffline, value))
+            {
+                NotifyCommandStates();
+            }
+        }
+    }
+
     public ICommand StartGuestSessionCommand => startGuestSessionCommand;
 
     public ICommand ExtendSessionCommand => extendSessionCommand;
@@ -291,7 +338,24 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
 
     public ICommand EndSessionCommand => endSessionCommand;
 
+    public ICommand BeginCheckoutCommand => beginCheckoutCommand;
+
     public ICommand SelectBillingModeCommand => selectBillingModeCommand;
+
+    public CheckoutSessionViewModel? Checkout
+    {
+        get => checkout;
+        private set
+        {
+            if (SetField(ref checkout, value))
+            {
+                OnPropertyChanged(nameof(IsCheckoutOpen));
+                NotifyCommandStates();
+            }
+        }
+    }
+
+    public bool IsCheckoutOpen => Checkout is not null;
 
     public void ApplyContext(Guid organizationId, Guid branchId)
     {
@@ -345,6 +409,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ActiveSessionTimerText));
         OnPropertyChanged(nameof(ActiveSessionLeaseText));
         OnPropertyChanged(nameof(ActiveSessionProgressValue));
+        OnPropertyChanged(nameof(MoneyImpactText));
         OnPropertyChanged(nameof(DeviceConnectivityLine));
         NotifyCommandStates();
     }
@@ -380,16 +445,18 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
             return;
         }
 
+        var openTab = EffectiveOpenTab;
         var request = new StartGuestSessionRequest(
             organizationIdValue,
             seat.SeatId,
-            DurationMinutes,
             TariffRuleVersionId.Trim(),
             idempotencyKeyFactory.Create("session-start"),
-            playerAccountId,
-            BillingMode.Trim(),
-            tariffVersionId,
-            playerPackageId);
+            DurationMode: openTab ? SessionDurationModes.Open : SessionDurationModes.Fixed,
+            DurationMinutes: openTab ? null : DurationMinutes,
+            PlayerAccountId: playerAccountId,
+            BillingMode: BillingMode.Trim(),
+            TariffVersionId: tariffVersionId,
+            PlayerPackageId: playerPackageId);
 
         await ExecuteBackendCommandAsync(
             token => apiClient.StartGuestSessionAsync(branchIdValue, request, token),
@@ -464,6 +531,40 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         await ExecuteBackendCommandAsync(
             token => apiClient.EndSessionAsync(sessionId, request, token),
             cancellationToken);
+    }
+
+    public async Task BeginCheckoutAsync(CancellationToken cancellationToken)
+    {
+        if (!TryGetActiveSession(out var sessionId) ||
+            !TryGetOperatorContext(out var organizationIdValue, out _))
+        {
+            return;
+        }
+
+        var checkoutViewModel = new CheckoutSessionViewModel(
+            apiClient,
+            idempotencyKeyFactory,
+            organizationIdValue,
+            sessionId,
+            currencyCode,
+            onCompleted: async token =>
+            {
+                if (refreshAfterSuccess is not null)
+                {
+                    await refreshAfterSuccess(token);
+                }
+
+                StatusMessage = "Оплата принята, сессия закрыта.";
+            },
+            onClosed: () => Checkout = null);
+
+        Checkout = checkoutViewModel;
+        await checkoutViewModel.LoadQuoteAsync(cancellationToken);
+    }
+
+    public void CancelCheckout()
+    {
+        Checkout = null;
     }
 
     private async Task ExecuteBackendCommandAsync(
@@ -613,6 +714,11 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         }
     }
 
+    private static string FormatMoney(long minorUnits)
+    {
+        return (minorUnits / 100m).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static string FormatTimer(int? seconds)
     {
         if (seconds is null)
@@ -660,6 +766,7 @@ public sealed class SeatContextPanelViewModel : INotifyPropertyChanged
         extendBy30Command.NotifyCanExecuteChanged();
         transferSessionCommand.NotifyCanExecuteChanged();
         endSessionCommand.NotifyCanExecuteChanged();
+        beginCheckoutCommand.NotifyCanExecuteChanged();
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

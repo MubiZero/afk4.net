@@ -46,4 +46,8 @@ public interface IPlatformTenantService
         RevokeOwnerInviteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
+
+    Task<PlatformTenantOperationResult<OwnerInviteDto>> ResendOwnerInviteAsync(
+        Guid ownerInviteId,
+        CancellationToken cancellationToken);
 }

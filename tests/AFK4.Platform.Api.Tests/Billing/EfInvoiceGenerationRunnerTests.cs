@@ -16,8 +16,8 @@ public sealed class EfInvoiceGenerationRunnerTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options);
 
-    private static EfInvoiceGenerationRunner NewRunner(PlatformDbContext db) =>
-        new(db, Options.Create(new BillingOptions()));
+    private static EfInvoiceGenerationRunner NewRunner(PlatformDbContext db, IInvoiceNotifier? notifier = null) =>
+        new(db, Options.Create(new BillingOptions()), notifier ?? new RecordingInvoiceNotifier());
 
     private static async Task<TenantSubscriptionEntity> SeedActiveDueSubscriptionAsync(PlatformDbContext db)
     {
@@ -109,6 +109,37 @@ public sealed class EfInvoiceGenerationRunnerTests
         var invoice = await db.Invoices.SingleAsync();
         Assert.Equal(InvoiceStatusNames.Overdue, invoice.Status);
         Assert.Equal(Start.AddMonths(1).AddDays(8), invoice.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task RunAsync_IssuingInvoice_NotifiesIssued()
+    {
+        await using var db = NewContext();
+        await SeedActiveDueSubscriptionAsync(db);
+        var notifier = new RecordingInvoiceNotifier();
+        var runner = NewRunner(db, notifier);
+
+        await runner.RunAsync(Start.AddMonths(1), CancellationToken.None);
+
+        var notified = Assert.Single(notifier.Issued);
+        Assert.Equal(1, notified.Number);
+        Assert.Empty(notifier.Overdue);
+    }
+
+    [Fact]
+    public async Task RunAsync_FlippingInvoiceToOverdue_NotifiesOverdueOncePerInvoice()
+    {
+        await using var db = NewContext();
+        await SeedActiveDueSubscriptionAsync(db);
+        var notifier = new RecordingInvoiceNotifier();
+        var runner = NewRunner(db, notifier);
+        await runner.RunAsync(Start.AddMonths(1), CancellationToken.None); // issues invoice due +7 days
+
+        await runner.RunAsync(Start.AddMonths(1).AddDays(8), CancellationToken.None); // flips to overdue
+        await runner.RunAsync(Start.AddMonths(1).AddDays(9), CancellationToken.None); // already overdue, no re-flip
+
+        var overdue = Assert.Single(notifier.Overdue);
+        Assert.Equal(InvoiceStatusNames.Overdue, overdue.Status);
     }
 
     [Fact]

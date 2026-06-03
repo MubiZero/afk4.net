@@ -25,13 +25,13 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
             cancellationToken);
     }
 
-    public Task<StaffUserDto> CreateStaffUserAsync(
+    public Task<StaffInviteDto> CreateStaffInviteAsync(
         Guid branchId,
-        CreateStaffUserRequest request,
+        CreateStaffInviteRequest request,
         CancellationToken cancellationToken)
     {
-        return PostAsync<StaffUserDto, CreateStaffUserRequest>(
-            $"/api/branches/{branchId:D}/staff",
+        return PostAsync<StaffInviteDto, CreateStaffInviteRequest>(
+            $"/api/branches/{branchId:D}/staff/invites",
             request,
             cancellationToken);
     }
