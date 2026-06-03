@@ -16,6 +16,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 function tabForRoute(route: PlayerRoute): PlayerTab {
   if (route.kind === 'receipt') return 'history';
+  if (route.kind === 'purchases') return 'history';
   return route.kind;
 }
 
