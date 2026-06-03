@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
+using AFK4.Shared.Contracts.Players;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -94,5 +97,67 @@ public sealed class PlayerAuthenticationEndpointTests
 
         Assert.Equal(1, await db.PlayerAccessTokens.CountAsync(t => t.PlayerAccountId == playerAccountId));
         Assert.Equal(1, await db.PlayerRefreshTokens.CountAsync(t => t.PlayerAccountId == playerAccountId));
+    }
+
+    private static async Task<(Guid OrgId, Guid PlayerId)> SeedPlayerWithPinAsync(
+        PlatformApiFactory factory, string pin)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var orgId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var playerId = Guid.NewGuid();
+        var now = DateTimeOffset.Parse("2026-06-03T00:00:00Z");
+
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = playerId,
+            OrganizationId = orgId,
+            HomeBranchId = branchId,
+            DisplayName = "Player One",
+            PhoneNumber = "+992900000001",
+            IsActive = true,
+            CreatedAtUtc = now
+        });
+        var credential = new PlayerCredentialEntity
+        {
+            PlayerCredentialId = Guid.NewGuid(),
+            PlayerAccountId = playerId,
+            OrganizationId = orgId,
+            PhoneVerified = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
+        db.PlayerCredentials.Add(credential);
+        await db.SaveChangesAsync();
+        return (orgId, playerId);
+    }
+
+    [Fact]
+    public async Task PlayerToken_Issue_Validate_Refresh()
+    {
+        await using var factory = new PlatformApiFactory();
+        var (orgId, playerId) = await SeedPlayerWithPinAsync(factory, "1234");
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var tokenService = scope.ServiceProvider.GetRequiredService<IPlayerTokenService>();
+        var account = await db.PlayerAccounts.SingleAsync(p => p.PlayerAccountId == playerId);
+
+        var issued = await tokenService.IssueAsync(account, true, default);
+        Assert.Equal(playerId, issued.PlayerAccountId);
+        Assert.True(issued.RefreshTokenExpiresAtUtc > issued.AccessTokenExpiresAtUtc);
+
+        var ctx = await tokenService.ValidateAsync(issued.AccessToken, default);
+        Assert.NotNull(ctx);
+        Assert.Equal(playerId, ctx!.PlayerAccountId);
+        Assert.Equal(orgId, ctx.OrganizationId);
+
+        var refreshed = await tokenService.RefreshAsync(new PlayerRefreshRequest(issued.RefreshToken), default);
+        Assert.NotNull(refreshed);
+        Assert.NotEqual(issued.AccessToken, refreshed!.AccessToken);
+
+        // old refresh token is now revoked
+        Assert.Null(await tokenService.RefreshAsync(new PlayerRefreshRequest(issued.RefreshToken), default));
     }
 }
