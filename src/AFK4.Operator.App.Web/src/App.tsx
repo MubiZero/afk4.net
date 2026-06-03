@@ -6993,6 +6993,21 @@ function reviewActionTypeLabel(actionType: string): string {
   }
 }
 
+function reviewExpiryBadge(expiresAtUtc: string, nowMs: number): { label: string; tone: 'overdue' | 'soon' } | null {
+  const expiresMs = Date.parse(expiresAtUtc);
+  if (!Number.isFinite(expiresMs)) {
+    return null;
+  }
+  const remainingMs = expiresMs - nowMs;
+  if (remainingMs <= 0) {
+    return { label: 'Просрочена', tone: 'overdue' };
+  }
+  if (remainingMs <= 2 * 60 * 60 * 1000) {
+    return { label: 'Истекает скоро', tone: 'soon' };
+  }
+  return null;
+}
+
 function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const [activeSegment, setActiveSegment] = useState<ReviewSegment>('queue');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
@@ -7089,13 +7104,19 @@ function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; back
     try {
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const min = auditMinAmount.trim() === '' ? null : Number(auditMinAmount);
-      const max = auditMaxAmount.trim() === '' ? null : Number(auditMaxAmount);
+      const parsedMin = auditMinAmount.trim() === '' ? null : Number(auditMinAmount);
+      const parsedMax = auditMaxAmount.trim() === '' ? null : Number(auditMaxAmount);
+      const maxAmount = parsedMax !== null && Number.isFinite(parsedMax) ? parsedMax : null;
+      // Default to amount-bearing (money / high-risk) records when no amount bound is set:
+      // the audit query drops null-amount rows once a bound is present (§5.5).
+      const minAmount = parsedMin !== null && Number.isFinite(parsedMin)
+        ? parsedMin
+        : (maxAmount === null ? 0 : null);
       const result = await apiClients.audit.search({
         branchId: nextBackend.branchId,
         actorStaffUserId: auditActor.trim() === '' ? null : auditActor.trim(),
-        minAmount: min !== null && Number.isFinite(min) ? min : null,
-        maxAmount: max !== null && Number.isFinite(max) ? max : null,
+        minAmount,
+        maxAmount,
         limit: 50
       });
       setAuditResult(result);
@@ -7135,7 +7156,9 @@ function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; back
           {requests.length === 0 ? (
             <p className="review-empty">{loadError ?? 'Нет заявок на одобрение'}</p>
           ) : (
-            requests.map((request) => (
+            requests.map((request) => {
+              const expiryBadge = reviewExpiryBadge(request.expiresAtUtc, Date.now());
+              return (
               <article key={request.moneyActionRequestId} className="review-request-row">
                 <div className="review-request-head">
                   <strong>{reviewActionTypeLabel(request.actionType)}</strong>
@@ -7146,6 +7169,7 @@ function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; back
                   <span>Запросил: {resolveStaffName(request.requestedByStaffUserId)}</span>
                   <span>Создано: {formatTime(request.createdAtUtc)}</span>
                   <span>Истекает: {formatTime(request.expiresAtUtc)}</span>
+                  {expiryBadge && <span className={`review-expiry-badge ${expiryBadge.tone}`}>{expiryBadge.label}</span>}
                 </div>
                 {rejectingId === request.moneyActionRequestId ? (
                   <div className="review-reject-form">
@@ -7165,7 +7189,8 @@ function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; back
                   </div>
                 )}
               </article>
-            ))
+              );
+            })
           )}
           <FeedbackNotice feedback={feedback} />
         </section>

@@ -5952,3 +5952,20 @@ button {
   opacity: 0.7;
   padding: 16px;
 }
+
+.review-expiry-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.review-expiry-badge.soon {
+  background: #5a430f;
+  color: #f4c542;
+}
+
+.review-expiry-badge.overdue {
+  background: #5a1f1f;
+  color: #ff6b6b;
+}
