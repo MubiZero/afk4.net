@@ -127,6 +127,86 @@ public static class PlayerHistoryProjector
         return new CursorPage<PlayerVisitDto>(items, nextCursor);
     }
 
+    public static async Task<CursorPage<PlayerPurchaseDto>> GetPurchasesAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        string? cursor,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.PosSales
+            .AsNoTracking()
+            .Where(sale =>
+                sale.PlayerAccountId == playerAccountId &&
+                sale.SessionId == null);
+
+        // EF Core InMemory does not translate Guid.CompareTo inside LINQ Where.
+        // Filter by timestamp boundary only, then apply the (CreatedAtUtc, PosSaleId)
+        // tie-break in memory — same strategy as GetVisitsAsync.
+        DateTimeOffset afterTs = default;
+        Guid afterId = default;
+        bool hasCursor = CursorToken.TryDecode(cursor, out afterTs, out afterId);
+
+        if (hasCursor)
+        {
+            query = query.Where(sale => sale.CreatedAtUtc <= afterTs);
+        }
+
+        var windowSize = hasCursor ? (PageSize + 1) * 2 : PageSize + 1;
+        var candidates = await query
+            .OrderByDescending(sale => sale.CreatedAtUtc)
+            .ThenByDescending(sale => sale.PosSaleId)
+            .Take(windowSize)
+            .ToListAsync(cancellationToken);
+
+        List<PosSaleEntity> sales;
+        if (hasCursor)
+        {
+            sales = candidates
+                .Where(sale =>
+                    sale.CreatedAtUtc < afterTs ||
+                    (sale.CreatedAtUtc == afterTs && sale.PosSaleId.CompareTo(afterId) < 0))
+                .Take(PageSize + 1)
+                .ToList();
+        }
+        else
+        {
+            sales = candidates.Take(PageSize + 1).ToList();
+        }
+
+        var hasMore = sales.Count > PageSize;
+        if (hasMore)
+        {
+            sales.RemoveAt(sales.Count - 1);
+        }
+
+        var saleIds = sales.Select(sale => sale.PosSaleId).ToList();
+
+        var lines = await dbContext.PosSaleLines
+            .AsNoTracking()
+            .Where(line => saleIds.Contains(line.PosSaleId))
+            .ToListAsync(cancellationToken);
+        var linesBySale = lines
+            .GroupBy(line => line.PosSaleId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+
+        var items = sales.Select(sale => new PlayerPurchaseDto(
+            sale.PosSaleId,
+            sale.CreatedAtUtc,
+            sale.TotalMinorUnits,
+            sale.CurrencyCode,
+            (linesBySale.GetValueOrDefault(sale.PosSaleId) ?? new List<PosSaleLineEntity>())
+                .Select(line => new PlayerPurchaseLineDto(
+                    line.ProductName, line.Quantity, line.UnitPriceMinorUnits, line.LineTotalMinorUnits))
+                .ToList()))
+            .ToList();
+
+        string? nextCursor = hasMore && items.Count > 0
+            ? CursorToken.Encode(items[^1].CreatedAtUtc, items[^1].PosSaleId)
+            : null;
+
+        return new CursorPage<PlayerPurchaseDto>(items, nextCursor);
+    }
+
     public static async Task<PlayerVisitReceiptDto?> GetVisitReceiptAsync(
         PlatformDbContext dbContext,
         Guid playerAccountId,

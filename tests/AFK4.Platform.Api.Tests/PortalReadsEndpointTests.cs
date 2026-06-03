@@ -297,6 +297,69 @@ public class PortalReadsEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    private static async Task SeedStandalonePurchaseAsync(
+        PlatformApiFactory factory, SeededPlayer p, DateTimeOffset createdAtUtc,
+        long total, string productName, int quantity)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var posSaleId = Guid.NewGuid();
+        db.PosSales.Add(new PosSaleEntity
+        {
+            PosSaleId = posSaleId, OrganizationId = p.OrgId, BranchId = p.BranchId,
+            ShiftId = Guid.NewGuid(), CreatedByStaffUserId = Guid.NewGuid(),
+            PlayerAccountId = p.PlayerId, SessionId = null, State = "paid",
+            CurrencyCode = "TJS", TotalMinorUnits = total,
+            CreatedAtUtc = createdAtUtc, PaidAtUtc = createdAtUtc
+        });
+        db.PosSaleLines.Add(new PosSaleLineEntity
+        {
+            PosSaleLineId = Guid.NewGuid(), PosSaleId = posSaleId,
+            ProductId = Guid.NewGuid(), ProductName = productName, Quantity = quantity,
+            CurrencyCode = "TJS", UnitPriceMinorUnits = total / quantity,
+            LineTotalMinorUnits = total, TrackStock = false, AllowNegativeStock = true
+        });
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Purchases_ReturnsOnlyStandaloneOwnSales_WithLines()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        await SeedStandalonePurchaseAsync(factory, p, Now.AddDays(-1), 3_000, "Cola", 2);
+        // Session-attached sale must NOT appear in purchases:
+        await SeedEndedVisitAsync(factory, p, "Seat A", Now.AddDays(-2), receiptTotal: 5_000, attachedPosTotal: 1_500);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var page = await (await client.GetAsync("/api/me/purchases"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerPurchaseDto>>();
+
+        Assert.Single(page!.Items);
+        var purchase = page.Items[0];
+        Assert.Equal(3_000, purchase.TotalMinorUnits);
+        Assert.Single(purchase.Lines);
+        Assert.Equal("Cola", purchase.Lines[0].ProductName);
+        Assert.Equal(2, purchase.Lines[0].Quantity);
+    }
+
+    [Fact]
+    public async Task Purchases_DoesNotReturnOtherPlayersSales()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var other = await SeedPlayerAsync(factory, "9999");
+        await SeedStandalonePurchaseAsync(factory, other, Now.AddDays(-1), 7_000, "Pizza", 1);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var page = await (await client.GetAsync("/api/me/purchases"))
+            .Content.ReadFromJsonAsync<CursorPage<PlayerPurchaseDto>>();
+
+        Assert.Empty(page!.Items);
+    }
+
     // Seeds a seat, a tariff version, and an active OPEN session for the player.
     private static async Task SeedActiveOpenSessionAsync(
         PlatformApiFactory factory, SeededPlayer p, long pricePerMinute, int startedMinutesAgo)

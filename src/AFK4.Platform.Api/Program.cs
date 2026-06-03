@@ -728,6 +728,23 @@ app.MapGet("/api/me/visits/{sessionId:guid}/receipt", async (
     return receipt is null ? Results.NotFound() : Results.Ok(receipt);
 }).RequireRateLimiting("player-me");
 
+app.MapGet("/api/me/purchases", async (
+    string? cursor,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var page = await PlayerHistoryProjector.GetPurchasesAsync(
+        dbContext, player.PlayerAccountId, cursor, cancellationToken);
+    return Results.Ok(page);
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/auth/staff/forgot-password", async (
     StaffForgotPasswordRequest request,
     IStaffPasswordResetService passwordResetService,
