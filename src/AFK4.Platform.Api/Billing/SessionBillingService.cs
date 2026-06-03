@@ -454,6 +454,19 @@ public sealed class SessionBillingService(
             return Invalid("Session was not found.");
         }
 
+        // Anti-fraud §5.4: a comp (free) session never bills, whatever tariff id it carries.
+        if (session.IsComp)
+        {
+            return new SessionBillingValidationResult(
+                Succeeded: true,
+                Error: null,
+                session.TariffRuleVersionId,
+                TariffVersionId: null,
+                BillableSeconds: 0,
+                AmountMinorUnits: 0,
+                DefaultCurrencyCode);
+        }
+
         // A guest/unbilled session carries a non-GUID tariff rule id; nothing accrues.
         if (!Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId))
         {
@@ -504,6 +517,38 @@ public sealed class SessionBillingService(
             billableSeconds,
             computation.AmountMinorUnits,
             computation.CurrencyCode);
+    }
+
+    public async Task<SessionBillingValidationResult> ComputeCompValueAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid tariffVersionId,
+        int durationMinutes,
+        CancellationToken cancellationToken)
+    {
+        if (durationMinutes <= 0)
+        {
+            return Invalid("Comp duration must be positive.");
+        }
+
+        var calculation = await tariffService.CalculateAsync(
+            branchId,
+            new CalculateTariffRequest(organizationId, tariffVersionId, durationMinutes),
+            cancellationToken);
+
+        if (calculation is null)
+        {
+            return Invalid("Comp value could not be computed; tariff version was not found.");
+        }
+
+        return new SessionBillingValidationResult(
+            Succeeded: true,
+            Error: null,
+            calculation.TariffRuleVersionId,
+            calculation.TariffVersionId,
+            checked(calculation.BillableMinutes * 60),
+            calculation.Amount.MinorUnits,
+            calculation.Amount.CurrencyCode);
     }
 
     public async Task AppendCheckoutLedgerEntriesAsync(
