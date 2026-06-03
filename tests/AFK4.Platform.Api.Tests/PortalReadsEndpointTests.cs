@@ -360,6 +360,52 @@ public class PortalReadsEndpointTests
         Assert.Empty(page!.Items);
     }
 
+    [Fact]
+    public async Task PatchProfile_UpdatesLocaleAndMarketing()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var response = await client.PatchAsJsonAsync(
+            "/api/me/profile",
+            new UpdatePlayerProfileRequest("en", true));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<PlayerProfileDto>();
+        Assert.Equal("en", dto!.PreferredLocale);
+        Assert.True(dto.MarketingOptIn);
+    }
+
+    [Fact]
+    public async Task PatchProfile_NullFields_LeaveValuesUnchanged()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");   // seeded locale "ru", marketing false
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var response = await client.PatchAsJsonAsync(
+            "/api/me/profile",
+            new UpdatePlayerProfileRequest(null, null));
+
+        var dto = await response.Content.ReadFromJsonAsync<PlayerProfileDto>();
+        Assert.Equal("ru", dto!.PreferredLocale);
+        Assert.False(dto.MarketingOptIn);
+    }
+
+    [Fact]
+    public async Task PatchProfile_WithoutToken_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var response = await client.PatchAsJsonAsync(
+            "/api/me/profile",
+            new UpdatePlayerProfileRequest("en", true));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     // Seeds a seat, a tariff version, and an active OPEN session for the player.
     private static async Task SeedActiveOpenSessionAsync(
         PlatformApiFactory factory, SeededPlayer p, long pricePerMinute, int startedMinutesAgo)

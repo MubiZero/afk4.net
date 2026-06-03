@@ -678,6 +678,52 @@ app.MapGet("/api/me/profile", async (
         account.MarketingOptIn));
 }).RequireRateLimiting("player-me");
 
+app.MapPatch("/api/me/profile", async (
+    UpdatePlayerProfileRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+        candidate => candidate.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+    if (account is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (request.PreferredLocale is not null)
+    {
+        var locale = request.PreferredLocale.Trim();
+        if (locale.Length is 0 or > 16)
+        {
+            return Results.BadRequest(new { Error = "PreferredLocale must be 1-16 characters." });
+        }
+
+        account.PreferredLocale = locale;
+    }
+
+    if (request.MarketingOptIn is not null)
+    {
+        account.MarketingOptIn = request.MarketingOptIn.Value;
+    }
+
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    return Results.Ok(new PlayerProfileDto(
+        account.PlayerAccountId,
+        account.DisplayName,
+        account.PhoneNumber,
+        player.PhoneVerified,
+        account.PreferredLocale,
+        account.MarketingOptIn));
+}).RequireRateLimiting("player-me");
+
 app.MapGet("/api/me/dashboard", async (
     IPlayerContextAccessor playerContextAccessor,
     PlatformDbContext dbContext,
