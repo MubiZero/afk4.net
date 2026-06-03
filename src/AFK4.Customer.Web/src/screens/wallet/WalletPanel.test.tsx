@@ -1,14 +1,17 @@
 import { it, expect, mock } from 'bun:test';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '@/components/ui/toast';
 import { WalletPanel } from './WalletPanel';
 import type { PlayerApiClient } from '@/api/playerApi';
 
 function renderPanel(api: PlayerApiClient, phoneVerified: boolean) {
   return render(
-    <ToastProvider autoDismissMs={1000}>
-      <WalletPanel api={api} phoneVerified={phoneVerified} />
-    </ToastProvider>
+    <I18nProvider>
+      <ToastProvider autoDismissMs={1000}>
+        <WalletPanel api={api} phoneVerified={phoneVerified} />
+      </ToastProvider>
+    </I18nProvider>
   );
 }
 

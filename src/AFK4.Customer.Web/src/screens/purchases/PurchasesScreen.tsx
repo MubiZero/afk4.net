@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useI18n } from '@afk4/i18n';
 import type { PlayerApiClient } from '@/api/playerApi';
 import type { PlayerPurchaseDto } from '@/api/types';
 import { useCursorList } from '@/lib/useCursorList';
@@ -6,6 +7,7 @@ import { formatMoney } from '@/lib/money';
 import { formatDateTime } from '@/lib/datetime';
 
 export function PurchasesScreen({ api }: { api: PlayerApiClient }) {
+  const { t } = useI18n();
   const fetchPage = useCallback((cursor?: string) => api.getPurchases(cursor), [api]);
   const list = useCursorList<PlayerPurchaseDto>(fetchPage);
 
@@ -19,13 +21,13 @@ export function PurchasesScreen({ api }: { api: PlayerApiClient }) {
   if (list.status === 'error') {
     return (
       <div className="px-6 py-10 text-center">
-        <p className="text-sm text-red-400">Не удалось загрузить покупки.</p>
-        <button type="button" onClick={list.retry} className="mt-3 text-sm text-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">Повторить</button>
+        <p className="text-sm text-red-400">{t('customer.history.purchasesError')}</p>
+        <button type="button" onClick={list.retry} className="mt-3 text-sm text-[var(--accent)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">{t('customer.common.retry')}</button>
       </div>
     );
   }
   if (list.items.length === 0) {
-    return <p className="px-6 py-12 text-center text-[var(--text-2)]">Пока нет покупок</p>;
+    return <p className="px-6 py-12 text-center text-[var(--text-2)]">{t('customer.history.noPurchases')}</p>;
   }
 
   return (
@@ -52,7 +54,7 @@ export function PurchasesScreen({ api }: { api: PlayerApiClient }) {
           disabled={list.loadingMore}
           className="min-h-[44px] w-full rounded-xl border border-[var(--color-border)] text-sm text-[var(--text-2)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
         >
-          {list.loadingMore ? 'Загрузка…' : 'Показать ещё'}
+          {list.loadingMore ? t('customer.common.loading') : t('customer.common.loadMore')}
         </button>
       )}
     </div>

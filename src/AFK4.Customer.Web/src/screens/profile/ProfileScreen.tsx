@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '@afk4/i18n';
 import type { PlayerApiClient } from '@/api/playerApi';
 import type { PlayerProfileDto } from '@/api/types';
 import { useToast } from '@/components/ui/toast';
@@ -10,6 +11,7 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({ api, onSignOut, onLocaleChange }: ProfileScreenProps) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [profile, setProfile] = useState<PlayerProfileDto | null>(null);
   const mountedRef = useRef(true);
@@ -26,9 +28,9 @@ export function ProfileScreen({ api, onSignOut, onLocaleChange }: ProfileScreenP
       const updated = await api.updateProfile(change);
       if (mountedRef.current) setProfile(updated);
       if (change.preferredLocale === 'ru' || change.preferredLocale === 'en') onLocaleChange(change.preferredLocale);
-      toast({ title: 'Сохранено', variant: 'success' });
+      toast({ title: t('customer.profile.saved'), variant: 'success' });
     } catch {
-      toast({ title: 'Не удалось сохранить', variant: 'error' });
+      toast({ title: t('customer.profile.saveError'), variant: 'error' });
     }
   }
 
@@ -41,12 +43,12 @@ export function ProfileScreen({ api, onSignOut, onLocaleChange }: ProfileScreenP
       <header>
         <h1 className="text-2xl font-extrabold tracking-tight">{profile.displayName}</h1>
         <p className="mt-1 text-sm text-[var(--text-2)]">
-          {profile.phoneNumber ?? '—'} · <span className="text-[var(--text-3)]">изменение через OTP, скоро</span>
+          {profile.phoneNumber ?? '—'} · <span className="text-[var(--text-3)]">{t('customer.profile.phoneNote')}</span>
         </p>
       </header>
 
       <section className="space-y-3 rounded-2xl bg-[var(--color-surface)] p-4">
-        <p className="text-xs uppercase tracking-wide text-[var(--text-3)]">Язык</p>
+        <p className="text-xs uppercase tracking-wide text-[var(--text-3)]">{t('customer.profile.language')}</p>
         <div className="flex gap-2">
           {(['ru', 'en'] as const).map((locale) => (
             <button
@@ -59,14 +61,14 @@ export function ProfileScreen({ api, onSignOut, onLocaleChange }: ProfileScreenP
                 (profile.preferredLocale === locale ? 'bg-[var(--accent)] text-[var(--accent-fg)]' : 'border border-[var(--color-border)] text-[var(--text-2)]')
               }
             >
-              {locale === 'ru' ? 'Русский' : 'English'}
+              {locale === 'ru' ? t('customer.profile.langRu') : t('customer.profile.langEn')}
             </button>
           ))}
         </div>
       </section>
 
       <label className="flex items-center justify-between rounded-2xl bg-[var(--color-surface)] p-4 text-sm">
-        <span>Получать рассылку об акциях</span>
+        <span>{t('customer.profile.marketing')}</span>
         <input
           type="checkbox"
           checked={profile.marketingOptIn}
@@ -80,7 +82,7 @@ export function ProfileScreen({ api, onSignOut, onLocaleChange }: ProfileScreenP
         onClick={onSignOut}
         className="min-h-[44px] w-full rounded-xl border border-[var(--color-border)] text-sm text-red-400 focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
       >
-        Выйти
+        {t('customer.profile.signOut')}
       </button>
     </main>
   );

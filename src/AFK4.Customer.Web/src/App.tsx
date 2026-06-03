@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useI18n } from '@afk4/i18n';
 import { PlayerApiClient } from './api/playerApi';
 import type { PlayerSignInResponse } from './api/types';
 import {
@@ -29,6 +30,7 @@ function tabForRoute(route: PlayerRoute): PlayerTab {
 }
 
 export function App() {
+  const { setLocale } = useI18n();
   const [session, setSession] = useState<PlayerSession | null>(() => readPlayerSession());
   const [route, setRoute] = useState<PlayerRoute>(() =>
     resolvePlayerRoute(typeof window === 'undefined' ? '/' : window.location.pathname));
@@ -73,6 +75,11 @@ export function App() {
     setRoute(next);
     if (typeof window !== 'undefined') window.history.pushState(null, '', routePath(next));
   }, []);
+
+  const handleLocaleChange = useCallback((locale: 'ru' | 'en') => {
+    setLocale(locale);
+    globalThis.localStorage?.setItem('afk4.player.locale', locale);
+  }, [setLocale]);
 
   const signOut = useCallback(() => {
     void clearPlayerCaches();
@@ -122,7 +129,7 @@ export function App() {
         )}
         {route.kind === 'receipt' && <ReceiptScreen api={api} sessionId={route.sessionId} onBack={() => navigateTo({ kind: 'history' })} />}
         {route.kind === 'reservations' && <ReservationsScreen api={api} phoneVerified={session.phoneVerified} />}
-        {route.kind === 'profile' && <ProfileScreen api={api} onSignOut={signOut} onLocaleChange={() => {}} />}
+        {route.kind === 'profile' && <ProfileScreen api={api} onSignOut={signOut} onLocaleChange={handleLocaleChange} />}
       </AppShell>
     </ToastProvider>
   );

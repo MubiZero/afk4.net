@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useI18n } from '@afk4/i18n';
+import type { MessageKey } from '@afk4/i18n';
 import type { PlayerApiClient } from '@/api/playerApi';
 import type { PlayerTopUpIntentDto } from '@/api/types';
 import { majorToMinor } from '@afk4/money';
@@ -9,13 +11,14 @@ const DEFAULT_CURRENCY = 'TJS';
 // Upper bound for a single request: rejects absurd / scientific-notation input (e.g. 1e308 → Infinity → JSON null).
 const MAX_TOPUP_MAJOR = 1_000_000;
 
-function intentStatusLabel(intent: PlayerTopUpIntentDto): string {
-  if (intent.state === 'fulfilled') return 'Зачислено';
-  if (intent.isExpired) return 'Истекло';
-  return 'Ожидает';
+function intentStateKey(intent: PlayerTopUpIntentDto): MessageKey {
+  if (intent.state === 'fulfilled') return 'customer.wallet.stateFulfilled';
+  if (intent.isExpired) return 'customer.wallet.stateExpired';
+  return 'customer.wallet.statePending';
 }
 
 export function WalletPanel({ api, phoneVerified }: { api: PlayerApiClient; phoneVerified: boolean }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [intents, setIntents] = useState<PlayerTopUpIntentDto[]>([]);
   const [amount, setAmount] = useState('');
@@ -35,17 +38,17 @@ export function WalletPanel({ api, phoneVerified }: { api: PlayerApiClient; phon
     event.preventDefault();
     const major = Number(amount.trim().replace(',', '.'));
     if (!Number.isFinite(major) || major <= 0 || major > MAX_TOPUP_MAJOR) {
-      toast({ title: 'Введите сумму больше нуля', variant: 'error' });
+      toast({ title: t('customer.wallet.amountError'), variant: 'error' });
       return;
     }
     setPending(true);
     try {
       await api.createTopUpIntent({ amountMinorUnits: majorToMinor(major), currencyCode: DEFAULT_CURRENCY });
       setAmount('');
-      toast({ title: 'Заявка на пополнение отправлена', variant: 'success' });
+      toast({ title: t('customer.wallet.sent'), variant: 'success' });
       refreshIntents();
     } catch {
-      toast({ title: 'Не удалось отправить заявку', variant: 'error' });
+      toast({ title: t('customer.wallet.sendError'), variant: 'error' });
     } finally {
       setPending(false);
     }
@@ -53,11 +56,11 @@ export function WalletPanel({ api, phoneVerified }: { api: PlayerApiClient; phon
 
   return (
     <section className="rounded-2xl bg-[var(--color-surface)] p-4">
-      <h2 className="text-xs uppercase tracking-wide text-[var(--text-3)]">Пополнить кошелёк</h2>
+      <h2 className="text-xs uppercase tracking-wide text-[var(--text-3)]">{t('customer.wallet.title')}</h2>
 
       {phoneVerified ? (
         <form className="mt-3 flex gap-2" onSubmit={handleSubmit}>
-          <label htmlFor="topup-amount" className="sr-only">Сумма</label>
+          <label htmlFor="topup-amount" className="sr-only">{t('customer.wallet.amount')}</label>
           <input
             id="topup-amount"
             type="text"
@@ -72,12 +75,12 @@ export function WalletPanel({ api, phoneVerified }: { api: PlayerApiClient; phon
             disabled={pending}
             className="h-11 rounded-xl bg-[var(--accent)] px-4 text-sm font-bold text-[var(--accent-fg)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
           >
-            {pending ? 'Отправка…' : 'Запросить'}
+            {pending ? t('customer.wallet.requesting') : t('customer.wallet.request')}
           </button>
         </form>
       ) : (
         <p className="mt-3 rounded-xl border border-dashed border-[var(--color-border)] p-3 text-sm text-[var(--text-2)]">
-          Чтобы пополнять кошелёк онлайн, подтвердите номер телефона у администратора клуба. Подтверждение по SMS появится позже.
+          {t('customer.wallet.gate')}
         </p>
       )}
 
@@ -87,7 +90,7 @@ export function WalletPanel({ api, phoneVerified }: { api: PlayerApiClient; phon
             <li key={intent.paymentIntentId} className="flex items-center justify-between text-sm">
               <span>{formatMoney(intent.amountMinorUnits, intent.currencyCode)}</span>
               <span className={intent.state === 'fulfilled' ? 'text-[var(--accent)]' : 'text-[var(--text-2)]'}>
-                {intentStatusLabel(intent)}
+                {t(intentStateKey(intent))}
               </span>
             </li>
           ))}

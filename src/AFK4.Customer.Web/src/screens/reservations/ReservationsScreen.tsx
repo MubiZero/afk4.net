@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useI18n } from '@afk4/i18n';
+import type { MessageKey } from '@afk4/i18n';
 import type { PlayerApiClient } from '@/api/playerApi';
 import type { PlayerReservationDto } from '@/api/types';
 import { formatDateTime } from '@/lib/datetime';
 import { useToast } from '@/components/ui/toast';
 
-const STATE_LABELS: Record<string, string> = {
-  pending: 'Ожидает подтверждения',
-  confirmed: 'Подтверждена',
-  seated: 'Вы за местом',
-  cancelled: 'Отменена'
+const STATE_KEYS: Record<string, MessageKey> = {
+  pending: 'customer.reservations.statePending',
+  confirmed: 'customer.reservations.stateConfirmed',
+  seated: 'customer.reservations.stateSeated',
+  cancelled: 'customer.reservations.stateCancelled'
 };
 
 export function ReservationsScreen({ api, phoneVerified }: { api: PlayerApiClient; phoneVerified: boolean }) {
+  const { t } = useI18n();
   const { toast } = useToast();
   const [reservations, setReservations] = useState<PlayerReservationDto[] | null>(null);
   const [startsAt, setStartsAt] = useState('');
@@ -33,7 +36,7 @@ export function ReservationsScreen({ api, phoneVerified }: { api: PlayerApiClien
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!startsAt || !endsAt) {
-      toast({ title: 'Укажите начало и конец', variant: 'error' });
+      toast({ title: t('customer.reservations.timeError'), variant: 'error' });
       return;
     }
     setPending(true);
@@ -44,65 +47,65 @@ export function ReservationsScreen({ api, phoneVerified }: { api: PlayerApiClien
       });
       setStartsAt('');
       setEndsAt('');
-      toast({ title: 'Бронь создана', variant: 'success' });
+      toast({ title: t('customer.reservations.created'), variant: 'success' });
       refresh();
     } catch (error: unknown) {
       const status = (error as { status?: number }).status;
-      toast({ title: status === 409 ? 'Это время уже занято' : 'Не удалось создать бронь', variant: 'error' });
+      toast({ title: status === 409 ? t('customer.reservations.conflict') : t('customer.reservations.createError'), variant: 'error' });
     } finally {
       setPending(false);
     }
   }
 
   async function handleCancel(reservationId: string) {
-    if (!globalThis.confirm('Отменить бронь?')) return;
+    if (!globalThis.confirm(t('customer.reservations.cancelConfirm'))) return;
     try {
       await api.cancelReservation(reservationId);
-      toast({ title: 'Бронь отменена', variant: 'success' });
+      toast({ title: t('customer.reservations.cancelled'), variant: 'success' });
       refresh();
     } catch {
-      toast({ title: 'Не удалось отменить', variant: 'error' });
+      toast({ title: t('customer.reservations.cancelError'), variant: 'error' });
     }
   }
 
   return (
     <main className="space-y-5 px-6 py-6">
-      <h1 className="text-2xl font-extrabold tracking-tight">Брони</h1>
+      <h1 className="text-2xl font-extrabold tracking-tight">{t('customer.reservations.title')}</h1>
 
       {phoneVerified ? (
         <form className="space-y-3 rounded-2xl bg-[var(--color-surface)] p-4" onSubmit={handleCreate}>
           <div className="space-y-1.5">
-            <label htmlFor="res-start" className="text-sm text-[var(--text-2)]">Начало</label>
+            <label htmlFor="res-start" className="text-sm text-[var(--text-2)]">{t('customer.reservations.start')}</label>
             <input id="res-start" type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)}
               className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 text-base outline-none focus-visible:outline-2 focus-visible:outline-[var(--accent)]" />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="res-end" className="text-sm text-[var(--text-2)]">Конец</label>
+            <label htmlFor="res-end" className="text-sm text-[var(--text-2)]">{t('customer.reservations.end')}</label>
             <input id="res-end" type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)}
               className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-3 text-base outline-none focus-visible:outline-2 focus-visible:outline-[var(--accent)]" />
           </div>
           <button type="submit" disabled={pending}
             className="h-11 w-full rounded-xl bg-[var(--accent)] text-sm font-bold text-[var(--accent-fg)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
-            {pending ? 'Создаём…' : 'Забронировать'}
+            {pending ? t('customer.reservations.creating') : t('customer.reservations.create')}
           </button>
         </form>
       ) : (
         <p className="rounded-2xl border border-dashed border-[var(--color-border)] p-4 text-sm text-[var(--text-2)]">
-          Чтобы бронировать онлайн, подтвердите номер телефона у администратора клуба. Подтверждение по SMS появится позже.
+          {t('customer.reservations.gate')}
         </p>
       )}
 
       {reservations === null && <div role="status" aria-label="Загрузка броней" className="h-20 animate-pulse rounded-2xl bg-[var(--color-surface)]" />}
       {reservations !== null && reservations.length === 0 && (
-        <p className="py-8 text-center text-[var(--text-2)]">Броней пока нет</p>
+        <p className="py-8 text-center text-[var(--text-2)]">{t('customer.reservations.none')}</p>
       )}
       {reservations !== null && reservations.length > 0 && (
         <ul className="space-y-3">
           {reservations.map((reservation) => (
             <li key={reservation.reservationId} className="rounded-2xl bg-[var(--color-surface)] p-4">
               <div className="flex items-center justify-between">
-                <span className="font-bold">{reservation.seatName ?? 'Без места'}</span>
-                <span className="text-sm text-[var(--text-2)]">{STATE_LABELS[reservation.state] ?? reservation.state}</span>
+                <span className="font-bold">{reservation.seatName ?? t('customer.reservations.noSeat')}</span>
+                <span className="text-sm text-[var(--text-2)]">{STATE_KEYS[reservation.state] ? t(STATE_KEYS[reservation.state]) : reservation.state}</span>
               </div>
               <p className="mt-1 text-sm text-[var(--text-2)]">
                 {formatDateTime(reservation.startsAtUtc)} — {formatDateTime(reservation.endsAtUtc)}
@@ -110,7 +113,7 @@ export function ReservationsScreen({ api, phoneVerified }: { api: PlayerApiClien
               {(reservation.state === 'pending' || reservation.state === 'confirmed') && (
                 <button type="button" onClick={() => handleCancel(reservation.reservationId)}
                   className="mt-2 min-h-[44px] text-sm text-red-400 focus-visible:outline-2 focus-visible:outline-[var(--accent)]">
-                  Отменить
+                  {t('customer.reservations.cancel')}
                 </button>
               )}
             </li>

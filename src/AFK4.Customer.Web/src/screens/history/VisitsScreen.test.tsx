@@ -1,5 +1,6 @@
 import { it, expect, mock } from 'bun:test';
 import { render, screen } from '@testing-library/react';
+import { I18nProvider } from '@afk4/i18n';
 import { VisitsScreen } from './VisitsScreen';
 import type { PlayerApiClient } from '@/api/playerApi';
 
@@ -17,7 +18,7 @@ it('renders a visit row with seat, total and a receipt link', async () => {
     }],
     nextCursor: null
   });
-  render(<VisitsScreen api={api} onOpenReceipt={() => {}} />);
+  render(<I18nProvider><VisitsScreen api={api} onOpenReceipt={() => {}} /></I18nProvider>);
   expect(await screen.findByText('PC-14')).toBeInTheDocument();
   expect(screen.getByText('150,00 TJS')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /чек/i })).toBeInTheDocument();
@@ -25,6 +26,6 @@ it('renders a visit row with seat, total and a receipt link', async () => {
 
 it('renders an empty state when there are no visits', async () => {
   const api = apiWith({ items: [], nextCursor: null });
-  render(<VisitsScreen api={api} onOpenReceipt={() => {}} />);
+  render(<I18nProvider><VisitsScreen api={api} onOpenReceipt={() => {}} /></I18nProvider>);
   expect(await screen.findByText('Пока нет визитов')).toBeInTheDocument();
 });

@@ -1,14 +1,17 @@
 import { it, expect, mock } from 'bun:test';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '@/components/ui/toast';
 import { ProfileScreen } from './ProfileScreen';
 import type { PlayerApiClient } from '@/api/playerApi';
 
 function renderScreen(api: PlayerApiClient, onSignOut = () => {}) {
   return render(
-    <ToastProvider autoDismissMs={1000}>
-      <ProfileScreen api={api} onSignOut={onSignOut} onLocaleChange={() => {}} />
-    </ToastProvider>
+    <I18nProvider>
+      <ToastProvider autoDismissMs={1000}>
+        <ProfileScreen api={api} onSignOut={onSignOut} onLocaleChange={() => {}} />
+      </ToastProvider>
+    </I18nProvider>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useI18n } from '@afk4/i18n';
 import type { PlayerApiClient } from '@/api/playerApi';
 import type { PlayerVisitReceiptDto } from '@/api/types';
 import { formatMoney } from '@/lib/money';
@@ -11,6 +12,7 @@ type Load =
   | { state: 'ready'; receipt: PlayerVisitReceiptDto };
 
 export function ReceiptScreen({ api, sessionId, onBack }: { api: PlayerApiClient; sessionId: string; onBack: () => void }) {
+  const { t } = useI18n();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
 
   useEffect(() => {
@@ -27,11 +29,11 @@ export function ReceiptScreen({ api, sessionId, onBack }: { api: PlayerApiClient
 
   return (
     <main className="px-6 py-6">
-      <button type="button" onClick={onBack} className="mb-4 min-h-[44px] text-sm text-[var(--text-2)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">← Назад</button>
+      <button type="button" onClick={onBack} className="mb-4 min-h-[44px] text-sm text-[var(--text-2)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">{t('customer.common.back')}</button>
 
       {load.state === 'loading' && <div role="status" aria-label="Загрузка чека" className="h-48 animate-pulse rounded-2xl bg-[var(--color-surface)]" />}
-      {load.state === 'notfound' && <p className="py-12 text-center text-[var(--text-2)]">Чек не найден</p>}
-      {load.state === 'error' && <p className="py-12 text-center text-red-400">Не удалось загрузить чек.</p>}
+      {load.state === 'notfound' && <p className="py-12 text-center text-[var(--text-2)]">{t('customer.receipt.notFound')}</p>}
+      {load.state === 'error' && <p className="py-12 text-center text-red-400">{t('customer.receipt.loadError')}</p>}
 
       {load.state === 'ready' && (
         <article className="space-y-4 rounded-2xl bg-[var(--color-surface)] p-5">
@@ -44,7 +46,7 @@ export function ReceiptScreen({ api, sessionId, onBack }: { api: PlayerApiClient
           </p>
 
           <div className="flex justify-between border-t border-[var(--color-border)] pt-3 text-sm">
-            <span className="text-[var(--text-2)]">Время</span>
+            <span className="text-[var(--text-2)]">{t('customer.receipt.time')}</span>
             <span>{formatMoney(load.receipt.timeChargeMinorUnits, load.receipt.currencyCode)}</span>
           </div>
 
@@ -60,7 +62,7 @@ export function ReceiptScreen({ api, sessionId, onBack }: { api: PlayerApiClient
           )}
 
           <div className="flex justify-between border-t border-[var(--color-border)] pt-3 text-base font-extrabold">
-            <span>Итого</span>
+            <span>{t('customer.receipt.total')}</span>
             <span>{formatMoney(load.receipt.grandTotalMinorUnits, load.receipt.currencyCode)}</span>
           </div>
         </article>
