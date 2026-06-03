@@ -8,9 +8,9 @@ import {
 function makeStorage(): Storage {
   const map = new Map<string, string>();
   return {
-    getItem: (k) => map.get(k) ?? null,
-    setItem: (k, v) => { map.set(k, v); },
-    removeItem: (k) => { map.delete(k); },
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => { map.set(k, v); },
+    removeItem: (k: string) => { map.delete(k); },
     clear: () => map.clear(),
     key: () => null,
     length: 0
