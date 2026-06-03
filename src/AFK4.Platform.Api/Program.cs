@@ -857,6 +857,41 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
         IsExpired: false));
 }).RequireRateLimiting("player-me");
 
+app.MapGet("/api/me/wallet/top-up-intents", async (
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var now = DateTimeOffset.UtcNow;
+    var expiryCutoff = now.AddHours(-24);
+
+    var intents = await dbContext.PaymentIntents
+        .AsNoTracking()
+        .Where(intent => intent.PlayerAccountId == player.PlayerAccountId)
+        .OrderByDescending(intent => intent.CreatedAtUtc)
+        .ToListAsync(cancellationToken);
+
+    var dtos = intents.Select(intent => new PlayerTopUpIntentDto(
+        intent.PaymentIntentId,
+        intent.AmountMinorUnits,
+        intent.CurrencyCode,
+        intent.State,
+        intent.Purpose,
+        intent.Method,
+        intent.CreatedAtUtc,
+        intent.FulfilledAtUtc,
+        IsExpired: intent.State == "pending" && intent.CreatedAtUtc < expiryCutoff))
+        .ToList();
+
+    return Results.Ok(dtos);
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/auth/staff/forgot-password", async (
     StaffForgotPasswordRequest request,
     IStaffPasswordResetService passwordResetService,

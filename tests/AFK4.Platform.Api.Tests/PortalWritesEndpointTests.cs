@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -230,6 +231,106 @@ public class PortalWritesEndpointTests
         var intent2 = await db.PaymentIntents.FindAsync(dto2!.PaymentIntentId);
         Assert.Equal(p1.PlayerId, intent1!.PlayerAccountId);
         Assert.Equal(p2.PlayerId, intent2!.PlayerAccountId);
+    }
+
+    // ---- A3: GET /api/me/wallet/top-up-intents ----
+
+    private static async Task<Guid> SeedPaymentIntentAsync(
+        PlatformApiFactory factory,
+        Guid orgId, Guid branchId, Guid playerId,
+        string state, DateTimeOffset createdAtUtc, long amountMinorUnits = 5_000)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var intentId = Guid.NewGuid();
+        db.PaymentIntents.Add(new PaymentIntentEntity
+        {
+            PaymentIntentId = intentId,
+            PlayerAccountId = playerId,
+            OrganizationId = orgId,
+            BranchId = branchId,
+            AmountMinorUnits = amountMinorUnits,
+            CurrencyCode = "TJS",
+            Purpose = "wallet_topup",
+            State = state,
+            Method = "counter",
+            FulfilledByLedgerEntryId = null,
+            CreatedAtUtc = createdAtUtc,
+            FulfilledAtUtc = state == "fulfilled" ? createdAtUtc.AddMinutes(5) : null
+        });
+        await db.SaveChangesAsync();
+        return intentId;
+    }
+
+    [Fact]
+    public async Task ListTopUpIntents_ReturnsOwnIntents_NewestFirst()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var t1 = DateTimeOffset.UtcNow.AddHours(-2);
+        var t2 = DateTimeOffset.UtcNow.AddHours(-1);
+        await SeedPaymentIntentAsync(factory, p.OrgId, p.BranchId, p.PlayerId, "pending", t1, 3_000);
+        await SeedPaymentIntentAsync(factory, p.OrgId, p.BranchId, p.PlayerId, "fulfilled", t2, 7_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.GetAsync("/api/me/wallet/top-up-intents");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var list = await response.Content.ReadFromJsonAsync<IReadOnlyList<PlayerTopUpIntentDto>>();
+        Assert.Equal(2, list!.Count);
+        Assert.Equal(7_000, list[0].AmountMinorUnits);   // newest first (t2)
+        Assert.Equal(3_000, list[1].AmountMinorUnits);   // oldest (t1)
+    }
+
+    [Fact]
+    public async Task ListTopUpIntents_ExpiredFlag_ComputedCorrectly()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        // Pending but created >24h ago → IsExpired = true
+        var oldTs = DateTimeOffset.UtcNow.AddHours(-25);
+        await SeedPaymentIntentAsync(factory, p.OrgId, p.BranchId, p.PlayerId, "pending", oldTs, 1_000);
+        // Fulfilled but old → IsExpired = false (not pending)
+        var veryOldTs = DateTimeOffset.UtcNow.AddHours(-48);
+        await SeedPaymentIntentAsync(factory, p.OrgId, p.BranchId, p.PlayerId, "fulfilled", veryOldTs, 2_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var list = await (await client.GetAsync("/api/me/wallet/top-up-intents"))
+            .Content.ReadFromJsonAsync<IReadOnlyList<PlayerTopUpIntentDto>>();
+
+        var expired = list!.Single(x => x.AmountMinorUnits == 1_000);
+        var fulfilled = list!.Single(x => x.AmountMinorUnits == 2_000);
+        Assert.True(expired.IsExpired);
+        Assert.False(fulfilled.IsExpired);
+    }
+
+    [Fact]
+    public async Task ListTopUpIntents_DoesNotReturnOtherPlayersIntents()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p1 = await SeedPlayerAsync(factory, "1111");
+        var p2 = await SeedPlayerAsync(factory, "2222");
+        await SeedPaymentIntentAsync(factory, p2.OrgId, p2.BranchId, p2.PlayerId, "pending", DateTimeOffset.UtcNow, 9_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p1.OrgId, p1.Phone, "1111");
+
+        var list = await (await client.GetAsync("/api/me/wallet/top-up-intents"))
+            .Content.ReadFromJsonAsync<IReadOnlyList<PlayerTopUpIntentDto>>();
+
+        Assert.Empty(list!);
+    }
+
+    [Fact]
+    public async Task ListTopUpIntents_WithoutToken_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/me/wallet/top-up-intents");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // ---- A1: round-trip persist test ----
