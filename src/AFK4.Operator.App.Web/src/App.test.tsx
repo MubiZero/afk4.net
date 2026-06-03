@@ -634,7 +634,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: /Продажи/ })).toBeInTheDocument();
 
     const workspaceButtons = within(screen.getByRole('navigation')).getAllByRole('button');
-    const settingsButton = workspaceButtons.at(-1);
+    const settingsButton = workspaceButtons.at(-2);
     expect(settingsButton).toBeDefined();
     expect(settingsButton).toBeEnabled();
 
@@ -2659,6 +2659,89 @@ describe('App', () => {
       reason: 'Пауза для проверки ошибок.'
     });
   });
+
+  it('locks the review workspace without the approve permission', async () => {
+    installSessionBridge(createSession({ permissions: ['floor_map.view'] }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+
+    const reviewNav = screen.getByTitle('Проверка');
+    expect(reviewNav.className).toContain('locked');
+  });
+
+  it('opens the review workspace for a manager', async () => {
+    installSessionBridge(createSession({ displayName: 'Manager One' }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+
+    fireEvent.click(screen.getByTitle('Проверка'));
+    expect(await screen.findByRole('heading', { name: /Проверка/ })).toBeInTheDocument();
+  });
+
+  it('renders the pending money-action queue and approves a request', async () => {
+    installSessionBridge(createSession({ displayName: 'Manager One' }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    fireEvent.click(screen.getByTitle('Проверка'));
+
+    expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
+    expect(screen.getByText(/Возврат/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Одобрить' }));
+
+    await waitFor(() => {
+      const approved = fetchMock.mock.calls.some(([input, init]) =>
+        String(input).endsWith('/money-actions/77777777-7777-7777-7777-777777777777/approve')
+        && (init as RequestInit | undefined)?.method === 'POST');
+      expect(approved).toBe(true);
+    });
+  });
+
+  it('requires a reason before rejecting a money action', async () => {
+    installSessionBridge(createSession({ displayName: 'Manager One' }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    fireEvent.click(screen.getByTitle('Проверка'));
+    await screen.findByText('Клиент отменил заказ');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить отклонение' }));
+    expect(await screen.findByText('Укажите причину отклонения.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Причина отклонения'), { target: { value: 'Нет чека' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить отклонение' }));
+
+    await waitFor(() => {
+      const rejected = fetchMock.mock.calls.find(([input, init]) =>
+        String(input).endsWith('/money-actions/77777777-7777-7777-7777-777777777777/reject')
+        && (init as RequestInit | undefined)?.method === 'POST');
+      expect(rejected).toBeDefined();
+      expect(JSON.parse(String((rejected![1] as RequestInit).body))).toEqual({ decisionReason: 'Нет чека' });
+    });
+  });
+
+  it('builds an audit query from staff and amount filters', async () => {
+    installSessionBridge(createSession({ displayName: 'Manager One' }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    fireEvent.click(screen.getByTitle('Проверка'));
+    await screen.findByText('Клиент отменил заказ');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Журнал операций' }));
+    fireEvent.change(screen.getByLabelText('Сотрудник'), { target: { value: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134' } });
+    fireEvent.change(screen.getByLabelText('Сумма от'), { target: { value: '1000' } });
+    fireEvent.change(screen.getByLabelText('Сумма до'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
+
+    await waitFor(() => {
+      const auditCall = fetchMock.mock.calls.find(([input]) =>
+        String(input).includes('/audit?') && String(input).includes('actorStaffUserId=3db1367b'));
+      expect(auditCall).toBeDefined();
+      const url = String(auditCall![0]);
+      expect(url).toContain('minAmount=1000');
+      expect(url).toContain('maxAmount=5000');
+    });
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -2935,6 +3018,18 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
       staffUserId: pathname.split('/').at(-2),
       roleNames: body.roleNames
     }));
+  }
+
+  if (pathname.includes('/money-actions/') && pathname.endsWith('/approve') && init?.method === 'POST') {
+    return jsonResponse({ outcome: 'approved' });
+  }
+
+  if (pathname.includes('/money-actions/') && pathname.endsWith('/reject') && init?.method === 'POST') {
+    return jsonResponse({ outcome: 'rejected' });
+  }
+
+  if (pathname.endsWith('/money-actions') && init?.method !== 'POST') {
+    return jsonResponse(createMoneyActionRequests());
   }
 
   if (pathname.endsWith('/staff')) {
@@ -3238,7 +3333,8 @@ const allOperatorPermissions = [
   'updates.packages.manage',
   'updates.rollouts.manage',
   'devices.commands.status.view',
-  'audit.view'
+  'audit.view',
+  'billing.money_action.approve'
 ];
 
 function createSession(overrides: Record<string, unknown> = {}) {
@@ -3868,6 +3964,27 @@ function createStaffUsers() {
       roleNames: ['cashier_operator']
     })
   ];
+}
+
+function createMoneyActionRequests() {
+  return {
+    requests: [
+      {
+        moneyActionRequestId: '77777777-7777-7777-7777-777777777777',
+        organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+        branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+        shiftId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        actionType: 'refund',
+        requestedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+        amountMinorUnits: 12000,
+        currencyCode: 'TJS',
+        reason: 'Клиент отменил заказ',
+        state: 'pending',
+        createdAtUtc: '2026-06-03T08:00:00Z',
+        expiresAtUtc: '2026-06-04T08:00:00Z'
+      }
+    ]
+  };
 }
 
 function createBranchProfile(overrides: Record<string, unknown> = {}) {

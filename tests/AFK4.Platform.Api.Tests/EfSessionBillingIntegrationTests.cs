@@ -642,6 +642,40 @@ public sealed class EfSessionBillingIntegrationTests
         Assert.Equal(0, charge.AmountMinorUnits);
     }
 
+    [Fact]
+    public async Task ComputeCheckoutChargeAsync_CompSession_ReturnsZeroDespiteBillableTariff()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        var tariffVersion = await SeedTariffVersionAsync(db);
+        var sessionId = Guid.NewGuid();
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = sessionId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = SeatId,
+            DeviceId = TestIds.DeviceId,
+            CreatedByStaffUserId = ActorStaffUserId,
+            PlayerKind = "guest",
+            // A real, billable tariff version id — without the comp guard this would accrue a charge.
+            TariffRuleVersionId = tariffVersion.TariffVersionId.ToString("D"),
+            State = SessionStateNames.Active,
+            RequestedAtUtc = Now,
+            StartedAtUtc = Now,
+            IsComp = true,
+            CompValueMinorUnits = 2250,
+            UpdatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+
+        var billing = CreateBillingService(db);
+        var charge = await billing.ComputeCheckoutChargeAsync(sessionId, Now.AddMinutes(40), CancellationToken.None);
+
+        Assert.True(charge.Succeeded);
+        Assert.Equal(0, charge.AmountMinorUnits);
+    }
+
     private static SessionBillingService CreateBillingService(PlatformDbContext db)
     {
         var timeProvider = new FixedTimeProvider(Now);

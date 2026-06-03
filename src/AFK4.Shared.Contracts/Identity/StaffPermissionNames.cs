@@ -44,6 +44,9 @@ public static class StaffPermissionNames
 
     public const string PayDebt = "billing.debt.pay";
 
+    // Anti-fraud (§5.2/D2): approve an over-threshold high-risk money action raised by another actor.
+    public const string ApproveMoneyAction = "billing.money_action.approve";
+
     public const string ViewSubscription = "billing.subscription.view";
 
     public const string ManageTariffs = "tariffs.manage";

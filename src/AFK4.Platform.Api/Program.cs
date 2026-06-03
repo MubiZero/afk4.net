@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
+using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -244,6 +245,9 @@ builder.Services.AddSingleton(new AutoProtectionOptions());
 builder.Services.AddScoped<AutoProtectionRunner>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
+builder.Services.AddScoped<IMoneyActionPolicyResolver, EfMoneyActionPolicyResolver>();
+builder.Services.AddScoped<IMoneyActionExecutor, EfMoneyActionExecutor>();
+builder.Services.AddScoped<IMoneyActionApprovalService, MoneyActionApprovalService>();
 builder.Services.AddScoped<ITariffService, EfTariffService>();
 builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
@@ -4115,7 +4119,8 @@ app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
         branchId,
         authorization.StaffContext.StaffUserId,
         request,
-        cancellationToken);
+        cancellationToken,
+        actorCanApproveComp: authorization.StaffContext.Permissions.Contains(StaffPermissionNames.ApproveMoneyAction));
 
     if (result.Conflict)
     {
@@ -4132,20 +4137,23 @@ app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
         return Results.BadRequest(new { Error = result.Error });
     }
 
+    // §5.4: a comp (free session) is audited as a first-class session.comp with its reason and its
+    // assessed value, so the owner summary / Review screen can surface free sessions in money terms.
     await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
         authorization.StaffContext.OrganizationId,
         branchId,
         authorization.StaffContext.StaffUserId,
-        AuditActionNames.StartSession,
+        request.IsComp ? AuditActionNames.SessionComp : AuditActionNames.StartSession,
         "Session",
         result.Response!.Session.SessionId.ToString("D"),
         AuditOutcome.Succeeded,
         "PlatformApi",
-        JsonSerializer.Serialize(new
-        {
-            request.SeatId,
-            request.DurationMinutes
-        })),
+        request.IsComp
+            ? JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes, request.CompReason, CompValueMinorUnits = result.Response.CompValueMinorUnits })
+            : JsonSerializer.Serialize(new { request.SeatId, request.DurationMinutes }))
+    {
+        AmountMinorUnits = request.IsComp ? result.Response.CompValueMinorUnits : null
+    },
         cancellationToken);
 
     return Results.Ok(result.Response);
@@ -6497,6 +6505,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IBillingCommandService billingCommandService,
+    IMoneyActionPolicyResolver moneyActionPolicyResolver,
     CancellationToken cancellationToken) =>
 {
     var player = await LoadPlayerScopedEndpointAsync(
@@ -6553,6 +6562,24 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
         return Results.NotFound();
     }
 
+    // §5.2: gate the direct refund through the same guard as /money-actions. Over-threshold/over-cap
+    // refunds cannot be pushed straight to the ledger here — they must go through the approval front door.
+    var refundGate = await GuardLegacyMoneyActionAsync(
+        dbContext,
+        moneyActionPolicyResolver,
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.BranchId,
+        authorization.StaffContext.StaffUserId,
+        MoneyActionType.Refund,
+        originalEntry.AccountType,
+        -Math.Abs(request.Amount.MinorUnits),
+        cancellationToken);
+    if (refundGate is not null)
+    {
+        return refundGate;
+    }
+
     var result = await billingCommandService.RefundLedgerEntryAsync(
         player.BranchId,
         authorization.StaffContext.StaffUserId,
@@ -6574,7 +6601,8 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/ref
         result.Response!.LedgerEntryId.ToString("D"),
         AuditOutcome.Succeeded,
         new { request.LedgerEntryId, request.Amount },
-        cancellationToken);
+        cancellationToken,
+        amountMinorUnits: Math.Abs(request.Amount.MinorUnits));
 
     return Results.Ok(result.Response);
 });
@@ -6587,6 +6615,7 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IBillingCommandService billingCommandService,
+    IMoneyActionPolicyResolver moneyActionPolicyResolver,
     CancellationToken cancellationToken) =>
 {
     var player = await LoadPlayerScopedEndpointAsync(
@@ -6624,6 +6653,24 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
         return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
     }
 
+    // §5.2: gate the direct correction through the same guard as /money-actions. Over-threshold/over-cap
+    // corrections (including debt write-offs) cannot bypass the approval front door here.
+    var correctionGate = await GuardLegacyMoneyActionAsync(
+        dbContext,
+        moneyActionPolicyResolver,
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        player.BranchId,
+        authorization.StaffContext.StaffUserId,
+        MoneyActionType.ManualCorrection,
+        request.AccountType,
+        request.Amount.MinorUnits,
+        cancellationToken);
+    if (correctionGate is not null)
+    {
+        return correctionGate;
+    }
+
     var result = await billingCommandService.ManualCorrectionAsync(
         playerAccountId,
         player.BranchId,
@@ -6646,9 +6693,324 @@ app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", asy
         playerAccountId.ToString("D"),
         AuditOutcome.Succeeded,
         new { request.AccountType, request.Amount, request.QuantitySeconds },
-        cancellationToken);
+        cancellationToken,
+        amountMinorUnits: Math.Abs(request.Amount.MinorUnits));
 
     return Results.Ok(result.Response);
+});
+
+// Anti-fraud control layer (§5.2): the guarded front door for high-risk money actions. The guard
+// decides execute-now / hold-for-approval / refuse before any ledger write; approval replays the
+// action through the verified billing path with a second pair of eyes.
+app.MapPost("/api/branches/{branchId:guid}/money-actions", async (
+    Guid branchId,
+    MoneyActionSubmitRequest request,
+    PlatformDbContext dbContext,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IOpenShiftResolver openShiftResolver,
+    IMoneyActionApprovalService approvalService,
+    CancellationToken cancellationToken) =>
+{
+    if (!TryParseMoneyActionType(request.ActionType, out var requestedType, out var requiredPermission))
+    {
+        return Results.BadRequest(new { Error = "ActionType must be 'refund' or 'manual_correction'." });
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId, requiredPermission, cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.MoneyActionRequested,
+            "MoneyAction",
+            null,
+            AuditOutcome.Denied,
+            new { request.ActionType, request.SignedAmountMinorUnits, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    if (request.OrganizationId != staffContext.OrganizationId)
+    {
+        return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+    }
+
+    if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+    {
+        return Results.BadRequest(new { Error = "IdempotencyKey is required." });
+    }
+
+    if (requestedType == MoneyActionType.Refund && request.LedgerEntryId is null)
+    {
+        return Results.BadRequest(new { Error = "A refund requires the target LedgerEntryId." });
+    }
+
+    var openShift = await openShiftResolver.GetOpenShiftIdAsync(
+        staffContext.OrganizationId, branchId, cancellationToken);
+    if (!openShift.Succeeded || openShift.Response == Guid.Empty)
+    {
+        return Results.Conflict(new { Error = openShift.Error ?? "An open shift is required." });
+    }
+
+    var roleNames = await GetActorRoleNamesAsync(
+        dbContext, staffContext.StaffUserId, staffContext.OrganizationId, cancellationToken);
+
+    var command = new MoneyActionCommand(
+        requestedType,
+        request.PlayerAccountId,
+        request.LedgerEntryId,
+        request.AccountType,
+        request.SignedAmountMinorUnits,
+        request.CurrencyCode,
+        request.QuantitySeconds,
+        request.Reason,
+        request.IdempotencyKey);
+
+    var result = await approvalService.RequestAsync(
+        staffContext.OrganizationId, branchId, openShift.Response, staffContext.StaffUserId,
+        roleNames, command, cancellationToken);
+
+    switch (result.Outcome)
+    {
+        case MoneyActionRequestOutcome.Executed:
+            await WriteAuditAsync(
+                auditRecordWriter,
+                staffContext.OrganizationId,
+                branchId,
+                staffContext.StaffUserId,
+                AuditActionNames.MoneyActionExecuted,
+                "MoneyAction",
+                result.ResultingLedgerEntryId?.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { request.ActionType, request.SignedAmountMinorUnits, request.CurrencyCode },
+                cancellationToken,
+                amountMinorUnits: Math.Abs(request.SignedAmountMinorUnits));
+            return Results.Ok(new MoneyActionSubmitResponse("executed", result.ResultingLedgerEntryId, null));
+
+        case MoneyActionRequestOutcome.PendingApproval:
+            await WriteAuditAsync(
+                auditRecordWriter,
+                staffContext.OrganizationId,
+                branchId,
+                staffContext.StaffUserId,
+                AuditActionNames.MoneyActionRequested,
+                "MoneyAction",
+                result.MoneyActionRequestId?.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { request.ActionType, request.SignedAmountMinorUnits, request.CurrencyCode },
+                cancellationToken,
+                amountMinorUnits: Math.Abs(request.SignedAmountMinorUnits));
+            return Results.Json(
+                new MoneyActionSubmitResponse("pending_approval", null, result.MoneyActionRequestId),
+                statusCode: StatusCodes.Status202Accepted);
+
+        default:
+            if (result.NotFound)
+            {
+                return Results.NotFound(new { result.Error });
+            }
+
+            return result.Conflict
+                ? Results.Conflict(new { result.Error })
+                : Results.Json(new { result.Error }, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+});
+
+app.MapPost("/api/branches/{branchId:guid}/money-actions/{moneyActionRequestId:guid}/approve", async (
+    Guid branchId,
+    Guid moneyActionRequestId,
+    MoneyActionDecisionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IMoneyActionApprovalService approvalService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.MoneyActionApproved,
+            "MoneyAction",
+            moneyActionRequestId.ToString("D"),
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    var result = await approvalService.ApproveAsync(
+        staffContext.OrganizationId, branchId, moneyActionRequestId,
+        staffContext.StaffUserId, request.DecisionReason, cancellationToken);
+
+    if (result.Forbidden)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            staffContext.OrganizationId,
+            branchId,
+            staffContext.StaffUserId,
+            AuditActionNames.MoneyActionApproved,
+            "MoneyAction",
+            moneyActionRequestId.ToString("D"),
+            AuditOutcome.Denied,
+            new { result.Error },
+            cancellationToken);
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { result.Error });
+    }
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.Json(new { result.Error }, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        staffContext.OrganizationId,
+        branchId,
+        staffContext.StaffUserId,
+        AuditActionNames.MoneyActionApproved,
+        "MoneyAction",
+        moneyActionRequestId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { result.ResultingLedgerEntryId },
+        cancellationToken);
+
+    return Results.Ok(new MoneyActionSubmitResponse("approved", result.ResultingLedgerEntryId, moneyActionRequestId));
+});
+
+app.MapPost("/api/branches/{branchId:guid}/money-actions/{moneyActionRequestId:guid}/reject", async (
+    Guid branchId,
+    Guid moneyActionRequestId,
+    MoneyActionDecisionRequest request,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IMoneyActionApprovalService approvalService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    var result = await approvalService.RejectAsync(
+        staffContext.OrganizationId, branchId, moneyActionRequestId,
+        staffContext.StaffUserId, request.DecisionReason, cancellationToken);
+
+    if (result.NotFound)
+    {
+        return Results.NotFound(new { result.Error });
+    }
+
+    if (result.Conflict)
+    {
+        return Results.Conflict(new { result.Error });
+    }
+
+    if (!result.Succeeded)
+    {
+        return Results.Json(new { result.Error }, statusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        staffContext.OrganizationId,
+        branchId,
+        staffContext.StaffUserId,
+        AuditActionNames.MoneyActionRejected,
+        "MoneyAction",
+        moneyActionRequestId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { request.DecisionReason },
+        cancellationToken);
+
+    return Results.Ok(new MoneyActionSubmitResponse("rejected", null, moneyActionRequestId));
+});
+
+app.MapGet("/api/branches/{branchId:guid}/money-actions", async (
+    Guid branchId,
+    StaffAuthorizationService authorizationService,
+    IMoneyActionApprovalService approvalService,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var staffContext = authorization.StaffContext!;
+    var pending = await approvalService.ListPendingAsync(
+        staffContext.OrganizationId, branchId, cancellationToken);
+
+    var dtos = pending
+        .Select(request => new MoneyActionRequestDto(
+            request.MoneyActionRequestId,
+            request.OrganizationId,
+            request.BranchId,
+            request.ShiftId,
+            request.ActionType,
+            request.RequestedByStaffUserId,
+            request.AmountMinorUnits,
+            request.CurrencyCode,
+            request.Reason,
+            request.State,
+            request.CreatedAtUtc,
+            request.ExpiresAtUtc))
+        .ToList();
+
+    return Results.Ok(new MoneyActionRequestListResponse(dtos));
 });
 
 app.MapPost("/api/players/{playerAccountId:guid}/debts/payments", async (
@@ -7625,8 +7987,24 @@ app.MapPost("/api/shifts/{shiftId:guid}/close", async (
         "Shift",
         shiftId.ToString("D"),
         AuditOutcome.Succeeded,
-        new { request.CountedCash },
+        new { request.CountedCash, result.Response!.Difference },
         cancellationToken);
+
+    // Anti-fraud §5.7: record the manager sign-off as its own audit fact when a discrepancy was cleared.
+    if (result.Response.ManagerSignOffStaffUserId is { } signOffStaffUserId)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext.OrganizationId,
+            shift.BranchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ShiftSignOff,
+            "Shift",
+            shiftId.ToString("D"),
+            AuditOutcome.Succeeded,
+            new { SignOffStaffUserId = signOffStaffUserId, result.Response.Difference, request.SignOffReason },
+            cancellationToken);
+    }
 
     return Results.Ok(result.Response);
 });
@@ -8380,6 +8758,9 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmountMinorUnits,
+    long? maxAmountMinorUnits,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IReportService reportService,
@@ -8412,7 +8793,7 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit, actorStaffUserId, minAmountMinorUnits, maxAmountMinorUnits);
     var result = await reportService.GetOperatorActionReportAsync(
         authorization.StaffContext!.OrganizationId,
         branchId,
@@ -8433,7 +8814,74 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
             Count = result.Rows.Count,
             result.Limit,
             fromUtc,
-            toUtc
+            toUtc,
+            actorStaffUserId,
+            minAmountMinorUnits,
+            maxAmountMinorUnits
+        },
+        cancellationToken);
+
+    return Results.Ok(result);
+});
+
+// Anti-fraud §5.6: on-demand owner daily summary (the report-endpoint fallback to the notification
+// digest). Defaults to the most recently ended UTC day when no date is given.
+app.MapGet("/api/branches/{branchId:guid}/reports/owner-daily-summary", async (
+    Guid branchId,
+    DateOnly? date,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IReportService reportService,
+    TimeProvider timeProvider,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.ViewReports,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewOwnerDailySummaryReport,
+            "Report",
+            "owner-daily-summary",
+            AuditOutcome.Denied,
+            new { authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var summaryDate = date ?? DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime).AddDays(-1);
+    var result = await reportService.GetOwnerDailySummaryAsync(
+        authorization.StaffContext!.OrganizationId,
+        branchId,
+        summaryDate,
+        cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        authorization.StaffContext.OrganizationId,
+        branchId,
+        authorization.StaffContext.StaffUserId,
+        AuditActionNames.ViewOwnerDailySummaryReport,
+        "Report",
+        "owner-daily-summary",
+        AuditOutcome.Succeeded,
+        new
+        {
+            Date = summaryDate.ToString("yyyy-MM-dd"),
+            ActorCount = result.Rows.Count
         },
         cancellationToken);
 
@@ -8553,6 +9001,9 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions/export.csv", 
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmountMinorUnits,
+    long? maxAmountMinorUnits,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IReportService reportService,
@@ -8572,7 +9023,10 @@ app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions/export.csv", 
         static (service, organizationId, scopedBranchId, query, token) =>
             service.GetOperatorActionReportAsync(organizationId, scopedBranchId, query, token),
         ReportCsvExporter.ExportOperatorActionReport,
-        cancellationToken);
+        cancellationToken,
+        actorStaffUserId,
+        minAmountMinorUnits,
+        maxAmountMinorUnits);
 });
 
 app.MapGet("/api/branches/{branchId:guid}/diagnostics", async (
@@ -9701,6 +10155,9 @@ app.MapGet("/api/branches/{branchId:guid}/audit", async (
     DateTimeOffset? fromUtc,
     DateTimeOffset? toUtc,
     int? limit,
+    Guid? actorStaffUserId,
+    long? minAmount,
+    long? maxAmount,
     StaffAuthorizationService authorizationService,
     IAuditRecordWriter auditRecordWriter,
     IAuditSearchService auditSearchService,
@@ -9733,7 +10190,7 @@ app.MapGet("/api/branches/{branchId:guid}/audit", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit);
+    var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit, actorStaffUserId, minAmount, maxAmount);
     var result = await auditSearchService.SearchAsync(
         authorization.StaffContext!.OrganizationId,
         branchId,
@@ -9829,6 +10286,87 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/status", async (
 app.MapHub<DeviceHub>("/hubs/devices");
 
 app.Run();
+
+static bool TryParseMoneyActionType(string? actionType, out MoneyActionType requestedType, out string requiredPermission)
+{
+    switch (actionType?.Trim().ToLowerInvariant())
+    {
+        case MoneyActionTypeNames.Refund:
+            requestedType = MoneyActionType.Refund;
+            requiredPermission = StaffPermissionNames.RefundLedgerEntry;
+            return true;
+        case MoneyActionTypeNames.ManualCorrection:
+            requestedType = MoneyActionType.ManualCorrection;
+            requiredPermission = StaffPermissionNames.ManualLedgerCorrection;
+            return true;
+        default:
+            requestedType = default;
+            requiredPermission = string.Empty;
+            return false;
+    }
+}
+
+static async Task<IReadOnlyCollection<string>> GetActorRoleNamesAsync(
+    PlatformDbContext dbContext,
+    Guid staffUserId,
+    Guid organizationId,
+    CancellationToken cancellationToken) =>
+    await dbContext.StaffRoleAssignments
+        .AsNoTracking()
+        .Where(role => role.StaffUserId == staffUserId && role.OrganizationId == organizationId)
+        .Select(role => role.RoleName)
+        .Distinct()
+        .ToListAsync(cancellationToken);
+
+// Anti-fraud §5.2 enforcement: the legacy direct ledger endpoints share the same MoneyActionGuard as
+// the /money-actions front door. Returns null when the action may execute immediately (under threshold,
+// under cap) so the caller proceeds with its direct ledger write; otherwise returns the blocking result
+// (409 — must go through the approval front door; 422 — over cap) and writes the denied audit trail.
+static async Task<IResult?> GuardLegacyMoneyActionAsync(
+    PlatformDbContext dbContext,
+    IMoneyActionPolicyResolver policyResolver,
+    IAuditRecordWriter auditRecordWriter,
+    Guid organizationId,
+    Guid branchId,
+    Guid actorStaffUserId,
+    MoneyActionType requestedType,
+    string accountType,
+    long signedAmountMinorUnits,
+    CancellationToken cancellationToken)
+{
+    var roleNames = await GetActorRoleNamesAsync(dbContext, actorStaffUserId, organizationId, cancellationToken);
+    var assessment = await policyResolver.AssessAsync(
+        organizationId, branchId, actorStaffUserId, roleNames,
+        requestedType, accountType, signedAmountMinorUnits, cancellationToken);
+
+    if (assessment.Decision == MoneyActionDecision.ExecuteNow)
+    {
+        return null;
+    }
+
+    var amount = Math.Abs(signedAmountMinorUnits);
+    var requiresApproval = assessment.Decision == MoneyActionDecision.RequireApproval;
+    var blockedReason = requiresApproval
+        ? "Amount exceeds the approval threshold; submit via /money-actions for manager approval."
+        : "Amount exceeds the configured per-transaction or daily cap.";
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        organizationId,
+        branchId,
+        actorStaffUserId,
+        AuditActionNames.MoneyActionRequested,
+        "MoneyAction",
+        null,
+        AuditOutcome.Denied,
+        new { Decision = assessment.Decision.ToString(), Amount = amount, Reason = blockedReason },
+        cancellationToken,
+        amountMinorUnits: amount);
+
+    return requiresApproval
+        ? Results.Conflict(new { Error = blockedReason, RequiresApproval = true })
+        : Results.Json(new { Error = blockedReason }, statusCode: StatusCodes.Status422UnprocessableEntity);
+}
 
 static IResult ToHttpResult<TResponse>(BillingCommandServiceResult<TResponse> result)
 {
@@ -10005,7 +10543,8 @@ static async Task WriteAuditAsync(
     string? targetId,
     string outcome,
     object details,
-    CancellationToken cancellationToken)
+    CancellationToken cancellationToken,
+    long? amountMinorUnits = null)
 {
     await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
         organizationId,
@@ -10016,7 +10555,10 @@ static async Task WriteAuditAsync(
         targetId,
         outcome,
         "PlatformApi",
-        JsonSerializer.Serialize(details)),
+        JsonSerializer.Serialize(details))
+    {
+        AmountMinorUnits = amountMinorUnits
+    },
         cancellationToken);
 }
 
@@ -10060,7 +10602,10 @@ static async Task<IResult> ExportReportCsvAsync<TReport>(
     string fileName,
     Func<IReportService, Guid, Guid, ReportSearchQuery, CancellationToken, Task<TReport>> loadReportAsync,
     Func<TReport, string> exportCsv,
-    CancellationToken cancellationToken)
+    CancellationToken cancellationToken,
+    Guid? actorStaffUserId = null,
+    long? minAmountMinorUnits = null,
+    long? maxAmountMinorUnits = null)
 {
     var authorization = await authorizationService.RequireBranchPermissionAsync(
         branchId,
@@ -10089,7 +10634,7 @@ static async Task<IResult> ExportReportCsvAsync<TReport>(
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
-    var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+    var query = new ReportSearchQuery(fromUtc, toUtc, limit, actorStaffUserId, minAmountMinorUnits, maxAmountMinorUnits);
     var result = await loadReportAsync(
         reportService,
         authorization.StaffContext!.OrganizationId,

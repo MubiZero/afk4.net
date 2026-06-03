@@ -200,6 +200,55 @@ public sealed class ReportEndpointTests
     }
 
     [Fact]
+    public async Task GetOperatorActionReport_WithAmountFilter_NarrowsToMoneyActionsInRange()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await SeedRefundAuditAmountsAsync(factory);
+
+        var response = await client.GetAsync(
+            $"/api/branches/{TestIds.BranchId}/reports/operator-actions?minAmountMinorUnits=5000");
+        var result = await response.Content.ReadFromJsonAsync<OperatorActionReportResultDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(result);
+        Assert.Equal(1, result.TotalActionCount);
+        var row = Assert.Single(result.Rows);
+        Assert.Equal("money_action.refund", row.Action);
+        Assert.Equal(1, row.Count);
+    }
+
+    [Fact]
+    public async Task GetOwnerDailySummary_WithAuditorRole_ReturnsPerActorRowsAndWritesAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await SeedOwnerDailySummaryDataAsync(factory);
+
+        var response = await client.GetAsync(
+            $"/api/branches/{TestIds.BranchId}/reports/owner-daily-summary?date=2026-05-14");
+        var result = await response.Content.ReadFromJsonAsync<OwnerDailySummaryResultDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(result);
+        Assert.Equal(new DateOnly(2026, 5, 14), result.Date);
+        Assert.Equal(4200, result.TotalRefundMinorUnits);
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(TestIds.TechnicianStaffUserId, row.ActorStaffUserId);
+        Assert.Equal(1, row.RefundCount);
+        Assert.Equal(4200, row.RefundTotalMinorUnits);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords
+            .Where(record => record.Action == AuditActionNames.ViewOwnerDailySummaryReport)
+            .SingleAsync();
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+    }
+
+    [Fact]
     public async Task GetShiftReportExportCsv_WithAuditorRole_ReturnsCsvAttachmentAndWritesAudit()
     {
         await using var factory = new PlatformApiFactory();
@@ -440,6 +489,64 @@ public sealed class ReportEndpointTests
                 DetailsJson = "{}",
                 CreatedAtUtc = ReportDay.AddHours(11)
             });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedRefundAuditAmountsAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.AuditRecords.AddRange(
+            new AuditRecordEntity
+            {
+                AuditRecordId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                ActorStaffUserId = TestIds.TechnicianStaffUserId,
+                Action = "money_action.refund",
+                TargetType = "MoneyAction",
+                TargetId = null,
+                Outcome = AuditOutcome.Succeeded,
+                SourceApp = "test",
+                DetailsJson = "{}",
+                AmountMinorUnits = 3000,
+                CreatedAtUtc = ReportDay.AddHours(10)
+            },
+            new AuditRecordEntity
+            {
+                AuditRecordId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                ActorStaffUserId = TestIds.TechnicianStaffUserId,
+                Action = "money_action.refund",
+                TargetType = "MoneyAction",
+                TargetId = null,
+                Outcome = AuditOutcome.Succeeded,
+                SourceApp = "test",
+                DetailsJson = "{}",
+                AmountMinorUnits = 8000,
+                CreatedAtUtc = ReportDay.AddHours(11)
+            });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedOwnerDailySummaryDataAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.LedgerEntries.Add(new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = Guid.NewGuid(),
+            EntryType = LedgerEntryTypeNames.Refund,
+            AccountType = LedgerAccountTypeNames.Wallet,
+            AmountMinorUnits = -4200,
+            CurrencyCode = "TJS",
+            CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            CreatedAtUtc = ReportDay.AddHours(10)
+        });
         await dbContext.SaveChangesAsync();
     }
 

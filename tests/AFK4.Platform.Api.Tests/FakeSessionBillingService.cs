@@ -4,6 +4,26 @@ namespace AFK4.Platform.Api.Tests;
 
 internal sealed class FakeSessionBillingService : ISessionBillingService
 {
+    // The comp value the fake returns from ComputeCompValueAsync; lets a test drive the §5.4 gate.
+    public long CompValueMinorUnits { get; set; }
+
+    public Task<SessionBillingValidationResult> ComputeCompValueAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid tariffVersionId,
+        int durationMinutes,
+        CancellationToken cancellationToken)
+    {
+        return Task.FromResult(new SessionBillingValidationResult(
+            Succeeded: true,
+            Error: null,
+            TariffRuleVersionId: tariffVersionId.ToString("D"),
+            TariffVersionId: tariffVersionId,
+            BillableSeconds: Math.Max(0, durationMinutes) * 60,
+            AmountMinorUnits: CompValueMinorUnits,
+            CurrencyCode: "TJS"));
+    }
+
     public Task<SessionBillingValidationResult> ValidateStartAsync(
         Guid organizationId,
         Guid branchId,
