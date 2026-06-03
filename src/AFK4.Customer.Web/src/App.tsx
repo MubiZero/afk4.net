@@ -11,6 +11,12 @@ import { ToastProvider } from './components/ui/toast';
 import { SignInScreen } from './screens/auth/SignInScreen';
 import { DashboardScreen } from './screens/dashboard/DashboardScreen';
 import { useBranding } from './branding/useBranding';
+import { VisitsScreen } from './screens/history/VisitsScreen';
+import { ReceiptScreen } from './screens/history/ReceiptScreen';
+import { PurchasesScreen } from './screens/purchases/PurchasesScreen';
+import { HistoryTabs } from './screens/history/HistoryTabs';
+import { ReservationsScreen } from './screens/reservations/ReservationsScreen';
+import { ProfileScreen } from './screens/profile/ProfileScreen';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
@@ -61,6 +67,17 @@ export function App() {
     if (typeof window !== 'undefined') window.history.pushState(null, '', routePath(next));
   }, []);
 
+  const navigateTo = useCallback((next: PlayerRoute) => {
+    setRoute(next);
+    if (typeof window !== 'undefined') window.history.pushState(null, '', routePath(next));
+  }, []);
+
+  const signOut = useCallback(() => {
+    onSessionChanged(null);
+    if (typeof window !== 'undefined') window.history.pushState(null, '', '/');
+    setRoute({ kind: 'dashboard' });
+  }, [onSessionChanged]);
+
   const handleSignedIn = useCallback((response: PlayerSignInResponse) => {
     onSessionChanged(playerSessionFromSignInResponse(response));
   }, [onSessionChanged]);
@@ -87,9 +104,21 @@ export function App() {
     <ToastProvider>
       <AppShell active={tabForRoute(route)} onNavigate={navigate}>
         {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={session.displayName} phoneVerified={session.phoneVerified} />}
-        {route.kind !== 'dashboard' && (
-          <section className="px-6 py-10 text-[var(--text-2)]">Скоро здесь появится этот раздел.</section>
+        {route.kind === 'history' && (
+          <>
+            <HistoryTabs active="visits" onChange={(view) => navigateTo({ kind: view === 'purchases' ? 'purchases' : 'history' })} />
+            <VisitsScreen api={api} onOpenReceipt={(sessionId) => navigateTo({ kind: 'receipt', sessionId })} />
+          </>
         )}
+        {route.kind === 'purchases' && (
+          <>
+            <HistoryTabs active="purchases" onChange={(view) => navigateTo({ kind: view === 'purchases' ? 'purchases' : 'history' })} />
+            <PurchasesScreen api={api} />
+          </>
+        )}
+        {route.kind === 'receipt' && <ReceiptScreen api={api} sessionId={route.sessionId} onBack={() => navigateTo({ kind: 'history' })} />}
+        {route.kind === 'reservations' && <ReservationsScreen api={api} phoneVerified={session.phoneVerified} />}
+        {route.kind === 'profile' && <ProfileScreen api={api} onSignOut={signOut} onLocaleChange={() => {}} />}
       </AppShell>
     </ToastProvider>
   );
