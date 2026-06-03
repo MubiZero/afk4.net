@@ -7,6 +7,7 @@ using AFK4.Platform.Api.Common;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Common;
 using AFK4.Shared.Contracts.Players;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Players;
@@ -28,7 +29,7 @@ public static class PlayerHistoryProjector
             .AsNoTracking()
             .Where(session =>
                 session.PlayerAccountId == playerAccountId &&
-                session.State == "ended" &&
+                session.State == SessionStateNames.Ended &&
                 session.EndedAtUtc != null);
 
         // EF Core InMemory does not translate Guid.CompareTo inside LINQ Where.
