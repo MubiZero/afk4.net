@@ -892,6 +892,130 @@ app.MapGet("/api/me/wallet/top-up-intents", async (
     return Results.Ok(dtos);
 }).RequireRateLimiting("player-me");
 
+app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
+    Guid intentId,
+    IStaffContextAccessor staffContextAccessor,
+    StaffAuthorizationService authorizationService,
+    IAuditRecordWriter auditRecordWriter,
+    IBillingCommandService billingCommandService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    if (staffContextAccessor.Current is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var staffContext = staffContextAccessor.Current;
+
+    var intent = await dbContext.PaymentIntents
+        .SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == staffContext.OrganizationId &&
+                candidate.PaymentIntentId == intentId,
+            cancellationToken);
+
+    if (intent is null)
+    {
+        return Results.NotFound(new { Error = "Payment intent was not found." });
+    }
+
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        intent.BranchId,
+        StaffPermissionNames.TopUpWallet,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        await WriteAuditAsync(
+            auditRecordWriter,
+            staffContext.OrganizationId,
+            intent.BranchId,
+            staffContext.StaffUserId,
+            AuditActionNames.FulfilPaymentIntent,
+            "PaymentIntent",
+            intentId.ToString("D"),
+            AuditOutcome.Denied,
+            new { intent.AmountMinorUnits, authorization.DenialReason },
+            cancellationToken);
+
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    // Idempotency guard: already fulfilled → return current state, no second credit.
+    if (intent.State == "fulfilled")
+    {
+        return Results.Ok(new PlayerTopUpIntentDto(
+            intent.PaymentIntentId,
+            intent.AmountMinorUnits,
+            intent.CurrencyCode,
+            intent.State,
+            intent.Purpose,
+            intent.Method,
+            intent.CreatedAtUtc,
+            intent.FulfilledAtUtc,
+            IsExpired: false));
+    }
+
+    // Expiry guard: pending but >24h old → 409 Conflict.
+    if (intent.State == "pending" && intent.CreatedAtUtc < DateTimeOffset.UtcNow.AddHours(-24))
+    {
+        return Results.Conflict(new { Error = "Payment intent has expired." });
+    }
+
+    var topUpRequest = new TopUpWalletRequest(
+        intent.OrganizationId,
+        new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
+        "wallet top-up via portal intent",
+        intent.PaymentIntentId.ToString("N"));
+
+    var billingResult = await billingCommandService.TopUpWalletAsync(
+        intent.PlayerAccountId,
+        intent.BranchId,
+        staffContext.StaffUserId,
+        topUpRequest,
+        cancellationToken);
+
+    if (!billingResult.Succeeded)
+    {
+        return ToHttpResult(billingResult);
+    }
+
+    intent.State = "fulfilled";
+    intent.FulfilledAtUtc = DateTimeOffset.UtcNow;
+    // FulfilledByLedgerEntryId left null (v1): TopUpWalletAsync returns WalletSummaryDto,
+    // not the created ledger entry id.
+    await dbContext.SaveChangesAsync(cancellationToken);
+
+    await WriteAuditAsync(
+        auditRecordWriter,
+        staffContext.OrganizationId,
+        intent.BranchId,
+        staffContext.StaffUserId,
+        AuditActionNames.FulfilPaymentIntent,
+        "PaymentIntent",
+        intentId.ToString("D"),
+        AuditOutcome.Succeeded,
+        new { intent.AmountMinorUnits, intent.CurrencyCode },
+        cancellationToken);
+
+    return Results.Ok(new PlayerTopUpIntentDto(
+        intent.PaymentIntentId,
+        intent.AmountMinorUnits,
+        intent.CurrencyCode,
+        intent.State,
+        intent.Purpose,
+        intent.Method,
+        intent.CreatedAtUtc,
+        intent.FulfilledAtUtc,
+        IsExpired: false));
+});
+
 app.MapPost("/api/auth/staff/forgot-password", async (
     StaffForgotPasswordRequest request,
     IStaffPasswordResetService passwordResetService,

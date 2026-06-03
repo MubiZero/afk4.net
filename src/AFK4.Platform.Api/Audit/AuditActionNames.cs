@@ -238,4 +238,6 @@ public static class AuditActionNames
     public const string MarkInvoicePaid = "billing.invoice.mark_paid";
 
     public const string VoidInvoice = "billing.invoice.void";
+
+    public const string FulfilPaymentIntent = "billing.payment_intent.fulfil";
 }

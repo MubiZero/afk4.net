@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Shifts;
+using AFK4.Platform.Api.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -331,6 +333,158 @@ public class PortalWritesEndpointTests
         var response = await client.GetAsync("/api/me/wallet/top-up-intents");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // ---- A4: POST /api/wallet/top-up-intents/{id}/fulfil ----
+
+    private static async Task<(SeededPlayer Player, Guid IntentId)> SeedFulfilScenarioAsync(
+        PlatformApiFactory factory, string state = "pending", int createdHoursAgo = 1)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+
+        var playerId = Guid.NewGuid();
+        var phone = $"+99291000{playerId.ToString("N")[..4]}";
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = playerId,
+            OrganizationId = TestIds.OrganizationId,
+            HomeBranchId = TestIds.BranchId,
+            DisplayName = "Intent Player",
+            PhoneNumber = phone,
+            IsActive = true,
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        var credential = new PlayerCredentialEntity
+        {
+            PlayerCredentialId = Guid.NewGuid(),
+            PlayerAccountId = playerId,
+            OrganizationId = TestIds.OrganizationId,
+            PhoneVerified = true,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow
+        };
+        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>()
+            .HashPassword(credential, "9999");
+        db.PlayerCredentials.Add(credential);
+
+        var intentId = Guid.NewGuid();
+        var createdAt = DateTimeOffset.UtcNow.AddHours(-createdHoursAgo);
+        db.PaymentIntents.Add(new PaymentIntentEntity
+        {
+            PaymentIntentId = intentId,
+            PlayerAccountId = playerId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            AmountMinorUnits = 5_000,
+            CurrencyCode = "TJS",
+            Purpose = "wallet_topup",
+            State = state,
+            Method = "counter",
+            FulfilledByLedgerEntryId = null,
+            CreatedAtUtc = createdAt,
+            FulfilledAtUtc = state == "fulfilled" ? createdAt.AddMinutes(5) : null
+        });
+        await db.SaveChangesAsync();
+
+        var p = new SeededPlayer(TestIds.OrganizationId, TestIds.BranchId, playerId, phone);
+        return (p, intentId);
+    }
+
+    [Fact]
+    public async Task FulfilIntent_WithCashier_WritesWalletCreditAndFlipsToFulfilled()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var (p, intentId) = await SeedFulfilScenarioAsync(factory);
+        await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/wallet/top-up-intents/{intentId}/fulfil",
+            new { });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
+        Assert.NotNull(dto);
+        Assert.Equal("fulfilled", dto!.State);
+        Assert.NotNull(dto.FulfilledAtUtc);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var entries = await db.LedgerEntries
+            .Where(e => e.PlayerAccountId == p.PlayerId && e.EntryType == "top_up")
+            .ToListAsync();
+        Assert.Single(entries);
+        Assert.Equal(5_000, entries[0].AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task FulfilIntent_Idempotent_DoesNotDoubleCredit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var (p, intentId) = await SeedFulfilScenarioAsync(factory, state: "pending");
+        await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
+
+        var r1 = await client.PostAsJsonAsync($"/api/wallet/top-up-intents/{intentId}/fulfil", new { });
+        Assert.Equal(HttpStatusCode.OK, r1.StatusCode);
+
+        var r2 = await client.PostAsJsonAsync($"/api/wallet/top-up-intents/{intentId}/fulfil", new { });
+        Assert.Equal(HttpStatusCode.OK, r2.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var entries = await db.LedgerEntries
+            .Where(e => e.PlayerAccountId == p.PlayerId && e.EntryType == "top_up")
+            .ToListAsync();
+        Assert.Single(entries);
+    }
+
+    [Fact]
+    public async Task FulfilIntent_WhenExpired_Returns409()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var (_, intentId) = await SeedFulfilScenarioAsync(factory, state: "pending", createdHoursAgo: 25);
+        await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/wallet/top-up-intents/{intentId}/fulfil",
+            new { });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FulfilIntent_WhenNotFound_Returns404()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/wallet/top-up-intents/{Guid.NewGuid()}/fulfil",
+            new { });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FulfilIntent_RequiresTopUpWalletPermission()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        var (_, intentId) = await SeedFulfilScenarioAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/wallet/top-up-intents/{intentId}/fulfil",
+            new { });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     // ---- A1: round-trip persist test ----
