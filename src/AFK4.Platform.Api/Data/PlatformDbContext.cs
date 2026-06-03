@@ -44,6 +44,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlayerAccountEntity> PlayerAccounts => Set<PlayerAccountEntity>();
 
+    public DbSet<PlayerCredentialEntity> PlayerCredentials => Set<PlayerCredentialEntity>();
+
     public DbSet<LedgerEntryEntity> LedgerEntries => Set<LedgerEntryEntity>();
 
     public DbSet<BillingCommandIdempotencyEntity> BillingCommandIdempotency => Set<BillingCommandIdempotencyEntity>();
@@ -409,6 +411,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(player => player.Email).HasMaxLength(320);
             entity.Property(player => player.PreferredLocale).HasMaxLength(16);
             entity.HasIndex(player => new { player.OrganizationId, player.HomeBranchId });
+        });
+
+        modelBuilder.Entity<PlayerCredentialEntity>(entity =>
+        {
+            entity.ToTable("player_credentials");
+            entity.HasKey(credential => credential.PlayerCredentialId);
+            entity.Property(credential => credential.PasswordHash).HasMaxLength(512);
+            entity.HasIndex(credential => credential.PlayerAccountId).IsUnique();
+            entity.HasIndex(credential => new { credential.OrganizationId, credential.PlayerAccountId });
         });
 
         modelBuilder.Entity<LedgerEntryEntity>(entity =>
