@@ -3,13 +3,14 @@ import type { PlayerApiClient } from '@/api/playerApi';
 import type { PlayerDashboardDto } from '@/api/types';
 import { formatMoney } from '@/lib/money';
 import { LiveSessionCard } from './LiveSessionCard';
+import { WalletPanel } from '@/screens/wallet/WalletPanel';
 
 type Load =
   | { state: 'loading' }
   | { state: 'error' }
   | { state: 'ready'; data: PlayerDashboardDto; fetchedAt: Date };
 
-export function DashboardScreen({ api, displayName }: { api: PlayerApiClient; displayName: string }) {
+export function DashboardScreen({ api, displayName, phoneVerified }: { api: PlayerApiClient; displayName: string; phoneVerified: boolean }) {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
 
   useEffect(() => {
@@ -57,6 +58,8 @@ export function DashboardScreen({ api, displayName }: { api: PlayerApiClient; di
               </p>
             )}
           </section>
+
+          <WalletPanel api={api} phoneVerified={phoneVerified} />
 
           {load.data.activeSession
             ? <LiveSessionCard session={load.data.activeSession} fetchedAt={load.fetchedAt} />

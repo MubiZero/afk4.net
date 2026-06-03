@@ -1,9 +1,13 @@
 import { it, expect, mock } from 'bun:test';
 import { render, screen, waitFor } from '@testing-library/react';
+import { ToastProvider } from '@/components/ui/toast';
 import { DashboardScreen } from './DashboardScreen';
 
 function apiWith(dashboard: unknown) {
-  return { getDashboard: mock().mockResolvedValue(dashboard) } as unknown as import('@/api/playerApi').PlayerApiClient;
+  return {
+    getDashboard: mock().mockResolvedValue(dashboard),
+    getTopUpIntents: mock().mockResolvedValue([])
+  } as unknown as import('@/api/playerApi').PlayerApiClient;
 }
 
 it('renders the wallet balance and a no-session empty state', async () => {
@@ -12,7 +16,7 @@ it('renders the wallet balance and a no-session empty state', async () => {
     debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
     activeSession: null
   });
-  render(<DashboardScreen api={api} displayName="Фёдор" />);
+  render(<ToastProvider><DashboardScreen api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider>);
   expect(await screen.findByText('245,00 TJS')).toBeInTheDocument();
   expect(screen.getByText('Нет активной сессии')).toBeInTheDocument();
 });
@@ -27,7 +31,7 @@ it('renders the active session seat and a running timer', async () => {
       remainingSeconds: null, accruedCostMinorUnits: 3850, currencyCode: 'TJS'
     }
   });
-  render(<DashboardScreen api={api} displayName="Фёдор" />);
+  render(<ToastProvider><DashboardScreen api={api} displayName="Фёдор" phoneVerified={false} /></ToastProvider>);
   expect(await screen.findByText('PC-14 · VIP')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByTestId('session-timer').textContent).toMatch(/^\d\d:\d\d:\d\d$/));
 });
