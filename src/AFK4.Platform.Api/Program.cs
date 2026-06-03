@@ -892,6 +892,69 @@ app.MapGet("/api/me/wallet/top-up-intents", async (
     return Results.Ok(dtos);
 }).RequireRateLimiting("player-me");
 
+app.MapPost("/api/me/reservations", async (
+    CreatePlayerReservationRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    IReservationService reservationService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    // D8 gate: verified phone required for booking actions.
+    if (!player.PhoneVerified)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var now = DateTimeOffset.UtcNow;
+    if (request.StartsAtUtc >= request.EndsAtUtc)
+    {
+        return Results.BadRequest(new { Error = "End time must be after start time." });
+    }
+
+    if (request.StartsAtUtc <= now)
+    {
+        return Results.BadRequest(new { Error = "Start time must be in the future." });
+    }
+
+    var account = await dbContext.PlayerAccounts
+        .AsNoTracking()
+        .SingleOrDefaultAsync(a => a.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+    if (account is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await reservationService.CreateOnlineAsync(
+        player.PlayerAccountId,
+        player.OrganizationId,
+        account.HomeBranchId,
+        request,
+        cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        if (result.Conflict)
+        {
+            return Results.Conflict(new { Error = result.Error });
+        }
+
+        if (result.NotFound)
+        {
+            return Results.NotFound(new { Error = result.Error });
+        }
+
+        return Results.BadRequest(new { Error = result.Error });
+    }
+
+    return Results.Ok(ToPlayerReservationDto(result.Response!));
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
     Guid intentId,
     IStaffContextAccessor staffContextAccessor,
@@ -11830,6 +11893,9 @@ static async Task<ScopedEntityEndpointResult<TEntity>> LoadScopedEntityEndpointA
         ? new ScopedEntityEndpointResult<TEntity>(null, branchId, authorization, Results.NotFound())
         : new ScopedEntityEndpointResult<TEntity>(entity, branchId, authorization, null);
 }
+
+static PlayerReservationDto ToPlayerReservationDto(ReservationDto r) =>
+    new(r.ReservationId, r.SeatId, r.SeatName, r.StartsAtUtc, r.EndsAtUtc, r.State, r.Note);
 
 static ReceiptDto ToDto(ReceiptEntity receipt)
 {

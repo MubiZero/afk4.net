@@ -700,4 +700,123 @@ public class PortalWritesEndpointTests
         Assert.Equal("counter", loaded.Method);
         Assert.Null(loaded.FulfilledByLedgerEntryId);
     }
+
+    // ---- B2: POST /api/me/reservations ----
+
+    [Fact]
+    public async Task BookOnline_WithVerifiedPhone_CreatesPendingReservation()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var (seatId, _) = await SeedSeatAsync(factory, p.OrgId, p.BranchId);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var endsAt = startsAt.AddHours(1);
+        var response = await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(seatId, startsAt, endsAt, "window seat please"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<PlayerReservationDto>();
+        Assert.NotNull(dto);
+        Assert.Equal("pending", dto!.State);
+        Assert.Equal(seatId, dto.SeatId);
+        Assert.Equal("PC-01", dto.SeatName);
+
+        // Verify reservation belongs to the token's player, not a stranger
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var entity = await db.Reservations.FindAsync(dto.ReservationId);
+        Assert.NotNull(entity);
+        Assert.Equal(p.PlayerId, entity!.PlayerAccountId);
+        Assert.Equal("Test Player", entity.CustomerName);
+    }
+
+    [Fact]
+    public async Task BookOnline_WithUnverifiedPhone_Returns403()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234", phoneVerified: false);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var response = await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(null, startsAt, startsAt.AddHours(1), null));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BookOnline_WithEndBeforeStart_Returns400()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var now = DateTimeOffset.UtcNow;
+        var response = await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(null, now.AddHours(2), now.AddHours(1), null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BookOnline_WithStartInPast_Returns400()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var past = DateTimeOffset.UtcNow.AddHours(-1);
+        var response = await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(null, past, past.AddHours(1), null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BookOnline_WithOverlappingSeat_Returns409()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        var (seatId, _) = await SeedSeatAsync(factory, p.OrgId, p.BranchId);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var endsAt = startsAt.AddHours(1);
+
+        var r1 = await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(seatId, startsAt, endsAt, null));
+        Assert.Equal(HttpStatusCode.OK, r1.StatusCode);
+
+        // Overlapping booking on the same seat
+        var r2 = await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(seatId, startsAt.AddMinutes(30), endsAt.AddMinutes(30), null));
+        Assert.Equal(HttpStatusCode.Conflict, r2.StatusCode);
+    }
+
+    [Fact]
+    public async Task BookOnline_WithoutToken_Returns401()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var response = await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(null, startsAt, startsAt.AddHours(1), null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }
