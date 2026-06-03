@@ -5,7 +5,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Players;
+using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Platform.Api.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -485,6 +487,182 @@ public class PortalWritesEndpointTests
             new { });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // ---- B1: IReservationService.CreateOnlineAsync + CancelOnlineAsync ----
+
+    private static async Task<(Guid SeatId, Guid ZoneId)> SeedSeatAsync(
+        PlatformApiFactory factory, Guid orgId, Guid branchId, string name = "PC-01")
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var zoneId = Guid.NewGuid();
+        var seatId = Guid.NewGuid();
+        db.Zones.Add(new ZoneEntity
+        {
+            ZoneId = zoneId,
+            OrganizationId = orgId,
+            BranchId = branchId,
+            Name = "Main",
+            SortOrder = 10,
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        db.Seats.Add(new SeatEntity
+        {
+            SeatId = seatId,
+            OrganizationId = orgId,
+            BranchId = branchId,
+            ZoneId = zoneId,
+            Name = name,
+            SortOrder = 10,
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+        return (seatId, zoneId);
+    }
+
+    [Fact]
+    public async Task CreateOnlineAsync_CreatesReservation_WithPendingState_AndOnlineSource()
+    {
+        await using var factory = new PlatformApiFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var orgId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var playerId = Guid.NewGuid();
+
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = playerId,
+            OrganizationId = orgId,
+            HomeBranchId = branchId,
+            DisplayName = "Online Player",
+            PhoneNumber = "+992911000001",
+            IsActive = true,
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var endsAt = startsAt.AddHours(1);
+
+        var result = await svc.CreateOnlineAsync(
+            playerId,
+            orgId,
+            branchId,
+            new CreatePlayerReservationRequest(null, startsAt, endsAt, "online request"),
+            default);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ReservationStateNames.Pending, result.Response!.State);
+        Assert.Equal(ReservationSourceNames.Online, result.Response.Source);
+        Assert.Equal(playerId, result.Response.PlayerAccountId);
+        Assert.Equal("Online Player", result.Response.CustomerName);
+    }
+
+    [Fact]
+    public async Task CreateOnlineAsync_WithConflictingSeat_ReturnsConflict()
+    {
+        await using var factory = new PlatformApiFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var orgId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var playerId = Guid.NewGuid();
+        var seatId = Guid.NewGuid();
+
+        var zoneId = Guid.NewGuid();
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = playerId, OrganizationId = orgId, HomeBranchId = branchId,
+            DisplayName = "P", PhoneNumber = "+992911000002", IsActive = true, CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        db.Zones.Add(new ZoneEntity
+        {
+            ZoneId = zoneId, OrganizationId = orgId, BranchId = branchId,
+            Name = "Z", SortOrder = 1, CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        db.Seats.Add(new SeatEntity
+        {
+            SeatId = seatId, OrganizationId = orgId, BranchId = branchId,
+            ZoneId = zoneId, Name = "S1", SortOrder = 1, CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
+        var startsAt = DateTimeOffset.UtcNow.AddHours(2);
+        var endsAt = startsAt.AddHours(1);
+        var req = new CreatePlayerReservationRequest(seatId, startsAt, endsAt, null);
+
+        // First booking succeeds
+        var r1 = await svc.CreateOnlineAsync(playerId, orgId, branchId, req, default);
+        Assert.True(r1.Succeeded);
+
+        // Second overlapping booking conflicts
+        var r2 = await svc.CreateOnlineAsync(playerId, orgId, branchId,
+            new CreatePlayerReservationRequest(seatId, startsAt.AddMinutes(30), endsAt, null),
+            default);
+        Assert.True(r2.Conflict);
+    }
+
+    [Fact]
+    public async Task CancelOnlineAsync_OwnReservation_FlipsToCancelled()
+    {
+        await using var factory = new PlatformApiFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var orgId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var playerId = Guid.NewGuid();
+
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = playerId, OrganizationId = orgId, HomeBranchId = branchId,
+            DisplayName = "Canceller", PhoneNumber = "+992911000003", IsActive = true, CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
+        var created = await svc.CreateOnlineAsync(
+            playerId, orgId, branchId,
+            new CreatePlayerReservationRequest(null, DateTimeOffset.UtcNow.AddHours(3), DateTimeOffset.UtcNow.AddHours(4), null),
+            default);
+        Assert.True(created.Succeeded);
+
+        var cancelled = await svc.CancelOnlineAsync(created.Response!.ReservationId, playerId, default);
+        Assert.True(cancelled.Succeeded);
+        Assert.Equal(ReservationStateNames.Cancelled, cancelled.Response!.State);
+    }
+
+    [Fact]
+    public async Task CancelOnlineAsync_ForeignReservation_ReturnsNotFound()
+    {
+        await using var factory = new PlatformApiFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var orgId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var otherPlayerId = Guid.NewGuid();
+
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = ownerId, OrganizationId = orgId, HomeBranchId = branchId,
+            DisplayName = "Owner", PhoneNumber = "+992911000004", IsActive = true, CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
+        var created = await svc.CreateOnlineAsync(
+            ownerId, orgId, branchId,
+            new CreatePlayerReservationRequest(null, DateTimeOffset.UtcNow.AddHours(3), DateTimeOffset.UtcNow.AddHours(4), null),
+            default);
+        Assert.True(created.Succeeded);
+
+        // otherPlayerId tries to cancel the owner's reservation
+        var result = await svc.CancelOnlineAsync(created.Response!.ReservationId, otherPlayerId, default);
+        Assert.True(result.NotFound);
     }
 
     // ---- A1: round-trip persist test ----
