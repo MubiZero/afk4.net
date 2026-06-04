@@ -95,7 +95,7 @@ export function ReservationsScreen({ api, phoneVerified }: { api: PlayerApiClien
         </p>
       )}
 
-      {reservations === null && <div role="status" aria-label="Загрузка броней" className="h-20 animate-pulse rounded-2xl bg-[var(--color-surface)]" />}
+      {reservations === null && <div role="status" aria-label={t('a11y.loading.reservations')} className="h-20 animate-pulse rounded-2xl bg-[var(--color-surface)]" />}
       {reservations !== null && reservations.length === 0 && (
         <p className="py-8 text-center text-[var(--text-2)]">{t('customer.reservations.none')}</p>
       )}

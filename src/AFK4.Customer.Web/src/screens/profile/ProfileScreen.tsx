@@ -35,7 +35,7 @@ export function ProfileScreen({ api, onSignOut, onLocaleChange }: ProfileScreenP
   }
 
   if (profile === null) {
-    return <div role="status" aria-label="Загрузка профиля" className="m-6 h-40 animate-pulse rounded-2xl bg-[var(--color-surface)]" />;
+    return <div role="status" aria-label={t('a11y.loading.profile')} className="m-6 h-40 animate-pulse rounded-2xl bg-[var(--color-surface)]" />;
   }
 
   return (

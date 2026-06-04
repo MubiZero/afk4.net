@@ -13,7 +13,7 @@ export function VisitsScreen({ api, onOpenReceipt }: { api: PlayerApiClient; onO
 
   if (list.status === 'loading') {
     return (
-      <div className="space-y-3 px-6 py-6" role="status" aria-label="Загрузка визитов">
+      <div className="space-y-3 px-6 py-6" role="status" aria-label={t('a11y.loading.visits')}>
         {[0, 1, 2].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-[var(--color-surface)]" />)}
       </div>
     );

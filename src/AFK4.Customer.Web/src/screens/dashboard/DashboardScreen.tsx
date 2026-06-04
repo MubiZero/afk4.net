@@ -41,7 +41,7 @@ export function DashboardScreen({ api, displayName, phoneVerified }: { api: Play
       </header>
 
       {load.state === 'loading' && (
-        <div role="status" aria-label="Загрузка данных" className="h-28 animate-pulse rounded-2xl bg-[var(--color-surface)]" />
+        <div role="status" aria-label={t('a11y.loading.dashboard')} className="h-28 animate-pulse rounded-2xl bg-[var(--color-surface)]" />
       )}
       {load.state === 'error' && (
         <p className="text-sm text-red-400">{t('customer.dashboard.loadError')}</p>

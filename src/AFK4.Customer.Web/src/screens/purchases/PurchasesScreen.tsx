@@ -13,7 +13,7 @@ export function PurchasesScreen({ api }: { api: PlayerApiClient }) {
 
   if (list.status === 'loading') {
     return (
-      <div className="space-y-3 px-6 py-6" role="status" aria-label="Загрузка покупок">
+      <div className="space-y-3 px-6 py-6" role="status" aria-label={t('a11y.loading.purchases')}>
         {[0, 1, 2].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-[var(--color-surface)]" />)}
       </div>
     );
