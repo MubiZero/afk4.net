@@ -193,6 +193,8 @@
   "platform.profile.field.adminId": "Admin ID",
   "platform.profile.roles.title": "Roles",
   "platform.profile.roles.empty": "No roles assigned.",
+  "platform.profile.roleLabel": "Administrator",
+  "platform.tenant.title": "Tenant",
   "platform.newTenant.section.organization": "Organization",
   "platform.newTenant.section.branch": "First branch",
   "platform.newTenant.section.plan": "Plan",

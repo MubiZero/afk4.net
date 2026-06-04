@@ -193,6 +193,8 @@
   "platform.profile.field.adminId": "ID администратора",
   "platform.profile.roles.title": "Роли",
   "platform.profile.roles.empty": "Роли не назначены.",
+  "platform.profile.roleLabel": "Администратор",
+  "platform.tenant.title": "Тенант",
   "platform.newTenant.section.organization": "Организация",
   "platform.newTenant.section.branch": "Первый филиал",
   "platform.newTenant.section.plan": "Тариф",
