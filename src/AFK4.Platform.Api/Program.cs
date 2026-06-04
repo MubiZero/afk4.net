@@ -992,6 +992,102 @@ app.MapPost("/api/owner/payment-gateways", async (
         row.CardLast4, row.Status, row.CreatedAtUtc, row.UpdatedAtUtc));
 });
 
+// Resolves a gateway by id scoped to the authenticated owner's org.
+// Returns (row, errorResult); exactly one is non-null.
+static async Task<(BranchPaymentGatewayEntity? Row, IResult? Error)> ResolveOwnerGatewayAsync(
+    Guid gatewayId,
+    StaffAuthorizationService authorizationService,
+    PlatformDbContext dbContext,
+    CancellationToken ct)
+{
+    var authorization = authorizationService.RequireOrganizationPermission(
+        StaffPermissionNames.ManagePaymentGateways);
+    if (!authorization.IsAuthenticated) return (null, Results.Unauthorized());
+    if (!authorization.IsAllowed) return (null, Results.StatusCode(StatusCodes.Status403Forbidden));
+
+    var orgId = authorization.StaffContext!.OrganizationId;
+    var row = await dbContext.BranchPaymentGateways
+        .FirstOrDefaultAsync(g => g.BranchPaymentGatewayId == gatewayId && g.OrganizationId == orgId, ct);
+    return row is null ? (null, Results.NotFound()) : (row, null);
+}
+
+// Flip pending_telegram -> active once dcgate reports the session attached.
+static async Task<string> ApplyAttachResultAsync(
+    BranchPaymentGatewayEntity row, string state, PlatformDbContext dbContext, CancellationToken ct)
+{
+    if (state == "attached" && row.Status == BranchPaymentGatewayStatus.PendingTelegram)
+    {
+        row.Status = BranchPaymentGatewayStatus.Active;
+        row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(ct);
+    }
+    return row.Status;
+}
+
+app.MapPost("/api/owner/payment-gateways/{id:guid}/telegram/start", async (
+    Guid id, TelegramStartRequest request,
+    StaffAuthorizationService authorizationService,
+    IDcGateAdminClient adminClient,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
+    if (error is not null) return error;
+    try
+    {
+        var result = await adminClient.StartTelegramAsync(row!.DcgateProjectId, request.Phone, cancellationToken);
+        return Results.Ok(new TelegramStartResponse(result.LoginAttemptId, result.State));
+    }
+    catch (DcGateAdminException ex)
+    {
+        return Results.Problem(statusCode: (int)ex.StatusCode, title: "dcgate_error", detail: ex.Message);
+    }
+});
+
+app.MapPost("/api/owner/payment-gateways/{id:guid}/telegram/verify-code", async (
+    Guid id, TelegramVerifyCodeRequest request,
+    StaffAuthorizationService authorizationService,
+    IDcGateAdminClient adminClient,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
+    if (error is not null) return error;
+    try
+    {
+        var result = await adminClient.VerifyTelegramCodeAsync(
+            row!.DcgateProjectId, request.LoginAttemptId, request.Code, cancellationToken);
+        var status = await ApplyAttachResultAsync(row, result.State, dbContext, cancellationToken);
+        return Results.Ok(new TelegramVerifyResponse(result.State, status));
+    }
+    catch (DcGateAdminException ex)
+    {
+        return Results.Problem(statusCode: (int)ex.StatusCode, title: "dcgate_error", detail: ex.Message);
+    }
+});
+
+app.MapPost("/api/owner/payment-gateways/{id:guid}/telegram/verify-password", async (
+    Guid id, TelegramVerifyPasswordRequest request,
+    StaffAuthorizationService authorizationService,
+    IDcGateAdminClient adminClient,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
+    if (error is not null) return error;
+    try
+    {
+        var result = await adminClient.VerifyTelegramPasswordAsync(
+            row!.DcgateProjectId, request.LoginAttemptId, request.Password, cancellationToken);
+        var status = await ApplyAttachResultAsync(row, result.State, dbContext, cancellationToken);
+        return Results.Ok(new TelegramVerifyResponse(result.State, status));
+    }
+    catch (DcGateAdminException ex)
+    {
+        return Results.Problem(statusCode: (int)ex.StatusCode, title: "dcgate_error", detail: ex.Message);
+    }
+});
+
 app.MapGet("/api/me/profile", async (
     IPlayerContextAccessor playerContextAccessor,
     PlatformDbContext dbContext,
