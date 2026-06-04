@@ -530,6 +530,9 @@ export function createPaymentGatewayClient(api: PlatformApiClient) {
     },
     status(id: Guid): Promise<OwnerGatewayStatusResponse> {
       return api.get<OwnerGatewayStatusResponse>(`/api/owner/payment-gateways/${id}/status`);
+    },
+    disable(id: Guid): Promise<OwnerPaymentGatewayDto> {
+      return api.post<OwnerPaymentGatewayDto>(`/api/owner/payment-gateways/${id}/disable`);
     }
   };
 }

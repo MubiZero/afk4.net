@@ -762,6 +762,8 @@
   "payments_cards.status.pending_telegram": "Needs Telegram attach",
   "payments_cards.status.active": "Active",
   "payments_cards.status.disabled": "Disabled",
+  "payments_cards.disable": "Disable",
+  "payments_cards.disable_confirm": "Disable this card? It will stop accepting payments.",
   "payments_cards.telegram.title": "Connect Telegram",
   "payments_cards.telegram.phone": "Phone of the bank account",
   "payments_cards.telegram.start": "Send code",

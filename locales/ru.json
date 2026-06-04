@@ -762,6 +762,8 @@
   "payments_cards.status.pending_telegram": "Нужно подключить Telegram",
   "payments_cards.status.active": "Активна",
   "payments_cards.status.disabled": "Отключена",
+  "payments_cards.disable": "Отключить",
+  "payments_cards.disable_confirm": "Отключить эту карту? Приём оплаты по ней остановится.",
   "payments_cards.telegram.title": "Подключение Telegram",
   "payments_cards.telegram.phone": "Телефон банковского аккаунта",
   "payments_cards.telegram.start": "Получить код",

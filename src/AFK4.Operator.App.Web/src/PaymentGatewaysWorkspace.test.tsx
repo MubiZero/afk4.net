@@ -19,6 +19,15 @@ const listMock = mock(async () => ({
 }));
 const provisionMock = mock(async () => ({}));
 const startMock = mock(async () => ({ loginAttemptId: 'att', state: 'code_required' }));
+const disableMock = mock(async () => ({
+  branchPaymentGatewayId: 'g1',
+  branchId: null,
+  dcgateProjectId: 'p1',
+  cardLast4: '4242',
+  status: 'disabled',
+  createdAtUtc: '2026-06-04T00:00:00Z',
+  updatedAtUtc: '2026-06-04T00:00:00Z'
+}));
 
 const actualClients = await import('./operatorApiClients');
 mock.module('./operatorApiClients', () => ({
@@ -28,6 +37,7 @@ mock.module('./operatorApiClients', () => ({
       list: listMock,
       provision: provisionMock,
       telegramStart: startMock,
+      disable: disableMock,
       telegramVerifyCode: mock(async () => ({ state: 'attached', gatewayStatus: 'active' })),
       telegramVerifyPassword: mock(async () => ({ state: 'attached', gatewayStatus: 'active' })),
       status: mock(async () => ({
@@ -75,5 +85,18 @@ describe('PaymentGatewaysWorkspace', () => {
     fireEvent.change(phone, { target: { value: '+992900000000' } });
     fireEvent.click(screen.getByRole('button', { name: /код|code/i }));
     await waitFor(() => expect(startMock).toHaveBeenCalled());
+  });
+
+  it('disables a card after confirmation', async () => {
+    const originalConfirm = globalThis.confirm;
+    globalThis.confirm = () => true;
+    try {
+      render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+      await screen.findByText(/4242/);
+      fireEvent.click(screen.getByRole('button', { name: /отключить|disable/i }));
+      await waitFor(() => expect(disableMock).toHaveBeenCalledWith('g1'));
+    } finally {
+      globalThis.confirm = originalConfirm;
+    }
   });
 });

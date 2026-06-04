@@ -109,6 +109,19 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
     }
   };
 
+  const disable = async (id: string) => {
+    if (!window.confirm(t('payments_cards.disable_confirm'))) return;
+    setBusy(true);
+    try {
+      await clients.disable(id);
+      await reload();
+    } catch (error) {
+      setLoadError(projectOperatorError(error).detail);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const startAttach = async (id: string) => {
     setBusy(true);
     try {
@@ -188,6 +201,17 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
               {g.branchId ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
             </span>
             <span className="payment-card-status">{t(`payments_cards.status.${g.status}` as MessageKey)}</span>
+
+            {g.status !== 'disabled' && (
+              <button
+                type="button"
+                className="payment-card-disable"
+                disabled={busy}
+                onClick={() => void disable(g.branchPaymentGatewayId)}
+              >
+                {t('payments_cards.disable')}
+              </button>
+            )}
 
             {statuses[g.branchPaymentGatewayId] && (() => {
               const live = statuses[g.branchPaymentGatewayId];
