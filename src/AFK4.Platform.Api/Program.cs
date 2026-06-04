@@ -1109,6 +1109,65 @@ app.MapPost("/api/me/sessions/start", async (
     return Results.Ok(result.Response);
 }).RequireRateLimiting("player-me");
 
+app.MapPost("/api/me/sessions/{sessionId:guid}/extend", async (
+    Guid sessionId,
+    PlayerSelfExtendRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    ISessionCommandService sessionCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null) return Results.Unauthorized();
+
+    var session = await dbContext.Sessions.AsNoTracking().SingleOrDefaultAsync(
+        s => s.SessionId == sessionId, cancellationToken);
+
+    // Ownership-scoped: a session the caller does not own is indistinguishable from a missing one.
+    if (session is null ||
+        session.PlayerAccountId != player.PlayerAccountId ||
+        session.State != SessionStateNames.Active)
+    {
+        return Results.NotFound();
+    }
+
+    if (!Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId))
+        return Results.BadRequest(new { error = "invalid_tariff" });
+
+    var version = await dbContext.TariffVersions.AsNoTracking().SingleOrDefaultAsync(
+        v => v.OrganizationId == session.OrganizationId &&
+             v.BranchId == session.BranchId &&
+             v.TariffVersionId == tariffVersionId, cancellationToken);
+    if (version is null) return Results.BadRequest(new { error = "invalid_tariff" });
+
+    var pricing = new TariffPricing(
+        version.PricePerMinuteMinorUnits, version.MinimumBillableMinutes,
+        version.RoundingIncrementMinutes, version.CurrencyCode);
+    var charge = TariffBilling.ComputeForMinutes(request.AdditionalMinutes, pricing);
+    if (charge is null) return Results.BadRequest(new { error = "invalid_duration" });
+
+    var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
+        dbContext, player.PlayerAccountId, cancellationToken);
+    if ((wallet?.WalletBalance.MinorUnits ?? 0) < charge.AmountMinorUnits)
+        return Results.Conflict(new { error = "insufficient_balance" });
+
+    var extendRequest = new ExtendSessionRequest(
+        AdditionalMinutes: request.AdditionalMinutes,
+        TariffRuleVersionId: session.TariffRuleVersionId,
+        IdempotencyKey: request.IdempotencyKey,
+        PlayerAccountId: player.PlayerAccountId,
+        BillingMode: BillingModeNames.PrepaidWallet,
+        TariffVersionId: tariffVersionId);
+
+    var result = await sessionCommandService.ExtendSessionAsync(
+        sessionId, Guid.Empty, extendRequest, cancellationToken);
+
+    if (result.Conflict) return Results.Conflict(new { error = result.Error });
+    if (result.NotFound) return Results.NotFound();
+    if (!result.Succeeded) return Results.BadRequest(new { error = result.Error });
+    return Results.Ok(result.Response);
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
     Guid intentId,
     IStaffContextAccessor staffContextAccessor,

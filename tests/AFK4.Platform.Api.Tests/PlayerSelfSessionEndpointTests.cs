@@ -230,4 +230,42 @@ public class PlayerSelfSessionEndpointTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task SelfExtend_OwnedActiveSession_WithWallet_Extends()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var start = await client.PostAsJsonAsync("/api/me/sessions/start",
+            new PlayerSelfStartRequest(ctx.DeviceId, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+        start.EnsureSuccessStatusCode();
+        Guid sessionId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            sessionId = (await db.Sessions.SingleAsync(s => s.PlayerAccountId == ctx.PlayerId)).SessionId;
+        }
+
+        var response = await client.PostAsJsonAsync($"/api/me/sessions/{sessionId}/extend",
+            new PlayerSelfExtendRequest(30, Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SelfExtend_ForeignSession_Returns404()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 1_000_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var response = await client.PostAsJsonAsync($"/api/me/sessions/{Guid.NewGuid()}/extend",
+            new PlayerSelfExtendRequest(30, Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 }
