@@ -268,6 +268,7 @@ builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 builder.Services.Configure<SecretProtectionOptions>(
     builder.Configuration.GetSection(SecretProtectionOptions.SectionName));
 builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
+builder.Services.AddScoped<IBranchPaymentGatewayResolver, EfBranchPaymentGatewayResolver>();
 
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
 builder.Services.AddHttpClient<IDcGateClient, DcGateClient>((provider, http) =>
