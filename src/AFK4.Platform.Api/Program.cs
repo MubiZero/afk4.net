@@ -932,6 +932,17 @@ app.MapPost("/api/owner/payment-gateways", async (
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 
+    // Serialize the scope-check + insert so two concurrent provisions (e.g. a browser
+    // double-submit) can't both pass the check and persist two non-disabled rows for the
+    // same scope, which would break Subsystem A's SingleOrDefaultAsync resolver.
+    // InMemory test provider doesn't support transactions, so gate on IsRelational().
+    var useTransaction = dbContext.Database.IsRelational();
+    var tx = useTransaction
+        ? await dbContext.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken)
+        : null;
+    await using var _ = tx;
+
     // One active/pending gateway per scope (A deferred this invariant to B).
     var scopeTaken = await dbContext.BranchPaymentGateways.AnyAsync(g =>
         g.OrganizationId == orgId && g.BranchId == request.BranchId
@@ -957,6 +968,7 @@ app.MapPost("/api/owner/payment-gateways", async (
     }
     catch (DcGateAdminException ex)
     {
+        // Transaction rolls back on dispose; nothing is persisted.
         return Results.Problem(statusCode: (int)ex.StatusCode, title: "dcgate_error", detail: ex.Message);
     }
 
@@ -986,6 +998,7 @@ app.MapPost("/api/owner/payment-gateways", async (
     };
     dbContext.BranchPaymentGateways.Add(row);
     await dbContext.SaveChangesAsync(cancellationToken);
+    if (tx is not null) await tx.CommitAsync(cancellationToken);
 
     return Results.Ok(new OwnerPaymentGatewayDto(
         row.BranchPaymentGatewayId, row.BranchId, row.DcgateProjectId,

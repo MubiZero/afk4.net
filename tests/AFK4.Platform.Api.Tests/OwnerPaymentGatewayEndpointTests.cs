@@ -166,9 +166,31 @@ public sealed class OwnerPaymentGatewayEndpointTests
             new ProvisionPaymentGatewayRequest(BranchId: null, CardNumber: "4111111111114242"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("card already in use", body);
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         Assert.Empty(db.BranchPaymentGateways.ToList());
+    }
+
+    [Fact]
+    public async Task Provision_503_when_provisioning_unconfigured()
+    {
+        // No ConfigureProvisioning() -> AdminSecret/WebhookUrl empty -> fail-safe off.
+        // Still register the fake admin client so DI resolves the endpoint dependencies.
+        var fake = new FakeAdminClient();
+        await using var factory = new PlatformApiFactory(extraServices: services =>
+        {
+            services.RemoveAll<IDcGateAdminClient>();
+            services.AddSingleton<IDcGateAdminClient>(fake);
+        });
+        var client = factory.CreateClient();
+        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+
+        var response = await owner.PostAsJsonAsync("/api/owner/payment-gateways",
+            new ProvisionPaymentGatewayRequest(BranchId: null, CardNumber: "4111111111114242"));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
     private sealed class ThrowingAdminClient : IDcGateAdminClient
@@ -198,6 +220,29 @@ public sealed class OwnerPaymentGatewayEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<TelegramStartResponse>();
         Assert.Equal("code_required", body!.State);
+    }
+
+    [Fact]
+    public async Task VerifyCode_attached_flips_gateway_to_active()
+    {
+        var fake = new FakeAdminClient(); // verify-code returns "attached"
+        await using var factory = FactoryWithAdmin(fake);
+        var client = factory.CreateClient();
+        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
+
+        var response = await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/verify-code",
+            new TelegramVerifyCodeRequest("att", "12345"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<TelegramVerifyResponse>();
+        Assert.Equal("attached", body!.State);
+        Assert.Equal("active", body.GatewayStatus);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var row = await db.BranchPaymentGateways.FindAsync(id);
+        Assert.Equal("active", row!.Status);
     }
 
     [Fact]
