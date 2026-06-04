@@ -108,8 +108,9 @@ import {
 } from './operatorRealtime';
 import { navItems, seats, type SeatSummary, type SeatTone } from './operatorData';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
+import { PaymentGatewaysWorkspace } from './PaymentGatewaysWorkspace';
 
-type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'logs' | 'settings' | 'review';
+type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'payment_cards' | 'logs' | 'settings' | 'review';
 type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
 type AuthStatus = 'checking' | 'signed-out' | 'signed-in';
 type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';
@@ -147,7 +148,7 @@ type PcControlActionResult = {
   detail: string;
 };
 
-const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'logs', 'settings', 'review'];
+const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'players', 'payments', 'payment_cards', 'logs', 'settings', 'review'];
 const defaultSessionDurationMinutes = 60;
 const defaultTariffRuleVersionId = 'manual-v1';
 const shellOperationalRefreshMs = 30_000;
@@ -210,7 +211,8 @@ const permissionNames = {
   manageUpdateRollouts: 'updates.rollouts.manage',
   viewDeviceCommandStatus: 'devices.commands.status.view',
   viewAudit: 'audit.view',
-  approveMoneyAction: 'billing.money_action.approve'
+  approveMoneyAction: 'billing.money_action.approve',
+  managePaymentGateways: 'payments.gateways.manage'
 } as const;
 
 const staffRoleOptions = ['cashier_operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant_auditor'] as const;
@@ -238,6 +240,7 @@ const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
     permissionNames.purchasePackage
   ],
   payments: [permissionNames.viewShift, permissionNames.openShift, permissionNames.viewReports],
+  payment_cards: [permissionNames.managePaymentGateways],
   logs: [permissionNames.viewAudit, permissionNames.viewDiagnostics],
   settings: [
     permissionNames.manageBranchStaff,
@@ -3965,6 +3968,7 @@ function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId;
     pos: 'Корзина',
     players: 'Amir K.',
     payments: 'Платеж 14:30',
+    payment_cards: 'Приём платежей',
     logs: 'Событие журнала',
     settings: 'Настройки',
     review: 'Проверка'
@@ -10420,6 +10424,9 @@ function AppInner() {
       {workspace === 'pos' && <BackendPosWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'players' && <BackendPlayersWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'payments' && <BackendPaymentsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'payment_cards' && backendContext !== null && (
+        <PaymentGatewaysWorkspace backend={backendContext} />
+      )}
       {workspace === 'logs' && <BackendLogsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'settings' && <BackendSettingsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'review' && <ReviewWorkspace currencyCode={config.currencyCode} backend={backendContext} />}

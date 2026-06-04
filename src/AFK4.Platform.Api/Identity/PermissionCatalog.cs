@@ -60,7 +60,8 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit,
                 StaffPermissionNames.ManageOwnerCode,
-                StaffPermissionNames.ManageBranchSettings
+                StaffPermissionNames.ManageBranchSettings,
+                StaffPermissionNames.ManagePaymentGateways
             },
             [StaffRoleNames.BranchManager] = new HashSet<string>
             {

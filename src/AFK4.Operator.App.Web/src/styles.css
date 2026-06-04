@@ -5969,3 +5969,34 @@ button {
   background: #5a1f1f;
   color: #ff6b6b;
 }
+
+.payment-cards-screen { display: grid; gap: 16px; padding: 18px 22px; }
+.payment-cards-screen .screen-head h1 { margin: 0 0 4px; }
+.payment-cards-error { color: #ff8d8d; background: #2a1518; border-radius: 8px; padding: 8px 12px; }
+.payment-cards-provision { display: flex; flex-wrap: wrap; gap: 12px; align-items: end;
+  background: #121a24; border-radius: 12px; padding: 14px 16px; }
+.payment-cards-provision label { display: grid; gap: 4px; font-size: 13px; }
+.payment-cards-provision input[type="text"],
+.payment-cards-provision input { background: #0b1118; color: #eef3fa; border: 1px solid #243140;
+  border-radius: 8px; padding: 8px 10px; }
+.payment-cards-list { display: grid; gap: 10px; }
+.payment-card-row { display: grid; gap: 8px; background: #121a24; border-radius: 12px; padding: 14px 16px;
+  grid-template-columns: auto auto 1fr; align-items: center; }
+.payment-card-row[data-status="pending_telegram"] { border-left: 3px solid #e0a23a; }
+.payment-card-row[data-status="active"] { border-left: 3px solid #43c08a; }
+.payment-card-row[data-status="disabled"] { border-left: 3px solid #5a6b7b; opacity: 0.7; }
+.payment-card-pan { font-variant-numeric: tabular-nums; font-weight: 600; }
+.payment-card-disable { justify-self: start; background: #2a1518; color: #ff8d8d;
+  border: 1px solid #5a3a3a; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.payment-card-disable:disabled { opacity: 0.5; cursor: default; }
+.payment-card-attach { grid-column: 1 / -1; display: grid; gap: 8px; border-top: 1px solid #243140;
+  padding-top: 10px; }
+.payment-card-attached { color: #43c08a; }
+.payment-card-session { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  font-size: 13px; color: #9fb0c2; }
+.payment-card-session-badge { font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  background: #1c2734; color: #9fb0c2; }
+.payment-card-session[data-health="online"] .payment-card-session-badge { background: #143226; color: #43c08a; }
+.payment-card-session[data-health="offline"] .payment-card-session-badge { background: #2a1518; color: #ff8d8d; }
+.payment-card-session[data-health="configured"] .payment-card-session-badge { background: #2a2113; color: #e0a23a; }
+.payment-card-session-last { font-variant-numeric: tabular-nums; }

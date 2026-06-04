@@ -1,0 +1,102 @@
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { I18nProvider } from '@afk4/i18n';
+
+// bun's mock.module is not hoisted above static imports, so register it before
+// importing the component under test.
+const listMock = mock(async () => ({
+  gateways: [
+    {
+      branchPaymentGatewayId: 'g1',
+      branchId: null,
+      dcgateProjectId: 'p1',
+      cardLast4: '4242',
+      status: 'pending_telegram',
+      createdAtUtc: '2026-06-04T00:00:00Z',
+      updatedAtUtc: '2026-06-04T00:00:00Z'
+    }
+  ]
+}));
+const provisionMock = mock(async () => ({}));
+const startMock = mock(async () => ({ loginAttemptId: 'att', state: 'code_required' }));
+const disableMock = mock(async () => ({
+  branchPaymentGatewayId: 'g1',
+  branchId: null,
+  dcgateProjectId: 'p1',
+  cardLast4: '4242',
+  status: 'disabled',
+  createdAtUtc: '2026-06-04T00:00:00Z',
+  updatedAtUtc: '2026-06-04T00:00:00Z'
+}));
+
+const actualClients = await import('./operatorApiClients');
+mock.module('./operatorApiClients', () => ({
+  ...actualClients,
+  createOperatorApiClients: () => ({
+    paymentGateways: {
+      list: listMock,
+      provision: provisionMock,
+      telegramStart: startMock,
+      disable: disableMock,
+      telegramVerifyCode: mock(async () => ({ state: 'attached', gatewayStatus: 'active' })),
+      telegramVerifyPassword: mock(async () => ({ state: 'attached', gatewayStatus: 'active' })),
+      status: mock(async () => ({
+        gatewayStatus: 'active',
+        sessionHealth: 'online',
+        lastConnectedAt: null,
+        lastMessageAt: null,
+        telegramMessagesCount: 0
+      }))
+    }
+  })
+}));
+
+const { PaymentGatewaysWorkspace } = await import('./PaymentGatewaysWorkspace');
+
+const backend = {
+  config: { platformBaseUrl: 'http://test' },
+  session: { accessToken: 't' },
+  branchId: 'b1'
+};
+
+describe('PaymentGatewaysWorkspace', () => {
+  afterEach(() => {
+    cleanup();
+    mock.restore();
+  });
+
+  it('lists existing gateways with a pending-telegram badge', async () => {
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    expect(await screen.findByText(/4242/)).toBeInTheDocument();
+    expect(listMock).toHaveBeenCalled();
+  });
+
+  it('shows the live telegram session badge for a listed gateway', async () => {
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    await screen.findByText(/4242/);
+    // mock status() returns sessionHealth: 'online' → ru "На связи"
+    expect(await screen.findByText(/на связи/i)).toBeInTheDocument();
+  });
+
+  it('starts telegram attach for a pending gateway', async () => {
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    await screen.findByText(/4242/);
+    const phone = screen.getByLabelText(/телефон|phone/i);
+    fireEvent.change(phone, { target: { value: '+992900000000' } });
+    fireEvent.click(screen.getByRole('button', { name: /код|code/i }));
+    await waitFor(() => expect(startMock).toHaveBeenCalled());
+  });
+
+  it('disables a card after confirmation', async () => {
+    const originalConfirm = globalThis.confirm;
+    globalThis.confirm = () => true;
+    try {
+      render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+      await screen.findByText(/4242/);
+      fireEvent.click(screen.getByRole('button', { name: /отключить|disable/i }));
+      await waitFor(() => expect(disableMock).toHaveBeenCalledWith('g1'));
+    } finally {
+      globalThis.confirm = originalConfirm;
+    }
+  });
+});
