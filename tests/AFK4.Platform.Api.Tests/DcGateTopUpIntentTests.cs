@@ -261,5 +261,9 @@ public class DcGateTopUpIntentTests
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(0, fake.Calls);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await db.PaymentIntents.AnyAsync());
     }
 }
