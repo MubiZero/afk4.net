@@ -5989,3 +5989,11 @@ button {
 .payment-card-attach { grid-column: 1 / -1; display: grid; gap: 8px; border-top: 1px solid #243140;
   padding-top: 10px; }
 .payment-card-attached { color: #43c08a; }
+.payment-card-session { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  font-size: 13px; color: #9fb0c2; }
+.payment-card-session-badge { font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  background: #1c2734; color: #9fb0c2; }
+.payment-card-session[data-health="online"] .payment-card-session-badge { background: #143226; color: #43c08a; }
+.payment-card-session[data-health="offline"] .payment-card-session-badge { background: #2a1518; color: #ff8d8d; }
+.payment-card-session[data-health="configured"] .payment-card-session-badge { background: #2a2113; color: #e0a23a; }
+.payment-card-session-last { font-variant-numeric: tabular-nums; }

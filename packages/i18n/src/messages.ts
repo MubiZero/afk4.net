@@ -778,6 +778,7 @@ export const messages = {
     "payments_cards.session.online": "На связи",
     "payments_cards.session.offline": "Нет связи",
     "payments_cards.session.configured": "Настроена, ожидает запуска",
+    "payments_cards.session.last_message": "Последнее подтверждение",
     "payments_cards.error.generic": "Не удалось выполнить операцию"
   },
   en: {
@@ -1555,6 +1556,7 @@ export const messages = {
     "payments_cards.session.online": "Online",
     "payments_cards.session.offline": "Offline",
     "payments_cards.session.configured": "Configured, awaiting start",
+    "payments_cards.session.last_message": "Last confirmation",
     "payments_cards.error.generic": "The operation failed"
   },
   tg: {
@@ -2332,6 +2334,7 @@ export const messages = {
     "payments_cards.session.online": "На связи",
     "payments_cards.session.offline": "Нет связи",
     "payments_cards.session.configured": "Настроена, ожидает запуска",
+    "payments_cards.session.last_message": "Последнее подтверждение",
     "payments_cards.error.generic": "Не удалось выполнить операцию"
   },
 } as const;

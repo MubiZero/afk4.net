@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { PlatformApiClient } from './platformApi';
-import { createOperatorApiClients, type OwnerPaymentGatewayDto } from './operatorApiClients';
+import {
+  createOperatorApiClients,
+  type OwnerPaymentGatewayDto,
+  type OwnerGatewayStatusResponse
+} from './operatorApiClients';
 import { projectOperatorError } from './apiErrors';
 
 type AttachPhase = 'idle' | 'code_required' | 'password_required' | 'attached';
@@ -20,8 +24,9 @@ interface Props {
 }
 
 export function PaymentGatewaysWorkspace({ backend }: Props) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [gateways, setGateways] = useState<OwnerPaymentGatewayDto[]>([]);
+  const [statuses, setStatuses] = useState<Record<string, OwnerGatewayStatusResponse>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -68,6 +73,25 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
     return () => { disposed = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Live Telegram status per gateway. Fetched concurrently whenever the list
+  // (re)loads — e.g. after a fresh attach — so each row can show its health.
+  // A failed status fetch for one card is silently omitted, never breaking the list.
+  useEffect(() => {
+    let disposed = false;
+    const ids = gateways.map((g) => g.branchPaymentGatewayId);
+    if (ids.length === 0) { setStatuses({}); return; }
+    void (async () => {
+      const results = await Promise.allSettled(ids.map((id) => clients.status(id)));
+      if (disposed) return;
+      const next: Record<string, OwnerGatewayStatusResponse> = {};
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') next[ids[index]] = result.value;
+      });
+      setStatuses(next);
+    })();
+    return () => { disposed = true; };
+  }, [gateways, clients]);
 
   const provision = async () => {
     setBusy(true);
@@ -164,6 +188,27 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
               {g.branchId ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
             </span>
             <span className="payment-card-status">{t(`payments_cards.status.${g.status}` as MessageKey)}</span>
+
+            {statuses[g.branchPaymentGatewayId] && (() => {
+              const live = statuses[g.branchPaymentGatewayId];
+              const known = live.sessionHealth === 'online'
+                || live.sessionHealth === 'offline'
+                || live.sessionHealth === 'configured';
+              return (
+                <div className="payment-card-session" data-health={live.sessionHealth}>
+                  <span className="payment-card-session-badge">
+                    {known
+                      ? t(`payments_cards.session.${live.sessionHealth}` as MessageKey)
+                      : live.sessionHealth}
+                  </span>
+                  {live.lastMessageAt && (
+                    <span className="payment-card-session-last">
+                      {t('payments_cards.session.last_message')}: {formatDate(live.lastMessageAt)}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             {g.status === 'pending_telegram' && (
               <div className="payment-card-attach">

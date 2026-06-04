@@ -61,6 +61,13 @@ describe('PaymentGatewaysWorkspace', () => {
     expect(listMock).toHaveBeenCalled();
   });
 
+  it('shows the live telegram session badge for a listed gateway', async () => {
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    await screen.findByText(/4242/);
+    // mock status() returns sessionHealth: 'online' → ru "На связи"
+    expect(await screen.findByText(/на связи/i)).toBeInTheDocument();
+  });
+
   it('starts telegram attach for a pending gateway', async () => {
     render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
     await screen.findByText(/4242/);
