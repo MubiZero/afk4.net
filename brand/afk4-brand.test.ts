@@ -70,3 +70,22 @@ test("favicon ico is generated and non-empty", () => {
   expect(existsSync(join(BRAND, "dist/afk4.ico"))).toBe(true);
   expect(readFileSync(join(BRAND, "dist/afk4.ico")).length).toBeGreaterThan(0);
 });
+
+import { join as pjoin } from "node:path";
+const REPO = pjoin(BRAND, "..");
+
+const WEB_FAVICONS = [
+  "src/AFK4.Customer.Web/public/favicon.svg",
+  "src/AFK4.Platform.Web/public/favicon.svg",
+  "src/AFK4.Operator.App.Web/public/favicon.svg",
+];
+
+test("every web app ships the new emerald favicon, not the lime placeholder", () => {
+  for (const rel of WEB_FAVICONS) {
+    const p = pjoin(REPO, rel);
+    expect(existsSync(p)).toBe(true);
+    const svg = readFileSync(p, "utf8").toLowerCase();
+    expect(svg).not.toContain("#c8ff00"); // no lime placeholder
+    expect(svg).toContain("#2dd4a7");      // new accent present
+  }
+});
