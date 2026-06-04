@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
+using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -261,6 +262,16 @@ builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
 builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
 builder.Services.AddScoped<IUpdateService, EfUpdateService>();
+
+builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
+builder.Services.AddHttpClient<IDcGateClient, DcGateClient>((provider, http) =>
+{
+    var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
+    {
+        http.BaseAddress = new Uri(opts.BaseUrl);
+    }
+});
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -819,6 +830,7 @@ app.MapGet("/api/me/purchases", async (
 app.MapPost("/api/me/wallet/top-up-intent", async (
     PlayerTopUpIntentRequest request,
     IPlayerContextAccessor playerContextAccessor,
+    IDcGateClient dcGateClient,
     PlatformDbContext dbContext,
     CancellationToken cancellationToken) =>
 {
@@ -831,6 +843,14 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
     if (request.AmountMinorUnits <= 0)
     {
         return Results.BadRequest(new { Error = "Amount must be greater than zero." });
+    }
+
+    var method = string.IsNullOrWhiteSpace(request.Method)
+        ? "counter"
+        : request.Method.Trim().ToLowerInvariant();
+    if (method != "counter" && method != "dcgate")
+    {
+        return Results.BadRequest(new { Error = "Method must be 'counter' or 'dcgate'." });
     }
 
     var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
@@ -855,11 +875,25 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
         CurrencyCode = currencyCode,
         Purpose = "wallet_topup",
         State = "pending",
-        Method = "counter",
+        Method = method,
         FulfilledByLedgerEntryId = null,
         CreatedAtUtc = now,
         FulfilledAtUtc = null
     };
+
+    if (method == "dcgate")
+    {
+        var payment = await dcGateClient.CreatePaymentAsync(
+            intent.AmountMinorUnits,
+            intent.CurrencyCode,
+            intent.PaymentIntentId.ToString("N"),
+            new { playerAccountId = intent.PlayerAccountId, branchId = intent.BranchId },
+            cancellationToken);
+        intent.GatewayPaymentId = payment.PaymentId;
+        intent.GatewayPayUrl = payment.PayUrl;
+        intent.GatewayComment = payment.Comment;
+        intent.GatewayExpiresAtUtc = payment.ExpiresAt;
+    }
 
     dbContext.PaymentIntents.Add(intent);
     await dbContext.SaveChangesAsync(cancellationToken);
@@ -873,7 +907,10 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
         intent.Method,
         intent.CreatedAtUtc,
         intent.FulfilledAtUtc,
-        IsExpired: false));
+        IsExpired: false,
+        PayUrl: intent.GatewayPayUrl,
+        Comment: intent.GatewayComment,
+        GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc));
 }).RequireRateLimiting("player-me");
 
 app.MapGet("/api/me/wallet/top-up-intents", async (
@@ -905,7 +942,10 @@ app.MapGet("/api/me/wallet/top-up-intents", async (
         intent.Method,
         intent.CreatedAtUtc,
         intent.FulfilledAtUtc,
-        IsExpired: intent.State == "pending" && intent.CreatedAtUtc < expiryCutoff))
+        IsExpired: intent.State == "pending" && intent.CreatedAtUtc < expiryCutoff,
+        PayUrl: intent.GatewayPayUrl,
+        Comment: intent.GatewayComment,
+        GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc))
         .ToList();
 
     return Results.Ok(dtos);

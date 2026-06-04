@@ -17,10 +17,12 @@ internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
 {
     private readonly string databaseName = Guid.NewGuid().ToString("N");
     private readonly bool useRealSessionBilling;
+    private readonly Action<IServiceCollection>? extraServices;
 
-    public PlatformApiFactory(bool useRealSessionBilling = false)
+    public PlatformApiFactory(bool useRealSessionBilling = false, Action<IServiceCollection>? extraServices = null)
     {
         this.useRealSessionBilling = useRealSessionBilling;
+        this.extraServices = extraServices;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -62,6 +64,8 @@ internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
                 options.DisplayName = null;
                 options.Roles = null;
             });
+
+            extraServices?.Invoke(services);
         });
     }
 }
