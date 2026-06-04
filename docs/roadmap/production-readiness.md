@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-05-27
+Last updated: 2026-06-04
 
 ## Purpose
 
@@ -8,6 +8,18 @@ This roadmap tracks what separates the current AFK4 codebase from production.
 It is intentionally operational: infrastructure, release gates, security,
 backups, device validation, and pilot readiness. Keep it gate-level; detailed
 run history belongs in the progress snapshot or archive notes.
+
+> **Status note (2026-06-04):** the product/feature side has moved far beyond
+> the pilot bar — the full Platform.Web redesign, SP3 admin control plane +
+> SaaS billing, the entire SP4 wave (counter-loop, anti-fraud, offline,
+> customer portal/shell, notifications, localization, realtime), the dcgate
+> payments subsystem, and the Operator App WebView2/React migration are all
+> implemented and merged. What remains for production is mostly the operational
+> gates below (backups ownership, Authenticode/signing custody, production
+> object-store/CDN, physical Windows smoke, secret hygiene) plus the FE
+> forgot/reset-password screen. See
+> `docs/progress/2026-05-12-vertical-slice-progress.md` for the current
+> feature snapshot.
 
 The product scope and architecture decisions remain in:
 
@@ -313,8 +325,8 @@ Minimum bar:
   target: dense floor-map-centered operator console, selected-seat action
   panel, operational signals, explicit pending/failed backend and device
   states, and no raw GUID/form surfaces in normal cashier/operator paths.
-  `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`
-  is the focused migration plan. The first implementation increment now starts
+  `docs/archive/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`
+  is the focused migration plan (now complete; archived). The first implementation increment now starts
   a WebView2 host shell and a local React/TypeScript console with host config
   injection, local asset resolution, the floor map, and SmartShell-inspired
   fixture workspaces for dashboard, booking, POS/shop, clients, payments,
@@ -414,7 +426,7 @@ Minimum bar:
   typing a GUID, and then opens the existing device detail/command/credential
   tools plus selected-device command history from
   `/api/devices/{deviceId}/commands`. A focused pilot-hardening plan now exists
-  at `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`. Its
+  at `docs/archive/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`. Its
   first slice removes signed-in POS/Clients fixture leakage for authoritative
   empty backend responses and restricts WebView2 dev-server URLs to loopback.
   Staging smoke of these extra workspaces still remains before
@@ -456,79 +468,39 @@ Minimum bar:
 - Diagnostics screen exists, but support runbooks for common incidents are
   still needed.
 
-## Recommended Next Branches
+## Recommended Next Work
 
-1. Operator App WebView2/React migration
+The Operator App WebView2/React migration, the SaaS Control Plane, and the
+full SP3/SP4 feature wave are done and merged (see the status note at the top
+and the progress snapshot). The remaining path to production is operational:
 
-   Continue
-   `docs/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md`.
-   The native WebView2 host, React/TypeScript app foundation, typed config
-   bootstrap, native auth/token bridge, protected staff sign-in, typed
-   frontend API client boundary, local floor-map concept UI, backend-backed
-   primary floor-map loading, SignalR device-status state, and
-   backend-confirmed selected-seat start/extend/transfer/end actions now exist.
-   POS, clients, payments, logs, and settings now have first-pass backend data
-   and action wiring where current backend contracts exist; Booking now also has
-   backend reservation contract wiring for search/create/update/confirm/seat/cancel
-   flows. Dashboard now has first-pass backend metrics, and the React shell now
-   disables workspace navigation plus selected-seat session actions based on
-   restored staff permissions. The map panel now also supports guest/prepaid/
-   package/postpaid billing selection, selected-seat device command status
-   feedback, real map filters/table view parity, Booking permission/state
-   hardening, Settings staff creation/profile editing/role reassignment/lifecycle controls,
-   branch profile save,
-   Settings layout zone/seat creation/update/delete, Settings POS
-   category/product creation/update/deactivation, Settings stock movement creation/history,
-   Settings tariff/package definition creation/update/deactivation, Settings update package/rollout controls/detail, Settings
-   device enrollment/seat assignment/credential lifecycle, Dashboard export download,
-   Payments open/close-shift, cash-movement wiring, selected-operation detail,
-   and report export downloads,
-   Logs backend audit/date
-   filters, selected-event detail, source-card filtering, period presets, and
-   export downloads, POS
-   selected-sale refund/draft-void quick actions, POS sale-detail/receipt print-export,
-   POS selected-customer/new-customer checkout/wallet top-up/stock write-off,
-   Clients wallet top-up/debt-payment forms, Clients new-player form, Clients
-   active-package profile detail, Clients package purchase selector/confirmation,
-   Settings branch device inventory, selected-device command history,
-   branch-wide device command history, and Settings safe layout deletion. The
-   first pilot-hardening slice now removes POS/Clients empty-backend fixture
-   leakage and loopback-locks the WebView2 dev-server URL. A follow-up slice now
-   adds two-step confirmation guards for session end, POS refund/void, shift
-   close, device credential revoke, layout deletion, and update package/rollout
-   state changes. Next continue from
-   `docs/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`: staging
-   smoke across backend-backed workspaces, de-technicalized primary copy,
-   frontend module split, stronger typed contracts, React hotkeys, and follow-up
-   fixes found with real staging data. Before running branch-level staging
-   smoke, remember that the current Coolify staging app is configured to deploy
-   `main`; branch-only routes and migrations must be merged or intentionally
-   deployed with backup/migration handling first.
-   Local builds must
-   still target staging with
-   `AFK4_OPERATOR_PLATFORM_BASE_URL=https://afk4.staging.mubi.dev`. Treat raw
-   GUID/form surfaces in the main operator path as usability defects unless
-   they are explicitly advanced technician tools.
+1. **Staging smoke** — run the deferred staging smoke suite when the owner
+   gives the go: the `manager_workstation` clean-VM repeat (after running
+   `scripts/cleanup-manager-workstation-smoke-data.ps1 -Apply
+   -DeleteEmptySmokeSeats` with the smoke staff credential) and a full
+   backend-backed operator day-flow pass. The Coolify staging app deploys
+   `main`, so anything smoke-tested must already be on `main`.
 
-2. Operator-facing management expansion
+2. **Physical Windows hardening** — repeat
+   `docs/operations/real-device-windows-pc-smoke.md` on physical Windows 10/11
+   hardware: lock/unlock enforcement, reboot recovery, role-aware updates, and
+   update/rollback. Treat findings as hardening unless they block a concrete
+   staging test.
 
-   The one-shot Pilot Setup panel is enough for pilot setup. Next development
-   should expand toward general staff/role, layout, device-seat, tariff, POS,
-   and runtime/staging configuration screens as pilot usability requires.
+3. **Pre-production release decisions** — settle the commercial blockers below:
+   Authenticode/signing custody, production object-store/CDN provider + retention
+   + presigned upload automation, package-registration service credentials,
+   backup encryption/retention/restore ownership, and a production
+   incident/rollback checklist.
 
-3. Physical Windows hardening
+4. **Secret hygiene** — keep Coolify/API tokens in a secret manager or
+   runtime-only env, never in chat or repo files. GitHub variables
+   `COOLIFY_BASE_URL` / `COOLIFY_STAGING_APP_UUID` and secret
+   `COOLIFY_API_TOKEN` are configured for automated staging deploy.
 
-   Repeat `docs/operations/real-device-windows-pc-smoke.md` on physical
-   Windows 10/11 hardware when hardware is available. Treat findings as
-   hardening work unless they block the current Operator App staging test.
-
-4. Staging secret hygiene
-
-   Rotate the exposed restore-rehearsal Coolify token before sensitive staging
-   operations, then keep future tokens in a secret manager or local
-   runtime-only environment, not in chat or repository files. GitHub repository
-   variables `COOLIFY_BASE_URL` and `COOLIFY_STAGING_APP_UUID`, plus secret
-   `COOLIFY_API_TOKEN`, are configured for automated staging deploy.
+5. **Finish password reset** — the backend reset path + MailKit SMTP transport
+   exist; build the FE forgot/reset-password screen (currently a placeholder)
+   and wire per-environment SMTP config.
 
 ## Decision Rules
 

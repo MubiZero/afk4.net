@@ -1,26 +1,22 @@
 # Plan Navigation
 
-This directory contains current execution plans plus a small number of roadmap
-or completed-reference documents that still guide near-term work. Treat only
-the first section as active implementation instructions.
+Implementation plans for completed work are archived once their work lands on
+`main`. As of 2026-06-04 there are **no active implementation plans** — the
+SP3 admin/billing redesign and the whole SP4 wave (counter-loop, anti-fraud,
+offline-resilience, customer portal/shell, notifications, localization,
+realtime, dcgate payments) are implemented and merged.
 
-## Active Implementation Plans
-
-- `2026-05-24-afk4-club-self-service-onboarding.md` - active; Slices 1.1-3.5
-  are implemented on `main`, with Slice 4 public landing work next.
-- `2026-05-20-operator-app-webview2-react-migration.md` - active Operator App
-  runtime migration and parity plan.
-- `2026-05-23-operator-app-pilot-hardening.md` - active Operator App staging
-  and pilot-hardening follow-up.
-
-## Roadmap And Reference
-
-- `2026-05-24-afk4-roadmap-post-onboarding.md` - roadmap, not an
-  implementation plan.
-- `2026-05-23-saas-control-plane-tenant-onboarding.md` - completed Control
-  Plane implementation record and deferred-hardening reference.
+When you start new work, add its plan file here, then move it to the archive
+once it ships.
 
 ## Archive
 
-Older phase plans and superseded one-off plans live in
-`docs/archive/superpowers/plans/`.
+All shipped phase, redesign, and SP3/SP4 plans live in
+`docs/archive/superpowers/plans/`. Use them when you need the original
+implementation context or design rationale for already-merged work.
+
+## Related
+
+- Architecture source of truth: `../specs/2026-05-12-afk4-platform-architecture-design.md`
+- Operational/production roadmap: `../../roadmap/production-readiness.md`
+- Current-state snapshot: `../../progress/2026-05-12-vertical-slice-progress.md`
