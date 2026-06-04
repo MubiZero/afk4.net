@@ -150,7 +150,7 @@ public class PortalWritesEndpointTests
     }
 
     [Fact]
-    public async Task CreateTopUpIntent_WithUnverifiedPhone_Returns403()
+    public async Task CreateTopUpIntent_WithUnverifiedPhone_StillCreatesPendingIntent()
     {
         await using var factory = new PlatformApiFactory();
         var p = await SeedPlayerAsync(factory, "1234", phoneVerified: false);
@@ -161,7 +161,9 @@ public class PortalWritesEndpointTests
             "/api/me/wallet/top-up-intent",
             new PlayerTopUpIntentRequest(10_000, null));
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
+        Assert.Equal("pending", dto!.State);
     }
 
     [Fact]

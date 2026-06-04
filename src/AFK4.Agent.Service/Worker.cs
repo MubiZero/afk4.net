@@ -244,6 +244,9 @@ public sealed class Worker(
             ? null
             : Math.Max(0, (int)(lease.ExpiresAtUtc - DateTimeOffset.UtcNow).TotalSeconds);
 
+        var isGraceMode = string.Equals(runtimeState.State, PlayerShellStateNames.Grace, StringComparison.Ordinal);
+        var threshold = agentOptions.ShellWarningThresholdSeconds;
+
         return new PlayerShellStateDto(
             OrganizationId: agentOptions.OrganizationId,
             BranchId: agentOptions.BranchId,
@@ -253,11 +256,15 @@ public sealed class Worker(
             LeaseExpiresAtUtc: lease?.ExpiresAtUtc ?? runtimeState.LeaseExpiresAtUtc,
             RemainingSeconds: remainingSeconds,
             IsOnline: true,
-            IsGraceMode: string.Equals(runtimeState.State, PlayerShellStateNames.Grace, StringComparison.Ordinal),
-            WarningThresholdSeconds: 300,
+            IsGraceMode: isGraceMode,
+            WarningThresholdSeconds: threshold,
             Message: CreatePlayerShellMessage(runtimeState),
             LauncherApps: [],
-            Locale: agentOptions.PreferredLocale);
+            Locale: agentOptions.PreferredLocale,
+            WarningKind: PlayerShellWarning.Classify(runtimeState.State, remainingSeconds, threshold, isGraceMode),
+            Branding: string.IsNullOrWhiteSpace(agentOptions.ClubName)
+                ? null
+                : new ShellBrandingDto(agentOptions.ClubName!, agentOptions.LogoUrl, agentOptions.AccentColor));
     }
 
     private static string CreatePlayerShellMessage(AgentRuntimeState runtimeState)

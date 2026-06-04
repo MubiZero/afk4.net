@@ -11,4 +11,7 @@ public sealed record PlayerTopUpIntentDto(
     string Method,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? FulfilledAtUtc,
-    bool IsExpired);
+    bool IsExpired,
+    string? PayUrl = null,
+    string? Comment = null,
+    DateTimeOffset? GatewayExpiresAtUtc = null);

@@ -1,10 +1,12 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
+using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -30,6 +32,7 @@ using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
+using AFK4.Platform.Api.Security;
 using AFK4.Platform.Api.Tenancy;
 using AFK4.Platform.Api.Updates;
 using AFK4.Shared.Contracts.Billing;
@@ -261,6 +264,22 @@ builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
 builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
 builder.Services.AddScoped<IUpdateService, EfUpdateService>();
+
+builder.Services.Configure<SecretProtectionOptions>(
+    builder.Configuration.GetSection(SecretProtectionOptions.SectionName));
+builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
+builder.Services.AddScoped<IBranchPaymentGatewayResolver, EfBranchPaymentGatewayResolver>();
+
+builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
+builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, http) =>
+{
+    var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
+    {
+        http.BaseAddress = new Uri(opts.BaseUrl);
+    }
+});
+builder.Services.AddSingleton<IDcGateClientFactory, DcGateClientFactory>();
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -676,6 +695,159 @@ app.MapGet("/api/public/tenant/{tenantKey}/branding", async (
     return org is null ? Results.NotFound() : Results.Ok(org);
 }).RequireRateLimiting("player-public");
 
+// Shared credit reason for both the dcgate webhook and the operator fulfil paths.
+// MUST be identical so that a concurrent double-confirm (webhook + operator, or vice-versa)
+// hashes to the same idempotency fingerprint and collapses to a clean replay instead of a
+// RequestConflict that would make the second caller return a spurious error.
+const string TopUpIntentCreditReason = "wallet top-up via top-up intent";
+
+app.MapPost("/api/public/payments/dcgate/webhook", async (
+    HttpRequest httpRequest,
+    IBranchPaymentGatewayResolver gatewayResolver,
+    ISecretProtector secretProtector,
+    IBillingCommandService billingCommandService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    httpRequest.EnableBuffering();
+    string rawBody;
+    using (var reader = new StreamReader(httpRequest.Body, Encoding.UTF8, leaveOpen: true))
+    {
+        rawBody = await reader.ReadToEndAsync(cancellationToken);
+    }
+    httpRequest.Body.Position = 0;
+
+    if (!httpRequest.Headers.TryGetValue("x-dcgate-project-id", out var projectIdHeader)
+        || string.IsNullOrWhiteSpace(projectIdHeader.ToString()))
+    {
+        return Results.Unauthorized();
+    }
+
+    var gateway = await gatewayResolver.ResolveByProjectIdAsync(
+        projectIdHeader.ToString(), cancellationToken);
+    if (gateway is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    string webhookSecret;
+    try
+    {
+        webhookSecret = secretProtector.Unprotect(gateway.WebhookSecretEncrypted);
+    }
+    catch (Exception)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!DcGateSignatureIsValid(httpRequest, rawBody, webhookSecret))
+    {
+        return Results.Unauthorized();
+    }
+
+    DcGateWebhookPayload? payload;
+    try
+    {
+        payload = JsonSerializer.Deserialize<DcGateWebhookPayload>(
+            rawBody, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    }
+    catch (JsonException)
+    {
+        return Results.BadRequest();
+    }
+
+    if (payload is null || string.IsNullOrWhiteSpace(payload.EventId))
+    {
+        return Results.BadRequest();
+    }
+
+    if (await dbContext.DcGateWebhookEvents.AnyAsync(e => e.EventId == payload.EventId, cancellationToken))
+    {
+        return Results.Ok();
+    }
+
+    if (!Guid.TryParseExact(payload.Payment.ExternalOrderId, "N", out var intentId))
+    {
+        return Results.Ok();
+    }
+
+    var intent = await dbContext.PaymentIntents.SingleOrDefaultAsync(
+        i => i.PaymentIntentId == intentId, cancellationToken);
+    if (intent is null)
+    {
+        return Results.Ok();
+    }
+
+    switch (payload.EventType)
+    {
+        case "payment.paid":
+            // Credit unless already fulfilled — this intentionally includes an "expired"
+            // intent, because dcgate may confirm a payment after we locally expired it.
+            if (intent.State != "fulfilled")
+            {
+                var topUpRequest = new TopUpWalletRequest(
+                    intent.OrganizationId,
+                    new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
+                    TopUpIntentCreditReason,
+                    intent.PaymentIntentId.ToString("N"));
+
+                var billingResult = await billingCommandService.TopUpWalletAsync(
+                    intent.PlayerAccountId,
+                    intent.BranchId,
+                    Guid.Empty,
+                    topUpRequest,
+                    cancellationToken);
+
+                if (!billingResult.Succeeded)
+                {
+                    return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+                }
+
+                intent.State = "fulfilled";
+                intent.FulfilledAtUtc = DateTimeOffset.UtcNow;
+            }
+            break;
+
+        case "payment.expired":
+            if (intent.State == "pending")
+            {
+                intent.State = "expired";
+            }
+            break;
+
+        case "payment.disputed":
+            intent.Disputed = true;
+            break;
+
+        default:
+            return Results.Ok(); // unknown event type — ack so dcgate stops retrying
+    }
+
+    dbContext.DcGateWebhookEvents.Add(new DcGateWebhookEventEntity
+    {
+        DcGateWebhookEventId = Guid.NewGuid(),
+        EventId = payload.EventId,
+        EventType = payload.EventType,
+        ProcessedAtUtc = DateTimeOffset.UtcNow
+    });
+    try
+    {
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateException)
+    {
+        // Race: a concurrent delivery may have already recorded this event.
+        // Re-query to confirm — if the unique index fired on a duplicate, treat as idempotent no-op.
+        if (await dbContext.DcGateWebhookEvents.AnyAsync(e => e.EventId == payload.EventId, cancellationToken))
+        {
+            return Results.Ok();
+        }
+        throw;
+    }
+
+    return Results.Ok();
+}).RequireRateLimiting("player-public");
+
 app.MapGet("/api/me/profile", async (
     IPlayerContextAccessor playerContextAccessor,
     PlatformDbContext dbContext,
@@ -819,6 +991,9 @@ app.MapGet("/api/me/purchases", async (
 app.MapPost("/api/me/wallet/top-up-intent", async (
     PlayerTopUpIntentRequest request,
     IPlayerContextAccessor playerContextAccessor,
+    IDcGateClientFactory dcGateClientFactory,
+    IBranchPaymentGatewayResolver gatewayResolver,
+    ISecretProtector secretProtector,
     PlatformDbContext dbContext,
     CancellationToken cancellationToken) =>
 {
@@ -828,15 +1003,17 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
         return Results.Unauthorized();
     }
 
-    // D8 gate: verified phone required for money actions.
-    if (!player.PhoneVerified)
-    {
-        return Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
-
     if (request.AmountMinorUnits <= 0)
     {
         return Results.BadRequest(new { Error = "Amount must be greater than zero." });
+    }
+
+    var method = string.IsNullOrWhiteSpace(request.Method)
+        ? "counter"
+        : request.Method.Trim().ToLowerInvariant();
+    if (method != "counter" && method != "dcgate")
+    {
+        return Results.BadRequest(new { Error = "Method must be 'counter' or 'dcgate'." });
     }
 
     var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
@@ -861,11 +1038,37 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
         CurrencyCode = currencyCode,
         Purpose = "wallet_topup",
         State = "pending",
-        Method = "counter",
+        Method = method,
         FulfilledByLedgerEntryId = null,
         CreatedAtUtc = now,
         FulfilledAtUtc = null
     };
+
+    if (method == "dcgate")
+    {
+        var gateway = await gatewayResolver.ResolveForBranchAsync(
+            intent.OrganizationId, account.HomeBranchId, cancellationToken);
+        if (gateway is null)
+        {
+            return Results.Json(
+                new { Error = "online_payment_unavailable" },
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        var apiKey = secretProtector.Unprotect(gateway.ApiKeyEncrypted);
+        var dcGateClient = dcGateClientFactory.CreateForApiKey(apiKey);
+
+        var payment = await dcGateClient.CreatePaymentAsync(
+            intent.AmountMinorUnits,
+            intent.CurrencyCode,
+            intent.PaymentIntentId.ToString("N"),
+            new { playerAccountId = intent.PlayerAccountId, branchId = intent.BranchId },
+            cancellationToken);
+        intent.GatewayPaymentId = payment.PaymentId;
+        intent.GatewayPayUrl = payment.PayUrl;
+        intent.GatewayComment = payment.Comment;
+        intent.GatewayExpiresAtUtc = payment.ExpiresAt;
+    }
 
     dbContext.PaymentIntents.Add(intent);
     await dbContext.SaveChangesAsync(cancellationToken);
@@ -879,7 +1082,10 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
         intent.Method,
         intent.CreatedAtUtc,
         intent.FulfilledAtUtc,
-        IsExpired: false));
+        IsExpired: false,
+        PayUrl: intent.GatewayPayUrl,
+        Comment: intent.GatewayComment,
+        GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc));
 }).RequireRateLimiting("player-me");
 
 app.MapGet("/api/me/wallet/top-up-intents", async (
@@ -911,7 +1117,10 @@ app.MapGet("/api/me/wallet/top-up-intents", async (
         intent.Method,
         intent.CreatedAtUtc,
         intent.FulfilledAtUtc,
-        IsExpired: intent.State == "pending" && intent.CreatedAtUtc < expiryCutoff))
+        IsExpired: intent.State == "pending" && intent.CreatedAtUtc < expiryCutoff,
+        PayUrl: intent.GatewayPayUrl,
+        Comment: intent.GatewayComment,
+        GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc))
         .ToList();
 
     return Results.Ok(dtos);
@@ -1053,6 +1262,127 @@ app.MapDelete("/api/me/reservations/{reservationId:guid}", async (
     return Results.Ok(ToPlayerReservationDto(result.Response!));
 }).RequireRateLimiting("player-me");
 
+app.MapPost("/api/me/sessions/start", async (
+    PlayerSelfStartRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    ISessionCommandService sessionCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null) return Results.Unauthorized();
+
+    var assignment = await (
+        from a in dbContext.DeviceSeatAssignments.AsNoTracking()
+        join d in dbContext.Devices.AsNoTracking() on a.DeviceId equals d.DeviceId
+        where a.DeviceId == request.DeviceId &&
+              a.OrganizationId == player.OrganizationId &&
+              a.DetachedAtUtc == null &&
+              d.EnrollmentState == DeviceEnrollmentStateNames.Approved
+        orderby a.AttachedAtUtc descending
+        select a).FirstOrDefaultAsync(cancellationToken);
+    if (assignment is null) return Results.NotFound(new { error = "device_not_assigned" });
+
+    if (!Guid.TryParse(request.TariffRuleVersionId, out var tariffVersionId))
+        return Results.BadRequest(new { error = "invalid_tariff" });
+
+    var version = await dbContext.TariffVersions.AsNoTracking().SingleOrDefaultAsync(
+        v => v.OrganizationId == player.OrganizationId &&
+             v.BranchId == assignment.BranchId &&
+             v.TariffVersionId == tariffVersionId, cancellationToken);
+    if (version is null) return Results.BadRequest(new { error = "invalid_tariff" });
+
+    var pricing = new TariffPricing(
+        version.PricePerMinuteMinorUnits, version.MinimumBillableMinutes,
+        version.RoundingIncrementMinutes, version.CurrencyCode);
+    var charge = TariffBilling.ComputeForMinutes(request.DurationMinutes, pricing);
+    if (charge is null) return Results.BadRequest(new { error = "invalid_duration" });
+
+    var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
+        dbContext, player.PlayerAccountId, cancellationToken);
+    var walletBalance = wallet?.WalletBalance.MinorUnits ?? 0;
+    if (walletBalance < charge.AmountMinorUnits)
+        return Results.Conflict(new { error = "insufficient_balance" });
+
+    var startRequest = new StartGuestSessionRequest(
+        OrganizationId: player.OrganizationId,
+        SeatId: assignment.SeatId,
+        TariffRuleVersionId: request.TariffRuleVersionId,
+        IdempotencyKey: request.IdempotencyKey,
+        DurationMode: SessionDurationModes.Fixed,
+        DurationMinutes: request.DurationMinutes,
+        PlayerAccountId: player.PlayerAccountId,
+        BillingMode: BillingModeNames.PrepaidWallet,
+        TariffVersionId: tariffVersionId);
+
+    var result = await sessionCommandService.StartGuestSessionAsync(
+        assignment.BranchId, Guid.Empty, startRequest, cancellationToken);
+
+    if (result.Conflict) return Results.Conflict(new { error = result.Error });
+    if (result.NotFound) return Results.NotFound(new { error = result.Error });
+    if (!result.Succeeded) return Results.BadRequest(new { error = result.Error });
+    return Results.Ok(result.Response);
+}).RequireRateLimiting("player-me");
+
+app.MapPost("/api/me/sessions/{sessionId:guid}/extend", async (
+    Guid sessionId,
+    PlayerSelfExtendRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    ISessionCommandService sessionCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null) return Results.Unauthorized();
+
+    var session = await dbContext.Sessions.AsNoTracking().SingleOrDefaultAsync(
+        s => s.SessionId == sessionId, cancellationToken);
+
+    // Ownership-scoped: a session the caller does not own is indistinguishable from a missing one.
+    if (session is null ||
+        session.PlayerAccountId != player.PlayerAccountId ||
+        session.State != SessionStateNames.Active)
+    {
+        return Results.NotFound();
+    }
+
+    if (!Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId))
+        return Results.BadRequest(new { error = "invalid_tariff" });
+
+    var version = await dbContext.TariffVersions.AsNoTracking().SingleOrDefaultAsync(
+        v => v.OrganizationId == session.OrganizationId &&
+             v.BranchId == session.BranchId &&
+             v.TariffVersionId == tariffVersionId, cancellationToken);
+    if (version is null) return Results.BadRequest(new { error = "invalid_tariff" });
+
+    var pricing = new TariffPricing(
+        version.PricePerMinuteMinorUnits, version.MinimumBillableMinutes,
+        version.RoundingIncrementMinutes, version.CurrencyCode);
+    var charge = TariffBilling.ComputeForMinutes(request.AdditionalMinutes, pricing);
+    if (charge is null) return Results.BadRequest(new { error = "invalid_duration" });
+
+    var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
+        dbContext, player.PlayerAccountId, cancellationToken);
+    if ((wallet?.WalletBalance.MinorUnits ?? 0) < charge.AmountMinorUnits)
+        return Results.Conflict(new { error = "insufficient_balance" });
+
+    var extendRequest = new ExtendSessionRequest(
+        AdditionalMinutes: request.AdditionalMinutes,
+        TariffRuleVersionId: session.TariffRuleVersionId,
+        IdempotencyKey: request.IdempotencyKey,
+        PlayerAccountId: player.PlayerAccountId,
+        BillingMode: BillingModeNames.PrepaidWallet,
+        TariffVersionId: tariffVersionId);
+
+    var result = await sessionCommandService.ExtendSessionAsync(
+        sessionId, Guid.Empty, extendRequest, cancellationToken);
+
+    if (result.Conflict) return Results.Conflict(new { error = result.Error });
+    if (result.NotFound) return Results.NotFound();
+    if (!result.Succeeded) return Results.BadRequest(new { error = result.Error });
+    return Results.Ok(result.Response);
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
     Guid intentId,
     IStaffContextAccessor staffContextAccessor,
@@ -1137,7 +1467,7 @@ app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
     var topUpRequest = new TopUpWalletRequest(
         intent.OrganizationId,
         new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
-        "wallet top-up via portal intent",
+        TopUpIntentCreditReason,
         intent.PaymentIntentId.ToString("N"));
 
     var billingResult = await billingCommandService.TopUpWalletAsync(
@@ -1180,6 +1510,92 @@ app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
         intent.CreatedAtUtc,
         intent.FulfilledAtUtc,
         IsExpired: false));
+});
+
+app.MapGet("/api/branches/{branchId:guid}/wallet/top-up-intents", async (
+    Guid branchId,
+    string? status,
+    StaffAuthorizationService authorizationService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.TopUpWallet,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var organizationId = authorization.StaffContext!.OrganizationId;
+    var stateFilter = string.IsNullOrWhiteSpace(status) ? "pending" : status;
+
+    var intents = await dbContext.PaymentIntents
+        .AsNoTracking()
+        .Where(intent =>
+            intent.OrganizationId == organizationId &&
+            intent.BranchId == branchId &&
+            intent.State == stateFilter)
+        .OrderByDescending(intent => intent.CreatedAtUtc)
+        .ToListAsync(cancellationToken);
+
+    var playerIds = intents.Select(i => i.PlayerAccountId).Distinct().ToList();
+
+    var players = await dbContext.PlayerAccounts
+        .AsNoTracking()
+        .Where(p => playerIds.Contains(p.PlayerAccountId))
+        .ToDictionaryAsync(p => p.PlayerAccountId, p => p.DisplayName, cancellationToken);
+
+    var activeSessions = await dbContext.Sessions
+        .AsNoTracking()
+        .Where(s =>
+            s.BranchId == branchId &&
+            s.State == SessionStateNames.Active &&
+            s.PlayerAccountId != null &&
+            playerIds.Contains(s.PlayerAccountId!.Value))
+        .ToListAsync(cancellationToken);
+
+    var seatIds = activeSessions.Select(s => s.SeatId).Distinct().ToList();
+
+    var seats = await dbContext.Seats
+        .AsNoTracking()
+        .Where(s => seatIds.Contains(s.SeatId))
+        .ToDictionaryAsync(s => s.SeatId, s => s.Name, cancellationToken);
+
+    var sessionBySeatLookup = activeSessions
+        .GroupBy(s => s.PlayerAccountId!.Value)
+        .ToDictionary(g => g.Key, g => g.First().SeatId);
+
+    var items = intents.Select(intent =>
+    {
+        var displayName = players.TryGetValue(intent.PlayerAccountId, out var name) ? name : string.Empty;
+        string? seatName = null;
+        if (sessionBySeatLookup.TryGetValue(intent.PlayerAccountId, out var seatId) &&
+            seats.TryGetValue(seatId, out var sn))
+        {
+            seatName = sn;
+        }
+
+        return new OperatorTopUpIntentDto(
+            intent.PaymentIntentId,
+            intent.PlayerAccountId,
+            displayName,
+            intent.AmountMinorUnits,
+            intent.CurrencyCode,
+            intent.State,
+            intent.Method,
+            intent.CreatedAtUtc,
+            seatName);
+    }).ToList();
+
+    return Results.Ok(items);
 });
 
 app.MapPost("/api/auth/staff/forgot-password", async (
@@ -10911,6 +11327,37 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/status", async (
 app.MapHub<DeviceHub>("/hubs/devices");
 
 app.Run();
+
+static bool DcGateSignatureIsValid(HttpRequest request, string rawBody, string secret)
+{
+    if (string.IsNullOrEmpty(secret))
+    {
+        return false;
+    }
+    if (!request.Headers.TryGetValue("x-dcgate-signature", out var header))
+    {
+        return false;
+    }
+    var provided = header.ToString();
+    const string prefix = "sha256=";
+    if (!provided.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+    {
+        return false;
+    }
+    var providedHex = provided[prefix.Length..];
+    byte[] providedBytes;
+    try
+    {
+        providedBytes = Convert.FromHexString(providedHex);
+    }
+    catch (FormatException)
+    {
+        return false;
+    }
+    using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+    var expected = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawBody));
+    return CryptographicOperations.FixedTimeEquals(providedBytes, expected);
+}
 
 static bool TryParseMoneyActionType(string? actionType, out MoneyActionType requestedType, out string requiredPermission)
 {
