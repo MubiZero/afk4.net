@@ -864,6 +864,35 @@ app.MapPost("/api/public/payments/dcgate/webhook", async (
     return Results.Ok();
 }).RequireRateLimiting("player-public");
 
+app.MapGet("/api/owner/payment-gateways", async (
+    StaffAuthorizationService authorizationService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = authorizationService.RequireOrganizationPermission(
+        StaffPermissionNames.ManagePaymentGateways);
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var orgId = authorization.StaffContext!.OrganizationId;
+    var rows = await dbContext.BranchPaymentGateways
+        .AsNoTracking()
+        .Where(g => g.OrganizationId == orgId)
+        .OrderBy(g => g.CreatedAtUtc)
+        .Select(g => new OwnerPaymentGatewayDto(
+            g.BranchPaymentGatewayId, g.BranchId, g.DcgateProjectId,
+            g.CardLast4, g.Status, g.CreatedAtUtc, g.UpdatedAtUtc))
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(new OwnerPaymentGatewayListResponse(rows));
+});
+
 app.MapGet("/api/me/profile", async (
     IPlayerContextAccessor playerContextAccessor,
     PlatformDbContext dbContext,
