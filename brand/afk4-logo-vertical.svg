@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 96" width="120" height="96" role="img" aria-label="AFK4.NET">
+  <g transform="translate(34 6)">
+    <rect x="3"  y="3"  width="13" height="13" rx="3.5" fill="#2DD4A7"/>
+    <rect x="20" y="3"  width="13" height="13" rx="3.5" fill="#173028"/>
+    <rect x="37" y="3"  width="13" height="13" rx="3.5" fill="#173028"/>
+    <rect x="3"  y="20" width="13" height="13" rx="3.5" fill="#173028"/>
+    <rect x="20" y="20" width="13" height="13" rx="3.5" fill="#2DD4A7"/>
+    <rect x="37" y="20" width="13" height="13" rx="3.5" fill="#173028"/>
+    <rect x="3"  y="37" width="13" height="13" rx="3.5" fill="#173028"/>
+    <rect x="20" y="37" width="13" height="13" rx="3.5" fill="#173028"/>
+    <rect x="37" y="37" width="13" height="13" rx="3.5" fill="#2DD4A7"/>
+  </g>
+  <text x="60" y="86" text-anchor="middle" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="800" letter-spacing="-1" fill="#E2F1EC">AFK4<tspan fill="#2DD4A7">.NET</tspan></text>
+</svg>
