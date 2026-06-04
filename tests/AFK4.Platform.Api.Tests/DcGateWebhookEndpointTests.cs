@@ -26,14 +26,25 @@ public sealed class DcGateWebhookEndpointTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var protector = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Security.ISecretProtector>();
+        await SeedGatewayWithRawEncryptedAsync(factory, projectId,
+            apiKeyEncrypted: protector.Protect("dcg_test_api_key"),
+            webhookSecretEncrypted: protector.Protect(webhookSecret));
+    }
+
+    private static async Task SeedGatewayWithRawEncryptedAsync(
+        PlatformApiFactory factory, string projectId,
+        string apiKeyEncrypted, string webhookSecretEncrypted)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         db.BranchPaymentGateways.Add(new BranchPaymentGatewayEntity
         {
             BranchPaymentGatewayId = Guid.NewGuid(),
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
             DcgateProjectId = projectId,
-            ApiKeyEncrypted = protector.Protect("dcg_test_api_key"),
-            WebhookSecretEncrypted = protector.Protect(webhookSecret),
+            ApiKeyEncrypted = apiKeyEncrypted,
+            WebhookSecretEncrypted = webhookSecretEncrypted,
             CardLast4 = "1953",
             Status = AFK4.Platform.Api.Payments.BranchPaymentGatewayStatus.Active,
             CreatedAtUtc = DateTimeOffset.UtcNow,
@@ -352,5 +363,27 @@ public sealed class DcGateWebhookEndpointTests
         var webhookResponse = await webhookClient.SendAsync(SignedRequest(body, WebhookSecret));
         Assert.Equal(HttpStatusCode.OK, webhookResponse.StatusCode);
         Assert.Equal(1, await CountTopUpsAsync(factory, intentId));
+    }
+
+    [Fact]
+    public async Task Webhook_CorruptWebhookSecret_Returns401AndDoesNotCredit()
+    {
+        await using var factory = CreateFactory();
+        var intentId = await SeedDcGateIntentAsync(factory);
+        // Seed a gateway whose WebhookSecretEncrypted is not a valid protected envelope.
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var protector = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Security.ISecretProtector>();
+            await SeedGatewayWithRawEncryptedAsync(factory, "afk4",
+                apiKeyEncrypted: protector.Protect("dcg_test_api_key"),
+                webhookSecretEncrypted: "not-a-valid-envelope");
+        }
+        using var client = factory.CreateClient();
+
+        var body = PaidBody(intentId, "evt_corrupt_secret");
+        var response = await client.SendAsync(SignedRequest(body, WebhookSecret));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(0, await CountTopUpsAsync(factory, intentId));
     }
 }

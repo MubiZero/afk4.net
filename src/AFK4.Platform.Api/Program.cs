@@ -730,7 +730,16 @@ app.MapPost("/api/public/payments/dcgate/webhook", async (
         return Results.Unauthorized();
     }
 
-    var webhookSecret = secretProtector.Unprotect(gateway.WebhookSecretEncrypted);
+    string webhookSecret;
+    try
+    {
+        webhookSecret = secretProtector.Unprotect(gateway.WebhookSecretEncrypted);
+    }
+    catch (Exception)
+    {
+        return Results.Unauthorized();
+    }
+
     if (!DcGateSignatureIsValid(httpRequest, rawBody, webhookSecret))
     {
         return Results.Unauthorized();
