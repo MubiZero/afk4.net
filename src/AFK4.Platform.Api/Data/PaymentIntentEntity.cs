@@ -19,7 +19,7 @@ public sealed class PaymentIntentEntity
     // pending | fulfilled | cancelled | expired
     public string State { get; set; } = "pending";
 
-    // counter (v1) | gateway (future)
+    // counter | dcgate
     public string Method { get; set; } = "counter";
 
     // FulfilledByLedgerEntryId is left null (v1): TopUpWalletAsync returns
@@ -30,4 +30,22 @@ public sealed class PaymentIntentEntity
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset? FulfilledAtUtc { get; set; }
+
+    // --- dcgate (online self-top-up) ---
+    // Set only when Method == "dcgate"; null on the counter path.
+
+    // dcgate's own payment id (returned by POST /api/payments). Used for status polls.
+    public string? GatewayPaymentId { get; set; }
+
+    // DC pay link the shell renders as a QR (pay.dc.tj/...).
+    public string? GatewayPayUrl { get; set; }
+
+    // 18-char DC reference comment dcgate matches incoming bank messages against.
+    public string? GatewayComment { get; set; }
+
+    public DateTimeOffset? GatewayExpiresAtUtc { get; set; }
+
+    // payment.disputed webhook flips this true and leaves State == "pending" for the
+    // operator to resolve manually; the player money is NOT credited on a dispute.
+    public bool Disputed { get; set; }
 }
