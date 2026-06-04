@@ -1176,6 +1176,92 @@ app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
         IsExpired: false));
 });
 
+app.MapGet("/api/branches/{branchId:guid}/wallet/top-up-intents", async (
+    Guid branchId,
+    string? status,
+    StaffAuthorizationService authorizationService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var authorization = await authorizationService.RequireBranchPermissionAsync(
+        branchId,
+        StaffPermissionNames.TopUpWallet,
+        cancellationToken);
+
+    if (!authorization.IsAuthenticated)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!authorization.IsAllowed)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var organizationId = authorization.StaffContext!.OrganizationId;
+    var stateFilter = string.IsNullOrWhiteSpace(status) ? "pending" : status;
+
+    var intents = await dbContext.PaymentIntents
+        .AsNoTracking()
+        .Where(intent =>
+            intent.OrganizationId == organizationId &&
+            intent.BranchId == branchId &&
+            intent.State == stateFilter)
+        .OrderByDescending(intent => intent.CreatedAtUtc)
+        .ToListAsync(cancellationToken);
+
+    var playerIds = intents.Select(i => i.PlayerAccountId).Distinct().ToList();
+
+    var players = await dbContext.PlayerAccounts
+        .AsNoTracking()
+        .Where(p => playerIds.Contains(p.PlayerAccountId))
+        .ToDictionaryAsync(p => p.PlayerAccountId, p => p.DisplayName, cancellationToken);
+
+    var activeSessions = await dbContext.Sessions
+        .AsNoTracking()
+        .Where(s =>
+            s.BranchId == branchId &&
+            s.State == SessionStateNames.Active &&
+            s.PlayerAccountId != null &&
+            playerIds.Contains(s.PlayerAccountId!.Value))
+        .ToListAsync(cancellationToken);
+
+    var seatIds = activeSessions.Select(s => s.SeatId).Distinct().ToList();
+
+    var seats = await dbContext.Seats
+        .AsNoTracking()
+        .Where(s => seatIds.Contains(s.SeatId))
+        .ToDictionaryAsync(s => s.SeatId, s => s.Name, cancellationToken);
+
+    var sessionBySeatLookup = activeSessions.ToDictionary(
+        s => s.PlayerAccountId!.Value,
+        s => s.SeatId);
+
+    var items = intents.Select(intent =>
+    {
+        var displayName = players.TryGetValue(intent.PlayerAccountId, out var name) ? name : string.Empty;
+        string? seatName = null;
+        if (sessionBySeatLookup.TryGetValue(intent.PlayerAccountId, out var seatId) &&
+            seats.TryGetValue(seatId, out var sn))
+        {
+            seatName = sn;
+        }
+
+        return new OperatorTopUpIntentDto(
+            intent.PaymentIntentId,
+            intent.PlayerAccountId,
+            displayName,
+            intent.AmountMinorUnits,
+            intent.CurrencyCode,
+            intent.State,
+            intent.Method,
+            intent.CreatedAtUtc,
+            seatName);
+    }).ToList();
+
+    return Results.Ok(items);
+});
+
 app.MapPost("/api/auth/staff/forgot-password", async (
     StaffForgotPasswordRequest request,
     IStaffPasswordResetService passwordResetService,
