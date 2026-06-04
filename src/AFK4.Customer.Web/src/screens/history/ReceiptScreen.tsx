@@ -31,7 +31,7 @@ export function ReceiptScreen({ api, sessionId, onBack }: { api: PlayerApiClient
     <main className="px-6 py-6">
       <button type="button" onClick={onBack} className="mb-4 min-h-[44px] text-sm text-[var(--text-2)] focus-visible:outline-2 focus-visible:outline-[var(--accent)]">{t('customer.common.back')}</button>
 
-      {load.state === 'loading' && <div role="status" aria-label="Загрузка чека" className="h-48 animate-pulse rounded-2xl bg-[var(--color-surface)]" />}
+      {load.state === 'loading' && <div role="status" aria-label={t('a11y.loading.receipt')} className="h-48 animate-pulse rounded-2xl bg-[var(--color-surface)]" />}
       {load.state === 'notfound' && <p className="py-12 text-center text-[var(--text-2)]">{t('customer.receipt.notFound')}</p>}
       {load.state === 'error' && <p className="py-12 text-center text-red-400">{t('customer.receipt.loadError')}</p>}
 

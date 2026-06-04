@@ -10,7 +10,7 @@ export function HistoryTabs({ active, onChange }: { active: HistoryView; onChang
     { view: 'purchases', label: t('customer.history.purchases') }
   ];
   return (
-    <div role="tablist" aria-label="История" className="flex gap-1 px-6 pt-6">
+    <div role="tablist" aria-label={t('customer.nav.history')} className="flex gap-1 px-6 pt-6">
       {tabs.map(({ view, label }) => (
         <button
           key={view}

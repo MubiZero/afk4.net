@@ -25,7 +25,7 @@ export function LiveSessionCard({ session, fetchedAt }: { session: ActiveSession
       {/* aria-hidden on the per-second clock so screen-readers don't announce every tick; the sr-only label carries the meaning, re-read only on focus. */}
       <p aria-hidden="true" data-testid="session-timer" className="mt-1.5 text-3xl font-extrabold tracking-tight">{clock}</p>
       <span className="sr-only">
-        {session.durationMode === 'fixed' ? 'Осталось времени: ' : 'Сессия идёт: '}{clock}
+        {session.durationMode === 'fixed' ? `${t('a11y.session.remaining')} ${clock}` : `${t('a11y.session.elapsed')} ${clock}`}
       </span>
       {/* Fixed sessions are pre-paid — no per-second accrual; only open sessions show a running cost. */}
       {session.durationMode === 'open' && session.accruedCostMinorUnits != null && (

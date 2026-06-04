@@ -851,15 +851,15 @@ function operatorDisplayNameLabel(displayName: string | null | undefined): strin
 function staffRoleLabel(roleName: string): string {
   switch (roleName) {
     case 'cashier_operator':
-      return 'Оператор-кассир';
+      return 'Кассир-оператор';
     case 'shift_supervisor':
       return 'Старший смены';
     case 'branch_manager':
-      return 'Менеджер филиала';
+      return 'Управляющий';
     case 'technician':
       return 'Техник';
     case 'accountant_auditor':
-      return 'Бухгалтер-аудитор';
+      return 'Бухгалтер';
     default:
       return roleName || 'Роль не задана';
   }

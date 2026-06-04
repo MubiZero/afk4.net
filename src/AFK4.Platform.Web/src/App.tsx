@@ -25,7 +25,7 @@ import { BillingScreen } from './club/billing/BillingScreen';
 import { roleFromPermissions, visibleNav } from './club/nav';
 import { BranchSwitcher } from './components/shell/BranchSwitcher';
 import { EmptyState } from './components/ui/states';
-import { useI18n } from './i18n/I18nProvider';
+import { useI18n, type MessageKey } from './i18n/I18nProvider';
 import { SignIn } from './components/SignIn';
 import { StaffSignIn } from './components/StaffSignIn';
 import { NewTenantScreen } from './platform/tenants/NewTenantScreen';
@@ -303,23 +303,23 @@ interface ClubAreaProps {
   onSignOut: () => void;
 }
 
-const ROLE_LABEL: Record<'owner' | 'manager', string> = {
-  owner: 'Владелец',
-  manager: 'Менеджер'
+const ROLE_LABEL_KEY: Record<'owner' | 'manager', MessageKey> = {
+  owner: 'roles.owner',
+  manager: 'roles.branch_manager'
 };
 
-const CLUB_SCREEN_TITLE: Partial<Record<ClubRoute['kind'], string>> = {
-  clubDashboard: 'Обзор',
-  clubVenue: 'Зал и ПК',
-  clubClients: 'Клиенты',
-  clubMonetization: 'Монетизация',
-  clubReports: 'Отчёты',
-  clubJournal: 'Журнал',
-  clubSettings: 'Настройки',
-  clubInstall: 'Установка',
-  clubProfile: 'Профиль',
-  clubBranches: 'Все филиалы',
-  clubBilling: 'Биллинг',
+const CLUB_SCREEN_TITLE_KEY: Partial<Record<ClubRoute['kind'], MessageKey>> = {
+  clubDashboard: 'nav.overview',
+  clubVenue: 'nav.venue',
+  clubClients: 'nav.clients',
+  clubMonetization: 'nav.monetization',
+  clubReports: 'nav.reports',
+  clubJournal: 'nav.journal',
+  clubSettings: 'nav.settings',
+  clubInstall: 'nav.install',
+  clubProfile: 'nav.profile',
+  clubBranches: 'nav.branches',
+  clubBilling: 'nav.billing',
 };
 
 /**
@@ -359,6 +359,9 @@ export function pathForRoute(route: ClubRoute): string {
 function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAreaProps) {
   const role = roleFromPermissions(session.permissions);
   const { t } = useI18n();
+  const screenTitleKey = CLUB_SCREEN_TITLE_KEY[route.kind];
+  const screenTitle = screenTitleKey ? t(screenTitleKey) : '';
+  const roleLabel = t(ROLE_LABEL_KEY[role]);
   const { activeBranchId, select } = useActiveBranch(session.branchIds);
   const directory = useBranchDirectory(clubClient, session.branchIds);
   const branches = resolveBranchNames(session.branchIds, directory, t('branches.unnamed'));
@@ -386,9 +389,9 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
       }
       activePath={pathForRoute(route)}
       subtitle={branches.find(b => b.branchId === activeBranchId)?.name ?? ''}
-      screenTitle={CLUB_SCREEN_TITLE[route.kind] ?? ''}
+      screenTitle={screenTitle}
       userName={session.displayName}
-      roleLabel={ROLE_LABEL[role]}
+      roleLabel={roleLabel}
       onNavigate={handleNavigate}
       onSignOut={onSignOut}
     >
@@ -467,7 +470,7 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
         <ProfileScreen
           session={session}
           branches={branches}
-          roleLabel={ROLE_LABEL[role]}
+          roleLabel={roleLabel}
           onSignOut={onSignOut}
         />
       ) : route.kind === 'clubBilling' ? (
@@ -496,15 +499,15 @@ interface PlatformAreaProps {
   onSignOut: () => void;
 }
 
-const PLATFORM_ROLE_LABEL = 'Администратор';
+const PLATFORM_ROLE_LABEL_KEY: MessageKey = 'platform.profile.roleLabel';
 
-const PLATFORM_SCREEN_TITLE: Record<AdminRoute['kind'], string> = {
-  adminOverview: 'Обзор',
-  adminBilling: 'Биллинг',
-  adminProfile: 'Профиль',
-  tenantList: 'Тенанты',
-  newTenant: 'Новый тенант',
-  tenantDetail: 'Тенант'
+const PLATFORM_SCREEN_TITLE_KEY: Record<AdminRoute['kind'], MessageKey> = {
+  adminOverview: 'nav.platform.overview',
+  adminBilling: 'nav.platform.billing',
+  adminProfile: 'nav.platform.profile',
+  tenantList: 'nav.platform.tenants',
+  newTenant: 'platform.tenants.new',
+  tenantDetail: 'platform.tenant.title'
 };
 
 function pathForAdminRoute(route: AdminRoute): string {
@@ -528,8 +531,11 @@ function PlatformArea({
   adminClient, route, session, onNavigate, onCreateTenant, onOpenTenant,
   onCreatedTenant, onCancelNewTenant, onBackToTenants, onSignOut
 }: PlatformAreaProps) {
+  const { t } = useI18n();
   const metricsState = useTenantMetrics(adminClient);
   const billingMetricsState = useBillingMetrics(adminClient);
+  const screenTitle = t(PLATFORM_SCREEN_TITLE_KEY[route.kind]);
+  const roleLabel = t(PLATFORM_ROLE_LABEL_KEY);
 
   const handleNavigate = (path: string) => {
     const resolution = resolvePlatformRoute(path, null, '');
@@ -555,9 +561,9 @@ function PlatformArea({
       }
       activePath={pathForAdminRoute(route)}
       subtitle=""
-      screenTitle={PLATFORM_SCREEN_TITLE[route.kind] ?? ''}
+      screenTitle={screenTitle}
       userName={session.displayName}
-      roleLabel={PLATFORM_ROLE_LABEL}
+      roleLabel={roleLabel}
       onNavigate={handleNavigate}
       onSignOut={onSignOut}
     >

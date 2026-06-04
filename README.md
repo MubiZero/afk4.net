@@ -1,6 +1,6 @@
-# AFK4
+# AFK4.NET
 
-AFK4 is a cloud-first SaaS platform for managing Windows-based computer clubs.
+AFK4.NET is a cloud-first SaaS platform for managing Windows-based cyber clubs.
 It is being built as operator-grade software in the same product category as
 Senet, Langame, and SmartShell: cloud backend, native Windows Operator App,
 internal SaaS Control Plane, Windows Agent Service, Player Shell, sessions,

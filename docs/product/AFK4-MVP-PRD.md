@@ -1,11 +1,11 @@
-# AFK4 MVP Product Requirements Document
+# AFK4.NET MVP Product Requirements Document
 
 Status: Draft for product review  
 Last updated: 2026-05-23
 
 ## 1. Product Summary
 
-AFK4 is a cloud-first SaaS platform for managing Windows-based computer clubs.
+AFK4.NET is a cloud-first SaaS platform for managing Windows-based cyber clubs.
 It is designed for real club operations: session control, PC state visibility,
 operator workflows, payments, POS, shifts, audit, updates, and Windows endpoint
 control.
@@ -25,7 +25,7 @@ shift, audit critical actions, and centrally update installed client software.
 
 ## 2. Problem Statement
 
-Computer clubs need one operational system that keeps money, sessions, devices,
+Cyber clubs need one operational system that keeps money, sessions, devices,
 and operator accountability consistent. Fragmented tooling creates operational
 risk:
 
@@ -156,7 +156,7 @@ Primary needs:
 
 ### MVP Goals
 
-The first full MVP must allow a Windows-based computer club to run core
+The first full MVP must allow a Windows-based cyber club to run core
 operations through AFK4:
 
 - manage organizations, branches, staff users, predefined roles, and

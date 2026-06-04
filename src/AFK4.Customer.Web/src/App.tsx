@@ -30,7 +30,7 @@ function tabForRoute(route: PlayerRoute): PlayerTab {
 }
 
 export function App() {
-  const { setLocale } = useI18n();
+  const { t, setLocale } = useI18n();
   const [session, setSession] = useState<PlayerSession | null>(() => readPlayerSession());
   const [route, setRoute] = useState<PlayerRoute>(() =>
     resolvePlayerRoute(typeof window === 'undefined' ? '/' : window.location.pathname));
@@ -98,7 +98,7 @@ export function App() {
   if (!session) {
     if (branding.status === 'loading') {
       return (
-        <main className="flex min-h-dvh items-center justify-center" role="status" aria-label="Загрузка">
+        <main className="flex min-h-dvh items-center justify-center" role="status" aria-label={t('a11y.loading')}>
           <div className="h-10 w-10 animate-pulse rounded-full bg-[var(--color-surface)]" />
         </main>
       );
