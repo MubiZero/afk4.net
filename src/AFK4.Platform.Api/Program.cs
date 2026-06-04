@@ -280,6 +280,22 @@ builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, ht
     }
 });
 builder.Services.AddSingleton<IDcGateClientFactory, DcGateClientFactory>();
+builder.Services.AddHttpClient(DcGateAdminClientRegistration.HttpClientName, (provider, http) =>
+{
+    var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
+    {
+        http.BaseAddress = new Uri(opts.BaseUrl);
+    }
+});
+builder.Services.AddSingleton<IDcGateAdminClient>(provider =>
+{
+    var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
+    var factory = provider.GetRequiredService<IHttpClientFactory>();
+    return new DcGateAdminClient(
+        factory.CreateClient(DcGateAdminClientRegistration.HttpClientName),
+        opts.AdminSecret);
+});
 
 builder.Services.AddRateLimiter(options =>
 {
