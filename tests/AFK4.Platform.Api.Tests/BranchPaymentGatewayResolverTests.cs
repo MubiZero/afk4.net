@@ -109,4 +109,17 @@ public class BranchPaymentGatewayResolverTests
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task ResolveForBranch_IgnoresDisabledOrgLevelGateway()
+    {
+        await using var factory = new PlatformApiFactory();
+        var org = Guid.NewGuid();
+        var branch = Guid.NewGuid();
+        await SeedAsync(factory, Gateway(org, null, "proj_org_disabled", BranchPaymentGatewayStatus.Disabled));
+
+        var result = await WithResolver(factory, r => r.ResolveForBranchAsync(org, branch, CancellationToken.None));
+
+        Assert.Null(result);
+    }
 }
