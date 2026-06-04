@@ -52,6 +52,7 @@ const backend = {
 describe('PaymentGatewaysWorkspace', () => {
   afterEach(() => {
     cleanup();
+    mock.restore();
   });
 
   it('lists existing gateways with a pending-telegram badge', async () => {

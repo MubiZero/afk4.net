@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { PlatformApiClient } from './platformApi';
 import { createOperatorApiClients, type OwnerPaymentGatewayDto } from './operatorApiClients';
@@ -7,6 +7,8 @@ import { projectOperatorError } from './apiErrors';
 type AttachPhase = 'idle' | 'code_required' | 'password_required' | 'attached';
 
 // Mirrors the inline OperatorBackendContext the other workspaces receive (config + session + branch).
+// Keep structurally compatible with App.tsx's OperatorBackendContext — cannot import it directly
+// because App.tsx imports this component (would be a circular dependency).
 export interface PaymentGatewaysBackend {
   config: { platformBaseUrl: string };
   session: { accessToken: string };
@@ -35,10 +37,13 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
 
-  const clients = createOperatorApiClients(new PlatformApiClient({
-    baseUrl: backend.config.platformBaseUrl,
-    getAccessToken: () => backend.session.accessToken
-  })).paymentGateways;
+  const clients = useMemo(
+    () => createOperatorApiClients(new PlatformApiClient({
+      baseUrl: backend.config.platformBaseUrl,
+      getAccessToken: () => backend.session.accessToken
+    })).paymentGateways,
+    [backend.config.platformBaseUrl, backend.session.accessToken]
+  );
 
   const reload = useCallback(async () => {
     try {
