@@ -703,13 +703,12 @@ const string TopUpIntentCreditReason = "wallet top-up via top-up intent";
 
 app.MapPost("/api/public/payments/dcgate/webhook", async (
     HttpRequest httpRequest,
-    IOptions<DcGateOptions> dcGateOptions,
+    IBranchPaymentGatewayResolver gatewayResolver,
+    ISecretProtector secretProtector,
     IBillingCommandService billingCommandService,
     PlatformDbContext dbContext,
     CancellationToken cancellationToken) =>
 {
-    var options = dcGateOptions.Value;
-
     httpRequest.EnableBuffering();
     string rawBody;
     using (var reader = new StreamReader(httpRequest.Body, Encoding.UTF8, leaveOpen: true))
@@ -718,7 +717,21 @@ app.MapPost("/api/public/payments/dcgate/webhook", async (
     }
     httpRequest.Body.Position = 0;
 
-    if (!DcGateSignatureIsValid(httpRequest, rawBody, options.WebhookSecret))
+    if (!httpRequest.Headers.TryGetValue("x-dcgate-project-id", out var projectIdHeader)
+        || string.IsNullOrWhiteSpace(projectIdHeader.ToString()))
+    {
+        return Results.Unauthorized();
+    }
+
+    var gateway = await gatewayResolver.ResolveByProjectIdAsync(
+        projectIdHeader.ToString(), cancellationToken);
+    if (gateway is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var webhookSecret = secretProtector.Unprotect(gateway.WebhookSecretEncrypted);
+    if (!DcGateSignatureIsValid(httpRequest, rawBody, webhookSecret))
     {
         return Results.Unauthorized();
     }

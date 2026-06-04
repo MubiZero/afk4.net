@@ -7,7 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
@@ -20,13 +19,28 @@ public sealed class DcGateWebhookEndpointTests
 {
     private const string WebhookSecret = "test-webhook-secret";
 
-    private static PlatformApiFactory CreateFactory() =>
-        new PlatformApiFactory(extraServices: services =>
-            services.Configure<DcGateOptions>(o =>
-            {
-                o.WebhookSecret = WebhookSecret;
-                o.BaseUrl = "https://dcgate.example";
-            }));
+    private static PlatformApiFactory CreateFactory() => new PlatformApiFactory();
+
+    private static async Task SeedGatewayAsync(PlatformApiFactory factory, string projectId, string webhookSecret)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var protector = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Security.ISecretProtector>();
+        db.BranchPaymentGateways.Add(new BranchPaymentGatewayEntity
+        {
+            BranchPaymentGatewayId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            DcgateProjectId = projectId,
+            ApiKeyEncrypted = protector.Protect("dcg_test_api_key"),
+            WebhookSecretEncrypted = protector.Protect(webhookSecret),
+            CardLast4 = "1953",
+            Status = AFK4.Platform.Api.Payments.BranchPaymentGatewayStatus.Active,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+    }
 
     private static async Task<Guid> SeedDcGateIntentAsync(
         PlatformApiFactory factory, string state = "pending", long amountMinor = 5_000)
@@ -93,7 +107,7 @@ public sealed class DcGateWebhookEndpointTests
     private static string ExpiredBody(Guid intentId, string eventId) =>
         $$$"""{"eventId":"{{{eventId}}}","eventType":"payment.expired","projectId":"afk4","payment":{"id":"pay_fake","amount":"50.00","comment":"AFK4-CMT-0001","currency":"TJS","externalOrderId":"{{{intentId:N}}}","status":"expired"}}""";
 
-    private static HttpRequestMessage SignedRequest(string body, string secret)
+    private static HttpRequestMessage SignedRequest(string body, string secret, string projectId = "afk4")
     {
         var sig = Convert.ToHexString(
             new HMACSHA256(Encoding.UTF8.GetBytes(secret)).ComputeHash(Encoding.UTF8.GetBytes(body)))
@@ -103,6 +117,7 @@ public sealed class DcGateWebhookEndpointTests
             Content = new StringContent(body, Encoding.UTF8, "application/json")
         };
         req.Headers.Add("x-dcgate-signature", $"sha256={sig}");
+        req.Headers.Add("x-dcgate-project-id", projectId);
         return req;
     }
 
@@ -119,6 +134,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         await SeedOpenShiftAsync(factory);
         using var client = factory.CreateClient();
 
@@ -140,6 +156,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         await SeedOpenShiftAsync(factory);
         using var client = factory.CreateClient();
 
@@ -157,6 +174,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         await SeedOpenShiftAsync(factory);
         using var client = factory.CreateClient();
 
@@ -172,6 +190,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         using var client = factory.CreateClient();
 
         var body = PaidBody(intentId, "evt_nosig");
@@ -185,9 +204,26 @@ public sealed class DcGateWebhookEndpointTests
     }
 
     [Fact]
+    public async Task Webhook_UnknownProjectId_Returns401AndDoesNotCredit()
+    {
+        await using var factory = CreateFactory();
+        var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
+        await SeedOpenShiftAsync(factory);
+        using var client = factory.CreateClient();
+
+        var body = PaidBody(intentId, "evt_unknown_project");
+        var response = await client.SendAsync(SignedRequest(body, WebhookSecret, projectId: "unknown_project"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(0, await CountTopUpsAsync(factory, intentId));
+    }
+
+    [Fact]
     public async Task Webhook_UnknownExternalOrderId_Returns200Noop()
     {
         await using var factory = CreateFactory();
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         await SeedOpenShiftAsync(factory);
         using var client = factory.CreateClient();
 
@@ -203,6 +239,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         using var client = factory.CreateClient();
 
         var body = ExpiredBody(intentId, "evt_exp");
@@ -220,6 +257,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         using var client = factory.CreateClient();
 
         var body = $$$"""{"eventId":"evt_unknown_type","eventType":"payment.refunded","projectId":"afk4","payment":{"id":"pay_fake","amount":"50.00","comment":"AFK4-CMT-0001","currency":"TJS","externalOrderId":"{{{intentId:N}}}","status":"refunded"}}""";
@@ -235,6 +273,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         using var client = factory.CreateClient();
 
         var body = $$$"""{"eventId":"evt_disp","eventType":"payment.disputed","projectId":"afk4","payment":{"id":"pay_fake","amount":"50.00","comment":"AFK4-CMT-0001","currency":"TJS","externalOrderId":"{{{intentId:N}}}","status":"disputed"}}""";
@@ -256,6 +295,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         await SeedOpenShiftAsync(factory);
 
         // Step 1: webhook credits the wallet.
@@ -288,6 +328,7 @@ public sealed class DcGateWebhookEndpointTests
     {
         await using var factory = CreateFactory();
         var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
         await SeedOpenShiftAsync(factory);
 
         // Step 1: operator fulfils the intent.
