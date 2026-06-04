@@ -1,10 +1,12 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Shifts;
@@ -245,5 +247,70 @@ public sealed class DcGateWebhookEndpointTests
         var intent = await db.PaymentIntents.SingleAsync(i => i.PaymentIntentId == intentId);
         Assert.True(intent.Disputed);
         Assert.Equal("pending", intent.State);
+    }
+
+    // Cross-path double-confirm tests: prove that exactly one ledger top_up entry is
+    // written regardless of which path (webhook vs. operator fulfil) fires first.
+
+    [Fact]
+    public async Task CrossPath_WebhookFirst_ThenOperatorFulfil_ExactlyOneCredit()
+    {
+        await using var factory = CreateFactory();
+        var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedOpenShiftAsync(factory);
+
+        // Step 1: webhook credits the wallet.
+        using var webhookClient = factory.CreateClient();
+        var body = PaidBody(intentId, "evt_cross_wf");
+        var webhookResponse = await webhookClient.SendAsync(SignedRequest(body, WebhookSecret));
+        Assert.Equal(HttpStatusCode.OK, webhookResponse.StatusCode);
+        Assert.Equal(1, await CountTopUpsAsync(factory, intentId));
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var intent = await db.PaymentIntents.SingleAsync(i => i.PaymentIntentId == intentId);
+            Assert.Equal("fulfilled", intent.State);
+        }
+
+        // Step 2: operator fulfils the same (already-fulfilled) intent — must not double-credit.
+        using var operatorClient = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, operatorClient, StaffRoleNames.CashierOperator);
+        var fulfilResponse = await operatorClient.PostAsJsonAsync(
+            $"/api/wallet/top-up-intents/{intentId}/fulfil", new { });
+
+        // The fulfil endpoint returns 200 when the intent is already fulfilled (idempotency guard).
+        Assert.Equal(HttpStatusCode.OK, fulfilResponse.StatusCode);
+        Assert.Equal(1, await CountTopUpsAsync(factory, intentId));
+    }
+
+    [Fact]
+    public async Task CrossPath_OperatorFulfilFirst_ThenWebhook_ExactlyOneCredit()
+    {
+        await using var factory = CreateFactory();
+        var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedOpenShiftAsync(factory);
+
+        // Step 1: operator fulfils the intent.
+        using var operatorClient = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, operatorClient, StaffRoleNames.CashierOperator);
+        var fulfilResponse = await operatorClient.PostAsJsonAsync(
+            $"/api/wallet/top-up-intents/{intentId}/fulfil", new { });
+        Assert.Equal(HttpStatusCode.OK, fulfilResponse.StatusCode);
+        Assert.Equal(1, await CountTopUpsAsync(factory, intentId));
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var intent = await db.PaymentIntents.SingleAsync(i => i.PaymentIntentId == intentId);
+            Assert.Equal("fulfilled", intent.State);
+        }
+
+        // Step 2: webhook arrives for the same intent — must see State=="fulfilled" and no-op.
+        using var webhookClient = factory.CreateClient();
+        var body = PaidBody(intentId, "evt_cross_of");
+        var webhookResponse = await webhookClient.SendAsync(SignedRequest(body, WebhookSecret));
+        Assert.Equal(HttpStatusCode.OK, webhookResponse.StatusCode);
+        Assert.Equal(1, await CountTopUpsAsync(factory, intentId));
     }
 }

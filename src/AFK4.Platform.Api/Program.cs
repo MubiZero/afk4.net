@@ -688,6 +688,12 @@ app.MapGet("/api/public/tenant/{tenantKey}/branding", async (
     return org is null ? Results.NotFound() : Results.Ok(org);
 }).RequireRateLimiting("player-public");
 
+// Shared credit reason for both the dcgate webhook and the operator fulfil paths.
+// MUST be identical so that a concurrent double-confirm (webhook + operator, or vice-versa)
+// hashes to the same idempotency fingerprint and collapses to a clean replay instead of a
+// RequestConflict that would make the second caller return a spurious error.
+const string TopUpIntentCreditReason = "wallet top-up via top-up intent";
+
 app.MapPost("/api/public/payments/dcgate/webhook", async (
     HttpRequest httpRequest,
     IOptions<DcGateOptions> dcGateOptions,
@@ -753,7 +759,7 @@ app.MapPost("/api/public/payments/dcgate/webhook", async (
                 var topUpRequest = new TopUpWalletRequest(
                     intent.OrganizationId,
                     new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
-                    "wallet top-up via dcgate",
+                    TopUpIntentCreditReason,
                     intent.PaymentIntentId.ToString("N"));
 
                 var billingResult = await billingCommandService.TopUpWalletAsync(
@@ -1418,7 +1424,7 @@ app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
     var topUpRequest = new TopUpWalletRequest(
         intent.OrganizationId,
         new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
-        "wallet top-up via portal intent",
+        TopUpIntentCreditReason,
         intent.PaymentIntentId.ToString("N"));
 
     var billingResult = await billingCommandService.TopUpWalletAsync(
