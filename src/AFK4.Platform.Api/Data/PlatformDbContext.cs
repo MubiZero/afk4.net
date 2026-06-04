@@ -8,6 +8,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
+    public DbSet<BranchPaymentGatewayEntity> BranchPaymentGateways => Set<BranchPaymentGatewayEntity>();
+
     public DbSet<StaffUserEntity> StaffUsers => Set<StaffUserEntity>();
 
     public DbSet<StaffRoleAssignmentEntity> StaffRoleAssignments => Set<StaffRoleAssignmentEntity>();
@@ -780,6 +782,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(intent => intent.GatewayPayUrl).HasMaxLength(1024);
             entity.HasIndex(intent => intent.PlayerAccountId);
             entity.HasIndex(intent => new { intent.BranchId, intent.State });
+        });
+
+        modelBuilder.Entity<BranchPaymentGatewayEntity>(entity =>
+        {
+            entity.ToTable("branch_payment_gateways");
+            entity.HasKey(gateway => gateway.BranchPaymentGatewayId);
+            entity.Property(gateway => gateway.DcgateProjectId).HasMaxLength(128).IsRequired();
+            entity.Property(gateway => gateway.ApiKeyEncrypted).HasMaxLength(1024).IsRequired();
+            entity.Property(gateway => gateway.WebhookSecretEncrypted).HasMaxLength(1024).IsRequired();
+            entity.Property(gateway => gateway.CardLast4).HasMaxLength(4).IsRequired();
+            entity.Property(gateway => gateway.Status).HasMaxLength(32).IsRequired();
+            entity.HasIndex(gateway => gateway.DcgateProjectId).IsUnique();
+            entity.HasIndex(gateway => new { gateway.OrganizationId, gateway.BranchId });
         });
 
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>
