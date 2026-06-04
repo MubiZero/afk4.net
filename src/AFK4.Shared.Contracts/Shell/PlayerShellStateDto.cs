@@ -13,4 +13,6 @@ public sealed record PlayerShellStateDto(
     int WarningThresholdSeconds,
     string Message,
     IReadOnlyList<LauncherAppDto> LauncherApps,
-    string Locale = "ru");
+    string Locale = "ru",
+    string WarningKind = PlayerShellWarningKinds.None,
+    ShellBrandingDto? Branding = null);

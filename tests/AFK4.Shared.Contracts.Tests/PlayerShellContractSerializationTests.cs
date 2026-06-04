@@ -92,6 +92,56 @@ public sealed class PlayerShellContractSerializationTests
     }
 
     [Fact]
+    public void State_DefaultsWarningKindToNone_AndBrandingToNull()
+    {
+        var state = new PlayerShellStateDto(
+            OrganizationId: Guid.Empty,
+            BranchId: Guid.Empty,
+            DeviceId: Guid.Empty,
+            State: PlayerShellStateNames.Locked,
+            SessionId: null,
+            LeaseExpiresAtUtc: null,
+            RemainingSeconds: null,
+            IsOnline: true,
+            IsGraceMode: false,
+            WarningThresholdSeconds: 300,
+            Message: "This PC is locked.",
+            LauncherApps: []);
+
+        Assert.Equal(PlayerShellWarningKinds.None, state.WarningKind);
+        Assert.Null(state.Branding);
+    }
+
+    [Fact]
+    public void State_RoundTripsWarningKindAndBranding()
+    {
+        var state = new PlayerShellStateDto(
+            OrganizationId: Guid.Empty,
+            BranchId: Guid.Empty,
+            DeviceId: Guid.Empty,
+            State: PlayerShellStateNames.Active,
+            SessionId: null,
+            LeaseExpiresAtUtc: null,
+            RemainingSeconds: 120,
+            IsOnline: true,
+            IsGraceMode: false,
+            WarningThresholdSeconds: 300,
+            Message: "Session is active.",
+            LauncherApps: [],
+            Locale: "ru",
+            WarningKind: PlayerShellWarningKinds.LowTime,
+            Branding: new ShellBrandingDto("Club AFK4", "https://cdn/x.png", "#c8ff00"));
+
+        var copy = JsonSerializer.Deserialize<PlayerShellStateDto>(JsonSerializer.Serialize(state));
+
+        Assert.NotNull(copy);
+        Assert.Equal(PlayerShellWarningKinds.LowTime, copy.WarningKind);
+        Assert.NotNull(copy.Branding);
+        Assert.Equal("Club AFK4", copy.Branding!.ClubName);
+        Assert.Equal("#c8ff00", copy.Branding.AccentColor);
+    }
+
+    [Fact]
     public void LauncherCommand_RoundTripsRequestAndResultCorrelation()
     {
         var command = new PlayerShellCommandDto(
