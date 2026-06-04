@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AFK4.Platform.Api.Payments.DcGate;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace AFK4.Platform.Api.Tests;
@@ -35,12 +34,7 @@ public class DcGateClientTests
     private static DcGateClient CreateClient(StubHandler handler) =>
         new(
             new HttpClient(handler) { BaseAddress = new Uri("https://dcgate.example") },
-            Options.Create(new DcGateOptions
-            {
-                BaseUrl = "https://dcgate.example",
-                ApiKey = "test-api-key",
-                WebhookSecret = "secret"
-            }));
+            apiKey: "test-api-key");
 
     private static HttpResponseMessage OkPayment() =>
         new(HttpStatusCode.OK)

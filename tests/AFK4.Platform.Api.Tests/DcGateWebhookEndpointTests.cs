@@ -26,7 +26,6 @@ public sealed class DcGateWebhookEndpointTests
             {
                 o.WebhookSecret = WebhookSecret;
                 o.BaseUrl = "https://dcgate.example";
-                o.ApiKey = "k";
             }));
 
     private static async Task<Guid> SeedDcGateIntentAsync(

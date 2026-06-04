@@ -271,7 +271,7 @@ builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
 builder.Services.AddScoped<IBranchPaymentGatewayResolver, EfBranchPaymentGatewayResolver>();
 
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
-builder.Services.AddHttpClient<IDcGateClient, DcGateClient>((provider, http) =>
+builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, http) =>
 {
     var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
     if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
@@ -279,6 +279,7 @@ builder.Services.AddHttpClient<IDcGateClient, DcGateClient>((provider, http) =>
         http.BaseAddress = new Uri(opts.BaseUrl);
     }
 });
+builder.Services.AddSingleton<IDcGateClientFactory, DcGateClientFactory>();
 
 builder.Services.AddRateLimiter(options =>
 {

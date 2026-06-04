@@ -7,9 +7,7 @@ public sealed class DcGateOptions
     // dcgate base URL, e.g. https://dcgate.mubi.dev
     public string BaseUrl { get; set; } = string.Empty;
 
-    // Per-project API key sent as Authorization: Bearer.
-    public string ApiKey { get; set; } = string.Empty;
-
     // Shared secret dcgate uses to HMAC-sign webhook bodies.
+    // Retained until the webhook endpoint is migrated to per-branch secrets.
     public string WebhookSecret { get; set; } = string.Empty;
 }

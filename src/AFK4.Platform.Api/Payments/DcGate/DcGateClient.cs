@@ -1,19 +1,18 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Payments.DcGate;
 
 public sealed class DcGateClient : IDcGateClient
 {
     private readonly HttpClient httpClient;
-    private readonly DcGateOptions options;
+    private readonly string apiKey;
 
-    public DcGateClient(HttpClient httpClient, IOptions<DcGateOptions> options)
+    public DcGateClient(HttpClient httpClient, string apiKey)
     {
         this.httpClient = httpClient;
-        this.options = options.Value;
+        this.apiKey = apiKey;
     }
 
     public async Task<DcGatePaymentResult> CreatePaymentAsync(
@@ -32,7 +31,7 @@ public sealed class DcGateClient : IDcGateClient
                 metadata
             })
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
