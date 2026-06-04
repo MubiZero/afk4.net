@@ -969,7 +969,9 @@ app.MapGet("/api/me/purchases", async (
 app.MapPost("/api/me/wallet/top-up-intent", async (
     PlayerTopUpIntentRequest request,
     IPlayerContextAccessor playerContextAccessor,
-    IDcGateClient dcGateClient,
+    IDcGateClientFactory dcGateClientFactory,
+    IBranchPaymentGatewayResolver gatewayResolver,
+    ISecretProtector secretProtector,
     PlatformDbContext dbContext,
     CancellationToken cancellationToken) =>
 {
@@ -1022,6 +1024,18 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
 
     if (method == "dcgate")
     {
+        var gateway = await gatewayResolver.ResolveForBranchAsync(
+            intent.OrganizationId, account.HomeBranchId, cancellationToken);
+        if (gateway is null)
+        {
+            return Results.Json(
+                new { Error = "online_payment_unavailable" },
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        var apiKey = secretProtector.Unprotect(gateway.ApiKeyEncrypted);
+        var dcGateClient = dcGateClientFactory.CreateForApiKey(apiKey);
+
         var payment = await dcGateClient.CreatePaymentAsync(
             intent.AmountMinorUnits,
             intent.CurrencyCode,

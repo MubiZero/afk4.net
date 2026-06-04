@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.AspNetCore.Identity;
@@ -111,12 +112,38 @@ public class DcGateTopUpIntentTests
         }
     }
 
+    private sealed class FakeDcGateClientFactory(IDcGateClient client) : IDcGateClientFactory
+    {
+        public IDcGateClient CreateForApiKey(string apiKey) => client;
+    }
+
     private static PlatformApiFactory CreateGatewayFactory(FakeDcGateClient fake) =>
         new PlatformApiFactory(extraServices: services =>
         {
-            services.RemoveAll<IDcGateClient>();
-            services.AddSingleton<IDcGateClient>(fake);
+            services.RemoveAll<IDcGateClientFactory>();
+            services.AddSingleton<IDcGateClientFactory>(new FakeDcGateClientFactory(fake));
         });
+
+    private static async Task SeedActiveGatewayAsync(PlatformApiFactory factory, Guid orgId, Guid branchId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var protector = scope.ServiceProvider.GetRequiredService<AFK4.Platform.Api.Security.ISecretProtector>();
+        db.BranchPaymentGateways.Add(new BranchPaymentGatewayEntity
+        {
+            BranchPaymentGatewayId = Guid.NewGuid(),
+            OrganizationId = orgId,
+            BranchId = branchId,
+            DcgateProjectId = "proj_test",
+            ApiKeyEncrypted = protector.Protect("dcg_test_api_key"),
+            WebhookSecretEncrypted = protector.Protect("test-webhook-secret"),
+            CardLast4 = "1953",
+            Status = BranchPaymentGatewayStatus.Active,
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+    }
 
     private sealed record SeededGatewayPlayer(Guid OrgId, Guid BranchId, Guid PlayerId, string Phone);
 
@@ -173,6 +200,7 @@ public class DcGateTopUpIntentTests
         var fake = new FakeDcGateClient();
         await using var factory = CreateGatewayFactory(fake);
         var p = await SeedPlayerAsync(factory, "1234");
+        await SeedActiveGatewayAsync(factory, p.OrgId, p.BranchId);
         using var client = factory.CreateClient();
         await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
 
@@ -215,6 +243,23 @@ public class DcGateTopUpIntentTests
         var dto = await response.Content.ReadFromJsonAsync<PlayerTopUpIntentDto>();
         Assert.Equal("counter", dto!.Method);
         Assert.Null(dto.PayUrl);
+        Assert.Equal(0, fake.Calls);
+    }
+
+    [Fact]
+    public async Task TopUpIntent_DcGateWithoutGateway_ReturnsUnavailableAndDoesNotCallGateway()
+    {
+        var fake = new FakeDcGateClient();
+        await using var factory = CreateGatewayFactory(fake);
+        var p = await SeedPlayerAsync(factory, "1234");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(5_000, "TJS", "dcgate"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal(0, fake.Calls);
     }
 }

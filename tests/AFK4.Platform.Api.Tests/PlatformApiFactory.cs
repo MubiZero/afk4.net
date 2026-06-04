@@ -65,6 +65,12 @@ internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
                 options.Roles = null;
             });
 
+            services.PostConfigure<AFK4.Platform.Api.Security.SecretProtectionOptions>(options =>
+            {
+                // Throwaway 32-byte (all-zero) key, base64. Tests only.
+                options.EncryptionKeyBase64 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+            });
+
             extraServices?.Invoke(services);
         });
     }
