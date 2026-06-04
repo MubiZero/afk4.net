@@ -7,5 +7,12 @@
     "src/AFK4.Platform.Web",
     "src/AFK4.Operator.App.Web",
     "src/AFK4.Customer.Web"
-  ]
+  ],
+  "scripts": {
+    "build:brand": "bun scripts/build-brand-assets.mjs"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "png-to-ico": "^3.0.1"
+  }
 }

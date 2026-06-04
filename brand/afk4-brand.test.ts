@@ -52,3 +52,21 @@ test("vertical lockup exists and stacks mark over wordmark", () => {
   expect(svg).toContain(">AFK4<");
   expect(svg).toContain("translate");
 });
+
+function pngSize(rel: string): { w: number; h: number } {
+  const buf = readFileSync(join(BRAND, rel));
+  // PNG IHDR: width = bytes 16..20, height = 20..24, big-endian
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+}
+
+test("generated PWA pngs exist at correct sizes", () => {
+  expect(existsSync(join(BRAND, "dist/pwa-192.png"))).toBe(true);
+  expect(pngSize("dist/pwa-192.png")).toEqual({ w: 192, h: 192 });
+  expect(pngSize("dist/pwa-512.png")).toEqual({ w: 512, h: 512 });
+  expect(pngSize("dist/pwa-maskable-512.png")).toEqual({ w: 512, h: 512 });
+});
+
+test("favicon ico is generated and non-empty", () => {
+  expect(existsSync(join(BRAND, "dist/afk4.ico"))).toBe(true);
+  expect(readFileSync(join(BRAND, "dist/afk4.ico")).length).toBeGreaterThan(0);
+});
