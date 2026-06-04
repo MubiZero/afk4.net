@@ -29,6 +29,18 @@ public sealed class AgentOptions
     /// </summary>
     public string PreferredLocale { get; init; } = "ru";
 
+    /// <summary>
+    /// How many seconds of remaining session time trigger a low-time warning in the player shell.
+    /// Defaults to 300 (5 minutes).
+    /// </summary>
+    public int ShellWarningThresholdSeconds { get; init; } = 300;
+
+    public string? ClubName { get; init; }
+
+    public string? LogoUrl { get; init; }
+
+    public string? AccentColor { get; init; }
+
     public string DeviceCredentialSecret { get; init; } = string.Empty;
 
     public string LeaseSigningPublicKeyPem { get; init; } = string.Empty;
