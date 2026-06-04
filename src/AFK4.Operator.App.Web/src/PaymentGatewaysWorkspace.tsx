@@ -146,6 +146,8 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
       } else if (result.state === 'attached') {
         setAttachPhase('attached');
         await reload();
+      } else {
+        setLoadError(t('payments_cards.error.generic'));
       }
     } catch (error) {
       setLoadError(projectOperatorError(error).detail);
@@ -162,6 +164,8 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
       if (result.state === 'attached') {
         setAttachPhase('attached');
         await reload();
+      } else {
+        setLoadError(t('payments_cards.error.generic'));
       }
     } catch (error) {
       setLoadError(projectOperatorError(error).detail);

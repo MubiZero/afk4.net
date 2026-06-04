@@ -58,3 +58,11 @@ public sealed record DcGateProjectStatusResult(
     DateTimeOffset? LastConnectedAt,
     DateTimeOffset? LastMessageAt,
     int TelegramMessagesCount);
+
+// dcgate's hosted-attach state vocabulary (separate from BranchPaymentGatewayStatus).
+public static class DcGateTelegramState
+{
+    public const string CodeRequired = "code_required";
+    public const string PasswordRequired = "password_required";
+    public const string Attached = "attached";
+}

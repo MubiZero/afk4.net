@@ -1028,7 +1028,7 @@ static async Task<(BranchPaymentGatewayEntity? Row, IResult? Error)> ResolveOwne
 static async Task<string> ApplyAttachResultAsync(
     BranchPaymentGatewayEntity row, string state, PlatformDbContext dbContext, CancellationToken ct)
 {
-    if (state == "attached" && row.Status == BranchPaymentGatewayStatus.PendingTelegram)
+    if (state == DcGateTelegramState.Attached && row.Status == BranchPaymentGatewayStatus.PendingTelegram)
     {
         row.Status = BranchPaymentGatewayStatus.Active;
         row.UpdatedAtUtc = DateTimeOffset.UtcNow;
