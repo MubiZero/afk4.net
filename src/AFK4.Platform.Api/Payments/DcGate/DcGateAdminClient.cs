@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -14,9 +13,6 @@ public sealed class DcGateAdminException(HttpStatusCode statusCode, string messa
 
 public sealed class DcGateAdminClient : IDcGateAdminClient
 {
-    private static readonly JsonSerializerOptions JsonOptions =
-        new(JsonSerializerDefaults.Web);
-
     private readonly HttpClient httpClient;
     private readonly string adminSecret;
 
@@ -137,8 +133,10 @@ public sealed class DcGateAdminClient : IDcGateAdminClient
     }
 
     private static DateTimeOffset? ReadDate(JsonElement root, string name) =>
-        root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
-            ? v.GetDateTimeOffset()
+        root.TryGetProperty(name, out var v)
+        && v.ValueKind == JsonValueKind.String
+        && v.TryGetDateTimeOffset(out var dt)
+            ? dt
             : null;
 
     private static InvalidOperationException Empty(string field) =>

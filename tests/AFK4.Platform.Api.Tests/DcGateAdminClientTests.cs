@@ -111,4 +111,32 @@ public sealed class DcGateAdminClientTests
         Assert.Equal(HttpStatusCode.BadRequest, ex.StatusCode);
         Assert.Contains("card already in use", ex.Message);
     }
+
+    [Fact]
+    public async Task VerifyTelegramCodeAsync_posts_code_and_parses_state()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, """{"state":"password_required"}""");
+        var client = Create(handler);
+
+        var result = await client.VerifyTelegramCodeAsync("proj_1", "att_9", "12345", CancellationToken.None);
+
+        Assert.Equal("password_required", result.State);
+        Assert.Equal("/api/admin/projects/proj_1/telegram-session/verify-code", handler.LastRequest!.RequestUri!.AbsolutePath);
+        Assert.Contains("\"loginAttemptId\":\"att_9\"", handler.LastBody);
+        Assert.Contains("\"code\":\"12345\"", handler.LastBody);
+    }
+
+    [Fact]
+    public async Task VerifyTelegramPasswordAsync_posts_password_and_parses_state()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, """{"state":"attached"}""");
+        var client = Create(handler);
+
+        var result = await client.VerifyTelegramPasswordAsync("proj_1", "att_9", "s3cr3t", CancellationToken.None);
+
+        Assert.Equal("attached", result.State);
+        Assert.Equal("/api/admin/projects/proj_1/telegram-session/verify-password", handler.LastRequest!.RequestUri!.AbsolutePath);
+        Assert.Contains("\"loginAttemptId\":\"att_9\"", handler.LastBody);
+        Assert.Contains("\"password\":\"s3cr3t\"", handler.LastBody);
+    }
 }
