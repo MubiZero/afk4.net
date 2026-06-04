@@ -56,24 +56,30 @@ public class BranchPaymentGatewayEntityTests
         await using var factory = new PlatformApiFactory();
         var id = Guid.NewGuid();
 
-        await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        db.BranchPaymentGateways.Add(new BranchPaymentGatewayEntity
+        await using (var scope = factory.Services.CreateAsyncScope())
         {
-            BranchPaymentGatewayId = id,
-            OrganizationId = Guid.NewGuid(),
-            BranchId = null, // org-level
-            DcgateProjectId = "proj_org",
-            ApiKeyEncrypted = "v1.a.b.c",
-            WebhookSecretEncrypted = "v1.d.e.f",
-            CardLast4 = "0000",
-            Status = BranchPaymentGatewayStatus.Active,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            UpdatedAtUtc = DateTimeOffset.UtcNow
-        });
-        await db.SaveChangesAsync();
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.BranchPaymentGateways.Add(new BranchPaymentGatewayEntity
+            {
+                BranchPaymentGatewayId = id,
+                OrganizationId = Guid.NewGuid(),
+                BranchId = null, // org-level
+                DcgateProjectId = "proj_org",
+                ApiKeyEncrypted = "v1.a.b.c",
+                WebhookSecretEncrypted = "v1.d.e.f",
+                CardLast4 = "0000",
+                Status = BranchPaymentGatewayStatus.Active,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                UpdatedAtUtc = DateTimeOffset.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
 
-        var stored = await db.BranchPaymentGateways.SingleAsync(g => g.BranchPaymentGatewayId == id);
-        Assert.Null(stored.BranchId);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var stored = await db.BranchPaymentGateways.SingleAsync(g => g.BranchPaymentGatewayId == id);
+            Assert.Null(stored.BranchId);
+        }
     }
 }
