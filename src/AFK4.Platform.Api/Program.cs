@@ -828,12 +828,6 @@ app.MapPost("/api/me/wallet/top-up-intent", async (
         return Results.Unauthorized();
     }
 
-    // D8 gate: verified phone required for money actions.
-    if (!player.PhoneVerified)
-    {
-        return Results.StatusCode(StatusCodes.Status403Forbidden);
-    }
-
     if (request.AmountMinorUnits <= 0)
     {
         return Results.BadRequest(new { Error = "Amount must be greater than zero." });
