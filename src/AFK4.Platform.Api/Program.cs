@@ -32,6 +32,7 @@ using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
+using AFK4.Platform.Api.Security;
 using AFK4.Platform.Api.Tenancy;
 using AFK4.Platform.Api.Updates;
 using AFK4.Shared.Contracts.Billing;
@@ -263,6 +264,10 @@ builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
 builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
 builder.Services.AddScoped<IUpdateService, EfUpdateService>();
+
+builder.Services.Configure<SecretProtectionOptions>(
+    builder.Configuration.GetSection(SecretProtectionOptions.SectionName));
+builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
 
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
 builder.Services.AddHttpClient<IDcGateClient, DcGateClient>((provider, http) =>
