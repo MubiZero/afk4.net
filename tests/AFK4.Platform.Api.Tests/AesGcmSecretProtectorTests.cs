@@ -42,7 +42,11 @@ public class AesGcmSecretProtectorTests
     {
         var protector = Create();
         var protectedValue = protector.Protect("secret");
-        var tampered = protectedValue[..^2] + (protectedValue.EndsWith("A") ? "B=" : "A=");
+        var parts = protectedValue.Split('.');
+        var cipherBytes = Convert.FromBase64String(parts[2]);
+        cipherBytes[0] ^= 0xFF;
+        parts[2] = Convert.ToBase64String(cipherBytes);
+        var tampered = string.Join('.', parts);
 
         Assert.ThrowsAny<Exception>(() => protector.Unprotect(tampered));
     }
