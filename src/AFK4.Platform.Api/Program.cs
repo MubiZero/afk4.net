@@ -1047,6 +1047,68 @@ app.MapDelete("/api/me/reservations/{reservationId:guid}", async (
     return Results.Ok(ToPlayerReservationDto(result.Response!));
 }).RequireRateLimiting("player-me");
 
+app.MapPost("/api/me/sessions/start", async (
+    PlayerSelfStartRequest request,
+    IPlayerContextAccessor playerContextAccessor,
+    PlatformDbContext dbContext,
+    ISessionCommandService sessionCommandService,
+    CancellationToken cancellationToken) =>
+{
+    var player = playerContextAccessor.Current;
+    if (player is null) return Results.Unauthorized();
+
+    var assignment = await (
+        from a in dbContext.DeviceSeatAssignments.AsNoTracking()
+        join d in dbContext.Devices.AsNoTracking() on a.DeviceId equals d.DeviceId
+        where a.DeviceId == request.DeviceId &&
+              a.OrganizationId == player.OrganizationId &&
+              a.DetachedAtUtc == null &&
+              d.EnrollmentState == DeviceEnrollmentStateNames.Approved
+        orderby a.AttachedAtUtc descending
+        select a).FirstOrDefaultAsync(cancellationToken);
+    if (assignment is null) return Results.NotFound(new { error = "device_not_assigned" });
+
+    if (!Guid.TryParse(request.TariffRuleVersionId, out var tariffVersionId))
+        return Results.BadRequest(new { error = "invalid_tariff" });
+
+    var version = await dbContext.TariffVersions.AsNoTracking().SingleOrDefaultAsync(
+        v => v.OrganizationId == player.OrganizationId &&
+             v.BranchId == assignment.BranchId &&
+             v.TariffVersionId == tariffVersionId, cancellationToken);
+    if (version is null) return Results.BadRequest(new { error = "invalid_tariff" });
+
+    var pricing = new TariffPricing(
+        version.PricePerMinuteMinorUnits, version.MinimumBillableMinutes,
+        version.RoundingIncrementMinutes, version.CurrencyCode);
+    var charge = TariffBilling.ComputeForMinutes(request.DurationMinutes, pricing);
+    if (charge is null) return Results.BadRequest(new { error = "invalid_duration" });
+
+    var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
+        dbContext, player.PlayerAccountId, cancellationToken);
+    var walletBalance = wallet?.WalletBalance.MinorUnits ?? 0;
+    if (walletBalance < charge.AmountMinorUnits)
+        return Results.Conflict(new { error = "insufficient_balance" });
+
+    var startRequest = new StartGuestSessionRequest(
+        OrganizationId: player.OrganizationId,
+        SeatId: assignment.SeatId,
+        TariffRuleVersionId: request.TariffRuleVersionId,
+        IdempotencyKey: request.IdempotencyKey,
+        DurationMode: SessionDurationModes.Fixed,
+        DurationMinutes: request.DurationMinutes,
+        PlayerAccountId: player.PlayerAccountId,
+        BillingMode: BillingModeNames.PrepaidWallet,
+        TariffVersionId: tariffVersionId);
+
+    var result = await sessionCommandService.StartGuestSessionAsync(
+        assignment.BranchId, Guid.Empty, startRequest, cancellationToken);
+
+    if (result.Conflict) return Results.Conflict(new { error = result.Error });
+    if (result.NotFound) return Results.NotFound(new { error = result.Error });
+    if (!result.Succeeded) return Results.BadRequest(new { error = result.Error });
+    return Results.Ok(result.Response);
+}).RequireRateLimiting("player-me");
+
 app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
     Guid intentId,
     IStaffContextAccessor staffContextAccessor,
