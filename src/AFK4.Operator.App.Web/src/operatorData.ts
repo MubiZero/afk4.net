@@ -3,6 +3,7 @@ import {
   CalendarClock,
   CircleDollarSign,
   ClipboardCheck,
+  CreditCard,
   LayoutDashboard,
   Monitor,
   ReceiptText,
@@ -52,6 +53,7 @@ export const navItems: NavItem[] = [
   { label: 'Продажи', icon: ReceiptText },
   { label: 'Клиенты', icon: Users },
   { label: 'Платежи', icon: CircleDollarSign },
+  { label: 'Приём платежей', icon: CreditCard },
   { label: 'Логи', icon: ScrollText },
   { label: 'Настройки', icon: Settings },
   { label: 'Проверка', icon: ClipboardCheck }
