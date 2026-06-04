@@ -1123,6 +1123,30 @@ app.MapGet("/api/owner/payment-gateways/{id:guid}/status", async (
     }
 });
 
+// Disable a gateway: marks it disabled (idempotent) so its scope frees up for a new card.
+// We keep the dcgate project intact — A's resolver still verifies late webhooks for a
+// disabled gateway, so in-flight payments are still credited.
+app.MapPost("/api/owner/payment-gateways/{id:guid}/disable", async (
+    Guid id,
+    StaffAuthorizationService authorizationService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
+    if (error is not null) return error;
+
+    if (row!.Status != BranchPaymentGatewayStatus.Disabled)
+    {
+        row.Status = BranchPaymentGatewayStatus.Disabled;
+        row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    return Results.Ok(new OwnerPaymentGatewayDto(
+        row.BranchPaymentGatewayId, row.BranchId, row.DcgateProjectId,
+        row.CardLast4, row.Status, row.CreatedAtUtc, row.UpdatedAtUtc));
+});
+
 app.MapGet("/api/me/profile", async (
     IPlayerContextAccessor playerContextAccessor,
     PlatformDbContext dbContext,

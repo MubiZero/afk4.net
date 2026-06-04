@@ -301,4 +301,72 @@ public sealed class OwnerPaymentGatewayEndpointTests
         Assert.Equal("online", body!.SessionHealth);
         Assert.Equal("active", body.GatewayStatus);
     }
+
+    // ---- Disable ----
+
+    [Fact]
+    public async Task Disable_flips_gateway_to_disabled()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "active");
+
+        var response = await owner.PostAsync($"/api/owner/payment-gateways/{id}/disable", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<OwnerPaymentGatewayDto>();
+        Assert.Equal("disabled", dto!.Status);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var row = await db.BranchPaymentGateways.FindAsync(id);
+        Assert.Equal("disabled", row!.Status);
+    }
+
+    [Fact]
+    public async Task Disable_is_idempotent()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "disabled");
+
+        var response = await owner.PostAsync($"/api/owner/payment-gateways/{id}/disable", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<OwnerPaymentGatewayDto>();
+        Assert.Equal("disabled", dto!.Status);
+    }
+
+    [Fact]
+    public async Task Disable_404_for_other_orgs_gateway()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+        var foreignId = await SeedGatewayAsync(factory, Guid.NewGuid(), null, "proj_foreign", "active");
+
+        var response = await owner.PostAsync($"/api/owner/payment-gateways/{foreignId}/disable", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Disable_frees_scope_for_new_provision()
+    {
+        var fake = new FakeAdminClient();
+        await using var factory = FactoryWithAdmin(fake);
+        var client = factory.CreateClient();
+        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+        var id = await SeedGatewayAsync(factory, orgId, null, "proj_old", "active");
+
+        var disableResponse = await owner.PostAsync($"/api/owner/payment-gateways/{id}/disable", null);
+        Assert.Equal(HttpStatusCode.OK, disableResponse.StatusCode);
+
+        // The (org, null) scope is now free, so a replacement card can be provisioned.
+        var provisionResponse = await owner.PostAsJsonAsync("/api/owner/payment-gateways",
+            new ProvisionPaymentGatewayRequest(BranchId: null, CardNumber: "4111111111114242"));
+        Assert.Equal(HttpStatusCode.OK, provisionResponse.StatusCode);
+    }
 }
