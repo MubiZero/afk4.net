@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
@@ -685,6 +686,131 @@ app.MapGet("/api/public/tenant/{tenantKey}/branding", async (
         .Select(o => new TenantBrandingDto(o.OrganizationId, o.Name, o.LogoUrl, o.AccentColor))
         .FirstOrDefaultAsync(cancellationToken);
     return org is null ? Results.NotFound() : Results.Ok(org);
+}).RequireRateLimiting("player-public");
+
+app.MapPost("/api/public/payments/dcgate/webhook", async (
+    HttpRequest httpRequest,
+    IOptions<DcGateOptions> dcGateOptions,
+    IBillingCommandService billingCommandService,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var options = dcGateOptions.Value;
+
+    httpRequest.EnableBuffering();
+    string rawBody;
+    using (var reader = new StreamReader(httpRequest.Body, Encoding.UTF8, leaveOpen: true))
+    {
+        rawBody = await reader.ReadToEndAsync(cancellationToken);
+    }
+    httpRequest.Body.Position = 0;
+
+    if (!DcGateSignatureIsValid(httpRequest, rawBody, options.WebhookSecret))
+    {
+        return Results.Unauthorized();
+    }
+
+    DcGateWebhookPayload? payload;
+    try
+    {
+        payload = JsonSerializer.Deserialize<DcGateWebhookPayload>(
+            rawBody, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+    }
+    catch (JsonException)
+    {
+        return Results.BadRequest();
+    }
+
+    if (payload is null || string.IsNullOrWhiteSpace(payload.EventId))
+    {
+        return Results.BadRequest();
+    }
+
+    if (await dbContext.DcGateWebhookEvents.AnyAsync(e => e.EventId == payload.EventId, cancellationToken))
+    {
+        return Results.Ok();
+    }
+
+    if (!Guid.TryParseExact(payload.Payment.ExternalOrderId, "N", out var intentId))
+    {
+        return Results.Ok();
+    }
+
+    var intent = await dbContext.PaymentIntents.SingleOrDefaultAsync(
+        i => i.PaymentIntentId == intentId, cancellationToken);
+    if (intent is null)
+    {
+        return Results.Ok();
+    }
+
+    switch (payload.EventType)
+    {
+        case "payment.paid":
+            // Credit unless already fulfilled — this intentionally includes an "expired"
+            // intent, because dcgate may confirm a payment after we locally expired it.
+            if (intent.State != "fulfilled")
+            {
+                var topUpRequest = new TopUpWalletRequest(
+                    intent.OrganizationId,
+                    new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
+                    "wallet top-up via dcgate",
+                    intent.PaymentIntentId.ToString("N"));
+
+                var billingResult = await billingCommandService.TopUpWalletAsync(
+                    intent.PlayerAccountId,
+                    intent.BranchId,
+                    Guid.Empty,
+                    topUpRequest,
+                    cancellationToken);
+
+                if (!billingResult.Succeeded)
+                {
+                    return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+                }
+
+                intent.State = "fulfilled";
+                intent.FulfilledAtUtc = DateTimeOffset.UtcNow;
+            }
+            break;
+
+        case "payment.expired":
+            if (intent.State == "pending")
+            {
+                intent.State = "expired";
+            }
+            break;
+
+        case "payment.disputed":
+            intent.Disputed = true;
+            break;
+
+        default:
+            return Results.Ok(); // unknown event type — ack so dcgate stops retrying
+    }
+
+    dbContext.DcGateWebhookEvents.Add(new DcGateWebhookEventEntity
+    {
+        DcGateWebhookEventId = Guid.NewGuid(),
+        EventId = payload.EventId,
+        EventType = payload.EventType,
+        ProcessedAtUtc = DateTimeOffset.UtcNow
+    });
+    try
+    {
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateException)
+    {
+        // Race: a concurrent delivery may have already recorded this event.
+        // Re-query to confirm — if the unique index fired on a duplicate, treat as idempotent no-op.
+        if (await dbContext.DcGateWebhookEvents.AnyAsync(e => e.EventId == payload.EventId, cancellationToken))
+        {
+            return Results.Ok();
+        }
+        throw;
+    }
+
+    return Results.Ok();
 }).RequireRateLimiting("player-public");
 
 app.MapGet("/api/me/profile", async (
@@ -11152,6 +11278,37 @@ app.MapPost("/api/devices/{deviceId:guid}/updates/status", async (
 app.MapHub<DeviceHub>("/hubs/devices");
 
 app.Run();
+
+static bool DcGateSignatureIsValid(HttpRequest request, string rawBody, string secret)
+{
+    if (string.IsNullOrEmpty(secret))
+    {
+        return false;
+    }
+    if (!request.Headers.TryGetValue("x-dcgate-signature", out var header))
+    {
+        return false;
+    }
+    var provided = header.ToString();
+    const string prefix = "sha256=";
+    if (!provided.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+    {
+        return false;
+    }
+    var providedHex = provided[prefix.Length..];
+    byte[] providedBytes;
+    try
+    {
+        providedBytes = Convert.FromHexString(providedHex);
+    }
+    catch (FormatException)
+    {
+        return false;
+    }
+    using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+    var expected = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawBody));
+    return CryptographicOperations.FixedTimeEquals(providedBytes, expected);
+}
 
 static bool TryParseMoneyActionType(string? actionType, out MoneyActionType requestedType, out string requiredPermission)
 {
