@@ -1233,9 +1233,9 @@ app.MapGet("/api/branches/{branchId:guid}/wallet/top-up-intents", async (
         .Where(s => seatIds.Contains(s.SeatId))
         .ToDictionaryAsync(s => s.SeatId, s => s.Name, cancellationToken);
 
-    var sessionBySeatLookup = activeSessions.ToDictionary(
-        s => s.PlayerAccountId!.Value,
-        s => s.SeatId);
+    var sessionBySeatLookup = activeSessions
+        .GroupBy(s => s.PlayerAccountId!.Value)
+        .ToDictionary(g => g.Key, g => g.First().SeatId);
 
     var items = intents.Select(intent =>
     {
