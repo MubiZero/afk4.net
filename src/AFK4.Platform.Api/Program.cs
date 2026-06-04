@@ -1088,6 +1088,28 @@ app.MapPost("/api/owner/payment-gateways/{id:guid}/telegram/verify-password", as
     }
 });
 
+app.MapGet("/api/owner/payment-gateways/{id:guid}/status", async (
+    Guid id,
+    StaffAuthorizationService authorizationService,
+    IDcGateAdminClient adminClient,
+    PlatformDbContext dbContext,
+    CancellationToken cancellationToken) =>
+{
+    var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
+    if (error is not null) return error;
+    try
+    {
+        var status = await adminClient.GetStatusAsync(row!.DcgateProjectId, cancellationToken);
+        return Results.Ok(new OwnerGatewayStatusResponse(
+            row.Status, status.SessionHealth, status.LastConnectedAt,
+            status.LastMessageAt, status.TelegramMessagesCount));
+    }
+    catch (DcGateAdminException ex)
+    {
+        return Results.Problem(statusCode: (int)ex.StatusCode, title: "dcgate_error", detail: ex.Message);
+    }
+});
+
 app.MapGet("/api/me/profile", async (
     IPlayerContextAccessor playerContextAccessor,
     PlatformDbContext dbContext,
