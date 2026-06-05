@@ -242,6 +242,7 @@ builder.Services.Configure<PhoneOtpOptions>(
     builder.Configuration.GetSection(PhoneOtpOptions.SectionName));
 builder.Services.AddSingleton<IPhoneOtpHasher, Sha256PhoneOtpHasher>();
 builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
+builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificationService>();
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
@@ -701,6 +702,69 @@ app.MapPost("/api/auth/staff/sign-in-by-phone", async (
 {
     var signedIn = await credentialService.SignInByPhoneAsync(request, cancellationToken);
     return signedIn is not null ? Results.Ok(signedIn) : Results.Unauthorized();
+});
+
+app.MapPost("/api/auth/staff/phone/start-verification", async (
+    StaffPhoneStartVerificationRequest request,
+    IStaffContextAccessor staffContextAccessor,
+    IStaffPhoneVerificationService verificationService,
+    CancellationToken cancellationToken) =>
+{
+    var staff = staffContextAccessor.Current;
+    if (staff is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await verificationService.StartAsync(
+        staff.StaffUserId, staff.OrganizationId, request.Phone, cancellationToken);
+
+    return result.Status switch
+    {
+        PhoneVerificationStartStatus.Sent => Results.Ok(
+            new StaffPhoneVerificationStartedResponse(result.ExpiresInSeconds, result.ResendAfterSeconds)),
+        PhoneVerificationStartStatus.InvalidPhone => Results.BadRequest(new { error = "invalid_phone" }),
+        PhoneVerificationStartStatus.CooldownActive => Results.Json(
+            new { error = "cooldown_active", resendAfterSeconds = result.ResendAfterSeconds },
+            statusCode: StatusCodes.Status429TooManyRequests),
+        PhoneVerificationStartStatus.RateLimited => Results.Json(
+            new { error = "rate_limited" }, statusCode: StatusCodes.Status429TooManyRequests),
+        PhoneVerificationStartStatus.SmsFailed => Results.Json(
+            new { error = "sms_unavailable" }, statusCode: StatusCodes.Status502BadGateway),
+        _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+    };
+});
+
+app.MapPost("/api/auth/staff/phone/confirm", async (
+    StaffPhoneConfirmRequest request,
+    IStaffContextAccessor staffContextAccessor,
+    IStaffPhoneVerificationService verificationService,
+    CancellationToken cancellationToken) =>
+{
+    var staff = staffContextAccessor.Current;
+    if (staff is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await verificationService.ConfirmAsync(staff.StaffUserId, request.Code, cancellationToken);
+
+    return result.Status switch
+    {
+        PhoneConfirmStatus.Confirmed => Results.Ok(new StaffPhoneConfirmedResponse(result.VerifiedPhone!)),
+        PhoneConfirmStatus.InvalidCode => Results.Json(
+            new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
+            statusCode: StatusCodes.Status400BadRequest),
+        PhoneConfirmStatus.Expired => Results.Json(
+            new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+        PhoneConfirmStatus.NoActiveCode => Results.Json(
+            new { error = "no_active_code" }, statusCode: StatusCodes.Status410Gone),
+        PhoneConfirmStatus.TooManyAttempts => Results.Json(
+            new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
+        PhoneConfirmStatus.PhoneAlreadyInUse => Results.Json(
+            new { error = "phone_already_in_use" }, statusCode: StatusCodes.Status409Conflict),
+        _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+    };
 });
 
 app.MapPost("/api/auth/staff/refresh", async (
