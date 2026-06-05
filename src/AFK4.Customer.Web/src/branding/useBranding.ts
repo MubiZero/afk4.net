@@ -45,7 +45,7 @@ export function useBranding(options: UseBrandingOptions): BrandingState {
       setState({
         status: 'ready',
         organizationId: branding?.organizationId ?? fallbackOrganizationId ?? '',
-        brandName: branding?.name ?? 'AFK4',
+        brandName: branding?.name ?? 'AFK4.NET',
         logoUrl: branding?.logoUrl ?? null,
       });
     }

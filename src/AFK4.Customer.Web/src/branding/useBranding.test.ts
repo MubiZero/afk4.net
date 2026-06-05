@@ -24,5 +24,5 @@ it('falls back to defaults when no branding resolves', async () => {
   await waitFor(() => expect(result.current.status).toBe('ready'));
   if (result.current.status !== 'ready') throw new Error('not ready');
   expect(result.current.organizationId).toBe('dev-org');
-  expect(result.current.brandName).toBe('AFK4');
+  expect(result.current.brandName).toBe('AFK4.NET');
 });

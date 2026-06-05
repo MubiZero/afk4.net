@@ -1,11 +1,11 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
-      Name="AFK4 Operator App"
-      Manufacturer="AFK4"
+      Name="AFK4.NET Operator App"
+      Manufacturer="AFK4.NET"
       Version="$(var.PackageVersion)"
       UpgradeCode="{5B345D78-17AE-4CC7-9FE7-7E5F4203FAF1}"
       Scope="perMachine">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4 Operator App is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Operator App is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <Property Id="WEBVIEW2_RUNTIME_HKLM_PV">
@@ -26,7 +26,7 @@
     </Property>
     <Launch
         Condition="Installed OR (WEBVIEW2_RUNTIME_HKLM_PV AND WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKCU_PV AND WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;)"
-        Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen WebView2 Runtime, then run AFK4 Operator App setup again." />
+        Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen WebView2 Runtime, then run AFK4.NET Operator App setup again." />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="AFK4RootFolder" Name="AFK4">
@@ -34,7 +34,7 @@
       </Directory>
     </StandardDirectory>
 
-    <Feature Id="MainFeature" Title="AFK4 Operator App" Level="1">
+    <Feature Id="MainFeature" Title="AFK4.NET Operator App" Level="1">
       <ComponentGroupRef Id="OperatorAppFiles" />
       <ComponentRef Id="OperatorAppAgentConfiguration" />
     </Feature>

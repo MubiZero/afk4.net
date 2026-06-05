@@ -1,11 +1,11 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
-      Name="AFK4 Agent"
-      Manufacturer="AFK4"
+      Name="AFK4.NET Agent"
+      Manufacturer="AFK4.NET"
       Version="$(var.PackageVersion)"
       UpgradeCode="{9E6EE315-17A1-4201-A163-064102362EAA}"
       Scope="perMachine">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4 Agent is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Agent is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
@@ -20,7 +20,7 @@
       <Directory Id="AFK4ProgramsFolder" Name="AFK4" />
     </StandardDirectory>
 
-    <Feature Id="MainFeature" Title="AFK4 Agent" Level="1">
+    <Feature Id="MainFeature" Title="AFK4.NET Agent" Level="1">
       <ComponentGroupRef Id="AgentServiceFiles" />
       <ComponentGroupRef Id="SetupWizardFiles" />
       <ComponentGroupRef Id="UpdateHelperScripts" />
@@ -39,8 +39,8 @@
       <ServiceInstall
           Id="AgentServiceInstall"
           Name="AFK4.Agent.Service"
-          DisplayName="AFK4 Agent Service"
-          Description="AFK4 endpoint control and update service."
+          DisplayName="AFK4.NET Agent Service"
+          Description="AFK4.NET endpoint control and update service."
           Type="ownProcess"
           Start="auto"
           ErrorControl="normal"
@@ -81,7 +81,7 @@
           Id="AFK4SetupWizardRunOnce"
           Root="HKLM"
           Key="Software\Microsoft\Windows\CurrentVersion\RunOnce"
-          Name="AFK4 Setup Wizard"
+          Name="AFK4.NET Setup Wizard"
           Type="string"
           Value="&quot;[SetupWizardFolder]AFK4.SetupWizard.exe&quot;" />
     </Component>
@@ -89,8 +89,8 @@
     <Component Id="SetupWizardShortcut" Directory="AFK4ProgramsFolder" Guid="{59BDDD1E-D67F-4721-89D5-16D9D8690C94}">
       <Shortcut
           Id="SetupWizardStartMenuShortcut"
-          Name="AFK4 Setup Wizard"
-          Description="Enroll this PC with AFK4."
+          Name="AFK4.NET Setup Wizard"
+          Description="Enroll this PC with AFK4.NET."
           Target="[SetupWizardFolder]AFK4.SetupWizard.exe"
           WorkingDirectory="SetupWizardFolder" />
       <RemoveFolder Id="RemoveAFK4ProgramsFolder" On="uninstall" />

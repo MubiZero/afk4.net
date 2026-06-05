@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'AFK4 — портал игрока',
-        short_name: 'AFK4',
+        name: 'AFK4.NET — портал игрока',
+        short_name: 'AFK4.NET',
         description: 'Баланс, сессии, история и брони вашего клуба',
         theme_color: '#101314',
         background_color: '#101314',

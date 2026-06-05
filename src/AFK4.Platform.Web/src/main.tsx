@@ -45,5 +45,5 @@ function setDocumentTitle(audience: PlatformWebAudience): void {
   if (typeof document === 'undefined') {
     return;
   }
-  document.title = audience === 'club' ? 'AFK4 Club Dashboard' : 'AFK4 Platform Control Plane';
+  document.title = audience === 'club' ? 'AFK4.NET Club Dashboard' : 'AFK4.NET Platform Control Plane';
 }

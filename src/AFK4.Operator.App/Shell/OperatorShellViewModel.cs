@@ -114,7 +114,7 @@ public sealed class OperatorShellViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public string Title => "AFK4 Operator";
+    public string Title => "AFK4.NET Operator";
 
     public SignInViewModel SignIn { get; }
 

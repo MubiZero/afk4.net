@@ -1,11 +1,11 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
-      Name="AFK4 Gaming PC Client"
-      Manufacturer="AFK4"
+      Name="AFK4.NET Gaming PC Client"
+      Manufacturer="AFK4.NET"
       Version="$(var.PackageVersion)"
       UpgradeCode="{36974A53-4931-491E-8FD0-7DA533E6DCC3}"
       Scope="perMachine">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4 Gaming PC Client is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Gaming PC Client is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
@@ -16,7 +16,7 @@
       </Directory>
     </StandardDirectory>
 
-    <Feature Id="MainFeature" Title="AFK4 Gaming PC Client" Level="1">
+    <Feature Id="MainFeature" Title="AFK4.NET Gaming PC Client" Level="1">
       <ComponentGroupRef Id="AgentServiceFiles" />
       <ComponentGroupRef Id="PlayerShellFiles" />
       <ComponentGroupRef Id="UpdateHelperScripts" />
@@ -32,8 +32,8 @@
       <ServiceInstall
           Id="AgentServiceInstall"
           Name="AFK4.Agent.Service"
-          DisplayName="AFK4 Agent Service"
-          Description="AFK4 gaming PC control and update service."
+          DisplayName="AFK4.NET Agent Service"
+          Description="AFK4.NET gaming PC control and update service."
           Type="ownProcess"
           Start="auto"
           ErrorControl="normal"

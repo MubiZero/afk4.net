@@ -25,7 +25,7 @@ public sealed class MainWindowViewModel
         TechnicianWorkflow = new TechnicianDeviceWorkflowViewModel(operatorDeviceApiClient);
     }
 
-    public string Title => "AFK4 Operator";
+    public string Title => "AFK4.NET Operator";
 
     public ObservableCollection<FloorMapSeatViewModel> Seats { get; }
 

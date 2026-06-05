@@ -1,11 +1,11 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package
-      Name="AFK4 Player Shell"
-      Manufacturer="AFK4"
+      Name="AFK4.NET Player Shell"
+      Manufacturer="AFK4.NET"
       Version="$(var.PackageVersion)"
       UpgradeCode="{A234E9ED-8992-4852-9A27-C39D1F46D35A}"
       Scope="perMachine">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4 Player Shell is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Player Shell is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
@@ -14,7 +14,7 @@
       </Directory>
     </StandardDirectory>
 
-    <Feature Id="MainFeature" Title="AFK4 Player Shell" Level="1">
+    <Feature Id="MainFeature" Title="AFK4.NET Player Shell" Level="1">
       <ComponentGroupRef Id="PlayerShellFiles" />
       <ComponentRef Id="PlayerShellAgentConfiguration" />
     </Feature>

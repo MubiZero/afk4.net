@@ -113,7 +113,7 @@ public sealed class GamingPcSetupOrchestrator(
             return Failed(enrollment?.DeviceId);
         }
 
-        if (!await RunStepAsync("StartService", "Starting AFK4 Agent Service.", () =>
+        if (!await RunStepAsync("StartService", "Starting AFK4.NET Agent Service.", () =>
         {
             serviceController.Start(StagingSetupDefaults.AgentServiceName);
             var status = serviceController.QueryStatus(StagingSetupDefaults.AgentServiceName);

@@ -26,7 +26,7 @@ public sealed class AgentServiceCompletionAction(string serviceName = "AFK4.Agen
         var startResult = RunScCommand(["start", serviceName], throwOnFailure: false);
         if (startResult is not 0 and not ServiceAlreadyRunning)
         {
-            throw new InvalidOperationException($"AFK4 Agent Service could not be started. sc.exe exited with code {startResult}.");
+            throw new InvalidOperationException($"AFK4.NET Agent Service could not be started. sc.exe exited with code {startResult}.");
         }
 
         SetupWizardFirstRunRegistration.Clear();
