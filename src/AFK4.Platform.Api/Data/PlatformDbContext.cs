@@ -211,6 +211,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(staffUser => staffUser.Email).HasMaxLength(320);
             entity.Property(staffUser => staffUser.PasswordHash).IsRequired();
             entity.HasIndex(staffUser => new { staffUser.OrganizationId, staffUser.NormalizedUserName }).IsUnique();
+            entity.Property(staffUser => staffUser.Phone).HasMaxLength(20);
+            entity.Property(staffUser => staffUser.NormalizedPhone).HasMaxLength(20);
+            // Phone is a GLOBAL login id (unlike username, which is per-org): a verified, active phone
+            // must map to exactly one staff. Partial unique index so unverified/old rows don't collide.
+            entity.HasIndex(staffUser => staffUser.NormalizedPhone)
+                .IsUnique()
+                .HasFilter("\"NormalizedPhone\" IS NOT NULL AND \"PhoneVerifiedAtUtc\" IS NOT NULL AND \"IsActive\"");
         });
 
         modelBuilder.Entity<StaffRoleAssignmentEntity>(entity =>
