@@ -262,11 +262,16 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,28,0">
-                        <TextBlock Text="AFK4"
-                                   Foreground="White"
-                                   FontSize="24"
+                        <Image Source="{StaticResource BrandMark}"
+                               Width="30"
+                               Height="30"
+                               VerticalAlignment="Center" />
+                        <TextBlock FontSize="24"
                                    FontWeight="Bold"
-                                   VerticalAlignment="Center" />
+                                   Margin="10,0,0,0"
+                                   VerticalAlignment="Center">
+                            <Run Text="AFK4" Foreground="#E2F1EC" /><Run Text=".NET" Foreground="#2DD4A7" />
+                        </TextBlock>
                         <TextBlock Text="Оператор"
                                    Foreground="#E0E7FF"
                                    FontWeight="SemiBold"

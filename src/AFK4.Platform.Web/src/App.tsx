@@ -550,11 +550,9 @@ function PlatformArea({
       navGroups={platformNav}
       sidebarHeader={
         <div className="m-3 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-left">
-          <span className="flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-            A
-          </span>
+          <img src="/favicon.svg" alt="" className="size-7 rounded-md" />
           <span className="min-w-0">
-            <span className="block truncate text-sm font-bold">AFK4 Control Plane</span>
+            <span className="block truncate text-sm font-bold">AFK4.NET Control Plane</span>
             <span className="block truncate text-[11px] text-muted">{session.userName}</span>
           </span>
         </div>
