@@ -12,6 +12,7 @@ TestResults/
 *.tsbuildinfo
 artifacts/
 src/AFK4.Operator.App.Web/dist/
+src/AFK4.SetupWizard.Web/dist/
 .superpowers/
 .worktrees/
 .env
@@ -25,8 +26,9 @@ src/AFK4.Operator.App.Web/dist/
 secrets/
 Secrets/
 
-# Local agent/editor settings
-.claude/
+# Local agent/editor settings (ignore everything except the versioned project memory)
+.claude/*
+!.claude/memory/
 
 # One-off command-output dumps
 diffstat.txt

@@ -1,0 +1,1 @@
+- [Working style](feedback_working_style.md) — prefers fewer clarifying questions, more doing; only pause at real blockers
