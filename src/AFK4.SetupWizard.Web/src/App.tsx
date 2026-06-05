@@ -45,16 +45,17 @@ type Theme = 'light' | 'dark';
 const THEME_STORAGE_KEY = 'afk4.setupWizard.theme';
 
 function readInitialTheme(): Theme {
-  if (typeof window === 'undefined') return 'light';
+  if (typeof window === 'undefined') return 'dark';
   try {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
   } catch {
     // localStorage недоступен — игнорим
   }
-  // Setup wizard ставят в клубе — часто ночью. По правилу 30 (контекст использования)
-  // дефолт следует системной теме, чтобы пользователь не получал в лицо белый экран.
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  // Setup wizard ставят в киберклубе, часто ночью (правило 30 — контекст использования):
+  // тёмная тема — дефолтный baseline, чтобы не бить белым экраном по глазам.
+  // Явный выбор пользователя (localStorage) выше по приоритету и сохраняется.
+  return 'dark';
 }
 
 export function App() {
@@ -66,15 +67,17 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {
-      // persistence — best-effort
-    }
   }, [theme]);
 
   const setThemeTo = useCallback((next: Theme) => {
     setTheme(next);
+    // Персистим только осознанный выбор пользователя — дефолт (dark) остаётся
+    // «невыбранным», чтобы будущая смена дефолта могла примениться.
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // persistence — best-effort
+    }
   }, []);
 
   const handleDiscovered = useCallback((ownerCode: string, response: WizardDiscoverResponse) => {

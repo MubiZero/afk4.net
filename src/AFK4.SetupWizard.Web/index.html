@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AFK4.NET Setup Wizard</title>
+    <script>
+      // No-flash theme init: ставим data-theme до первого кадра, чтобы не мигало
+      // светлым перед монтированием React. Дефолт — dark; явный выбор из localStorage выше.
+      // Ключ зеркалит THEME_STORAGE_KEY из App.tsx.
+      (function () {
+        try {
+          var stored = localStorage.getItem('afk4.setupWizard.theme');
+          document.documentElement.setAttribute(
+            'data-theme',
+            stored === 'light' || stored === 'dark' ? stored : 'dark',
+          );
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
