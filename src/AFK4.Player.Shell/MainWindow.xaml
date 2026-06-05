@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="clr-namespace:AFK4.Localization.Wpf;assembly=AFK4.Localization.Wpf"
-        Title="AFK4 Player Shell"
+        Title="AFK4.NET Player Shell"
         WindowState="Maximized"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -20,12 +20,18 @@
 
         <Border Grid.Row="0" Background="#07111F" BorderBrush="#1F3A5F" BorderThickness="0,0,0,1" Padding="28,0">
             <DockPanel LastChildFill="False">
-                <TextBlock DockPanel.Dock="Left"
-                           Text="AFK4"
-                           Foreground="White"
-                           FontSize="26"
-                           FontWeight="SemiBold"
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="{StaticResource BrandMark}"
+                           Width="32"
+                           Height="32"
                            VerticalAlignment="Center" />
+                    <TextBlock FontSize="26"
+                               FontWeight="SemiBold"
+                               Margin="11,0,0,0"
+                               VerticalAlignment="Center">
+                        <Run Text="AFK4" Foreground="#E2F1EC" /><Run Text=".NET" Foreground="#2DD4A7" />
+                    </TextBlock>
+                </StackPanel>
                 <TextBlock DockPanel.Dock="Right"
                            Text="{Binding RemainingTimeText}"
                            Foreground="#E5E7EB"

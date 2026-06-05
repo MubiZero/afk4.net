@@ -1,7 +1,7 @@
 <Window x:Class="AFK4.GamingPc.Setup.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AFK4 Gaming PC Setup"
+        Title="AFK4.NET Gaming PC Setup"
         Width="560"
         Height="520"
         ResizeMode="NoResize"
@@ -16,7 +16,12 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
-            <TextBlock Text="AFK4 Gaming PC Setup" FontSize="24" FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal">
+                <Image Source="{StaticResource BrandMark}" Width="26" Height="26" VerticalAlignment="Center" />
+                <TextBlock FontSize="24" FontWeight="SemiBold" Margin="9,0,0,0" VerticalAlignment="Center">
+                    <Run Text="AFK4" Foreground="#0B1F18" /><Run Text=".NET" Foreground="#0B9E74" /><Run Text=" Gaming PC Setup" Foreground="#0B1F18" />
+                </TextBlock>
+            </StackPanel>
             <TextBlock Text="{Binding EnvironmentLabel}" Margin="0,6,0,0" Foreground="#555555" />
             <TextBlock Text="{Binding MachineLabel}" Margin="0,2,0,0" Foreground="#555555" />
         </StackPanel>

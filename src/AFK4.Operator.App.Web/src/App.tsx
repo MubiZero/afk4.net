@@ -1632,7 +1632,7 @@ function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> 
   ].join(' | '));
 
   return [
-    'AFK4 Касса',
+    'AFK4.NET Касса',
     `Чек: ${receiptNumber}`,
     `Тип: ${receiptType}`,
     `Создан: ${createdAtUtc || '—'}`,
@@ -9470,7 +9470,7 @@ function SignInScreen({
       <WindowResizeHandles />
       <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
-          <strong>AFK4</strong>
+          <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
           <span>Оператор</span>
         </div>
         <div className="top-status">
@@ -9484,7 +9484,7 @@ function SignInScreen({
       <main className="auth-workspace">
         <section className="auth-panel">
           <header>
-            <span>AFK4 Оператор</span>
+            <span>AFK4.NET Оператор</span>
             <h1>Вход оператора</h1>
             <p>Токены сохраняются только через нативное защищённое хранилище Windows.</p>
           </header>
@@ -9560,7 +9560,7 @@ function BlockedTenantScreen({
         onDoubleClick={handleWindowTitleDoubleClick}
       >
         <div className="brand-block">
-          <strong>AFK4</strong>
+          <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
           <span>Оператор</span>
         </div>
         <WindowControls />
@@ -9574,7 +9574,7 @@ function BlockedTenantScreen({
             <p>
               {reason !== undefined && reason.length > 0
                 ? reason
-                : 'Свяжитесь с владельцем клуба или поддержкой AFK4 для возобновления работы.'}
+                : 'Свяжитесь с владельцем клуба или поддержкой AFK4.NET для возобновления работы.'}
             </p>
           </header>
 
@@ -9582,7 +9582,7 @@ function BlockedTenantScreen({
             <AlertTriangle size={16} />
             <span>
               {isDeletionPending
-                ? 'Этот клуб помечен на удаление. Вход через AFK4 Operator недоступен.'
+                ? 'Этот клуб помечен на удаление. Вход через AFK4.NET Operator недоступен.'
                 : 'Клуб приостановлен. Кассовые операции и приём сессий заблокированы платформой.'}
             </span>
           </div>
@@ -10354,7 +10354,7 @@ function AppInner() {
       <WindowResizeHandles />
       <header className="top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
-          <strong>AFK4</strong>
+          <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
           <span>Оператор</span>
         </div>
         <label className="command-search">

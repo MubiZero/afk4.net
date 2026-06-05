@@ -195,8 +195,14 @@ button {
 
 .brand-block {
   display: grid;
-  width: 82px;
+  width: max-content;
   line-height: 1;
+}
+
+.brand-block .brand-logo {
+  display: block;
+  height: 22px;
+  width: auto;
 }
 
 .brand-block strong {

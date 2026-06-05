@@ -5,5 +5,33 @@
         <SolidColorBrush x:Key="AccentBrush" Color="#1F7A4D" />
         <SolidColorBrush x:Key="MutedBrush" Color="#667085" />
         <SolidColorBrush x:Key="PanelBrush" Color="#F6F8FA" />
+        <!-- AFK4.NET command-grid mark (light surfaces): diagonal cells in accent emerald -->
+        <DrawingImage x:Key="BrandMark">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#D9E6E1">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="20,3,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="37,3,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="3,20,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="37,20,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="3,37,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="20,37,13,13" RadiusX="3.5" RadiusY="3.5" />
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#0B9E74">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="3,3,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="20,20,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="37,37,13,13" RadiusX="3.5" RadiusY="3.5" />
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
     </Application.Resources>
 </Application>

@@ -7,7 +7,7 @@ public static class SetupWizardFirstRunRegistration
     private const string SetupWizardKeyPath = @"Software\AFK4\SetupWizard";
     private const string RunOnceKeyPath = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
     private const string FirstRunPendingValueName = "FirstRunPending";
-    private const string RunOnceValueName = "AFK4 Setup Wizard";
+    private const string RunOnceValueName = "AFK4.NET Setup Wizard";
 
     public static void Clear()
     {

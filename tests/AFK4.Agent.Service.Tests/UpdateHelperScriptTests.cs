@@ -163,7 +163,7 @@ public sealed class UpdateHelperScriptTests
         var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "agent", "Package.wxs");
         var package = File.ReadAllText(packagePath);
 
-        Assert.Contains("Name=\"AFK4 Agent\"", package, StringComparison.Ordinal);
+        Assert.Contains("Name=\"AFK4.NET Agent\"", package, StringComparison.Ordinal);
         Assert.Contains("SetupWizardFolder", package, StringComparison.Ordinal);
         Assert.Contains("$(var.SetupWizardPublishDir)", package, StringComparison.Ordinal);
         Assert.Contains("AFK4.SetupWizard.exe", package, StringComparison.Ordinal);
@@ -198,7 +198,7 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains(@"Software\AFK4\SetupWizard", registration, StringComparison.Ordinal);
         Assert.Contains(@"Software\Microsoft\Windows\CurrentVersion\RunOnce", registration, StringComparison.Ordinal);
         Assert.Contains("FirstRunPending", registration, StringComparison.Ordinal);
-        Assert.Contains("AFK4 Setup Wizard", registration, StringComparison.Ordinal);
+        Assert.Contains("AFK4.NET Setup Wizard", registration, StringComparison.Ordinal);
         Assert.Contains("DeleteValue(valueName, throwOnMissingValue: false)", registration, StringComparison.Ordinal);
     }
 
@@ -208,7 +208,7 @@ public sealed class UpdateHelperScriptTests
         var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "player-shell", "Package.wxs");
         var package = File.ReadAllText(packagePath);
 
-        Assert.Contains("Name=\"AFK4 Player Shell\"", package, StringComparison.Ordinal);
+        Assert.Contains("Name=\"AFK4.NET Player Shell\"", package, StringComparison.Ordinal);
         Assert.Contains("$(var.PlayerShellPublishDir)", package, StringComparison.Ordinal);
         Assert.Contains("AFK4.Player.Shell.exe", package, StringComparison.Ordinal);
         Assert.Contains("Agent__ShellVersion", package, StringComparison.Ordinal);
