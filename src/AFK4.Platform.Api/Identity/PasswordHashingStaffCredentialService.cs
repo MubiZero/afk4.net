@@ -127,4 +127,38 @@ public sealed class PasswordHashingStaffCredentialService(
             .ToListAsync(cancellationToken);
         return new StaffLoginResolution(null, clubs);
     }
+
+    public async Task<StaffSignInResponse?> SignInByPhoneAsync(
+        StaffSignInByPhoneRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.PhoneNumber) ||
+            string.IsNullOrWhiteSpace(request.Password))
+        {
+            return null;
+        }
+
+        var normalizedPhone = PhoneNumberNormalizer.Normalize(request.PhoneNumber);
+        if (normalizedPhone is null)
+        {
+            return null;
+        }
+
+        var user = await dbContext.StaffUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                candidate => candidate.NormalizedPhone == normalizedPhone
+                    && candidate.PhoneVerifiedAtUtc != null
+                    && candidate.IsActive,
+                cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        var result = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+        return result == PasswordVerificationResult.Failed
+            ? null
+            : await tokenService.IssueAsync(user, cancellationToken);
+    }
 }

@@ -689,6 +689,15 @@ app.MapPost("/api/auth/staff/sign-in-by-login", async (
         : Results.Unauthorized();
 });
 
+app.MapPost("/api/auth/staff/sign-in-by-phone", async (
+    StaffSignInByPhoneRequest request,
+    IStaffCredentialService credentialService,
+    CancellationToken cancellationToken) =>
+{
+    var signedIn = await credentialService.SignInByPhoneAsync(request, cancellationToken);
+    return signedIn is not null ? Results.Ok(signedIn) : Results.Unauthorized();
+});
+
 app.MapPost("/api/auth/staff/refresh", async (
     StaffRefreshTokenRequest request,
     IStaffTokenService tokenService,
