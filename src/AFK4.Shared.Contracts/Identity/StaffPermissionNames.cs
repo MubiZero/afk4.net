@@ -16,6 +16,8 @@ public static class StaffPermissionNames
 
     public const string ViewDeviceDetail = "devices.detail.view";
 
+    public const string InstallDevice = "devices.install";
+
     public const string ViewFloorMap = "floor_map.view";
 
     public const string ManageLayout = "layout.manage";
