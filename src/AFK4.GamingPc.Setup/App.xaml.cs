@@ -6,8 +6,21 @@ namespace AFK4.GamingPc.Setup;
 
 public partial class App : Application
 {
+#if DEBUG
+    public static bool PreviewMode { get; private set; }
+#endif
+
     protected override void OnStartup(StartupEventArgs e)
     {
+#if DEBUG
+        if (e.Args.Contains("--preview"))
+        {
+            PreviewMode = true;
+            base.OnStartup(e);
+            return;
+        }
+#endif
+
         if (!ElevationGuard.EnsureElevated())
         {
             Shutdown();
@@ -19,6 +32,13 @@ public partial class App : Application
 
     public static SetupShellViewModel CreateViewModel()
     {
+#if DEBUG
+        if (PreviewMode)
+        {
+            return Preview.PreviewGamingPcSetup.CreateViewModel();
+        }
+#endif
+
         var httpClient = new HttpClient
         {
             BaseAddress = StagingSetupDefaults.PlatformBaseUrl

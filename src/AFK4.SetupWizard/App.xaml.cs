@@ -12,11 +12,14 @@ public partial class App : Application
 #if DEBUG
         if (e.Args.Contains("--preview"))
         {
-            LaunchWebShell(
-                new SetupWizardWebHostBridge(Preview.PreviewSetupWizard.CreateApiClient()),
-                new SetupWizardMachineInfo("PREVIEW-PC"),
-                SetupWizardDefaults.PlatformBaseUrl,
-                isPreview: true);
+            var previewMachine = new SetupWizardMachineInfo("PREVIEW-PC");
+            var previewBridge = new SetupWizardWebHostBridge(
+                Preview.PreviewSetupWizard.CreateApiClient(),
+                Preview.PreviewSetupWizard.CreateDeviceKeyStore(),
+                Preview.PreviewSetupWizard.CreateBootstrapWriter(),
+                previewMachine,
+                Preview.PreviewSetupWizard.CreateCompletionAction());
+            LaunchWebShell(previewBridge, previewMachine, SetupWizardDefaults.PlatformBaseUrl, isPreview: true);
             base.OnStartup(e);
             return;
         }
@@ -33,13 +36,14 @@ public partial class App : Application
         {
             BaseAddress = SetupWizardDefaults.PlatformBaseUrl
         };
-        var apiClient = new SetupWizardApiClient(httpClient);
-
-        LaunchWebShell(
-            new SetupWizardWebHostBridge(apiClient),
+        var bridge = new SetupWizardWebHostBridge(
+            new SetupWizardApiClient(httpClient),
+            new FileDeviceKeyStore(),
+            new EnvironmentBootstrapWriter(machineInfo.MachineName),
             machineInfo,
-            SetupWizardDefaults.PlatformBaseUrl,
-            isPreview: false);
+            new AgentServiceCompletionAction());
+
+        LaunchWebShell(bridge, machineInfo, SetupWizardDefaults.PlatformBaseUrl, isPreview: false);
         base.OnStartup(e);
     }
 

@@ -1,4 +1,4 @@
-import { postHostRequest } from './hostBridge';
+import { postHostRequest, postHostWindowCommand } from './hostBridge';
 
 export interface WizardBranch {
   branchId: string;
@@ -18,12 +18,12 @@ export interface WizardZone {
 export interface WizardSeat {
   seatId: string;
   pcName: string;
-  zoneId: string | null;
-  zoneName: string | null;
+  zoneId: string;
+  zoneName: string;
   sortOrder: number;
   status: string;
-  enrolledDeviceId: string | null;
-  enrolledDeviceName: string | null;
+  deviceId: string | null;
+  deviceName: string | null;
   isOnline: boolean | null;
 }
 
@@ -32,8 +32,50 @@ export interface WizardDiscoverResponse {
   branches: WizardBranch[];
 }
 
+export interface WizardEnrollResult {
+  organizationId: string;
+  branchId: string;
+  deviceId: string;
+  role: WizardRole;
+  displayName: string;
+  machineName: string;
+  enrollmentState: string;
+  apiBaseUrl: string;
+  updateChannel: string;
+}
+
+export type WizardRole = 'gaming_pc' | 'manager_workstation';
+
+export interface WizardCreateSeatRequest {
+  ownerCode: string;
+  branchId: string;
+  zoneId: string;
+  zoneName: string;
+  name: string;
+}
+
+export interface WizardEnrollRequest {
+  ownerCode: string;
+  branchId: string;
+  seatId: string | null;
+  role: WizardRole;
+  displayName: string;
+}
+
 export function discoverOwner(ownerCode: string): Promise<WizardDiscoverResponse> {
   return postHostRequest<WizardDiscoverResponse>('wizard:discover', { ownerCode });
+}
+
+export function createSeat(request: WizardCreateSeatRequest): Promise<WizardSeat> {
+  return postHostRequest<WizardSeat>('wizard:createSeat', request);
+}
+
+export function enrollDevice(request: WizardEnrollRequest): Promise<WizardEnrollResult> {
+  return postHostRequest<WizardEnrollResult>('wizard:enroll', request);
+}
+
+export function closeWizard(): void {
+  postHostWindowCommand('close');
 }
 
 export interface WizardBootstrapConfig {

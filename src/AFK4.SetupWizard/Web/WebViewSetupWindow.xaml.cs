@@ -1,4 +1,7 @@
+using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Windows;
+using System.Windows.Interop;
 using AFK4.SetupWizard.Core;
 using Microsoft.Web.WebView2.Core;
 
@@ -6,6 +9,9 @@ namespace AFK4.SetupWizard.Web;
 
 public partial class WebViewSetupWindow : Window
 {
+    private const int WmNcLeftButtonDown = 0x00A1;
+    private const int HtCaption = 2;
+
     private readonly SetupWizardWebShellOptions shellOptions;
     private readonly SetupWizardWebAssetResolver assetResolver;
     private readonly SetupWizardWebHostBridge hostBridge;
@@ -106,12 +112,71 @@ public partial class WebViewSetupWindow : Window
 
     private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
+        if (TryHandleWindowMessage(e.WebMessageAsJson))
+        {
+            return;
+        }
+
         var responseJson = await hostBridge.HandleAsync(e.WebMessageAsJson, CancellationToken.None);
         if (responseJson is not null && Browser.CoreWebView2 is not null)
         {
             Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
         }
     }
+
+    private bool TryHandleWindowMessage(string webMessageJson)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(webMessageJson);
+            if (!document.RootElement.TryGetProperty("type", out var typeProperty))
+            {
+                return false;
+            }
+
+            switch (typeProperty.GetString())
+            {
+                case "window:drag":
+                    StartNativeWindowDrag();
+                    return true;
+                case "window:minimize":
+                    WindowState = WindowState.Minimized;
+                    return true;
+                case "window:toggleMaximize":
+                    WindowState = WindowState == WindowState.Maximized
+                        ? WindowState.Normal
+                        : WindowState.Maximized;
+                    return true;
+                case "window:close":
+                    Close();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        catch (JsonException)
+        {
+            return true;
+        }
+    }
+
+    private void StartNativeWindowDrag()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        ReleaseCapture();
+        SendMessage(handle, WmNcLeftButtonDown, HtCaption, 0);
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
 
     private void ShowStartupFailure(string message)
     {

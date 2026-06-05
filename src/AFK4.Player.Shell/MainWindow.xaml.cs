@@ -45,6 +45,22 @@ public partial class MainWindow : Window
         Closed += OnClosed;
     }
 
+#if DEBUG
+    // Preview mode: no pipe connections, no real commands. Used by --preview launch flag.
+    internal MainWindow(ILocalizationService localization, Preview.PreviewPlayerShell.PreviewContext preview)
+    {
+        InitializeComponent();
+
+        stateClient = preview.StateClient;
+        viewModel = new PlayerShellViewModel(preview.Launcher, localization);
+        viewModel.ApplyState(preview.InitialState);
+        DataContext = viewModel;
+
+        Loaded += OnLoaded;
+        Closed += OnClosed;
+    }
+#endif
+
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         _ = ListenForStateAsync(stateClientCancellation.Token);

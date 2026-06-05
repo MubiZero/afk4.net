@@ -11,6 +11,12 @@ export interface HostBridgeResponse<TPayload> {
   error?: HostBridgeError;
 }
 
+export type HostWindowCommand = 'drag' | 'minimize' | 'toggleMaximize' | 'close';
+
+export function postHostWindowCommand(command: HostWindowCommand): void {
+  window.chrome?.webview?.postMessage({ type: `window:${command}` });
+}
+
 export const hostBridgeUnavailableMessage = 'Native host bridge is unavailable.';
 
 export class HostBridgeUnavailableError extends Error {
