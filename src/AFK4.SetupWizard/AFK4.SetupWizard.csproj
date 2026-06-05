@@ -4,6 +4,16 @@
     <ProjectReference Include="..\AFK4.SetupWizard.Core\AFK4.SetupWizard.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="WebAssets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>

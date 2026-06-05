@@ -1,0 +1,40 @@
+<Window x:Class="AFK4.SetupWizard.Web.WebViewSetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="AFK4.NET Setup Wizard"
+        Width="900"
+        Height="640"
+        MinWidth="760"
+        MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="#EEF2F7">
+    <Grid Background="#EEF2F7">
+        <wv2:WebView2 x:Name="Browser"
+                      DefaultBackgroundColor="#EEF2F7" />
+
+        <Border x:Name="StartupOverlay"
+                Background="#EEF2F7"
+                Padding="28"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Width="420"
+                BorderBrush="#D8E0EB"
+                BorderThickness="1"
+                CornerRadius="10">
+            <StackPanel>
+                <TextBlock x:Name="StatusTitle"
+                           Text="AFK4.NET Setup Wizard"
+                           Foreground="#0F172A"
+                           FontSize="22"
+                           FontWeight="SemiBold" />
+                <TextBlock x:Name="StatusText"
+                           Margin="0,12,0,0"
+                           Text="Загрузка мастера настройки..."
+                           Foreground="#475569"
+                           FontSize="13"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
