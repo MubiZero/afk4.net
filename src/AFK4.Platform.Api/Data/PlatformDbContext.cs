@@ -134,6 +134,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StaffInviteEntity> StaffInvites => Set<StaffInviteEntity>();
 
+    public DbSet<StaffPhoneOtpEntity> StaffPhoneOtps => Set<StaffPhoneOtpEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -1001,6 +1003,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(row => row.EventId).HasMaxLength(128).IsRequired();
             entity.Property(row => row.EventType).HasMaxLength(64).IsRequired();
             entity.HasIndex(row => row.EventId).IsUnique();
+        });
+
+        modelBuilder.Entity<StaffPhoneOtpEntity>(entity =>
+        {
+            entity.ToTable("staff_phone_otps");
+            entity.HasKey(otp => otp.StaffPhoneOtpId);
+            entity.Property(otp => otp.Phone).HasMaxLength(20).IsRequired();
+            entity.Property(otp => otp.CodeHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(otp => new { otp.StaffUserId, otp.Purpose, otp.CreatedAtUtc });
         });
     }
 }

@@ -16,6 +16,7 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Identity.OwnerCodes;
+using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;
@@ -237,6 +238,10 @@ builder.Services.AddScoped<INotificationPreferenceService, EfNotificationPrefere
 builder.Services.AddScoped<NotificationDispatchRunner>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IStaffPasswordResetService, EfStaffPasswordResetService>();
+builder.Services.Configure<PhoneOtpOptions>(
+    builder.Configuration.GetSection(PhoneOtpOptions.SectionName));
+builder.Services.AddSingleton<IPhoneOtpHasher, Sha256PhoneOtpHasher>();
+builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
