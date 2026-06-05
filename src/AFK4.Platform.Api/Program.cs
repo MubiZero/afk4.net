@@ -210,6 +210,28 @@ builder.Services.AddSingleton<ITemplateProvider>(provider =>
     new EmbeddedTemplateProvider(provider.GetRequiredService<IOptions<NotificationOptions>>().Value.DefaultLocale));
 builder.Services.AddSingleton<ISmtpTransport, MailKitSmtpTransport>();
 builder.Services.AddSingleton<INotificationChannel, SmtpEmailChannel>();
+builder.Services.Configure<SmsOptions>(
+    builder.Configuration.GetSection(SmsOptions.SectionName));
+builder.Services.AddHttpClient(SmsClientRegistration.HttpClientName, (provider, http) =>
+{
+    var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(smsOptions.BaseUrl))
+    {
+        http.BaseAddress = new Uri(smsOptions.BaseUrl);
+    }
+
+    http.Timeout = TimeSpan.FromSeconds(smsOptions.TimeoutSeconds);
+});
+builder.Services.AddSingleton<ISmsTransport>(provider =>
+{
+    var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
+    var factory = provider.GetRequiredService<IHttpClientFactory>();
+    return new PayomSmsTransport(
+        factory.CreateClient(SmsClientRegistration.HttpClientName),
+        smsOptions.ApiToken,
+        smsOptions.SenderName);
+});
+builder.Services.AddSingleton<INotificationChannel, SmsChannel>();
 builder.Services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
 builder.Services.AddScoped<INotificationPreferenceService, EfNotificationPreferenceService>();
 builder.Services.AddScoped<NotificationDispatchRunner>();
