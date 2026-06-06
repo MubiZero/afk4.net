@@ -5,6 +5,41 @@
 **Author:** (brainstormed)
 **Parent spec:** [2026-06-05-phone-staff-registration-design.md](2026-06-05-phone-staff-registration-design.md) §5 Phase B
 
+## Revision 2 (2026-06-06) — placement corrected
+
+During planning we found the project has **two** admin frontends, and the original
+single-frontend assumption below (§2, §5) was wrong:
+
+- **`AFK4.Platform.Web`** (browser club admin, shadcn/ui) already has a live, localized
+  **profile screen** (`club/profile/ProfileScreen.tsx`) and the **owner-code panel**
+  (`club/install/OwnerCodePanel.tsx`) — the owner code that phone login replaces. This is
+  the natural, lowest-effort home for the self-service phone card.
+- **`AFK4.Operator.App.Web`** (desktop operator app) has no profile area — hence the
+  header account-panel design below.
+
+**Decision (user-approved): build in BOTH frontends, Platform.Web first.** The phone card
+goes into the existing `ProfileScreen` in Platform.Web (shadcn `Card`/`Input`/`Button`),
+then the same flow as a header-opened `AccountPanel` in Operator.App.Web.
+
+**Other corrections applied during planning:**
+- i18n `t()` is **key-only (no interpolation)** in both apps — numeric details (remaining
+  attempts, seconds) are concatenated in JSX, not embedded in the catalog string. New keys
+  use the shared namespace `account.phone.*` in `locales/{ru,en,tg}.json` (parity test
+  enforces all three locales; `bun run gen` in `packages/i18n` regenerates `messages.ts`).
+- **Resend/expiry countdowns are dropped for v1** (rule #19): the backend enforces the
+  60s cooldown / 5-min TTL and returns `cooldown_active` / `code_expired`, which map to
+  clear messages. Countdowns can be added later if needed.
+- **Owner-visibility badge is deferred to a separate follow-up.** Two different staff-list
+  architectures (Platform.Web `OperatorsTable` via `settingsModel`/`OperatorRow`, and the
+  Operator.App.Web record-based rows) make it a self-contained chunk; landing the
+  end-to-end self-service flow in both apps is the priority. The backend `StaffUserDto`
+  change moves into that follow-up too (this plan adds only `GET /api/auth/staff/phone`).
+
+The authoritative task-by-task breakdown is in
+[../plans/2026-06-06-staff-phone-verification-ui.md](../plans/2026-06-06-staff-phone-verification-ui.md).
+Sections below are kept for the flow/error-mapping design, which still holds; read them
+through the lens of this revision (placement + the two corrections above).
+
 ## 1. Goal
 
 Give a logged-in operator a way to **set and SMS-verify their own phone number** inside
