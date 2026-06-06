@@ -3,6 +3,7 @@ using System;
 using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AFK4.Platform.Api.Data.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
-    partial class PlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260605182631_AddStaffPhoneIdentity")]
+    partial class AddStaffPhoneIdentity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2737,50 +2740,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("staff_money_caps", (string)null);
-                });
-
-            modelBuilder.Entity("AFK4.Platform.Api.Data.StaffPhoneOtpEntity", b =>
-                {
-                    b.Property<Guid>("StaffPhoneOtpId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("AttemptCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("CodeHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset?>("ConsumedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("ExpiresAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<int>("Purpose")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("StaffUserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("StaffPhoneOtpId");
-
-                    b.HasIndex("StaffUserId", "Purpose", "CreatedAtUtc");
-
-                    b.ToTable("staff_phone_otps", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.StaffRefreshTokenEntity", b =>

@@ -16,6 +16,7 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Identity.OwnerCodes;
+using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;
@@ -210,11 +211,38 @@ builder.Services.AddSingleton<ITemplateProvider>(provider =>
     new EmbeddedTemplateProvider(provider.GetRequiredService<IOptions<NotificationOptions>>().Value.DefaultLocale));
 builder.Services.AddSingleton<ISmtpTransport, MailKitSmtpTransport>();
 builder.Services.AddSingleton<INotificationChannel, SmtpEmailChannel>();
+builder.Services.Configure<SmsOptions>(
+    builder.Configuration.GetSection(SmsOptions.SectionName));
+builder.Services.AddHttpClient(SmsClientRegistration.HttpClientName, (provider, http) =>
+{
+    var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(smsOptions.BaseUrl))
+    {
+        http.BaseAddress = new Uri(smsOptions.BaseUrl);
+    }
+
+    http.Timeout = TimeSpan.FromSeconds(smsOptions.TimeoutSeconds);
+});
+builder.Services.AddSingleton<ISmsTransport>(provider =>
+{
+    var smsOptions = provider.GetRequiredService<IOptions<SmsOptions>>().Value;
+    var factory = provider.GetRequiredService<IHttpClientFactory>();
+    return new PayomSmsTransport(
+        factory.CreateClient(SmsClientRegistration.HttpClientName),
+        smsOptions.ApiToken,
+        smsOptions.SenderName);
+});
+builder.Services.AddSingleton<INotificationChannel, SmsChannel>();
 builder.Services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
 builder.Services.AddScoped<INotificationPreferenceService, EfNotificationPreferenceService>();
 builder.Services.AddScoped<NotificationDispatchRunner>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IStaffPasswordResetService, EfStaffPasswordResetService>();
+builder.Services.Configure<PhoneOtpOptions>(
+    builder.Configuration.GetSection(PhoneOtpOptions.SectionName));
+builder.Services.AddSingleton<IPhoneOtpHasher, Sha256PhoneOtpHasher>();
+builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
+builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificationService>();
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
@@ -665,6 +693,78 @@ app.MapPost("/api/auth/staff/sign-in-by-login", async (
             new StaffSignInChooseClubResponse(resolution.Clubs),
             statusCode: StatusCodes.Status409Conflict)
         : Results.Unauthorized();
+});
+
+app.MapPost("/api/auth/staff/sign-in-by-phone", async (
+    StaffSignInByPhoneRequest request,
+    IStaffCredentialService credentialService,
+    CancellationToken cancellationToken) =>
+{
+    var signedIn = await credentialService.SignInByPhoneAsync(request, cancellationToken);
+    return signedIn is not null ? Results.Ok(signedIn) : Results.Unauthorized();
+});
+
+app.MapPost("/api/auth/staff/phone/start-verification", async (
+    StaffPhoneStartVerificationRequest request,
+    IStaffContextAccessor staffContextAccessor,
+    IStaffPhoneVerificationService verificationService,
+    CancellationToken cancellationToken) =>
+{
+    var staff = staffContextAccessor.Current;
+    if (staff is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await verificationService.StartAsync(
+        staff.StaffUserId, staff.OrganizationId, request.Phone, cancellationToken);
+
+    return result.Status switch
+    {
+        PhoneVerificationStartStatus.Sent => Results.Ok(
+            new StaffPhoneVerificationStartedResponse(result.ExpiresInSeconds, result.ResendAfterSeconds)),
+        PhoneVerificationStartStatus.InvalidPhone => Results.BadRequest(new { error = "invalid_phone" }),
+        PhoneVerificationStartStatus.CooldownActive => Results.Json(
+            new { error = "cooldown_active", resendAfterSeconds = result.ResendAfterSeconds },
+            statusCode: StatusCodes.Status429TooManyRequests),
+        PhoneVerificationStartStatus.RateLimited => Results.Json(
+            new { error = "rate_limited" }, statusCode: StatusCodes.Status429TooManyRequests),
+        PhoneVerificationStartStatus.SmsFailed => Results.Json(
+            new { error = "sms_unavailable" }, statusCode: StatusCodes.Status502BadGateway),
+        _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+    };
+});
+
+app.MapPost("/api/auth/staff/phone/confirm", async (
+    StaffPhoneConfirmRequest request,
+    IStaffContextAccessor staffContextAccessor,
+    IStaffPhoneVerificationService verificationService,
+    CancellationToken cancellationToken) =>
+{
+    var staff = staffContextAccessor.Current;
+    if (staff is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var result = await verificationService.ConfirmAsync(staff.StaffUserId, request.Code, cancellationToken);
+
+    return result.Status switch
+    {
+        PhoneConfirmStatus.Confirmed => Results.Ok(new StaffPhoneConfirmedResponse(result.VerifiedPhone!)),
+        PhoneConfirmStatus.InvalidCode => Results.Json(
+            new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
+            statusCode: StatusCodes.Status400BadRequest),
+        PhoneConfirmStatus.Expired => Results.Json(
+            new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+        PhoneConfirmStatus.NoActiveCode => Results.Json(
+            new { error = "no_active_code" }, statusCode: StatusCodes.Status410Gone),
+        PhoneConfirmStatus.TooManyAttempts => Results.Json(
+            new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
+        PhoneConfirmStatus.PhoneAlreadyInUse => Results.Json(
+            new { error = "phone_already_in_use" }, statusCode: StatusCodes.Status409Conflict),
+        _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+    };
 });
 
 app.MapPost("/api/auth/staff/refresh", async (

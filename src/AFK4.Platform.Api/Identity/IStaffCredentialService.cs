@@ -13,6 +13,10 @@ public interface IStaffCredentialService
     Task<StaffLoginResolution> SignInByLoginAsync(
         StaffSignInByLoginRequest request,
         CancellationToken cancellationToken);
+
+    Task<StaffSignInResponse?> SignInByPhoneAsync(
+        StaffSignInByPhoneRequest request,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
