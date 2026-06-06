@@ -32,7 +32,7 @@ public sealed record InstallOperationResult<T>(
         T value,
         Guid organizationId,
         Guid? branchId,
-        Guid ownerCodeId,
+        Guid? ownerCodeId,
         Guid? staffUserId = null) =>
         new(InstallOperationStatus.Succeeded, value, null, organizationId, branchId, ownerCodeId, staffUserId);
 
@@ -47,7 +47,7 @@ public sealed record InstallOperationResult<T>(
     public static InstallOperationResult<T> NotFound(string error, Guid? ownerCodeId = null) =>
         new(InstallOperationStatus.NotFound, default, error, OwnerCodeId: ownerCodeId);
 
-    public static InstallOperationResult<T> Conflict(string error, Guid organizationId, Guid branchId, Guid ownerCodeId) =>
+    public static InstallOperationResult<T> Conflict(string error, Guid organizationId, Guid branchId, Guid? ownerCodeId) =>
         new(InstallOperationStatus.Conflict, default, error, organizationId, branchId, ownerCodeId);
 }
 
