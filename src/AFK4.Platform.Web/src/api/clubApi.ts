@@ -105,6 +105,18 @@ export class ClubApiClient {
     return this.send<OwnerCodeIssued>('POST', '/api/staff/me/owner-code/rotate', { reason });
   }
 
+  public getStaffPhone(): Promise<{ phone: string | null; phoneVerifiedAtUtc: string | null }> {
+    return this.send<{ phone: string | null; phoneVerifiedAtUtc: string | null }>('GET', '/api/auth/staff/phone');
+  }
+
+  public startPhoneVerification(phone: string): Promise<{ expiresInSeconds: number; resendAfterSeconds: number }> {
+    return this.send<{ expiresInSeconds: number; resendAfterSeconds: number }>('POST', '/api/auth/staff/phone/start-verification', { phone });
+  }
+
+  public confirmPhoneVerification(code: string): Promise<{ phone: string }> {
+    return this.send<{ phone: string }>('POST', '/api/auth/staff/phone/confirm', { code });
+  }
+
   public getBranchProfile(branchId: string): Promise<BranchProfile> {
     return this.send<BranchProfile>('GET', `/api/branches/${encodeURIComponent(branchId)}/profile`);
   }
