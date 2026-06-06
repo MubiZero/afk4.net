@@ -6005,4 +6005,72 @@ button {
 .payment-card-session[data-health="online"] .payment-card-session-badge { background: #143226; color: #43c08a; }
 .payment-card-session[data-health="offline"] .payment-card-session-badge { background: #2a1518; color: #ff8d8d; }
 .payment-card-session[data-health="configured"] .payment-card-session-badge { background: #2a2113; color: #e0a23a; }
+
+.top-account {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+.top-account:hover { text-decoration: underline; }
+
+.account-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 64px;
+  z-index: 1000;
+}
+.account-panel {
+  background: var(--surface, #14181f);
+  color: inherit;
+  border-radius: 12px;
+  padding: 20px;
+  width: min(440px, calc(100vw - 32px));
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+.account-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.account-panel-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.account-phone { display: flex; flex-direction: column; gap: 12px; }
+.account-phone h3 { margin: 0; font-size: 15px; }
+.account-phone-hint { color: var(--muted, #8a93a3); font-size: 13px; }
+.account-phone-error { color: var(--danger, #ff6b6b); font-size: 13px; }
+.account-phone-load-error { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.account-phone-form { display: flex; flex-direction: column; gap: 12px; }
+.account-phone-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.account-phone-form input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a2f3a);
+  background: var(--input-bg, #0f1217);
+  color: inherit;
+}
+.account-phone-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.account-phone-verified { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.account-phone-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft, rgba(45, 212, 167, 0.15));
+  color: var(--accent, #2dd4a7);
+}
 .payment-card-session-last { font-variant-numeric: tabular-nums; }

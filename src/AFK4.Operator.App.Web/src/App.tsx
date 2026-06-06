@@ -109,6 +109,7 @@ import {
 import { navItems, seats, type SeatSummary, type SeatTone } from './operatorData';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { PaymentGatewaysWorkspace } from './PaymentGatewaysWorkspace';
+import { AccountPanel } from './AccountPanel';
 
 type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'players' | 'payments' | 'payment_cards' | 'logs' | 'settings' | 'review';
 type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
@@ -9652,6 +9653,7 @@ function AppInner() {
   const [shellLoadStatus, setShellLoadStatus] = useState<LoadStatus>('loading');
   const [shellLoadError, setShellLoadError] = useState<string | null>(null);
   const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
+  const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const displayedFloorMap = useMemo(
     () => refreshFloorMapRemaining(floorMap, remainingNowMs),
     [floorMap, remainingNowMs]
@@ -10363,11 +10365,21 @@ function AppInner() {
         </label>
         <div className="top-status">
           <span>{shellShiftText}</span>
-          <span>{operatorDisplayNameLabel(authSession.displayName)} · {shellModeLabel(config.shellMode)}</span>
+          <button type="button" className="top-account" aria-label="Мой аккаунт" onClick={() => setAccountPanelOpen(true)}>
+            {operatorDisplayNameLabel(authSession.displayName)} · {shellModeLabel(config.shellMode)}
+          </button>
         </div>
         <button type="button" className="sign-out-button" onClick={handleSignOut}>Выйти</button>
         <WindowControls />
       </header>
+
+      {accountPanelOpen && backendContext !== null && (
+        <AccountPanel
+          backend={backendContext}
+          displayName={operatorDisplayNameLabel(authSession.displayName)}
+          onClose={() => setAccountPanelOpen(false)}
+        />
+      )}
 
       <nav className="workspace-rail" aria-label="Рабочие места">
         {navItems.map((item, index) => {
