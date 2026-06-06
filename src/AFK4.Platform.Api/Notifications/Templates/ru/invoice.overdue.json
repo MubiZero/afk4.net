@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: счёт №{{invoiceNumber}} просрочен",
+  "subject": "AFK4.NET: счёт №{{invoiceNumber}} просрочен",
   "bodyText": "Здравствуйте, {{displayName}}. Счёт №{{invoiceNumber}} на сумму {{amount}} {{currency}} для клуба «{{organizationName}}» просрочен (срок оплаты был до {{dueDate}}). Пожалуйста, оплатите его, чтобы избежать приостановки обслуживания.",
   "bodyHtml": "<p>Здравствуйте, {{displayName}}.</p><p>Счёт <strong>№{{invoiceNumber}}</strong> на сумму <strong>{{amount}} {{currency}}</strong> для клуба «{{organizationName}}» просрочен (срок оплаты был до {{dueDate}}).</p><p>Пожалуйста, оплатите его, чтобы избежать приостановки обслуживания.</p>"
 }

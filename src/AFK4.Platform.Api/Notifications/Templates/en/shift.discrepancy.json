@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: shift cash discrepancy ({{branchName}})",
+  "subject": "AFK4.NET: shift cash discrepancy ({{branchName}})",
   "bodyText": "Hello {{displayName}}. A cash discrepancy was found when the shift at \"{{branchName}}\" was closed ({{closedDate}}): {{difference}} {{currency}} (counted {{countedCash}}, expected {{expectedCash}}). We recommend reviewing the shift.",
   "bodyHtml": "<p>Hello {{displayName}}.</p><p>A cash discrepancy was found when the shift at \"{{branchName}}\" was closed ({{closedDate}}): <strong>{{difference}} {{currency}}</strong> (counted {{countedCash}}, expected {{expectedCash}}).</p><p>We recommend reviewing the shift.</p>"
 }

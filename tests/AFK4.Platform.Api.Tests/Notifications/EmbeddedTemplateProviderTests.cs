@@ -12,8 +12,8 @@ public sealed class EmbeddedTemplateProviderTests
         var ru = Provider.Get(NotificationTemplateKeys.Test, "ru");
         var en = Provider.Get(NotificationTemplateKeys.Test, "en");
 
-        Assert.Equal("Проверка уведомлений AFK4", ru.Subject);
-        Assert.Equal("AFK4 notification check", en.Subject);
+        Assert.Equal("Проверка уведомлений AFK4.NET", ru.Subject);
+        Assert.Equal("AFK4.NET notification check", en.Subject);
         Assert.Contains("{{recipient}}", en.BodyText, StringComparison.Ordinal);
         Assert.Contains("{{recipient}}", en.BodyHtml, StringComparison.Ordinal);
     }
@@ -23,7 +23,7 @@ public sealed class EmbeddedTemplateProviderTests
     {
         var fallback = Provider.Get(NotificationTemplateKeys.Test, "fr");
 
-        Assert.Equal("Проверка уведомлений AFK4", fallback.Subject);
+        Assert.Equal("Проверка уведомлений AFK4.NET", fallback.Subject);
     }
 
     [Fact]

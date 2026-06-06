@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: номутобиқатии хазина дар баст ({{branchName}})",
+  "subject": "AFK4.NET: номутобиқатии хазина дар баст ({{branchName}})",
   "bodyText": "Салом, {{displayName}}. Ҳангоми бастани баст дар филиали «{{branchName}}» ({{closedDate}}) номутобиқатии хазина ошкор шуд: {{difference}} {{currency}} (ҳисобшуда {{countedCash}}, интизоршуда {{expectedCash}}). Тавсия медиҳем бастро санҷед.",
   "bodyHtml": "<p>Салом, {{displayName}}.</p><p>Ҳангоми бастани баст дар филиали «{{branchName}}» ({{closedDate}}) номутобиқатии хазина ошкор шуд: <strong>{{difference}} {{currency}}</strong> (ҳисобшуда {{countedCash}}, интизоршуда {{expectedCash}}).</p><p>Тавсия медиҳем бастро санҷед.</p>"
 }

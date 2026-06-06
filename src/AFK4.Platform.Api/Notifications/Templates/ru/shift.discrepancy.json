@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: расхождение по кассе в смене ({{branchName}})",
+  "subject": "AFK4.NET: расхождение по кассе в смене ({{branchName}})",
   "bodyText": "Здравствуйте, {{displayName}}. При закрытии смены в филиале «{{branchName}}» ({{closedDate}}) обнаружено расхождение по кассе: {{difference}} {{currency}} (посчитано {{countedCash}}, ожидалось {{expectedCash}}). Рекомендуем проверить смену.",
   "bodyHtml": "<p>Здравствуйте, {{displayName}}.</p><p>При закрытии смены в филиале «{{branchName}}» ({{closedDate}}) обнаружено расхождение по кассе: <strong>{{difference}} {{currency}}</strong> (посчитано {{countedCash}}, ожидалось {{expectedCash}}).</p><p>Рекомендуем проверить смену.</p>"
 }

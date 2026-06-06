@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: invoice #{{invoiceNumber}} is overdue",
+  "subject": "AFK4.NET: invoice #{{invoiceNumber}} is overdue",
   "bodyText": "Hello {{displayName}}. Invoice #{{invoiceNumber}} for {{amount}} {{currency}} (club \"{{organizationName}}\") is overdue — it was due by {{dueDate}}. Please settle it to avoid a service suspension.",
   "bodyHtml": "<p>Hello {{displayName}}.</p><p>Invoice <strong>#{{invoiceNumber}}</strong> for <strong>{{amount}} {{currency}}</strong> (club \"{{organizationName}}\") is overdue — it was due by {{dueDate}}.</p><p>Please settle it to avoid a service suspension.</p>"
 }

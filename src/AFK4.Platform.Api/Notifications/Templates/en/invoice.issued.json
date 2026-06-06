@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: invoice #{{invoiceNumber}} issued",
+  "subject": "AFK4.NET: invoice #{{invoiceNumber}} issued",
   "bodyText": "Hello {{displayName}}. Invoice #{{invoiceNumber}} for {{amount}} {{currency}} has been issued for the club \"{{organizationName}}\". It is due by {{dueDate}}.",
   "bodyHtml": "<p>Hello {{displayName}}.</p><p>Invoice <strong>#{{invoiceNumber}}</strong> for <strong>{{amount}} {{currency}}</strong> has been issued for the club \"{{organizationName}}\".</p><p>It is due by {{dueDate}}.</p>"
 }

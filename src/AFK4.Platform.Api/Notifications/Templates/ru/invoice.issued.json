@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: счёт №{{invoiceNumber}} выставлен",
+  "subject": "AFK4.NET: счёт №{{invoiceNumber}} выставлен",
   "bodyText": "Здравствуйте, {{displayName}}. Для клуба «{{organizationName}}» выставлен счёт №{{invoiceNumber}} на сумму {{amount}} {{currency}}. Срок оплаты — до {{dueDate}}.",
   "bodyHtml": "<p>Здравствуйте, {{displayName}}.</p><p>Для клуба «{{organizationName}}» выставлен счёт <strong>№{{invoiceNumber}}</strong> на сумму <strong>{{amount}} {{currency}}</strong>.</p><p>Срок оплаты — до {{dueDate}}.</p>"
 }

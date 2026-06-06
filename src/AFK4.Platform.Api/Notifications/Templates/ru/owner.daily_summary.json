@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: сводка за {{date}} — {{organizationName}}",
+  "subject": "AFK4.NET: сводка за {{date}} — {{organizationName}}",
   "bodyText": "Здравствуйте, {{displayName}}. Сводка по «{{organizationName}}» за {{date}}: выручка {{revenue}} {{currency}} ({{salesCount}} продаж); закрыто смен: {{shiftsClosed}}, из них с расхождением по кассе: {{discrepancyCount}} (суммарно {{discrepancyTotal}} {{currency}}). Возвраты: {{refundTotal}} {{currency}}; бесплатных сессий: {{compCount}} (на {{compValueTotal}} {{currency}}); ручные корректировки: {{manualCorrectionTotal}} {{currency}}; списания долга: {{writeOffTotal}} {{currency}}.",
   "bodyHtml": "<p>Здравствуйте, {{displayName}}.</p><p>Сводка по «{{organizationName}}» за {{date}}:</p><ul><li>Выручка: <strong>{{revenue}} {{currency}}</strong> ({{salesCount}} продаж)</li><li>Закрыто смен: {{shiftsClosed}}</li><li>С расхождением по кассе: {{discrepancyCount}} (суммарно {{discrepancyTotal}} {{currency}})</li><li>Возвраты: {{refundTotal}} {{currency}}</li><li>Бесплатных сессий: {{compCount}} (на {{compValueTotal}} {{currency}})</li><li>Ручные корректировки: {{manualCorrectionTotal}} {{currency}}</li><li>Списания долга: {{writeOffTotal}} {{currency}}</li></ul>"
 }

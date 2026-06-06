@@ -54,7 +54,7 @@ public sealed class NotificationServiceTests
         Assert.Equal("Email", row.Channel);
         Assert.Equal(NotificationOutboxStatus.Pending, row.Status);
         Assert.Equal("player@example.com", row.RecipientAddress);
-        Assert.Equal("Проверка уведомлений AFK4", row.Subject);
+        Assert.Equal("Проверка уведомлений AFK4.NET", row.Subject);
         Assert.Contains("Sam", row.BodyText, StringComparison.Ordinal);
         Assert.Equal(Now, row.CreatedUtc);
         Assert.Equal(Now, row.NextAttemptUtc);
@@ -98,7 +98,7 @@ public sealed class NotificationServiceTests
 
         var row = await db.NotificationOutbox.SingleAsync();
         Assert.Equal("ru", row.Locale);
-        Assert.Equal("Проверка уведомлений AFK4", row.Subject);
+        Assert.Equal("Проверка уведомлений AFK4.NET", row.Subject);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class NotificationServiceTests
         await service.SendAsync(Request(locale: "en"), CancellationToken.None);
 
         var row = await db.NotificationOutbox.SingleAsync();
-        Assert.Equal("AFK4 notification check", row.Subject);
+        Assert.Equal("AFK4.NET notification check", row.Subject);
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: низкий остаток — {{productName}} ({{branchName}})",
+  "subject": "AFK4.NET: низкий остаток — {{productName}} ({{branchName}})",
   "bodyText": "Здравствуйте, {{displayName}}. В филиале «{{branchName}}» заканчивается товар «{{productName}}» (SKU {{sku}}): остаток {{stockOnHand}} при пороге {{threshold}}. Рекомендуем пополнить запас.",
   "bodyHtml": "<p>Здравствуйте, {{displayName}}.</p><p>В филиале «{{branchName}}» заканчивается товар «{{productName}}» (SKU {{sku}}): остаток <strong>{{stockOnHand}}</strong> при пороге {{threshold}}.</p><p>Рекомендуем пополнить запас.</p>"
 }

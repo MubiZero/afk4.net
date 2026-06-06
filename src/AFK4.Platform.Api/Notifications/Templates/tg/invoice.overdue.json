@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: ҳисобномаи №{{invoiceNumber}} мӯҳлаташ гузаштааст",
+  "subject": "AFK4.NET: ҳисобномаи №{{invoiceNumber}} мӯҳлаташ гузаштааст",
   "bodyText": "Салом, {{displayName}}. Ҳисобномаи №{{invoiceNumber}} ба маблағи {{amount}} {{currency}} барои клуби «{{organizationName}}» мӯҳлаташ гузаштааст (мӯҳлати пардохт то {{dueDate}} буд). Лутфан онро пардохт кунед, то хизматрасонӣ боздошта нашавад.",
   "bodyHtml": "<p>Салом, {{displayName}}.</p><p>Ҳисобномаи <strong>№{{invoiceNumber}}</strong> ба маблағи <strong>{{amount}} {{currency}}</strong> барои клуби «{{organizationName}}» мӯҳлаташ гузаштааст (мӯҳлати пардохт то {{dueDate}} буд).</p><p>Лутфан онро пардохт кунед, то хизматрасонӣ боздошта нашавад.</p>"
 }

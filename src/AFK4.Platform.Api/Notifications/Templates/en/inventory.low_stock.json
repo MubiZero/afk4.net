@@ -1,5 +1,5 @@
 {
-  "subject": "AFK4: low stock — {{productName}} ({{branchName}})",
+  "subject": "AFK4.NET: low stock — {{productName}} ({{branchName}})",
   "bodyText": "Hello {{displayName}}. The product \"{{productName}}\" (SKU {{sku}}) is running low at \"{{branchName}}\": {{stockOnHand}} on hand against a reorder threshold of {{threshold}}. We recommend restocking.",
   "bodyHtml": "<p>Hello {{displayName}}.</p><p>The product \"{{productName}}\" (SKU {{sku}}) is running low at \"{{branchName}}\": <strong>{{stockOnHand}}</strong> on hand against a reorder threshold of {{threshold}}.</p><p>We recommend restocking.</p>"
 }

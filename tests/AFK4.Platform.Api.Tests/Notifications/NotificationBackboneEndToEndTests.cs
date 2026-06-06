@@ -65,7 +65,7 @@ public sealed class NotificationBackboneEndToEndTests
         var message = Assert.Single(transport.Sent);
         Assert.Equal("owner@club.example", message.ToAddress);
         Assert.Equal("noreply@afk4.net", message.FromAddress);
-        Assert.Equal("AFK4 notification check", message.Subject);
+        Assert.Equal("AFK4.NET notification check", message.Subject);
         Assert.Contains("Owner", message.BodyText, StringComparison.Ordinal);
         Assert.Contains("Owner", message.BodyHtml, StringComparison.Ordinal);
 
