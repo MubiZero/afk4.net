@@ -1,6 +1,7 @@
 #if DEBUG
 using AFK4.SetupWizard.Core;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard.Preview;
@@ -44,6 +45,33 @@ internal static class PreviewSetupWizard
                 ApiBaseUrl: "https://preview.local",
                 UpdateChannel: "stable",
                 EnrolledAtUtc: DateTimeOffset.UnixEpoch));
+
+        public Task<StaffSignInResponse> SignInByPhoneAsync(string phoneNumber, string password, CancellationToken cancellationToken)
+            => Task.FromResult(new StaffSignInResponse(
+                StaffUserId: Guid.NewGuid(),
+                OrganizationId: OrgId,
+                DisplayName: "Preview Staff",
+                AccessToken: "preview-access-token",
+                AccessTokenExpiresAtUtc: DateTimeOffset.UtcNow.AddHours(8),
+                RefreshToken: "preview-refresh-token",
+                RefreshTokenExpiresAtUtc: DateTimeOffset.UtcNow.AddDays(30),
+                BranchIds: [BranchId],
+                Permissions: [StaffPermissionNames.InstallDevice]));
+
+        public Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(string accessToken, CancellationToken cancellationToken)
+            => Task.FromResult(new InstallDiscoverResponse("Preview Staff", [BuildBranch()]));
+
+        public Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
+            string accessToken, Guid branchId, Guid zoneId, string name, CancellationToken cancellationToken)
+            => CreateSeatAsync(ownerCode: string.Empty, branchId, zoneId, name, cancellationToken);
+
+        public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
+            string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
+            => EnrollAsync(
+                new InstallEnrollRequest(
+                    string.Empty, request.BranchId, request.SeatId, request.Role,
+                    request.DisplayName, request.MachineName, request.DevicePublicKey),
+                cancellationToken);
 
         private static readonly Guid OrgId = new("00000000-0000-0000-0000-0000000000aa");
         private static readonly Guid BranchId = new("00000000-0000-0000-0000-0000000000bb");

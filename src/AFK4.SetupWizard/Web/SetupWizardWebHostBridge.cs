@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.SetupWizard.Core;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard.Web;
@@ -18,6 +19,8 @@ public sealed class SetupWizardWebHostBridge(
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
+
+    private string? accessToken;
 
     public async Task<string?> HandleAsync(string webMessageJson, CancellationToken cancellationToken)
     {
@@ -46,6 +49,10 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:discover" => await DiscoverAsync(request.Payload, cancellationToken),
                 "wizard:createSeat" => await CreateSeatAsync(request.Payload, cancellationToken),
                 "wizard:enroll" => await EnrollAsync(request.Payload, cancellationToken),
+                "wizard:phoneSignIn" => await PhoneSignInAsync(request.Payload, cancellationToken),
+                "wizard:discoverAuth" => await DiscoverAuthenticatedAsync(cancellationToken),
+                "wizard:createSeatAuth" => await CreateSeatAuthenticatedAsync(request.Payload, cancellationToken),
+                "wizard:enrollAuth" => await EnrollAuthenticatedAsync(request.Payload, cancellationToken),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
             };
 
@@ -129,6 +136,122 @@ public sealed class SetupWizardWebHostBridge(
         var response = await apiClient.EnrollAsync(
             new InstallEnrollRequest(
                 ownerCode,
+                branchId,
+                seatId,
+                role,
+                displayName,
+                machineInfo.MachineName,
+                publicKey),
+            cancellationToken);
+
+        bootstrapWriter.Write(new SetupWizardBootstrapConfig(
+            response.OrganizationId,
+            response.BranchId,
+            response.DeviceId,
+            response.CredentialId,
+            response.CredentialSecret,
+            role,
+            response.ApiBaseUrl,
+            response.UpdateChannel,
+            LeaseSigningPublicKeyPem: string.Empty,
+            UpdatePackageSigningPublicKeyPem: string.Empty));
+        completionAction.Complete();
+
+        return new WizardEnrollResult(
+            response.OrganizationId,
+            response.BranchId,
+            response.DeviceId,
+            role,
+            displayName,
+            machineInfo.MachineName,
+            response.EnrollmentState,
+            response.ApiBaseUrl,
+            response.UpdateChannel);
+    }
+
+    private async Task<WizardPhoneSignInResult> PhoneSignInAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardPhoneSignInPayload>(payload);
+        var phone = (request.Phone ?? string.Empty).Trim();
+        var password = request.Password ?? string.Empty;
+        if (phone.Length == 0 || password.Length == 0)
+        {
+            throw new InvalidOperationException("Phone and password are required.");
+        }
+
+        var response = await apiClient.SignInByPhoneAsync(phone, password, cancellationToken);
+        accessToken = response.AccessToken;
+        return new WizardPhoneSignInResult(response.DisplayName);
+    }
+
+    private string RequireAccessToken() =>
+        string.IsNullOrEmpty(accessToken)
+            ? throw new InvalidOperationException("Sign in with your phone before continuing.")
+            : accessToken;
+
+    private async Task<WizardDiscoverResult> DiscoverAuthenticatedAsync(CancellationToken cancellationToken)
+    {
+        var response = await apiClient.DiscoverAuthenticatedAsync(RequireAccessToken(), cancellationToken);
+        var branches = response.Branches
+            .OrderBy(branch => branch.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(MapBranch)
+            .ToArray();
+        return new WizardDiscoverResult(response.OwnerDisplayName, branches);
+    }
+
+    private async Task<WizardSeat> CreateSeatAuthenticatedAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardCreateSeatAuthPayload>(payload);
+        var branchId = ParseGuid(request.BranchId, nameof(request.BranchId));
+        var zoneId = ParseGuid(request.ZoneId, nameof(request.ZoneId));
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            throw new InvalidOperationException("Seat name is required.");
+        }
+
+        var created = await apiClient.CreateSeatAuthenticatedAsync(
+            RequireAccessToken(), branchId, zoneId, name, cancellationToken);
+        return new WizardSeat(
+            created.SeatId,
+            created.Name,
+            created.ZoneId,
+            ZoneName: request.ZoneName ?? string.Empty,
+            created.SortOrder,
+            Status: "Free",
+            DeviceId: null,
+            DeviceName: null,
+            IsOnline: null);
+    }
+
+    private async Task<WizardEnrollResult> EnrollAuthenticatedAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardEnrollAuthPayload>(payload);
+        var branchId = ParseGuid(request.BranchId, nameof(request.BranchId));
+        var role = (request.Role ?? string.Empty).Trim();
+        if (role is not (DeviceRoleNames.GamingPc or DeviceRoleNames.ManagerWorkstation))
+        {
+            throw new InvalidOperationException("Role must be GamingPc or ManagerWorkstation.");
+        }
+
+        Guid? seatId = null;
+        if (role == DeviceRoleNames.GamingPc)
+        {
+            if (string.IsNullOrWhiteSpace(request.SeatId))
+            {
+                throw new InvalidOperationException("Seat is required for a gaming PC.");
+            }
+            seatId = ParseGuid(request.SeatId, nameof(request.SeatId));
+        }
+
+        var displayName = string.IsNullOrWhiteSpace(request.DisplayName)
+            ? machineInfo.MachineName
+            : request.DisplayName.Trim();
+
+        var publicKey = await deviceKeyStore.GetOrCreatePublicKeyPemAsync(cancellationToken);
+        var response = await apiClient.EnrollAuthenticatedAsync(
+            RequireAccessToken(),
+            new AuthenticatedInstallEnrollRequest(
                 branchId,
                 seatId,
                 role,
@@ -262,6 +385,10 @@ public sealed class SetupWizardWebHostBridge(
         "wizard:discover" => "wizard_discover_failed",
         "wizard:createSeat" => "wizard_create_seat_failed",
         "wizard:enroll" => "wizard_enroll_failed",
+        "wizard:phoneSignIn" => "wizard_phone_sign_in_failed",
+        "wizard:discoverAuth" => "wizard_discover_failed",
+        "wizard:createSeatAuth" => "wizard_create_seat_failed",
+        "wizard:enrollAuth" => "wizard_enroll_failed",
         _ => "wizard_request_failed"
     };
 
@@ -306,6 +433,22 @@ public sealed class SetupWizardWebHostBridge(
         string? SeatId,
         string? Role,
         string? DisplayName);
+
+    private sealed record WizardPhoneSignInPayload(string? Phone, string? Password);
+
+    private sealed record WizardCreateSeatAuthPayload(
+        string? BranchId,
+        string? ZoneId,
+        string? ZoneName,
+        string? Name);
+
+    private sealed record WizardEnrollAuthPayload(
+        string? BranchId,
+        string? SeatId,
+        string? Role,
+        string? DisplayName);
+
+    private sealed record WizardPhoneSignInResult(string DisplayName);
 
     private sealed record WizardDiscoverResult(string OwnerName, IReadOnlyList<WizardBranch> Branches);
 
