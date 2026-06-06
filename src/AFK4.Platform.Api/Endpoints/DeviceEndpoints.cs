@@ -285,6 +285,126 @@ internal static class DeviceEndpoints
             return ToInstallHttpResult(result);
         });
 
+        app.MapPost("/api/install/auth/discover", async (
+            StaffAuthorizationService authorizationService,
+            IInstallService installService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.InstallDevice);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            var staff = authorization.StaffContext!;
+            var result = await installService.DiscoverForStaffAsync(staff.OrganizationId, staff.BranchIds, staff.DisplayName, cancellationToken);
+            return ToInstallHttpResult(result);
+        });
+
+        app.MapPost("/api/install/auth/seats", async (
+            AuthenticatedInstallCreateSeatRequest request,
+            HttpContext httpContext,
+            StaffAuthorizationService authorizationService,
+            IInstallService installService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                request.BranchId, StaffPermissionNames.InstallDevice, cancellationToken);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var staff = authorization.StaffContext!;
+            var sourceIp = GetSourceIp(httpContext);
+            var result = await installService.CreateSeatForStaffAsync(
+                staff.OrganizationId, staff.StaffUserId, request, cancellationToken);
+            if (result.Succeeded)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    result.OrganizationId!.Value,
+                    result.BranchId!.Value,
+                    staff.StaffUserId,
+                    AuditActionNames.CreateSeat,
+                    "Seat",
+                    result.Value!.SeatId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.ZoneId, request.Name, SourceIp = sourceIp, Via = "phone_auth_install" },
+                    cancellationToken);
+            }
+
+            return ToInstallHttpResult(result);
+        });
+
+        app.MapPost("/api/install/auth/enroll", async (
+            AuthenticatedInstallEnrollRequest request,
+            HttpContext httpContext,
+            StaffAuthorizationService authorizationService,
+            IInstallService installService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                request.BranchId, StaffPermissionNames.InstallDevice, cancellationToken);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            var sourceIp = GetSourceIp(httpContext);
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    request.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.InstallEnrollRejected,
+                    "Device",
+                    null,
+                    AuditOutcome.Denied,
+                    new { request.Role, authorization.DenialReason, Via = "phone_auth_install", SourceIp = sourceIp },
+                    cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var staff = authorization.StaffContext!;
+            var result = await installService.EnrollForStaffAsync(staff.OrganizationId, request, cancellationToken);
+            if (result.Succeeded)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    result.OrganizationId!.Value,
+                    result.BranchId!.Value,
+                    staff.StaffUserId,
+                    AuditActionNames.InstallEnrollSucceeded,
+                    "Device",
+                    result.Value!.DeviceId.ToString("D"),
+                    AuditOutcome.Succeeded,
+                    new { request.SeatId, request.Role, request.DisplayName, result.Value.EnrollmentState, Via = "phone_auth_install", SourceIp = sourceIp },
+                    cancellationToken);
+            }
+            else
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    staff.OrganizationId,
+                    request.BranchId,
+                    staff.StaffUserId,
+                    AuditActionNames.InstallEnrollRejected,
+                    "Device",
+                    null,
+                    AuditOutcome.Denied,
+                    new { request.BranchId, request.SeatId, request.Role, result.Error, Via = "phone_auth_install", SourceIp = sourceIp },
+                    cancellationToken);
+            }
+
+            return ToInstallHttpResult(result);
+        });
+
         app.MapPost("/api/devices/enroll", async (
             DeviceEnrollmentRequest request,
             IDeviceEnrollmentService enrollmentService,
