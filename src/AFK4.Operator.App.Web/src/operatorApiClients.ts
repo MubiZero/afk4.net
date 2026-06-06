@@ -537,6 +537,36 @@ export function createPaymentGatewayClient(api: PlatformApiClient) {
   };
 }
 
+export interface StaffPhoneStatusDto {
+  phone: string | null;
+  phoneVerifiedAtUtc: string | null;
+}
+
+export interface StaffPhoneVerificationStartedDto {
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+
+export interface StaffPhoneConfirmedDto {
+  phone: string;
+}
+
+export function createAccountClient(api: PlatformApiClient) {
+  return {
+    getMyPhone(): Promise<StaffPhoneStatusDto> {
+      return api.get<StaffPhoneStatusDto>('/api/auth/staff/phone');
+    },
+    startPhoneVerification(request: { phone: string }): Promise<StaffPhoneVerificationStartedDto> {
+      return api.post<StaffPhoneVerificationStartedDto, { phone: string }>(
+        '/api/auth/staff/phone/start-verification', request);
+    },
+    confirmPhoneVerification(request: { code: string }): Promise<StaffPhoneConfirmedDto> {
+      return api.post<StaffPhoneConfirmedDto, { code: string }>(
+        '/api/auth/staff/phone/confirm', request);
+    }
+  };
+}
+
 export function createOperatorApiClients(api: PlatformApiClient) {
   return {
     floorMap: createFloorMapClient(api),
@@ -553,7 +583,8 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     updates: createUpdateClient(api),
     audit: createAuditClient(api),
     moneyActions: createMoneyActionClient(api),
-    paymentGateways: createPaymentGatewayClient(api)
+    paymentGateways: createPaymentGatewayClient(api),
+    account: createAccountClient(api)
   };
 }
 
