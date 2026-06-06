@@ -767,6 +767,21 @@ app.MapPost("/api/auth/staff/phone/confirm", async (
     };
 });
 
+app.MapGet("/api/auth/staff/phone", async (
+    IStaffContextAccessor staffContextAccessor,
+    IStaffPhoneVerificationService verificationService,
+    CancellationToken cancellationToken) =>
+{
+    var staff = staffContextAccessor.Current;
+    if (staff is null)
+    {
+        return Results.Unauthorized();
+    }
+
+    var status = await verificationService.GetStatusAsync(staff.StaffUserId, cancellationToken);
+    return Results.Ok(new StaffPhoneStatusResponse(status.Phone, status.PhoneVerifiedAtUtc));
+});
+
 app.MapPost("/api/auth/staff/refresh", async (
     StaffRefreshTokenRequest request,
     IStaffTokenService tokenService,

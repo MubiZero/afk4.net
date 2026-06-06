@@ -174,6 +174,17 @@ public sealed class EfStaffPhoneVerificationService(
 
         return new PhoneConfirmResult(PhoneConfirmStatus.Confirmed, otpOptions.MaxAttempts, staff.Phone);
     }
+
+    public async Task<StaffPhoneStatus> GetStatusAsync(Guid staffUserId, CancellationToken cancellationToken)
+    {
+        var status = await db.StaffUsers
+            .AsNoTracking()
+            .Where(user => user.StaffUserId == staffUserId)
+            .Select(user => new StaffPhoneStatus(user.Phone, user.PhoneVerifiedAtUtc))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return status ?? new StaffPhoneStatus(null, null);
+    }
 }
 
 internal static class PhoneOtpCode

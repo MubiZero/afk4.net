@@ -72,4 +72,63 @@ public sealed class StaffPhoneVerificationEndpointTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetPhone_BeforeVerification_ReturnsNulls()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+
+        var response = await client.GetAsync("/api/auth/staff/phone");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var status = await response.Content.ReadFromJsonAsync<StaffPhoneStatusResponse>();
+        Assert.NotNull(status);
+        Assert.Null(status!.Phone);
+        Assert.Null(status.PhoneVerifiedAtUtc);
+    }
+
+    [Fact]
+    public async Task GetPhone_WithoutBearer_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/auth/staff/phone");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetPhone_AfterVerification_ReturnsVerifiedPhone()
+    {
+        var recording = new RecordingSmsTransport();
+        await using var factory = new PlatformApiFactory(extraServices: services =>
+        {
+            services.RemoveAll<ISmsTransport>();
+            services.AddSingleton<ISmsTransport>(recording);
+        });
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+
+        var startResp = await client.PostAsJsonAsync(
+            "/api/auth/staff/phone/start-verification",
+            new StaffPhoneStartVerificationRequest("+992 93 738-00-70"));
+        Assert.Equal(HttpStatusCode.OK, startResp.StatusCode);
+
+        var code = Regex.Match(Assert.Single(recording.Sent).Text, "\\d{6}").Value;
+
+        var confirmResp = await client.PostAsJsonAsync(
+            "/api/auth/staff/phone/confirm", new StaffPhoneConfirmRequest(code));
+        Assert.Equal(HttpStatusCode.OK, confirmResp.StatusCode);
+
+        var response = await client.GetAsync("/api/auth/staff/phone");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var status = await response.Content.ReadFromJsonAsync<StaffPhoneStatusResponse>();
+        Assert.NotNull(status);
+        Assert.Equal("+992937380070", status!.Phone);
+        Assert.NotNull(status.PhoneVerifiedAtUtc);
+    }
 }

@@ -27,6 +27,8 @@ public enum PhoneConfirmStatus
 
 public sealed record PhoneConfirmResult(PhoneConfirmStatus Status, int RemainingAttempts, string? VerifiedPhone);
 
+public sealed record StaffPhoneStatus(string? Phone, DateTimeOffset? PhoneVerifiedAtUtc);
+
 public interface IStaffPhoneVerificationService
 {
     Task<PhoneVerificationStartResult> StartAsync(
@@ -34,4 +36,6 @@ public interface IStaffPhoneVerificationService
 
     Task<PhoneConfirmResult> ConfirmAsync(
         Guid staffUserId, string code, CancellationToken cancellationToken);
+
+    Task<StaffPhoneStatus> GetStatusAsync(Guid staffUserId, CancellationToken cancellationToken);
 }
