@@ -94,7 +94,7 @@ public sealed class EfStaffPasswordResetService(
 
         resetToken.ConsumedAtUtc = now;
         staff.PasswordHash = passwordHasher.HashPassword(staff, newPassword);
-        await RevokeActiveTokensAsync(staff.OrganizationId, staff.StaffUserId, now, cancellationToken);
+        await StaffTokenRevocation.RevokeActiveAsync(db, staff.OrganizationId, staff.StaffUserId, now, cancellationToken);
 
         await db.SaveChangesAsync(cancellationToken);
         return true;
@@ -113,25 +113,6 @@ public sealed class EfStaffPasswordResetService(
         var loweredEmail = userNameOrEmail.ToLowerInvariant();
         return await db.StaffUsers
             .FirstOrDefaultAsync(user => user.Email != null && user.Email.ToLower() == loweredEmail, cancellationToken);
-    }
-
-    private async Task RevokeActiveTokensAsync(Guid organizationId, Guid staffUserId, DateTimeOffset now, CancellationToken cancellationToken)
-    {
-        var accessTokens = await db.StaffAccessTokens
-            .Where(token => token.OrganizationId == organizationId && token.StaffUserId == staffUserId && token.RevokedAtUtc == null)
-            .ToListAsync(cancellationToken);
-        foreach (var token in accessTokens)
-        {
-            token.RevokedAtUtc = now;
-        }
-
-        var refreshTokens = await db.StaffRefreshTokens
-            .Where(token => token.OrganizationId == organizationId && token.StaffUserId == staffUserId && token.RevokedAtUtc == null)
-            .ToListAsync(cancellationToken);
-        foreach (var token in refreshTokens)
-        {
-            token.RevokedAtUtc = now;
-        }
     }
 
     private static byte[] HashToken(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
