@@ -1,0 +1,430 @@
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { AlertTriangle, Banknote, CalendarClock, CircleDollarSign, MonitorCheck, ReceiptText, ShieldAlert, UserRoundPlus, Wrench } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { minorToMajor } from '@afk4/money';
+import { projectOperatorError } from './apiErrors';
+import type { DashboardPeriod, Feedback, LoadStatus, OperatorBackendContext, WorkspaceId } from './operatorTypes';
+import {
+  addDays,
+  countPeriodDays,
+  createAuthenticatedOperatorClients,
+  dashboardFocusTextLabel,
+  dashboardRangeQuery,
+  downloadTextFile,
+  emptyDashboardSummary,
+  emptyFeedback,
+  formatCompactNumber,
+  formatMinorUnits,
+  pcControlLabel,
+  pluralRu,
+  readArray,
+  readMoney,
+  readNumber,
+  readRecord,
+  readString,
+  requireBackend,
+  toDateInputValue,
+} from './operatorHelpers';
+import { FeedbackNotice } from './operatorPrimitives';
+import type { OperatorDashboardSummaryDto } from './operatorApiClients';
+
+function useAnimatedNumber(value: number, duration = 360) {
+  const [displayValue, setDisplayValue] = useState(value);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      setDisplayValue(value);
+      return undefined;
+    }
+
+    const startValue = displayValue;
+    const difference = value - startValue;
+
+    if (difference === 0) {
+      return undefined;
+    }
+
+    const startedAt = window.performance.now();
+    let frame = 0;
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(startValue + difference * eased));
+
+      if (progress < 1) {
+        frame = window.requestAnimationFrame(tick);
+      }
+    };
+
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [value]);
+
+  return displayValue;
+}
+
+function AnimatedNumber({
+  value,
+  formatter = (nextValue: number) => String(nextValue)
+}: {
+  value: number;
+  formatter?: (nextValue: number) => string;
+}) {
+  return <>{formatter(useAnimatedNumber(value))}</>;
+}
+
+function DashboardControlCard({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  onActivate
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  icon: LucideIcon;
+  onActivate: () => void;
+}) {
+  return (
+    <button type="button" className="dashboard-control-card" onClick={onActivate}>
+      <span>
+        <Icon size={16} />
+        {label}
+      </span>
+      <strong>{value}</strong>
+      <em>{detail}</em>
+    </button>
+  );
+}
+
+function DashboardPulseCard({
+  label,
+  value,
+  detail,
+  chartValue,
+  chartLabel,
+  chartSubLabel,
+  tone,
+  icon: Icon
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  chartValue: number;
+  chartLabel: ReactNode;
+  chartSubLabel: string;
+  tone: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <article className={`dashboard-pulse-card ${tone}`}>
+      <header className="pulse-card-title">
+        <Icon size={15} />
+        <span>{label}</span>
+      </header>
+      <div
+        className="donut-chart"
+        style={{ '--chart-value': `${chartValue}%` } as CSSProperties}
+        aria-hidden="true"
+      >
+        <strong>{chartLabel}</strong>
+        <em>{chartSubLabel}</em>
+      </div>
+    </article>
+  );
+}
+
+export function DashboardWorkspace({
+  currencyCode,
+  backend,
+  onNavigate,
+  onOpenSeat
+}: {
+  currencyCode: string;
+  backend: OperatorBackendContext | null;
+  onNavigate: (workspace: WorkspaceId) => void;
+  onOpenSeat: (seatId: string) => void;
+}) {
+  const today = new Date();
+  const todayInput = toDateInputValue(today);
+  const weekStartInput = toDateInputValue(addDays(today, -6));
+  const monthStartInput = toDateInputValue(addDays(today, -29));
+  const [period, setPeriod] = useState<DashboardPeriod>('today');
+  const [customRange, setCustomRange] = useState({ from: weekStartInput, to: todayInput });
+  const [selectedFocusIndex, setSelectedFocusIndex] = useState(0);
+  const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  const [dashboardSummary, setDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
+  const [dashboardLoadStatus, setDashboardLoadStatus] = useState<LoadStatus>('loading');
+  const [dashboardLoadError, setDashboardLoadError] = useState<string | null>(null);
+
+  const presetRanges = {
+    today: { from: todayInput, to: todayInput, label: 'сегодня', metricLabel: 'сегодня' },
+    week: { from: weekStartInput, to: todayInput, label: 'за неделю', metricLabel: 'неделю' },
+    month: { from: monthStartInput, to: todayInput, label: 'за месяц', metricLabel: 'месяц' }
+  };
+
+  const activeRange = period === 'custom'
+    ? { ...customRange, label: 'за выбранный период', metricLabel: 'выбранный период' }
+    : presetRanges[period];
+  const activeDays = countPeriodDays(activeRange.from, activeRange.to);
+  const activePeriodLabel = period === 'custom' ? `${activeDays} дн.` : activeRange.metricLabel;
+  const periodDaysShort = `${activeDays} дн.`;
+  const exportLabel = `${activeRange.from} - ${activeRange.to}`;
+  const updateCustomRange = (field: 'from' | 'to', value: string) => {
+    setCustomRange((range) => ({ ...range, [field]: value }));
+    setPeriod('custom');
+  };
+
+  useEffect(() => {
+    let disposed = false;
+
+    if (backend === null) {
+      setDashboardSummary(null);
+      setDashboardLoadStatus('failed');
+      setDashboardLoadError('Активный филиал не назначен.');
+      return undefined;
+    }
+
+    setDashboardLoadStatus('loading');
+    setDashboardLoadError(null);
+
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    clients.dashboard.getSummary(backend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to))
+      .then((summary) => {
+        if (disposed) {
+          return;
+        }
+
+        setDashboardSummary(summary);
+        setDashboardLoadStatus('backend');
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+
+        setDashboardSummary(null);
+        setDashboardLoadStatus('failed');
+        setDashboardLoadError(projectOperatorError(error).detail);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, activeRange.from, activeRange.to]);
+
+  const summary = dashboardSummary ?? emptyDashboardSummary(currencyCode, activeRange.from, activeRange.to);
+  const revenue = readRecord(summary, 'revenue');
+  const utilization = readRecord(summary, 'utilization');
+  const alertPressure = readRecord(summary, 'alertPressure');
+  const reservations = readRecord(summary, 'reservations');
+  const shift = readRecord(summary, 'shift');
+  const totalRevenue = readMoney(revenue, 'totalRevenue') ?? { currencyCode, minorUnits: 0 };
+  const expectedCash = readMoney(shift, 'expectedCash') ?? { currencyCode, minorUnits: 0 };
+  const cashTargetMinorUnits = Math.max(expectedCash.minorUnits, totalRevenue.minorUnits);
+  const cashPercent = cashTargetMinorUnits > 0
+    ? Math.min(100, Math.round((totalRevenue.minorUnits / cashTargetMinorUnits) * 100))
+    : 0;
+  const attentionCount = readNumber(alertPressure, 'totalAlerts', 0);
+  const bookingUsed = readNumber(reservations, 'activeReservations', 0);
+  const bookingSlots = readNumber(reservations, 'availableSlots', 0);
+  const posChecks = readNumber(revenue, 'posCheckCount', 0);
+  const newClients = readNumber(revenue, 'newPlayerCount', 0);
+  const activePcs = readNumber(utilization, 'activeSessions', 0);
+  const totalPcs = Math.max(1, readNumber(utilization, 'totalSeats', 0));
+  const focusQueue = readArray<Record<string, unknown>>(summary, 'focusQueue');
+  const dashboardStatusText = dashboardLoadStatus === 'backend'
+    ? 'Данные платформы'
+    : dashboardLoadStatus === 'loading'
+      ? 'Загрузка данных'
+      : 'Ошибка данных';
+  const focusItems = focusQueue.length > 0
+    ? focusQueue.map((item) => [
+      readString(item, 'tone', 'warning'),
+      readString(item, 'target', '-'),
+      dashboardFocusTextLabel(readString(item, 'title', 'Сигнал платформы')),
+      dashboardFocusTextLabel(readString(item, 'detail', 'Проверьте состояние в рабочей карте.')),
+      readString(item, 'seatId')
+    ] as const)
+    : [[
+      'ready',
+      '-',
+      dashboardLoadStatus === 'failed' ? 'Данные не загружены' : 'Нет срочных сигналов',
+      dashboardLoadStatus === 'failed' ? dashboardLoadError ?? 'Повторите загрузку обзора.' : 'Срочных задач за выбранный период нет.',
+      ''
+    ] as const];
+  const selectedFocus = focusItems[selectedFocusIndex] ?? focusItems[0];
+
+  const openSelectedFocusSeat = (label: string) => {
+    if (selectedFocus[4]) {
+      onOpenSeat(selectedFocus[4]);
+      return;
+    }
+
+    setFeedback({
+      label,
+      state: 'failed',
+      detail: selectedFocus[3]
+    });
+  };
+
+  const exportDashboard = async () => {
+    setFeedback({ label: 'Экспорт', state: 'pending' });
+
+    try {
+      const nextBackend = requireBackend(backend);
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const [, salesCsv] = await Promise.all([
+        clients.dashboard.getSummary(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to)),
+        clients.shifts.exportSalesReportCsv(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to))
+      ]);
+      const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
+      downloadTextFile(`afk4-overview-sales-${exportStamp}.csv`, salesCsv, 'text/csv;charset=utf-8');
+      setFeedback({ label: 'Экспорт', state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label: 'Экспорт', state: 'failed', detail: projectOperatorError(error).detail });
+    }
+  };
+
+  const pulseItems = [
+    { label: 'Касса', value: formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), detail: `из ${formatMinorUnits(cashTargetMinorUnits, totalRevenue.currencyCode)}`, chartValue: cashPercent, chartLabel: <><AnimatedNumber value={cashPercent} />%</>, chartSubLabel: formatCompactNumber(Math.round(minorToMajor(totalRevenue.minorUnits))), tone: 'cash', icon: Banknote },
+    { label: 'Активные ПК', value: `${activePcs} / ${totalPcs}`, detail: `за ${activePeriodLabel}`, chartValue: Math.round((activePcs / totalPcs) * 100), chartLabel: <><AnimatedNumber value={activePcs} />/{totalPcs}</>, chartSubLabel: 'сейчас', tone: 'devices', icon: MonitorCheck },
+    { label: 'Внимание', value: String(attentionCount), detail: `${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])} за ${activePeriodLabel}`, chartValue: Math.min(100, Math.round((attentionCount / Math.max(1, totalPcs * activeDays)) * 100)), chartLabel: <AnimatedNumber value={attentionCount} />, chartSubLabel: 'сигн.', tone: 'attention', icon: ShieldAlert },
+    { label: 'Брони', value: `${bookingUsed} / ${bookingSlots}`, detail: `слоты за ${activePeriodLabel}`, chartValue: bookingSlots > 0 ? Math.min(100, Math.round((bookingUsed / bookingSlots) * 100)) : 0, chartLabel: <><AnimatedNumber value={bookingUsed} />/{bookingSlots}</>, chartSubLabel: 'слоты', tone: 'booking', icon: CalendarClock }
+  ];
+
+  const controlCards: Array<[WorkspaceId, string, string, string, LucideIcon]> = [
+    ['map', 'Карта', `${totalPcs} ПК`, `${attentionCount} ${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])}`, MonitorCheck],
+    ['pos', 'Продажи', `${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])}`, `за ${activePeriodLabel}`, ReceiptText],
+    ['payments', 'Касса', formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), `за ${activePeriodLabel}`, CircleDollarSign],
+    ['players', 'Клиент', `${newClients} ${pluralRu(newClients, ['новый', 'новых', 'новых'])}`, `за ${activePeriodLabel}`, UserRoundPlus]
+  ];
+
+  return (
+    <main className="workspace-screen dashboard-screen">
+      <section className="screen-head dashboard-head">
+        <div>
+          <span>Обзор</span>
+          <h1>Что требует внимания · {activeRange.label}</h1>
+        </div>
+        <div className="filter-row dashboard-period-filter" aria-label="Период обзора">
+          <div className="period-segment">
+            <button type="button" className={period === 'today' ? 'active' : undefined} onClick={() => setPeriod('today')}>Сегодня</button>
+            <button type="button" className={period === 'week' ? 'active' : undefined} onClick={() => setPeriod('week')}>Неделя</button>
+            <button type="button" className={period === 'month' ? 'active' : undefined} onClick={() => setPeriod('month')}>Месяц</button>
+          </div>
+          <div className={`date-range-control ${period === 'custom' ? 'active' : ''}`}>
+            <label>
+              <span>с</span>
+              <input
+                type="date"
+                aria-label="Начало периода"
+                value={customRange.from}
+                onChange={(event) => updateCustomRange('from', event.currentTarget.value)}
+                onInput={(event) => updateCustomRange('from', event.currentTarget.value)}
+                onFocus={() => setPeriod('custom')}
+              />
+            </label>
+            <label>
+              <span>по</span>
+              <input
+                type="date"
+                aria-label="Конец периода"
+                value={customRange.to}
+                onChange={(event) => updateCustomRange('to', event.currentTarget.value)}
+                onInput={(event) => updateCustomRange('to', event.currentTarget.value)}
+                onFocus={() => setPeriod('custom')}
+              />
+            </label>
+            <span className="date-range-days" aria-label={`Длина периода: ${periodDaysShort}`}>{periodDaysShort}</span>
+          </div>
+          <span className={`map-load-state ${dashboardLoadStatus === 'backend' ? 'ready' : dashboardLoadStatus}`}>{dashboardStatusText}</span>
+          <button type="button" className="export-button" aria-label={`Скачать продажи за ${exportLabel}`} onClick={exportDashboard}>
+            Экспорт
+          </button>
+        </div>
+      </section>
+
+      <section className="dashboard-layout">
+        <article className="dashboard-now-panel">
+          <header className="dashboard-panel-title">
+            <span>Главный фокус</span>
+            <strong>{selectedFocus[2]}</strong>
+          </header>
+          <p>{selectedFocus[3]}</p>
+          <div className="dashboard-now-meta">
+            <span><AlertTriangle size={15} /> {selectedFocus[0]}</span>
+            <span>{selectedFocus[1]}</span>
+            <span>{dashboardStatusText}</span>
+          </div>
+          <div className="dashboard-now-actions">
+            <button type="button" onClick={() => openSelectedFocusSeat('Разобрать')}><AlertTriangle size={15} /> Разобрать</button>
+            <button type="button" onClick={() => openSelectedFocusSeat(pcControlLabel)}><Wrench size={15} /> {pcControlLabel}</button>
+          </div>
+          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: 'Обзор', state: 'failed', detail: dashboardLoadError ?? 'Данные обзора недоступны.' }} />}
+          <FeedbackNotice feedback={feedback} />
+        </article>
+
+        <section className="dashboard-secondary-panel">
+          <header className="dashboard-panel-title">
+            <span>Дальше по очереди</span>
+            <strong>разобрать после критичного</strong>
+          </header>
+          <div className="focus-list">
+            {focusItems.map(([tone, target, title, detail], index) => (
+              <button
+                key={`${target}-${title}`}
+                type="button"
+                className={`focus-row ${tone}${index === selectedFocusIndex ? ' active' : ''}`}
+                onClick={() => setSelectedFocusIndex(index)}
+              >
+                <div>
+                  <span>{target}</span>
+                  <strong>{title}</strong>
+                  <em>{detail}</em>
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className="dashboard-selected-signal">
+            <span>{selectedFocus[1]}</span>
+            <strong>{selectedFocus[3]}</strong>
+          </div>
+        </section>
+
+        <section className="dashboard-control-panel">
+          <header className="dashboard-panel-title">
+            <span>Управление</span>
+            <strong>карта, чек, депозит, клиент</strong>
+          </header>
+          <div className="dashboard-control-grid">
+            {controlCards.map(([targetWorkspace, label, value, detail, Icon]) => (
+              <DashboardControlCard
+                key={label}
+                label={label}
+                value={value}
+                detail={detail}
+                icon={Icon}
+                onActivate={() => onNavigate(targetWorkspace)}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="dashboard-pulse-panel">
+          <header className="dashboard-panel-title">
+            <span>Пульс смены</span>
+            <strong>касса, зал, сигналы, брони</strong>
+          </header>
+          <div className="dashboard-pulse-grid">
+            {pulseItems.map((item) => (
+              <DashboardPulseCard key={item.label} {...item} />
+            ))}
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
