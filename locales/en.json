@@ -872,7 +872,7 @@
   "setup.wizard.finished.summary.seat": "Seat",
   "setup.wizard.finished.summary.name": "Name",
   "setup.wizard.finished.summary.channel": "Update channel",
-  "setup.wizard.finished.pendingNote": "While the status is Pending, the Agent won't start. Approve the device in the dashboard, then restart this PC.",
+  "setup.wizard.finished.pendingNote": "While the status is Pending, the Agent won't start. Approve the device in the dashboard, then restart this device.",
   "setup.wizard.finished.close": "Finish",
   "account.phone.title": "Sign-in phone",
   "account.phone.loading": "Loading…",
