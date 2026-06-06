@@ -30,11 +30,18 @@ import type {
 export class PlatformApiError extends Error {
   public readonly status: number;
   public readonly errorCode: string | null;
+  public readonly remainingAttempts: number | null;
 
-  public constructor(status: number, message: string, errorCode: string | null = null) {
+  public constructor(
+    status: number,
+    message: string,
+    errorCode: string | null = null,
+    remainingAttempts: number | null = null
+  ) {
     super(message);
     this.status = status;
     this.errorCode = errorCode;
+    this.remainingAttempts = remainingAttempts;
   }
 }
 
@@ -345,10 +352,11 @@ export class PlatformApiClient {
   private static async toError(response: Response, fallbackMessage = 'Platform API call failed.'): Promise<PlatformApiError> {
     let message = fallbackMessage;
     let code: string | null = null;
+    let remainingAttempts: number | null = null;
     try {
       const text = await response.text();
       if (text.length > 0) {
-        const parsed = JSON.parse(text) as { error?: string; status?: string };
+        const parsed = JSON.parse(text) as { error?: string; status?: string; remainingAttempts?: number };
         if (typeof parsed.error === 'string' && parsed.error.length > 0) {
           message = parsed.error;
           code = parsed.error;
@@ -356,11 +364,14 @@ export class PlatformApiClient {
         if (typeof parsed.status === 'string' && parsed.status.length > 0) {
           message = `${message} (${parsed.status})`;
         }
+        if (typeof parsed.remainingAttempts === 'number') {
+          remainingAttempts = parsed.remainingAttempts;
+        }
       }
     } catch {
       // Body wasn't JSON or wasn't readable; fall back to status text.
     }
-    return new PlatformApiError(response.status, message, code);
+    return new PlatformApiError(response.status, message, code, remainingAttempts);
   }
 }
 

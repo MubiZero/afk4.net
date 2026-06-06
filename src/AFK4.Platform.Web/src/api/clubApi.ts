@@ -539,10 +539,11 @@ export class ClubApiClient {
 async function toApiError(response: Response): Promise<PlatformApiError> {
   let message = 'Club API call failed.';
   let code: string | null = null;
+  let remainingAttempts: number | null = null;
   try {
     const text = await response.text();
     if (text.length > 0) {
-      const parsed = JSON.parse(text) as { error?: string; status?: string };
+      const parsed = JSON.parse(text) as { error?: string; status?: string; remainingAttempts?: number };
       if (typeof parsed.error === 'string' && parsed.error.length > 0) {
         message = parsed.error;
         code = parsed.error;
@@ -550,11 +551,14 @@ async function toApiError(response: Response): Promise<PlatformApiError> {
       if (typeof parsed.status === 'string' && parsed.status.length > 0) {
         message = `${message} (${parsed.status})`;
       }
+      if (typeof parsed.remainingAttempts === 'number') {
+        remainingAttempts = parsed.remainingAttempts;
+      }
     }
   } catch {
     // Keep the fallback when the API returns non-JSON content.
   }
-  return new PlatformApiError(response.status, message, code);
+  return new PlatformApiError(response.status, message, code, remainingAttempts);
 }
 
 function reportQuery(fromUtc?: string, toUtc?: string, limit?: number): string {

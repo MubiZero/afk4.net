@@ -13,8 +13,8 @@ type Client = Pick<ClubApiClient, 'getStaffPhone' | 'startPhoneVerification' | '
 type Phase = 'loading' | 'idle' | 'code' | 'verified' | 'error';
 
 // Backend error code → i18n key. t() has no interpolation, so the numeric
-// "remaining attempts" detail is not shown here (the browser admin gets the
-// generic invalid_code message); the desktop app surfaces the count.
+// "remaining attempts" detail is appended by concatenation in describe()
+// (mirroring the desktop card) rather than interpolated.
 const ERROR_KEYS: Record<string, MessageKey> = {
   invalid_phone: 'account.phone.err.invalid_phone',
   cooldown_active: 'account.phone.err.cooldown',
@@ -60,8 +60,13 @@ export function PhoneVerificationCard({ client }: { client: Client }) {
   }, [client, reloadKey]);
 
   function describe(err: unknown): string {
-    if (err instanceof PlatformApiError && err.errorCode !== null && err.errorCode in ERROR_KEYS) {
-      return t(ERROR_KEYS[err.errorCode]);
+    if (err instanceof PlatformApiError) {
+      if (err.errorCode === 'invalid_code' && typeof err.remainingAttempts === 'number') {
+        return `${t('account.phone.invalidCodeAttempts')} ${err.remainingAttempts}`;
+      }
+      if (err.errorCode !== null && err.errorCode in ERROR_KEYS) {
+        return t(ERROR_KEYS[err.errorCode]);
+      }
     }
     return t('account.phone.err.generic');
   }

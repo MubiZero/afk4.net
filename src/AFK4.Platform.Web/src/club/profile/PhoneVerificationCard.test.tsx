@@ -78,3 +78,17 @@ it('keeps the code field and shows an inline error on a bad confirm code', async
   expect(await screen.findByText(/Неверный код/)).toBeInTheDocument();
   expect(screen.getByLabelText('Код из SMS')).toBeInTheDocument();
 });
+
+it('surfaces the remaining-attempts count on a bad confirm code', async () => {
+  const client = fakeClient({
+    confirmPhoneVerification: async () => { throw new PlatformApiError(400, 'invalid_code', 'invalid_code', 2); }
+  });
+  renderCard(client);
+  const input = await screen.findByLabelText('Номер телефона');
+  fireEvent.change(input, { target: { value: '+992937380070' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Получить код' }));
+  const codeInput = await screen.findByLabelText('Код из SMS');
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Подтвердить' }));
+  expect(await screen.findByText(/Осталось попыток: 2/)).toBeInTheDocument();
+});
