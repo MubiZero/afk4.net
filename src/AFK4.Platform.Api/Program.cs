@@ -245,6 +245,7 @@ builder.Services.Configure<PhoneOtpOptions>(
 builder.Services.AddSingleton<IPhoneOtpHasher, Sha256PhoneOtpHasher>();
 builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
 builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificationService>();
+builder.Services.AddScoped<IStaffPhonePasswordResetService, EfStaffPhonePasswordResetService>();
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
@@ -348,6 +349,15 @@ builder.Services.AddRateLimiter(options =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    options.AddPolicy("staff-reset", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
                 Window = TimeSpan.FromMinutes(1)
             }));
 });
