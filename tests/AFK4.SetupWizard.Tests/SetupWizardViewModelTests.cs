@@ -1,5 +1,6 @@
 using AFK4.SetupWizard.Core;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard.Tests;
@@ -313,6 +314,18 @@ public sealed class SetupWizardViewModelTests
             EnrollRequest = request;
             return Task.FromResult(EnrollResponse);
         }
+
+        public Task<StaffSignInResponse> SignInByPhoneAsync(string phoneNumber, string password, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(string accessToken, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(string accessToken, Guid branchId, Guid zoneId, string name, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
     }
 
     private sealed class RecordingDeviceKeyStore(string publicKeyPem) : IDeviceKeyStore

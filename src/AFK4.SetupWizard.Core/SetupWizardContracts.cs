@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard.Core;
@@ -37,6 +38,27 @@ public interface ISetupWizardApiClient
         CancellationToken cancellationToken);
 
     Task<InstallEnrollResponse> EnrollAsync(InstallEnrollRequest request, CancellationToken cancellationToken);
+
+    Task<StaffSignInResponse> SignInByPhoneAsync(
+        string phoneNumber,
+        string password,
+        CancellationToken cancellationToken);
+
+    Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(
+        string accessToken,
+        CancellationToken cancellationToken);
+
+    Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
+        string accessToken,
+        Guid branchId,
+        Guid zoneId,
+        string name,
+        CancellationToken cancellationToken);
+
+    Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
+        string accessToken,
+        AuthenticatedInstallEnrollRequest request,
+        CancellationToken cancellationToken);
 }
 
 public interface IDeviceKeyStore
