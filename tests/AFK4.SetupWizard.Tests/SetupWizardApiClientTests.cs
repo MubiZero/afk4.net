@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using AFK4.SetupWizard.Core;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard.Tests;
@@ -87,6 +88,44 @@ public sealed class SetupWizardApiClientTests
         Assert.Contains(SeatId.ToString("D"), body);
         Assert.Contains(DeviceRoleNames.GamingPc, body);
         Assert.Contains("device-public-key", body);
+    }
+
+    [Fact]
+    public async Task SignInByPhoneAsync_PostsToPhoneEndpoint_ReturnsToken()
+    {
+        var expected = new StaffSignInResponse(
+            Guid.NewGuid(), Guid.NewGuid(), "Сотрудник", "access-123",
+            DateTimeOffset.UnixEpoch.AddHours(8), "refresh-123", DateTimeOffset.UnixEpoch.AddDays(30),
+            new[] { Guid.NewGuid() }, new[] { "devices.install" });
+        var handler = new RecordingHandler(_ => JsonResponse(expected));
+        var client = CreateClient(handler);
+
+        var result = await client.SignInByPhoneAsync("+992 93 738-00-70", "Passw0rd!", CancellationToken.None);
+
+        Assert.Equal("access-123", result.AccessToken);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("/api/auth/staff/sign-in-by-phone", request.RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task EnrollAuthenticatedAsync_AttachesBearerToken_PostsToAuthEnroll()
+    {
+        var expected = new InstallEnrollResponse(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "secret",
+            "Approved", "https://api", "stable", DateTimeOffset.UnixEpoch);
+        var handler = new RecordingHandler(_ => JsonResponse(expected));
+        var client = CreateClient(handler);
+
+        await client.EnrollAuthenticatedAsync(
+            "access-123",
+            new AuthenticatedInstallEnrollRequest(Guid.NewGuid(), Guid.NewGuid(), "GamingPc", "Стенд 5", "WIN-1", "pem"),
+            CancellationToken.None);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("/api/install/auth/enroll", request.RequestUri!.AbsolutePath);
+        Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+        Assert.Equal("access-123", request.Headers.Authorization.Parameter);
     }
 
     private static SetupWizardApiClient CreateClient(HttpMessageHandler handler) =>
