@@ -472,6 +472,7 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
           branches={branches}
           roleLabel={roleLabel}
           onSignOut={onSignOut}
+          client={clubClient}
         />
       ) : route.kind === 'clubBilling' ? (
         <BillingScreen client={clubClient} organizationId={session.organizationId} />

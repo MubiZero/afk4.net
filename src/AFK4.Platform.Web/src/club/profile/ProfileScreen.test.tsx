@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
+import { ToastProvider } from '@/components/ui/toast';
 import type { StaffSession } from '@/auth/staffTokenStore';
 import { ProfileScreen } from './ProfileScreen';
 
@@ -13,9 +14,19 @@ const session = {
 it('shows identity, permissions, and signs out', () => {
   const onSignOut = mock();
   render(
-    <I18nProvider>
-      <ProfileScreen session={session} branches={[{ branchId: 'b1', name: 'Центр' }]} roleLabel="Владелец" onSignOut={onSignOut} />
-    </I18nProvider>
+    <I18nProvider><ToastProvider>
+      <ProfileScreen
+        session={session}
+        branches={[{ branchId: 'b1', name: 'Центр' }]}
+        roleLabel="Владелец"
+        onSignOut={onSignOut}
+        client={{
+          getStaffPhone: async () => ({ phone: null, phoneVerifiedAtUtc: null }),
+          startPhoneVerification: async () => ({ expiresInSeconds: 300, resendAfterSeconds: 60 }),
+          confirmPhoneVerification: async () => ({ phone: '+992937380070' })
+        } as never}
+      />
+    </ToastProvider></I18nProvider>
   );
   expect(screen.getByText('Иван')).toBeInTheDocument();
   expect(screen.getByText('Владелец')).toBeInTheDocument();

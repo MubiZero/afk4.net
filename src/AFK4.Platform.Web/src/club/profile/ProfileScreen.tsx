@@ -3,13 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { StaffSession } from '@/auth/staffTokenStore';
+import type { ClubApiClient } from '@/api/clubApi';
 import { groupPermissions } from './profileModel';
+import { PhoneVerificationCard } from './PhoneVerificationCard';
 
-export function ProfileScreen({ session, branches, roleLabel, onSignOut }: {
+export function ProfileScreen({ session, branches, roleLabel, onSignOut, client }: {
   session: StaffSession;
   branches: { branchId: string; name: string }[];
   roleLabel: string;
   onSignOut: () => void;
+  client: Pick<ClubApiClient, 'getStaffPhone' | 'startPhoneVerification' | 'confirmPhoneVerification'>;
 }) {
   const { t } = useI18n();
   const groups = groupPermissions(session.permissions);
@@ -25,6 +28,8 @@ export function ProfileScreen({ session, branches, roleLabel, onSignOut }: {
           <Field label={t('profile.field.staffId')} value={session.staffUserId} />
         </CardContent>
       </Card>
+
+      <PhoneVerificationCard client={client} />
 
       <Card>
         <CardHeader><CardTitle>{t('profile.branches.title')}</CardTitle></CardHeader>
