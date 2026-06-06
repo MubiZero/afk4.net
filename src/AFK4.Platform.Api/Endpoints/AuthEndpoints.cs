@@ -252,5 +252,49 @@ internal static class AuthEndpoints
             return Results.Ok(new StaffPhoneStatusResponse(status.Phone, status.PhoneVerifiedAtUtc));
         });
 
+        app.MapPost("/api/auth/staff/forgot-password-by-phone", async (
+            StaffForgotPasswordByPhoneRequest request,
+            IStaffPhonePasswordResetService resetService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await resetService.RequestResetAsync(request.PhoneNumber, cancellationToken);
+            return result.Status switch
+            {
+                ForgotPasswordByPhoneStatus.Accepted => Results.Ok(
+                    new { expiresInSeconds = result.ExpiresInSeconds, resendAfterSeconds = result.ResendAfterSeconds }),
+                ForgotPasswordByPhoneStatus.InvalidPhone => Results.BadRequest(new { error = "invalid_phone" }),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+            };
+        }).RequireRateLimiting("staff-reset");
+
+        app.MapPost("/api/auth/staff/reset-password-by-phone", async (
+            StaffResetPasswordByPhoneRequest request,
+            IStaffPhonePasswordResetService resetService,
+            CancellationToken cancellationToken) =>
+        {
+            var passwordValidation = ValidateStaffPassword(request.NewPassword);
+            if (passwordValidation is not null)
+            {
+                return Results.BadRequest(new { error = passwordValidation });
+            }
+
+            var result = await resetService.ResetAsync(
+                request.PhoneNumber, request.Code, request.NewPassword, cancellationToken);
+            return result.Status switch
+            {
+                ResetPasswordByPhoneStatus.Success => Results.Ok(new { message = "Password updated." }),
+                ResetPasswordByPhoneStatus.InvalidCode => Results.Json(
+                    new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
+                    statusCode: StatusCodes.Status400BadRequest),
+                ResetPasswordByPhoneStatus.Expired => Results.Json(
+                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+                ResetPasswordByPhoneStatus.NoActiveCode => Results.Json(
+                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+                ResetPasswordByPhoneStatus.TooManyAttempts => Results.Json(
+                    new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+            };
+        }).RequireRateLimiting("staff-reset");
+
     }
 }
