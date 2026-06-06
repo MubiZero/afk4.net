@@ -15,6 +15,23 @@ public interface IInstallService
     Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatAsync(
         InstallCreateSeatRequest request,
         CancellationToken cancellationToken);
+
+    Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverForStaffAsync(
+        Guid organizationId,
+        IReadOnlySet<Guid> branchIds,
+        string ownerDisplayName,
+        CancellationToken cancellationToken);
+
+    Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatForStaffAsync(
+        Guid organizationId,
+        Guid? staffUserId,
+        AuthenticatedInstallCreateSeatRequest request,
+        CancellationToken cancellationToken);
+
+    Task<InstallOperationResult<InstallEnrollResponse>> EnrollForStaffAsync(
+        Guid organizationId,
+        AuthenticatedInstallEnrollRequest request,
+        CancellationToken cancellationToken);
 }
 
 public sealed record InstallOperationResult<T>(
