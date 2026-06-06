@@ -114,10 +114,13 @@ public sealed class StaffPasswordResetByPhoneEndpointTests
         await client.PostAsJsonAsync(
             "/api/auth/staff/forgot-password-by-phone",
             new StaffForgotPasswordByPhoneRequest(Phone));
+        // Submit a code guaranteed to differ from the real one (deterministic, no RNG collision).
+        var realCode = Regex.Match(Assert.Single(recording.Sent).Text, "\\d{6}").Value;
+        var wrongCode = realCode == "000000" ? "111111" : "000000";
 
         var response = await client.PostAsJsonAsync(
             "/api/auth/staff/reset-password-by-phone",
-            new StaffResetPasswordByPhoneRequest(Phone, "000000", NewPassword));
+            new StaffResetPasswordByPhoneRequest(Phone, wrongCode, NewPassword));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
