@@ -9,6 +9,7 @@ import { isHostBridgeUnavailableError } from './hostBridge';
 
 interface OwnerCodeScreenProps {
   onDiscovered(ownerCode: string, response: WizardDiscoverResponse): void;
+  onUsePhone(): void;
 }
 
 type RequestState =
@@ -19,7 +20,7 @@ type RequestState =
 const OWNER_CODE_LENGTH = 8;
 const OWNER_CODE_PATTERN = /^[0-9]+$/;
 
-export function OwnerCodeScreen({ onDiscovered }: OwnerCodeScreenProps) {
+export function OwnerCodeScreen({ onDiscovered, onUsePhone }: OwnerCodeScreenProps) {
   const { t } = useI18n();
   const [code, setCode] = useState('');
   const [touched, setTouched] = useState(false);
@@ -190,6 +191,10 @@ export function OwnerCodeScreen({ onDiscovered }: OwnerCodeScreenProps) {
               <ArrowRight aria-hidden />
             </>
           )}
+        </button>
+
+        <button type="button" className="wizard-link-action wizard-fallback-link" onClick={onUsePhone}>
+          {t('setup.wizard.ownerCode.action.usePhone')}
         </button>
       </form>
     </section>

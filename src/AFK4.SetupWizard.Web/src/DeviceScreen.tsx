@@ -3,16 +3,15 @@ import { ArrowLeft, ArrowRight, Loader2, Plus, X } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { isHostBridgeUnavailableError } from './hostBridge';
 import {
-  createSeat,
-  enrollDevice,
   type WizardBranch,
   type WizardEnrollResult,
+  type WizardInstallClient,
   type WizardRole,
   type WizardSeat,
 } from './wizardApi';
 
 interface DeviceScreenProps {
-  ownerCode: string;
+  installClient: WizardInstallClient;
   ownerName: string;
   branch: WizardBranch;
   role: WizardRole;
@@ -28,7 +27,7 @@ type RequestState =
   | { kind: 'error'; message: string };
 
 export function DeviceScreen({
-  ownerCode,
+  installClient,
   ownerName,
   branch,
   role,
@@ -73,8 +72,8 @@ export function DeviceScreen({
   );
   const trimmedDisplayName = displayName.trim();
   const trimmedNewSeat = newSeatName.trim();
-  const canEnroll =
-    trimmedDisplayName.length > 0 && (!requiresSeat || selectedSeat !== null);
+  const displayNameValid = trimmedDisplayName.length >= 3 && trimmedDisplayName.length <= 32;
+  const canEnroll = displayNameValid && (!requiresSeat || selectedSeat !== null);
 
   const defaultZone = branch.zones[0] ?? null;
   const totalSeats = seats.length;
@@ -139,8 +138,7 @@ export function DeviceScreen({
     setRequest({ kind: 'creating' });
 
     try {
-      const seat = await createSeat({
-        ownerCode,
+      const seat = await installClient.createSeat({
         branchId: branch.branchId,
         zoneId: defaultZone.zoneId,
         zoneName: defaultZone.name,
@@ -179,7 +177,7 @@ export function DeviceScreen({
       setNewSeatName(previousSeatName);
       setRequest({ kind: 'error', message: messageForError(error, t) });
     }
-  }, [branch.branchId, defaultZone, newSeatName, ownerCode, seats.length, trimmedNewSeat, t]);
+  }, [branch.branchId, defaultZone, installClient, newSeatName, seats.length, trimmedNewSeat, t]);
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -190,8 +188,7 @@ export function DeviceScreen({
 
       setRequest({ kind: 'enrolling' });
       try {
-        const result = await enrollDevice({
-          ownerCode,
+        const result = await installClient.enrollDevice({
           branchId: branch.branchId,
           seatId: requiresSeat ? selectedSeat!.seatId : null,
           role,
@@ -205,7 +202,7 @@ export function DeviceScreen({
     [
       branch.branchId,
       canEnroll,
-      ownerCode,
+      installClient,
       onEnrolled,
       request.kind,
       requiresSeat,
@@ -242,8 +239,11 @@ export function DeviceScreen({
             value={displayName}
             autoComplete="off"
             spellCheck={false}
+            minLength={3}
+            maxLength={32}
             onChange={(event) => setDisplayName(event.target.value)}
             placeholder={defaultDisplayName}
+            aria-invalid={trimmedDisplayName.length > 0 && !displayNameValid}
             aria-describedby="display-name-hint"
           />
           <span id="display-name-hint" className="wizard-field-hint">

@@ -3,6 +3,7 @@ import { Fragment } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 
 export type WizardStep =
+  | 'phoneLogin'
   | 'ownerCode'
   | 'branchSelection'
   | 'role'
@@ -10,12 +11,22 @@ export type WizardStep =
   | 'finished';
 
 const STEPS: { id: WizardStep; index: number; labelKey: MessageKey }[] = [
-  { id: 'ownerCode', index: 1, labelKey: 'setup.wizard.stepper.code' },
+  { id: 'phoneLogin', index: 1, labelKey: 'setup.wizard.stepper.signIn' },
   { id: 'branchSelection', index: 2, labelKey: 'setup.wizard.stepper.branch' },
   { id: 'role', index: 3, labelKey: 'setup.wizard.stepper.role' },
   { id: 'device', index: 4, labelKey: 'setup.wizard.stepper.device' },
   { id: 'finished', index: 5, labelKey: 'setup.wizard.stepper.done' },
 ];
+
+// The owner-code fallback screen shares stepper position 1 with phone login.
+const STEP_TO_INDEX: Record<WizardStep, number> = {
+  phoneLogin: 0,
+  ownerCode: 0,
+  branchSelection: 1,
+  role: 2,
+  device: 3,
+  finished: 4,
+};
 
 interface StepperProps {
   current: WizardStep;
@@ -23,7 +34,7 @@ interface StepperProps {
 
 export function Stepper({ current }: StepperProps) {
   const { t } = useI18n();
-  const currentIndex = STEPS.findIndex((step) => step.id === current);
+  const currentIndex = STEP_TO_INDEX[current];
 
   return (
     <ol className="wizard-stepper" aria-label={t('setup.wizard.stepper.label')}>
