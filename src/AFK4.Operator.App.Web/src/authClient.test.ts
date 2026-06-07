@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { loadOperatorSession, signInOperator, signOutOperator } from './authClient';
+import {
+  forgotPasswordByEmail,
+  loadOperatorSession,
+  resetPasswordByPhone,
+  signInOperator,
+  signOutOperator,
+} from './authClient';
 import type { HostBridgeMessageEvent } from './hostBridge';
 
 describe('operator auth client', () => {
@@ -62,6 +68,27 @@ describe('operator auth client', () => {
     await expect(loadOperatorSession()).resolves.toBeNull();
     await expect(signOutOperator()).resolves.toEqual({ signedOut: true });
     expect(postMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('requests an email reset through the bridge', async () => {
+    const postMessage = installAuthBridge((message) => {
+      expect(message).toMatchObject({ type: 'auth:forgotByEmail', payload: { userNameOrEmail: 'owner@demo.test' } });
+      return { ok: true };
+    });
+    await forgotPasswordByEmail('owner@demo.test');
+    expect(postMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('completes a phone reset through the bridge', async () => {
+    const postMessage = installAuthBridge((message) => {
+      expect(message).toMatchObject({
+        type: 'auth:resetByPhone',
+        payload: { phoneNumber: '+992937380070', code: '123456', newPassword: 'Passw0rd!New' }
+      });
+      return { ok: true };
+    });
+    await resetPasswordByPhone('+992937380070', '123456', 'Passw0rd!New');
+    expect(postMessage).toHaveBeenCalledTimes(1);
   });
 });
 

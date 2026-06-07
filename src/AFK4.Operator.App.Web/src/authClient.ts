@@ -34,3 +34,19 @@ export function refreshOperatorSession(): Promise<OperatorAuthSession> {
 export function signOutOperator(): Promise<{ signedOut: boolean }> {
   return postHostRequest<{ signedOut: boolean }>('auth:signOut');
 }
+
+export function forgotPasswordByEmail(userNameOrEmail: string): Promise<void> {
+  return postHostRequest<void>('auth:forgotByEmail', { userNameOrEmail });
+}
+
+export function resetPasswordByEmail(token: string, newPassword: string): Promise<void> {
+  return postHostRequest<void>('auth:resetByEmail', { token, newPassword });
+}
+
+export function forgotPasswordByPhone(phoneNumber: string): Promise<void> {
+  return postHostRequest<void>('auth:forgotByPhone', { phoneNumber });
+}
+
+export function resetPasswordByPhone(phoneNumber: string, code: string, newPassword: string): Promise<void> {
+  return postHostRequest<void>('auth:resetByPhone', { phoneNumber, code, newPassword });
+}
