@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRightLeft, Banknote, CircleDollarSign, ReceiptText, Search, UserRoundPlus, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
@@ -54,7 +54,7 @@ type PosCartItem = PosCatalogItem & {
   quantity: number;
 };
 
-// Sentinel for the "All" category — never shown as a backend category name
+// Sentinel for the "All" category вЂ” never shown as a backend category name
 const CATEGORY_ALL = '__all__';
 
 type PaymentMethodKey = 'cash' | 'card' | 'deposit';
@@ -304,7 +304,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
   const createPosPlayer = async () => {
     setFeedback({ label: t('op.pos.feedback.newCard'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
         throw new Error(t('op.pos.error.noPermissionNewCard'));
       }
@@ -320,7 +320,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
         phoneNumber: newPlayerPhone.trim() || null,
         idempotencyKey: createIdempotencyKey('player-create')
       });
-      const projected = projectPlayerClient(player);
+      const projected = projectPlayerClient(player, t);
       setPosPlayers((players) => [
         projected,
         ...players.filter((candidate) => candidate.playerAccountId !== projected.playerAccountId)
@@ -341,7 +341,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
   const writeOffStock = async () => {
     setFeedback({ label: t('op.pos.feedback.stockWriteOff'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.manageInventoryStock)) {
         throw new Error(t('op.pos.error.noPermissionStock'));
       }
@@ -377,7 +377,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
   const topUpSelectedPosPlayer = async () => {
     setFeedback({ label: t('op.pos.feedback.topUp'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.topUpWallet)) {
         throw new Error(t('op.pos.error.noPermissionTopUp'));
       }
@@ -419,7 +419,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
   const acceptPayment = async () => {
     setFeedback({ label: t('op.pos.feedback.payment'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.createPosSale) || !hasPermission(nextBackend.session, permissionNames.payPosSale)) {
         throw new Error(t('op.pos.error.noPermissionPayment'));
       }
@@ -480,7 +480,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
     setCriticalAction(null);
     setFeedback({ label: t('op.pos.feedback.refund'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.refundPosSale)) {
         throw new Error(t('op.pos.error.noPermissionRefund'));
       }
@@ -514,7 +514,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
     setSelectedReceiptDetail(null);
     setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.viewReceipt)) {
         throw new Error(t('op.pos.error.noPermissionViewReceipts'));
       }
@@ -549,7 +549,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
         throw new Error(t('op.pos.error.openReceiptFirst'));
       }
 
-      const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
+      const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode, t);
       const printWindow = window.open('', '_blank', 'width=360,height=640');
       if (printWindow === null) {
         throw new Error(t('op.pos.error.printWindowFailed'));
@@ -576,7 +576,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
         throw new Error(t('op.pos.error.openReceiptFirstExport'));
       }
 
-      const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode);
+      const receiptText = buildPosReceiptText(selectedSaleDetail, selectedReceiptRecord, currencyCode, t);
       const receiptNumber = readString(selectedReceiptRecord, 'receiptNumber', 'receipt');
       downloadTextFile(`${safeReceiptFileName(receiptNumber)}.txt`, receiptText);
       setFeedback({ label: t('op.pos.feedback.export'), state: 'confirmed' });
@@ -593,7 +593,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
     setCriticalAction(null);
     setFeedback({ label: t('op.pos.feedback.void'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.createPosSale) || !hasPermission(nextBackend.session, permissionNames.voidPosSale)) {
         throw new Error(t('op.pos.error.noPermissionVoid'));
       }
@@ -724,7 +724,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
           <h1>{t('op.pos.heading')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.pos.platformConnected'))}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.pos.platformConnected'), t)}</span>
         </div>
       </section>
 
@@ -939,14 +939,14 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
                 }}
               >
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{posSaleStateLabel(readString(row, 'state', 'sale'))}</strong>
-                <em>{posSaleLineSummary(row)}</em>
+                <strong>{posSaleStateLabel(readString(row, 'state', 'sale'), t)}</strong>
+                <em>{posSaleLineSummary(row, t)}</em>
                 <b>{formatMoney(readMoney(row, 'total'), currencyCode)}</b>
               </button>
             ))}
             {salesRows.length === 0 && (
               <article className="pos-receipt-row">
-                <span>—</span>
+                <span>вЂ”</span>
                 <strong>{t('op.pos.receipts.emptyLabel')}</strong>
                 <em>{t('op.pos.receipts.emptyPlatform')}</em>
                 <b>0 {currencyCode}</b>
@@ -957,12 +957,12 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
             <div className="pos-sale-detail">
               <div>
                 <span>{t('op.pos.receipts.detailsTitle')}</span>
-                <strong>{posSaleStateLabel(readString(selectedSaleDetail, 'state', 'sale'))}</strong>
+                <strong>{posSaleStateLabel(readString(selectedSaleDetail, 'state', 'sale'), t)}</strong>
                 <b>{formatMoney(readMoney(selectedSaleDetail, 'total'), currencyCode)}</b>
               </div>
               {readArray(selectedSaleDetail, 'lines').slice(0, 3).map((line) => (
                 <p key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}>
-                  {readString(line, 'productName', t('op.pos.receipts.productFallback'))} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
+                  {readString(line, 'productName', t('op.pos.receipts.productFallback'))} · {readNumber(line, 'quantity', 0)} Г— {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
                 </p>
               ))}
               {selectedReceiptDetail !== null && (
@@ -970,7 +970,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
                   <span>{t('op.pos.receipts.platformReceipt')}</span>
                   <strong>{readString(selectedReceiptDetail, 'receiptNumber', t('op.pos.receipts.receiptFallback'))}</strong>
                   <b>{formatMoney(readMoney(selectedReceiptDetail, 'total'), currencyCode)}</b>
-                  <p>{posReceiptTypeLabel(readString(selectedReceiptDetail, 'receiptType', 'sale'))}</p>
+                  <p>{posReceiptTypeLabel(readString(selectedReceiptDetail, 'receiptType', 'sale'), t)}</p>
                 </div>
               )}
               <div className="pos-receipt-actions">

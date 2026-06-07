@@ -274,7 +274,7 @@ export function DashboardWorkspace({
     setFeedback({ label: t('op.dashboard.export'), state: 'pending' });
 
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const [, salesCsv] = await Promise.all([
         clients.dashboard.getSummary(nextBackend.branchId, dashboardRangeQuery(activeRange.from, activeRange.to)),

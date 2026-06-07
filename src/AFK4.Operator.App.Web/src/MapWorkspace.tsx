@@ -29,6 +29,7 @@ function SeatTile({
   selected?: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <article
       className={`seat-tile ${zoneClass(seat.zone)} state-${seat.tone}${selected ? ' selected' : ''}`}
@@ -47,7 +48,7 @@ function SeatTile({
       <header className="seat-head">
         <div>
           <strong>{seat.name}</strong>
-          <span>{zoneLabel(seat.zone)}</span>
+          <span>{zoneLabel(seat.zone, t)}</span>
         </div>
         <span className="state-chip">{seat.stateLabel}</span>
       </header>
@@ -57,7 +58,7 @@ function SeatTile({
       </div>
       <footer>
         <strong>{seat.remaining}</strong>
-        <span>{commandLabel(seat.command)}</span>
+        <span>{commandLabel(seat.command, t)}</span>
       </footer>
     </article>
   );
@@ -181,7 +182,7 @@ export function MapWorkspace({
           </header>
           <div className="pc-control-summary">
             <span>{selectedSeat.device}</span>
-            <span>{commandLabel(selectedSeat.command)}</span>
+            <span>{commandLabel(selectedSeat.command, t)}</span>
           </div>
           <span className="pc-control-section-title">{t('op.map.availableNow')}</span>
           <div className="pc-control-actions">
@@ -284,14 +285,14 @@ export function MapWorkspace({
                   <tr key={seat.id} className={`state-${seat.tone}${seat.id === selectedSeatId ? ' selected' : ''}`}>
                     <td>
                       <button type="button" onClick={() => onSelectSeat(seat.id)}>{seat.name}</button>
-                      <span>{zoneLabel(seat.zone)}</span>
+                      <span>{zoneLabel(seat.zone, t)}</span>
                     </td>
                     <td><strong>{toneLabel(seat.tone, t)}</strong><span>{seat.stateLabel}</span></td>
                     <td>{seat.player}</td>
                     <td>{seat.remaining}</td>
                     <td>{deviceStatusLabel(seat.device)}</td>
-                    <td>{commandLabel(seat.command)}</td>
-                    <td>{billingLabel(seat.billing)}</td>
+                    <td>{commandLabel(seat.command, t)}</td>
+                    <td>{billingLabel(seat.billing, t)}</td>
                   </tr>
                 ))}
               </tbody>

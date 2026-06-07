@@ -680,7 +680,7 @@ function AppInner() {
 
             setAuthSession(null);
             setAuthStatus('signed-out');
-            setAuthError(projectAuthHostError(refreshError, config));
+            setAuthError(projectAuthHostError(refreshError, config, t));
             setFloorMap(createFixtureFloorMapState());
             setSelectedSeatId(seats[0].id);
             return;
@@ -996,7 +996,7 @@ function AppInner() {
       });
     }
 
-    const detail = await describeSeatActionResult(clients, session, request.seat, response);
+    const detail = await describeSeatActionResult(clients, session, request.seat, response, t);
     const nextState = await loadBackendFloorMapState(config, session, branchId);
     const preferredSeatId = request.type === 'transfer' ? request.targetSeatId : request.seat.id;
     setFloorMap(nextState);
@@ -1047,7 +1047,7 @@ function AppInner() {
   };
 
   const handlePcControlAction = async (seat: SeatSummary, action: PcControlActionId): Promise<PcControlActionResult> => {
-    const nextBackend = requireBackend(backendContext);
+    const nextBackend = requireBackend(backendContext, t);
     if (!seat.deviceId) {
       throw new Error(t('op.shell.err.noDevice'));
     }
@@ -1095,7 +1095,7 @@ function AppInner() {
           seatId: seat.id
         }
       });
-      return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command) };
+      return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command, t) };
     }
 
     throw new Error(t('op.shell.err.commandUnsupported'));
@@ -1157,7 +1157,7 @@ function AppInner() {
         <div className="top-status">
           <span>{shellShiftText}</span>
           <button type="button" className="top-account" aria-label={t('op.shell.myAccount')} onClick={() => setAccountPanelOpen(true)}>
-            {operatorDisplayNameLabel(authSession.displayName)} · {shellModeLabel(config.shellMode, t)}
+            {operatorDisplayNameLabel(authSession.displayName, t)} · {shellModeLabel(config.shellMode, t)}
           </button>
         </div>
         <button type="button" className="sign-out-button" onClick={handleSignOut}>{t('shell.signOut')}</button>
@@ -1167,7 +1167,7 @@ function AppInner() {
       {accountPanelOpen && backendContext !== null && (
         <AccountPanel
           backend={backendContext}
-          displayName={operatorDisplayNameLabel(authSession.displayName)}
+          displayName={operatorDisplayNameLabel(authSession.displayName, t)}
           onClose={() => setAccountPanelOpen(false)}
         />
       )}
@@ -1249,7 +1249,7 @@ function AppInner() {
         && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">
-        <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)} · {dataSourceLabel(floorMap.source)}</span>
+        <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError, t)} · {dataSourceLabel(floorMap.source, t)}</span>
         <span><MonitorCheck size={14} />{t('op.shell.signals', { offline: countByTone(displayedFloorMap.seats, 'offline'), problems: countProblems(displayedFloorMap.seats) })}</span>
         <span><CircleDollarSign size={14} />{shellPosText}</span>
         {workspaceFeedback && (

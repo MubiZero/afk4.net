@@ -59,7 +59,7 @@ function paymentOperationPlaceholder(
   return ['—', t('op.payments.ph.local.title'), t('op.payments.ph.local.hint'), t('op.payments.ph.local.source'), `0 ${currencyCode}`, 'session', null];
 }
 
-function buildShiftReconciliationExportJson(report: ReportResultDto, currentShift: ShiftDto | null, currencyCode: string, notIndicated: string): string {
+function buildShiftReconciliationExportJson(report: ReportResultDto, currentShift: ShiftDto | null, currencyCode: string, notIndicated: string, t: ReturnType<typeof useI18n>['t']): string {
   const rows = readArray<Record<string, unknown>>(report, 'rows');
   const latestRow = rows[0];
   const stateSource = currentShift ?? latestRow;
@@ -70,7 +70,7 @@ function buildShiftReconciliationExportJson(report: ReportResultDto, currentShif
   return JSON.stringify({
     summary: {
       generatedAtUtc: new Date().toISOString(),
-      shiftState: shiftStateLabel(readString(stateSource, 'state', 'unknown')),
+      shiftState: shiftStateLabel(readString(stateSource, 'state', 'unknown'), t),
       expectedCash: formatMoney(expectedCash, currencyCode),
       countedCash: countedCash ? formatMoney(countedCash, currencyCode) : notIndicated,
       difference: formatMoney(difference, currencyCode),
@@ -78,7 +78,7 @@ function buildShiftReconciliationExportJson(report: ReportResultDto, currentShif
     },
     shifts: rows.map((row, index) => ({
       label: `Shift ${index + 1}`,
-      state: shiftStateLabel(readString(row, 'state', 'unknown')),
+      state: shiftStateLabel(readString(row, 'state', 'unknown'), t),
       openedAt: formatDateTime(readString(row, 'openedAtUtc')),
       closedAt: formatDateTime(readString(row, 'closedAtUtc')),
       startingCash: formatMoney(readMoney(row, 'startingCash'), currencyCode),
@@ -163,7 +163,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
   const operations: PaymentOperationItem[] = [
     ...salesRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
-      posSaleStateLabel(readString(row, 'state', 'sale')),
+      posSaleStateLabel(readString(row, 'state', 'sale'), t),
       `${t('op.pos.receipts.receiptFallback')} · ${posSaleLineSummary(row, t)}`,
       t('op.payments.ledger.typeSale'),
       formatMoney(readMoney(row, 'total'), currencyCode),
@@ -172,9 +172,9 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
     ]),
     ...cashRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
-      cashOperationTypeLabel(readString(row, 'operationType', 'cash')),
+      cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t),
       readString(row, 'reason', readString(row, 'sourceType', 'cash')),
-      paymentSourceLabel(readString(row, 'sourceType', 'cash')),
+      paymentSourceLabel(readString(row, 'sourceType', 'cash'), t),
       formatMoney(readMoney(row, 'cashImpact'), currencyCode),
       readNumber(readMoney(row, 'cashImpact'), 'minorUnits', 0) < 0 ? 'refund' : 'deposit',
       row
@@ -244,7 +244,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
     setCriticalAction(null);
     setFeedback({ label, state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
       if (label === shiftSummaryActionKey) {
@@ -326,7 +326,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
         setCurrentShift(closedShift);
       } else if (label === reconciliationActionKey) {
         const report = await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
-        downloadTextFile(`afk4-shift-reconciliation-${exportStamp}.json`, buildShiftReconciliationExportJson(report, currentShift, currencyCode, t('op.payments.reconcile.notIndicated')), 'application/json;charset=utf-8');
+        downloadTextFile(`afk4-shift-reconciliation-${exportStamp}.json`, buildShiftReconciliationExportJson(report, currentShift, currencyCode, t('op.payments.reconcile.notIndicated'), t), 'application/json;charset=utf-8');
       } else {
         await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
       }
@@ -345,7 +345,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
           <h1>{t('op.payments.heading')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.payments.loadedLabel'))}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.payments.loadedLabel'), t)}</span>
         </div>
       </section>
 
@@ -493,7 +493,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
             {cashRows.slice(0, 4).map((row) => (
               <article key={readString(row, 'operationId')} className="payment-cash-row">
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'))}</strong>
+                <strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t)}</strong>
                 <b>{formatMoney(readMoney(row, 'cashImpact'), currencyCode)}</b>
               </article>
             ))}

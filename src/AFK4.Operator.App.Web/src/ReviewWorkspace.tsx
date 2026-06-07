@@ -72,7 +72,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
   const reviewAuditActorLabel = (record: Record<string, unknown>) => {
     const actorStaffUserId = readString(record, 'actorStaffUserId');
     const resolved = actorStaffUserId ? staffNames[actorStaffUserId.toLowerCase()] : '';
-    return resolved || auditActorLabel(record, backend);
+    return resolved || auditActorLabel(record, backend, t);
   };
 
   const loadQueue = async (nextBackend = backend) => {
@@ -92,7 +92,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
       setRequests(readArray<MoneyActionRequestDto>(feed, 'requests'));
       const names: Record<string, string> = {};
       for (const user of staff) {
-        names[readString(user, 'staffUserId').toLowerCase()] = operatorDisplayNameLabel(readString(user, 'displayName'));
+        names[readString(user, 'staffUserId').toLowerCase()] = operatorDisplayNameLabel(readString(user, 'displayName'), t);
       }
       setStaffNames(names);
       setLoadStatus('backend');
@@ -111,7 +111,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
   const approveRequest = async (request: MoneyActionRequestDto) => {
     setFeedback({ label: t('op.review.feedbackApprove'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       await apiClients.moneyActions.approve(nextBackend.branchId, request.moneyActionRequestId, { decisionReason: null });
       setFeedback({ label: t('op.review.feedbackApprove'), state: 'confirmed' });
@@ -129,7 +129,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
     }
     setFeedback({ label: t('op.review.feedbackReject'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       await apiClients.moneyActions.reject(nextBackend.branchId, request.moneyActionRequestId, { decisionReason: reason });
       setRejectingId('');
@@ -144,7 +144,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
   const applyAuditSearch = async () => {
     setFeedback({ label: t('op.review.feedbackAudit'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const parsedMin = auditMinAmount.trim() === '' ? null : Number(auditMinAmount);
       const parsedMax = auditMaxAmount.trim() === '' ? null : Number(auditMaxAmount);
@@ -179,13 +179,13 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
           <h1>{t('op.review.heading')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.review.loadedLabel'))}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.review.loadedLabel'), t)}</span>
         </div>
       </section>
 
       <section className="state-strip review-state-strip" aria-label={t('op.review.summaryLabel')}>
         <StateFlag label={t('op.review.flagRequests')} value={String(requests.length)} critical={requests.length > 0} />
-        <StateFlag label={t('journal.col.source')} value={workspaceLoadStatusLabel(loadStatus, t('op.review.platformLabel'))} critical={loadStatus !== 'backend'} />
+        <StateFlag label={t('journal.col.source')} value={workspaceLoadStatusLabel(loadStatus, t('op.review.platformLabel'), t)} critical={loadStatus !== 'backend'} />
       </section>
 
       <div className="review-segments" role="tablist">
@@ -262,7 +262,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
                 <article key={readString(record, 'auditRecordId')} className="review-audit-row">
                   <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
                   <strong>{reviewAuditActorLabel(record)}</strong>
-                  <em>{auditActionLabel(readString(record, 'action'))}</em>
+                  <em>{auditActionLabel(readString(record, 'action'), t)}</em>
                   <b>{readNumber(record, 'amountMinorUnits', 0) > 0 ? formatMinorUnits(readNumber(record, 'amountMinorUnits', 0), currencyCode) : '—'}</b>
                 </article>
               ))

@@ -89,11 +89,9 @@ export function triggerFeedback(
   window.setTimeout(() => setFeedback({ label, state: finalState }), 620);
 }
 
-export function feedbackText(feedback: Feedback, t?: TFunc) {
+export function feedbackText(feedback: Feedback, t: TFunc) {
   if (feedback.state === 'pending') {
-    return t
-      ? t('op.helper.feedback.pending', { label: feedback.label })
-      : `${feedback.label}: ждём подтверждение платформы`;
+    return t('op.helper.feedback.pending', { label: feedback.label });
   }
 
   if (feedback.state === 'failed') {
@@ -101,9 +99,7 @@ export function feedbackText(feedback: Feedback, t?: TFunc) {
       return feedback.detail;
     }
 
-    return t
-      ? t('op.helper.feedback.failed', { label: feedback.label })
-      : `${feedback.label}: нужен повтор или проверка`;
+    return t('op.helper.feedback.failed', { label: feedback.label });
   }
 
   if (feedback.state === 'confirmed') {
@@ -111,9 +107,7 @@ export function feedbackText(feedback: Feedback, t?: TFunc) {
       return `${feedback.label}: ${feedback.detail}`;
     }
 
-    return t
-      ? t('op.helper.feedback.confirmed', { label: feedback.label })
-      : `${feedback.label}: подтверждено`;
+    return t('op.helper.feedback.confirmed', { label: feedback.label });
   }
 
   return '';
@@ -214,34 +208,34 @@ export function zoneClass(zone: string): string {
   return 'zone-a';
 }
 
-export function billingLabel(value: string, t?: TFunc) {
+export function billingLabel(value: string, t: TFunc) {
   const normalized = value.toLowerCase();
 
   if (normalized.includes('wallet')) {
-    return t ? t('op.helper.billing.deposit') : 'Депозит';
+    return t('op.helper.billing.deposit');
   }
 
   if (normalized.includes('package')) {
-    return t ? t('op.helper.billing.package') : 'Пакет';
+    return t('op.helper.billing.package');
   }
 
   if (normalized.includes('postpaid') || normalized.includes('постоплата')) {
-    return t ? t('op.helper.billing.postpaidLabel') : 'Постоплата';
+    return t('op.helper.billing.postpaidLabel');
   }
 
   if (normalized.includes('guest')) {
-    return t ? t('op.helper.billing.guestLabel') : 'Гость';
+    return t('op.helper.billing.guestLabel');
   }
 
-  return t ? t('op.helper.billing.notSet') : 'Не задан';
+  return t('op.helper.billing.notSet');
 }
 
-export function zoneLabel(zone: string, t?: TFunc): string {
+export function zoneLabel(zone: string, t: TFunc): string {
   return zone
-    .replace('Console Lounge', t ? t('op.helper.zone.consoleLounge') : 'Консольная зона')
-    .replace('Main Hall', t ? t('op.helper.zone.mainHall') : 'Основной зал')
-    .replace('VIP Room', t ? t('op.helper.zone.vipRoom') : 'VIP-зал')
-    .replace('Bootcamp', t ? t('op.helper.zone.bootcamp') : 'Буткемп');
+    .replace('Console Lounge', t('op.helper.zone.consoleLounge'))
+    .replace('Main Hall', t('op.helper.zone.mainHall'))
+    .replace('VIP Room', t('op.helper.zone.vipRoom'))
+    .replace('Bootcamp', t('op.helper.zone.bootcamp'));
 }
 
 export function appVersionLabel(app: string): string {
@@ -251,143 +245,143 @@ export function appVersionLabel(app: string): string {
     .replaceAll('Shell', 'Оболочка');
 }
 
-export function operatorDisplayNameLabel(displayName: string | null | undefined, t?: TFunc): string {
+export function operatorDisplayNameLabel(displayName: string | null | undefined, t: TFunc): string {
   const normalized = displayName?.trim();
 
   if (!normalized) {
-    return t ? t('op.helper.staff.shiftOperator') : 'Оператор смены';
+    return t('op.helper.staff.shiftOperator');
   }
 
   if (/^cashier one$/i.test(normalized)) {
-    return t ? t('op.helper.staff.shiftOperator') : 'Оператор смены';
+    return t('op.helper.staff.shiftOperator');
   }
 
   if (/^demo owner$/i.test(normalized)) {
-    return t ? t('op.helper.staff.clubAdmin') : 'Администратор клуба';
+    return t('op.helper.staff.clubAdmin');
   }
 
   if (/^local branch manager$/i.test(normalized)) {
-    return t ? t('op.helper.staff.branchMgr') : 'Менеджер филиала';
+    return t('op.helper.staff.branchMgr');
   }
 
   return normalized;
 }
 
-export function staffRoleLabel(roleName: string, t?: TFunc): string {
+export function staffRoleLabel(roleName: string, t: TFunc): string {
   switch (roleName) {
     case 'cashier_operator':
-      return t ? t('op.helper.staff.cashierOperator') : 'Кассир-оператор';
+      return t('op.helper.staff.cashierOperator');
     case 'shift_supervisor':
-      return t ? t('op.helper.staff.shiftSupervisor') : 'Старший смены';
+      return t('op.helper.staff.shiftSupervisor');
     case 'branch_manager':
-      return t ? t('op.helper.staff.branchManager') : 'Управляющий';
+      return t('op.helper.staff.branchManager');
     case 'technician':
-      return t ? t('op.helper.staff.technician') : 'Техник';
+      return t('op.helper.staff.technician');
     case 'accountant_auditor':
-      return t ? t('op.helper.staff.accountant') : 'Бухгалтер';
+      return t('op.helper.staff.accountant');
     default:
-      return roleName || (t ? t('op.helper.staff.roleNotSet') : 'Роль не задана');
+      return roleName || t('op.helper.staff.roleNotSet');
   }
 }
 
-export function updateComponentLabel(component: string, t?: TFunc): string {
+export function updateComponentLabel(component: string, t: TFunc): string {
   switch (component) {
     case 'operator-app':
-      return t ? t('op.helper.update.component.operatorApp') : 'Приложение оператора';
+      return t('op.helper.update.component.operatorApp');
     case 'agent-service':
-      return t ? t('op.helper.update.component.agentService') : 'Сервис агента';
+      return t('op.helper.update.component.agentService');
     case 'player-shell':
-      return t ? t('op.helper.update.component.playerShell') : 'Оболочка игрока';
+      return t('op.helper.update.component.playerShell');
     default:
-      return t ? t('op.helper.update.component.fallback') : 'Приложение';
+      return t('op.helper.update.component.fallback');
   }
 }
 
-export function updateChannelLabel(channel: string, t?: TFunc): string {
+export function updateChannelLabel(channel: string, t: TFunc): string {
   switch (channel) {
     case 'internal':
-      return t ? t('op.helper.update.channel.internal') : 'Внутренний';
+      return t('op.helper.update.channel.internal');
     case 'beta':
-      return t ? t('op.helper.update.channel.beta') : 'Бета';
+      return t('op.helper.update.channel.beta');
     case 'stable':
-      return t ? t('op.helper.update.channel.stable') : 'Стабильный';
+      return t('op.helper.update.channel.stable');
     default:
-      return t ? t('op.helper.update.channel.fallback') : 'Канал';
+      return t('op.helper.update.channel.fallback');
   }
 }
 
-export function updateTargetKindLabel(kind: string, t?: TFunc): string {
+export function updateTargetKindLabel(kind: string, t: TFunc): string {
   switch (kind) {
     case 'branch':
-      return t ? t('op.helper.update.target.branch') : 'Филиал';
+      return t('op.helper.update.target.branch');
     case 'device':
-      return t ? t('op.helper.update.target.device') : 'Отдельные ПК';
+      return t('op.helper.update.target.device');
     default:
-      return t ? t('op.helper.update.target.fallback') : 'Цель';
+      return t('op.helper.update.target.fallback');
   }
 }
 
-export function updatePackageStateLabel(state: string, t?: TFunc): string {
+export function updatePackageStateLabel(state: string, t: TFunc): string {
   switch (state) {
     case 'registered':
-      return t ? t('op.helper.update.pkgState.registered') : 'Зарегистрирован';
+      return t('op.helper.update.pkgState.registered');
     case 'validated':
-      return t ? t('op.helper.update.pkgState.validated') : 'Проверен';
+      return t('op.helper.update.pkgState.validated');
     case 'rejected':
-      return t ? t('op.helper.update.pkgState.rejected') : 'Отклонён';
+      return t('op.helper.update.pkgState.rejected');
     case 'retired':
-      return t ? t('op.helper.update.pkgState.retired') : 'Выведен';
+      return t('op.helper.update.pkgState.retired');
     default:
-      return t ? t('op.helper.update.pkgState.fallback') : 'Состояние';
+      return t('op.helper.update.pkgState.fallback');
   }
 }
 
-export function updateRolloutStateLabel(state: string, t?: TFunc): string {
+export function updateRolloutStateLabel(state: string, t: TFunc): string {
   switch (state) {
     case 'active':
-      return t ? t('op.helper.update.rollout.active') : 'Активна';
+      return t('op.helper.update.rollout.active');
     case 'paused':
-      return t ? t('op.helper.update.rollout.paused') : 'Пауза';
+      return t('op.helper.update.rollout.paused');
     case 'completed':
-      return t ? t('op.helper.update.rollout.completed') : 'Завершена';
+      return t('op.helper.update.rollout.completed');
     case 'rollback_requested':
-      return t ? t('op.helper.update.rollout.rollbackRequested') : 'Запрошен откат';
+      return t('op.helper.update.rollout.rollbackRequested');
     case 'rolled_back':
-      return t ? t('op.helper.update.rollout.rolledBack') : 'Откат выполнен';
+      return t('op.helper.update.rollout.rolledBack');
     case 'cancelled':
-      return t ? t('op.helper.update.rollout.cancelled') : 'Отменена';
+      return t('op.helper.update.rollout.cancelled');
     default:
-      return t ? t('op.helper.update.rollout.fallback') : 'Состояние';
+      return t('op.helper.update.rollout.fallback');
   }
 }
 
-export function updateDeviceStatusLabel(status: string, t?: TFunc): string {
+export function updateDeviceStatusLabel(status: string, t: TFunc): string {
   switch (status) {
     case 'installed':
-      return t ? t('op.helper.update.deviceStatus.installed') : 'Установлено';
+      return t('op.helper.update.deviceStatus.installed');
     case 'target reached':
-      return t ? t('op.helper.update.deviceStatus.reached') : 'Цель достигнута';
+      return t('op.helper.update.deviceStatus.reached');
     case 'pending':
-      return t ? t('op.helper.update.deviceStatus.pending') : 'Ожидает';
+      return t('op.helper.update.deviceStatus.pending');
     case 'failed':
-      return t ? t('op.helper.update.deviceStatus.failed') : 'Ошибка';
+      return t('op.helper.update.deviceStatus.failed');
     default:
-      return t ? t('op.helper.update.deviceStatus.unknown') : 'Неизвестно';
+      return t('op.helper.update.deviceStatus.unknown');
   }
 }
 
-export function stockMovementTypeLabel(type: string, t?: TFunc): string {
+export function stockMovementTypeLabel(type: string, t: TFunc): string {
   switch (type) {
     case 'purchase':
-      return t ? t('op.helper.stock.purchase') : 'Приход';
+      return t('op.helper.stock.purchase');
     case 'adjustment':
-      return t ? t('op.helper.stock.adjustment') : 'Коррекция';
+      return t('op.helper.stock.adjustment');
     case 'sale':
-      return t ? t('op.helper.stock.sale') : 'Продажа';
+      return t('op.helper.stock.sale');
     case 'write_off':
-      return t ? t('op.helper.stock.writeOff') : 'Списание';
+      return t('op.helper.stock.writeOff');
     default:
-      return t ? t('op.helper.stock.fallback') : 'Движение';
+      return t('op.helper.stock.fallback');
   }
 }
 
@@ -403,45 +397,45 @@ export function updateDeviceMessageLabel(message: string): string {
   return commandStatusMessageLabel(message);
 }
 
-export function commandLabel(command: string, t?: TFunc) {
+export function commandLabel(command: string, t: TFunc) {
   if (command.includes('Lease fresh')) {
-    return t ? t('op.helper.command.leased') : 'Сессия подтверждена';
+    return t('op.helper.command.leased');
   }
 
   if (command.includes('Unlock pending')) {
-    return t ? t('op.helper.command.unlockPending') : 'Разблокировка в процессе';
+    return t('op.helper.command.unlockPending');
   }
 
   if (command.includes('Start pending')) {
-    return t ? t('op.helper.command.startPending') : 'Запуск в процессе';
+    return t('op.helper.command.startPending');
   }
 
   if (command.includes('Stop pending')) {
-    return t ? t('op.helper.command.stopPending') : 'Завершение в процессе';
+    return t('op.helper.command.stopPending');
   }
 
   if (command.includes('Payment check')) {
-    return t ? t('op.helper.command.paymentCheck') : 'Проверить оплату';
+    return t('op.helper.command.paymentCheck');
   }
 
   if (command.includes('No route')) {
-    return t ? t('op.helper.command.noRoute') : 'Нет связи с ПК';
+    return t('op.helper.command.noRoute');
   }
 
   if (command.includes('Idle')) {
-    return t ? t('op.helper.command.idle') : 'Команд нет';
+    return t('op.helper.command.idle');
   }
 
   if (command.includes('Command failed')) {
-    return t ? t('op.helper.command.failed') : 'Команда не выполнена';
+    return t('op.helper.command.failed');
   }
 
   if (command.includes('Technician')) {
-    return t ? t('op.helper.command.tech') : 'Техобслуживание';
+    return t('op.helper.command.tech');
   }
 
   if (command.includes('Low balance')) {
-    return t ? t('op.helper.command.lowBalance') : 'Мало средств';
+    return t('op.helper.command.lowBalance');
   }
 
   return command;
@@ -459,86 +453,86 @@ export function deviceStatusLabel(device: string) {
     .replace('locked', 'заблокирован');
 }
 
-export function mapSeatStatus(seat: SeatSummary, t?: TFunc) {
+export function mapSeatStatus(seat: SeatSummary, t: TFunc) {
   if (seat.tone === 'active') {
     return {
-      label: t ? t('op.helper.map.sessionActive') : 'Сессия активна',
+      label: t('op.helper.map.sessionActive'),
       value: seat.remaining
     };
   }
 
   if (seat.tone === 'ready') {
     return {
-      label: t ? t('op.helper.map.ready') : 'Свободен',
-      value: t ? t('op.helper.map.readyValue') : 'готов к старту'
+      label: t('op.helper.map.ready'),
+      value: t('op.helper.map.readyValue')
     };
   }
 
   if (seat.tone === 'pending') {
     return {
-      label: t ? t('op.helper.map.commandEnRoute') : 'Команда в пути',
+      label: t('op.helper.map.commandEnRoute'),
       value: commandLabel(seat.command, t)
     };
   }
 
   if (seat.tone === 'warning') {
     return {
-      label: t ? t('op.helper.map.needsCheck') : 'Требует проверки',
+      label: t('op.helper.map.needsCheck'),
       value: commandLabel(seat.command, t)
     };
   }
 
   if (seat.tone === 'offline') {
     return {
-      label: t ? t('op.helper.map.noSignal') : 'Нет связи',
+      label: t('op.helper.map.noSignal'),
       value: commandLabel(seat.command, t)
     };
   }
 
   return {
-    label: t ? t('op.helper.map.service') : 'Сервис',
+    label: t('op.helper.map.service'),
     value: commandLabel(seat.command, t)
   };
 }
 
-export function floorMapLoadLabel(status: FloorMapLoadStatus, source: OperatorFloorMapState['source'], error: string | null, t?: TFunc) {
+export function floorMapLoadLabel(status: FloorMapLoadStatus, source: OperatorFloorMapState['source'], error: string | null, t: TFunc) {
   if (status === 'loading') {
     return source === 'backend'
-      ? (t ? t('op.helper.shift.mapUpdating') : 'Обновляем карту')
-      : (t ? t('op.helper.shift.mapLoading') : 'Загружаем карту');
+      ? t('op.helper.shift.mapUpdating')
+      : t('op.helper.shift.mapLoading');
   }
 
   if (status === 'failed') {
     return error
-      ? (t ? t('op.helper.shift.platformError', { error }) : `Ошибка платформы · ${error}`)
-      : (t ? t('op.helper.shift.platformErrorApi') : 'Ошибка платформы · API недоступен');
+      ? t('op.helper.shift.platformError', { error })
+      : t('op.helper.shift.platformErrorApi');
   }
 
   return source === 'backend'
-    ? (t ? t('op.helper.shift.platformConnected') : 'Платформа подключена')
-    : (t ? t('op.helper.shift.localData') : 'Локальные данные');
+    ? t('op.helper.shift.platformConnected')
+    : t('op.helper.shift.localData');
 }
 
-export function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string, t?: TFunc): string {
+export function workspaceLoadStatusLabel(status: LoadStatus, backendLabel: string, t: TFunc): string {
   if (status === 'backend') {
     return backendLabel;
   }
 
   if (status === 'loading') {
-    return t ? t('op.helper.shift.dataLoading') : 'Загружаем данные';
+    return t('op.helper.shift.dataLoading');
   }
 
   if (status === 'failed') {
-    return t ? t('op.helper.shift.loadError') : 'Ошибка платформы';
+    return t('op.helper.shift.loadError');
   }
 
-  return t ? t('op.helper.shift.localData') : 'Локальные данные';
+  return t('op.helper.shift.localData');
 }
 
-export function dataSourceLabel(source: string, t?: TFunc): string {
+export function dataSourceLabel(source: string, t: TFunc): string {
   return source === 'backend'
-    ? (t ? t('op.helper.shift.platformConnected') : 'Платформа подключена')
-    : (t ? t('op.helper.shift.localData') : 'Локальные данные');
+    ? t('op.helper.shift.platformConnected')
+    : t('op.helper.shift.localData');
 }
 
 export function shellShiftLabel(
@@ -546,63 +540,57 @@ export function shellShiftLabel(
   summary: OperatorDashboardSummaryDto | null,
   status: LoadStatus,
   error: string | null,
-  t?: TFunc
+  t: TFunc
 ): string {
   const shiftSource = shift ?? readRecord(summary, 'shift');
   if (shiftSource !== null) {
     const state = readString(shiftSource, 'state').toLowerCase();
     if (state === 'open') {
-      return t
-        ? t('op.helper.shift.open', { time: formatTime(readString(shiftSource, 'openedAtUtc')) })
-        : `Смена открыта · с ${formatTime(readString(shiftSource, 'openedAtUtc'))}`;
+      return t('op.helper.shift.open', { time: formatTime(readString(shiftSource, 'openedAtUtc')) });
     }
 
     if (state === 'closed') {
-      return t
-        ? t('op.helper.shift.closed', { time: formatTime(readString(shiftSource, 'closedAtUtc')) })
-        : `Смена закрыта · ${formatTime(readString(shiftSource, 'closedAtUtc'))}`;
+      return t('op.helper.shift.closed', { time: formatTime(readString(shiftSource, 'closedAtUtc')) });
     }
 
-    const stateStr = state || (t ? t('op.helper.shift.stateUnknown') : 'состояние неизвестно');
-    return t ? t('op.helper.shift.state', { state: stateStr }) : `Смена · ${stateStr}`;
+    const stateStr = state || t('op.helper.shift.stateUnknown');
+    return t('op.helper.shift.state', { state: stateStr });
   }
 
   if (status === 'loading') {
-    return t ? t('op.helper.shift.loading') : 'Смена · загрузка';
+    return t('op.helper.shift.loading');
   }
 
   if (status === 'failed') {
     return error
-      ? (t ? t('op.helper.shift.error') : 'Смена · ошибка платформы')
-      : (t ? t('op.helper.shift.noAccess') : 'Смена · нет доступа');
+      ? t('op.helper.shift.error')
+      : t('op.helper.shift.noAccess');
   }
 
-  return t ? t('op.helper.shift.notOpen') : 'Смена не открыта';
+  return t('op.helper.shift.notOpen');
 }
 
-export function shellPosLabel(summary: OperatorDashboardSummaryDto | null, status: LoadStatus, t?: TFunc): string {
+export function shellPosLabel(summary: OperatorDashboardSummaryDto | null, status: LoadStatus, t: TFunc): string {
   if (summary !== null) {
     const revenue = readRecord(summary, 'revenue');
     const posChecks = readNumber(revenue, 'posCheckCount', 0);
-    return t
-      ? t('op.helper.shell.posChecks', { count: posChecks })
-      : `Касса: ${posChecks} чеков сегодня`;
+    return t('op.helper.shell.posChecks', { count: posChecks });
   }
 
   if (status === 'loading') {
-    return t ? t('op.helper.shell.posLoading') : 'Касса: загрузка';
+    return t('op.helper.shell.posLoading');
   }
 
-  return t ? t('op.helper.shell.posNoData') : 'Касса: нет данных';
+  return t('op.helper.shell.posNoData');
 }
 
-export function shellModeLabel(mode: string, t?: TFunc): string {
+export function shellModeLabel(mode: string, t: TFunc): string {
   if (mode.includes('dev')) {
-    return t ? t('op.helper.shell.modeDev') : 'локальная сборка';
+    return t('op.helper.shell.modeDev');
   }
 
   if (mode.includes('dist')) {
-    return t ? t('op.helper.shell.modeDist') : 'установленная сборка';
+    return t('op.helper.shell.modeDist');
   }
 
   return mode;
@@ -630,36 +618,34 @@ export function describeTechModeResult(
   });
 }
 
-export function projectAuthHostError(error: unknown, config: OperatorConfig, t?: TFunc): string {
+export function projectAuthHostError(error: unknown, config: OperatorConfig, t: TFunc): string {
   if (isHostBridgeUnavailableError(error) && config.runtime !== 'browser-dev') {
-    return t
-      ? t('op.shell.err.nativeAuthUnavailable')
-      : 'Нативный вход приложения оператора недоступен. Перезапустите приложение или проверьте WebView2.';
+    return t('op.shell.err.nativeAuthUnavailable');
   }
 
   return projectOperatorError(error).detail;
 }
 
-export function projectOperatorFacingError(error: unknown, t?: TFunc): string {
+export function projectOperatorFacingError(error: unknown, t: TFunc): string {
   const detail = projectOperatorError(error).detail;
   const platformDetail = extractPlatformError(detail);
 
   if (detail.includes('Only active or paused sessions can be ended') ||
     platformDetail?.includes('Only active or paused sessions can be ended')) {
-    return t ? t('op.helper.error.sessionEnded') : 'Сеанс уже завершается или завершён. Дождитесь обновления карты.';
+    return t('op.helper.error.sessionEnded');
   }
 
   if (detail.includes('401 Unauthorized')) {
-    return t ? t('op.helper.error.sessionExpired') : 'Сессия оператора устарела. Войдите снова.';
+    return t('op.helper.error.sessionExpired');
   }
 
   if (platformDetail) {
     return platformDetail;
   }
 
-  const badRequest = t ? t('op.helper.error.badRequest') : 'Платформа отклонила запрос:';
-  const serverError = t ? t('op.helper.error.serverError') : 'Платформа временно недоступна:';
-  const sessionExpired = t ? t('op.helper.error.sessionExpired') : 'Сессия оператора устарела.';
+  const badRequest = t('op.helper.error.badRequest');
+  const serverError = t('op.helper.error.serverError');
+  const sessionExpired = t('op.helper.error.sessionExpired');
 
   return detail
     .replace('Platform API returned 400 Bad Request:', badRequest)
@@ -682,22 +668,22 @@ export function extractPlatformError(detail: string): string | null {
   }
 }
 
-export function realtimeLabel(state: OperatorRealtimeConnectionState, error: string | null, t?: TFunc): string {
+export function realtimeLabel(state: OperatorRealtimeConnectionState, error: string | null, t: TFunc): string {
   if (state === 'connected') {
-    return t ? t('op.helper.realtime.connected') : 'Связь подключена';
+    return t('op.helper.realtime.connected');
   }
 
   if (state === 'connecting') {
-    return t ? t('op.helper.realtime.connecting') : 'Связь устанавливается';
+    return t('op.helper.realtime.connecting');
   }
 
   if (state === 'reconnecting') {
-    return t ? t('op.helper.realtime.reconnecting') : 'Связь восстанавливается';
+    return t('op.helper.realtime.reconnecting');
   }
 
   return error
-    ? (t ? t('op.helper.realtime.lost') : 'Связь потеряна')
-    : (t ? t('op.helper.realtime.disconnected') : 'Связь отключена');
+    ? t('op.helper.realtime.lost')
+    : t('op.helper.realtime.disconnected');
 }
 
 export function resolveActiveBranchId(session: OperatorAuthSession, configBranchId?: string): string | null {
@@ -991,64 +977,50 @@ export function downloadTextFile(fileName: string, contents: string, mimeType = 
   window.URL.revokeObjectURL(url);
 }
 
-export function posSaleStateLabel(state: string, t?: TFunc): string {
+export function posSaleStateLabel(state: string, t: TFunc): string {
   switch (state.toLowerCase()) {
     case 'paid':
-      return t ? t('op.helper.pos.saleState.paid') : 'Оплачен';
+      return t('op.helper.pos.saleState.paid');
     case 'draft':
-      return t ? t('op.helper.pos.saleState.draft') : 'Черновик';
+      return t('op.helper.pos.saleState.draft');
     case 'void':
     case 'voided':
-      return t ? t('op.helper.pos.saleState.voided') : 'Аннулирован';
+      return t('op.helper.pos.saleState.voided');
     case 'refund':
     case 'refunded':
-      return t ? t('op.helper.pos.saleState.refund') : 'Возврат';
+      return t('op.helper.pos.saleState.refund');
     case 'pending':
-      return t ? t('op.helper.pos.saleState.pending') : 'Ожидает оплаты';
+      return t('op.helper.pos.saleState.pending');
     case 'sale':
-      return t ? t('op.helper.pos.saleState.sale') : 'Продажа';
+      return t('op.helper.pos.saleState.sale');
     default:
-      return t ? t('op.helper.pos.saleState.fallback') : 'Чек';
+      return t('op.helper.pos.saleState.fallback');
   }
 }
 
-export function posReceiptTypeLabel(type: string, t?: TFunc): string {
+export function posReceiptTypeLabel(type: string, t: TFunc): string {
   switch (type.toLowerCase()) {
     case 'sale':
     case 'paid':
-      return t ? t('op.helper.pos.receiptType.sale') : 'Продажа';
+      return t('op.helper.pos.receiptType.sale');
     case 'refund':
     case 'refunded':
-      return t ? t('op.helper.pos.receiptType.refund') : 'Возврат';
+      return t('op.helper.pos.receiptType.refund');
     case 'void':
     case 'voided':
-      return t ? t('op.helper.pos.receiptType.void') : 'Аннулирование';
+      return t('op.helper.pos.receiptType.void');
     default:
-      return t ? t('op.helper.pos.receiptType.fallback') : 'Чек';
+      return t('op.helper.pos.receiptType.fallback');
   }
 }
 
-export function posSaleLineSummary(row: unknown, t?: TFunc): string {
+export function posSaleLineSummary(row: unknown, t: TFunc): string {
   const lineCount = readNumber(row, 'lineCount', 0);
   const itemQuantity = readNumber(row, 'itemQuantity', 0);
-  return t
-    ? t('op.helper.pos.lineSummary', { lines: lineCount, qty: itemQuantity })
-    : `${lineCount} строк · ${itemQuantity} шт.`;
+  return t('op.helper.pos.lineSummary', { lines: lineCount, qty: itemQuantity });
 }
 
-export function shiftStateLabel(state: string, t?: TFunc): string {
-  if (!t) {
-    // Fallback for callers (e.g. export JSON) that don't pass t
-    switch (state.toLowerCase()) {
-      case 'open': return 'Открыта';
-      case 'closed': return 'Закрыта';
-      case 'closing': return 'Закрывается';
-      case 'unknown': return 'Неизвестно';
-      case 'нет смены': return 'Нет';
-      default: return state ? 'Неизвестно' : 'Нет';
-    }
-  }
-
+export function shiftStateLabel(state: string, t: TFunc): string {
   switch (state.toLowerCase()) {
     case 'open':
       return t('op.status.open');
@@ -1065,43 +1037,43 @@ export function shiftStateLabel(state: string, t?: TFunc): string {
   }
 }
 
-export function cashOperationTypeLabel(type: string, t?: TFunc): string {
+export function cashOperationTypeLabel(type: string, t: TFunc): string {
   switch (type.toLowerCase()) {
     case 'opening':
-      return t ? t('op.helper.billing.cashOp.opening') : 'Открытие смены';
+      return t('op.helper.billing.cashOp.opening');
     case 'closing':
-      return t ? t('op.helper.billing.cashOp.closing') : 'Закрытие смены';
+      return t('op.helper.billing.cashOp.closing');
     case 'cash_in':
-      return t ? t('op.helper.billing.cashOp.cashIn') : 'Внесение';
+      return t('op.helper.billing.cashOp.cashIn');
     case 'cash_out':
-      return t ? t('op.helper.billing.cashOp.cashOut') : 'Изъятие';
+      return t('op.helper.billing.cashOp.cashOut');
     case 'refund':
-      return t ? t('op.helper.billing.cashOp.refund') : 'Возврат';
+      return t('op.helper.billing.cashOp.refund');
     default:
-      return t ? t('op.helper.billing.cashOp.fallback') : 'Движение кассы';
+      return t('op.helper.billing.cashOp.fallback');
   }
 }
 
-export function paymentSourceLabel(source: string, t?: TFunc): string {
+export function paymentSourceLabel(source: string, t: TFunc): string {
   switch (source.toLowerCase()) {
     case 'shift':
-      return t ? t('op.helper.billing.paySource.shift') : 'Смена';
+      return t('op.helper.billing.paySource.shift');
     case 'cash':
-      return t ? t('op.helper.billing.paySource.cash') : 'Наличные';
+      return t('op.helper.billing.paySource.cash');
     case 'pos':
     case 'sale':
-      return t ? t('op.helper.billing.paySource.sale') : 'Продажа';
+      return t('op.helper.billing.paySource.sale');
     default:
-      return t ? t('op.helper.billing.paySource.fallback') : 'Касса';
+      return t('op.helper.billing.paySource.fallback');
   }
 }
 
-export function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> | null, currencyCode: string, t?: TFunc): string {
-  const receiptNumber = readString(receipt, 'receiptNumber', 'чек');
+export function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, unknown> | null, currencyCode: string, t: TFunc): string {
+  const receiptNumber = readString(receipt, 'receiptNumber', t('op.pos.receipts.receiptFallback'));
   const receiptType = posReceiptTypeLabel(readString(receipt, 'receiptType', readString(sale, 'state', 'sale')), t);
   const createdAtUtc = readString(receipt, 'createdAtUtc', readString(sale, 'createdAtUtc'));
-  const productFallback = t ? t('op.helper.pos.productFallback') : 'Товар';
-  const unitSuffix = t ? t('op.helper.pos.unitSuffix') : 'шт.';
+  const productFallback = t('op.helper.pos.productFallback');
+  const unitSuffix = t('op.helper.pos.unitSuffix');
   const lines = readArray(sale, 'lines').map((line) => [
     readString(line, 'productName', productFallback),
     `${readNumber(line, 'quantity', 0)} ${unitSuffix}`,
@@ -1109,114 +1081,106 @@ export function buildPosReceiptText(sale: PosSaleDto, receipt: Record<string, un
     formatMoney(readMoney(line, 'lineTotal'), currencyCode)
   ].join(' | '));
 
-  const header = t ? t('op.helper.pos.receiptHeader') : 'AFK4.NET Касса';
-  const numLine = t ? t('op.helper.pos.receiptNumber', { number: receiptNumber }) : `Чек: ${receiptNumber}`;
-  const typeLine = t ? t('op.helper.pos.receiptType', { type: receiptType }) : `Тип: ${receiptType}`;
-  const createdLine = t ? t('op.helper.pos.receiptCreated', { date: createdAtUtc || '—' }) : `Создан: ${createdAtUtc || '—'}`;
-  const totalLine = t
-    ? t('op.helper.pos.receiptTotal', { total: formatMoney(readMoney(sale, 'total'), currencyCode) })
-    : `Итого: ${formatMoney(readMoney(sale, 'total'), currencyCode)}`;
+  const header = t('op.helper.pos.receiptHeader');
+  const numLine = t('op.helper.pos.receiptNumber', { number: receiptNumber });
+  const typeLine = t('op.helper.pos.receiptType', { type: receiptType });
+  const createdLine = t('op.helper.pos.receiptCreated', { date: createdAtUtc || '—' });
+  const totalLine = t('op.helper.pos.receiptTotal', { total: formatMoney(readMoney(sale, 'total'), currencyCode) });
 
   return [header, numLine, typeLine, createdLine, '', ...lines, '', totalLine].join('\n');
 }
 
-export function requireBackend(backend: OperatorBackendContext | null, t?: TFunc): OperatorBackendContext {
+export function requireBackend(backend: OperatorBackendContext | null, t: TFunc): OperatorBackendContext {
   if (backend === null) {
-    throw new Error(t ? t('op.helper.error.sessionUnavailable') : 'Сессия оператора недоступна.');
+    throw new Error(t('op.helper.error.sessionUnavailable'));
   }
 
   return backend;
 }
 
-export function billingModeLabel(mode: SessionBillingModeId, t?: TFunc) {
-  return billingModeOptions(t ?? ((k: string) => k)).find((option) => option.id === mode)?.label ?? mode;
+export function billingModeLabel(mode: SessionBillingModeId, t: TFunc) {
+  return billingModeOptions(t).find((option) => option.id === mode)?.label ?? mode;
 }
 
-export function tariffOptionLabel(tariff: Record<string, unknown>, currencyCode: string, t?: TFunc) {
-  const name = readString(tariff, 'name', t ? t('op.helper.player.tariffFallback') : 'Тариф');
+export function tariffOptionLabel(tariff: Record<string, unknown>, currencyCode: string, t: TFunc) {
+  const name = readString(tariff, 'name', t('op.helper.player.tariffFallback'));
   const price = readNumber(tariff, 'pricePerMinuteMinorUnits', 0);
   const currency = readString(tariff, 'currencyCode', currencyCode);
-  return t
-    ? t('op.helper.player.tariffPerMin', { name, price: formatMinorUnits(price, currency) })
-    : `${name} · ${formatMinorUnits(price, currency)}/мин`;
+  return t('op.helper.player.tariffPerMin', { name, price: formatMinorUnits(price, currency) });
 }
 
-export function playerPackageLabel(playerPackage: Record<string, unknown>, t?: TFunc) {
+export function playerPackageLabel(playerPackage: Record<string, unknown>, t: TFunc) {
   const remainingSeconds = readNumber(playerPackage, 'remainingIncludedSeconds', 0) +
     readNumber(playerPackage, 'remainingBonusSeconds', 0);
-  const name = readString(playerPackage, 'name', t ? t('op.helper.player.packageFallback') : 'Пакет');
+  const name = readString(playerPackage, 'name', t('op.helper.player.packageFallback'));
   const minutes = Math.floor(remainingSeconds / 60);
-  return t
-    ? t('op.helper.player.packageLabel', { name, minutes })
-    : `${name} · ${minutes} мин`;
+  return t('op.helper.player.packageLabel', { name, minutes });
 }
 
-export function packageOptionLabel(packageOption: Record<string, unknown>, currencyCode: string, t?: TFunc) {
-  const name = readString(packageOption, 'name', t ? t('op.helper.player.packageFallback') : 'Пакет');
+export function packageOptionLabel(packageOption: Record<string, unknown>, currencyCode: string, t: TFunc) {
+  const name = readString(packageOption, 'name', t('op.helper.player.packageFallback'));
   const price = readNumber(packageOption, 'priceMinorUnits', 0);
   const currency = readString(packageOption, 'currencyCode', currencyCode);
   const totalMinutes = Math.floor((readNumber(packageOption, 'includedSeconds', 0) + readNumber(packageOption, 'bonusSeconds', 0)) / 60);
-  return t
-    ? t('op.helper.player.packageOptionLabel', { name, price: formatMinorUnits(price, currency), minutes: totalMinutes })
-    : `${name} · ${formatMinorUnits(price, currency)} · ${totalMinutes} мин`;
+  return t('op.helper.player.packageOptionLabel', { name, price: formatMinorUnits(price, currency), minutes: totalMinutes });
 }
 
-export function describeDeviceCommandStatus(status: Record<string, unknown>) {
+export function describeDeviceCommandStatus(status: Record<string, unknown>, t: TFunc) {
   const type = readString(status, 'type', 'command');
   const state = readString(status, 'status', 'pending');
   const message = readString(status, 'message');
-  const typeLabel = commandTypeLabel(type);
-  const stateLabel = commandStatusLabel(state);
+  const typeLabel = commandTypeLabel(type, t);
+  const stateLabel = commandStatusLabel(state, t);
   const messageLabel = commandStatusMessageLabel(message);
   return messageLabel ? `${typeLabel}: ${stateLabel} · ${messageLabel}` : `${typeLabel}: ${stateLabel}`;
 }
 
-export function describeSessionCommandFallback(response: unknown, t?: TFunc) {
+export function describeSessionCommandFallback(response: unknown, t: TFunc) {
   const commands = readArray<Record<string, unknown>>(response, 'deviceCommands');
   if (commands.length === 0) {
-    return t ? t('op.helper.command.platformConfirmed') : 'Платформа подтвердила действие';
+    return t('op.helper.command.platformConfirmed');
   }
 
   const command = commands[0];
-  const sentLabel = t ? t('op.helper.command.sentToPc') : 'отправлена на ПК';
+  const sentLabel = t('op.helper.command.sentToPc');
   return `${commandTypeLabel(readString(command, 'type', 'command'), t)}: ${sentLabel}`;
 }
 
-export function commandTypeLabel(type: string, t?: TFunc): string {
+export function commandTypeLabel(type: string, t: TFunc): string {
   switch (type.toLowerCase()) {
     case 'lock':
-      return t ? t('op.helper.command.type.lock') : 'Блокировка';
+      return t('op.helper.command.type.lock');
     case 'unlock':
-      return t ? t('op.helper.command.type.unlock') : 'Разблокировка';
+      return t('op.helper.command.type.unlock');
     case 'transfer':
-      return t ? t('op.helper.command.type.transfer') : 'Перенос';
+      return t('op.helper.command.type.transfer');
     case 'reboot':
-      return t ? t('op.helper.command.type.reboot') : 'Перезагрузка';
+      return t('op.helper.command.type.reboot');
     case 'shutdown':
-      return t ? t('op.helper.command.type.shutdown') : 'Выключение';
+      return t('op.helper.command.type.shutdown');
     case 'refresh-session-lease':
-      return t ? t('op.helper.command.type.refreshSession') : 'Обновление сессии';
+      return t('op.helper.command.type.refreshSession');
     default:
-      return t ? t('op.helper.command.type.fallback') : 'Команда';
+      return t('op.helper.command.type.fallback');
   }
 }
 
-export function commandStatusLabel(status: string, t?: TFunc): string {
+export function commandStatusLabel(status: string, t: TFunc): string {
   switch (status.toLowerCase()) {
     case 'pending':
-      return t ? t('op.helper.command.status.pending') : 'ожидает выполнения';
+      return t('op.helper.command.status.pending');
     case 'sent':
     case 'accepted':
     case 'in_progress':
-      return t ? t('op.helper.command.status.inProgress') : 'выполняется';
+      return t('op.helper.command.status.inProgress');
     case 'completed':
     case 'succeeded':
-      return t ? t('op.helper.command.status.done') : 'выполнена';
+      return t('op.helper.command.status.done');
     case 'failed':
-      return t ? t('op.helper.command.status.failed') : 'не выполнена';
+      return t('op.helper.command.status.failed');
     case 'cancelled':
     case 'canceled':
-      return t ? t('op.helper.command.status.cancelled') : 'отменена';
+      return t('op.helper.command.status.cancelled');
     default:
       return status;
   }
@@ -1246,7 +1210,7 @@ export async function describeSeatActionResult(
   session: OperatorAuthSession,
   seat: SeatSummary,
   response: unknown,
-  t?: TFunc
+  t: TFunc
 ) {
   const fallback = describeSessionCommandFallback(response, t);
   const command = readArray<Record<string, unknown>>(response, 'deviceCommands')[0];
@@ -1262,11 +1226,9 @@ export async function describeSeatActionResult(
   }
 
   try {
-    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId));
+    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId), t);
   } catch (error) {
-    const statusUnavail = t
-      ? t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error).detail })
-      : `статус недоступен: ${projectOperatorError(error).detail}`;
+    const statusUnavail = t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error).detail });
     return `${fallback} · ${statusUnavail}`;
   }
 }
@@ -1276,22 +1238,20 @@ export async function describeDispatchedDeviceCommand(
   session: OperatorAuthSession,
   seat: SeatSummary,
   command: Record<string, unknown>,
-  t?: TFunc
+  t: TFunc
 ): Promise<string> {
   const commandId = readString(command, 'commandId');
   const deviceId = seat.deviceId || readString(command, 'deviceId');
-  const sentLabel = t ? t('op.helper.command.sentToPc') : 'отправлена на ПК';
+  const sentLabel = t('op.helper.command.sentToPc');
   const fallback = `${commandTypeLabel(readString(command, 'type', 'command'), t)}: ${sentLabel}`;
   if (!commandId || !deviceId || !hasPermission(session, permissionNames.viewDeviceCommandStatus)) {
     return fallback;
   }
 
   try {
-    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId));
+    return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId), t);
   } catch (error) {
-    const statusUnavail = t
-      ? t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error).detail })
-      : `статус недоступен: ${projectOperatorError(error).detail}`;
+    const statusUnavail = t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error).detail });
     return `${fallback} · ${statusUnavail}`;
   }
 }
@@ -1309,29 +1269,27 @@ export type PlayerClientItem = {
   source: 'fixture' | 'backend';
 };
 
-export function fixturePlayers(currencyCode: string, t?: TFunc): PlayerClientItem[] {
-  const example = t ? t('op.helper.player.fixture.example') : 'пример';
+export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem[] {
+  const example = t('op.helper.player.fixture.example');
   return [
-    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'vip', detail: t ? t('op.helper.player.fixture.localCard') : 'локальная карточка', phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'vip', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
     { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
-    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t ? t('op.helper.player.fixture.debtDetail') : 'долг после сеанса', phoneNumber: '', source: 'fixture' }
+    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture' }
   ];
 }
 
-export function projectPlayerClient(player: unknown, t?: TFunc): PlayerClientItem {
+export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem {
   const debt = readNumber(player, 'debtBalanceMinorUnits', 0);
   const packages = readNumber(player, 'activePackageCount', 0);
   const isActive = isRecord(player) && player.isActive !== false;
-  const phone = readString(player, 'phoneNumber', t ? t('op.helper.player.noPhone') : 'без телефона');
+  const phone = readString(player, 'phoneNumber', t('op.helper.player.noPhone'));
   const lastLabel = packages > 0
-    ? (t ? t('op.helper.player.packageCount', { count: packages }) : `${packages} пак.`)
-    : (t ? t('op.helper.player.platform') : 'платформа');
-  const detail = t
-    ? t('op.helper.player.detail', { phone, packages })
-    : `${phone} · ${packages} пакетов`;
+    ? t('op.helper.player.packageCount', { count: packages })
+    : t('op.helper.player.platform');
+  const detail = t('op.helper.player.detail', { phone, packages });
   return {
     playerAccountId: readString(player, 'playerAccountId') || undefined,
-    name: readString(player, 'displayName', t ? t('op.helper.player.nameFallback') : 'Игрок'),
+    name: readString(player, 'displayName', t('op.helper.player.nameFallback')),
     // Status values are sentinels compared in BackendPlayersWorkspace — keep raw Russian
     status: debt > 0 ? 'Долг' : packages > 0 ? 'Пакет' : isActive ? 'Активен' : 'Неактивен',
     balanceMinorUnits: readNumber(player, 'walletBalanceMinorUnits', 0),
@@ -1348,75 +1306,75 @@ export function isGuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim());
 }
 
-export function auditActionLabel(action: string, t?: TFunc): string {
+export function auditActionLabel(action: string, t: TFunc): string {
   const normalized = action.toLowerCase();
   switch (normalized) {
     case 'pos.sale.create':
     case 'pos.sales.create':
-      return t ? t('op.helper.audit.saleCreated') : 'Продажа создана';
+      return t('op.helper.audit.saleCreated');
     case 'pos.sale.refund':
     case 'pos.sales.refund':
-      return t ? t('op.helper.audit.saleRefund') : 'Возврат по чеку';
+      return t('op.helper.audit.saleRefund');
     case 'pos.sale.void':
     case 'pos.sales.void':
-      return t ? t('op.helper.audit.saleVoid') : 'Чек аннулирован';
+      return t('op.helper.audit.saleVoid');
     case 'sessions.start':
     case 'session.start':
-      return t ? t('op.helper.audit.sessionStart') : 'Сессия запущена';
+      return t('op.helper.audit.sessionStart');
     case 'sessions.extend':
     case 'session.extend':
-      return t ? t('op.helper.audit.sessionExtend') : 'Сессия продлена';
+      return t('op.helper.audit.sessionExtend');
     case 'sessions.end':
     case 'session.end':
-      return t ? t('op.helper.audit.sessionEnd') : 'Сессия завершена';
+      return t('op.helper.audit.sessionEnd');
     case 'identity.staff.create':
-      return t ? t('op.helper.audit.staffCreate') : 'Сотрудник добавлен';
+      return t('op.helper.audit.staffCreate');
     case 'identity.staff.roles.update':
-      return t ? t('op.helper.audit.staffRolesUpdate') : 'Роли сотрудника изменены';
+      return t('op.helper.audit.staffRolesUpdate');
     case 'updates.rollouts.view':
-      return t ? t('op.helper.audit.updatesView') : 'Проверка публикаций обновлений';
+      return t('op.helper.audit.updatesView');
     case 'updates.rollouts.state.change':
-      return t ? t('op.helper.audit.updatesStateChange') : 'Состояние публикации обновления изменено';
+      return t('op.helper.audit.updatesStateChange');
     default:
       if (normalized.includes('pos')) {
-        return t ? t('op.helper.audit.opPos') : 'Операция кассы';
+        return t('op.helper.audit.opPos');
       }
 
       if (normalized.includes('session')) {
-        return t ? t('op.helper.audit.opSession') : 'Операция сессии';
+        return t('op.helper.audit.opSession');
       }
 
       if (normalized.includes('device')) {
-        return t ? t('op.helper.audit.opDevice') : 'Операция ПК';
+        return t('op.helper.audit.opDevice');
       }
 
       if (normalized.includes('shift')) {
-        return t ? t('op.helper.audit.opShift') : 'Операция смены';
+        return t('op.helper.audit.opShift');
       }
 
       if (normalized.includes('identity') || normalized.includes('staff')) {
-        return t ? t('op.helper.audit.opStaff') : 'Операция сотрудника';
+        return t('op.helper.audit.opStaff');
       }
 
       if (normalized.includes('update')) {
-        return t ? t('op.helper.audit.opUpdate') : 'Операция обновления';
+        return t('op.helper.audit.opUpdate');
       }
 
       return action
-        ? (t ? t('op.helper.audit.opPlatform') : 'Операция платформы')
-        : (t ? t('op.helper.audit.record') : 'Запись аудита');
+        ? t('op.helper.audit.opPlatform')
+        : t('op.helper.audit.record');
   }
 }
 
-export function auditActorLabel(record: Record<string, unknown>, backend: OperatorBackendContext | null, t?: TFunc): string {
+export function auditActorLabel(record: Record<string, unknown>, backend: OperatorBackendContext | null, t: TFunc): string {
   const actorStaffUserId = readString(record, 'actorStaffUserId');
   if (!actorStaffUserId) {
-    return t ? t('op.helper.audit.system') : 'Система';
+    return t('op.helper.audit.system');
   }
 
   if (backend?.session.staffUserId.toLowerCase() === actorStaffUserId.toLowerCase()) {
     return operatorDisplayNameLabel(backend.session.displayName, t);
   }
 
-  return t ? t('op.helper.audit.staff') : 'Сотрудник';
+  return t('op.helper.audit.staff');
 }

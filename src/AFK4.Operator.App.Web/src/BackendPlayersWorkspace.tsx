@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { CalendarClock, CircleDollarSign, ReceiptText, Search, TimerReset, UserRoundPlus } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
@@ -38,7 +38,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
-  const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode) : []);
+  const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode, t) : []);
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
@@ -53,7 +53,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   useEffect(() => {
     if (backend === null) {
       setLoadStatus('fixture');
-      setClients(fixturePlayers(currencyCode));
+      setClients(fixturePlayers(currencyCode, t));
       setPackageOptions([]);
       setSelectedPackageDefinitionId('');
       return undefined;
@@ -212,7 +212,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const runClientAction = async (id: PlayerActionId, label: string) => {
     setFeedback({ label, state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
 
       if (id === 'topUp') {
@@ -279,7 +279,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           debtBalanceMinorUnits: 0,
           activePackageCount: 0,
           isActive: true
-        });
+        }, t);
         setClients((items) => [createdClient, ...items]);
         setSelectedClientId(createdClient.playerAccountId ?? null);
         setNewPlayerName('');
@@ -376,7 +376,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     {
       id: 'buyPackage',
       label: t('op.players.actions.buyPackageBtn'),
-      detail: selectedPackageOption ? packageOptionLabel(selectedPackageOption, currencyCode) : t('op.players.actions.buyPackageNone'),
+      detail: selectedPackageOption ? packageOptionLabel(selectedPackageOption, currencyCode, t) : t('op.players.actions.buyPackageNone'),
       Icon: TimerReset,
       disabled: !canPurchasePackage || packageOptions.length === 0 || !canAffordSelectedPackage
     },
@@ -432,7 +432,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           <h1>{t('op.players.heading')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.pos.platformConnected'))}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.pos.platformConnected'), t)}</span>
         </div>
       </section>
 
@@ -506,7 +506,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
               <div>
                 <span>{selectedClient.status}</span>
                 <strong>{selectedClient.name}</strong>
-                <em>{selectedClient.phoneNumber || t('op.pos.cart.clientNoPhone')} · {dataSourceLabel(selectedClient.source)}</em>
+                <em>{selectedClient.phoneNumber || t('op.pos.cart.clientNoPhone')} · {dataSourceLabel(selectedClient.source, t)}</em>
               </div>
             </div>
           )}
@@ -514,13 +514,13 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             <div><span>{t('op.pos.payment.methodDeposit')}</span><strong>{formatMinorUnits(balance, currencyCode)}</strong></div>
             <div><span>{t('clients.col.debt')}</span><strong>{formatMinorUnits(debt, currencyCode)}</strong></div>
             <div><span>{t('clients.col.packages')}</span><strong>{selectedClientPackageCount}</strong></div>
-            <div><span>{t('op.players.profile.source')}</span><strong>{selectedClient === null ? t('op.players.profile.noClient') : dataSourceLabel(selectedClient.source)}</strong></div>
+            <div><span>{t('op.players.profile.source')}</span><strong>{selectedClient === null ? t('op.players.profile.noClient') : dataSourceLabel(selectedClient.source, t)}</strong></div>
           </div>
           <div className="client-package-list" aria-label={t('op.players.profile.packagesLabel')}>
             {selectedClientPackages.slice(0, 3).map((playerPackage) => (
               <article key={readString(playerPackage, 'playerPackageId')} className="client-package-row">
                 <strong>{readString(playerPackage, 'name', t('op.players.profile.packageFallback'))}</strong>
-                <span>{playerPackageLabel(playerPackage)}</span>
+                <span>{playerPackageLabel(playerPackage, t)}</span>
                 <b>{readString(playerPackage, 'state', 'active')}</b>
               </article>
             ))}
@@ -558,7 +558,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
                 {packageOptions.length === 0 && <option value="">{t('op.map.panel.noPackages')}</option>}
                 {packageOptions.map((option) => (
                   <option key={readString(option, 'packageDefinitionId')} value={readString(option, 'packageDefinitionId')}>
-                    {packageOptionLabel(option, currencyCode)}
+                    {packageOptionLabel(option, currencyCode, t)}
                   </option>
                 ))}
               </select>
@@ -624,7 +624,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             ))}
             {recentEntries.length === 0 && (
               <article className="client-history-row">
-                <span>—</span>
+                <span>вЂ”</span>
                 <strong>{t('op.players.history.empty')}</strong>
                 <b>0 {currencyCode}</b>
               </article>

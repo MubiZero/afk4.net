@@ -235,7 +235,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       setStaffUsers(staffRows);
       setSelectedStaffUserId(readString(selectedStaff, 'staffUserId'));
       setStaffProfileUserName(readString(selectedStaff, 'userName'));
-      setStaffProfileDisplayName(operatorDisplayNameLabel(readString(selectedStaff, 'displayName')));
+      setStaffProfileDisplayName(operatorDisplayNameLabel(readString(selectedStaff, 'displayName'), t));
       setStaffRoleName(selectedStaffRole ?? 'cashier_operator');
       const zoneRows = Array.isArray(layoutZones) ? layoutZones : [];
       setZones(zoneRows);
@@ -348,17 +348,17 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const updatePackageOptions = Array.from(new Map([
     ...rollouts.map((rollout) => ({
       id: readString(rollout, 'updatePackageId'),
-      label: `${updateComponentLabel(readString(rollout, 'component'))} ${readString(rollout, 'version', t('op.settings.updates.versionFallback'))} · ${updateChannelLabel(readString(rollout, 'channel'))}`
+      label: `${updateComponentLabel(readString(rollout, 'component'), t)} ${readString(rollout, 'version', t('op.settings.updates.versionFallback'))} · ${updateChannelLabel(readString(rollout, 'channel'), t)}`
     })),
     ...registeredUpdatePackages.map((updatePackage) => ({
       id: readString(updatePackage, 'updatePackageId'),
-      label: `${updateComponentLabel(readString(updatePackage, 'component'))} ${readString(updatePackage, 'version', t('op.settings.updates.versionFallback'))} · ${updateChannelLabel(readString(updatePackage, 'channel'))} · ${updatePackageStateLabel(readString(updatePackage, 'state', 'registered'))}`
+      label: `${updateComponentLabel(readString(updatePackage, 'component'), t)} ${readString(updatePackage, 'version', t('op.settings.updates.versionFallback'))} · ${updateChannelLabel(readString(updatePackage, 'channel'), t)} · ${updatePackageStateLabel(readString(updatePackage, 'state', 'registered'), t)}`
     }))
   ].filter((option) => isGuid(option.id)).map((option) => [option.id, option])).values());
   const rolloutOptions = rollouts
     .map((rollout) => ({
       id: readString(rollout, 'updateRolloutId'),
-      label: `${updateComponentLabel(readString(rollout, 'component'))} ${readString(rollout, 'version', t('op.settings.updates.versionFallback'))} · ${updateRolloutStateLabel(readString(rollout, 'state'))}`
+      label: `${updateComponentLabel(readString(rollout, 'component'), t)} ${readString(rollout, 'version', t('op.settings.updates.versionFallback'))} · ${updateRolloutStateLabel(readString(rollout, 'state'), t)}`
     }))
     .filter((rollout) => isGuid(rollout.id));
   const rolloutTargetDeviceIdSet = new Set(rolloutTargetDeviceIds.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean));
@@ -442,7 +442,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
     setCriticalAction(null);
     setFeedback({ label, state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       if (label === checkDevicesActionKey) {
         setDiagnostics(await apiClients.diagnostics.getDiagnostics(nextBackend.branchId));
@@ -845,7 +845,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
         setStaffUsers((items) => items.map((item) => readString(item, 'staffUserId') === staffUserId ? staffUser : item));
         setSelectedStaffUserId(readString(staffUser, 'staffUserId'));
         setStaffProfileUserName(readString(staffUser, 'userName'));
-        setStaffProfileDisplayName(operatorDisplayNameLabel(readString(staffUser, 'displayName')));
+        setStaffProfileDisplayName(operatorDisplayNameLabel(readString(staffUser, 'displayName'), t));
         setStaffRoleName(readArray<string>(staffUser, 'roleNames')[0] ?? staffRoleName);
       } else if (label === updateRoleActionKey) {
         if (!hasPermission(nextBackend.session, permissionNames.manageRoles)) {
@@ -1127,7 +1127,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
 
     setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const branchProfile: BranchProfileDto = await apiClients.settings.updateBranchProfile(nextBackend.branchId, {
         organizationId: nextBackend.session.organizationId,
@@ -1267,7 +1267,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
               </select>
             </label>
             <label>{t('op.settings.devices.commandReason')}<input value={deviceCommandReason} disabled={!canDispatchDeviceCommand} onChange={(event) => setDeviceCommandReason(event.currentTarget.value)} /></label>
-            <label>{t('op.settings.devices.lastCommand')}<input value={lastDeviceCommand ? `${commandTypeLabel(readString(lastDeviceCommand, 'type', 'command'))} · ${t('op.settings.devices.lastCommandSent')}` : t('op.settings.devices.noCommand')} readOnly /></label>
+            <label>{t('op.settings.devices.lastCommand')}<input value={lastDeviceCommand ? `${commandTypeLabel(readString(lastDeviceCommand, 'type', 'command'), t)} · ${t('op.settings.devices.lastCommandSent')}` : t('op.settings.devices.noCommand')} readOnly /></label>
             <button type="button" disabled={!canDispatchDeviceCommand || !isGuid(deviceAssignmentDeviceId)} onClick={() => runSettingsAction(sendCommandActionKey)}>{sendCommandActionKey}</button>
             <label>{t('op.settings.devices.credentialToRevoke')}<input value={rotatedCredentialLabel} readOnly /></label>
             <label>{t('op.settings.devices.newCredential')}<input value={rotatedCredentialId ? t('op.settings.devices.newCredentialCreated') : t('op.settings.devices.newCredentialEmpty')} readOnly /></label>
@@ -1335,8 +1335,8 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
             <div className="settings-command-history">
               {deviceRecentCommands.map((command) => (
                 <span key={readString(command, 'commandId')}>
-                  <strong>{commandTypeLabel(readString(command, 'type', 'command'))}</strong>
-                  <b>{commandStatusLabel(readString(command, 'status', 'unknown'))}</b>
+                  <strong>{commandTypeLabel(readString(command, 'type', 'command'), t)}</strong>
+                  <b>{commandStatusLabel(readString(command, 'status', 'unknown'), t)}</b>
                   <em>{commandStatusMessageLabel(readString(command, 'message')) || formatTime(readString(command, 'updatedAtUtc'))}</em>
                 </span>
               ))}
@@ -1354,7 +1354,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                   return (
                     <span key={`${deviceId}-${readString(command, 'commandId')}`}>
                       <strong>{getDeviceInventoryName(deviceId)}</strong>
-                      <b>{commandTypeLabel(readString(command, 'type', 'command'))} · {commandStatusLabel(readString(command, 'status', 'unknown'))}</b>
+                      <b>{commandTypeLabel(readString(command, 'type', 'command'), t)} · {commandStatusLabel(readString(command, 'status', 'unknown'), t)}</b>
                       <em>{commandStatusMessageLabel(readString(command, 'message')) || formatTime(readString(command, 'updatedAtUtc'))}</em>
                     </span>
                   );
@@ -1444,12 +1444,12 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                     const roleName = readArray<string>(user, 'roleNames').find((role) => staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]));
                     setSelectedStaffUserId(readString(user, 'staffUserId'));
                     setStaffProfileUserName(readString(user, 'userName'));
-                    setStaffProfileDisplayName(operatorDisplayNameLabel(readString(user, 'displayName')));
+                    setStaffProfileDisplayName(operatorDisplayNameLabel(readString(user, 'displayName'), t));
                     setStaffRoleName(roleName ?? 'cashier_operator');
-                    triggerFeedback(setFeedback, operatorDisplayNameLabel(readString(user, 'displayName', t('op.settings.staff.staffFallback'))), 'confirmed');
+                    triggerFeedback(setFeedback, operatorDisplayNameLabel(readString(user, 'displayName'), t), 'confirmed');
                   }}
                 >
-                  <strong>{operatorDisplayNameLabel(readString(user, 'displayName', t('op.settings.staff.staffFallback')))}</strong>
+                  <strong>{operatorDisplayNameLabel(readString(user, 'displayName'), t)}</strong>
                   <span>{readString(user, 'userName', t('op.settings.staff.userFallback'))} · {readArray<string>(user, 'roleNames').map((r) => staffRoleLabel(r, t)).join(', ') || t('op.settings.staff.roleEmpty')} · {readBoolean(user, 'isActive', true) ? t('op.settings.staff.active') : t('op.settings.staff.inactive')}</span>
                 </button>
               ))}
@@ -1461,7 +1461,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
               {inviteCode && <label>{t('op.settings.staff.inviteCode')}<input readOnly value={inviteCode} onFocus={(event) => event.currentTarget.select()} /></label>}
               <label>{t('op.settings.staff.roleAccess')}
                 <select value={inviteRoleName} disabled={!canManageBranchStaff} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
-                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
+                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName, t)}</option>)}
                 </select>
               </label>
               <label>{t('op.settings.staff.profileLogin')}<input value={staffProfileUserName} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setStaffProfileUserName(event.currentTarget.value)} /></label>
@@ -1469,7 +1469,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
               <button type="button" disabled={!canManageBranchStaff || !selectedStaffUserId} onClick={() => runSettingsAction(updateStaffProfileActionKey)}>{t('op.settings.staff.updateProfileBtn')}</button>
               <label>{t('op.settings.staff.newRole')}
                 <select value={staffRoleName} disabled={!canManageRoles || !selectedStaffUserId} onChange={(event) => setStaffRoleName(event.currentTarget.value)}>
-                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName)}</option>)}
+                  {staffRoleOptions.map((roleName) => <option key={roleName} value={roleName}>{staffRoleLabel(roleName, t)}</option>)}
                 </select>
               </label>
               <label>{t('op.settings.staff.newPassword')}<input type="password" value={resetPassword} disabled={!canManageBranchStaff || !selectedStaffUserId} onChange={(event) => setResetPassword(event.currentTarget.value)} /></label>
@@ -1561,7 +1561,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
               const reason = readString(movement, 'reason', t('op.settings.stock.reasonFallback'));
               return (
                 <button key={readString(movement, 'stockMovementId')} type="button" onClick={() => triggerFeedback(setFeedback, productName, 'confirmed')}>
-                  <strong>{productName} · {stockMovementTypeLabel(readString(movement, 'movementType'))}</strong>
+                  <strong>{productName} · {stockMovementTypeLabel(readString(movement, 'movementType'), t)}</strong>
                   <span>{quantityDelta > 0 ? '+' : ''}{quantityDelta} · {formatMoney(readMoney(movement, 'unitCost'), currencyCode)} · {reason}</span>
                 </button>
               );
@@ -1595,17 +1595,17 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
           <div className="settings-form-grid settings-update-form">
             <label>{t('op.settings.updates.component')}
               <select value={updateComponent} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateComponent(event.currentTarget.value)}>
-                <option value="operator-app">{updateComponentLabel('operator-app')}</option>
-                <option value="agent-service">{updateComponentLabel('agent-service')}</option>
-                <option value="player-shell">{updateComponentLabel('player-shell')}</option>
+                <option value="operator-app">{updateComponentLabel('operator-app', t)}</option>
+                <option value="agent-service">{updateComponentLabel('agent-service', t)}</option>
+                <option value="player-shell">{updateComponentLabel('player-shell', t)}</option>
               </select>
             </label>
             <label>{t('op.settings.updates.version')}<input value={updateVersion} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateVersion(event.currentTarget.value)} /></label>
             <label>{t('op.settings.updates.channel')}
               <select value={updateChannel} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateChannel(event.currentTarget.value)}>
-                <option value="internal">{updateChannelLabel('internal')}</option>
-                <option value="beta">{updateChannelLabel('beta')}</option>
-                <option value="stable">{updateChannelLabel('stable')}</option>
+                <option value="internal">{updateChannelLabel('internal', t)}</option>
+                <option value="beta">{updateChannelLabel('beta', t)}</option>
+                <option value="stable">{updateChannelLabel('stable', t)}</option>
               </select>
             </label>
             <label className="settings-form-wide">{t('op.settings.updates.installerFile')}<input value={updateArtifactUri} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateArtifactUri(event.currentTarget.value)} /></label>
@@ -1632,19 +1632,19 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                   setPackageStatePackageId(readString(rollout, 'updatePackageId'));
                 }}
               >
-                <strong>{updateComponentLabel(readString(rollout, 'component'))} {readString(rollout, 'version', t('op.settings.updates.versionFallback'))}</strong>
-                <b>{updateRolloutStateLabel(readString(rollout, 'state'))}</b>
-                <span>{t('op.settings.rollouts.rolloutTargetDetail', { targetKind: updateTargetKindLabel(readString(rollout, 'targetKind')), batchPercent: readNumber(rollout, 'batchPercent', 0), deviceCount: readArray(rollout, 'deviceStatuses').length })}</span>
+                <strong>{updateComponentLabel(readString(rollout, 'component'), t)} {readString(rollout, 'version', t('op.settings.updates.versionFallback'))}</strong>
+                <b>{updateRolloutStateLabel(readString(rollout, 'state'), t)}</b>
+                <span>{t('op.settings.rollouts.rolloutTargetDetail', { targetKind: updateTargetKindLabel(readString(rollout, 'targetKind'), t), batchPercent: readNumber(rollout, 'batchPercent', 0), deviceCount: readArray(rollout, 'deviceStatuses').length })}</span>
               </button>
             ))}
           </div>
           {selectedRollout && (
             <div className="settings-device-detail-grid">
-              <span><strong>{t('op.settings.rollouts.detail.rollout')}</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'))} {readString(selectedRollout, 'version', t('op.settings.updates.versionFallback'))}</b></span>
-              <span><strong>{t('op.settings.rollouts.detail.state')}</strong><b>{updateRolloutStateLabel(readString(selectedRollout, 'state'))}</b></span>
-              <span><strong>{t('op.settings.rollouts.detail.target')}</strong><b>{updateTargetKindLabel(readString(selectedRollout, 'targetKind'))} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
-              <span><strong>{t('op.settings.rollouts.detail.channel')}</strong><b>{updateChannelLabel(readString(selectedRollout, 'channel'))}</b></span>
-              <span><strong>{t('op.settings.rollouts.detail.package')}</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'))} {readString(selectedRollout, 'version', t('op.settings.updates.versionFallback'))}</b></span>
+              <span><strong>{t('op.settings.rollouts.detail.rollout')}</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'), t)} {readString(selectedRollout, 'version', t('op.settings.updates.versionFallback'))}</b></span>
+              <span><strong>{t('op.settings.rollouts.detail.state')}</strong><b>{updateRolloutStateLabel(readString(selectedRollout, 'state'), t)}</b></span>
+              <span><strong>{t('op.settings.rollouts.detail.target')}</strong><b>{updateTargetKindLabel(readString(selectedRollout, 'targetKind'), t)} · {readNumber(selectedRollout, 'batchPercent', 0)}%</b></span>
+              <span><strong>{t('op.settings.rollouts.detail.channel')}</strong><b>{updateChannelLabel(readString(selectedRollout, 'channel'), t)}</b></span>
+              <span><strong>{t('op.settings.rollouts.detail.package')}</strong><b>{updateComponentLabel(readString(selectedRollout, 'component'), t)} {readString(selectedRollout, 'version', t('op.settings.updates.versionFallback'))}</b></span>
               <span><strong>{t('op.settings.rollouts.detail.starts')}</strong><b>{formatTime(readString(selectedRollout, 'startsAtUtc'))}</b></span>
               <span><strong>{t('op.settings.rollouts.detail.completed')}</strong><b>{formatTime(readString(selectedRollout, 'completedAtUtc'))}</b></span>
               <span><strong>{t('op.settings.rollouts.detail.devices')}</strong><b>{selectedRolloutDeviceStatuses.length}</b></span>
@@ -1655,7 +1655,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
               {selectedRolloutDeviceStatuses.map((status) => (
                 <span key={`${readString(status, 'deviceId')}-${readString(status, 'updatedAtUtc')}`}>
                   <strong>{getDeviceInventoryName(readString(status, 'deviceId'))}</strong>
-                  <b>{updateDeviceStatusLabel(readString(status, 'status', 'unknown'))}</b>
+                  <b>{updateDeviceStatusLabel(readString(status, 'status', 'unknown'), t)}</b>
                   <em>{updateDeviceMessageLabel(readString(status, 'message')) || t('op.settings.rollouts.detail.versionArrow', { from: readString(status, 'installedVersion'), to: readString(status, 'targetVersion') })}</em>
                 </span>
               ))}
@@ -1675,15 +1675,15 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
             </label>
             <label>{t('op.settings.rollouts.channel')}
               <select value={rolloutChannel} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutChannel(event.currentTarget.value)}>
-                <option value="internal">{updateChannelLabel('internal')}</option>
-                <option value="beta">{updateChannelLabel('beta')}</option>
-                <option value="stable">{updateChannelLabel('stable')}</option>
+                <option value="internal">{updateChannelLabel('internal', t)}</option>
+                <option value="beta">{updateChannelLabel('beta', t)}</option>
+                <option value="stable">{updateChannelLabel('stable', t)}</option>
               </select>
             </label>
             <label>{t('op.settings.rollouts.target')}
               <select value={rolloutTargetKind} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutTargetKind(event.currentTarget.value)}>
-                <option value="branch">{updateTargetKindLabel('branch')}</option>
-                <option value="device">{updateTargetKindLabel('device')}</option>
+                <option value="branch">{updateTargetKindLabel('branch', t)}</option>
+                <option value="device">{updateTargetKindLabel('device', t)}</option>
               </select>
             </label>
             <label>{t('op.settings.rollouts.batchPercent')}<input inputMode="numeric" value={rolloutBatchPercent} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutBatchPercent(event.currentTarget.value)} /></label>
@@ -1736,10 +1736,10 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
             </label>
             <label>{t('op.settings.packageState.stateLabel')}
               <select value={packageState} disabled={!canManageUpdatePackages} onChange={(event) => setPackageState(event.currentTarget.value)}>
-                <option value="registered">{updatePackageStateLabel('registered')}</option>
-                <option value="validated">{updatePackageStateLabel('validated')}</option>
-                <option value="rejected">{updatePackageStateLabel('rejected')}</option>
-                <option value="retired">{updatePackageStateLabel('retired')}</option>
+                <option value="registered">{updatePackageStateLabel('registered', t)}</option>
+                <option value="validated">{updatePackageStateLabel('validated', t)}</option>
+                <option value="rejected">{updatePackageStateLabel('rejected', t)}</option>
+                <option value="retired">{updatePackageStateLabel('retired', t)}</option>
               </select>
             </label>
             <label>{t('op.settings.packageState.reasonLabel')}<input value={packageStateReason} disabled={!canManageUpdatePackages} onChange={(event) => setPackageStateReason(event.currentTarget.value)} /></label>
@@ -1756,12 +1756,12 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
             </label>
             <label>{t('op.settings.packageState.rolloutStateLabel')}
               <select value={rolloutState} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutState(event.currentTarget.value)}>
-                <option value="active">{updateRolloutStateLabel('active')}</option>
-                <option value="paused">{updateRolloutStateLabel('paused')}</option>
-                <option value="completed">{updateRolloutStateLabel('completed')}</option>
-                <option value="rollback_requested">{updateRolloutStateLabel('rollback_requested')}</option>
-                <option value="rolled_back">{updateRolloutStateLabel('rolled_back')}</option>
-                <option value="cancelled">{updateRolloutStateLabel('cancelled')}</option>
+                <option value="active">{updateRolloutStateLabel('active', t)}</option>
+                <option value="paused">{updateRolloutStateLabel('paused', t)}</option>
+                <option value="completed">{updateRolloutStateLabel('completed', t)}</option>
+                <option value="rollback_requested">{updateRolloutStateLabel('rollback_requested', t)}</option>
+                <option value="rolled_back">{updateRolloutStateLabel('rolled_back', t)}</option>
+                <option value="cancelled">{updateRolloutStateLabel('cancelled', t)}</option>
               </select>
             </label>
             <label>{t('op.settings.packageState.rolloutReasonLabel')}<input value={rolloutStateReason} disabled={!canManageUpdateRollouts} onChange={(event) => setRolloutStateReason(event.currentTarget.value)} /></label>
@@ -1769,7 +1769,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
           {criticalAction === 'package-state-change' && (
             <CriticalActionConfirmation
               title={t('op.settings.packageState.confirmPackage.title')}
-              detail={`${updatePackageOptions.find((option) => option.id === packageStatePackageId)?.label ?? t('op.settings.packageState.confirmPackage.packageFallback')} · ${updatePackageStateLabel(packageState)}`}
+              detail={`${updatePackageOptions.find((option) => option.id === packageStatePackageId)?.label ?? t('op.settings.packageState.confirmPackage.packageFallback')} · ${updatePackageStateLabel(packageState, t)}`}
               impact={t('op.settings.packageState.confirmPackage.impact', { reason: packageStateReason.trim() || t('op.settings.packageState.confirmPackage.impactNoReason') })}
               confirmLabel={t('op.settings.packageState.confirmPackage.confirm')}
               disabled={feedback.state === 'pending'}
@@ -1780,7 +1780,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
           {criticalAction === 'rollout-state-change' && (
             <CriticalActionConfirmation
               title={t('op.settings.packageState.confirmRollout.title')}
-              detail={`${rolloutOptions.find((option) => option.id === rolloutStateRolloutId)?.label ?? t('op.settings.packageState.confirmRollout.rolloutFallback')} · ${updateRolloutStateLabel(rolloutState)}`}
+              detail={`${rolloutOptions.find((option) => option.id === rolloutStateRolloutId)?.label ?? t('op.settings.packageState.confirmRollout.rolloutFallback')} · ${updateRolloutStateLabel(rolloutState, t)}`}
               impact={t('op.settings.packageState.confirmRollout.impact', { reason: rolloutStateReason.trim() || t('op.settings.packageState.confirmRollout.impactNoReason') })}
               confirmLabel={t('op.settings.packageState.confirmRollout.confirm')}
               disabled={feedback.state === 'pending'}
@@ -1816,7 +1816,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
           <h1>{t('op.settings.heading')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.settings.profile.loadFeedbackLabel'))}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.settings.profile.loadFeedbackLabel'), t)}</span>
         </div>
       </section>
 

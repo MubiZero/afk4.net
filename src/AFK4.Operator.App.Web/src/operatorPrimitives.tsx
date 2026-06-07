@@ -4,13 +4,14 @@ import type { CriticalConfirmationTone, Feedback } from './operatorTypes';
 import { feedbackText } from './operatorHelpers';
 
 export function FeedbackNotice({ feedback }: { feedback: Feedback }) {
+  const { t } = useI18n();
   if (feedback.state === 'idle') {
     return null;
   }
 
   return (
     <div className={`feedback-notice ${feedback.state}`} role="status" aria-live="polite">
-      <span>{feedbackText(feedback)}</span>
+      <span>{feedbackText(feedback, t)}</span>
     </div>
   );
 }

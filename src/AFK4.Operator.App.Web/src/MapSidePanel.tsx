@@ -255,8 +255,8 @@ export function MapSidePanel({
 }) {
   const { t } = useI18n();
   const session = backend?.session ?? null;
-  const status = mapSeatStatus(seat);
-  const activeBilling = billingLabel(seat.billing);
+  const status = mapSeatStatus(seat, t);
+  const activeBilling = billingLabel(seat.billing, t);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
   const [durationMode, setDurationMode] = useState<SessionStartDurationMode>('fixed');
@@ -344,7 +344,7 @@ export function MapSidePanel({
         ? t('op.map.panel.confirmStatusPending')
       : feedback.state === 'idle'
         ? t('op.map.panel.confirmStatusWaiting')
-        : feedbackText(feedback);
+        : feedbackText(feedback, t);
   const billingLoadText = billingStatus === 'backend'
     ? t('op.map.panel.billingLoadData')
     : billingStatus === 'loading'
@@ -486,7 +486,7 @@ export function MapSidePanel({
       setFeedback({
         label,
         state: 'failed',
-        detail: projectOperatorFacingError(error)
+        detail: projectOperatorFacingError(error, t)
       });
     }
   };
@@ -495,7 +495,7 @@ export function MapSidePanel({
     <aside className="context-panel">
       <header className="context-head">
         <div>
-          <span>{zoneLabel(seat.zone)}</span>
+          <span>{zoneLabel(seat.zone, t)}</span>
           <h2>{seat.name}</h2>
         </div>
         <span className={`state-chip state-${seat.tone}`}>{toneLabel(seat.tone, t)}</span>
@@ -589,7 +589,7 @@ export function MapSidePanel({
         </div>
         <div className="detail-row">
           <span>{t('op.map.colCommand')}</span>
-          <strong>{commandLabel(seat.command)}</strong>
+          <strong>{commandLabel(seat.command, t)}</strong>
         </div>
         <div className="detail-row">
           <span>{t('op.map.panel.confirmationLabel')}</span>
@@ -686,7 +686,7 @@ export function MapSidePanel({
                   {tariffOptions.length === 0 && <option value="">{t('op.map.panel.noTariffs')}</option>}
                   {tariffOptions.map((tariff) => (
                     <option key={readString(tariff, 'tariffVersionId')} value={readString(tariff, 'tariffVersionId')}>
-                      {tariffOptionLabel(tariff, currencyCode)}
+                      {tariffOptionLabel(tariff, currencyCode, t)}
                     </option>
                   ))}
                 </select>
@@ -704,7 +704,7 @@ export function MapSidePanel({
                   {playerPackages.length === 0 && <option value="">{t('op.map.panel.noPackages')}</option>}
                   {playerPackages.map((playerPackage) => (
                     <option key={readString(playerPackage, 'playerPackageId')} value={readString(playerPackage, 'playerPackageId')}>
-                      {playerPackageLabel(playerPackage)}
+                      {playerPackageLabel(playerPackage, t)}
                     </option>
                   ))}
                 </select>

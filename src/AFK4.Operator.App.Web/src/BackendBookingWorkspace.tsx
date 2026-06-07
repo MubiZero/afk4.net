@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { ArrowRightLeft, MonitorCheck, Plus, Square, UserRoundPlus } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
@@ -123,11 +123,11 @@ export function BackendBookingWorkspace({
   });
   const selectedBooking = bookings[selectedBookingIndex] ?? bookings[0] ?? {
     reservationId: '',
-    time: '—',
+    time: 'вЂ”',
     client: loadStatus === 'failed' ? t('op.booking.fallback.failedClient') : t('op.booking.fallback.emptyClient'),
     seats: t('op.booking.fallback.zeroSeats'),
     zone: floorMap.branchName,
-    duration: '—',
+    duration: 'вЂ”',
     status: loadStatus === 'loading' ? t('a11y.loading') : t('state.empty'),
     tone: 'pending',
     note: loadError ?? t('op.booking.fallback.note'),
@@ -168,7 +168,7 @@ export function BackendBookingWorkspace({
     setFeedback({ label, state: 'pending' });
 
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
         throw new Error(t('op.booking.error.noPermission'));
       }
@@ -190,7 +190,7 @@ export function BackendBookingWorkspace({
     return selectedBooking.reservationId;
   };
   const createReservation = () => runReservationAction(t('op.booking.create.submit'), async (clients) => {
-    const nextBackend = requireBackend(backend);
+    const nextBackend = requireBackend(backend, t);
     if (!selectedReadySeat) {
       throw new Error(t('op.booking.error.noFreeSeat'));
     }
@@ -216,11 +216,11 @@ export function BackendBookingWorkspace({
     });
   });
   const confirmReservation = (reservationId: string, label: string) => runReservationAction(label, async (clients) => {
-    const nextBackend = requireBackend(backend);
+    const nextBackend = requireBackend(backend, t);
     return await clients.reservations.confirm(reservationId, { organizationId: nextBackend.session.organizationId });
   });
   const seatReservation = () => runReservationAction(t('op.booking.action.seat'), async (clients) => {
-    const nextBackend = requireBackend(backend);
+    const nextBackend = requireBackend(backend, t);
     return await clients.reservations.seat(requireSelectedReservationId(), { organizationId: nextBackend.session.organizationId });
   }, () => {
     if (selectedBooking.seatId) {
@@ -228,7 +228,7 @@ export function BackendBookingWorkspace({
     }
   });
   const moveReservation = () => runReservationAction(t('op.booking.action.move'), async (clients) => {
-    const nextBackend = requireBackend(backend);
+    const nextBackend = requireBackend(backend, t);
     const targetSeat = readySeats.find((seat) => seat.id !== selectedBooking.seatId);
     if (!targetSeat) {
       throw new Error(t('op.booking.error.noOtherSeat'));
@@ -241,7 +241,7 @@ export function BackendBookingWorkspace({
     });
   });
   const cancelReservation = () => runReservationAction(t('op.booking.action.cancel'), async (clients) => {
-    const nextBackend = requireBackend(backend);
+    const nextBackend = requireBackend(backend, t);
     return await clients.reservations.cancel(requireSelectedReservationId(), {
       organizationId: nextBackend.session.organizationId,
       reason: t('op.booking.note.cancelReason')
@@ -294,7 +294,7 @@ export function BackendBookingWorkspace({
             ))}
             {bookings.length === 0 && (
               <article className="booking-card pending">
-                <span className="booking-time">—</span>
+                <span className="booking-time">вЂ”</span>
                 <span className="booking-client">
                   <strong>{loadStatus === 'loading' ? t('op.booking.load.loading') : t('op.booking.timeline.empty')}</strong>
                   <em>{loadError ?? t('op.booking.timeline.emptyDetail')}</em>
@@ -354,7 +354,7 @@ export function BackendBookingWorkspace({
             ))}
             {onlineRequests.length === 0 && (
               <article className="booking-request-card">
-                <span>—</span>
+                <span>вЂ”</span>
                 <strong>{t('op.booking.requests.empty')}</strong>
                 <em>{loadStatus === 'failed' ? loadError ?? t('op.booking.requests.emptyFailed') : t('op.booking.requests.emptyDetail')}</em>
               </article>

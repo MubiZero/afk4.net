@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRightLeft, MonitorCheck, ReceiptText, Search, ShieldAlert, UserRoundPlus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
@@ -34,22 +34,22 @@ type TFn = (key: MessageKey, values?: Record<string, string | number>) => string
 
 function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, hasSearchMiss: boolean, t: TFn): LogEventItem {
   if (hasSearchMiss) {
-    return ['—', t('op.logs.ph.noMatch.title'), t('op.logs.ph.noMatch.hint'), t('op.logs.ph.source.operator'), 'audit', 'placeholder', null];
+    return ['вЂ”', t('op.logs.ph.noMatch.title'), t('op.logs.ph.noMatch.hint'), t('op.logs.ph.source.operator'), 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', t('op.logs.ph.loading.title'), t('op.logs.ph.loading.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
+    return ['вЂ”', t('op.logs.ph.loading.title'), t('op.logs.ph.loading.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', t('op.logs.ph.failed.title'), loadError ?? t('op.logs.ph.failed.hint'), t('op.logs.ph.source.platform'), 'warning', 'placeholder', null];
+    return ['вЂ”', t('op.logs.ph.failed.title'), loadError ?? t('op.logs.ph.failed.hint'), t('op.logs.ph.source.platform'), 'warning', 'placeholder', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', t('op.logs.ph.empty.title'), t('op.logs.ph.empty.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
+    return ['вЂ”', t('op.logs.ph.empty.title'), t('op.logs.ph.empty.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
   }
 
-  return ['—', t('op.logs.ph.local.title'), t('op.logs.ph.local.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
+  return ['вЂ”', t('op.logs.ph.local.title'), t('op.logs.ph.local.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
 }
 
 function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[], t: TFn): LogEventItem[] {
@@ -58,7 +58,7 @@ function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[], t: 
 
     return [
       formatTime(readString(record, 'createdAtUtc')),
-      auditActionLabel(readString(record, 'action')),
+      auditActionLabel(readString(record, 'action'), t),
       `${auditTargetLabel(readString(record, 'targetType'), t)} · ${auditOutcomeLabel(outcome, t)}`,
       auditSourceLabel(readString(record, 'sourceApp'), t),
       outcome.toLowerCase().includes('denied') || outcome.toLowerCase().includes('failed') ? 'warning' : 'audit',
@@ -244,7 +244,7 @@ function auditDetailValueLabel(value: unknown, t: TFn): string {
     return formatTime(trimmed);
   }
 
-  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
+  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}вЂ¦` : trimmed;
 }
 
 function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null, agentSource: string, updatesSource: string, t: TFn): LogEventItem[] {
@@ -257,7 +257,7 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null, age
   return [
     ...recentCommandFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
-      `${readString(failure, 'machineName', t('op.logs.row.deviceFallback'))} ${commandTypeLabel(readString(failure, 'type', 'command'))}`,
+      `${readString(failure, 'machineName', t('op.logs.row.deviceFallback'))} ${commandTypeLabel(readString(failure, 'type', 'command'), t)}`,
       commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
       agentSource,
       'device',
@@ -266,7 +266,7 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null, age
     ]),
     ...recentUpdateFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
-      `${updateComponentLabel(readString(failure, 'component', t('op.logs.row.updateFallback')))} ${readString(failure, 'targetVersion', '')}`.trim(),
+      `${updateComponentLabel(readString(failure, 'component', t('op.logs.row.updateFallback')), t)} ${readString(failure, 'targetVersion', '')}`.trim(),
       commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
       updatesSource,
       'warning',
@@ -326,10 +326,10 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
     const targetType = readString(record, 'targetType');
 
     return [
-      [t('op.logs.row.event'), auditActionLabel(readString(record, 'action'))],
+      [t('op.logs.row.event'), auditActionLabel(readString(record, 'action'), t)],
       [t('op.logs.row.result'), auditOutcomeLabel(readString(record, 'outcome'), t)],
       [t('op.logs.row.section'), auditTargetLabel(targetType, t)],
-      [t('op.logs.row.actor'), auditActorLabel(record, backend)],
+      [t('op.logs.row.actor'), auditActorLabel(record, backend, t)],
       [t('op.logs.row.source'), auditSourceLabel(readString(record, 'sourceApp'), t)],
       [t('op.logs.row.details'), compactAuditDetails(readString(record, 'detailsJson'), t)]
     ];
@@ -338,8 +338,8 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
   if (event[5] === 'commandFailure' && record !== null) {
     return [
       [t('op.logs.row.device'), readString(record, 'machineName', t('op.logs.row.deviceFallback'))],
-      [t('op.logs.row.command'), commandTypeLabel(readString(record, 'type', 'command'))],
-      [t('op.logs.row.status'), commandStatusLabel(readString(record, 'status', 'failed'))],
+      [t('op.logs.row.command'), commandTypeLabel(readString(record, 'type', 'command'), t)],
+      [t('op.logs.row.status'), commandStatusLabel(readString(record, 'status', 'failed'), t)],
       [t('op.logs.row.message'), commandStatusMessageLabel(readString(record, 'message')) || t('op.logs.row.noMessage')],
       [t('op.logs.row.updated'), readString(record, 'updatedAtUtc', event[0])]
     ];
@@ -348,8 +348,8 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
   if (event[5] === 'updateFailure' && record !== null) {
     return [
       [t('op.logs.row.device'), readString(record, 'machineName', t('op.logs.row.deviceFallback'))],
-      [t('op.logs.row.component'), `${updateComponentLabel(readString(record, 'component', t('op.logs.row.updateFallback')))} ${readString(record, 'targetVersion')}`.trim()],
-      [t('op.logs.row.status'), commandStatusLabel(readString(record, 'status', 'failed'))],
+      [t('op.logs.row.component'), `${updateComponentLabel(readString(record, 'component', t('op.logs.row.updateFallback')), t)} ${readString(record, 'targetVersion')}`.trim()],
+      [t('op.logs.row.status'), commandStatusLabel(readString(record, 'status', 'failed'), t)],
       [t('op.logs.row.message'), commandStatusMessageLabel(readString(record, 'message')) || t('op.logs.row.noMessage')]
     ];
   }
@@ -367,7 +367,7 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
   return [
     [t('op.logs.row.source'), event[3]],
     [t('op.logs.row.event'), event[1]],
-    [t('op.logs.row.operator'), operatorDisplayNameLabel(backend?.session.displayName ?? 'система')],
+    [t('op.logs.row.operator'), operatorDisplayNameLabel(backend?.session.displayName ?? null, t)],
     [t('op.logs.row.result'), event[2]]
   ];
 }
@@ -525,7 +525,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const [auditToUtcFilter, setAuditToUtcFilter] = useState('');
   const [auditLimit, setAuditLimit] = useState('30');
 
-  // Sentinel constants — every comparison and every display comes from the same t() call
+  // Sentinel constants вЂ” every comparison and every display comes from the same t() call
   const sourceAllKey = t('op.logs.source.all');
   const sourceAgentKey = t('op.logs.source.agent');
   const sourcePosKey = t('op.logs.source.pos');
@@ -637,7 +637,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const applyAuditSearch = async (label: string, overrides: AuditSearchOverrides = {}) => {
     setFeedback({ label, state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, overrides));
       setAuditResult(audit);
@@ -680,7 +680,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const runLogAction = async (label: string) => {
     setFeedback({ label, state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
       if (label === supportBundleActionKey) {
@@ -724,7 +724,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
           <h1>{t('op.logs.head.subtitle')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.logs.loadedLabel'))}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.logs.loadedLabel'), t)}</span>
         </div>
       </section>
 
@@ -733,7 +733,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
         <StateFlag label={t('op.logs.strip.errors')} value={String(events.filter((event) => event[4] === 'warning').length)} critical={events.some((event) => event[4] === 'warning')} />
         <StateFlag label={t('op.logs.strip.commands')} value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
         <StateFlag label={t('op.logs.strip.records')} value={String(auditRecords.length)} />
-        <StateFlag label={t('op.logs.strip.source')} value={workspaceLoadStatusLabel(loadStatus, sourcePlatformKey)} critical={loadStatus !== 'backend'} />
+        <StateFlag label={t('op.logs.strip.source')} value={workspaceLoadStatusLabel(loadStatus, sourcePlatformKey, t)} critical={loadStatus !== 'backend'} />
       </section>
 
       <section className="logs-layout">
@@ -833,8 +833,8 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
             {auditRecords.slice(0, 4).map((record) => (
               <article key={readString(record, 'auditRecordId')} className="log-audit-row">
                 <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
-                <strong>{auditActorLabel(record, backend)}</strong>
-                <em>{auditActionLabel(readString(record, 'action'))}</em>
+                <strong>{auditActorLabel(record, backend, t)}</strong>
+                <em>{auditActionLabel(readString(record, 'action'), t)}</em>
                 <b>{auditOutcomeLabel(readString(record, 'outcome'), t)}</b>
               </article>
             ))}
