@@ -18,7 +18,28 @@ public sealed class UnconfiguredOperatorAuthApiClient : IOperatorAuthApiClient
         return NotConfigured();
     }
 
+    public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken)
+        => NotConfiguredVoid();
+
+    public Task ResetPasswordByEmailAsync(string token, string newPassword, CancellationToken cancellationToken)
+        => NotConfiguredVoid();
+
+    public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)
+        => NotConfiguredVoid();
+
+    public Task ResetPasswordByPhoneAsync(
+        string phoneNumber,
+        string code,
+        string newPassword,
+        CancellationToken cancellationToken)
+        => NotConfiguredVoid();
+
     private static Task<StaffSignInResponse> NotConfigured()
+    {
+        throw new InvalidOperationException("Operator auth API client is not configured.");
+    }
+
+    private static Task NotConfiguredVoid()
     {
         throw new InvalidOperationException("Operator auth API client is not configured.");
     }
