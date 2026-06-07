@@ -29,7 +29,6 @@
   "auth.accept.error.loginTaken": "Этот логин уже занят.",
   "auth.accept.error.generic": "Не удалось активировать код.",
   "auth.reset.title": "Сброс пароля",
-  "auth.reset.message": "Сброс пароля скоро будет доступен. Обратитесь к администратору клуба.",
   "auth.reset.back": "Вернуться ко входу",
   "nav.group.branch": "Филиал",
   "nav.group.account": "Аккаунт",

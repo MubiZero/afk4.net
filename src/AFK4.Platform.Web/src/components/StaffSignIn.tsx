@@ -9,9 +9,10 @@ export interface StaffSignInProps {
   client: StaffAuthApiClient;
   onSignedIn: () => void;
   onOpenAcceptInvite: () => void;
+  onOpenForgotPassword: () => void;
 }
 
-export function StaffSignIn({ client, onSignedIn, onOpenAcceptInvite }: StaffSignInProps) {
+export function StaffSignIn({ client, onSignedIn, onOpenAcceptInvite, onOpenForgotPassword }: StaffSignInProps) {
   const { t } = useI18n();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
@@ -116,6 +117,9 @@ export function StaffSignIn({ client, onSignedIn, onOpenAcceptInvite }: StaffSig
           {isSubmitting ? t('auth.action.signingIn') : t('auth.action.signIn')}
         </button>
       </form>
+      <button type="button" className="linklike" onClick={onOpenForgotPassword}>
+        {t('auth.forgot.link')}
+      </button>
       <button type="button" className="linklike" onClick={onOpenAcceptInvite}>
         {t('auth.haveCode')}
       </button>

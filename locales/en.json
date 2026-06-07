@@ -29,7 +29,6 @@
   "auth.accept.error.loginTaken": "That login is already in use.",
   "auth.accept.error.generic": "Setup code acceptance failed.",
   "auth.reset.title": "Password reset",
-  "auth.reset.message": "Password reset is coming soon. Please contact your club administrator.",
   "auth.reset.back": "Back to sign in",
   "nav.group.branch": "Branch",
   "nav.group.account": "Account",
