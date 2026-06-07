@@ -20,7 +20,8 @@
     "gen": "bun scripts/generate-messages.ts"
   },
   "dependencies": {
-    "@afk4/formatting": "workspace:*"
+    "@afk4/formatting": "workspace:*",
+    "intl-messageformat": "^11.2.8"
   },
   "peerDependencies": {
     "react": ">=19"

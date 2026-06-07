@@ -952,7 +952,8 @@ export const messages = {
     "auth.reset.success": "Пароль изменён. Войдите с новым паролем.",
     "auth.reset.error.fields": "Введите код и новый пароль (не короче 8 символов).",
     "auth.reset.error.invalid": "Ссылка для сброса недействительна или устарела.",
-    "auth.reset.toSignIn": "Перейти ко входу"
+    "auth.reset.toSignIn": "Перейти ко входу",
+    "op.dashboard.signals": "{count, plural, one {# сигнал} few {# сигнала} many {# сигналов} other {# сигнала}}"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -1903,7 +1904,8 @@ export const messages = {
     "auth.reset.success": "Password changed. Sign in with your new password.",
     "auth.reset.error.fields": "Enter the code and a new password (at least 8 characters).",
     "auth.reset.error.invalid": "The reset link is invalid or has expired.",
-    "auth.reset.toSignIn": "Go to sign in"
+    "auth.reset.toSignIn": "Go to sign in",
+    "op.dashboard.signals": "{count, plural, one {# signal} other {# signals}}"
   },
   tg: {
     "auth.club.title": "Вход в клуб",
@@ -2854,7 +2856,8 @@ export const messages = {
     "auth.reset.success": "Пароль изменён. Войдите с новым паролем.",
     "auth.reset.error.fields": "Введите код и новый пароль (не короче 8 символов).",
     "auth.reset.error.invalid": "Ссылка для сброса недействительна или устарела.",
-    "auth.reset.toSignIn": "Перейти ко входу"
+    "auth.reset.toSignIn": "Перейти ко входу",
+    "op.dashboard.signals": "{count, plural, one {# сигнал} other {# сигнал}}"
   },
 } as const;
 
