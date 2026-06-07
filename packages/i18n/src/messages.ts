@@ -1135,7 +1135,21 @@ export const messages = {
     "op.map.panel.billingLoadError": "ошибка загрузки",
     "op.map.panel.billingLoadWaiting": "ожидает платформу",
     "op.map.panel.sessionUnavailable": "Сессия оператора платформы недоступна.",
-    "op.map.panel.confirmationLabel": "Подтверждение"
+    "op.map.panel.confirmationLabel": "Подтверждение",
+    "op.summary.detailsLabel": "Детали",
+    "op.summary.stateActive": "Активно",
+    "op.summary.inProgress": "В работе",
+    "op.summary.actionsCount": "2 действия",
+    "op.summary.localData": "Локальные данные",
+    "op.summary.openAction": "Открыть действие",
+    "op.summary.titlePc": "PC-01",
+    "op.summary.titleShift": "Смена",
+    "op.summary.titleBooking": "Бронь 16:00",
+    "op.summary.titlePos": "Корзина",
+    "op.summary.titlePlayers": "Amir K.",
+    "op.summary.titlePayments": "Платеж 14:30",
+    "op.summary.titleLogs": "Событие журнала",
+    "op.summary.titleReview": "Проверка"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -2269,7 +2283,21 @@ export const messages = {
     "op.map.panel.billingLoadError": "load error",
     "op.map.panel.billingLoadWaiting": "waiting for platform",
     "op.map.panel.sessionUnavailable": "Platform operator session unavailable.",
-    "op.map.panel.confirmationLabel": "Confirmation"
+    "op.map.panel.confirmationLabel": "Confirmation",
+    "op.summary.detailsLabel": "Details",
+    "op.summary.stateActive": "Active",
+    "op.summary.inProgress": "In progress",
+    "op.summary.actionsCount": "2 actions",
+    "op.summary.localData": "Local data",
+    "op.summary.openAction": "Open action",
+    "op.summary.titlePc": "PC-01",
+    "op.summary.titleShift": "Shift",
+    "op.summary.titleBooking": "Booking 4:00 PM",
+    "op.summary.titlePos": "Cart",
+    "op.summary.titlePlayers": "Amir K.",
+    "op.summary.titlePayments": "Payment 2:30 PM",
+    "op.summary.titleLogs": "Journal event",
+    "op.summary.titleReview": "Review"
   },
   tg: {
     "auth.club.title": "Вход в клуб",
@@ -3403,7 +3431,21 @@ export const messages = {
     "op.map.panel.billingLoadError": "хатои бор кардан",
     "op.map.panel.billingLoadWaiting": "платформаро интизор аст",
     "op.map.panel.sessionUnavailable": "Сессияи оператори платформа дастрас нест.",
-    "op.map.panel.confirmationLabel": "Тасдиқ"
+    "op.map.panel.confirmationLabel": "Тасдиқ",
+    "op.summary.detailsLabel": "Тафсилот",
+    "op.summary.stateActive": "Фаъол",
+    "op.summary.inProgress": "Дар кор",
+    "op.summary.actionsCount": "2 амал",
+    "op.summary.localData": "Маълумоти маҳаллӣ",
+    "op.summary.openAction": "Кушодани амал",
+    "op.summary.titlePc": "PC-01",
+    "op.summary.titleShift": "Навбат",
+    "op.summary.titleBooking": "Бронь 16:00",
+    "op.summary.titlePos": "Сабад",
+    "op.summary.titlePlayers": "Amir K.",
+    "op.summary.titlePayments": "Пардохт 14:30",
+    "op.summary.titleLogs": "Рӯйдоди журнал",
+    "op.summary.titleReview": "Санҷиш"
   },
 } as const;
 

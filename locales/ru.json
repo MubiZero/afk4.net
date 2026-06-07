@@ -1130,5 +1130,19 @@
   "op.map.panel.billingLoadError": "ошибка загрузки",
   "op.map.panel.billingLoadWaiting": "ожидает платформу",
   "op.map.panel.sessionUnavailable": "Сессия оператора платформы недоступна.",
-  "op.map.panel.confirmationLabel": "Подтверждение"
+  "op.map.panel.confirmationLabel": "Подтверждение",
+  "op.summary.detailsLabel": "Детали",
+  "op.summary.stateActive": "Активно",
+  "op.summary.inProgress": "В работе",
+  "op.summary.actionsCount": "2 действия",
+  "op.summary.localData": "Локальные данные",
+  "op.summary.openAction": "Открыть действие",
+  "op.summary.titlePc": "PC-01",
+  "op.summary.titleShift": "Смена",
+  "op.summary.titleBooking": "Бронь 16:00",
+  "op.summary.titlePos": "Корзина",
+  "op.summary.titlePlayers": "Amir K.",
+  "op.summary.titlePayments": "Платеж 14:30",
+  "op.summary.titleLogs": "Событие журнала",
+  "op.summary.titleReview": "Проверка"
 }

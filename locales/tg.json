@@ -1130,5 +1130,19 @@
   "op.map.panel.billingLoadError": "хатои бор кардан",
   "op.map.panel.billingLoadWaiting": "платформаро интизор аст",
   "op.map.panel.sessionUnavailable": "Сессияи оператори платформа дастрас нест.",
-  "op.map.panel.confirmationLabel": "Тасдиқ"
+  "op.map.panel.confirmationLabel": "Тасдиқ",
+  "op.summary.detailsLabel": "Тафсилот",
+  "op.summary.stateActive": "Фаъол",
+  "op.summary.inProgress": "Дар кор",
+  "op.summary.actionsCount": "2 амал",
+  "op.summary.localData": "Маълумоти маҳаллӣ",
+  "op.summary.openAction": "Кушодани амал",
+  "op.summary.titlePc": "PC-01",
+  "op.summary.titleShift": "Навбат",
+  "op.summary.titleBooking": "Бронь 16:00",
+  "op.summary.titlePos": "Сабад",
+  "op.summary.titlePlayers": "Amir K.",
+  "op.summary.titlePayments": "Пардохт 14:30",
+  "op.summary.titleLogs": "Рӯйдоди журнал",
+  "op.summary.titleReview": "Санҷиш"
 }
