@@ -11,7 +11,7 @@ param(
 
     [string] $DotnetPath = 'C:\Program Files\dotnet\dotnet.exe',
 
-    [string] $NpmPath = 'C:\Program Files\nodejs\npm.cmd',
+    [string] $BunPath = 'bun',
 
     [switch] $SkipOperatorWebRestore,
 
@@ -93,8 +93,8 @@ if (-not (Test-Path -LiteralPath $DotnetPath)) {
     throw "dotnet executable was not found at '$DotnetPath'."
 }
 
-if (-not (Test-Path -LiteralPath $NpmPath)) {
-    throw "npm executable was not found at '$NpmPath'."
+if (-not (Get-Command $BunPath -ErrorAction SilentlyContinue)) {
+    throw "bun executable was not found on PATH (looked for '$BunPath')."
 }
 
 if (-not $buildLegacyStagingBootstrapper -and
@@ -156,23 +156,30 @@ if (Test-Path -LiteralPath $wixInputRoot) {
 
 New-Item -ItemType Directory -Force -Path $wixInputRoot | Out-Null
 
-Push-Location $operatorWebRoot
-try {
-    if ($SkipOperatorWebRestore) {
-        Write-Host "Skipping Operator App frontend npm restore because SkipOperatorWebRestore was set."
-    }
-    else {
-        & $NpmPath ci
+if ($SkipOperatorWebRestore) {
+    Write-Host "Skipping Operator App frontend dependency restore because SkipOperatorWebRestore was set."
+}
+else {
+    # Dependencies are managed at the Bun workspace root (single bun.lock), so install from repoRoot.
+    Push-Location $repoRoot
+    try {
+        & $BunPath install --frozen-lockfile
 
         if ($LASTEXITCODE -ne 0) {
-            throw "npm ci failed for Operator App frontend with exit code $LASTEXITCODE."
+            throw "bun install failed for the web workspace with exit code $LASTEXITCODE."
         }
     }
+    finally {
+        Pop-Location
+    }
+}
 
-    & $NpmPath run build
+Push-Location $operatorWebRoot
+try {
+    & $BunPath run build
 
     if ($LASTEXITCODE -ne 0) {
-        throw "npm run build failed for Operator App frontend with exit code $LASTEXITCODE."
+        throw "bun run build failed for Operator App frontend with exit code $LASTEXITCODE."
     }
 }
 finally {
