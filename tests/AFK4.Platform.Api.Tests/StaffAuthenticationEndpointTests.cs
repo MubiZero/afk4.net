@@ -241,6 +241,71 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.False(string.IsNullOrWhiteSpace(body.AccessToken));
     }
 
+    [Fact]
+    public async Task PostStaffSignIn_WithEmailInsteadOfUserName_ReturnsAccessToken()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        await SeedEmailUserInOrgAAsync(factory, "owner-login", "owner@afk4.test", "Passw0rd!");
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "owner@afk4.test", "Passw0rd!"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByLogin_WithEmailWrongPassword_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        await SeedEmailUserInOrgAAsync(factory, "owner-login", "owner@afk4.test", "Passw0rd!");
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("owner@afk4.test", "wrong-password"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByLogin_WithUnknownEmail_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("ghost@afk4.test", "Passw0rd!"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByLogin_SameEmailTwoClubsSamePassword_ReturnsChooseClub()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        await SeedEmailUserInOrgAAsync(factory, "owner-a", "shared@afk4.test", "Same-pass");
+        await SeedEmailUserInSecondOrgAsync(factory, "owner-b", "shared@afk4.test", "Same-pass");
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("shared@afk4.test", "Same-pass"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInChooseClubResponse>();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(2, body.Clubs.Count);
+        Assert.Contains(body.Clubs, c => c.OrganizationId == TestIds.OrganizationId);
+        Assert.Contains(body.Clubs, c => c.OrganizationId == SecondOrgId);
+    }
+
     private static readonly Guid SecondOrgId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f09");
     private static readonly Guid SecondBranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c3");
 
@@ -345,6 +410,53 @@ public sealed class StaffAuthenticationEndpointTests
             StaffUserId = user.StaffUserId,
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
+            RoleName = StaffRoleNames.Owner
+        });
+        await dbContext.SaveChangesAsync();
+    }
+
+    // Creates org B and adds an email user there (username differs from email).
+    private static async Task SeedEmailUserInSecondOrgAsync(
+        PlatformApiFactory factory, string userName, string email, string password)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var hasher = new PasswordHasher<StaffUserEntity>();
+        var createdAt = DateTimeOffset.Parse("2026-05-12T00:00:00Z");
+        dbContext.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = SecondOrgId,
+            Slug = "second-club",
+            Name = "Second Org",
+            CreatedAtUtc = createdAt
+        });
+        dbContext.Branches.Add(new BranchEntity
+        {
+            BranchId = SecondBranchId,
+            OrganizationId = SecondOrgId,
+            Slug = "main",
+            Name = "Second Branch",
+            CreatedAtUtc = createdAt
+        });
+        var user = new StaffUserEntity
+        {
+            StaffUserId = Guid.NewGuid(),
+            OrganizationId = SecondOrgId,
+            UserName = userName,
+            NormalizedUserName = userName.ToUpperInvariant(),
+            Email = email,
+            DisplayName = "Email User B",
+            IsActive = true,
+            CreatedAtUtc = createdAt
+        };
+        user.PasswordHash = hasher.HashPassword(user, password);
+        dbContext.StaffUsers.Add(user);
+        dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(),
+            StaffUserId = user.StaffUserId,
+            OrganizationId = SecondOrgId,
+            BranchId = SecondBranchId,
             RoleName = StaffRoleNames.Owner
         });
         await dbContext.SaveChangesAsync();
