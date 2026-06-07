@@ -6288,7 +6288,7 @@ export const messages = {
     "op.shell.searchLabel": "Ҷустуҷӯ",
     "op.shell.myAccount": "Аккаунти ман",
     "op.shell.workspaces": "Фазои корӣ",
-    "op.shell.signals": "ПКҳои офлайн: {offline} · диqqат лозим: {problems}",
+    "op.shell.signals": "ПКҳои офлайн: {offline} · диққат лозим: {problems}",
     "op.shell.nav.map": "Харита",
     "op.shell.nav.dashboard": "Дашборд",
     "op.shell.nav.booking": "Брониҳо",
