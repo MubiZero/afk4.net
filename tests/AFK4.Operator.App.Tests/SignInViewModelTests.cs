@@ -88,5 +88,17 @@ public sealed class SignInViewModelTests
         {
             throw new NotSupportedException();
         }
+
+        public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task ResetPasswordByEmailAsync(string token, string newPassword, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task ResetPasswordByPhoneAsync(string phoneNumber, string code, string newPassword, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
     }
 }

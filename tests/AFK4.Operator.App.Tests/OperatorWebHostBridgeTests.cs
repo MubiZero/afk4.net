@@ -300,11 +300,63 @@ public sealed class OperatorWebHostBridgeTests
         Assert.True(document.RootElement.GetProperty("payload").GetProperty("cleared").GetBoolean());
     }
 
+    [Fact]
+    public async Task HandleAsync_ForgotByEmail_CallsClientAndReturnsOk()
+    {
+        var authClient = new RecordingOperatorAuthApiClient();
+        var bridge = new OperatorWebHostBridge(authClient, new RecordingOperatorTokenStore(), new RecordingOperatorConnectionStore());
+
+        var responseJson = await bridge.HandleAsync(
+            JsonSerializer.Serialize(new
+            {
+                type = "auth:forgotByEmail",
+                requestId = "request-1",
+                payload = new { userNameOrEmail = " owner@demo.test " }
+            }),
+            CancellationToken.None);
+
+        using var document = JsonDocument.Parse(responseJson!);
+        Assert.True(document.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal("owner@demo.test", authClient.LastForgotEmail);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ResetByPhone_ForwardsCodeAndRemainingAttempts()
+    {
+        var authClient = new RecordingOperatorAuthApiClient
+        {
+            ResetException = new OperatorAuthApiException("invalid_code", "bad code", 2)
+        };
+        var bridge = new OperatorWebHostBridge(authClient, new RecordingOperatorTokenStore(), new RecordingOperatorConnectionStore());
+
+        var responseJson = await bridge.HandleAsync(
+            JsonSerializer.Serialize(new
+            {
+                type = "auth:resetByPhone",
+                requestId = "request-2",
+                payload = new { phoneNumber = "+992937380070", code = "000000", newPassword = "Passw0rd!New" }
+            }),
+            CancellationToken.None);
+
+        using var document = JsonDocument.Parse(responseJson!);
+        var root = document.RootElement;
+        Assert.False(root.GetProperty("ok").GetBoolean());
+        var error = root.GetProperty("error");
+        Assert.Equal("invalid_code", error.GetProperty("code").GetString());
+        Assert.Equal(2, error.GetProperty("remainingAttempts").GetInt32());
+    }
+
     private sealed class RecordingOperatorAuthApiClient : IOperatorAuthApiClient
     {
         public Guid LastOrganizationId { get; private set; }
 
         public string LastUserName { get; private set; } = string.Empty;
+
+        public string? LastForgotEmail { get; private set; }
+        public (string Token, string NewPassword)? LastResetEmail { get; private set; }
+        public string? LastForgotPhone { get; private set; }
+        public (string Phone, string Code, string NewPassword)? LastResetPhone { get; private set; }
+        public OperatorAuthApiException? ResetException { get; set; }
 
         public Task<StaffSignInResponse> SignInAsync(
             Guid organizationId,
@@ -320,6 +372,30 @@ public sealed class OperatorWebHostBridgeTests
         public Task<StaffSignInResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
         {
             return Task.FromResult(CreateResponse("rotated-access-token", "rotated-refresh-token"));
+        }
+
+        public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken)
+        {
+            LastForgotEmail = userNameOrEmail;
+            return ResetException is null ? Task.CompletedTask : throw ResetException;
+        }
+
+        public Task ResetPasswordByEmailAsync(string token, string newPassword, CancellationToken cancellationToken)
+        {
+            LastResetEmail = (token, newPassword);
+            return ResetException is null ? Task.CompletedTask : throw ResetException;
+        }
+
+        public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)
+        {
+            LastForgotPhone = phoneNumber;
+            return ResetException is null ? Task.CompletedTask : throw ResetException;
+        }
+
+        public Task ResetPasswordByPhoneAsync(string phoneNumber, string code, string newPassword, CancellationToken cancellationToken)
+        {
+            LastResetPhone = (phoneNumber, code, newPassword);
+            return ResetException is null ? Task.CompletedTask : throw ResetException;
         }
 
         private static StaffSignInResponse CreateResponse(string accessToken, string refreshToken)
