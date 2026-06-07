@@ -371,7 +371,7 @@ describe('Platform Web routing', () => {
     expect(screen.getByLabelText('Код приглашения')).toHaveValue('setup-code-1');
 
     // Display-name field is removed; backend derives it from the login
-    fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'owner@demo.test' } });
+    fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'owner@demo.test' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!Real' } });
     fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Passw0rd!Real' } });
     fireEvent.click(screen.getByRole('button', { name: 'Активировать и открыть клуб' }));
@@ -400,7 +400,7 @@ describe('Platform Web routing', () => {
     // Login-only club sign-in renders in Russian (no Club key field).
     expect(screen.getByRole('heading', { name: 'Вход в клуб' })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Логин'), { target: { value: 'owner@demo.test' } });
+    fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'owner@demo.test' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!Real' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 

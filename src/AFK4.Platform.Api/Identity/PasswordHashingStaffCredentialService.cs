@@ -23,14 +23,7 @@ public sealed class PasswordHashingStaffCredentialService(
             return null;
         }
 
-        var normalizedUserName = request.UserName.Trim().ToUpperInvariant();
-        var user = await dbContext.StaffUsers.SingleOrDefaultAsync(
-            candidate =>
-                candidate.OrganizationId == request.OrganizationId &&
-                candidate.NormalizedUserName == normalizedUserName &&
-                candidate.IsActive,
-            cancellationToken);
-
+        var user = await ResolveOrgUserAsync(request.OrganizationId, request.UserName, cancellationToken);
         if (user is null)
         {
             return null;
@@ -85,13 +78,16 @@ public sealed class PasswordHashingStaffCredentialService(
         }
 
         var normalizedLogin = request.Login.Trim().ToUpperInvariant();
+        var loweredLogin = request.Login.Trim().ToLowerInvariant();
         var candidates = await dbContext.StaffUsers
             .AsNoTracking()
-            .Where(candidate => candidate.NormalizedUserName == normalizedLogin && candidate.IsActive)
+            .Where(candidate => candidate.IsActive &&
+                (candidate.NormalizedUserName == normalizedLogin ||
+                 (candidate.Email != null && candidate.Email.ToLower() == loweredLogin)))
             .Select(candidate => new { candidate.OrganizationId, candidate.StaffUserId, candidate.PasswordHash })
             .ToListAsync(cancellationToken);
 
-        var matchedOrgIds = new List<Guid>();
+        var matched = new List<(Guid OrganizationId, Guid StaffUserId)>();
         foreach (var candidate in candidates)
         {
             // VerifyHashedPassword only reads the hash; the entity is a placeholder.
@@ -103,9 +99,11 @@ public sealed class PasswordHashingStaffCredentialService(
             var result = passwordHasher.VerifyHashedPassword(placeholder, candidate.PasswordHash, request.Password);
             if (result != PasswordVerificationResult.Failed)
             {
-                matchedOrgIds.Add(candidate.OrganizationId);
+                matched.Add((candidate.OrganizationId, candidate.StaffUserId));
             }
         }
+
+        var matchedOrgIds = matched.Select(entry => entry.OrganizationId).Distinct().ToList();
 
         if (matchedOrgIds.Count == 0)
         {
@@ -114,9 +112,18 @@ public sealed class PasswordHashingStaffCredentialService(
 
         if (matchedOrgIds.Count == 1)
         {
-            var signedIn = await SignInAsync(
-                new StaffSignInRequest(matchedOrgIds[0], request.Login, request.Password),
-                cancellationToken);
+            // We already verified this exact account above. Issue the token directly
+            // instead of re-resolving by login — re-resolution would pick the wrong
+            // user when a username collides with another account's email.
+            var staffUserId = matched.First(entry => entry.OrganizationId == matchedOrgIds[0]).StaffUserId;
+            var user = await dbContext.StaffUsers
+                .FirstOrDefaultAsync(candidate => candidate.StaffUserId == staffUserId, cancellationToken);
+            if (user is null)
+            {
+                return StaffLoginResolution.None;
+            }
+
+            var signedIn = await tokenService.IssueAsync(user, cancellationToken);
             return new StaffLoginResolution(signedIn, Array.Empty<StaffSignInClubChoice>());
         }
 
@@ -126,6 +133,34 @@ public sealed class PasswordHashingStaffCredentialService(
             .Select(organization => new StaffSignInClubChoice(organization.OrganizationId, organization.Name))
             .ToListAsync(cancellationToken);
         return new StaffLoginResolution(null, clubs);
+    }
+
+    // Resolves an active staff user in the org by username first, then by email
+    // (case-insensitive). Username wins on the pathological collision. Similar to
+    // EfStaffPasswordResetService.ResolveStaffAsync, but org-scoped and IsActive-filtered.
+    private async Task<StaffUserEntity?> ResolveOrgUserAsync(
+        Guid organizationId, string loginOrEmail, CancellationToken cancellationToken)
+    {
+        var normalizedUserName = loginOrEmail.Trim().ToUpperInvariant();
+        var byUserName = await dbContext.StaffUsers.SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == organizationId &&
+                candidate.NormalizedUserName == normalizedUserName &&
+                candidate.IsActive,
+            cancellationToken);
+        if (byUserName is not null)
+        {
+            return byUserName;
+        }
+
+        var loweredEmail = loginOrEmail.Trim().ToLowerInvariant();
+        return await dbContext.StaffUsers.FirstOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == organizationId &&
+                candidate.Email != null &&
+                candidate.Email.ToLower() == loweredEmail &&
+                candidate.IsActive,
+            cancellationToken);
     }
 
     public async Task<StaffSignInResponse?> SignInByPhoneAsync(
