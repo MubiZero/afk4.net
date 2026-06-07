@@ -252,8 +252,12 @@ public sealed class StaffAuthenticationEndpointTests
         var response = await client.PostAsJsonAsync(
             "/api/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "owner@afk4.test", "Passw0rd!"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
+        Assert.False(string.IsNullOrWhiteSpace(body.AccessToken));
     }
 
     [Fact]
