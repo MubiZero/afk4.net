@@ -434,8 +434,8 @@ function AppInner() {
   const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const displayedFloorMap = useMemo(
-    () => refreshFloorMapRemaining(floorMap, remainingNowMs),
-    [floorMap, remainingNowMs]
+    () => refreshFloorMapRemaining(floorMap, t, remainingNowMs),
+    [floorMap, remainingNowMs, t]
   );
   const selectedSeat = displayedFloorMap.seats.find((seat) => seat.id === selectedSeatId) ?? displayedFloorMap.seats[0] ?? null;
   const activeBranchId = authSession === null ? null : resolveActiveBranchId(authSession, config.branchId);
@@ -646,7 +646,7 @@ function AppInner() {
 
     void (async () => {
       try {
-        const nextState = await loadBackendFloorMapState(config, authSession, branchId);
+        const nextState = await loadBackendFloorMapState(config, authSession, branchId, t);
         if (disposed) {
           return;
         }
@@ -663,7 +663,7 @@ function AppInner() {
               throw new Error(t('op.dashboard.noBranch'));
             }
 
-            const nextState = await loadBackendFloorMapState(config, nextSession, nextBranchId);
+            const nextState = await loadBackendFloorMapState(config, nextSession, nextBranchId, t);
             if (disposed) {
               return;
             }
@@ -695,7 +695,7 @@ function AppInner() {
         // Fall back to the error surface only when there is nothing cached for this branch.
         const cached = loadFloorMapCache(branchId);
         if (cached) {
-          const degraded = hydrateFloorMapStateFromCache(cached, branchId);
+          const degraded = hydrateFloorMapStateFromCache(cached, branchId, t);
           setFloorMap(degraded);
           setSelectedSeatId((current) => current ?? degraded.seats[0]?.id ?? seats[0].id);
           return;
@@ -742,7 +742,7 @@ function AppInner() {
         }
 
         reloadInFlight = true;
-        void loadBackendFloorMapState(config, authSession, branchId)
+        void loadBackendFloorMapState(config, authSession, branchId, t)
           .then((nextState) => {
             if (disposed) {
               return;
@@ -787,7 +787,7 @@ function AppInner() {
         setFloorMap((current) => {
           const nextState = {
             ...current,
-            seats: applyDeviceStatusToSeats(current.seats, status)
+            seats: applyDeviceStatusToSeats(current.seats, status, t)
           };
           floorMapRef.current = nextState;
           return nextState;
@@ -997,7 +997,7 @@ function AppInner() {
     }
 
     const detail = await describeSeatActionResult(clients, session, request.seat, response, t);
-    const nextState = await loadBackendFloorMapState(config, session, branchId);
+    const nextState = await loadBackendFloorMapState(config, session, branchId, t);
     const preferredSeatId = request.type === 'transfer' ? request.targetSeatId : request.seat.id;
     setFloorMap(nextState);
     setSelectedSeatId(nextState.seats.some((seat) => seat.id === preferredSeatId)

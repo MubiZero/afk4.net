@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'bun:test';
+import { createTranslator } from '@afk4/i18n';
 import { hydrateFloorMapStateFromCache, mapFloorMapDtoToState, offlineBannerText } from './floorMapState';
 import type { FloorMapCacheEntry } from './floorMapCache';
 import type { FloorMapDto } from './operatorApiClients';
 
 const branchId = 'acfc0212-967f-4d84-94be-9003387b09c2';
+const t = createTranslator('ru');
 
 function floorMap(branchName: string): FloorMapDto {
   return {
@@ -30,17 +32,17 @@ function floorMap(branchName: string): FloorMapDto {
 
 describe('offline mirror state', () => {
   it('maps a live DTO as online and fresh', () => {
-    const state = mapFloorMapDtoToState(floorMap('Demo Branch'), 10_000);
+    const state = mapFloorMapDtoToState(floorMap('Demo Branch'), t, 10_000);
 
     expect(state.isOffline).toBe(false);
     expect(state.cachedAtMs).toBe(10_000);
-    expect(offlineBannerText(state, 10_000)).toBeNull();
+    expect(offlineBannerText(state, t, 10_000)).toBeNull();
   });
 
   it('hydrates a degraded read-only state from cache', () => {
     const entry: FloorMapCacheEntry = { floorMap: floorMap('Cached Branch'), cachedAtMs: 1_000 };
 
-    const state = hydrateFloorMapStateFromCache(entry, branchId);
+    const state = hydrateFloorMapStateFromCache(entry, branchId, t);
 
     expect(state.isOffline).toBe(true);
     expect(state.branchName).toBe('Cached Branch');
@@ -51,18 +53,18 @@ describe('offline mirror state', () => {
 
   it('shows the offline banner when degraded', () => {
     const entry: FloorMapCacheEntry = { floorMap: floorMap('Cached Branch'), cachedAtMs: 1_000 };
-    const state = hydrateFloorMapStateFromCache(entry, branchId);
+    const state = hydrateFloorMapStateFromCache(entry, branchId, t);
 
-    const banner = offlineBannerText(state, 2_000);
+    const banner = offlineBannerText(state, t, 2_000);
     expect(banner).not.toBeNull();
     expect(banner).toContain('Офлайн');
     expect(banner).toContain('только просмотр');
   });
 
   it('shows the banner once a fresh load ages past 30s (D8)', () => {
-    const state = mapFloorMapDtoToState(floorMap('Demo Branch'), 0);
+    const state = mapFloorMapDtoToState(floorMap('Demo Branch'), t, 0);
 
-    expect(offlineBannerText(state, 20_000)).toBeNull();
-    expect(offlineBannerText(state, 31_000)).not.toBeNull();
+    expect(offlineBannerText(state, t, 20_000)).toBeNull();
+    expect(offlineBannerText(state, t, 31_000)).not.toBeNull();
   });
 });

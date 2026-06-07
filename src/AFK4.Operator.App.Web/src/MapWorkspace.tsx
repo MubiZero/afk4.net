@@ -91,7 +91,7 @@ export function MapWorkspace({
     [activeFilter, floorMap.seats]
   );
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
-  const offlineBanner = offlineBannerText(floorMap);
+  const offlineBanner = offlineBannerText(floorMap, t);
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
   const selectedHasSession = selectedSeat !== null && (Boolean(selectedSeat.activeSessionId) || selectedSeat.hasActiveSession === true);
 

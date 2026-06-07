@@ -41,6 +41,22 @@ function formatIcu(message: string, localeTag: string, values: Record<string, st
   }
   return String(formatter.format(values));
 }
+
+// Standalone translator for a fixed locale — for non-React callers (pure state/data
+// modules, unit tests) that need the same ICU + fallback behaviour as the provider's t.
+export function createTranslator(locale: Locale) {
+  return (key: MessageKey, values?: Record<string, string | number>): string => {
+    const message = resolveMessage(locale, key);
+    if (values === undefined && !message.includes('{')) {
+      return message;
+    }
+    try {
+      return formatIcu(message, LOCALE_TAG[locale], values ?? {});
+    } catch {
+      return message;
+    }
+  };
+}
 const STORAGE_KEY = 'afk4.locale';
 
 export function isLocale(value: unknown): value is Locale {
@@ -73,22 +89,7 @@ export function I18nProvider({ children, initialLocale }: { children: ReactNode;
     writeStoredLocale(l);
   }, []);
 
-  const t = useCallback(
-    (key: MessageKey, values?: Record<string, string | number>): string => {
-      const message = resolveMessage(locale, key);
-      // Fast path: plain strings with no ICU placeholders skip the formatter.
-      if (values === undefined && !message.includes('{')) {
-        return message;
-      }
-      try {
-        return formatIcu(message, LOCALE_TAG[locale], values ?? {});
-      } catch {
-        // A malformed ICU string must never crash the UI — show the raw message.
-        return message;
-      }
-    },
-    [locale]
-  );
+  const t = useMemo(() => createTranslator(locale), [locale]);
 
   const formatNumber = useCallback((n: number) => fmtNumber(n, LOCALE_TAG[locale]), [locale]);
   const formatCurrency = useCallback(

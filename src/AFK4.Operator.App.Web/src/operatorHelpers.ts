@@ -737,13 +737,14 @@ export async function clearStoredOperatorSession(): Promise<void> {
 export async function loadBackendFloorMapState(
   config: ReturnType<typeof getOperatorConfig>,
   session: OperatorAuthSession,
-  branchId: string
+  branchId: string,
+  t: TFunc
 ): Promise<OperatorFloorMapState> {
   const clients = createAuthenticatedOperatorClients(config, session);
   const floorMap = await clients.floorMap.getFloorMap(branchId);
   // Persist the last-known-good snapshot so the workspace can degrade to a read-only mirror offline (§6.5).
   saveFloorMapCache(branchId, floorMap, Date.now());
-  return mapFloorMapDtoToState(floorMap);
+  return mapFloorMapDtoToState(floorMap, t);
 }
 
 export function createIdempotencyKey(operationName: string): string {

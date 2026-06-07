@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { createTranslator } from '@afk4/i18n';
 import {
   applyDeviceStatusToSeats,
   createFixtureFloorMapState,
@@ -10,6 +11,7 @@ import type { FloorMapDto } from './operatorApiClients';
 const branchId = 'acfc0212-967f-4d84-94be-9003387b09c2';
 const organizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
 const deviceId = '11111111-1111-1111-1111-111111111111';
+const t = createTranslator('ru');
 
 describe('floor-map state', () => {
   it('creates a fixture fallback state for offline browser-dev runs', () => {
@@ -36,7 +38,7 @@ describe('floor-map state', () => {
           remainingSeconds: 3660
         })
       ]
-    });
+    }, t);
 
     expect(state.source).toBe('backend');
     expect(state.branchName).toBe('Demo Branch');
@@ -66,7 +68,7 @@ describe('floor-map state', () => {
           currencyCode: 'TJS'
         })
       ]
-    });
+    }, t);
 
     expect(state.seats[0]).toMatchObject({
       tone: 'active',
@@ -82,7 +84,7 @@ describe('floor-map state', () => {
       branchId,
       branchName: 'Demo Branch',
       seats: [createSeat({ state: 'Locked', isDeviceLocked: true })]
-    });
+    }, t);
 
     const nextSeats = applyDeviceStatusToSeats(state.seats, {
       organizationId,
@@ -92,7 +94,7 @@ describe('floor-map state', () => {
       isOnline: true,
       isLocked: false,
       observedAtUtc: '2026-05-21T10:00:00Z'
-    });
+    }, t);
 
     expect(nextSeats).not.toBe(state.seats);
     expect(nextSeats[0]).toMatchObject({
@@ -114,7 +116,7 @@ describe('floor-map state', () => {
           remainingSeconds: 900
         })
       ]
-    });
+    }, t);
 
     const nextSeats = applyDeviceStatusToSeats(state.seats, {
       organizationId,
@@ -124,7 +126,7 @@ describe('floor-map state', () => {
       isOnline: false,
       isLocked: false,
       observedAtUtc: '2026-05-21T10:00:00Z'
-    });
+    }, t);
 
     expect(nextSeats[0]).toMatchObject({
       tone: 'warning',
@@ -139,7 +141,7 @@ describe('floor-map state', () => {
       branchId,
       branchName: 'Demo Branch',
       seats: [createSeat({ state: 'Locked', isDeviceLocked: true })]
-    });
+    }, t);
 
     const nextSeats = applyDeviceStatusToSeats(state.seats, {
       organizationId,
@@ -150,7 +152,7 @@ describe('floor-map state', () => {
       isLocked: false,
       observedAtUtc: '2026-05-21T10:00:00Z',
       role: 'manager_workstation'
-    });
+    }, t);
 
     expect(nextSeats).toBe(state.seats);
   });
@@ -167,9 +169,9 @@ describe('floor-map state', () => {
           remainingSeconds: 3600
         })
       ]
-    }, loadedAtMs);
+    }, t, loadedAtMs);
 
-    const nextState = refreshFloorMapRemaining(state, loadedAtMs + 121_000);
+    const nextState = refreshFloorMapRemaining(state, t, loadedAtMs + 121_000);
 
     expect(nextState.seats[0]).toMatchObject({
       remainingSeconds: 3479,
