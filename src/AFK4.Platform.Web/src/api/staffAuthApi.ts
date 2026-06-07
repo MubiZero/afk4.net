@@ -67,6 +67,50 @@ export class StaffAuthApiClient {
     return this.readAndApplySession(response, 'Sign-in failed.');
   }
 
+  public async forgotPasswordByEmail(userNameOrEmail: string): Promise<void> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userNameOrEmail })
+    });
+    if (!response.ok) {
+      throw await toApiError(response, 'Reset request failed.');
+    }
+  }
+
+  public async resetPasswordByToken(token: string, newPassword: string): Promise<void> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword })
+    });
+    if (!response.ok) {
+      throw await toApiError(response, 'Reset failed.');
+    }
+  }
+
+  public async forgotPasswordByPhone(phoneNumber: string): Promise<void> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/forgot-password-by-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber })
+    });
+    if (!response.ok) {
+      throw await toApiError(response, 'Reset request failed.');
+    }
+  }
+
+  public async resetPasswordByPhone(phoneNumber: string, code: string, newPassword: string): Promise<void> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/reset-password-by-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber, code, newPassword })
+    });
+    if (!response.ok) {
+      throw await toApiError(response, 'Reset failed.');
+    }
+  }
+
   public signOutLocal(): void {
     this.applySession(null);
   }
@@ -95,10 +139,11 @@ export class StaffAuthApiClient {
 async function toApiError(response: Response, fallbackMessage: string): Promise<PlatformApiError> {
   let message = fallbackMessage;
   let code: string | null = null;
+  let remainingAttempts: number | null = null;
   try {
     const text = await response.text();
     if (text.length > 0) {
-      const parsed = JSON.parse(text) as { error?: string; status?: string };
+      const parsed = JSON.parse(text) as { error?: string; status?: string; remainingAttempts?: number };
       if (typeof parsed.error === 'string' && parsed.error.length > 0) {
         message = parsed.error;
         code = parsed.error;
@@ -106,9 +151,12 @@ async function toApiError(response: Response, fallbackMessage: string): Promise<
       if (typeof parsed.status === 'string' && parsed.status.length > 0) {
         message = `${message} (${parsed.status})`;
       }
+      if (typeof parsed.remainingAttempts === 'number') {
+        remainingAttempts = parsed.remainingAttempts;
+      }
     }
   } catch {
     // Preserve the fallback when the API returns a non-JSON error body.
   }
-  return new PlatformApiError(response.status, message, code);
+  return new PlatformApiError(response.status, message, code, remainingAttempts);
 }
