@@ -1656,6 +1656,7 @@
   "op.logs.source.pos": "Касса",
   "op.logs.source.operator": "Оператор",
   "op.logs.source.platform": "Платформа",
+  "op.logs.source.updates": "Обновления",
 
   "op.logs.source.all.detail": "{count} событий",
   "op.logs.source.agent.detail": "{count} событий · зависших {stale}",

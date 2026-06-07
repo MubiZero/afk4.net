@@ -1656,6 +1656,7 @@
   "op.logs.source.pos": "POS",
   "op.logs.source.operator": "Operator",
   "op.logs.source.platform": "Platform",
+  "op.logs.source.updates": "Updates",
 
   "op.logs.source.all.detail": "{count} events",
   "op.logs.source.agent.detail": "{count} events · stale {stale}",

@@ -531,6 +531,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const sourcePosKey = t('op.logs.source.pos');
   const sourceOperatorKey = t('op.logs.source.operator');
   const sourcePlatformKey = t('op.logs.source.platform');
+  const sourceUpdatesKey = t('op.logs.source.updates');
 
   const logFilterAllKey = t('op.logs.logFilter.allEvents');
   const logFilterErrorsKey = t('op.logs.logFilter.errorsOnly');
@@ -604,7 +605,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
   const auditEvents = mapAuditRecordsToLogEvents(auditRecords, t);
-  const diagnosticEvents = mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourcePlatformKey, t);
+  const diagnosticEvents = mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourceUpdatesKey, t);
   const events = [...diagnosticEvents, ...auditEvents];
   const filteredEvents = events.filter((event) => {
     const [time, title, detail, source, tone] = event;
@@ -688,7 +689,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
         setAuditResult(audit);
         downloadTextFile(
           `afk4-support-journal-${exportStamp}.json`,
-          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourcePlatformKey, t), ...mapAuditRecordsToLogEvents(nextAuditRecords, t)], nextBackend, t),
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourceUpdatesKey, t), ...mapAuditRecordsToLogEvents(nextAuditRecords, t)], nextBackend, t),
           'application/json;charset=utf-8'
         );
       } else if (label === actionListActionKey) {
@@ -698,7 +699,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: 'denied', targetType: '', fromUtc: '', toUtc: '', limit: 50 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
-        const failureEvents = [...mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourcePlatformKey, t), ...mapAuditRecordsToLogEvents(nextAuditRecords, t)]
+        const failureEvents = [...mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourceUpdatesKey, t), ...mapAuditRecordsToLogEvents(nextAuditRecords, t)]
           .filter((event) => event[4] === 'warning');
         downloadTextFile(
           `afk4-support-problems-${exportStamp}.json`,
