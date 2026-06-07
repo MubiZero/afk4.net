@@ -5,7 +5,7 @@ import { projectOperatorError } from './apiErrors';
 import {
   buildCheckoutPayments,
   checkoutMethods,
-  checkoutMethodLabels,
+  checkoutMethodLabel,
   formatBilledDuration,
   formatCheckoutAmount,
   initialCheckoutDrafts,
@@ -126,7 +126,7 @@ function CheckoutDialog({
   const currencyCode = quote?.grandTotal.currencyCode ?? '';
   const grandTotal = quote?.grandTotal.minorUnits ?? 0;
   const walletBalance = quote?.walletBalance?.minorUnits ?? null;
-  const validation = validateCheckoutPayments(drafts, grandTotal, walletBalance);
+  const validation = validateCheckoutPayments(drafts, grandTotal, walletBalance, t);
   const canConfirm = status === 'ready' && !disabled && validation.canSubmit;
 
   const updateDraft = (index: number, patch: Partial<CheckoutPaymentDraft>) => {
@@ -167,7 +167,7 @@ function CheckoutDialog({
       {status === 'ready' && quote && (
         <>
           <dl className="checkout-breakdown">
-            <div><dt>{t('op.map.panel.billableTime')}</dt><dd>{formatBilledDuration(quote.billableSeconds)}</dd></div>
+            <div><dt>{t('op.map.panel.billableTime')}</dt><dd>{formatBilledDuration(quote.billableSeconds, t)}</dd></div>
             <div><dt>{t('op.map.panel.billableTimeCharge')}</dt><dd>{formatMinorUnits(quote.timeCharge.minorUnits, currencyCode)}</dd></div>
             <div><dt>{t('op.map.panel.billableSnacks')}</dt><dd>{formatMinorUnits(quote.posTotal.minorUnits, currencyCode)}</dd></div>
             <div className="checkout-breakdown-total"><dt>{t('op.map.panel.billableTotal')}</dt><dd>{formatMinorUnits(grandTotal, currencyCode)}</dd></div>
@@ -183,7 +183,7 @@ function CheckoutDialog({
                   onChange={(event) => updateDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
                 >
                   {checkoutMethods.map((method) => (
-                    <option key={method} value={method}>{checkoutMethodLabels[method]}</option>
+                    <option key={method} value={method}>{checkoutMethodLabel(method, t)}</option>
                   ))}
                 </select>
                 <span className="checkout-payment-icon">{checkoutMethodIcons[draft.method]}</span>

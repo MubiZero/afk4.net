@@ -2346,7 +2346,16 @@ export const messages = {
     "op.floor.duration.sec": "осталось {count} с",
     "op.floor.duration.min": "осталось {count} мин",
     "op.floor.duration.hourMin": "осталось {hours} ч {minutes} мин",
-    "op.floor.offlineBanner": "Офлайн — данные от {time}, только просмотр"
+    "op.floor.offlineBanner": "Офлайн — данные от {time}, только просмотр",
+    "op.checkout.method.cash": "Наличные",
+    "op.checkout.method.card": "Карта",
+    "op.checkout.method.wallet": "Депозит",
+    "op.checkout.duration.min": "{minutes}м",
+    "op.checkout.duration.hourMin": "{hours}ч {minutes}м",
+    "op.checkout.error.invalidAmount": "Проверьте сумму платежа.",
+    "op.checkout.error.walletExceeds": "Оплата с депозита превышает баланс.",
+    "op.checkout.error.short": "Не хватает {amount}",
+    "op.checkout.error.over": "Превышение на {amount}"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -4691,7 +4700,16 @@ export const messages = {
     "op.floor.duration.sec": "{count} s left",
     "op.floor.duration.min": "{count} min left",
     "op.floor.duration.hourMin": "{hours} h {minutes} min left",
-    "op.floor.offlineBanner": "Offline — data from {time}, view only"
+    "op.floor.offlineBanner": "Offline — data from {time}, view only",
+    "op.checkout.method.cash": "Cash",
+    "op.checkout.method.card": "Card",
+    "op.checkout.method.wallet": "Deposit",
+    "op.checkout.duration.min": "{minutes}m",
+    "op.checkout.duration.hourMin": "{hours}h {minutes}m",
+    "op.checkout.error.invalidAmount": "Check the payment amount.",
+    "op.checkout.error.walletExceeds": "Deposit payment exceeds the balance.",
+    "op.checkout.error.short": "Short by {amount}",
+    "op.checkout.error.over": "Over by {amount}"
   },
   tg: {
     "auth.club.title": "Вход в клуб",
@@ -7036,7 +7054,16 @@ export const messages = {
     "op.floor.duration.sec": "{count} с боқӣ монд",
     "op.floor.duration.min": "{count} дақ боқӣ монд",
     "op.floor.duration.hourMin": "{hours} с {minutes} дақ боқӣ монд",
-    "op.floor.offlineBanner": "Офлайн — маълумот аз {time}, танҳо намоиш"
+    "op.floor.offlineBanner": "Офлайн — маълумот аз {time}, танҳо намоиш",
+    "op.checkout.method.cash": "Нақд",
+    "op.checkout.method.card": "Корт",
+    "op.checkout.method.wallet": "Амонат",
+    "op.checkout.duration.min": "{minutes}дақ",
+    "op.checkout.duration.hourMin": "{hours}с {minutes}дақ",
+    "op.checkout.error.invalidAmount": "Маблағи пардохтро санҷед.",
+    "op.checkout.error.walletExceeds": "Пардохт аз амонат аз бақия зиёд аст.",
+    "op.checkout.error.short": "{amount} намерасад",
+    "op.checkout.error.over": "Зиёдатӣ {amount}"
   },
 } as const;
 

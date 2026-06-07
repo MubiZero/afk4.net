@@ -2444,5 +2444,14 @@
   "op.floor.duration.sec": "{count} с боқӣ монд",
   "op.floor.duration.min": "{count} дақ боқӣ монд",
   "op.floor.duration.hourMin": "{hours} с {minutes} дақ боқӣ монд",
-  "op.floor.offlineBanner": "Офлайн — маълумот аз {time}, танҳо намоиш"
+  "op.floor.offlineBanner": "Офлайн — маълумот аз {time}, танҳо намоиш",
+  "op.checkout.method.cash": "Нақд",
+  "op.checkout.method.card": "Корт",
+  "op.checkout.method.wallet": "Амонат",
+  "op.checkout.duration.min": "{minutes}дақ",
+  "op.checkout.duration.hourMin": "{hours}с {minutes}дақ",
+  "op.checkout.error.invalidAmount": "Маблағи пардохтро санҷед.",
+  "op.checkout.error.walletExceeds": "Пардохт аз амонат аз бақия зиёд аст.",
+  "op.checkout.error.short": "{amount} намерасад",
+  "op.checkout.error.over": "Зиёдатӣ {amount}"
 }

@@ -2444,5 +2444,14 @@
   "op.floor.duration.sec": "{count} s left",
   "op.floor.duration.min": "{count} min left",
   "op.floor.duration.hourMin": "{hours} h {minutes} min left",
-  "op.floor.offlineBanner": "Offline — data from {time}, view only"
+  "op.floor.offlineBanner": "Offline — data from {time}, view only",
+  "op.checkout.method.cash": "Cash",
+  "op.checkout.method.card": "Card",
+  "op.checkout.method.wallet": "Deposit",
+  "op.checkout.duration.min": "{minutes}m",
+  "op.checkout.duration.hourMin": "{hours}h {minutes}m",
+  "op.checkout.error.invalidAmount": "Check the payment amount.",
+  "op.checkout.error.walletExceeds": "Deposit payment exceeds the balance.",
+  "op.checkout.error.short": "Short by {amount}",
+  "op.checkout.error.over": "Over by {amount}"
 }

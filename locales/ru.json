@@ -2444,5 +2444,14 @@
   "op.floor.duration.sec": "осталось {count} с",
   "op.floor.duration.min": "осталось {count} мин",
   "op.floor.duration.hourMin": "осталось {hours} ч {minutes} мин",
-  "op.floor.offlineBanner": "Офлайн — данные от {time}, только просмотр"
+  "op.floor.offlineBanner": "Офлайн — данные от {time}, только просмотр",
+  "op.checkout.method.cash": "Наличные",
+  "op.checkout.method.card": "Карта",
+  "op.checkout.method.wallet": "Депозит",
+  "op.checkout.duration.min": "{minutes}м",
+  "op.checkout.duration.hourMin": "{hours}ч {minutes}м",
+  "op.checkout.error.invalidAmount": "Проверьте сумму платежа.",
+  "op.checkout.error.walletExceeds": "Оплата с депозита превышает баланс.",
+  "op.checkout.error.short": "Не хватает {amount}",
+  "op.checkout.error.over": "Превышение на {amount}"
 }
