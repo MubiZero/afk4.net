@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useI18n } from '@afk4/i18n';
 import type { CriticalConfirmationTone, Feedback } from './operatorTypes';
 import { feedbackText } from './operatorHelpers';
 
@@ -19,7 +20,7 @@ export function CriticalActionConfirmation({
   detail,
   impact,
   confirmLabel,
-  cancelLabel = 'Отмена',
+  cancelLabel,
   tone = 'danger',
   disabled = false,
   children,
@@ -37,6 +38,8 @@ export function CriticalActionConfirmation({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <section className={`critical-confirmation ${tone}`} role="alertdialog" aria-label={title}>
       <div>
@@ -46,7 +49,7 @@ export function CriticalActionConfirmation({
       </div>
       {children}
       <div className="critical-confirmation-actions">
-        <button type="button" onClick={onCancel} disabled={disabled}>{cancelLabel}</button>
+        <button type="button" onClick={onCancel} disabled={disabled}>{cancelLabel ?? t('common.cancel')}</button>
         <button type="button" className="danger" onClick={onConfirm} disabled={disabled}>{confirmLabel}</button>
       </div>
     </section>
