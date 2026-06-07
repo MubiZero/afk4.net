@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRightLeft, MonitorCheck, Plus, Square, UserRoundPlus } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';

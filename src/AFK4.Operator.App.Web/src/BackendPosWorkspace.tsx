@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRightLeft, Banknote, CircleDollarSign, ReceiptText, Search, UserRoundPlus, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
@@ -962,7 +962,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
               </div>
               {readArray(selectedSaleDetail, 'lines').slice(0, 3).map((line) => (
                 <p key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}>
-                  {readString(line, 'productName', t('op.pos.receipts.productFallback'))} · {readNumber(line, 'quantity', 0)} Г— {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
+                  {readString(line, 'productName', t('op.pos.receipts.productFallback'))} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
                 </p>
               ))}
               {selectedReceiptDetail !== null && (

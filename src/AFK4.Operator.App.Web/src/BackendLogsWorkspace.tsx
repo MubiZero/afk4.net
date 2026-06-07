@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRightLeft, MonitorCheck, ReceiptText, Search, ShieldAlert, UserRoundPlus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
