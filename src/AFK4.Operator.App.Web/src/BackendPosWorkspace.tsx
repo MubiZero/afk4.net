@@ -206,7 +206,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
           return;
         }
 
-        const projected = Array.isArray(players) ? players.map(projectPlayerClient) : [];
+        const projected = Array.isArray(players) ? players.map((p) => projectPlayerClient(p, t)) : [];
         setPosPlayers(projected);
         setSelectedPlayerId((current) => current && projected.some((player) => player.playerAccountId === current)
           ? current

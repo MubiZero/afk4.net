@@ -49,7 +49,7 @@ import {
   projectOperatorFacingError,
   readString,
   tariffOptionLabel,
-  toneLabels,
+  toneLabel,
   type PlayerClientItem,
   projectPlayerClient,
   zoneLabel
@@ -422,7 +422,7 @@ export function MapSidePanel({
           return;
         }
 
-        const projected = players.map(projectPlayerClient);
+        const projected = players.map((p) => projectPlayerClient(p, t));
         setBillingPlayers(projected);
         setSelectedPlayerId((current) => current || (projected[0]?.playerAccountId ?? ''));
       })
@@ -498,7 +498,7 @@ export function MapSidePanel({
           <span>{zoneLabel(seat.zone)}</span>
           <h2>{seat.name}</h2>
         </div>
-        <span className={`state-chip state-${seat.tone}`}>{toneLabels[seat.tone]}</span>
+        <span className={`state-chip state-${seat.tone}`}>{toneLabel(seat.tone, t)}</span>
       </header>
 
       <section className={`context-status-row state-${seat.tone}`}>
@@ -600,11 +600,11 @@ export function MapSidePanel({
       <section className="context-section billing-selection-panel" aria-label={t('op.map.panel.billingSetup')}>
         <div className="billing-panel-head">
           <span>{t('op.map.panel.billingSession')}</span>
-          <strong>{billingModeLabel(billingMode)}</strong>
+          <strong>{billingModeLabel(billingMode, t)}</strong>
           <em>{billingLoadText}</em>
         </div>
         <div className="billing-mode" aria-label={t('op.map.panel.billingModeLabel')}>
-          {billingModeOptions.map((option) => {
+          {billingModeOptions(t).map((option) => {
             const isBilledMode = option.id !== 'guest';
             return (
               <button
@@ -712,7 +712,7 @@ export function MapSidePanel({
             )}
             <div className="detail-row billing-meta">
               <span>{t('op.map.panel.billingChoice')}</span>
-              <strong>{billingMissing ?? t('op.map.panel.billingReady', { mode: billingModeLabel(billingMode) })}</strong>
+              <strong>{billingMissing ?? t('op.map.panel.billingReady', { mode: billingModeLabel(billingMode, t) })}</strong>
             </div>
           </>
         )}

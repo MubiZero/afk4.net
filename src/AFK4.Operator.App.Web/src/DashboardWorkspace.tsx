@@ -16,7 +16,6 @@ import {
   emptyFeedback,
   formatCompactNumber,
   formatMinorUnits,
-  pcControlLabel,
   readArray,
   readMoney,
   readNumber,
@@ -362,7 +361,7 @@ export function DashboardWorkspace({
           </div>
           <div className="dashboard-now-actions">
             <button type="button" onClick={() => openSelectedFocusSeat(t('op.dashboard.resolve'))}><AlertTriangle size={15} /> {t('op.dashboard.resolve')}</button>
-            <button type="button" onClick={() => openSelectedFocusSeat(pcControlLabel)}><Wrench size={15} /> {pcControlLabel}</button>
+            <button type="button" onClick={() => openSelectedFocusSeat(t('op.map.pcControlLabel'))}><Wrench size={15} /> {t('op.map.pcControlLabel')}</button>
           </div>
           {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: t('op.dashboard.overview'), state: 'failed', detail: dashboardLoadError ?? t('op.dashboard.unavailable') }} />}
           <FeedbackNotice feedback={feedback} />

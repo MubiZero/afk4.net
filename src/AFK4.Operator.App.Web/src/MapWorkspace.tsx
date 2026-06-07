@@ -14,7 +14,7 @@ import {
   emptyFeedback,
   mapFilterOptions,
   matchesMapFilter,
-  toneLabels,
+  toneLabel,
   zoneClass,
   zoneLabel
 } from './operatorHelpers';
@@ -177,7 +177,7 @@ export function MapWorkspace({
               <span>{t('op.map.selectedPc')}</span>
               <strong>{selectedSeat.name}</strong>
             </div>
-            <b className={`state-chip state-${selectedSeat.tone}`}>{toneLabels[selectedSeat.tone]}</b>
+            <b className={`state-chip state-${selectedSeat.tone}`}>{toneLabel(selectedSeat.tone, t)}</b>
           </header>
           <div className="pc-control-summary">
             <span>{selectedSeat.device}</span>
@@ -220,7 +220,7 @@ export function MapWorkspace({
 
       <section className="map-controls-row" aria-label={t('op.map.filtersAndViewLabel')}>
         <div className="filter-row map-filter-row" aria-label={t('op.map.filterLabel')}>
-          {mapFilterOptions.map((option) => (
+          {mapFilterOptions(t).map((option) => (
             <button
               key={option.id}
               type="button"
@@ -286,7 +286,7 @@ export function MapWorkspace({
                       <button type="button" onClick={() => onSelectSeat(seat.id)}>{seat.name}</button>
                       <span>{zoneLabel(seat.zone)}</span>
                     </td>
-                    <td><strong>{toneLabels[seat.tone]}</strong><span>{seat.stateLabel}</span></td>
+                    <td><strong>{toneLabel(seat.tone, t)}</strong><span>{seat.stateLabel}</span></td>
                     <td>{seat.player}</td>
                     <td>{seat.remaining}</td>
                     <td>{deviceStatusLabel(seat.device)}</td>

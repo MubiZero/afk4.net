@@ -1450,7 +1450,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                   }}
                 >
                   <strong>{operatorDisplayNameLabel(readString(user, 'displayName', t('op.settings.staff.staffFallback')))}</strong>
-                  <span>{readString(user, 'userName', t('op.settings.staff.userFallback'))} · {readArray<string>(user, 'roleNames').map(staffRoleLabel).join(', ') || t('op.settings.staff.roleEmpty')} · {readBoolean(user, 'isActive', true) ? t('op.settings.staff.active') : t('op.settings.staff.inactive')}</span>
+                  <span>{readString(user, 'userName', t('op.settings.staff.userFallback'))} · {readArray<string>(user, 'roleNames').map((r) => staffRoleLabel(r, t)).join(', ') || t('op.settings.staff.roleEmpty')} · {readBoolean(user, 'isActive', true) ? t('op.settings.staff.active') : t('op.settings.staff.inactive')}</span>
                 </button>
               ))}
             </div>

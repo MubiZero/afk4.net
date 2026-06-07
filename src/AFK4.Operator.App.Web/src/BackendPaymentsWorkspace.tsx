@@ -164,7 +164,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
     ...salesRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
       posSaleStateLabel(readString(row, 'state', 'sale')),
-      `${t('op.pos.receipts.receiptFallback')} · ${posSaleLineSummary(row)}`,
+      `${t('op.pos.receipts.receiptFallback')} · ${posSaleLineSummary(row, t)}`,
       t('op.payments.ledger.typeSale'),
       formatMoney(readMoney(row, 'total'), currencyCode),
       readString(row, 'state', 'sale').toLowerCase().includes('refund') ? 'refund' : 'sale',
@@ -201,7 +201,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
       ? t('op.payments.ledger.typeSale')
       : t('op.payments.ledger.typeCash');
   const selectedOperationDetail = selectedOperationIsSale
-    ? posSaleLineSummary(selectedOperationSource)
+    ? posSaleLineSummary(selectedOperationSource, t)
     : readString(selectedOperationSource, 'reason', selectedOperation[2]);
   const grossSales = readMoney(salesReport, 'grossSalesTotal');
   const refunds = readMoney(salesReport, 'refundsTotal');

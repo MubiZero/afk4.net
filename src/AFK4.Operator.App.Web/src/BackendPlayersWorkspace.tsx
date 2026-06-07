@@ -72,7 +72,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           return;
         }
 
-        const nextClients = Array.isArray(players) ? players.map(projectPlayerClient) : [];
+        const nextClients = Array.isArray(players) ? players.map((p) => projectPlayerClient(p, t)) : [];
         const nextOptions = Array.isArray(nextPackageOptions) ? nextPackageOptions : [];
         setClients(nextClients.length > 0 ? nextClients : []);
         setPackageOptions(nextOptions);

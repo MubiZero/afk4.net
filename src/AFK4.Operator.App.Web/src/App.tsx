@@ -249,7 +249,7 @@ function SignInScreen({
         <div className="top-status">
           <span><Wifi size={14} />{isChecking ? t('op.shell.checkingAuth') : t('op.shell.secureAuth')}</span>
           <span>{config.platformBaseUrl}</span>
-          <span>{shellModeLabel(config.shellMode)}</span>
+          <span>{shellModeLabel(config.shellMode, t)}</span>
         </div>
         <WindowControls />
       </header>
@@ -445,8 +445,8 @@ function AppInner() {
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);
-  const shellShiftText = shellShiftLabel(shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError);
-  const shellPosText = shellPosLabel(shellDashboardSummary, shellLoadStatus);
+  const shellShiftText = shellShiftLabel(shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError, t);
+  const shellPosText = shellPosLabel(shellDashboardSummary, shellLoadStatus, t);
 
   useEffect(() => {
     floorMapRef.current = floorMap;
@@ -1157,7 +1157,7 @@ function AppInner() {
         <div className="top-status">
           <span>{shellShiftText}</span>
           <button type="button" className="top-account" aria-label={t('op.shell.myAccount')} onClick={() => setAccountPanelOpen(true)}>
-            {operatorDisplayNameLabel(authSession.displayName)} · {shellModeLabel(config.shellMode)}
+            {operatorDisplayNameLabel(authSession.displayName)} · {shellModeLabel(config.shellMode, t)}
           </button>
         </div>
         <button type="button" className="sign-out-button" onClick={handleSignOut}>{t('shell.signOut')}</button>
