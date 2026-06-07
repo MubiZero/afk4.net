@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CalendarClock, CircleDollarSign, ReceiptText, Search, TimerReset, UserRoundPlus } from 'lucide-react';
+import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import type { PackageOptionDto, PlayerPackageDto, WalletSummaryDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -28,9 +29,12 @@ import {
 } from './operatorHelpers';
 import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 
+type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'newCard';
+
 export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const { t } = useI18n();
   const [clientSearch, setClientSearch] = useState('');
-  const [activeSegment, setActiveSegment] = useState('Все');
+  const [activeSegment, setActiveSegment] = useState<string>(() => t('op.players.segments.all'));
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
@@ -40,9 +44,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
   const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('100.00');
-  const [walletTopUpReason, setWalletTopUpReason] = useState('пополнение через кассу');
+  const [walletTopUpReason, setWalletTopUpReason] = useState(() => t('op.players.actions.topUpDefault'));
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
-  const [debtPaymentReason, setDebtPaymentReason] = useState('оплата долга через кассу');
+  const [debtPaymentReason, setDebtPaymentReason] = useState(() => t('op.players.actions.writeOffDebtDefault'));
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
 
@@ -82,7 +86,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
       } catch (error) {
         if (!disposed) {
           setLoadStatus('failed');
-          setFeedback({ label: 'Клиенты', state: 'failed', detail: projectOperatorError(error).detail });
+          setFeedback({ label: t('op.players.error.loadFailed'), state: 'failed', detail: projectOperatorError(error).detail });
         }
       }
     };
@@ -134,12 +138,18 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient?.playerAccountId, selectedClient?.source]);
 
+  const segmentAll = t('op.players.segments.all');
+  const segmentVip = t('op.players.segments.vip');
+  const segmentDebt = t('op.players.segments.debt');
+  const segmentNew = t('op.players.segments.new');
+  const segmentSleeping = t('op.players.segments.sleeping');
+
   const visibleClients = clients.filter((client) => {
-    const segmentMatches = activeSegment === 'Все'
-      || (activeSegment === 'VIP' && client.tone === 'vip')
-      || (activeSegment === 'Есть долг' && client.debtMinorUnits > 0)
-      || (activeSegment === 'Новые' && client.source === 'backend')
-      || (activeSegment === 'Спящие' && client.status === 'Неактивен');
+    const segmentMatches = activeSegment === segmentAll
+      || (activeSegment === segmentVip && client.tone === 'vip')
+      || (activeSegment === segmentDebt && client.debtMinorUnits > 0)
+      || (activeSegment === segmentNew && client.source === 'backend')
+      || (activeSegment === segmentSleeping && client.status === 'Неактивен');
     const searchMatches = `${client.name} ${client.status} ${client.detail} ${client.last}`.toLowerCase().includes(clientSearch.trim().toLowerCase());
     return segmentMatches && searchMatches;
   });
@@ -193,21 +203,21 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     && hasPermission(backend.session, permissionNames.manageReservations);
   const requireSelectedBackendClient = (): PlayerClientItem & { playerAccountId: string; source: 'backend' } => {
     if (selectedClient === null || selectedClient.source !== 'backend' || !selectedClient.playerAccountId) {
-      throw new Error('Выберите игрока платформы перед операцией.');
+      throw new Error(t('op.players.error.selectPlayer'));
     }
 
     return selectedClient as PlayerClientItem & { playerAccountId: string; source: 'backend' };
   };
 
-  const runClientAction = async (label: string) => {
+  const runClientAction = async (id: PlayerActionId, label: string) => {
     setFeedback({ label, state: 'pending' });
     try {
       const nextBackend = requireBackend(backend);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
 
-      if (label === 'Пополнить депозит') {
+      if (id === 'topUp') {
         if (!hasPermission(nextBackend.session, permissionNames.topUpWallet)) {
-          throw new Error('Нет прав на пополнение депозита.');
+          throw new Error(t('op.players.error.noPermTopUp'));
         }
 
         const backendClient = requireSelectedBackendClient();
@@ -215,7 +225,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         const topUpMinorUnits = parseMoneyInputMinorUnits(walletTopUpAmount);
         const reason = walletTopUpReason.trim();
         if (topUpMinorUnits === null || !reason) {
-          throw new Error('Заполните сумму и причину пополнения депозита.');
+          throw new Error(t('op.players.error.topUpInvalid'));
         }
 
         const wallet = await apiClients.players.topUpWallet(backendClient.playerAccountId, {
@@ -225,9 +235,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           idempotencyKey: createIdempotencyKey('wallet-top-up')
         });
         setWalletSummary(wallet);
-      } else if (label === 'Списать долг') {
+      } else if (id === 'writeOffDebt') {
         if (!hasPermission(nextBackend.session, permissionNames.payDebt)) {
-          throw new Error('Нет прав на списание долга.');
+          throw new Error(t('op.players.error.noPermDebt'));
         }
 
         const backendClient = requireSelectedBackendClient();
@@ -235,7 +245,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         const debtPaymentMinorUnits = parseMoneyInputMinorUnits(debtPaymentAmount);
         const reason = debtPaymentReason.trim();
         if (debtPaymentMinorUnits === null || !reason || debtPaymentMinorUnits > debt) {
-          throw new Error('Заполните сумму долга не больше текущего долга и причину оплаты.');
+          throw new Error(t('op.players.error.debtInvalid'));
         }
 
         const wallet = await apiClients.players.payDebt(backendClient.playerAccountId, {
@@ -245,14 +255,14 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           idempotencyKey: createIdempotencyKey('debt-payment')
         });
         setWalletSummary(wallet);
-      } else if (label === 'Новая карта') {
+      } else if (id === 'newCard') {
         if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
-          throw new Error('Нет прав на создание игрока.');
+          throw new Error(t('op.players.error.noPermCreate'));
         }
 
         const displayName = newPlayerName.trim() || clientSearch.trim();
         if (!displayName) {
-          throw new Error('Заполните имя нового клиента.');
+          throw new Error(t('op.players.error.createNameRequired'));
         }
 
         const created = await apiClients.players.createPlayer(nextBackend.branchId, {
@@ -263,7 +273,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         });
         const createdClient = projectPlayerClient({
           playerAccountId: readString(created, 'playerAccountId'),
-          displayName: readString(created, 'displayName', 'Новый клиент'),
+          displayName: readString(created, 'displayName', t('op.players.newClient')),
           phoneNumber: readString(created, 'phoneNumber'),
           walletBalanceMinorUnits: 0,
           debtBalanceMinorUnits: 0,
@@ -274,9 +284,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         setSelectedClientId(createdClient.playerAccountId ?? null);
         setNewPlayerName('');
         setNewPlayerPhone('');
-      } else if (label === 'Купить пакет') {
+      } else if (id === 'buyPackage') {
         if (!hasPermission(nextBackend.session, permissionNames.purchasePackage)) {
-          throw new Error('Нет прав на покупку пакетов.');
+          throw new Error(t('op.players.error.noPermPackage'));
         }
 
         const backendClient = requireSelectedBackendClient();
@@ -292,12 +302,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
         const packageDefinitionId = readString(packageOption, 'packageDefinitionId');
         if (!packageDefinitionId) {
-          throw new Error('Нет доступного пакета платформы для покупки.');
+          throw new Error(t('op.players.error.noPackageAvailable'));
         }
 
         const packagePriceMinorUnits = readNumber(packageOption, 'priceMinorUnits', 0);
         if (packagePriceMinorUnits > balance) {
-          throw new Error('Недостаточно депозита для выбранного пакета.');
+          throw new Error(t('op.players.error.insufficientDeposit'));
         }
 
         const purchasedPackage = await apiClients.players.purchasePackage(backendClient.playerAccountId, {
@@ -311,9 +321,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         ]);
         setWalletSummary(wallet);
         setSelectedClientPackages(Array.isArray(packages) ? packages : [purchasedPackage]);
-      } else if (label === 'Создать бронь') {
+      } else if (id === 'booking') {
         if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
-          throw new Error('Нет прав на создание брони.');
+          throw new Error(t('op.players.error.noPermBooking'));
         }
 
         const backendClient = requireSelectedBackendClient();
@@ -327,10 +337,11 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           startsAtUtc: new Date(Date.now() + 30 * 60_000).toISOString(),
           durationMinutes: 60,
           source: 'operator',
+          // technical note sent to the API, not displayed to the user
           note: 'Создано из карточки клиента'
         });
       } else {
-        throw new Error('Операция пока не подключена к платформе.');
+        throw new Error(t('op.players.error.actionNotConnected'));
       }
 
       setFeedback({ label, state: 'confirmed' });
@@ -339,37 +350,111 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     }
   };
 
+  type PlayerAction = {
+    id: PlayerActionId;
+    label: string;
+    detail: string;
+    Icon: React.ComponentType<{ size: number }>;
+    disabled: boolean;
+  };
+
+  const playerActions: PlayerAction[] = [
+    {
+      id: 'topUp',
+      label: t('op.players.actions.topUpBtn'),
+      detail: `${walletTopUpAmount || '0'} ${currencyCode}`,
+      Icon: CircleDollarSign,
+      disabled: !canTopUpWallet
+    },
+    {
+      id: 'writeOffDebt',
+      label: t('op.players.actions.writeOffDebtBtn'),
+      detail: debtPaymentAmount ? `${debtPaymentAmount} ${currencyCode}` : t('op.players.actions.writeOffDebtNone'),
+      Icon: ReceiptText,
+      disabled: !canPayDebt
+    },
+    {
+      id: 'buyPackage',
+      label: t('op.players.actions.buyPackageBtn'),
+      detail: selectedPackageOption ? packageOptionLabel(selectedPackageOption, currencyCode) : t('op.players.actions.buyPackageNone'),
+      Icon: TimerReset,
+      disabled: !canPurchasePackage || packageOptions.length === 0 || !canAffordSelectedPackage
+    },
+    {
+      id: 'booking',
+      label: t('op.players.actions.bookingBtn'),
+      detail: t('op.players.actions.bookingDetail'),
+      Icon: CalendarClock,
+      disabled: !canCreateClientReservation
+    },
+    {
+      id: 'newCard',
+      label: t('op.pos.cart.newCardLabel'),
+      detail: newPlayerName || t('op.players.actions.newCardDetail'),
+      Icon: UserRoundPlus,
+      disabled: !canCreatePlayer
+    }
+  ];
+
+  const segments: Array<{ id: string; label: string; detail: string }> = [
+    {
+      id: segmentAll,
+      label: segmentAll,
+      detail: t('op.players.segments.clients', { count: clients.length })
+    },
+    {
+      id: segmentVip,
+      label: segmentVip,
+      detail: t('op.players.segments.clients', { count: clients.filter((c) => c.tone === 'vip').length })
+    },
+    {
+      id: segmentDebt,
+      label: segmentDebt,
+      detail: t('op.players.segments.clients', { count: clients.filter((c) => c.debtMinorUnits > 0).length })
+    },
+    {
+      id: segmentSleeping,
+      label: segmentSleeping,
+      detail: t('op.players.segments.inactive')
+    },
+    {
+      id: segmentNew,
+      label: segmentNew,
+      detail: t('op.players.segments.fromSearch')
+    }
+  ];
+
   return (
     <main className="workspace-screen clients-screen">
       <section className="screen-head clients-head">
         <div>
-          <span>Клиенты</span>
-          <h1>Клиенты · поиск, депозит и долги</h1>
+          <span>{t('op.players.title')}</span>
+          <h1>{t('op.players.heading')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Платформа подключена')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.pos.platformConnected'))}</span>
         </div>
       </section>
 
-      <section className="state-strip clients-state-strip" aria-label="Сводка клиентов">
-        <StateFlag label="Клиенты" value={String(clients.length)} />
-        <StateFlag label="Платформа" value={String(clients.filter((client) => client.source === 'backend').length)} critical={loadStatus !== 'backend'} />
-        <StateFlag label="Депозит" value={formatMinorUnits(balance, currencyCode)} />
-        <StateFlag label="Долг" value={formatMinorUnits(debt, currencyCode)} critical={debt > 0} />
-        <StateFlag label="Пакеты" value={String(selectedClientPackageCount)} />
-        <StateFlag label="Записи" value={String(recentEntries.length)} />
+      <section className="state-strip clients-state-strip" aria-label={t('op.players.strip.label')}>
+        <StateFlag label={t('op.players.strip.clients')} value={String(clients.length)} />
+        <StateFlag label={t('op.players.strip.platform')} value={String(clients.filter((client) => client.source === 'backend').length)} critical={loadStatus !== 'backend'} />
+        <StateFlag label={t('op.pos.payment.methodDeposit')} value={formatMinorUnits(balance, currencyCode)} />
+        <StateFlag label={t('clients.col.debt')} value={formatMinorUnits(debt, currencyCode)} critical={debt > 0} />
+        <StateFlag label={t('clients.col.packages')} value={String(selectedClientPackageCount)} />
+        <StateFlag label={t('op.players.strip.entries')} value={String(recentEntries.length)} />
       </section>
 
       <section className="clients-layout">
         <section className="clients-panel clients-list-panel">
           <header className="clients-panel-title">
-            <span>Список клиентов</span>
-            <strong>поиск по имени, телефону или карте</strong>
+            <span>{t('op.players.list.title')}</span>
+            <strong>{t('op.players.list.subtitle')}</strong>
           </header>
           <label className="clients-search">
             <Search size={14} />
             <input
-              placeholder="Игрок, телефон, карта"
+              placeholder={t('op.players.list.searchPlaceholder')}
               value={clientSearch}
               onChange={(event) => setClientSearch(event.currentTarget.value)}
             />
@@ -377,8 +462,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           <div className="clients-list">
             {visibleClients.length === 0 ? (
               <div className="clients-empty-state">
-                <strong>Клиенты не найдены</strong>
-                <span>{loadStatus === 'backend' ? 'По текущему поиску клиентов нет.' : 'Подключитесь к платформе, чтобы загрузить клиентов.'}</span>
+                <strong>{t('op.players.list.emptyTitle')}</strong>
+                <span>{loadStatus === 'backend' ? t('op.players.list.emptyBackend') : t('op.players.list.emptyConnect')}</span>
               </div>
             ) : (
               visibleClients.map((client) => (
@@ -403,16 +488,16 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
         <section className="clients-panel clients-profile-panel">
           <header className="clients-panel-title">
-            <span>Карточка клиента</span>
-            <strong>выбранный игрок</strong>
+            <span>{t('op.players.profile.title')}</span>
+            <strong>{t('op.players.profile.subtitle')}</strong>
           </header>
           {selectedClient === null ? (
             <div className="client-profile-card empty">
               <div className="client-avatar">--</div>
               <div>
-                <span>Нет выбранного клиента</span>
-                <strong>Выберите клиента из списка</strong>
-                <em>Пустой ответ платформы не подменяется локальной карточкой</em>
+                <span>{t('op.players.profile.empty')}</span>
+                <strong>{t('op.players.profile.emptyHint')}</strong>
+                <em>{t('op.players.profile.emptyNote')}</em>
               </div>
             </div>
           ) : (
@@ -421,28 +506,28 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
               <div>
                 <span>{selectedClient.status}</span>
                 <strong>{selectedClient.name}</strong>
-                <em>{selectedClient.phoneNumber || 'без телефона'} · {dataSourceLabel(selectedClient.source)}</em>
+                <em>{selectedClient.phoneNumber || t('op.pos.cart.clientNoPhone')} · {dataSourceLabel(selectedClient.source)}</em>
               </div>
             </div>
           )}
           <div className="client-metrics-grid">
-            <div><span>Депозит</span><strong>{formatMinorUnits(balance, currencyCode)}</strong></div>
-            <div><span>Долг</span><strong>{formatMinorUnits(debt, currencyCode)}</strong></div>
-            <div><span>Пакеты</span><strong>{selectedClientPackageCount}</strong></div>
-            <div><span>Источник</span><strong>{selectedClient === null ? 'нет клиента' : dataSourceLabel(selectedClient.source)}</strong></div>
+            <div><span>{t('op.pos.payment.methodDeposit')}</span><strong>{formatMinorUnits(balance, currencyCode)}</strong></div>
+            <div><span>{t('clients.col.debt')}</span><strong>{formatMinorUnits(debt, currencyCode)}</strong></div>
+            <div><span>{t('clients.col.packages')}</span><strong>{selectedClientPackageCount}</strong></div>
+            <div><span>{t('op.players.profile.source')}</span><strong>{selectedClient === null ? t('op.players.profile.noClient') : dataSourceLabel(selectedClient.source)}</strong></div>
           </div>
-          <div className="client-package-list" aria-label="Пакеты клиента">
+          <div className="client-package-list" aria-label={t('op.players.profile.packagesLabel')}>
             {selectedClientPackages.slice(0, 3).map((playerPackage) => (
               <article key={readString(playerPackage, 'playerPackageId')} className="client-package-row">
-                <strong>{readString(playerPackage, 'name', 'Пакет')}</strong>
+                <strong>{readString(playerPackage, 'name', t('op.players.profile.packageFallback'))}</strong>
                 <span>{playerPackageLabel(playerPackage)}</span>
                 <b>{readString(playerPackage, 'state', 'active')}</b>
               </article>
             ))}
             {selectedClientPackages.length === 0 && (
               <article className="client-package-row">
-                <strong>Нет активных пакетов</strong>
-                <span>платформа</span>
+                <strong>{t('op.map.panel.noPackages')}</strong>
+                <span>{t('op.players.profile.platformSource')}</span>
                 <b>0</b>
               </article>
             )}
@@ -451,26 +536,26 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
         <section className="clients-panel clients-actions-panel">
           <header className="clients-panel-title">
-            <span>Операции</span>
-            <strong>денежные операции выполняет платформа</strong>
+            <span>{t('op.players.actions.title')}</span>
+            <strong>{t('op.players.actions.subtitle')}</strong>
           </header>
           <div className="clients-money-form">
-            <label>Сумма пополнения<input inputMode="decimal" value={walletTopUpAmount} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpAmount(event.currentTarget.value)} /></label>
-            <label>Причина пополнения<input value={walletTopUpReason} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpReason(event.currentTarget.value)} /></label>
-            <label>Сумма долга<input inputMode="decimal" value={debtPaymentAmount} disabled={!canPayDebt} onChange={(event) => setDebtPaymentAmount(event.currentTarget.value)} /></label>
-            <label>Причина долга<input value={debtPaymentReason} disabled={!canPayDebt} onChange={(event) => setDebtPaymentReason(event.currentTarget.value)} /></label>
-            <label>Имя нового клиента<input value={newPlayerName} disabled={!canCreatePlayer} onChange={(event) => setNewPlayerName(event.currentTarget.value)} /></label>
-            <label>Телефон нового клиента<input value={newPlayerPhone} disabled={!canCreatePlayer} onChange={(event) => setNewPlayerPhone(event.currentTarget.value)} /></label>
+            <label>{t('op.players.actions.topUpAmountLabel')}<input inputMode="decimal" value={walletTopUpAmount} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpAmount(event.currentTarget.value)} /></label>
+            <label>{t('op.players.actions.topUpReasonLabel')}<input value={walletTopUpReason} disabled={!canTopUpWallet} onChange={(event) => setWalletTopUpReason(event.currentTarget.value)} /></label>
+            <label>{t('op.players.actions.debtAmountLabel')}<input inputMode="decimal" value={debtPaymentAmount} disabled={!canPayDebt} onChange={(event) => setDebtPaymentAmount(event.currentTarget.value)} /></label>
+            <label>{t('op.players.actions.debtReasonLabel')}<input value={debtPaymentReason} disabled={!canPayDebt} onChange={(event) => setDebtPaymentReason(event.currentTarget.value)} /></label>
+            <label>{t('op.players.actions.newNameLabel')}<input value={newPlayerName} disabled={!canCreatePlayer} onChange={(event) => setNewPlayerName(event.currentTarget.value)} /></label>
+            <label>{t('op.players.actions.newPhoneLabel')}<input value={newPlayerPhone} disabled={!canCreatePlayer} onChange={(event) => setNewPlayerPhone(event.currentTarget.value)} /></label>
           </div>
           <div className="clients-package-form">
             <label>
-              Пакет для покупки
+              {t('op.players.actions.packageSelectLabel')}
               <select
                 value={selectedPackageOption === null ? '' : readString(selectedPackageOption, 'packageDefinitionId')}
                 disabled={!canPurchasePackage || packageOptions.length === 0}
                 onChange={(event) => setSelectedPackageDefinitionId(event.currentTarget.value)}
               >
-                {packageOptions.length === 0 && <option value="">Нет активных пакетов</option>}
+                {packageOptions.length === 0 && <option value="">{t('op.map.panel.noPackages')}</option>}
                 {packageOptions.map((option) => (
                   <option key={readString(option, 'packageDefinitionId')} value={readString(option, 'packageDefinitionId')}>
                     {packageOptionLabel(option, currencyCode)}
@@ -478,36 +563,26 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
                 ))}
               </select>
             </label>
-            <div className="clients-package-preview" aria-label="Пакет к покупке">
-              <span><strong>Цена</strong><b>{formatMinorUnits(selectedPackagePriceMinorUnits, selectedPackageCurrencyCode)}</b></span>
-              <span><strong>Минуты</strong><b>{selectedPackageTotalMinutes}</b></span>
-              <span><strong>Бонус</strong><b>{selectedPackageBonusMinutes}</b></span>
-              <span><strong>Срок</strong><b>{selectedPackageExpiresDays > 0 ? `${selectedPackageExpiresDays} дн.` : 'без срока'}</b></span>
-              <span className={canAffordSelectedPackage ? undefined : 'attention'}><strong>Депозит</strong><b>{canAffordSelectedPackage ? 'достаточно' : 'пополнить'}</b></span>
+            <div className="clients-package-preview" aria-label={t('op.players.actions.packagePreviewLabel')}>
+              <span><strong>{t('op.players.actions.packagePrice')}</strong><b>{formatMinorUnits(selectedPackagePriceMinorUnits, selectedPackageCurrencyCode)}</b></span>
+              <span><strong>{t('op.players.actions.packageMinutes')}</strong><b>{selectedPackageTotalMinutes}</b></span>
+              <span><strong>{t('op.players.actions.packageBonus')}</strong><b>{selectedPackageBonusMinutes}</b></span>
+              <span><strong>{t('op.players.actions.packageExpiry')}</strong><b>{selectedPackageExpiresDays > 0 ? t('op.players.actions.packageExpiryDays', { count: selectedPackageExpiresDays }) : t('op.players.actions.packageNoExpiry')}</b></span>
+              <span className={canAffordSelectedPackage ? undefined : 'attention'}><strong>{t('op.pos.payment.methodDeposit')}</strong><b>{canAffordSelectedPackage ? t('op.players.actions.depositOk') : t('op.players.actions.depositLow')}</b></span>
             </div>
           </div>
           <div className="clients-action-grid">
-            {[
-              ['Пополнить депозит', `${walletTopUpAmount || '0'} ${currencyCode}`, CircleDollarSign],
-              ['Списать долг', debtPaymentAmount ? `${debtPaymentAmount} ${currencyCode}` : 'нет долга', ReceiptText],
-              ['Купить пакет', selectedPackageOption ? packageOptionLabel(selectedPackageOption, currencyCode) : 'нет пакетов', TimerReset],
-              ['Создать бронь', 'бронь из карточки', CalendarClock],
-              ['Новая карта', newPlayerName || 'создать игрока', UserRoundPlus]
-            ].map(([label, detail, Icon]) => (
+            {playerActions.map(({ id, label, detail, Icon, disabled }) => (
               <button
-                key={label as string}
+                key={id}
                 type="button"
                 className="clients-action-card"
-                disabled={((label as string) === 'Пополнить депозит' && !canTopUpWallet)
-                  || ((label as string) === 'Списать долг' && !canPayDebt)
-                  || ((label as string) === 'Купить пакет' && (!canPurchasePackage || packageOptions.length === 0 || !canAffordSelectedPackage))
-                  || ((label as string) === 'Создать бронь' && !canCreateClientReservation)
-                  || ((label as string) === 'Новая карта' && !canCreatePlayer)}
-                onClick={() => runClientAction(label as string)}
+                disabled={disabled}
+                onClick={() => runClientAction(id, label)}
               >
                 <Icon size={17} />
-                <strong>{label as string}</strong>
-                <span>{detail as string}</span>
+                <strong>{label}</strong>
+                <span>{detail}</span>
               </button>
             ))}
           </div>
@@ -516,22 +591,16 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
         <section className="clients-panel clients-segments-panel">
           <header className="clients-panel-title">
-            <span>Сегменты</span>
-            <strong>фильтр по клиентам платформы</strong>
+            <span>{t('op.players.segments.title')}</span>
+            <strong>{t('op.players.segments.subtitle')}</strong>
           </header>
           <div className="clients-segment-grid">
-            {[
-              ['Все', `${clients.length} клиентов`],
-              ['VIP', `${clients.filter((client) => client.tone === 'vip').length} клиентов`],
-              ['Есть долг', `${clients.filter((client) => client.debtMinorUnits > 0).length} клиентов`],
-              ['Спящие', 'неактивные'],
-              ['Новые', 'из поиска платформы']
-            ].map(([label, detail]) => (
+            {segments.map(({ id, label, detail }) => (
               <button
-                key={label}
+                key={id}
                 type="button"
-                className={activeSegment === label ? 'active' : undefined}
-                onClick={() => setActiveSegment(label)}
+                className={activeSegment === id ? 'active' : undefined}
+                onClick={() => setActiveSegment(id)}
               >
                 <strong>{label}</strong>
                 <span>{detail}</span>
@@ -542,8 +611,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
         <section className="clients-panel clients-history-panel">
           <header className="clients-panel-title">
-            <span>История клиента</span>
-            <strong>последние операции</strong>
+            <span>{t('op.players.history.title')}</span>
+            <strong>{t('op.players.history.subtitle')}</strong>
           </header>
           <div className="clients-history-list">
             {recentEntries.slice(0, 4).map((entry) => (
@@ -556,7 +625,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             {recentEntries.length === 0 && (
               <article className="client-history-row">
                 <span>—</span>
-                <strong>Операций нет</strong>
+                <strong>{t('op.players.history.empty')}</strong>
                 <b>0 {currencyCode}</b>
               </article>
             )}
