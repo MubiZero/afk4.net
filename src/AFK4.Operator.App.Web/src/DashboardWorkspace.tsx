@@ -245,8 +245,8 @@ export function DashboardWorkspace({
     ? focusQueue.map((item) => [
       readString(item, 'tone', 'warning'),
       readString(item, 'target', '-'),
-      dashboardFocusTextLabel(readString(item, 'title', t('op.dashboard.signalPlatform'))),
-      dashboardFocusTextLabel(readString(item, 'detail', t('op.dashboard.signalDetail'))),
+      dashboardFocusTextLabel(readString(item, 'title', t('op.dashboard.signalPlatform')), t),
+      dashboardFocusTextLabel(readString(item, 'detail', t('op.dashboard.signalDetail')), t),
       readString(item, 'seatId')
     ] as const)
     : [[

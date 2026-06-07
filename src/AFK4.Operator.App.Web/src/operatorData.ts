@@ -11,6 +11,7 @@ import {
   Settings,
   Users
 } from 'lucide-react';
+import type { MessageKey } from '@afk4/i18n';
 
 export type SeatTone = 'ready' | 'active' | 'pending' | 'warning' | 'blocking' | 'offline' | 'service';
 
@@ -41,22 +42,22 @@ export interface SeatSummary {
 }
 
 export interface NavItem {
-  label: string;
+  labelKey: MessageKey;
   icon: LucideIcon;
   active?: boolean;
 }
 
 export const navItems: NavItem[] = [
-  { label: 'Карта', icon: Monitor, active: true },
-  { label: 'Дашборд', icon: LayoutDashboard },
-  { label: 'Брони', icon: CalendarClock },
-  { label: 'Продажи', icon: ReceiptText },
-  { label: 'Клиенты', icon: Users },
-  { label: 'Платежи', icon: CircleDollarSign },
-  { label: 'Приём платежей', icon: CreditCard },
-  { label: 'Логи', icon: ScrollText },
-  { label: 'Настройки', icon: Settings },
-  { label: 'Проверка', icon: ClipboardCheck }
+  { labelKey: 'op.shell.nav.map', icon: Monitor, active: true },
+  { labelKey: 'op.shell.nav.dashboard', icon: LayoutDashboard },
+  { labelKey: 'op.shell.nav.booking', icon: CalendarClock },
+  { labelKey: 'op.shell.nav.pos', icon: ReceiptText },
+  { labelKey: 'op.shell.nav.players', icon: Users },
+  { labelKey: 'op.shell.nav.payments', icon: CircleDollarSign },
+  { labelKey: 'op.shell.nav.payment_cards', icon: CreditCard },
+  { labelKey: 'op.shell.nav.logs', icon: ScrollText },
+  { labelKey: 'op.shell.nav.settings', icon: Settings },
+  { labelKey: 'op.shell.nav.review', icon: ClipboardCheck }
 ];
 export const seats: SeatSummary[] = [
   {

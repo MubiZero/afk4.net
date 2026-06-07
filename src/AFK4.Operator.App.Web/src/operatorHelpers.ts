@@ -20,6 +20,9 @@ import type {
   OperatorConfig,
   SessionBillingModeId
 } from './operatorTypes';
+import type { MessageKey } from '@afk4/i18n';
+
+type TFunc = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 export function toDateInputValue(date: Date) {
   const year = date.getFullYear();
@@ -586,7 +589,8 @@ export function shellModeLabel(mode: string): string {
 export function describeTechModeResult(
   seat: SeatSummary,
   device: Record<string, unknown>,
-  diagnostics: BranchDiagnosticsDto
+  diagnostics: BranchDiagnosticsDto,
+  t: TFunc
 ): string {
   const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
   const machineName = readString(device, 'machineName', seat.deviceName || seat.name);
@@ -595,12 +599,20 @@ export function describeTechModeResult(
   const pendingCommands = readNumber(commandSummary, 'pendingCommands', 0);
   const failedCommands = readNumber(commandSummary, 'failedCommands', 0);
 
-  return `${machineName}: связь есть, Агент ${agentVersion}, оболочка ${shellVersion}; команд в работе: ${pendingCommands}, ошибок: ${failedCommands}`;
+  return t('op.shell.techMode', {
+    name: machineName,
+    agentVersion,
+    shellVersion,
+    pending: pendingCommands,
+    failed: failedCommands
+  });
 }
 
-export function projectAuthHostError(error: unknown, config: OperatorConfig): string {
+export function projectAuthHostError(error: unknown, config: OperatorConfig, t?: TFunc): string {
   if (isHostBridgeUnavailableError(error) && config.runtime !== 'browser-dev') {
-    return 'Нативный вход приложения оператора недоступен. Перезапустите приложение или проверьте WebView2.';
+    return t
+      ? t('op.shell.err.nativeAuthUnavailable')
+      : 'Нативный вход приложения оператора недоступен. Перезапустите приложение или проверьте WebView2.';
   }
 
   return projectOperatorError(error).detail;
@@ -994,20 +1006,32 @@ export function posSaleLineSummary(row: unknown): string {
   return `${lineCount} ${pluralRu(lineCount, ['строка', 'строки', 'строк'])} · ${itemQuantity} шт.`;
 }
 
-export function shiftStateLabel(state: string): string {
+export function shiftStateLabel(state: string, t?: TFunc): string {
+  if (!t) {
+    // Fallback for callers (e.g. export JSON) that don't pass t
+    switch (state.toLowerCase()) {
+      case 'open': return 'Открыта';
+      case 'closed': return 'Закрыта';
+      case 'closing': return 'Закрывается';
+      case 'unknown': return 'Неизвестно';
+      case 'нет смены': return 'Нет';
+      default: return state ? 'Неизвестно' : 'Нет';
+    }
+  }
+
   switch (state.toLowerCase()) {
     case 'open':
-      return 'Открыта';
+      return t('op.status.open');
     case 'closed':
-      return 'Закрыта';
+      return t('op.status.closed');
     case 'closing':
-      return 'Закрывается';
+      return t('op.status.closing');
     case 'unknown':
-      return 'Неизвестно';
+      return t('op.status.unknown');
     case 'нет смены':
-      return 'Нет';
+      return t('op.status.none');
     default:
-      return state ? 'Неизвестно' : 'Нет';
+      return state ? t('op.status.unknown') : t('op.status.none');
   }
 }
 
@@ -1169,11 +1193,11 @@ export function commandStatusMessageLabel(message: string): string {
     .replace('Agent did not confirm lock.', 'Агент не подтвердил блокировку.');
 }
 
-export function dashboardFocusTextLabel(text: string): string {
+export function dashboardFocusTextLabel(text: string, t: TFunc): string {
   return commandStatusMessageLabel(text)
-    .replace('lock Failed', 'Блокировка не выполнена')
-    .replace('unlock Failed', 'Разблокировка не выполнена')
-    .replace('Failed', 'не выполнена')
+    .replace('lock Failed', t('op.shell.focus.lockFailed'))
+    .replace('unlock Failed', t('op.shell.focus.unlockFailed'))
+    .replace('Failed', t('op.shell.focus.failed'))
     .replace('Agent', 'Агент');
 }
 

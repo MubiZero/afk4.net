@@ -733,7 +733,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
         <StateFlag label={t('op.pos.strip.refunds')} value={refundsTotal ? formatMinorUnits(refundsTotal.minorUnits, refundsTotal.currencyCode) : `0 ${currencyCode}`} critical={(refundsTotal?.minorUnits ?? 0) > 0} />
         <StateFlag label={t('op.pos.strip.products')} value={t('op.pos.strip.positions', { count: catalog.length })} />
         <StateFlag label={t('op.pos.strip.stock')} value={t('op.pos.strip.stockLow', { count: lowStockCount })} critical={lowStockCount > 0} />
-        <StateFlag label={t('op.pos.strip.shift')} value={shiftStateLabel(shiftState)} critical={!shiftId} />
+        <StateFlag label={t('op.pos.strip.shift')} value={shiftStateLabel(shiftState, t)} critical={!shiftId} />
       </section>
 
       <section className="pos-layout">

@@ -353,7 +353,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
         <StateFlag label={t('op.payments.strip.revenue')} value={grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`} />
         <StateFlag label={t('op.payments.strip.cash')} value={cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`} />
         <StateFlag label={t('op.payments.strip.refunds')} value={refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`} critical={(refunds?.minorUnits ?? 0) > 0} />
-        <StateFlag label={t('op.payments.strip.shift')} value={shiftStateLabel(readString(currentShift, 'state', 'нет смены'))} critical={currentShift === null} />
+        <StateFlag label={t('op.payments.strip.shift')} value={shiftStateLabel(readString(currentShift, 'state', 'нет смены'), t)} critical={currentShift === null} />
         <StateFlag label={t('op.payments.strip.reconcile')} value={difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`} critical={(difference?.minorUnits ?? 0) !== 0} />
       </section>
 

@@ -139,15 +139,16 @@ function handleWindowTitleDoubleClick(event: MouseEvent<HTMLElement>) {
 }
 
 function WindowControls() {
+  const { t } = useI18n();
   return (
-    <div className="window-controls" aria-label="Окно">
-      <button type="button" title="Свернуть" aria-label="Свернуть" onClick={() => postHostWindowCommand('minimize')}>
+    <div className="window-controls" aria-label={t('op.shell.window')}>
+      <button type="button" title={t('op.shell.minimize')} aria-label={t('op.shell.minimize')} onClick={() => postHostWindowCommand('minimize')}>
         <Minus size={15} />
       </button>
-      <button type="button" title="Развернуть" aria-label="Развернуть" onClick={() => postHostWindowCommand('maximize')}>
+      <button type="button" title={t('op.shell.maximize')} aria-label={t('op.shell.maximize')} onClick={() => postHostWindowCommand('maximize')}>
         <Maximize2 size={13} />
       </button>
-      <button type="button" title="Закрыть" aria-label="Закрыть" onClick={() => postHostWindowCommand('close')}>
+      <button type="button" title={t('op.shell.close')} aria-label={t('op.shell.close')} onClick={() => postHostWindowCommand('close')}>
         <X size={15} />
       </button>
     </div>
@@ -231,7 +232,7 @@ function SignInScreen({
       });
       setPassword('');
     } catch (nextError) {
-      setError(projectAuthHostError(nextError, config));
+      setError(projectAuthHostError(nextError, config, t));
     } finally {
       setIsBusy(false);
     }
@@ -243,10 +244,10 @@ function SignInScreen({
       <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
           <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
-          <span>Оператор</span>
+          <span>{t('op.auth.operator')}</span>
         </div>
         <div className="top-status">
-          <span><Wifi size={14} />{isChecking ? 'Проверяем защищённый вход' : 'Защищённый вход'}</span>
+          <span><Wifi size={14} />{isChecking ? t('op.shell.checkingAuth') : t('op.shell.secureAuth')}</span>
           <span>{config.platformBaseUrl}</span>
           <span>{shellModeLabel(config.shellMode)}</span>
         </div>
@@ -256,9 +257,9 @@ function SignInScreen({
       <main className="auth-workspace">
         <section className="auth-panel">
           <header>
-            <span>AFK4.NET Оператор</span>
-            <h1>Вход оператора</h1>
-            <p>Токены сохраняются только через нативное защищённое хранилище Windows.</p>
+            <span>{t('op.shell.appName')}</span>
+            <h1>{t('op.shell.signInTitle')}</h1>
+            <p>{t('op.shell.storageNote')}</p>
           </header>
 
           <form className="auth-form" onSubmit={submit}>
@@ -300,16 +301,16 @@ function SignInScreen({
 
         <aside className="auth-context-panel">
           <section>
-            <span>Платформа</span>
+            <span>{t('op.shell.platform')}</span>
             <strong>{config.platformBaseUrl}</strong>
           </section>
           <section>
-            <span>Валюта</span>
+            <span>{t('op.shell.currency')}</span>
             <strong>{config.currencyCode}</strong>
           </section>
           <section>
-            <span>Хранилище</span>
-            <strong>Защищённое хранилище Windows</strong>
+            <span>{t('op.shell.storage')}</span>
+            <strong>{t('op.shell.secureStorage')}</strong>
           </section>
         </aside>
       </main>
@@ -324,8 +325,9 @@ function BlockedTenantScreen({
   resolution: ResolveOperatorConnectionResponse;
   onChangeConnection: () => void;
 }) {
+  const { t } = useI18n();
   const isDeletionPending = resolution.organizationStatus === OperatorTenantStatus.DeletionPending;
-  const headline = isDeletionPending ? 'Готовится удаление клуба' : 'Подписка приостановлена';
+  const headline = isDeletionPending ? t('op.shell.club.deletionPending') : t('op.shell.club.suspended');
   const reason = resolution.organizationStatusReason?.trim();
   return (
     <div className="operator-shell auth-shell">
@@ -337,7 +339,7 @@ function BlockedTenantScreen({
       >
         <div className="brand-block">
           <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
-          <span>Оператор</span>
+          <span>{t('op.auth.operator')}</span>
         </div>
         <WindowControls />
       </header>
@@ -350,7 +352,7 @@ function BlockedTenantScreen({
             <p>
               {reason !== undefined && reason.length > 0
                 ? reason
-                : 'Свяжитесь с владельцем клуба или поддержкой AFK4.NET для возобновления работы.'}
+                : t('op.shell.club.contactOwner')}
             </p>
           </header>
 
@@ -358,13 +360,13 @@ function BlockedTenantScreen({
             <AlertTriangle size={16} />
             <span>
               {isDeletionPending
-                ? 'Этот клуб помечен на удаление. Вход через AFK4.NET Operator недоступен.'
-                : 'Клуб приостановлен. Кассовые операции и приём сессий заблокированы платформой.'}
+                ? t('op.shell.club.deletionMsg')
+                : t('op.shell.club.suspendedMsg')}
             </span>
           </div>
 
           <button type="button" className="primary-wide" onClick={onChangeConnection}>
-            Сменить подключение
+            {t('op.shell.club.changeConnection')}
           </button>
         </section>
       </main>
@@ -388,6 +390,7 @@ export function App() {
 }
 
 function AppInner() {
+  const { t } = useI18n();
   const baseConfig = getOperatorConfig();
   const connectionStorage = useMemo(() => createOperatorConnectionStorage(), []);
   const [resolvedConnection, setResolvedConnection] = useState<ResolvedOperatorConnection | null>(
@@ -468,7 +471,7 @@ function AppInner() {
       setShellCurrentShift(null);
       setShellDashboardSummary(null);
       setShellLoadStatus('failed');
-      setShellLoadError('Активный филиал не назначен.');
+      setShellLoadError(t('op.dashboard.noBranch'));
       return undefined;
     }
 
@@ -595,7 +598,7 @@ function AppInner() {
 
         setAuthSession(null);
         setAuthStatus('signed-out');
-        setAuthError(projectAuthHostError(error, config));
+        setAuthError(projectAuthHostError(error, config, t));
       });
 
     return () => {
@@ -627,7 +630,7 @@ function AppInner() {
       setFloorMap((current) => ({
         ...current,
         loadStatus: 'failed',
-        error: 'Активный филиал не назначен.'
+        error: t('op.dashboard.noBranch')
       }));
       return undefined;
     }
@@ -657,7 +660,7 @@ function AppInner() {
             const nextSession = await refreshOperatorSession();
             const nextBranchId = resolveActiveBranchId(nextSession, config.branchId);
             if (!nextBranchId) {
-              throw new Error('Активный филиал не назначен.');
+              throw new Error(t('op.dashboard.noBranch'));
             }
 
             const nextState = await loadBackendFloorMapState(config, nextSession, nextBranchId);
@@ -855,7 +858,7 @@ function AppInner() {
       setAuthError(null);
       setWorkspaceFeedback(null);
     } catch (error) {
-      setAuthError(projectAuthHostError(error, config));
+      setAuthError(projectAuthHostError(error, config, t));
     } finally {
       setAuthSession(null);
       setAuthStatus('signed-out');
@@ -882,40 +885,40 @@ function AppInner() {
         return;
       }
 
-      setWorkspaceFeedback(`Нет прав на раздел "${label}" для текущего оператора.`);
+      setWorkspaceFeedback(t('op.shell.err.noPermNav', { label }));
     } catch (error) {
-      setWorkspaceFeedback(`Не удалось обновить права для "${label}": ${projectOperatorError(error).detail}`);
+      setWorkspaceFeedback(t('op.shell.err.navRefreshFailed', { label, detail: projectOperatorError(error).detail }));
     }
   };
 
   const handleSeatAction = async (request: SeatActionRequest): Promise<SeatActionResult> => {
     const session = authSession;
     if (session === null) {
-      throw new Error('Оператор не вошёл в систему.');
+      throw new Error(t('op.shell.err.notSignedIn'));
     }
 
     const branchId = resolveActiveBranchId(session, config.branchId);
     if (!branchId) {
-      throw new Error('Активный филиал не назначен.');
+      throw new Error(t('op.dashboard.noBranch'));
     }
 
     if (floorMap.source !== 'backend') {
-      throw new Error('Карта платформы не загружена.');
+      throw new Error(t('op.shell.err.mapNotLoaded'));
     }
 
     if (isPendingSeatCommand(request.seat)) {
-      throw new Error('Команда уже отправлена. Дождитесь подтверждения ПК.');
+      throw new Error(t('op.map.panel.confirmStatusPending'));
     }
 
     const clients = createAuthenticatedOperatorClients(config, session);
     let response: unknown;
     if (request.type === 'start') {
       if (!hasPermission(session, permissionNames.startSession)) {
-        throw new Error('Нет прав на запуск сессий.');
+        throw new Error(t('op.shell.err.noPermStart'));
       }
 
       if (request.seat.tone !== 'ready' || request.seat.activeSessionId) {
-        throw new Error('ПК не готов к запуску сессии.');
+        throw new Error(t('op.shell.err.pcNotReady'));
       }
 
       const billing = request.billing;
@@ -934,11 +937,11 @@ function AppInner() {
       });
     } else if (request.type === 'extend') {
       if (!hasPermission(session, permissionNames.extendSession)) {
-        throw new Error('Нет прав на продление сессий.');
+        throw new Error(t('op.shell.err.noPermExtend'));
       }
 
       if (!request.seat.activeSessionId) {
-        throw new Error('На выбранном ПК нет активной сессии.');
+        throw new Error(t('op.map.panel.noActiveSession'));
       }
 
       const billing = request.billing;
@@ -953,11 +956,11 @@ function AppInner() {
       });
     } else if (request.type === 'transfer') {
       if (!hasPermission(session, permissionNames.transferSession)) {
-        throw new Error('Нет прав на перенос сессий.');
+        throw new Error(t('op.shell.err.noPermTransfer'));
       }
 
       if (!request.seat.activeSessionId) {
-        throw new Error('На выбранном ПК нет активной сессии.');
+        throw new Error(t('op.map.panel.noActiveSession'));
       }
 
       response = await clients.sessions.transferSession(request.seat.activeSessionId, {
@@ -966,11 +969,11 @@ function AppInner() {
       });
     } else if (request.type === 'checkout') {
       if (!hasPermission(session, permissionNames.endSession)) {
-        throw new Error('Нет прав на завершение сессий.');
+        throw new Error(t('op.shell.err.noPermCheckout'));
       }
 
       if (!request.seat.activeSessionId) {
-        throw new Error('На выбранном ПК нет активной сессии.');
+        throw new Error(t('op.map.panel.noActiveSession'));
       }
 
       response = await clients.sessions.checkoutSession(request.seat.activeSessionId, {
@@ -980,11 +983,11 @@ function AppInner() {
       });
     } else {
       if (!hasPermission(session, permissionNames.endSession)) {
-        throw new Error('Нет прав на завершение сессий.');
+        throw new Error(t('op.shell.err.noPermEnd'));
       }
 
       if (!request.seat.activeSessionId) {
-        throw new Error('На выбранном ПК нет активной сессии.');
+        throw new Error(t('op.map.panel.noActiveSession'));
       }
 
       response = await clients.sessions.endSession(request.seat.activeSessionId, {
@@ -1046,14 +1049,14 @@ function AppInner() {
   const handlePcControlAction = async (seat: SeatSummary, action: PcControlActionId): Promise<PcControlActionResult> => {
     const nextBackend = requireBackend(backendContext);
     if (!seat.deviceId) {
-      throw new Error('У выбранного ПК нет привязанного устройства.');
+      throw new Error(t('op.shell.err.noDevice'));
     }
 
     const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
     if (action === 'status') {
       if (!hasPermission(nextBackend.session, permissionNames.viewDiagnostics) ||
         !hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
-        throw new Error('Нет прав на просмотр диагностики устройства.');
+        throw new Error(t('op.shell.err.noPermDiag'));
       }
 
       const [device, diagnostics] = await Promise.all([
@@ -1061,12 +1064,12 @@ function AppInner() {
         clients.diagnostics.getDiagnostics(nextBackend.branchId)
       ]);
 
-      return { detail: describeTechModeResult(seat, device, diagnostics) };
+      return { detail: describeTechModeResult(seat, device, diagnostics, t) };
     }
 
     if (action === 'lock' || action === 'unlock') {
       if (!hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
-        throw new Error('Нет прав на отправку команд ПК.');
+        throw new Error(t('op.shell.err.noPermDispatch'));
       }
 
       // Offline (§6.5): queue the idempotent lock/unlock locally instead of dispatching; it replays (or is
@@ -1095,7 +1098,7 @@ function AppInner() {
       return { detail: await describeDispatchedDeviceCommand(clients, nextBackend.session, seat, command) };
     }
 
-    throw new Error('Эта команда требует отдельного контракта агента и платформы и пока не включена.');
+    throw new Error(t('op.shell.err.commandUnsupported'));
   };
 
   if (blockedResolution !== null) {
@@ -1145,19 +1148,19 @@ function AppInner() {
       <header className="top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
           <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
-          <span>Оператор</span>
+          <span>{t('op.auth.operator')}</span>
         </div>
         <label className="command-search">
           <Search size={16} />
-          <input placeholder="Игрок, ПК, команда" aria-label="Поиск" />
+          <input placeholder={t('op.shell.searchPlaceholder')} aria-label={t('op.shell.searchLabel')} />
         </label>
         <div className="top-status">
           <span>{shellShiftText}</span>
-          <button type="button" className="top-account" aria-label="Мой аккаунт" onClick={() => setAccountPanelOpen(true)}>
+          <button type="button" className="top-account" aria-label={t('op.shell.myAccount')} onClick={() => setAccountPanelOpen(true)}>
             {operatorDisplayNameLabel(authSession.displayName)} · {shellModeLabel(config.shellMode)}
           </button>
         </div>
-        <button type="button" className="sign-out-button" onClick={handleSignOut}>Выйти</button>
+        <button type="button" className="sign-out-button" onClick={handleSignOut}>{t('shell.signOut')}</button>
         <WindowControls />
       </header>
 
@@ -1169,22 +1172,23 @@ function AppInner() {
         />
       )}
 
-      <nav className="workspace-rail" aria-label="Рабочие места">
+      <nav className="workspace-rail" aria-label={t('op.shell.workspaces')}>
         {navItems.map((item, index) => {
           const Icon = item.icon;
           const id = workspaceIds[index];
           const isAllowed = canOpenWorkspace(authSession, id);
+          const label = t(item.labelKey);
           return (
             <button
-              key={item.label}
+              key={id}
               type="button"
               className={[workspace === id ? 'active' : '', !isAllowed ? 'locked' : ''].filter(Boolean).join(' ')}
               aria-disabled={!isAllowed}
-              title={item.label}
-              onClick={() => void handleWorkspaceNavigation(id, item.label, isAllowed)}
+              title={label}
+              onClick={() => void handleWorkspaceNavigation(id, label, isAllowed)}
             >
               <Icon size={22} />
-              <span>{item.label}</span>
+              <span>{label}</span>
             </button>
           );
         })}
@@ -1246,7 +1250,7 @@ function AppInner() {
 
       <footer className="signals-strip">
         <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError)} · {dataSourceLabel(floorMap.source)}</span>
-        <span><MonitorCheck size={14} />ПК без связи: {countByTone(displayedFloorMap.seats, 'offline')} · требуют внимания: {countProblems(displayedFloorMap.seats)}</span>
+        <span><MonitorCheck size={14} />{t('op.shell.signals', { offline: countByTone(displayedFloorMap.seats, 'offline'), problems: countProblems(displayedFloorMap.seats) })}</span>
         <span><CircleDollarSign size={14} />{shellPosText}</span>
         {workspaceFeedback && (
           <span className="rail-feedback"><LockKeyhole size={14} />{workspaceFeedback}</span>
