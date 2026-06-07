@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { AlertTriangle, Banknote, CalendarClock, CircleDollarSign, MonitorCheck, ReceiptText, ShieldAlert, UserRoundPlus, Wrench } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useI18n } from '@afk4/i18n';
 import { minorToMajor } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
 import type { DashboardPeriod, Feedback, LoadStatus, OperatorBackendContext, WorkspaceId } from './operatorTypes';
@@ -16,7 +17,6 @@ import {
   formatCompactNumber,
   formatMinorUnits,
   pcControlLabel,
-  pluralRu,
   readArray,
   readMoney,
   readNumber,
@@ -147,6 +147,7 @@ export function DashboardWorkspace({
   onNavigate: (workspace: WorkspaceId) => void;
   onOpenSeat: (seatId: string) => void;
 }) {
+  const { t } = useI18n();
   const today = new Date();
   const todayInput = toDateInputValue(today);
   const weekStartInput = toDateInputValue(addDays(today, -6));
@@ -160,17 +161,17 @@ export function DashboardWorkspace({
   const [dashboardLoadError, setDashboardLoadError] = useState<string | null>(null);
 
   const presetRanges = {
-    today: { from: todayInput, to: todayInput, label: 'сегодня', metricLabel: 'сегодня' },
-    week: { from: weekStartInput, to: todayInput, label: 'за неделю', metricLabel: 'неделю' },
-    month: { from: monthStartInput, to: todayInput, label: 'за месяц', metricLabel: 'месяц' }
+    today: { from: todayInput, to: todayInput, label: t('op.dashboard.range.today'), metricLabel: t('op.dashboard.metric.today') },
+    week: { from: weekStartInput, to: todayInput, label: t('op.dashboard.range.week'), metricLabel: t('op.dashboard.metric.week') },
+    month: { from: monthStartInput, to: todayInput, label: t('op.dashboard.range.month'), metricLabel: t('op.dashboard.metric.month') }
   };
 
   const activeRange = period === 'custom'
-    ? { ...customRange, label: 'за выбранный период', metricLabel: 'выбранный период' }
+    ? { ...customRange, label: t('op.dashboard.range.custom'), metricLabel: t('op.dashboard.metric.custom') }
     : presetRanges[period];
   const activeDays = countPeriodDays(activeRange.from, activeRange.to);
-  const activePeriodLabel = period === 'custom' ? `${activeDays} дн.` : activeRange.metricLabel;
-  const periodDaysShort = `${activeDays} дн.`;
+  const activePeriodLabel = period === 'custom' ? t('op.dashboard.days', { count: activeDays }) : activeRange.metricLabel;
+  const periodDaysShort = t('op.dashboard.days', { count: activeDays });
   const exportLabel = `${activeRange.from} - ${activeRange.to}`;
   const updateCustomRange = (field: 'from' | 'to', value: string) => {
     setCustomRange((range) => ({ ...range, [field]: value }));
@@ -183,7 +184,7 @@ export function DashboardWorkspace({
     if (backend === null) {
       setDashboardSummary(null);
       setDashboardLoadStatus('failed');
-      setDashboardLoadError('Активный филиал не назначен.');
+      setDashboardLoadError(t('op.dashboard.noBranch'));
       return undefined;
     }
 
@@ -236,23 +237,23 @@ export function DashboardWorkspace({
   const totalPcs = Math.max(1, readNumber(utilization, 'totalSeats', 0));
   const focusQueue = readArray<Record<string, unknown>>(summary, 'focusQueue');
   const dashboardStatusText = dashboardLoadStatus === 'backend'
-    ? 'Данные платформы'
+    ? t('op.dashboard.status.backend')
     : dashboardLoadStatus === 'loading'
-      ? 'Загрузка данных'
-      : 'Ошибка данных';
+      ? t('op.dashboard.status.loading')
+      : t('op.dashboard.status.error');
   const focusItems = focusQueue.length > 0
     ? focusQueue.map((item) => [
       readString(item, 'tone', 'warning'),
       readString(item, 'target', '-'),
-      dashboardFocusTextLabel(readString(item, 'title', 'Сигнал платформы')),
-      dashboardFocusTextLabel(readString(item, 'detail', 'Проверьте состояние в рабочей карте.')),
+      dashboardFocusTextLabel(readString(item, 'title', t('op.dashboard.signalPlatform'))),
+      dashboardFocusTextLabel(readString(item, 'detail', t('op.dashboard.signalDetail'))),
       readString(item, 'seatId')
     ] as const)
     : [[
       'ready',
       '-',
-      dashboardLoadStatus === 'failed' ? 'Данные не загружены' : 'Нет срочных сигналов',
-      dashboardLoadStatus === 'failed' ? dashboardLoadError ?? 'Повторите загрузку обзора.' : 'Срочных задач за выбранный период нет.',
+      dashboardLoadStatus === 'failed' ? t('op.dashboard.noData') : t('op.dashboard.noUrgent'),
+      dashboardLoadStatus === 'failed' ? dashboardLoadError ?? t('op.dashboard.retryLoad') : t('op.dashboard.noUrgentTasks'),
       ''
     ] as const];
   const selectedFocus = focusItems[selectedFocusIndex] ?? focusItems[0];
@@ -271,7 +272,7 @@ export function DashboardWorkspace({
   };
 
   const exportDashboard = async () => {
-    setFeedback({ label: 'Экспорт', state: 'pending' });
+    setFeedback({ label: t('op.dashboard.export'), state: 'pending' });
 
     try {
       const nextBackend = requireBackend(backend);
@@ -282,45 +283,45 @@ export function DashboardWorkspace({
       ]);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
       downloadTextFile(`afk4-overview-sales-${exportStamp}.csv`, salesCsv, 'text/csv;charset=utf-8');
-      setFeedback({ label: 'Экспорт', state: 'confirmed' });
+      setFeedback({ label: t('op.dashboard.export'), state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label: 'Экспорт', state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.dashboard.export'), state: 'failed', detail: projectOperatorError(error).detail });
     }
   };
 
   const pulseItems = [
-    { label: 'Касса', value: formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), detail: `из ${formatMinorUnits(cashTargetMinorUnits, totalRevenue.currencyCode)}`, chartValue: cashPercent, chartLabel: <><AnimatedNumber value={cashPercent} />%</>, chartSubLabel: formatCompactNumber(Math.round(minorToMajor(totalRevenue.minorUnits))), tone: 'cash', icon: Banknote },
-    { label: 'Активные ПК', value: `${activePcs} / ${totalPcs}`, detail: `за ${activePeriodLabel}`, chartValue: Math.round((activePcs / totalPcs) * 100), chartLabel: <><AnimatedNumber value={activePcs} />/{totalPcs}</>, chartSubLabel: 'сейчас', tone: 'devices', icon: MonitorCheck },
-    { label: 'Внимание', value: String(attentionCount), detail: `${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])} за ${activePeriodLabel}`, chartValue: Math.min(100, Math.round((attentionCount / Math.max(1, totalPcs * activeDays)) * 100)), chartLabel: <AnimatedNumber value={attentionCount} />, chartSubLabel: 'сигн.', tone: 'attention', icon: ShieldAlert },
-    { label: 'Брони', value: `${bookingUsed} / ${bookingSlots}`, detail: `слоты за ${activePeriodLabel}`, chartValue: bookingSlots > 0 ? Math.min(100, Math.round((bookingUsed / bookingSlots) * 100)) : 0, chartLabel: <><AnimatedNumber value={bookingUsed} />/{bookingSlots}</>, chartSubLabel: 'слоты', tone: 'booking', icon: CalendarClock }
+    { label: t('op.dashboard.card.cash'), value: formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), detail: t('op.dashboard.cashOf', { total: formatMinorUnits(cashTargetMinorUnits, totalRevenue.currencyCode) }), chartValue: cashPercent, chartLabel: <><AnimatedNumber value={cashPercent} />%</>, chartSubLabel: formatCompactNumber(Math.round(minorToMajor(totalRevenue.minorUnits))), tone: 'cash', icon: Banknote },
+    { label: t('op.dashboard.pulse.activePcs'), value: `${activePcs} / ${totalPcs}`, detail: t('op.dashboard.forPeriod', { period: activePeriodLabel }), chartValue: Math.round((activePcs / totalPcs) * 100), chartLabel: <><AnimatedNumber value={activePcs} />/{totalPcs}</>, chartSubLabel: t('op.dashboard.now'), tone: 'devices', icon: MonitorCheck },
+    { label: t('op.dashboard.pulse.attention'), value: String(attentionCount), detail: t('op.dashboard.attentionDetail', { count: attentionCount, period: activePeriodLabel }), chartValue: Math.min(100, Math.round((attentionCount / Math.max(1, totalPcs * activeDays)) * 100)), chartLabel: <AnimatedNumber value={attentionCount} />, chartSubLabel: t('op.dashboard.signalsShort'), tone: 'attention', icon: ShieldAlert },
+    { label: t('op.dashboard.pulse.bookings'), value: `${bookingUsed} / ${bookingSlots}`, detail: t('op.dashboard.slotsForPeriod', { period: activePeriodLabel }), chartValue: bookingSlots > 0 ? Math.min(100, Math.round((bookingUsed / bookingSlots) * 100)) : 0, chartLabel: <><AnimatedNumber value={bookingUsed} />/{bookingSlots}</>, chartSubLabel: t('op.dashboard.slots'), tone: 'booking', icon: CalendarClock }
   ];
 
   const controlCards: Array<[WorkspaceId, string, string, string, LucideIcon]> = [
-    ['map', 'Карта', `${totalPcs} ПК`, `${attentionCount} ${pluralRu(attentionCount, ['сигнал', 'сигнала', 'сигналов'])}`, MonitorCheck],
-    ['pos', 'Продажи', `${posChecks} ${pluralRu(posChecks, ['чек', 'чека', 'чеков'])}`, `за ${activePeriodLabel}`, ReceiptText],
-    ['payments', 'Касса', formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), `за ${activePeriodLabel}`, CircleDollarSign],
-    ['players', 'Клиент', `${newClients} ${pluralRu(newClients, ['новый', 'новых', 'новых'])}`, `за ${activePeriodLabel}`, UserRoundPlus]
+    ['map', t('op.dashboard.card.map'), t('op.dashboard.pcs', { count: totalPcs }), t('op.dashboard.signals', { count: attentionCount }), MonitorCheck],
+    ['pos', t('op.dashboard.card.sales'), t('op.dashboard.checks', { count: posChecks }), t('op.dashboard.forPeriod', { period: activePeriodLabel }), ReceiptText],
+    ['payments', t('op.dashboard.card.cash'), formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), t('op.dashboard.forPeriod', { period: activePeriodLabel }), CircleDollarSign],
+    ['players', t('op.dashboard.card.client'), t('op.dashboard.newClients', { count: newClients }), t('op.dashboard.forPeriod', { period: activePeriodLabel }), UserRoundPlus]
   ];
 
   return (
     <main className="workspace-screen dashboard-screen">
       <section className="screen-head dashboard-head">
         <div>
-          <span>Обзор</span>
-          <h1>Что требует внимания · {activeRange.label}</h1>
+          <span>{t('op.dashboard.overview')}</span>
+          <h1>{t('op.dashboard.headline', { range: activeRange.label })}</h1>
         </div>
-        <div className="filter-row dashboard-period-filter" aria-label="Период обзора">
+        <div className="filter-row dashboard-period-filter" aria-label={t('op.dashboard.periodFilterLabel')}>
           <div className="period-segment">
-            <button type="button" className={period === 'today' ? 'active' : undefined} onClick={() => setPeriod('today')}>Сегодня</button>
-            <button type="button" className={period === 'week' ? 'active' : undefined} onClick={() => setPeriod('week')}>Неделя</button>
-            <button type="button" className={period === 'month' ? 'active' : undefined} onClick={() => setPeriod('month')}>Месяц</button>
+            <button type="button" className={period === 'today' ? 'active' : undefined} onClick={() => setPeriod('today')}>{t('op.dashboard.period.today')}</button>
+            <button type="button" className={period === 'week' ? 'active' : undefined} onClick={() => setPeriod('week')}>{t('op.dashboard.period.week')}</button>
+            <button type="button" className={period === 'month' ? 'active' : undefined} onClick={() => setPeriod('month')}>{t('op.dashboard.period.month')}</button>
           </div>
           <div className={`date-range-control ${period === 'custom' ? 'active' : ''}`}>
             <label>
-              <span>с</span>
+              <span>{t('op.dashboard.dateFrom')}</span>
               <input
                 type="date"
-                aria-label="Начало периода"
+                aria-label={t('op.dashboard.dateFromLabel')}
                 value={customRange.from}
                 onChange={(event) => updateCustomRange('from', event.currentTarget.value)}
                 onInput={(event) => updateCustomRange('from', event.currentTarget.value)}
@@ -328,21 +329,21 @@ export function DashboardWorkspace({
               />
             </label>
             <label>
-              <span>по</span>
+              <span>{t('op.dashboard.dateTo')}</span>
               <input
                 type="date"
-                aria-label="Конец периода"
+                aria-label={t('op.dashboard.dateToLabel')}
                 value={customRange.to}
                 onChange={(event) => updateCustomRange('to', event.currentTarget.value)}
                 onInput={(event) => updateCustomRange('to', event.currentTarget.value)}
                 onFocus={() => setPeriod('custom')}
               />
             </label>
-            <span className="date-range-days" aria-label={`Длина периода: ${periodDaysShort}`}>{periodDaysShort}</span>
+            <span className="date-range-days" aria-label={t('op.dashboard.periodLengthLabel', { days: periodDaysShort })}>{periodDaysShort}</span>
           </div>
           <span className={`map-load-state ${dashboardLoadStatus === 'backend' ? 'ready' : dashboardLoadStatus}`}>{dashboardStatusText}</span>
-          <button type="button" className="export-button" aria-label={`Скачать продажи за ${exportLabel}`} onClick={exportDashboard}>
-            Экспорт
+          <button type="button" className="export-button" aria-label={t('op.dashboard.exportLabel', { range: exportLabel })} onClick={exportDashboard}>
+            {t('op.dashboard.export')}
           </button>
         </div>
       </section>
@@ -350,7 +351,7 @@ export function DashboardWorkspace({
       <section className="dashboard-layout">
         <article className="dashboard-now-panel">
           <header className="dashboard-panel-title">
-            <span>Главный фокус</span>
+            <span>{t('op.dashboard.mainFocus')}</span>
             <strong>{selectedFocus[2]}</strong>
           </header>
           <p>{selectedFocus[3]}</p>
@@ -360,17 +361,17 @@ export function DashboardWorkspace({
             <span>{dashboardStatusText}</span>
           </div>
           <div className="dashboard-now-actions">
-            <button type="button" onClick={() => openSelectedFocusSeat('Разобрать')}><AlertTriangle size={15} /> Разобрать</button>
+            <button type="button" onClick={() => openSelectedFocusSeat(t('op.dashboard.resolve'))}><AlertTriangle size={15} /> {t('op.dashboard.resolve')}</button>
             <button type="button" onClick={() => openSelectedFocusSeat(pcControlLabel)}><Wrench size={15} /> {pcControlLabel}</button>
           </div>
-          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: 'Обзор', state: 'failed', detail: dashboardLoadError ?? 'Данные обзора недоступны.' }} />}
+          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: t('op.dashboard.overview'), state: 'failed', detail: dashboardLoadError ?? t('op.dashboard.unavailable') }} />}
           <FeedbackNotice feedback={feedback} />
         </article>
 
         <section className="dashboard-secondary-panel">
           <header className="dashboard-panel-title">
-            <span>Дальше по очереди</span>
-            <strong>разобрать после критичного</strong>
+            <span>{t('op.dashboard.nextInQueue')}</span>
+            <strong>{t('op.dashboard.afterCritical')}</strong>
           </header>
           <div className="focus-list">
             {focusItems.map(([tone, target, title, detail], index) => (
@@ -396,8 +397,8 @@ export function DashboardWorkspace({
 
         <section className="dashboard-control-panel">
           <header className="dashboard-panel-title">
-            <span>Управление</span>
-            <strong>карта, чек, депозит, клиент</strong>
+            <span>{t('op.dashboard.control')}</span>
+            <strong>{t('op.dashboard.controlHint')}</strong>
           </header>
           <div className="dashboard-control-grid">
             {controlCards.map(([targetWorkspace, label, value, detail, Icon]) => (
@@ -415,8 +416,8 @@ export function DashboardWorkspace({
 
         <section className="dashboard-pulse-panel">
           <header className="dashboard-panel-title">
-            <span>Пульс смены</span>
-            <strong>касса, зал, сигналы, брони</strong>
+            <span>{t('op.dashboard.shiftPulse')}</span>
+            <strong>{t('op.dashboard.shiftPulseHint')}</strong>
           </header>
           <div className="dashboard-pulse-grid">
             {pulseItems.map((item) => (
