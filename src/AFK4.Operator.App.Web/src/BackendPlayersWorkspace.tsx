@@ -624,7 +624,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             ))}
             {recentEntries.length === 0 && (
               <article className="client-history-row">
-                <span>вЂ”</span>
+                <span>—</span>
                 <strong>{t('op.players.history.empty')}</strong>
                 <b>0 {currencyCode}</b>
               </article>

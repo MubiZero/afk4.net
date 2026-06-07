@@ -34,22 +34,22 @@ type TFn = (key: MessageKey, values?: Record<string, string | number>) => string
 
 function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, hasSearchMiss: boolean, t: TFn): LogEventItem {
   if (hasSearchMiss) {
-    return ['вЂ”', t('op.logs.ph.noMatch.title'), t('op.logs.ph.noMatch.hint'), t('op.logs.ph.source.operator'), 'audit', 'placeholder', null];
+    return ['—', t('op.logs.ph.noMatch.title'), t('op.logs.ph.noMatch.hint'), t('op.logs.ph.source.operator'), 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['вЂ”', t('op.logs.ph.loading.title'), t('op.logs.ph.loading.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
+    return ['—', t('op.logs.ph.loading.title'), t('op.logs.ph.loading.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['вЂ”', t('op.logs.ph.failed.title'), loadError ?? t('op.logs.ph.failed.hint'), t('op.logs.ph.source.platform'), 'warning', 'placeholder', null];
+    return ['—', t('op.logs.ph.failed.title'), loadError ?? t('op.logs.ph.failed.hint'), t('op.logs.ph.source.platform'), 'warning', 'placeholder', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['вЂ”', t('op.logs.ph.empty.title'), t('op.logs.ph.empty.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
+    return ['—', t('op.logs.ph.empty.title'), t('op.logs.ph.empty.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
   }
 
-  return ['вЂ”', t('op.logs.ph.local.title'), t('op.logs.ph.local.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
+  return ['—', t('op.logs.ph.local.title'), t('op.logs.ph.local.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
 }
 
 function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[], t: TFn): LogEventItem[] {
@@ -244,7 +244,7 @@ function auditDetailValueLabel(value: unknown, t: TFn): string {
     return formatTime(trimmed);
   }
 
-  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}вЂ¦` : trimmed;
+  return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
 }
 
 function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null, agentSource: string, updatesSource: string, t: TFn): LogEventItem[] {
@@ -525,7 +525,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const [auditToUtcFilter, setAuditToUtcFilter] = useState('');
   const [auditLimit, setAuditLimit] = useState('30');
 
-  // Sentinel constants вЂ” every comparison and every display comes from the same t() call
+  // Sentinel constants — every comparison and every display comes from the same t() call
   const sourceAllKey = t('op.logs.source.all');
   const sourceAgentKey = t('op.logs.source.agent');
   const sourcePosKey = t('op.logs.source.pos');

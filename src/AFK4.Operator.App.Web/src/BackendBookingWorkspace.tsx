@@ -123,11 +123,11 @@ export function BackendBookingWorkspace({
   });
   const selectedBooking = bookings[selectedBookingIndex] ?? bookings[0] ?? {
     reservationId: '',
-    time: 'вЂ”',
+    time: '—',
     client: loadStatus === 'failed' ? t('op.booking.fallback.failedClient') : t('op.booking.fallback.emptyClient'),
     seats: t('op.booking.fallback.zeroSeats'),
     zone: floorMap.branchName,
-    duration: 'вЂ”',
+    duration: '—',
     status: loadStatus === 'loading' ? t('a11y.loading') : t('state.empty'),
     tone: 'pending',
     note: loadError ?? t('op.booking.fallback.note'),
@@ -294,7 +294,7 @@ export function BackendBookingWorkspace({
             ))}
             {bookings.length === 0 && (
               <article className="booking-card pending">
-                <span className="booking-time">вЂ”</span>
+                <span className="booking-time">—</span>
                 <span className="booking-client">
                   <strong>{loadStatus === 'loading' ? t('op.booking.load.loading') : t('op.booking.timeline.empty')}</strong>
                   <em>{loadError ?? t('op.booking.timeline.emptyDetail')}</em>
@@ -354,7 +354,7 @@ export function BackendBookingWorkspace({
             ))}
             {onlineRequests.length === 0 && (
               <article className="booking-request-card">
-                <span>вЂ”</span>
+                <span>—</span>
                 <strong>{t('op.booking.requests.empty')}</strong>
                 <em>{loadStatus === 'failed' ? loadError ?? t('op.booking.requests.emptyFailed') : t('op.booking.requests.emptyDetail')}</em>
               </article>

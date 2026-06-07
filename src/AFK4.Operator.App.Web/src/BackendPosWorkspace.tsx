@@ -54,7 +54,7 @@ type PosCartItem = PosCatalogItem & {
   quantity: number;
 };
 
-// Sentinel for the "All" category вЂ” never shown as a backend category name
+// Sentinel for the "All" category — never shown as a backend category name
 const CATEGORY_ALL = '__all__';
 
 type PaymentMethodKey = 'cash' | 'card' | 'deposit';
@@ -946,7 +946,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
             ))}
             {salesRows.length === 0 && (
               <article className="pos-receipt-row">
-                <span>вЂ”</span>
+                <span>—</span>
                 <strong>{t('op.pos.receipts.emptyLabel')}</strong>
                 <em>{t('op.pos.receipts.emptyPlatform')}</em>
                 <b>0 {currencyCode}</b>
