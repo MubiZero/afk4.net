@@ -87,7 +87,7 @@ public sealed class PasswordHashingStaffCredentialService(
             .Select(candidate => new { candidate.OrganizationId, candidate.StaffUserId, candidate.PasswordHash })
             .ToListAsync(cancellationToken);
 
-        var matchedOrgIds = new List<Guid>();
+        var matched = new List<(Guid OrganizationId, Guid StaffUserId)>();
         foreach (var candidate in candidates)
         {
             // VerifyHashedPassword only reads the hash; the entity is a placeholder.
@@ -99,11 +99,11 @@ public sealed class PasswordHashingStaffCredentialService(
             var result = passwordHasher.VerifyHashedPassword(placeholder, candidate.PasswordHash, request.Password);
             if (result != PasswordVerificationResult.Failed)
             {
-                matchedOrgIds.Add(candidate.OrganizationId);
+                matched.Add((candidate.OrganizationId, candidate.StaffUserId));
             }
         }
 
-        matchedOrgIds = matchedOrgIds.Distinct().ToList();
+        var matchedOrgIds = matched.Select(entry => entry.OrganizationId).Distinct().ToList();
 
         if (matchedOrgIds.Count == 0)
         {
@@ -112,9 +112,18 @@ public sealed class PasswordHashingStaffCredentialService(
 
         if (matchedOrgIds.Count == 1)
         {
-            var signedIn = await SignInAsync(
-                new StaffSignInRequest(matchedOrgIds[0], request.Login, request.Password),
-                cancellationToken);
+            // We already verified this exact account above. Issue the token directly
+            // instead of re-resolving by login — re-resolution would pick the wrong
+            // user when a username collides with another account's email.
+            var staffUserId = matched.First(entry => entry.OrganizationId == matchedOrgIds[0]).StaffUserId;
+            var user = await dbContext.StaffUsers
+                .FirstOrDefaultAsync(candidate => candidate.StaffUserId == staffUserId, cancellationToken);
+            if (user is null)
+            {
+                return StaffLoginResolution.None;
+            }
+
+            var signedIn = await tokenService.IssueAsync(user, cancellationToken);
             return new StaffLoginResolution(signedIn, Array.Empty<StaffSignInClubChoice>());
         }
 
@@ -127,8 +136,8 @@ public sealed class PasswordHashingStaffCredentialService(
     }
 
     // Resolves an active staff user in the org by username first, then by email
-    // (case-insensitive). Username wins on the pathological collision. Mirrors
-    // EfStaffPasswordResetService.ResolveStaffAsync.
+    // (case-insensitive). Username wins on the pathological collision. Similar to
+    // EfStaffPasswordResetService.ResolveStaffAsync, but org-scoped and IsActive-filtered.
     private async Task<StaffUserEntity?> ResolveOrgUserAsync(
         Guid organizationId, string loginOrEmail, CancellationToken cancellationToken)
     {

@@ -214,6 +214,31 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
+        Assert.False(string.IsNullOrWhiteSpace(body.AccessToken));
+    }
+
+    [Fact]
+    public async Task PostStaffSignInByLogin_EmailCollidesWithAnotherUsername_SignsInEmailOwner()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory); // org A
+        // User X in org A: its USERNAME equals the string we'll log in with.
+        await SeedEmailUserInOrgAAsync(factory, "shared@afk4.test", "x@afk4.test", "X-pass");
+        // User Y in org A: its EMAIL equals that same string (different password).
+        await SeedEmailUserInOrgAAsync(factory, "y-login", "shared@afk4.test", "Y-pass");
+        using var client = factory.CreateClient();
+
+        // Logging in with the email "shared@afk4.test" + Y's password must sign in Y,
+        // not fail because X happens to own that string as a username.
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in-by-login",
+            new StaffSignInByLoginRequest("shared@afk4.test", "Y-pass"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
+        Assert.False(string.IsNullOrWhiteSpace(body.AccessToken));
     }
 
     private static readonly Guid SecondOrgId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f09");
