@@ -2355,7 +2355,9 @@ export const messages = {
     "op.checkout.error.invalidAmount": "Проверьте сумму платежа.",
     "op.checkout.error.walletExceeds": "Оплата с депозита превышает баланс.",
     "op.checkout.error.short": "Не хватает {amount}",
-    "op.checkout.error.over": "Превышение на {amount}"
+    "op.checkout.error.over": "Превышение на {amount}",
+    "op.shell.queuedCommand": "Команда «{action}» поставлена в очередь — будет отправлена после восстановления связи.",
+    "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -4709,7 +4711,9 @@ export const messages = {
     "op.checkout.error.invalidAmount": "Check the payment amount.",
     "op.checkout.error.walletExceeds": "Deposit payment exceeds the balance.",
     "op.checkout.error.short": "Short by {amount}",
-    "op.checkout.error.over": "Over by {amount}"
+    "op.checkout.error.over": "Over by {amount}",
+    "op.shell.queuedCommand": "Command «{action}» queued — it will be sent once the connection is restored.",
+    "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server"
   },
   tg: {
     "auth.club.title": "Вход в клуб",
@@ -7063,7 +7067,9 @@ export const messages = {
     "op.checkout.error.invalidAmount": "Маблағи пардохтро санҷед.",
     "op.checkout.error.walletExceeds": "Пардохт аз амонат аз бақия зиёд аст.",
     "op.checkout.error.short": "{amount} намерасад",
-    "op.checkout.error.over": "Зиёдатӣ {amount}"
+    "op.checkout.error.over": "Зиёдатӣ {amount}",
+    "op.shell.queuedCommand": "Фармони «{action}» ба навбат гузошта шуд — пас аз барқарории алоқа фиристода мешавад.",
+    "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт"
   },
 } as const;
 

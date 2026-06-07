@@ -2453,5 +2453,7 @@
   "op.checkout.error.invalidAmount": "Check the payment amount.",
   "op.checkout.error.walletExceeds": "Deposit payment exceeds the balance.",
   "op.checkout.error.short": "Short by {amount}",
-  "op.checkout.error.over": "Over by {amount}"
+  "op.checkout.error.over": "Over by {amount}",
+  "op.shell.queuedCommand": "Command «{action}» queued — it will be sent once the connection is restored.",
+  "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server"
 }

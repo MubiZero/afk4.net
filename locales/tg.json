@@ -2453,5 +2453,7 @@
   "op.checkout.error.invalidAmount": "Маблағи пардохтро санҷед.",
   "op.checkout.error.walletExceeds": "Пардохт аз амонат аз бақия зиёд аст.",
   "op.checkout.error.short": "{amount} намерасад",
-  "op.checkout.error.over": "Зиёдатӣ {amount}"
+  "op.checkout.error.over": "Зиёдатӣ {amount}",
+  "op.shell.queuedCommand": "Фармони «{action}» ба навбат гузошта шуд — пас аз барқарории алоқа фиристода мешавад.",
+  "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт"
 }

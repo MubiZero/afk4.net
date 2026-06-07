@@ -1014,7 +1014,7 @@ function AppInner() {
       return;
     }
 
-    const { replay, dropped } = reconcileActionOutbox(pending, liveSeats);
+    const { replay, dropped } = reconcileActionOutbox(pending, liveSeats, t);
     for (const drop of dropped) {
       acknowledgeAction(drop.entry.idempotencyKey);
     }
@@ -1084,7 +1084,7 @@ function AppInner() {
           expectedSessionId: seat.activeSessionId ?? null,
           queuedAtMs: Date.now()
         });
-        return { detail: `Команда «${action}» поставлена в очередь — будет отправлена после восстановления связи.` };
+        return { detail: t('op.shell.queuedCommand', { action }) };
       }
 
       const command = await clients.devices.dispatchDeviceCommand(seat.deviceId, {

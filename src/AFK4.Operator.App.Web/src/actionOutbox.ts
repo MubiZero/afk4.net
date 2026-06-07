@@ -1,4 +1,7 @@
+import { type MessageKey } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
+
+type TFn = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 // Local queue of operator lock/unlock intents recorded while the platform is unreachable (spec §6.5).
 // Lock/unlock are idempotent device commands that reconcile against cloud authority, so they are safe to
@@ -63,7 +66,8 @@ export function acknowledgeAction(idempotencyKey: string): void {
 // with an operator-visible audit note rather than re-applied.
 export function reconcileActionOutbox(
   pending: OperatorActionOutboxEntry[],
-  liveSeats: SeatSummary[]
+  liveSeats: SeatSummary[],
+  t: TFn
 ): ReconcileResult {
   const replay: OperatorActionOutboxEntry[] = [];
   const dropped: DroppedAction[] = [];
@@ -74,7 +78,7 @@ export function reconcileActionOutbox(
     if (!seat || currentSessionId !== entry.expectedSessionId) {
       dropped.push({
         entry,
-        note: `${entry.seatName}: команда ${entry.commandType} отменена — состояние изменилось на сервере`
+        note: t('op.outbox.dropped', { seat: entry.seatName, command: entry.commandType })
       });
       continue;
     }
