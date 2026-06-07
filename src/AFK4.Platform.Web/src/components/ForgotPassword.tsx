@@ -28,6 +28,8 @@ export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPa
   function selectChannel(next: Channel) {
     setChannel(next);
     setError(null);
+    setPhoneStep('request');
+    setEmailSent(false);
   }
 
   async function submitEmail(event: FormEvent<HTMLFormElement>) {
@@ -89,7 +91,7 @@ export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPa
       <h1>{t('auth.forgot.title')}</h1>
       <p className="muted">{t('auth.forgot.subtitle')}</p>
 
-      <div className="actions" role="tablist">
+      <div className="actions" role="group" aria-label={t('auth.forgot.subtitle')}>
         <button
           type="button"
           className={channel === 'email' ? 'primary' : ''}
@@ -115,7 +117,6 @@ export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPa
           <p>{t('auth.forgot.email.sent')}</p>
           <div className="actions actions-stack">
             <button type="button" className="primary" onClick={onOpenReset}>{t('auth.forgot.email.openReset')}</button>
-            <button type="button" onClick={onBackToSignIn}>{t('auth.forgot.back')}</button>
           </div>
         </section>
       ) : (
