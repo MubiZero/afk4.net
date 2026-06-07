@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRightLeft, MonitorCheck, ReceiptText, Search, ShieldAlert, UserRoundPlus } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import type { AuditSearchResultDto, BranchDiagnosticsDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -17,7 +18,6 @@ import {
   isGuid,
   isRecord,
   operatorDisplayNameLabel,
-  pluralRu,
   readArray,
   readNumber,
   readString,
@@ -30,36 +30,37 @@ import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 type LogEventKind = 'audit' | 'commandFailure' | 'updateFailure' | 'staleDevice' | 'placeholder';
 type LogEventTone = 'audit' | 'device' | 'money' | 'session' | 'warning';
 type LogEventItem = [string, string, string, string, LogEventTone, LogEventKind, Record<string, unknown> | null];
+type TFn = (key: MessageKey, values?: Record<string, string | number>) => string;
 
-function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, hasSearchMiss: boolean): LogEventItem {
+function logEventPlaceholder(loadStatus: LoadStatus, loadError: string | null, hasSearchMiss: boolean, t: TFn): LogEventItem {
   if (hasSearchMiss) {
-    return ['—', 'Нет совпадений', 'измените поиск или фильтр', 'Оператор', 'audit', 'placeholder', null];
+    return ['—', t('op.logs.ph.noMatch.title'), t('op.logs.ph.noMatch.hint'), t('op.logs.ph.source.operator'), 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', 'Загружаем события', 'ждём аудит и диагностику', 'Платформа', 'audit', 'placeholder', null];
+    return ['—', t('op.logs.ph.loading.title'), t('op.logs.ph.loading.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', 'События недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Платформа', 'warning', 'placeholder', null];
+    return ['—', t('op.logs.ph.failed.title'), loadError ?? t('op.logs.ph.failed.hint'), t('op.logs.ph.source.platform'), 'warning', 'placeholder', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', 'Событий за период нет', 'аудит и диагностика вернули пустой результат', 'Платформа', 'audit', 'placeholder', null];
+    return ['—', t('op.logs.ph.empty.title'), t('op.logs.ph.empty.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
   }
 
-  return ['—', 'Локально: событий нет', 'локальные данные без платформы', 'Платформа', 'audit', 'placeholder', null];
+  return ['—', t('op.logs.ph.local.title'), t('op.logs.ph.local.hint'), t('op.logs.ph.source.platform'), 'audit', 'placeholder', null];
 }
 
-function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[]): LogEventItem[] {
+function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[], t: TFn): LogEventItem[] {
   return auditRecords.map((record): LogEventItem => {
     const outcome = readString(record, 'outcome');
 
     return [
       formatTime(readString(record, 'createdAtUtc')),
-      auditActionLabel(readString(record, 'action')),
-      `${auditTargetLabel(readString(record, 'targetType'))} · ${auditOutcomeLabel(outcome)}`,
-      auditSourceLabel(readString(record, 'sourceApp')),
+      auditActionLabel(readString(record, 'action'), t),
+      `${auditTargetLabel(readString(record, 'targetType'), t)} · ${auditOutcomeLabel(outcome, t)}`,
+      auditSourceLabel(readString(record, 'sourceApp'), t),
       outcome.toLowerCase().includes('denied') || outcome.toLowerCase().includes('failed') ? 'warning' : 'audit',
       'audit',
       record
@@ -67,151 +68,151 @@ function mapAuditRecordsToLogEvents(auditRecords: Record<string, unknown>[]): Lo
   });
 }
 
-function auditOutcomeLabel(outcome: string): string {
+function auditOutcomeLabel(outcome: string, t: TFn): string {
   switch (outcome.toLowerCase()) {
     case 'succeeded':
     case 'success':
     case 'ok':
-      return 'успешно';
+      return t('op.logs.outcome.success');
     case 'failed':
     case 'failure':
-      return 'ошибка';
+      return t('op.logs.outcome.failed');
     case 'denied':
     case 'rejected':
-      return 'отказ';
+      return t('op.logs.outcome.denied');
     case 'pending':
-      return 'ожидает';
+      return t('op.logs.outcome.pending');
     default:
-      return outcome ? 'состояние неизвестно' : 'неизвестно';
+      return outcome ? t('op.logs.outcome.unknown') : t('op.logs.outcome.empty');
   }
 }
 
-function auditTargetLabel(targetType: string): string {
+function auditTargetLabel(targetType: string, t: TFn): string {
   const normalized = targetType.toLowerCase();
   if (normalized.includes('pos') || normalized.includes('sale') || normalized.includes('receipt')) {
-    return 'Чек';
+    return t('op.logs.target.receipt');
   }
 
   if (normalized.includes('session')) {
-    return 'Сессия';
+    return t('op.logs.target.session');
   }
 
   if (normalized.includes('device')) {
-    return 'ПК';
+    return t('op.logs.target.device');
   }
 
   if (normalized.includes('staff') || normalized.includes('identity') || normalized.includes('user')) {
-    return 'Сотрудник';
+    return t('op.logs.target.staff');
   }
 
   if (normalized.includes('shift')) {
-    return 'Смена';
+    return t('op.logs.target.shift');
   }
 
   if (normalized.includes('payment') || normalized.includes('ledger') || normalized.includes('wallet')) {
-    return 'Платёж';
+    return t('op.logs.target.payment');
   }
 
   if (normalized.includes('tariff')) {
-    return 'Тариф';
+    return t('op.logs.target.tariff');
   }
 
   if (normalized.includes('package')) {
-    return 'Пакет';
+    return t('op.logs.target.package');
   }
 
   if (normalized.includes('update') || normalized.includes('rollout')) {
-    return 'Обновление';
+    return t('op.logs.target.update');
   }
 
   if (normalized.includes('branch')) {
-    return 'Филиал';
+    return t('op.logs.target.branch');
   }
 
-  return targetType ? 'Объект' : 'Объект';
+  return t('op.logs.target.object');
 }
 
-function auditSourceLabel(sourceApp: string): string {
+function auditSourceLabel(sourceApp: string, t: TFn): string {
   const normalized = sourceApp.toLowerCase();
   if (!normalized || normalized === 'audit' || normalized.includes('platform')) {
-    return 'Платформа';
+    return t('op.logs.sourceApp.platform');
   }
 
   if (normalized.includes('operator')) {
-    return 'Приложение оператора';
+    return t('op.logs.sourceApp.operator');
   }
 
   if (normalized.includes('agent')) {
-    return 'Агент';
+    return t('op.logs.sourceApp.agent');
   }
 
   if (normalized.includes('setup')) {
-    return 'Мастер установки';
+    return t('op.logs.sourceApp.setup');
   }
 
-  return 'Платформа';
+  return t('op.logs.sourceApp.platform');
 }
 
-function auditDetailKeyLabel(key: string): string {
+function auditDetailKeyLabel(key: string, t: TFn): string {
   const normalized = key.toLowerCase();
   if (normalized.includes('reason')) {
-    return 'Причина';
+    return t('op.logs.detailKey.reason');
   }
 
   if (normalized.includes('amount') || normalized.includes('money') || normalized.includes('price')) {
-    return 'Сумма';
+    return t('op.logs.detailKey.amount');
   }
 
   if (normalized.includes('currency')) {
-    return 'Валюта';
+    return t('op.logs.detailKey.currency');
   }
 
   if (normalized.includes('status') || normalized.includes('state') || normalized.includes('outcome')) {
-    return 'Состояние';
+    return t('op.logs.detailKey.status');
   }
 
   if (normalized.includes('device') || normalized.includes('machine')) {
-    return 'ПК';
+    return t('op.logs.detailKey.device');
   }
 
   if (normalized.includes('session')) {
-    return 'Сессия';
+    return t('op.logs.detailKey.session');
   }
 
   if (normalized.includes('sale') || normalized.includes('receipt') || normalized.includes('pos')) {
-    return 'Чек';
+    return t('op.logs.detailKey.sale');
   }
 
   if (normalized.includes('shift')) {
-    return 'Смена';
+    return t('op.logs.detailKey.shift');
   }
 
   if (normalized.includes('tariff')) {
-    return 'Тариф';
+    return t('op.logs.detailKey.tariff');
   }
 
   if (normalized.includes('package')) {
-    return 'Пакет';
+    return t('op.logs.detailKey.package');
   }
 
   if (normalized.includes('staff') || normalized.includes('user')) {
-    return 'Сотрудник';
+    return t('op.logs.detailKey.staff');
   }
 
   if (normalized.includes('branch')) {
-    return 'Филиал';
+    return t('op.logs.detailKey.branch');
   }
 
-  return 'Параметр';
+  return t('op.logs.detailKey.param');
 }
 
-function auditDetailValueLabel(value: unknown): string {
+function auditDetailValueLabel(value: unknown, t: TFn): string {
   if (value === null || value === undefined) {
-    return 'не указано';
+    return t('op.logs.detailVal.null');
   }
 
   if (typeof value === 'boolean') {
-    return value ? 'да' : 'нет';
+    return value ? t('op.logs.detailVal.yes') : t('op.logs.detailVal.no');
   }
 
   if (typeof value === 'number') {
@@ -219,24 +220,24 @@ function auditDetailValueLabel(value: unknown): string {
   }
 
   if (Array.isArray(value)) {
-    return `${value.length} ${pluralRu(value.length, ['значение', 'значения', 'значений'])}`;
+    return t('op.logs.detailVal.count', { count: value.length });
   }
 
   if (isRecord(value)) {
-    return 'заполнено';
+    return t('op.logs.detailVal.record');
   }
 
   const trimmed = String(value).trim();
   if (trimmed.length === 0) {
-    return 'не указано';
+    return t('op.logs.detailVal.null');
   }
 
   if (isGuid(trimmed)) {
-    return 'указано';
+    return t('op.logs.detailVal.guid');
   }
 
   if (/^https?:\/\//i.test(trimmed)) {
-    return 'ссылка';
+    return t('op.logs.detailVal.url');
   }
 
   if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
@@ -246,7 +247,7 @@ function auditDetailValueLabel(value: unknown): string {
   return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
 }
 
-function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): LogEventItem[] {
+function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null, agentSource: string, updatesSource: string, t: TFn): LogEventItem[] {
   const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const recentCommandFailures = readArray<Record<string, unknown>>(commandSummary, 'recentFailures');
@@ -256,27 +257,27 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
   return [
     ...recentCommandFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
-      `${readString(failure, 'machineName', 'Устройство')} ${commandTypeLabel(readString(failure, 'type', 'command'))}`,
-      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
-      'Агент',
+      `${readString(failure, 'machineName', t('op.logs.row.deviceFallback'))} ${commandTypeLabel(readString(failure, 'type', 'command'), t)}`,
+      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed')), t),
+      agentSource,
       'device',
       'commandFailure',
       failure
     ]),
     ...recentUpdateFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
-      `${updateComponentLabel(readString(failure, 'component', 'Обновление'))} ${readString(failure, 'targetVersion', '')}`.trim(),
-      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
-      'Обновления',
+      `${updateComponentLabel(readString(failure, 'component', t('op.logs.row.updateFallback')), t)} ${readString(failure, 'targetVersion', '')}`.trim(),
+      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed')), t),
+      updatesSource,
       'warning',
       'updateFailure',
       failure
     ]),
     ...staleDevices.map((device): LogEventItem => [
       formatTime(readString(device, 'lastHeartbeatAtUtc')),
-      `${readString(device, 'machineName', 'Устройство')} не отвечает`,
-      `${readNumber(device, 'lastHeartbeatAgeSeconds', 0)} сек. без сигнала`,
-      'Агент',
+      `${readString(device, 'machineName', t('op.logs.row.deviceFallback'))} ${t('op.logs.diag.notResponding')}`,
+      t('op.logs.diag.staleSeconds', { count: readNumber(device, 'lastHeartbeatAgeSeconds', 0) }),
+      agentSource,
       'warning',
       'staleDevice',
       device
@@ -284,26 +285,26 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null): Lo
   ];
 }
 
-function compactAuditDetails(detailsJson: string): string {
+function compactAuditDetails(detailsJson: string, t: TFn): string {
   const trimmed = detailsJson.trim();
   if (trimmed.length === 0 || trimmed === '{}') {
-    return 'нет подробностей';
+    return t('op.logs.compact.noDetails');
   }
 
   try {
     const parsed = JSON.parse(trimmed) as unknown;
     if (!isRecord(parsed)) {
-      return auditDetailValueLabel(parsed);
+      return auditDetailValueLabel(parsed, t);
     }
 
     const entries = Object.entries(parsed)
       .filter(([, value]) => value !== null && value !== undefined && String(value).trim().length > 0)
       .slice(0, 3)
-      .map(([key, value]) => `${auditDetailKeyLabel(key)}: ${auditDetailValueLabel(value)}`);
+      .map(([key, value]) => `${auditDetailKeyLabel(key, t)}: ${auditDetailValueLabel(value, t)}`);
 
-    return entries.length > 0 ? entries.join(' · ') : 'нет подробностей';
+    return entries.length > 0 ? entries.join(' · ') : t('op.logs.compact.noDetails');
   } catch {
-    return 'подробности в свободном формате';
+    return t('op.logs.compact.freeform');
   }
 }
 
@@ -318,86 +319,86 @@ function logEventKey(event: LogEventItem): string {
   return `${event[5]}-${recordId}-${event[0]}-${event[1]}`;
 }
 
-function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendContext | null): Array<[string, string]> {
+function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendContext | null, t: TFn): Array<[string, string]> {
   const record = event[6];
 
   if (event[5] === 'audit' && record !== null) {
     const targetType = readString(record, 'targetType');
 
     return [
-      ['Событие', auditActionLabel(readString(record, 'action'))],
-      ['Результат', auditOutcomeLabel(readString(record, 'outcome'))],
-      ['Раздел', auditTargetLabel(targetType)],
-      ['Исполнитель', auditActorLabel(record, backend)],
-      ['Источник', auditSourceLabel(readString(record, 'sourceApp'))],
-      ['Подробности', compactAuditDetails(readString(record, 'detailsJson'))]
+      [t('op.logs.row.event'), auditActionLabel(readString(record, 'action'), t)],
+      [t('op.logs.row.result'), auditOutcomeLabel(readString(record, 'outcome'), t)],
+      [t('op.logs.row.section'), auditTargetLabel(targetType, t)],
+      [t('op.logs.row.actor'), auditActorLabel(record, backend, t)],
+      [t('op.logs.row.source'), auditSourceLabel(readString(record, 'sourceApp'), t)],
+      [t('op.logs.row.details'), compactAuditDetails(readString(record, 'detailsJson'), t)]
     ];
   }
 
   if (event[5] === 'commandFailure' && record !== null) {
     return [
-      ['Устройство', readString(record, 'machineName', 'Устройство')],
-      ['Команда', commandTypeLabel(readString(record, 'type', 'command'))],
-      ['Статус', commandStatusLabel(readString(record, 'status', 'failed'))],
-      ['Сообщение', commandStatusMessageLabel(readString(record, 'message')) || 'нет сообщения'],
-      ['Обновлено', readString(record, 'updatedAtUtc', event[0])]
+      [t('op.logs.row.device'), readString(record, 'machineName', t('op.logs.row.deviceFallback'))],
+      [t('op.logs.row.command'), commandTypeLabel(readString(record, 'type', 'command'), t)],
+      [t('op.logs.row.status'), commandStatusLabel(readString(record, 'status', 'failed'), t)],
+      [t('op.logs.row.message'), commandStatusMessageLabel(readString(record, 'message'), t) || t('op.logs.row.noMessage')],
+      [t('op.logs.row.updated'), readString(record, 'updatedAtUtc', event[0])]
     ];
   }
 
   if (event[5] === 'updateFailure' && record !== null) {
     return [
-      ['Устройство', readString(record, 'machineName', 'Устройство')],
-      ['Компонент', `${updateComponentLabel(readString(record, 'component', 'Обновление'))} ${readString(record, 'targetVersion')}`.trim()],
-      ['Статус', commandStatusLabel(readString(record, 'status', 'failed'))],
-      ['Сообщение', commandStatusMessageLabel(readString(record, 'message')) || 'нет сообщения']
+      [t('op.logs.row.device'), readString(record, 'machineName', t('op.logs.row.deviceFallback'))],
+      [t('op.logs.row.component'), `${updateComponentLabel(readString(record, 'component', t('op.logs.row.updateFallback')), t)} ${readString(record, 'targetVersion')}`.trim()],
+      [t('op.logs.row.status'), commandStatusLabel(readString(record, 'status', 'failed'), t)],
+      [t('op.logs.row.message'), commandStatusMessageLabel(readString(record, 'message'), t) || t('op.logs.row.noMessage')]
     ];
   }
 
   if (event[5] === 'staleDevice' && record !== null) {
     return [
-      ['Устройство', readString(record, 'machineName', 'Устройство')],
-      ['Версия агента', readString(record, 'agentVersion', 'неизвестно')],
-      ['Версия оболочки', readString(record, 'shellVersion', 'неизвестно')],
-      ['Последний сигнал', readString(record, 'lastHeartbeatAtUtc', event[0])],
-      ['Пауза связи', `${readNumber(record, 'lastHeartbeatAgeSeconds', 0)} сек.`]
+      [t('op.logs.row.device'), readString(record, 'machineName', t('op.logs.row.deviceFallback'))],
+      [t('op.logs.row.agentVersion'), readString(record, 'agentVersion', t('op.logs.row.unknown'))],
+      [t('op.logs.row.shellVersion'), readString(record, 'shellVersion', t('op.logs.row.unknown'))],
+      [t('op.logs.row.lastSignal'), readString(record, 'lastHeartbeatAtUtc', event[0])],
+      [t('op.logs.row.signalPause'), t('op.logs.diag.pauseSeconds', { count: readNumber(record, 'lastHeartbeatAgeSeconds', 0) })]
     ];
   }
 
   return [
-    ['Источник', event[3]],
-    ['Событие', event[1]],
-    ['Оператор', operatorDisplayNameLabel(backend?.session.displayName ?? 'система')],
-    ['Результат', event[2]]
+    [t('op.logs.row.source'), event[3]],
+    [t('op.logs.row.event'), event[1]],
+    [t('op.logs.row.operator'), operatorDisplayNameLabel(backend?.session.displayName ?? null, t)],
+    [t('op.logs.row.result'), event[2]]
   ];
 }
 
-function logToneLabel(tone: LogEventTone): string {
+function logToneLabel(tone: LogEventTone, t: TFn): string {
   switch (tone) {
     case 'warning':
-      return 'требует внимания';
+      return t('op.logs.tone.warning');
     case 'device':
-      return 'ПК и связь';
+      return t('op.logs.tone.device');
     case 'money':
-      return 'касса';
+      return t('op.logs.tone.money');
     case 'session':
-      return 'сессия';
+      return t('op.logs.tone.session');
     default:
-      return 'запись';
+      return t('op.logs.tone.audit');
   }
 }
 
-function logKindLabel(kind: LogEventKind): string {
+function logKindLabel(kind: LogEventKind, t: TFn): string {
   switch (kind) {
     case 'commandFailure':
-      return 'команда ПК';
+      return t('op.logs.kind.commandFailure');
     case 'updateFailure':
-      return 'обновление';
+      return t('op.logs.kind.updateFailure');
     case 'staleDevice':
-      return 'связь с ПК';
+      return t('op.logs.kind.staleDevice');
     case 'placeholder':
-      return 'пустой результат';
+      return t('op.logs.kind.placeholder');
     default:
-      return 'аудит';
+      return t('op.logs.kind.audit');
   }
 }
 
@@ -406,14 +407,15 @@ function buildLogsExportJson(
   auditRecords: Record<string, unknown>[],
   diagnostics: BranchDiagnosticsDto | null,
   events: LogEventItem[],
-  backend: OperatorBackendContext | null
+  backend: OperatorBackendContext | null,
+  t: TFn
 ): string {
   const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
   return JSON.stringify({
     exportedAtUtc: new Date().toISOString(),
-    branch: branchId ? 'текущий филиал' : 'филиал не выбран',
+    branch: branchId ? t('op.logs.export.branch') : t('op.logs.export.noBranch'),
     summary: {
       events: events.length,
       auditRecords: auditRecords.length,
@@ -437,15 +439,15 @@ function buildLogsExportJson(
       title,
       detail,
       source,
-      result: logToneLabel(tone),
-      section: logKindLabel(kind),
-      details: Object.fromEntries(buildLogEventDetailRows([time, title, detail, source, tone, kind, record], backend))
+      result: logToneLabel(tone, t),
+      section: logKindLabel(kind, t),
+      details: Object.fromEntries(buildLogEventDetailRows([time, title, detail, source, tone, kind, record], backend, t))
     }))
   }, null, 2);
 }
 
-function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
-  if (sourceFilter === 'Все') {
+function matchesLogSource(event: LogEventItem, sourceFilter: string, allKey: string, agentKey: string, posKey: string, operatorKey: string, platformKey: string): boolean {
+  if (sourceFilter === allKey) {
     return true;
   }
 
@@ -455,24 +457,24 @@ function matchesLogSource(event: LogEventItem, sourceFilter: string): boolean {
   const normalizedSource = source.toLowerCase();
   const action = readString(record, 'action').toLowerCase();
   const targetType = readString(record, 'targetType').toLowerCase();
-  const isAgent = source === 'Агент' || tone === 'device' || kind === 'commandFailure' || kind === 'staleDevice';
+  const isAgent = source === agentKey || tone === 'device' || kind === 'commandFailure' || kind === 'staleDevice';
   const isPos = normalizedTitle.includes('касс') || normalizedTitle.includes('чек') || normalizedDetail.includes('касс') || normalizedDetail.includes('чек') || action.includes('pos') || targetType.includes('pos');
   const isOperator = normalizedSource.includes('operator') || normalizedSource.includes('оператор') || normalizedTitle.includes('identity') || normalizedDetail.includes('staff') || action.includes('identity') || targetType.includes('staff');
-  const isPlatform = source === 'Обновления' || kind === 'updateFailure' || (!isAgent && !isPos && !isOperator);
+  const isPlatform = source === platformKey || kind === 'updateFailure' || (!isAgent && !isPos && !isOperator);
 
-  if (sourceFilter === 'Агент') {
+  if (sourceFilter === agentKey) {
     return isAgent;
   }
 
-  if (sourceFilter === 'Касса') {
+  if (sourceFilter === posKey) {
     return isPos;
   }
 
-  if (sourceFilter === 'Оператор') {
+  if (sourceFilter === operatorKey) {
     return isOperator;
   }
 
-  if (sourceFilter === 'Платформа') {
+  if (sourceFilter === platformKey) {
     return isPlatform;
   }
 
@@ -488,12 +490,6 @@ type AuditSearchOverrides = {
   limit?: number | null;
 };
 type AuditPeriodPreset = 'today' | 'last24h' | 'last7d';
-
-const auditPeriodPresetOptions: Array<[string, AuditPeriodPreset]> = [
-  ['Сегодня', 'today'],
-  ['24 часа', 'last24h'],
-  ['7 дней', 'last7d']
-];
 
 function auditPeriodPresetRange(preset: AuditPeriodPreset, now = new Date()): Pick<AuditSearchOverrides, 'fromUtc' | 'toUtc'> {
   const toUtc = now.toISOString();
@@ -512,10 +508,11 @@ function auditPeriodPresetRange(preset: AuditPeriodPreset, now = new Date()): Pi
 }
 
 export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const { t } = useI18n();
   const [eventSearch, setEventSearch] = useState('');
-  const [activeLogFilter, setActiveLogFilter] = useState('Все события');
+  const [activeLogFilter, setActiveLogFilter] = useState(() => t('op.logs.logFilter.allEvents'));
   const [selectedEventKey, setSelectedEventKey] = useState('');
-  const [selectedSource, setSelectedSource] = useState('Все');
+  const [selectedSource, setSelectedSource] = useState(() => t('op.logs.source.all'));
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [auditResult, setAuditResult] = useState<AuditSearchResultDto | null>(null);
@@ -527,6 +524,34 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const [auditFromUtcFilter, setAuditFromUtcFilter] = useState('');
   const [auditToUtcFilter, setAuditToUtcFilter] = useState('');
   const [auditLimit, setAuditLimit] = useState('30');
+
+  // Sentinel constants — every comparison and every display comes from the same t() call
+  const sourceAllKey = t('op.logs.source.all');
+  const sourceAgentKey = t('op.logs.source.agent');
+  const sourcePosKey = t('op.logs.source.pos');
+  const sourceOperatorKey = t('op.logs.source.operator');
+  const sourcePlatformKey = t('op.logs.source.platform');
+  const sourceUpdatesKey = t('op.logs.source.updates');
+
+  const logFilterAllKey = t('op.logs.logFilter.allEvents');
+  const logFilterErrorsKey = t('op.logs.logFilter.errorsOnly');
+  const logFilterPcKey = t('op.logs.logFilter.pcAndNet');
+  const logFilterPosKey = t('op.logs.logFilter.pos');
+  const logFilterOperatorKey = t('op.logs.logFilter.operator');
+  const logFilterSystemKey = t('op.logs.logFilter.system');
+
+  const supportBundleActionKey = t('op.logs.export.supportBundle');
+  const actionListActionKey = t('op.logs.export.actionList');
+  const onlyProblemsActionKey = t('op.logs.export.onlyProblems');
+  const shiftSummaryActionKey = t('op.logs.export.shiftSummary');
+
+  const applyFilterActionKey = t('op.logs.filter.applyBtn');
+
+  const auditPeriodPresetOptions: Array<[string, AuditPeriodPreset]> = [
+    [t('op.logs.period.today'), 'today'],
+    [t('op.logs.period.last24h'), 'last24h'],
+    [t('op.logs.period.last7d'), 'last7d']
+  ];
 
   const buildAuditSearchRequest = (nextBackend: OperatorBackendContext, overrides: AuditSearchOverrides = {}) => {
     const limitValue = overrides.limit ?? Number(auditLimit);
@@ -567,7 +592,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
       const detail = projectOperatorError(error).detail;
       setLoadStatus('failed');
       setLoadError(detail);
-      setFeedback({ label: 'Логи', state: 'failed', detail });
+      setFeedback({ label: t('op.logs.feedbackLabel'), state: 'failed', detail });
     }
   };
 
@@ -579,40 +604,40 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const commandSummary = isRecord(diagnostics) ? diagnostics.commandSummary : null;
   const updateSummary = isRecord(diagnostics) ? diagnostics.updateSummary : null;
   const deviceSummary = isRecord(diagnostics) ? diagnostics.deviceSummary : null;
-  const auditEvents = mapAuditRecordsToLogEvents(auditRecords);
-  const diagnosticEvents = mapDiagnosticsToLogEvents(diagnostics);
+  const auditEvents = mapAuditRecordsToLogEvents(auditRecords, t);
+  const diagnosticEvents = mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourceUpdatesKey, t);
   const events = [...diagnosticEvents, ...auditEvents];
   const filteredEvents = events.filter((event) => {
     const [time, title, detail, source, tone] = event;
-    const filterMatches = activeLogFilter === 'Все события'
-      || (activeLogFilter === 'Только ошибки' && tone === 'warning')
-      || (activeLogFilter === 'ПК и связь' && matchesLogSource(event, 'Агент'))
-      || (activeLogFilter === 'Касса' && matchesLogSource(event, 'Касса'))
-      || (activeLogFilter === 'Оператор' && matchesLogSource(event, 'Оператор'))
-      || (activeLogFilter === 'Системные' && matchesLogSource(event, 'Платформа'));
-    const sourceMatches = matchesLogSource(event, selectedSource);
+    const filterMatches = activeLogFilter === logFilterAllKey
+      || (activeLogFilter === logFilterErrorsKey && tone === 'warning')
+      || (activeLogFilter === logFilterPcKey && matchesLogSource(event, sourceAgentKey, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey))
+      || (activeLogFilter === logFilterPosKey && matchesLogSource(event, sourcePosKey, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey))
+      || (activeLogFilter === logFilterOperatorKey && matchesLogSource(event, sourceOperatorKey, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey))
+      || (activeLogFilter === logFilterSystemKey && matchesLogSource(event, sourcePlatformKey, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey));
+    const sourceMatches = matchesLogSource(event, selectedSource, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey);
     const searchMatches = `${time} ${title} ${detail} ${source}`.toLowerCase().includes(eventSearch.trim().toLowerCase());
     return filterMatches && sourceMatches && searchMatches;
   });
   const visibleEvents = events.length === 0
-    ? [logEventPlaceholder(loadStatus, loadError, false)]
+    ? [logEventPlaceholder(loadStatus, loadError, false, t)]
     : filteredEvents.length > 0
       ? filteredEvents
-      : [logEventPlaceholder(loadStatus, loadError, eventSearch.trim().length > 0 || activeLogFilter !== 'Все события' || selectedSource !== 'Все')];
+      : [logEventPlaceholder(loadStatus, loadError, eventSearch.trim().length > 0 || activeLogFilter !== logFilterAllKey || selectedSource !== sourceAllKey, t)];
   const selectedEvent = visibleEvents.find((event) => logEventKey(event) === selectedEventKey) ?? visibleEvents[0];
-  const selectedEventDetails = buildLogEventDetailRows(selectedEvent, backend);
+  const selectedEventDetails = buildLogEventDetailRows(selectedEvent, backend, t);
   const sourceCards: Array<[string, string, LucideIcon]> = [
-    ['Все', `${events.length} событий`, Search],
-    ['Агент', `${events.filter((event) => matchesLogSource(event, 'Агент')).length} событий · зависших ${readNumber(deviceSummary, 'staleDevices', 0)}`, MonitorCheck],
-    ['Касса', `${events.filter((event) => matchesLogSource(event, 'Касса')).length} записей`, ReceiptText],
-    ['Оператор', `${events.filter((event) => matchesLogSource(event, 'Оператор')).length} действий`, UserRoundPlus],
-    ['Платформа', `${events.filter((event) => matchesLogSource(event, 'Платформа')).length} событий`, ShieldAlert]
+    [sourceAllKey, t('op.logs.source.all.detail', { count: events.length }), Search],
+    [sourceAgentKey, t('op.logs.source.agent.detail', { count: events.filter((event) => matchesLogSource(event, sourceAgentKey, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey)).length, stale: readNumber(deviceSummary, 'staleDevices', 0) }), MonitorCheck],
+    [sourcePosKey, t('op.logs.source.pos.detail', { count: events.filter((event) => matchesLogSource(event, sourcePosKey, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey)).length }), ReceiptText],
+    [sourceOperatorKey, t('op.logs.source.operator.detail', { count: events.filter((event) => matchesLogSource(event, sourceOperatorKey, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey)).length }), UserRoundPlus],
+    [sourcePlatformKey, t('op.logs.source.platform.detail', { count: events.filter((event) => matchesLogSource(event, sourcePlatformKey, sourceAllKey, sourceAgentKey, sourcePosKey, sourceOperatorKey, sourcePlatformKey)).length }), ShieldAlert]
   ];
 
   const applyAuditSearch = async (label: string, overrides: AuditSearchOverrides = {}) => {
     setFeedback({ label, state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, overrides));
       setAuditResult(audit);
@@ -635,12 +660,12 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const selectLogFilter = (filter: string) => {
     setActiveLogFilter(filter);
     const presets: Record<string, AuditSearchOverrides> = {
-      'Все события': { action: '', outcome: '', targetType: '', limit: 30 },
-      'Только ошибки': { action: '', outcome: 'denied', targetType: '', limit: 50 },
-      'ПК и связь': { action: '', outcome: '', targetType: 'Device', limit: 50 },
-      'Касса': { action: 'pos.sale.create', outcome: '', targetType: '', limit: 50 },
-      'Оператор': { action: 'identity.staff.create', outcome: '', targetType: '', limit: 50 },
-      'Системные': { action: 'updates.rollouts.view', outcome: '', targetType: '', limit: 50 }
+      [logFilterAllKey]: { action: '', outcome: '', targetType: '', limit: 30 },
+      [logFilterErrorsKey]: { action: '', outcome: 'denied', targetType: '', limit: 50 },
+      [logFilterPcKey]: { action: '', outcome: '', targetType: 'Device', limit: 50 },
+      [logFilterPosKey]: { action: 'pos.sale.create', outcome: '', targetType: '', limit: 50 },
+      [logFilterOperatorKey]: { action: 'identity.staff.create', outcome: '', targetType: '', limit: 50 },
+      [logFilterSystemKey]: { action: 'updates.rollouts.view', outcome: '', targetType: '', limit: 50 }
     };
     const preset = presets[filter] ?? {};
     setAuditActionFilter(preset.action ?? '');
@@ -655,30 +680,30 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const runLogAction = async (label: string) => {
     setFeedback({ label, state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      if (label === 'Пакет для поддержки') {
+      if (label === supportBundleActionKey) {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: '', targetType: '', fromUtc: '', toUtc: '', limit: 100 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
         downloadTextFile(
           `afk4-support-journal-${exportStamp}.json`,
-          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)], nextBackend),
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, [...mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourceUpdatesKey, t), ...mapAuditRecordsToLogEvents(nextAuditRecords, t)], nextBackend, t),
           'application/json;charset=utf-8'
         );
-      } else if (label === 'Список действий') {
+      } else if (label === actionListActionKey) {
         const csv = await apiClients.shifts.exportOperatorActionReportCsv(nextBackend.branchId, { limit: 100 });
         downloadTextFile(`afk4-operator-action-list-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Только проблемы') {
+      } else if (label === onlyProblemsActionKey) {
         const audit = await apiClients.audit.search(buildAuditSearchRequest(nextBackend, { action: '', outcome: 'denied', targetType: '', fromUtc: '', toUtc: '', limit: 50 }));
         const nextAuditRecords = readArray<Record<string, unknown>>(audit, 'records');
         setAuditResult(audit);
-        const failureEvents = [...mapDiagnosticsToLogEvents(diagnostics), ...mapAuditRecordsToLogEvents(nextAuditRecords)]
+        const failureEvents = [...mapDiagnosticsToLogEvents(diagnostics, sourceAgentKey, sourceUpdatesKey, t), ...mapAuditRecordsToLogEvents(nextAuditRecords, t)]
           .filter((event) => event[4] === 'warning');
         downloadTextFile(
           `afk4-support-problems-${exportStamp}.json`,
-          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, failureEvents, nextBackend),
+          buildLogsExportJson(nextBackend.branchId, nextAuditRecords, diagnostics, failureEvents, nextBackend, t),
           'application/json;charset=utf-8'
         );
       } else {
@@ -695,32 +720,32 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
     <main className="workspace-screen logs-screen">
       <section className="screen-head logs-head">
         <div>
-          <span>Журнал</span>
-          <h1>Журнал · события смены</h1>
+          <span>{t('op.logs.head.title')}</span>
+          <h1>{t('op.logs.head.subtitle')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Журнал загружен')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.logs.loadedLabel'), t)}</span>
         </div>
       </section>
 
-      <section className="state-strip logs-state-strip" aria-label="Сводка журнала">
-        <StateFlag label="События" value={String(events.length)} />
-        <StateFlag label="Ошибки" value={String(events.filter((event) => event[4] === 'warning').length)} critical={events.some((event) => event[4] === 'warning')} />
-        <StateFlag label="Команды ПК" value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
-        <StateFlag label="Записи" value={String(auditRecords.length)} />
-        <StateFlag label="Источник" value={workspaceLoadStatusLabel(loadStatus, 'Платформа')} critical={loadStatus !== 'backend'} />
+      <section className="state-strip logs-state-strip" aria-label={t('op.logs.strip.aria')}>
+        <StateFlag label={t('op.logs.strip.events')} value={String(events.length)} />
+        <StateFlag label={t('op.logs.strip.errors')} value={String(events.filter((event) => event[4] === 'warning').length)} critical={events.some((event) => event[4] === 'warning')} />
+        <StateFlag label={t('op.logs.strip.commands')} value={String(readNumber(commandSummary, 'pendingCommands', 0))} />
+        <StateFlag label={t('op.logs.strip.records')} value={String(auditRecords.length)} />
+        <StateFlag label={t('op.logs.strip.source')} value={workspaceLoadStatusLabel(loadStatus, sourcePlatformKey, t)} critical={loadStatus !== 'backend'} />
       </section>
 
       <section className="logs-layout">
         <section className="logs-panel logs-events-panel">
           <header className="logs-panel-title">
-            <span>Журнал событий</span>
-            <strong>события платформы и ПК</strong>
+            <span>{t('op.logs.events.title')}</span>
+            <strong>{t('op.logs.events.subtitle')}</strong>
           </header>
           <label className="logs-search">
             <Search size={14} />
             <input
-              placeholder="ПК, клиент, оператор, событие"
+              placeholder={t('op.logs.events.searchPlaceholder')}
               value={eventSearch}
               onChange={(event) => setEventSearch(event.currentTarget.value)}
             />
@@ -750,8 +775,8 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
 
         <section className="logs-panel logs-detail-panel">
           <header className="logs-panel-title">
-            <span>Детали события</span>
-            <strong>без внутренних ID</strong>
+            <span>{t('op.logs.detail.title')}</span>
+            <strong>{t('op.logs.detail.subtitle')}</strong>
           </header>
           <div className={`log-detail-card ${selectedEvent[4]}`}>
             <span>{selectedEvent[0]} · {selectedEvent[3]}</span>
@@ -768,11 +793,11 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
 
         <section className="logs-panel logs-filter-panel">
           <header className="logs-panel-title">
-            <span>Фильтры</span>
-            <strong>найти нужные записи</strong>
+            <span>{t('op.logs.filter.title')}</span>
+            <strong>{t('op.logs.filter.subtitle')}</strong>
           </header>
           <div className="logs-filter-grid">
-            {['Все события', 'Только ошибки', 'ПК и связь', 'Касса', 'Оператор', 'Системные'].map((filter) => (
+            {[logFilterAllKey, logFilterErrorsKey, logFilterPcKey, logFilterPosKey, logFilterOperatorKey, logFilterSystemKey].map((filter) => (
               <button
                 key={filter}
                 type="button"
@@ -784,33 +809,33 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
             ))}
           </div>
           <div className="logs-audit-filter-form">
-            <div className="logs-period-presets" aria-label="Период аудита">
+            <div className="logs-period-presets" aria-label={t('op.logs.filter.periodAria')}>
               {auditPeriodPresetOptions.map(([label, preset]) => (
                 <button key={preset} type="button" onClick={() => void applyAuditPeriodPreset(label, preset)}>{label}</button>
               ))}
             </div>
-            <label>Событие<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder="продажа / сессия / ПК" /></label>
-            <label>Результат<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder="успешно / отказ" /></label>
-            <label>Раздел<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder="сессии / касса / ПК" /></label>
-            <label>С<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder="2026-05-21 00:00" /></label>
-            <label>До<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder="2026-05-21 23:59" /></label>
-            <label>Записей<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
-            <button type="button" onClick={() => applyAuditSearch('Применить фильтр')}>Применить фильтр</button>
+            <label>{t('op.logs.filter.fieldAction')}<input value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.currentTarget.value)} placeholder={t('op.logs.filter.phAction')} /></label>
+            <label>{t('op.logs.filter.fieldOutcome')}<input value={auditOutcomeFilter} onChange={(event) => setAuditOutcomeFilter(event.currentTarget.value)} placeholder={t('op.logs.filter.phOutcome')} /></label>
+            <label>{t('op.logs.filter.fieldSection')}<input value={auditTargetTypeFilter} onChange={(event) => setAuditTargetTypeFilter(event.currentTarget.value)} placeholder={t('op.logs.filter.phSection')} /></label>
+            <label>{t('op.logs.filter.fieldFrom')}<input value={auditFromUtcFilter} onChange={(event) => setAuditFromUtcFilter(event.currentTarget.value)} placeholder={t('op.logs.filter.phFrom')} /></label>
+            <label>{t('op.logs.filter.fieldTo')}<input value={auditToUtcFilter} onChange={(event) => setAuditToUtcFilter(event.currentTarget.value)} placeholder={t('op.logs.filter.phTo')} /></label>
+            <label>{t('op.logs.filter.fieldLimit')}<input inputMode="numeric" value={auditLimit} onChange={(event) => setAuditLimit(event.currentTarget.value)} /></label>
+            <button type="button" onClick={() => applyAuditSearch(applyFilterActionKey)}>{applyFilterActionKey}</button>
           </div>
         </section>
 
         <section className="logs-panel logs-audit-panel">
           <header className="logs-panel-title">
-            <span>Операции смены</span>
-            <strong>последние действия</strong>
+            <span>{t('op.logs.audit.title')}</span>
+            <strong>{t('op.logs.audit.subtitle')}</strong>
           </header>
           <div className="logs-audit-list">
             {auditRecords.slice(0, 4).map((record) => (
               <article key={readString(record, 'auditRecordId')} className="log-audit-row">
                 <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
-                <strong>{auditActorLabel(record, backend)}</strong>
-                <em>{auditActionLabel(readString(record, 'action'))}</em>
-                <b>{auditOutcomeLabel(readString(record, 'outcome'))}</b>
+                <strong>{auditActorLabel(record, backend, t)}</strong>
+                <em>{auditActionLabel(readString(record, 'action'), t)}</em>
+                <b>{auditOutcomeLabel(readString(record, 'outcome'), t)}</b>
               </article>
             ))}
           </div>
@@ -818,8 +843,8 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
 
         <section className="logs-panel logs-sources-panel">
           <header className="logs-panel-title">
-            <span>Источники</span>
-            <strong>каналы событий</strong>
+            <span>{t('op.logs.sources.title')}</span>
+            <strong>{t('op.logs.sources.subtitle')}</strong>
           </header>
           <div className="logs-source-grid">
             {sourceCards.map(([label, detail, Icon]) => (
@@ -839,15 +864,15 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
 
         <section className="logs-panel logs-export-panel">
           <header className="logs-panel-title">
-            <span>Экспорт</span>
-            <strong>для проверки и поддержки</strong>
+            <span>{t('op.logs.export.title')}</span>
+            <strong>{t('op.logs.export.subtitle')}</strong>
           </header>
           <div className="logs-export-grid">
             {[
-              ['Сводка смены', ReceiptText],
-              ['Только проблемы', AlertTriangle],
-              ['Список действий', ArrowRightLeft],
-              ['Пакет для поддержки', ShieldAlert]
+              [shiftSummaryActionKey, ReceiptText],
+              [onlyProblemsActionKey, AlertTriangle],
+              [actionListActionKey, ArrowRightLeft],
+              [supportBundleActionKey, ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runLogAction(label as string)}><Icon size={16} />{label as string}</button>
             ))}

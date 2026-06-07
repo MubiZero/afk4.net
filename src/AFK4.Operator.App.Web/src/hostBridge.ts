@@ -12,6 +12,7 @@ export type HostWindowResizeEdge =
 export interface HostBridgeError {
   code: string;
   message: string;
+  remainingAttempts?: number | null;
 }
 
 export interface HostBridgeResponse<TPayload> {
@@ -28,6 +29,17 @@ export class HostBridgeUnavailableError extends Error {
   constructor() {
     super(hostBridgeUnavailableMessage);
     this.name = 'HostBridgeUnavailableError';
+  }
+}
+
+export class HostBridgeRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly remainingAttempts: number | null
+  ) {
+    super(message);
+    this.name = 'HostBridgeRequestError';
   }
 }
 
@@ -79,7 +91,11 @@ export function postHostRequest<TPayload>(
         return;
       }
 
-      reject(new Error(response.error?.message ?? 'Native host bridge request failed.'));
+      reject(new HostBridgeRequestError(
+        response.error?.message ?? 'Native host bridge request failed.',
+        response.error?.code ?? 'host_error',
+        response.error?.remainingAttempts ?? null
+      ));
     };
 
     function cleanup() {

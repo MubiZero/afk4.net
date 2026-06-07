@@ -1,8 +1,11 @@
 import { minorToMajor } from '@afk4/money';
+import { type MessageKey } from '@afk4/i18n';
 import type { FloorMapCacheEntry } from './floorMapCache';
 import type { FloorMapDto, SeatStatusDto } from './operatorApiClients';
 import { seats as fixtureSeats, type SeatSummary, type SeatTone } from './operatorData';
 import type { DeviceStatusChangedDto } from './operatorRealtime';
+
+type TFn = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 export type FloorMapLoadStatus = 'idle' | 'loading' | 'ready' | 'failed';
 export type FloorMapSource = 'fixture' | 'backend';
@@ -35,11 +38,11 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
   };
 }
 
-export function mapFloorMapDtoToState(floorMap: FloorMapDto, loadedAtMs = Date.now()): OperatorFloorMapState {
+export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, loadedAtMs = Date.now()): OperatorFloorMapState {
   return {
     branchId: floorMap.branchId,
     branchName: floorMap.branchName,
-    seats: mapFloorMapSeats(floorMap.seats, loadedAtMs),
+    seats: mapFloorMapSeats(floorMap.seats, t, loadedAtMs),
     source: 'backend',
     loadStatus: 'ready',
     error: null,
@@ -52,12 +55,13 @@ export function mapFloorMapDtoToState(floorMap: FloorMapDto, loadedAtMs = Date.n
 // (spec §6.5). Seats render from the cached snapshot; billing actions are gated off elsewhere (D2).
 export function hydrateFloorMapStateFromCache(
   entry: FloorMapCacheEntry,
-  branchId: string
+  branchId: string,
+  t: TFn
 ): OperatorFloorMapState {
   return {
     branchId,
     branchName: entry.floorMap.branchName,
-    seats: mapFloorMapSeats(entry.floorMap.seats, entry.cachedAtMs),
+    seats: mapFloorMapSeats(entry.floorMap.seats, t, entry.cachedAtMs),
     source: 'backend',
     loadStatus: 'ready',
     error: null,
@@ -68,7 +72,7 @@ export function hydrateFloorMapStateFromCache(
 
 // Operator-facing banner shown once the mirror is offline or the data has aged past 30s (D8):
 // "Офлайн — данные от HH:MM, только просмотр". Null while live and fresh.
-export function offlineBannerText(state: OperatorFloorMapState, nowMs = Date.now()): string | null {
+export function offlineBannerText(state: OperatorFloorMapState, t: TFn, nowMs = Date.now()): string | null {
   if (state.cachedAtMs === null) {
     return null;
   }
@@ -81,22 +85,23 @@ export function offlineBannerText(state: OperatorFloorMapState, nowMs = Date.now
   const at = new Date(state.cachedAtMs);
   const hh = String(at.getHours()).padStart(2, '0');
   const mm = String(at.getMinutes()).padStart(2, '0');
-  return `Офлайн — данные от ${hh}:${mm}, только просмотр`;
+  return t('op.floor.offlineBanner', { time: `${hh}:${mm}` });
 }
 
-export function mapFloorMapSeats(nextSeats: SeatStatusDto[], loadedAtMs = Date.now()): SeatSummary[] {
+export function mapFloorMapSeats(nextSeats: SeatStatusDto[], t: TFn, loadedAtMs = Date.now()): SeatSummary[] {
   return [...nextSeats]
     .sort((left, right) => left.sortOrder - right.sortOrder || left.seatName.localeCompare(right.seatName))
-    .map((seat) => mapFloorMapSeat(seat, loadedAtMs));
+    .map((seat) => mapFloorMapSeat(seat, t, loadedAtMs));
 }
 
 export function refreshFloorMapRemaining(
   floorMap: OperatorFloorMapState,
+  t: TFn,
   nowMs = Date.now()
 ): OperatorFloorMapState {
   let changed = false;
   const nextSeats = floorMap.seats.map((seat) => {
-    const nextSeat = refreshSeatRemaining(seat, nowMs);
+    const nextSeat = refreshSeatRemaining(seat, t, nowMs);
     if (nextSeat !== seat) {
       changed = true;
     }
@@ -111,7 +116,8 @@ export function refreshFloorMapRemaining(
 
 export function applyDeviceStatusToSeats(
   currentSeats: SeatSummary[],
-  status: DeviceStatusChangedDto
+  status: DeviceStatusChangedDto,
+  t: TFn
 ): SeatSummary[] {
   if (!isGamingPcStatus(status)) {
     return currentSeats;
@@ -124,13 +130,13 @@ export function applyDeviceStatusToSeats(
     }
 
     applied = true;
-    return applyDeviceStatusToSeat(seat, status);
+    return applyDeviceStatusToSeat(seat, status, t);
   });
 
   return applied ? nextSeats : currentSeats;
 }
 
-function mapFloorMapSeat(dto: SeatStatusDto, loadedAtMs: number): SeatSummary {
+function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSummary {
   const normalizedState = normalizeState(dto.state);
   const hasActiveSession = dto.activeSessionId !== null && dto.activeSessionId !== undefined;
   const hasDevice = dto.deviceId !== null && dto.deviceId !== undefined;
@@ -151,11 +157,11 @@ function mapFloorMapSeat(dto: SeatStatusDto, loadedAtMs: number): SeatSummary {
     zone: dto.zoneName,
     name: dto.seatName,
     tone,
-    stateLabel: displayState(dto.state),
-    player: hasActiveSession ? 'Активный клиент' : tone === 'ready' ? 'Гость' : 'Нет игрока',
+    stateLabel: displayState(dto.state, t),
+    player: hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none'),
     remaining: isOpenTab
-      ? accruedCostText(accruedCostMinorUnits, currencyCode)
-      : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession),
+      ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
+      : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession, t),
     billing: isOpenTab ? 'Открытый счёт' : hasActiveSession ? 'Wallet' : tone === 'ready' ? 'Fast guest' : 'N/A',
     device: formatDeviceSummary({
       deviceName: dto.deviceName,
@@ -181,16 +187,16 @@ function mapFloorMapSeat(dto: SeatStatusDto, loadedAtMs: number): SeatSummary {
   };
 }
 
-function accruedCostText(minorUnits: number | null, currencyCode: string | null): string {
+function accruedCostText(minorUnits: number | null, currencyCode: string | null, t: TFn): string {
   if (minorUnits === null) {
-    return 'играет сейчас';
+    return t('op.floor.remaining.playing');
   }
 
   const amount = minorToMajor(minorUnits).toFixed(2);
   return currencyCode ? `≈ ${amount} ${currencyCode}` : `≈ ${amount}`;
 }
 
-function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedDto): SeatSummary {
+function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedDto, t: TFn): SeatSummary {
   const hasActiveSession = seat.hasActiveSession ?? seat.tone === 'active';
   const hasDevice = true;
   const nextRawState = hasActiveSession
@@ -204,10 +210,10 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
   return {
     ...seat,
     tone,
-    stateLabel: displayState(nextRawState),
+    stateLabel: displayState(nextRawState, t),
     remaining: hasActiveSession
       ? seat.remaining
-      : remainingText(null, normalizedState, tone, hasActiveSession),
+      : remainingText(null, normalizedState, tone, hasActiveSession, t),
     billing: hasActiveSession ? seat.billing : tone === 'ready' ? 'Fast guest' : 'N/A',
     device: formatDeviceSummary({
       deviceName: seat.deviceName ?? status.machineName,
@@ -230,14 +236,14 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
   };
 }
 
-function refreshSeatRemaining(seat: SeatSummary, nowMs: number): SeatSummary {
+function refreshSeatRemaining(seat: SeatSummary, t: TFn, nowMs: number): SeatSummary {
   if (!seat.hasActiveSession || seat.remainingDeadlineMs === null || seat.remainingDeadlineMs === undefined) {
     return seat;
   }
 
   const remainingSeconds = Math.max(0, Math.ceil((seat.remainingDeadlineMs - nowMs) / 1000));
   const normalizedState = normalizeState(seat.rawState ?? '');
-  const nextRemaining = remainingText(remainingSeconds, normalizedState, seat.tone, true);
+  const nextRemaining = remainingText(remainingSeconds, normalizedState, seat.tone, true, t);
   return nextRemaining === seat.remaining && remainingSeconds === seat.remainingSeconds
     ? seat
     : {
@@ -294,27 +300,27 @@ function resolveTone(
   }
 }
 
-function displayState(value: string): string {
+function displayState(value: string, t: TFn): string {
   switch (normalizeState(value)) {
     case 'active':
-      return 'В сессии';
+      return t('op.floor.state.active');
     case 'free':
-      return 'Свободно';
+      return t('op.floor.state.free');
     case 'locked':
-      return 'Готов';
+      return t('op.floor.state.locked');
     case 'requested':
-      return 'Ожидание';
+      return t('op.floor.state.requested');
     case 'ending':
-      return 'Команда';
+      return t('op.floor.state.ending');
     case 'paused':
-      return 'Пауза';
+      return t('op.floor.state.paused');
     case 'failed':
-      return 'Ошибка';
+      return t('op.floor.state.failed');
     case 'offline':
-      return 'Офлайн';
+      return t('op.floor.state.offline');
     case 'maintenance':
     case 'service':
-      return 'Сервис';
+      return t('op.floor.state.service');
     default:
       return value.replaceAll('_', ' ');
   }
@@ -324,33 +330,34 @@ function remainingText(
   seconds: number | null | undefined,
   normalizedState: string,
   tone: SeatTone,
-  hasActiveSession: boolean
+  hasActiveSession: boolean,
+  t: TFn
 ): string {
   if (seconds !== null && seconds !== undefined) {
-    return formatDuration(seconds);
+    return formatDuration(seconds, t);
   }
 
   if (hasActiveSession) {
-    return tone === 'warning' ? 'ПК офлайн' : 'играет сейчас';
+    return tone === 'warning' ? t('op.floor.remaining.pcOffline') : t('op.floor.remaining.playing');
   }
 
   if (tone === 'ready') {
-    return normalizedState === 'free' ? 'Свободно' : 'Готов';
+    return normalizedState === 'free' ? t('op.floor.state.free') : t('op.floor.state.locked');
   }
 
   if (tone === 'pending') {
-    return 'Ожидает';
+    return t('op.floor.remaining.pending');
   }
 
   if (tone === 'offline') {
-    return 'Нет heartbeat';
+    return t('op.floor.remaining.noHeartbeat');
   }
 
   if (tone === 'service') {
-    return 'Закрыт';
+    return t('op.floor.remaining.closed');
   }
 
-  return 'Нужно действие';
+  return t('op.floor.remaining.action');
 }
 
 function commandText(
@@ -424,9 +431,9 @@ function versionPart(label: string, version?: string | null): string {
   return version && version.trim().length > 0 ? `${label} ${version}` : '';
 }
 
-function formatDuration(seconds: number): string {
+function formatDuration(seconds: number, t: TFn): string {
   if (seconds < 60) {
-    return `осталось ${seconds} с`;
+    return t('op.floor.duration.sec', { count: seconds });
   }
 
   const totalMinutes = Math.ceil(seconds / 60);
@@ -434,8 +441,8 @@ function formatDuration(seconds: number): string {
   const minutes = totalMinutes % 60;
 
   return hours === 0
-    ? `осталось ${minutes} мин`
-    : `осталось ${hours} ч ${String(minutes).padStart(2, '0')} мин`;
+    ? t('op.floor.duration.min', { count: minutes })
+    : t('op.floor.duration.hourMin', { hours, minutes: String(minutes).padStart(2, '0') });
 }
 
 function normalizeState(value: string): string {

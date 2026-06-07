@@ -1,5 +1,8 @@
 import { majorToMinor, minorToMajor } from '@afk4/money';
+import { type MessageKey } from '@afk4/i18n';
 import type { PaymentPartDto } from './operatorApiClients';
+
+type TFn = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 /** The split-payment methods a unified checkout accepts. Mirrors the backend
  * `PaymentMethodNames` (cash, card_manual, wallet). */
@@ -7,11 +10,16 @@ export type CheckoutMethod = 'cash' | 'card_manual' | 'wallet';
 
 export const checkoutMethods: readonly CheckoutMethod[] = ['cash', 'card_manual', 'wallet'];
 
-export const checkoutMethodLabels: Record<CheckoutMethod, string> = {
-  cash: 'Наличные',
-  card_manual: 'Карта',
-  wallet: 'Депозит'
-};
+export function checkoutMethodLabel(method: CheckoutMethod, t: TFn): string {
+  switch (method) {
+    case 'cash':
+      return t('op.checkout.method.cash');
+    case 'card_manual':
+      return t('op.checkout.method.card');
+    case 'wallet':
+      return t('op.checkout.method.wallet');
+  }
+}
 
 /** One editable payment row in the checkout dialog. `amountText` is the raw
  * major-unit string the operator typed; it is parsed to minor units on submit. */
@@ -52,14 +60,14 @@ export function formatCheckoutAmount(minorUnits: number): string {
 }
 
 /** "Наиграно" label from billed seconds, e.g. 5400 → "1ч 30м". */
-export function formatBilledDuration(billableSeconds: number): string {
+export function formatBilledDuration(billableSeconds: number, t: TFn): string {
   const totalMinutes = Math.max(0, Math.round(billableSeconds / 60));
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   if (hours === 0) {
-    return `${minutes}м`;
+    return t('op.checkout.duration.min', { minutes });
   }
-  return `${hours}ч ${minutes}м`;
+  return t('op.checkout.duration.hourMin', { hours, minutes });
 }
 
 /** Validate the operator's split-payment entry against the quoted grand total
@@ -68,7 +76,8 @@ export function formatBilledDuration(billableSeconds: number): string {
 export function validateCheckoutPayments(
   drafts: readonly CheckoutPaymentDraft[],
   grandTotalMinorUnits: number,
-  walletBalanceMinorUnits: number | null
+  walletBalanceMinorUnits: number | null,
+  t: TFn
 ): CheckoutValidation {
   let paidMinorUnits = 0;
   let walletMinorUnits = 0;
@@ -104,14 +113,14 @@ export function validateCheckoutPayments(
 
   let error: string | null = null;
   if (hasInvalidAmount) {
-    error = 'Проверьте сумму платежа.';
+    error = t('op.checkout.error.invalidAmount');
   } else if (!walletWithinBalance) {
-    error = 'Оплата с депозита превышает баланс.';
+    error = t('op.checkout.error.walletExceeds');
   } else if (!canSubmit) {
     error =
       remainingMinorUnits > 0
-        ? `Не хватает ${formatCheckoutAmount(remainingMinorUnits)}`
-        : `Превышение на ${formatCheckoutAmount(-remainingMinorUnits)}`;
+        ? t('op.checkout.error.short', { amount: formatCheckoutAmount(remainingMinorUnits) })
+        : t('op.checkout.error.over', { amount: formatCheckoutAmount(-remainingMinorUnits) });
   }
 
   return {

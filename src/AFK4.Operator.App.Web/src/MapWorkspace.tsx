@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LockKeyhole, MonitorCheck, Power, ShieldAlert, TimerReset, UnlockKeyhole, Wifi, Wrench } from 'lucide-react';
+import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { offlineBannerText, type OperatorFloorMapState } from './floorMapState';
 import type { Feedback, MapFilterId, MapViewMode, PcControlActionId, PcControlActionResult } from './operatorTypes';
@@ -13,9 +14,7 @@ import {
   emptyFeedback,
   mapFilterOptions,
   matchesMapFilter,
-  pcControlLabel,
-  pcControlTitle,
-  toneLabels,
+  toneLabel,
   zoneClass,
   zoneLabel
 } from './operatorHelpers';
@@ -30,6 +29,7 @@ function SeatTile({
   selected?: boolean;
   onSelect: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <article
       className={`seat-tile ${zoneClass(seat.zone)} state-${seat.tone}${selected ? ' selected' : ''}`}
@@ -48,17 +48,17 @@ function SeatTile({
       <header className="seat-head">
         <div>
           <strong>{seat.name}</strong>
-          <span>{zoneLabel(seat.zone)}</span>
+          <span>{zoneLabel(seat.zone, t)}</span>
         </div>
         <span className="state-chip">{seat.stateLabel}</span>
       </header>
       <div className="seat-main">
         <span>{seat.player}</span>
-        <span>{appVersionLabel(seat.app)}</span>
+        <span>{appVersionLabel(seat.app, t)}</span>
       </div>
       <footer>
         <strong>{seat.remaining}</strong>
-        <span>{commandLabel(seat.command)}</span>
+        <span>{commandLabel(seat.command, t)}</span>
       </footer>
     </article>
   );
@@ -79,6 +79,7 @@ export function MapWorkspace({
   onSelectSeat: (seatId: string) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
 }) {
+  const { t } = useI18n();
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [activeFilter, setActiveFilter] = useState<MapFilterId>('all');
   const [viewMode, setViewMode] = useState<MapViewMode>('grid');
@@ -90,13 +91,13 @@ export function MapWorkspace({
     [activeFilter, floorMap.seats]
   );
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
-  const offlineBanner = offlineBannerText(floorMap);
+  const offlineBanner = offlineBannerText(floorMap, t);
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
   const selectedHasSession = selectedSeat !== null && (Boolean(selectedSeat.activeSessionId) || selectedSeat.hasActiveSession === true);
 
   const runPcControlAction = async (action: PcControlActionId, label: string) => {
     if (selectedSeat === null) {
-      setFeedback({ label, state: 'failed', detail: 'Выберите ПК.' });
+      setFeedback({ label, state: 'failed', detail: t('op.map.selectPcDetail') });
       return;
     }
 
@@ -152,7 +153,7 @@ export function MapWorkspace({
     <main className="floor-workspace">
       <section className="map-toolbar">
         <div>
-          <span>Карта</span>
+          <span>{t('op.map.title')}</span>
           <h1>{floorMap.branchName}</h1>
         </div>
         <div className="screen-actions">
@@ -163,64 +164,64 @@ export function MapWorkspace({
             aria-expanded={isPcControlOpen}
             disabled={!canUsePcControl || selectedSeat === null}
             onClick={() => setIsPcControlOpen((current) => !current)}
-            title={pcControlTitle}
+            title={t('op.map.pcControlTitle')}
           >
-            <Wrench size={14} />{pcControlLabel}
+            <Wrench size={14} />{t('op.map.pcControlLabel')}
           </button>
         </div>
       </section>
 
       {isPcControlOpen && selectedSeat !== null && (
-        <section ref={pcControlPanelRef} className="pc-control-panel" aria-label="Управление выбранным ПК">
+        <section ref={pcControlPanelRef} className="pc-control-panel" aria-label={t('op.map.pcControlPanelLabel')}>
           <header>
             <div>
-              <span>Выбранный ПК</span>
+              <span>{t('op.map.selectedPc')}</span>
               <strong>{selectedSeat.name}</strong>
             </div>
-            <b className={`state-chip state-${selectedSeat.tone}`}>{toneLabels[selectedSeat.tone]}</b>
+            <b className={`state-chip state-${selectedSeat.tone}`}>{toneLabel(selectedSeat.tone, t)}</b>
           </header>
           <div className="pc-control-summary">
             <span>{selectedSeat.device}</span>
-            <span>{commandLabel(selectedSeat.command)}</span>
+            <span>{commandLabel(selectedSeat.command, t)}</span>
           </div>
-          <span className="pc-control-section-title">Доступно сейчас</span>
+          <span className="pc-control-section-title">{t('op.map.availableNow')}</span>
           <div className="pc-control-actions">
-            <button type="button" disabled={feedback.state === 'pending'} onClick={() => runPcControlAction('status', 'Статус ПК')}>
-              <MonitorCheck size={14} /><span>Статус</span>
+            <button type="button" disabled={feedback.state === 'pending'} onClick={() => runPcControlAction('status', t('op.map.actionStatus'))}>
+              <MonitorCheck size={14} /><span>{t('op.map.actionStatusBtn')}</span>
             </button>
-            <button type="button" disabled={feedback.state === 'pending' || !selectedSeat.deviceId} onClick={() => runPcControlAction('lock', 'Блокировка ПК')}>
-              <LockKeyhole size={14} /><span>Блокировать</span>
+            <button type="button" disabled={feedback.state === 'pending' || !selectedSeat.deviceId} onClick={() => runPcControlAction('lock', t('op.map.actionLock'))}>
+              <LockKeyhole size={14} /><span>{t('op.map.actionLockBtn')}</span>
             </button>
             <button
               type="button"
               disabled={feedback.state === 'pending' || !selectedSeat.deviceId || !selectedHasSession}
-              onClick={() => runPcControlAction('unlock', 'Разблокировка ПК')}
-              title={selectedHasSession ? 'Повторно отправить unlock для активной сессии' : 'Разблокировка без сессии будет отдельным админ-режимом'}
+              onClick={() => runPcControlAction('unlock', t('op.map.actionUnlock'))}
+              title={selectedHasSession ? t('op.map.unlockActiveTitle') : t('op.map.unlockNoSessionTitle')}
             >
-              <UnlockKeyhole size={14} /><span>Разблокировать</span>
+              <UnlockKeyhole size={14} /><span>{t('op.map.actionUnlockBtn')}</span>
             </button>
           </div>
-          <span className="pc-control-section-title">Следующий слой</span>
+          <span className="pc-control-section-title">{t('op.map.nextLayer')}</span>
           <div className="pc-control-actions future">
-            <button type="button" onClick={() => explainUnavailablePcControl('Перезагрузка ПК', 'Нужен Agent-контракт reboot и подтверждение выполнения от ПК.')}>
-              <TimerReset size={14} /><span><strong>Перезагрузить</strong><em>нужен Agent reboot</em></span>
+            <button type="button" onClick={() => explainUnavailablePcControl(t('op.map.actionReboot'), t('op.map.rebootDetail'))}>
+              <TimerReset size={14} /><span><strong>{t('op.map.rebootBtn')}</strong><em>{t('op.map.rebootHint')}</em></span>
             </button>
-            <button type="button" onClick={() => explainUnavailablePcControl('Выключение ПК', 'Нужен Agent-контракт shutdown и правило запрета при активной сессии.')}>
-              <Power size={14} /><span><strong>Выключить</strong><em>нужен Agent shutdown</em></span>
+            <button type="button" onClick={() => explainUnavailablePcControl(t('op.map.actionShutdown'), t('op.map.shutdownDetail'))}>
+              <Power size={14} /><span><strong>{t('op.map.shutdownBtn')}</strong><em>{t('op.map.shutdownHint')}</em></span>
             </button>
-            <button type="button" onClick={() => explainUnavailablePcControl('Разбудить ПК', 'Нужен Wake-on-LAN relay через онлайн Agent в этой клубной сети.')}>
-              <Wifi size={14} /><span><strong>Разбудить</strong><em>нужен WoL relay</em></span>
+            <button type="button" onClick={() => explainUnavailablePcControl(t('op.map.actionWake'), t('op.map.wakeDetail'))}>
+              <Wifi size={14} /><span><strong>{t('op.map.wakeBtn')}</strong><em>{t('op.map.wakeHint')}</em></span>
             </button>
-            <button type="button" onClick={() => explainUnavailablePcControl('Админ-режим', 'Нужен сервисный режим с таймером, audit и автоматическим возвратом защиты.')}>
-              <ShieldAlert size={14} /><span><strong>Админ-режим</strong><em>нужен сервисный контракт</em></span>
+            <button type="button" onClick={() => explainUnavailablePcControl(t('op.map.actionAdmin'), t('op.map.adminDetail'))}>
+              <ShieldAlert size={14} /><span><strong>{t('op.map.actionAdmin')}</strong><em>{t('op.map.adminHint')}</em></span>
             </button>
           </div>
         </section>
       )}
 
-      <section className="map-controls-row" aria-label="Фильтры и вид карты">
-        <div className="filter-row map-filter-row" aria-label="Фильтр ПК">
-          {mapFilterOptions.map((option) => (
+      <section className="map-controls-row" aria-label={t('op.map.filtersAndViewLabel')}>
+        <div className="filter-row map-filter-row" aria-label={t('op.map.filterLabel')}>
+          {mapFilterOptions(t).map((option) => (
             <button
               key={option.id}
               type="button"
@@ -232,27 +233,27 @@ export function MapWorkspace({
             </button>
           ))}
         </div>
-        <div className="filter-row map-view-switch" aria-label="Вид карты">
-          <button type="button" className={viewMode === 'grid' ? 'active' : undefined} onClick={() => setViewMode('grid')}>Карта</button>
-          <button type="button" className={viewMode === 'table' ? 'active' : undefined} onClick={() => setViewMode('table')}>Таблица</button>
+        <div className="filter-row map-view-switch" aria-label={t('op.map.viewLabel')}>
+          <button type="button" className={viewMode === 'grid' ? 'active' : undefined} onClick={() => setViewMode('grid')}>{t('op.map.viewGrid')}</button>
+          <button type="button" className={viewMode === 'table' ? 'active' : undefined} onClick={() => setViewMode('table')}>{t('op.map.viewTable')}</button>
         </div>
       </section>
       {floorMap.loadStatus === 'failed' && (
-        <FeedbackNotice feedback={{ label: 'Карта', state: 'failed', detail: floorMap.error ?? 'Не удалось загрузить карту.' }} />
+        <FeedbackNotice feedback={{ label: t('op.map.feedbackMap'), state: 'failed', detail: floorMap.error ?? t('op.map.loadError') }} />
       )}
       {offlineBanner !== null && (
-        <FeedbackNotice feedback={{ label: 'Офлайн', state: 'pending', detail: offlineBanner }} />
+        <FeedbackNotice feedback={{ label: t('op.map.feedbackOffline'), state: 'pending', detail: offlineBanner }} />
       )}
       {offlineActionAudit.map((note, index) => (
-        <FeedbackNotice key={`offline-audit-${index}`} feedback={{ label: 'Очередь', state: 'failed', detail: note }} />
+        <FeedbackNotice key={`offline-audit-${index}`} feedback={{ label: t('op.map.feedbackQueue'), state: 'failed', detail: note }} />
       ))}
       <FeedbackNotice feedback={feedback} />
 
-      <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label="ПК зала">
+      <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label={t('op.map.seatsLabel')}>
         {visibleSeats.length === 0 ? (
           <div className="map-empty-state">
-            <strong>Нет ПК в выбранном фильтре</strong>
-            <span>Смените фильтр или проверьте карту платформы.</span>
+            <strong>{t('op.map.emptyTitle')}</strong>
+            <span>{t('op.map.emptyHint')}</span>
           </div>
         ) : viewMode === 'grid' ? (
           <div className="seat-grid">
@@ -267,16 +268,16 @@ export function MapWorkspace({
           </div>
         ) : (
           <div className="seat-table-wrap">
-            <table className="seat-table" aria-label="Таблица ПК">
+            <table className="seat-table" aria-label={t('op.map.tableLabel')}>
               <thead>
                 <tr>
-                  <th>ПК</th>
-                  <th>Состояние</th>
-                  <th>Игрок</th>
-                  <th>Остаток</th>
-                  <th>Устройство</th>
-                  <th>Команда</th>
-                  <th>Биллинг</th>
+                  <th>{t('op.map.colPc')}</th>
+                  <th>{t('op.map.colState')}</th>
+                  <th>{t('op.map.colPlayer')}</th>
+                  <th>{t('op.map.colRemaining')}</th>
+                  <th>{t('op.map.colDevice')}</th>
+                  <th>{t('op.map.colCommand')}</th>
+                  <th>{t('op.map.colBilling')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -284,14 +285,14 @@ export function MapWorkspace({
                   <tr key={seat.id} className={`state-${seat.tone}${seat.id === selectedSeatId ? ' selected' : ''}`}>
                     <td>
                       <button type="button" onClick={() => onSelectSeat(seat.id)}>{seat.name}</button>
-                      <span>{zoneLabel(seat.zone)}</span>
+                      <span>{zoneLabel(seat.zone, t)}</span>
                     </td>
-                    <td><strong>{toneLabels[seat.tone]}</strong><span>{seat.stateLabel}</span></td>
+                    <td><strong>{toneLabel(seat.tone, t)}</strong><span>{seat.stateLabel}</span></td>
                     <td>{seat.player}</td>
                     <td>{seat.remaining}</td>
-                    <td>{deviceStatusLabel(seat.device)}</td>
-                    <td>{commandLabel(seat.command)}</td>
-                    <td>{billingLabel(seat.billing)}</td>
+                    <td>{deviceStatusLabel(seat.device, t)}</td>
+                    <td>{commandLabel(seat.command, t)}</td>
+                    <td>{billingLabel(seat.billing, t)}</td>
                   </tr>
                 ))}
               </tbody>

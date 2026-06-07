@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { createTranslator } from '@afk4/i18n';
 import {
   buildCheckoutPayments,
   formatBilledDuration,
@@ -7,6 +8,8 @@ import {
   validateCheckoutPayments,
   type CheckoutPaymentDraft
 } from './checkoutState';
+
+const t = createTranslator('ru');
 
 describe('parseCheckoutAmount', () => {
   it('parses major units to minor units and accepts a comma decimal', () => {
@@ -24,29 +27,29 @@ describe('parseCheckoutAmount', () => {
 
 describe('formatBilledDuration', () => {
   it('formats minutes-only and hours+minutes', () => {
-    expect(formatBilledDuration(2700)).toBe('45м');
-    expect(formatBilledDuration(5400)).toBe('1ч 30м');
-    expect(formatBilledDuration(3600)).toBe('1ч 0м');
+    expect(formatBilledDuration(2700, t)).toBe('45м');
+    expect(formatBilledDuration(5400, t)).toBe('1ч 30м');
+    expect(formatBilledDuration(3600, t)).toBe('1ч 0м');
   });
 });
 
 describe('validateCheckoutPayments', () => {
   it('accepts a single cash part equal to the grand total', () => {
-    const result = validateCheckoutPayments([{ method: 'cash', amountText: '22.50' }], 2250, null);
+    const result = validateCheckoutPayments([{ method: 'cash', amountText: '22.50' }], 2250, null, t);
     expect(result.canSubmit).toBe(true);
     expect(result.error).toBeNull();
     expect(result.remainingMinorUnits).toBe(0);
   });
 
   it('reports the shortfall when payments under-cover the bill', () => {
-    const result = validateCheckoutPayments([{ method: 'cash', amountText: '10.00' }], 2250, null);
+    const result = validateCheckoutPayments([{ method: 'cash', amountText: '10.00' }], 2250, null, t);
     expect(result.canSubmit).toBe(false);
     expect(result.remainingMinorUnits).toBe(1250);
     expect(result.error).toContain('Не хватает');
   });
 
   it('reports overpayment', () => {
-    const result = validateCheckoutPayments([{ method: 'cash', amountText: '30.00' }], 2250, null);
+    const result = validateCheckoutPayments([{ method: 'cash', amountText: '30.00' }], 2250, null, t);
     expect(result.canSubmit).toBe(false);
     expect(result.error).toContain('Превышение');
   });
@@ -56,26 +59,26 @@ describe('validateCheckoutPayments', () => {
       { method: 'wallet', amountText: '20.00' },
       { method: 'cash', amountText: '2.50' }
     ];
-    const result = validateCheckoutPayments(drafts, 2250, 5000);
+    const result = validateCheckoutPayments(drafts, 2250, 5000, t);
     expect(result.canSubmit).toBe(true);
     expect(result.walletMinorUnits).toBe(2000);
   });
 
   it('rejects a wallet part that exceeds the wallet balance', () => {
-    const result = validateCheckoutPayments([{ method: 'wallet', amountText: '22.50' }], 2250, 1000);
+    const result = validateCheckoutPayments([{ method: 'wallet', amountText: '22.50' }], 2250, 1000, t);
     expect(result.canSubmit).toBe(false);
     expect(result.walletWithinBalance).toBe(false);
     expect(result.error).toContain('депозита');
   });
 
   it('flags a malformed amount', () => {
-    const result = validateCheckoutPayments([{ method: 'cash', amountText: 'xx' }], 2250, null);
+    const result = validateCheckoutPayments([{ method: 'cash', amountText: 'xx' }], 2250, null, t);
     expect(result.hasInvalidAmount).toBe(true);
     expect(result.canSubmit).toBe(false);
   });
 
   it('settles a zero-total bill with no payment rows', () => {
-    const result = validateCheckoutPayments([{ method: 'cash', amountText: '' }], 0, null);
+    const result = validateCheckoutPayments([{ method: 'cash', amountText: '' }], 0, null, t);
     expect(result.canSubmit).toBe(true);
     expect(result.paidMinorUnits).toBe(0);
   });

@@ -50,6 +50,10 @@ public sealed class OperatorWebHostBridge(
                 "auth:signIn" => await SignInAsync(request.Payload, cancellationToken),
                 "auth:refresh" => await RefreshAsync(cancellationToken),
                 "auth:signOut" => await SignOutAsync(cancellationToken),
+                "auth:forgotByEmail" => await ForgotPasswordByEmailAsync(request.Payload, cancellationToken),
+                "auth:resetByEmail" => await ResetPasswordByEmailAsync(request.Payload, cancellationToken),
+                "auth:forgotByPhone" => await ForgotPasswordByPhoneAsync(request.Payload, cancellationToken),
+                "auth:resetByPhone" => await ResetPasswordByPhoneAsync(request.Payload, cancellationToken),
                 "connection:loadConnection" => await LoadConnectionAsync(cancellationToken),
                 "connection:saveConnection" => await SaveConnectionAsync(request.Payload, cancellationToken),
                 "connection:clearConnection" => await ClearConnectionAsync(cancellationToken),
@@ -58,13 +62,21 @@ public sealed class OperatorWebHostBridge(
 
             return CreateResponse(request.RequestId, ok: true, payload, error: null);
         }
+        catch (OperatorAuthApiException exception)
+        {
+            return CreateResponse(
+                request.RequestId,
+                ok: false,
+                payload: null,
+                new OperatorWebBridgeError(exception.Code, exception.Message, exception.RemainingAttempts));
+        }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
         {
             return CreateResponse(
                 request.RequestId,
                 ok: false,
                 payload: null,
-                new OperatorWebBridgeError(errorCode, exception.Message));
+                new OperatorWebBridgeError(errorCode, exception.Message, null));
         }
     }
 
@@ -117,6 +129,60 @@ public sealed class OperatorWebHostBridge(
     {
         await tokenStore.ClearAsync(cancellationToken);
         return new { signedOut = true };
+    }
+
+    private async Task<object> ForgotPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<OperatorWebForgotByEmailPayload>(payload);
+        if (string.IsNullOrWhiteSpace(request.UserNameOrEmail))
+        {
+            throw new InvalidOperationException("Login or email is required.");
+        }
+
+        await authApiClient.ForgotPasswordByEmailAsync(request.UserNameOrEmail.Trim(), cancellationToken);
+        return new { ok = true };
+    }
+
+    private async Task<object> ResetPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<OperatorWebResetByEmailPayload>(payload);
+        if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            throw new InvalidOperationException("Token and new password are required.");
+        }
+
+        await authApiClient.ResetPasswordByEmailAsync(request.Token.Trim(), request.NewPassword, cancellationToken);
+        return new { ok = true };
+    }
+
+    private async Task<object> ForgotPasswordByPhoneAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<OperatorWebForgotByPhonePayload>(payload);
+        if (string.IsNullOrWhiteSpace(request.PhoneNumber))
+        {
+            throw new InvalidOperationException("Phone number is required.");
+        }
+
+        await authApiClient.ForgotPasswordByPhoneAsync(request.PhoneNumber.Trim(), cancellationToken);
+        return new { ok = true };
+    }
+
+    private async Task<object> ResetPasswordByPhoneAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<OperatorWebResetByPhonePayload>(payload);
+        if (string.IsNullOrWhiteSpace(request.PhoneNumber)
+            || string.IsNullOrWhiteSpace(request.Code)
+            || string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            throw new InvalidOperationException("Phone, code, and new password are required.");
+        }
+
+        await authApiClient.ResetPasswordByPhoneAsync(
+            request.PhoneNumber.Trim(),
+            request.Code.Trim(),
+            request.NewPassword,
+            cancellationToken);
+        return new { ok = true };
     }
 
     private async Task<OperatorWebStoredConnection?> LoadConnectionAsync(CancellationToken cancellationToken)
@@ -249,9 +315,18 @@ public sealed class OperatorWebHostBridge(
         string? UserName,
         string? Password);
 
+    private sealed record OperatorWebForgotByEmailPayload(string? UserNameOrEmail);
+
+    private sealed record OperatorWebResetByEmailPayload(string? Token, string? NewPassword);
+
+    private sealed record OperatorWebForgotByPhonePayload(string? PhoneNumber);
+
+    private sealed record OperatorWebResetByPhonePayload(string? PhoneNumber, string? Code, string? NewPassword);
+
     private sealed record OperatorWebBridgeError(
         string Code,
-        string Message);
+        string Message,
+        int? RemainingAttempts);
 
     private sealed record OperatorWebAuthSession(
         Guid StaffUserId,

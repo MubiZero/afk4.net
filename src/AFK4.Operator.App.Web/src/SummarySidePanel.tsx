@@ -1,34 +1,37 @@
+import { useI18n } from '@afk4/i18n';
 import type { WorkspaceId } from './operatorTypes';
 
 export function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId; currencyCode: string }) {
+  const { t } = useI18n();
+
   const title = {
-    map: 'PC-01',
-    dashboard: 'Смена',
-    booking: 'Бронь 16:00',
-    pos: 'Корзина',
-    players: 'Amir K.',
-    payments: 'Платеж 14:30',
-    payment_cards: 'Приём платежей',
-    logs: 'Событие журнала',
-    settings: 'Настройки',
-    review: 'Проверка'
+    map: t('op.summary.titlePc'),
+    dashboard: t('op.summary.titleShift'),
+    booking: t('op.summary.titleBooking'),
+    pos: t('op.summary.titlePos'),
+    players: t('op.summary.titlePlayers'),
+    payments: t('op.summary.titlePayments'),
+    payment_cards: t('payments_cards.nav'),
+    logs: t('op.summary.titleLogs'),
+    settings: t('nav.settings'),
+    review: t('op.summary.titleReview')
   }[workspace];
 
   return (
     <aside className="context-panel">
       <header className="context-head">
         <div>
-          <span>Детали</span>
+          <span>{t('op.summary.detailsLabel')}</span>
           <h2>{title}</h2>
         </div>
-        <span className="state-chip state-active">Активно</span>
+        <span className="state-chip state-active">{t('op.summary.stateActive')}</span>
       </header>
       <section className="context-section">
-        <div className="detail-row"><span>Выручка</span><strong>4 820 {currencyCode}</strong></div>
-        <div className="detail-row"><span>В работе</span><strong>2 действия</strong></div>
-        <div className="detail-row"><span>Источник</span><strong>Локальные данные</strong></div>
+        <div className="detail-row"><span>{t('reports.sum.revenue')}</span><strong>4 820 {currencyCode}</strong></div>
+        <div className="detail-row"><span>{t('op.summary.inProgress')}</span><strong>{t('op.summary.actionsCount')}</strong></div>
+        <div className="detail-row"><span>{t('reports.col.source')}</span><strong>{t('op.summary.localData')}</strong></div>
       </section>
-      <button type="button" className="primary-wide">Открыть действие</button>
+      <button type="button" className="primary-wide">{t('op.summary.openAction')}</button>
     </aside>
   );
 }

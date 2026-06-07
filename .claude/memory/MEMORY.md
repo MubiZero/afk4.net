@@ -1,1 +1,2 @@
 - [Working style](feedback_working_style.md) — prefers fewer clarifying questions, more doing; only pause at real blockers
+- [Epic: email-identity-parity](email-identity-parity.md) — Operator i18n + email/SMS reset; M3 COMPLETE, PR #58 open

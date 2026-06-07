@@ -97,6 +97,37 @@ describe('postHostRequest', () => {
     await expect(postHostRequest('auth:signIn')).rejects.toThrow('Invalid credentials.');
   });
 
+  it('rejects with code and remainingAttempts from an error response', async () => {
+    const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
+    window.chrome = {
+      webview: {
+        postMessage: (message: unknown) => {
+          const request = message as { requestId: string };
+          queueMicrotask(() => {
+            for (const listener of listeners) {
+              listener({
+                data: {
+                  type: 'host:response',
+                  requestId: request.requestId,
+                  ok: false,
+                  error: { code: 'invalid_code', message: 'bad code', remainingAttempts: 2 }
+                }
+              });
+            }
+          });
+        },
+        addEventListener: (_type, listener) => listeners.add(listener),
+        removeEventListener: (_type, listener) => listeners.delete(listener)
+      }
+    };
+
+    await expect(postHostRequest('auth:resetByPhone', {})).rejects.toMatchObject({
+      code: 'invalid_code',
+      remainingAttempts: 2,
+      message: 'bad code'
+    });
+  });
+
   it('rejects when the native bridge is unavailable', async () => {
     await expect(postHostRequest('auth:loadToken')).rejects.toThrow(HostBridgeUnavailableError);
   });

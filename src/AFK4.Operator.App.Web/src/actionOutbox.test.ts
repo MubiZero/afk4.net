@@ -7,6 +7,9 @@ import {
   type OperatorActionOutboxEntry
 } from './actionOutbox';
 import type { SeatSummary } from './operatorData';
+import { createTranslator } from '@afk4/i18n';
+
+const t = createTranslator('ru');
 
 const deviceA = 'aaaaaaaa-1111-4111-8111-111111111111';
 const deviceB = 'bbbbbbbb-2222-4222-8222-222222222222';
@@ -106,14 +109,14 @@ describe('actionOutbox', () => {
 
 describe('reconcileActionOutbox', () => {
   it('replays actions whose seat and session are unchanged', () => {
-    const result = reconcileActionOutbox([entry(deviceA, 'lock')], [seat(deviceA, sessionId)]);
+    const result = reconcileActionOutbox([entry(deviceA, 'lock')], [seat(deviceA, sessionId)], t);
 
     expect(result.replay.map((item) => item.commandType)).toEqual(['lock']);
     expect(result.dropped).toHaveLength(0);
   });
 
   it('drops actions whose session moved on, with an audit note', () => {
-    const result = reconcileActionOutbox([entry(deviceA, 'unlock')], [seat(deviceA, null)]);
+    const result = reconcileActionOutbox([entry(deviceA, 'unlock')], [seat(deviceA, null)], t);
 
     expect(result.replay).toHaveLength(0);
     expect(result.dropped).toHaveLength(1);
@@ -122,7 +125,7 @@ describe('reconcileActionOutbox', () => {
   });
 
   it('drops actions whose seat is gone from the live map', () => {
-    const result = reconcileActionOutbox([entry(deviceA, 'lock')], [seat(deviceB, sessionId)]);
+    const result = reconcileActionOutbox([entry(deviceA, 'lock')], [seat(deviceB, sessionId)], t);
 
     expect(result.replay).toHaveLength(0);
     expect(result.dropped).toHaveLength(1);

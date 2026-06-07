@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import type { AuditSearchResultDto, MoneyActionRequestDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -20,35 +21,36 @@ import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 
 type ReviewSegment = 'queue' | 'audit';
 
-function reviewActionTypeLabel(actionType: string): string {
+function reviewActionTypeLabel(actionType: string, t: (key: MessageKey) => string): string {
   switch (actionType) {
     case 'refund':
-      return 'Возврат';
+      return t('money.refund');
     case 'manual_correction':
-      return 'Коррекция';
+      return t('money.correction');
     case 'debt_write_off':
-      return 'Списание долга';
+      return t('op.review.actionDebtWriteOff');
     default:
       return actionType;
   }
 }
 
-function reviewExpiryBadge(expiresAtUtc: string, nowMs: number): { label: string; tone: 'overdue' | 'soon' } | null {
+function reviewExpiryBadge(expiresAtUtc: string, nowMs: number, t: (key: MessageKey) => string): { label: string; tone: 'overdue' | 'soon' } | null {
   const expiresMs = Date.parse(expiresAtUtc);
   if (!Number.isFinite(expiresMs)) {
     return null;
   }
   const remainingMs = expiresMs - nowMs;
   if (remainingMs <= 0) {
-    return { label: 'Просрочена', tone: 'overdue' };
+    return { label: t('op.review.expiryOverdue'), tone: 'overdue' };
   }
   if (remainingMs <= 2 * 60 * 60 * 1000) {
-    return { label: 'Истекает скоро', tone: 'soon' };
+    return { label: t('op.review.expirySoon'), tone: 'soon' };
   }
   return null;
 }
 
 export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const { t } = useI18n();
   const [activeSegment, setActiveSegment] = useState<ReviewSegment>('queue');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
@@ -70,7 +72,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
   const reviewAuditActorLabel = (record: Record<string, unknown>) => {
     const actorStaffUserId = readString(record, 'actorStaffUserId');
     const resolved = actorStaffUserId ? staffNames[actorStaffUserId.toLowerCase()] : '';
-    return resolved || auditActorLabel(record, backend);
+    return resolved || auditActorLabel(record, backend, t);
   };
 
   const loadQueue = async (nextBackend = backend) => {
@@ -90,7 +92,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
       setRequests(readArray<MoneyActionRequestDto>(feed, 'requests'));
       const names: Record<string, string> = {};
       for (const user of staff) {
-        names[readString(user, 'staffUserId').toLowerCase()] = operatorDisplayNameLabel(readString(user, 'displayName'));
+        names[readString(user, 'staffUserId').toLowerCase()] = operatorDisplayNameLabel(readString(user, 'displayName'), t);
       }
       setStaffNames(names);
       setLoadStatus('backend');
@@ -98,7 +100,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
       const detail = projectOperatorError(error).detail;
       setLoadStatus('failed');
       setLoadError(detail);
-      setFeedback({ label: 'Проверка', state: 'failed', detail });
+      setFeedback({ label: t('op.review.feedbackLoad'), state: 'failed', detail });
     }
   };
 
@@ -107,42 +109,42 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
   const approveRequest = async (request: MoneyActionRequestDto) => {
-    setFeedback({ label: 'Одобрение', state: 'pending' });
+    setFeedback({ label: t('op.review.feedbackApprove'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       await apiClients.moneyActions.approve(nextBackend.branchId, request.moneyActionRequestId, { decisionReason: null });
-      setFeedback({ label: 'Одобрение', state: 'confirmed' });
+      setFeedback({ label: t('op.review.feedbackApprove'), state: 'confirmed' });
       await loadQueue();
     } catch (error) {
-      setFeedback({ label: 'Одобрение', state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.review.feedbackApprove'), state: 'failed', detail: projectOperatorError(error).detail });
     }
   };
 
   const confirmReject = async (request: MoneyActionRequestDto) => {
     const reason = decisionReason.trim();
     if (reason.length === 0) {
-      setFeedback({ label: 'Отклонение', state: 'failed', detail: 'Укажите причину отклонения.' });
+      setFeedback({ label: t('op.review.feedbackReject'), state: 'failed', detail: t('op.review.rejectReasonRequired') });
       return;
     }
-    setFeedback({ label: 'Отклонение', state: 'pending' });
+    setFeedback({ label: t('op.review.feedbackReject'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       await apiClients.moneyActions.reject(nextBackend.branchId, request.moneyActionRequestId, { decisionReason: reason });
       setRejectingId('');
       setDecisionReason('');
-      setFeedback({ label: 'Отклонение', state: 'confirmed' });
+      setFeedback({ label: t('op.review.feedbackReject'), state: 'confirmed' });
       await loadQueue();
     } catch (error) {
-      setFeedback({ label: 'Отклонение', state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.review.feedbackReject'), state: 'failed', detail: projectOperatorError(error).detail });
     }
   };
 
   const applyAuditSearch = async () => {
-    setFeedback({ label: 'Журнал', state: 'pending' });
+    setFeedback({ label: t('op.review.feedbackAudit'), state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const parsedMin = auditMinAmount.trim() === '' ? null : Number(auditMinAmount);
       const parsedMax = auditMaxAmount.trim() === '' ? null : Number(auditMaxAmount);
@@ -160,9 +162,9 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
         limit: 50
       });
       setAuditResult(result);
-      setFeedback({ label: 'Журнал', state: 'confirmed' });
+      setFeedback({ label: t('op.review.feedbackAudit'), state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label: 'Журнал', state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.review.feedbackAudit'), state: 'failed', detail: projectOperatorError(error).detail });
     }
   };
 
@@ -173,59 +175,59 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
     <main className="workspace-screen review-screen">
       <section className="screen-head review-head">
         <div>
-          <span>Проверка</span>
-          <h1>Проверка · заявки и журнал</h1>
+          <span>{t('op.review.title')}</span>
+          <h1>{t('op.review.heading')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Заявки загружены')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.review.loadedLabel'), t)}</span>
         </div>
       </section>
 
-      <section className="state-strip review-state-strip" aria-label="Сводка проверки">
-        <StateFlag label="Заявки" value={String(requests.length)} critical={requests.length > 0} />
-        <StateFlag label="Источник" value={workspaceLoadStatusLabel(loadStatus, 'Платформа')} critical={loadStatus !== 'backend'} />
+      <section className="state-strip review-state-strip" aria-label={t('op.review.summaryLabel')}>
+        <StateFlag label={t('op.review.flagRequests')} value={String(requests.length)} critical={requests.length > 0} />
+        <StateFlag label={t('journal.col.source')} value={workspaceLoadStatusLabel(loadStatus, t('op.review.platformLabel'), t)} critical={loadStatus !== 'backend'} />
       </section>
 
       <div className="review-segments" role="tablist">
-        <button type="button" role="tab" aria-selected={activeSegment === 'queue'} className={activeSegment === 'queue' ? 'active' : undefined} onClick={() => setActiveSegment('queue')}>Заявки на одобрение</button>
-        <button type="button" role="tab" aria-selected={activeSegment === 'audit'} className={activeSegment === 'audit' ? 'active' : undefined} onClick={() => setActiveSegment('audit')}>Журнал операций</button>
+        <button type="button" role="tab" aria-selected={activeSegment === 'queue'} className={activeSegment === 'queue' ? 'active' : undefined} onClick={() => setActiveSegment('queue')}>{t('op.review.tabQueue')}</button>
+        <button type="button" role="tab" aria-selected={activeSegment === 'audit'} className={activeSegment === 'audit' ? 'active' : undefined} onClick={() => setActiveSegment('audit')}>{t('op.review.tabAudit')}</button>
       </div>
 
       {activeSegment === 'queue' && (
         <section className="review-panel review-queue-panel">
           {requests.length === 0 ? (
-            <p className="review-empty">{loadError ?? 'Нет заявок на одобрение'}</p>
+            <p className="review-empty">{loadError ?? t('op.review.emptyQueue')}</p>
           ) : (
             requests.map((request) => {
-              const expiryBadge = reviewExpiryBadge(request.expiresAtUtc, Date.now());
+              const expiryBadge = reviewExpiryBadge(request.expiresAtUtc, Date.now(), t);
               return (
               <article key={request.moneyActionRequestId} className="review-request-row">
                 <div className="review-request-head">
-                  <strong>{reviewActionTypeLabel(request.actionType)}</strong>
+                  <strong>{reviewActionTypeLabel(request.actionType, t)}</strong>
                   <b>{formatMinorUnits(request.amountMinorUnits, request.currencyCode || currencyCode)}</b>
                 </div>
                 <em>{request.reason}</em>
                 <div className="review-request-meta">
-                  <span>Запросил: {resolveStaffName(request.requestedByStaffUserId)}</span>
-                  <span>Создано: {formatTime(request.createdAtUtc)}</span>
-                  <span>Истекает: {formatTime(request.expiresAtUtc)}</span>
+                  <span>{t('op.review.requestedBy', { name: resolveStaffName(request.requestedByStaffUserId) })}</span>
+                  <span>{t('op.review.createdAt', { time: formatTime(request.createdAtUtc) })}</span>
+                  <span>{t('op.review.expiresAt', { time: formatTime(request.expiresAtUtc) })}</span>
                   {expiryBadge && <span className={`review-expiry-badge ${expiryBadge.tone}`}>{expiryBadge.label}</span>}
                 </div>
                 {rejectingId === request.moneyActionRequestId ? (
                   <div className="review-reject-form">
                     <label>
-                      Причина отклонения
-                      <input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder="почему отклонено" />
+                      {t('op.review.rejectReasonLabel')}
+                      <input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder={t('op.review.rejectReasonPlaceholder')} />
                     </label>
                     <div className="review-request-actions">
-                      <button type="button" onClick={() => void confirmReject(request)}>Подтвердить отклонение</button>
-                      <button type="button" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>Отмена</button>
+                      <button type="button" onClick={() => void confirmReject(request)}>{t('op.review.confirmRejectBtn')}</button>
+                      <button type="button" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>{t('common.cancel')}</button>
                     </div>
                   </div>
                 ) : (
                   <div className="review-request-actions">
-                    <button type="button" onClick={() => void approveRequest(request)}>Одобрить</button>
-                    <button type="button" onClick={() => { setRejectingId(request.moneyActionRequestId); setDecisionReason(''); }}>Отклонить</button>
+                    <button type="button" onClick={() => void approveRequest(request)}>{t('op.review.approveBtn')}</button>
+                    <button type="button" onClick={() => { setRejectingId(request.moneyActionRequestId); setDecisionReason(''); }}>{t('devices.action.reject')}</button>
                   </div>
                 )}
               </article>
@@ -240,27 +242,27 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
         <section className="review-panel review-audit-panel">
           <div className="review-audit-filters">
             <label>
-              Сотрудник
+              {t('operators.col.name')}
               <select value={auditActor} onChange={(event) => setAuditActor(event.currentTarget.value)}>
-                <option value="">Все сотрудники</option>
+                <option value="">{t('op.review.allStaff')}</option>
                 {staffOptions.map(([staffUserId, name]) => (
                   <option key={staffUserId} value={staffUserId}>{name}</option>
                 ))}
               </select>
             </label>
-            <label>Сумма от<input inputMode="numeric" value={auditMinAmount} onChange={(event) => setAuditMinAmount(event.currentTarget.value)} placeholder="мин" /></label>
-            <label>Сумма до<input inputMode="numeric" value={auditMaxAmount} onChange={(event) => setAuditMaxAmount(event.currentTarget.value)} placeholder="макс" /></label>
-            <button type="button" onClick={() => void applyAuditSearch()}>Применить фильтр</button>
+            <label>{t('op.review.amountFrom')}<input inputMode="numeric" value={auditMinAmount} onChange={(event) => setAuditMinAmount(event.currentTarget.value)} placeholder={t('op.review.amountMin')} /></label>
+            <label>{t('op.review.amountTo')}<input inputMode="numeric" value={auditMaxAmount} onChange={(event) => setAuditMaxAmount(event.currentTarget.value)} placeholder={t('op.review.amountMax')} /></label>
+            <button type="button" onClick={() => void applyAuditSearch()}>{t('op.review.applyFilter')}</button>
           </div>
           <div className="review-audit-list">
             {auditRecords.length === 0 ? (
-              <p className="review-empty">Записей нет — задайте фильтр</p>
+              <p className="review-empty">{t('op.review.emptyAudit')}</p>
             ) : (
               auditRecords.map((record) => (
                 <article key={readString(record, 'auditRecordId')} className="review-audit-row">
                   <span>{formatTime(readString(record, 'createdAtUtc'))}</span>
                   <strong>{reviewAuditActorLabel(record)}</strong>
-                  <em>{auditActionLabel(readString(record, 'action'))}</em>
+                  <em>{auditActionLabel(readString(record, 'action'), t)}</em>
                   <b>{readNumber(record, 'amountMinorUnits', 0) > 0 ? formatMinorUnits(readNumber(record, 'amountMinorUnits', 0), currencyCode) : '—'}</b>
                 </article>
               ))

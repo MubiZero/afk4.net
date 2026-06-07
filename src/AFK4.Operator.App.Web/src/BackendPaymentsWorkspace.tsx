@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRightLeft, Banknote, ReceiptText, Search, ShieldAlert } from 'lucide-react';
+import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import type { ReportResultDto, ShiftDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -36,28 +37,29 @@ function paymentOperationPlaceholder(
   loadStatus: LoadStatus,
   currencyCode: string,
   loadError: string | null,
-  hasSearchMiss: boolean
+  hasSearchMiss: boolean,
+  t: ReturnType<typeof useI18n>['t']
 ): PaymentOperationItem {
   if (hasSearchMiss) {
-    return ['—', 'Нет совпадений', 'измените поиск или период', 'Поиск', `0 ${currencyCode}`, 'session', null];
+    return ['—', t('op.payments.ph.noMatch.title'), t('op.payments.ph.noMatch.hint'), t('op.payments.ph.noMatch.source'), `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', 'Загружаем операции', 'ждём отчёты', 'Отчёты', `0 ${currencyCode}`, 'session', null];
+    return ['—', t('op.payments.ph.loading.title'), t('op.payments.ph.loading.hint'), t('op.payments.ph.loading.source'), `0 ${currencyCode}`, 'session', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', 'Операции недоступны', loadError ?? 'повторите загрузку или проверьте связь', 'Отчёты', `0 ${currencyCode}`, 'refund', null];
+    return ['—', t('op.payments.ph.failed.title'), loadError ?? t('op.payments.ph.failed.hint'), t('op.payments.ph.loading.source'), `0 ${currencyCode}`, 'refund', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', 'Операций за период нет', 'в отчёте пусто', 'Отчёты', `0 ${currencyCode}`, 'session', null];
+    return ['—', t('op.payments.ph.empty.title'), t('op.payments.ph.empty.hint'), t('op.payments.ph.loading.source'), `0 ${currencyCode}`, 'session', null];
   }
 
-  return ['—', 'Локально: операций нет', 'локальные данные без платформы', 'локально', `0 ${currencyCode}`, 'session', null];
+  return ['—', t('op.payments.ph.local.title'), t('op.payments.ph.local.hint'), t('op.payments.ph.local.source'), `0 ${currencyCode}`, 'session', null];
 }
 
-function buildShiftReconciliationExportJson(report: ReportResultDto, currentShift: ShiftDto | null, currencyCode: string): string {
+function buildShiftReconciliationExportJson(report: ReportResultDto, currentShift: ShiftDto | null, currencyCode: string, notIndicated: string, t: ReturnType<typeof useI18n>['t']): string {
   const rows = readArray<Record<string, unknown>>(report, 'rows');
   const latestRow = rows[0];
   const stateSource = currentShift ?? latestRow;
@@ -68,15 +70,15 @@ function buildShiftReconciliationExportJson(report: ReportResultDto, currentShif
   return JSON.stringify({
     summary: {
       generatedAtUtc: new Date().toISOString(),
-      shiftState: shiftStateLabel(readString(stateSource, 'state', 'unknown')),
+      shiftState: shiftStateLabel(readString(stateSource, 'state', 'unknown'), t),
       expectedCash: formatMoney(expectedCash, currencyCode),
-      countedCash: countedCash ? formatMoney(countedCash, currencyCode) : 'Не указано',
+      countedCash: countedCash ? formatMoney(countedCash, currencyCode) : notIndicated,
       difference: formatMoney(difference, currencyCode),
       shiftCount: rows.length
     },
     shifts: rows.map((row, index) => ({
-      label: `Смена ${index + 1}`,
-      state: shiftStateLabel(readString(row, 'state', 'unknown')),
+      label: `Shift ${index + 1}`,
+      state: shiftStateLabel(readString(row, 'state', 'unknown'), t),
       openedAt: formatDateTime(readString(row, 'openedAtUtc')),
       closedAt: formatDateTime(readString(row, 'closedAtUtc')),
       startingCash: formatMoney(readMoney(row, 'startingCash'), currencyCode),
@@ -85,16 +87,17 @@ function buildShiftReconciliationExportJson(report: ReportResultDto, currentShif
       refunds: formatMoney(readMoney(row, 'posRefundsTotal'), currencyCode),
       walletCashImpact: formatMoney(readMoney(row, 'billingCashImpactTotal'), currencyCode),
       expectedCash: formatMoney(readMoney(row, 'expectedCash'), currencyCode),
-      countedCash: readMoney(row, 'countedCash') ? formatMoney(readMoney(row, 'countedCash'), currencyCode) : 'Не указано',
+      countedCash: readMoney(row, 'countedCash') ? formatMoney(readMoney(row, 'countedCash'), currencyCode) : notIndicated,
       difference: formatMoney(readMoney(row, 'difference'), currencyCode)
     }))
   }, null, 2);
 }
 
 export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+  const { t } = useI18n();
   const [paymentSearch, setPaymentSearch] = useState('');
   const [selectedOperationKey, setSelectedOperationKey] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState('Наличные');
+  const [selectedMethod, setSelectedMethod] = useState(t('op.payments.methods.cash'));
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [currentShift, setCurrentShift] = useState<ShiftDto | null>(null);
@@ -103,12 +106,12 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
   const [shiftReport, setShiftReport] = useState<ReportResultDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [openStartingCash, setOpenStartingCash] = useState('0.00');
-  const [openingNote, setOpeningNote] = useState('Открытие смены');
+  const [openingNote, setOpeningNote] = useState(t('op.payments.default.openingNote'));
   const [closeCountedCash, setCloseCountedCash] = useState('');
-  const [closingNote, setClosingNote] = useState('Сверка оператором');
+  const [closingNote, setClosingNote] = useState(t('op.payments.default.closingNote'));
   const [cashMovementType, setCashMovementType] = useState('cash_in');
   const [cashMovementAmount, setCashMovementAmount] = useState('10.00');
-  const [cashMovementReason, setCashMovementReason] = useState('Размен кассы');
+  const [cashMovementReason, setCashMovementReason] = useState(t('op.payments.cash.defaultReason'));
   const [criticalAction, setCriticalAction] = useState<'close-shift' | null>(null);
 
   const loadPayments = async (nextBackend = backend) => {
@@ -146,7 +149,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
       const detail = projectOperatorError(error).detail;
       setLoadStatus('failed');
       setLoadError(detail);
-      setFeedback({ label: 'Платежи', state: 'failed', detail });
+      setFeedback({ label: t('op.payments.title'), state: 'failed', detail });
     }
   };
 
@@ -160,18 +163,18 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
   const operations: PaymentOperationItem[] = [
     ...salesRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
-      posSaleStateLabel(readString(row, 'state', 'sale')),
-      `Чек · ${posSaleLineSummary(row)}`,
-      'Продажа',
+      posSaleStateLabel(readString(row, 'state', 'sale'), t),
+      `${t('op.pos.receipts.receiptFallback')} · ${posSaleLineSummary(row, t)}`,
+      t('op.payments.ledger.typeSale'),
       formatMoney(readMoney(row, 'total'), currencyCode),
       readString(row, 'state', 'sale').toLowerCase().includes('refund') ? 'refund' : 'sale',
       row
     ]),
     ...cashRows.map((row): PaymentOperationItem => [
       formatTime(readString(row, 'createdAtUtc')),
-      cashOperationTypeLabel(readString(row, 'operationType', 'cash')),
+      cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t),
       readString(row, 'reason', readString(row, 'sourceType', 'cash')),
-      paymentSourceLabel(readString(row, 'sourceType', 'cash')),
+      paymentSourceLabel(readString(row, 'sourceType', 'cash'), t),
       formatMoney(readMoney(row, 'cashImpact'), currencyCode),
       readNumber(readMoney(row, 'cashImpact'), 'minorUnits', 0) < 0 ? 'refund' : 'deposit',
       row
@@ -182,23 +185,23 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
     `${time} ${type} ${client} ${method} ${total}`.toLowerCase().includes(paymentSearch.trim().toLowerCase())
   ));
   const visibleOperations = operations.length === 0
-    ? [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, false)]
+    ? [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, false, t)]
     : filteredOperations.length > 0
       ? filteredOperations
-      : [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, operationSearch.length > 0)];
+      : [paymentOperationPlaceholder(loadStatus, currencyCode, loadError, operationSearch.length > 0, t)];
   const selectedOperation = visibleOperations.find(([time, type, client]) => `${time}-${type}-${client}` === selectedOperationKey) ?? visibleOperations[0];
   const selectedOperationSource = selectedOperation[6];
   const selectedOperationIsSale = selectedOperationSource !== null && readString(selectedOperationSource, 'posSaleId').length > 0;
   const selectedOperationScope = selectedOperationSource === null
     ? '—'
-    : readString(selectedOperationSource, 'shiftId') ? 'В отчёте смены' : 'Без смены';
+    : readString(selectedOperationSource, 'shiftId') ? t('op.payments.ledger.inShift') : t('op.payments.ledger.noShift');
   const selectedOperationSourceLabel = selectedOperationSource === null
     ? selectedOperation[3]
     : selectedOperationIsSale
-      ? 'Продажа'
-      : 'Движение наличных';
+      ? t('op.payments.ledger.typeSale')
+      : t('op.payments.ledger.typeCash');
   const selectedOperationDetail = selectedOperationIsSale
-    ? posSaleLineSummary(selectedOperationSource)
+    ? posSaleLineSummary(selectedOperationSource, t)
     : readString(selectedOperationSource, 'reason', selectedOperation[2]);
   const grossSales = readMoney(salesReport, 'grossSalesTotal');
   const refunds = readMoney(salesReport, 'refundsTotal');
@@ -223,40 +226,48 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
     && currentShiftState === 'open'
     && hasPermission(backend.session, permissionNames.manageShiftCash);
   const methods = [
-    ['Наличные', cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, 'кассовый отчёт', `${cashRows.length} операций`],
-    ['Карта', netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, 'отчёт продаж', `${salesRows.length} чеков`],
-    ['Возвраты', refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, 'возвраты', 'по отчёту'],
-    ['Расхождения', difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, 'закрытие смены', 'по сверке']
+    [t('op.payments.methods.cash'), cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, t('op.payments.methods.cashShare'), t('op.payments.methods.cashOps', { count: cashRows.length })],
+    [t('op.payments.methods.card'), netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, t('op.payments.methods.cardShare'), t('op.payments.methods.receipts', { count: salesRows.length })],
+    [t('op.payments.methods.refunds'), refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, t('op.payments.methods.refundsShare'), t('op.payments.methods.byReport')],
+    [t('op.payments.methods.difference'), difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, t('op.payments.methods.differenceShare'), t('op.payments.methods.byReconcile')]
   ];
+
+  const openShiftActionKey = t('op.payments.reconcile.openShiftBtn');
+  const addMovementActionKey = t('op.payments.cash.addBtn');
+  const prepareCloseActionKey = t('op.payments.reconcile.prepareCloseBtn');
+  const shiftSummaryActionKey = t('op.payments.export.shiftSummary');
+  const cashMovementsActionKey = t('op.payments.export.cashMovements');
+  const receiptListActionKey = t('op.payments.export.receiptList');
+  const reconciliationActionKey = t('op.payments.export.reconciliation');
 
   const runReportAction = async (label: string) => {
     setCriticalAction(null);
     setFeedback({ label, state: 'pending' });
     try {
-      const nextBackend = requireBackend(backend);
+      const nextBackend = requireBackend(backend, t);
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const exportStamp = new Date().toISOString().replace(/[:.]/g, '-');
-      if (label === 'Сводка смены') {
+      if (label === shiftSummaryActionKey) {
         const csv = await apiClients.shifts.exportShiftReportCsv(nextBackend.branchId, { limit: 50 });
         downloadTextFile(`afk4-shift-summary-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Движение кассы') {
+      } else if (label === cashMovementsActionKey) {
         const csv = await apiClients.shifts.exportCashOperationReportCsv(nextBackend.branchId, { limit: 50 });
         downloadTextFile(`afk4-cash-movements-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Список чеков') {
+      } else if (label === receiptListActionKey) {
         const csv = await apiClients.shifts.exportSalesReportCsv(nextBackend.branchId, { limit: 50 });
         downloadTextFile(`afk4-check-list-${exportStamp}.csv`, csv, 'text/csv;charset=utf-8');
-      } else if (label === 'Открыть смену') {
+      } else if (label === openShiftActionKey) {
         if (!hasPermission(nextBackend.session, permissionNames.openShift)) {
-          throw new Error('Нет прав на открытие смены.');
+          throw new Error(t('op.payments.error.noPermOpenShift'));
         }
 
         if (currentShiftId) {
-          throw new Error('Смена уже открыта.');
+          throw new Error(t('op.payments.error.shiftAlreadyOpen'));
         }
 
         const startingCashMinorUnits = parseNonNegativeMoneyInputMinorUnits(openStartingCash);
         if (startingCashMinorUnits === null) {
-          throw new Error('Введите стартовую сумму наличных не ниже нуля.');
+          throw new Error(t('op.payments.error.invalidStartingCash'));
         }
 
         const openedShift = await apiClients.shifts.openShift(nextBackend.branchId, {
@@ -267,19 +278,19 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
         });
         setCurrentShift(openedShift);
         await loadPayments(nextBackend);
-      } else if (label === 'Добавить движение') {
+      } else if (label === addMovementActionKey) {
         if (!hasPermission(nextBackend.session, permissionNames.manageShiftCash)) {
-          throw new Error('Нет прав на движение наличных.');
+          throw new Error(t('op.payments.error.noPermCash'));
         }
 
         if (!currentShiftId) {
-          throw new Error('Нет открытой смены для движения наличных.');
+          throw new Error(t('op.payments.error.noShiftForCash'));
         }
 
         const cashMovementMinorUnits = parseMoneyInputMinorUnits(cashMovementAmount);
         const reason = cashMovementReason.trim();
         if (cashMovementMinorUnits === null || !reason) {
-          throw new Error('Введите сумму больше нуля и причину движения.');
+          throw new Error(t('op.payments.error.invalidCashInput'));
         }
 
         await apiClients.shifts.recordCashMovement(currentShiftId, {
@@ -290,20 +301,20 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
           idempotencyKey: createIdempotencyKey('shift-cash-movement')
         });
         setCashMovementAmount('10.00');
-        setCashMovementReason('Размен кассы');
+        setCashMovementReason(t('op.payments.cash.defaultReason'));
         await loadPayments(nextBackend);
-      } else if (label === 'Подготовить закрытие') {
+      } else if (label === prepareCloseActionKey) {
         if (!hasPermission(nextBackend.session, permissionNames.closeShift)) {
-          throw new Error('Нет прав на закрытие смены.');
+          throw new Error(t('op.payments.error.noPermCloseShift'));
         }
 
         if (!currentShiftId) {
-          throw new Error('Нет открытой смены для закрытия.');
+          throw new Error(t('op.payments.error.noShiftToClose'));
         }
 
         const countedCashMinorUnits = parseMoneyInputMinorUnits(closeCountedCash);
         if (countedCashMinorUnits === null) {
-          throw new Error('Введите фактическую сумму наличных больше нуля.');
+          throw new Error(t('op.payments.error.invalidCountedCash'));
         }
 
         const closedShift = await apiClients.shifts.closeShift(currentShiftId, {
@@ -313,9 +324,9 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
           idempotencyKey: createIdempotencyKey('shift-close')
         });
         setCurrentShift(closedShift);
-      } else if (label === 'Сверка смены') {
+      } else if (label === reconciliationActionKey) {
         const report = await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
-        downloadTextFile(`afk4-shift-reconciliation-${exportStamp}.json`, buildShiftReconciliationExportJson(report, currentShift, currencyCode), 'application/json;charset=utf-8');
+        downloadTextFile(`afk4-shift-reconciliation-${exportStamp}.json`, buildShiftReconciliationExportJson(report, currentShift, currencyCode, t('op.payments.reconcile.notIndicated'), t), 'application/json;charset=utf-8');
       } else {
         await apiClients.shifts.getShiftReport(nextBackend.branchId, { limit: 20 });
       }
@@ -330,32 +341,32 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
     <main className="workspace-screen payments-screen">
       <section className="screen-head payments-head">
         <div>
-          <span>Платежи</span>
-          <h1>Платежи · касса смены и сверка</h1>
+          <span>{t('op.payments.title')}</span>
+          <h1>{t('op.payments.heading')}</h1>
         </div>
         <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, 'Отчёты загружены')}</span>
+          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.payments.loadedLabel'), t)}</span>
         </div>
       </section>
 
-      <section className="state-strip payments-state-strip" aria-label="Сводка платежей">
-        <StateFlag label="Выручка" value={grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`} />
-        <StateFlag label="Наличные" value={cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`} />
-        <StateFlag label="Возвраты" value={refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`} critical={(refunds?.minorUnits ?? 0) > 0} />
-        <StateFlag label="Смена" value={shiftStateLabel(readString(currentShift, 'state', 'нет смены'))} critical={currentShift === null} />
-        <StateFlag label="К сверке" value={difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`} critical={(difference?.minorUnits ?? 0) !== 0} />
+      <section className="state-strip payments-state-strip" aria-label={t('op.payments.stripLabel')}>
+        <StateFlag label={t('op.payments.strip.revenue')} value={grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`} />
+        <StateFlag label={t('op.payments.strip.cash')} value={cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`} />
+        <StateFlag label={t('op.payments.strip.refunds')} value={refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`} critical={(refunds?.minorUnits ?? 0) > 0} />
+        <StateFlag label={t('op.payments.strip.shift')} value={shiftStateLabel(readString(currentShift, 'state', 'нет смены'), t)} critical={currentShift === null} />
+        <StateFlag label={t('op.payments.strip.reconcile')} value={difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`} critical={(difference?.minorUnits ?? 0) !== 0} />
       </section>
 
       <section className="payments-layout">
         <section className="payments-panel payments-ledger-panel">
           <header className="payments-panel-title">
-            <span>Операции смены</span>
-            <strong>продажи, возвраты и наличные</strong>
+            <span>{t('op.payments.ledger.title')}</span>
+            <strong>{t('op.payments.ledger.subtitle')}</strong>
           </header>
           <label className="payments-search">
             <Search size={14} />
             <input
-              placeholder="Клиент, чек, ПК, сумма"
+              placeholder={t('op.payments.ledger.searchPlaceholder')}
               value={paymentSearch}
               onChange={(event) => setPaymentSearch(event.currentTarget.value)}
             />
@@ -382,46 +393,46 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
 
         <section className="payments-panel payments-summary-panel">
           <header className="payments-panel-title">
-            <span>Итоги смены</span>
-            <strong>выручка и выбранная операция</strong>
+            <span>{t('op.payments.summary.title')}</span>
+            <strong>{t('op.payments.summary.subtitle')}</strong>
           </header>
           <div className="payments-total-card">
-            <span>Всего · выбрано {selectedOperation[0]}</span>
+            <span>{t('op.payments.summary.selectedAt', { time: selectedOperation[0] })}</span>
             <strong>{netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`}</strong>
             <em>{selectedOperation[1]} · {selectedOperation[2]} · {selectedOperation[4]}</em>
           </div>
-          <div className="payments-operation-detail" aria-label="Детали выбранной операции">
-            <div><span>Операция</span><strong>{selectedOperation[1]}</strong></div>
-            <div><span>Смена</span><strong>{selectedOperationScope}</strong></div>
-            <div><span>Тип</span><strong>{selectedOperationSourceLabel}</strong></div>
-            <div><span>Деталь</span><strong>{selectedOperationDetail}</strong></div>
+          <div className="payments-operation-detail" aria-label={t('op.payments.summary.detailLabel')}>
+            <div><span>{t('op.payments.summary.fieldOp')}</span><strong>{selectedOperation[1]}</strong></div>
+            <div><span>{t('op.payments.summary.fieldShift')}</span><strong>{selectedOperationScope}</strong></div>
+            <div><span>{t('op.payments.summary.fieldType')}</span><strong>{selectedOperationSourceLabel}</strong></div>
+            <div><span>{t('op.payments.summary.fieldDetail')}</span><strong>{selectedOperationDetail}</strong></div>
           </div>
           <div className="payments-metric-grid">
-            <div><span>Чеков</span><strong>{salesRows.length}</strong></div>
-            <div><span>Наличные</span><strong>{cashRows.length}</strong></div>
-            <div><span>Возвраты</span><strong>{refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`}</strong></div>
-            <div><span>Смены</span><strong>{shiftRows.length}</strong></div>
+            <div><span>{t('op.payments.summary.metricReceipts')}</span><strong>{salesRows.length}</strong></div>
+            <div><span>{t('op.payments.summary.metricCash')}</span><strong>{cashRows.length}</strong></div>
+            <div><span>{t('op.payments.summary.metricRefunds')}</span><strong>{refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`}</strong></div>
+            <div><span>{t('op.payments.summary.metricShifts')}</span><strong>{shiftRows.length}</strong></div>
           </div>
         </section>
 
         <section className="payments-panel payments-reconcile-panel">
           <header className="payments-panel-title">
-            <span>Сверка кассы</span>
-            <strong>проверка перед закрытием</strong>
+            <span>{t('op.payments.reconcile.title')}</span>
+            <strong>{t('op.payments.reconcile.subtitle')}</strong>
           </header>
           <div className="payments-open-form">
-            <label>Старт наличных<input inputMode="decimal" value={openStartingCash} disabled={!canOpenShift} onChange={(event) => setOpenStartingCash(event.currentTarget.value)} /></label>
-            <label>Открытие<input value={openingNote} disabled={!canOpenShift} onChange={(event) => setOpeningNote(event.currentTarget.value)} /></label>
-            <button type="button" disabled={!canOpenShift} onClick={() => runReportAction('Открыть смену')}>Открыть смену</button>
+            <label>{t('op.payments.reconcile.startingCashLabel')}<input inputMode="decimal" value={openStartingCash} disabled={!canOpenShift} onChange={(event) => setOpenStartingCash(event.currentTarget.value)} /></label>
+            <label>{t('op.payments.reconcile.openingNoteLabel')}<input value={openingNote} disabled={!canOpenShift} onChange={(event) => setOpeningNote(event.currentTarget.value)} /></label>
+            <button type="button" disabled={!canOpenShift} onClick={() => runReportAction(openShiftActionKey)}>{t('op.payments.reconcile.openShiftBtn')}</button>
           </div>
           <div className="payments-reconcile-list">
-            <div><span>Ожидается</span><strong>{expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`}</strong></div>
-            <div><span>Посчитано</span><strong>{countedCash ? formatMinorUnits(countedCash.minorUnits, countedCash.currencyCode) : 'не закрыта'}</strong></div>
-            <div className={(difference?.minorUnits ?? 0) !== 0 ? 'attention' : undefined}><span>Расхождение</span><strong>{difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`}</strong></div>
+            <div><span>{t('op.payments.reconcile.expected')}</span><strong>{expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`}</strong></div>
+            <div><span>{t('op.payments.reconcile.counted')}</span><strong>{countedCash ? formatMinorUnits(countedCash.minorUnits, countedCash.currencyCode) : t('op.payments.reconcile.notClosed')}</strong></div>
+            <div className={(difference?.minorUnits ?? 0) !== 0 ? 'attention' : undefined}><span>{t('op.payments.reconcile.difference')}</span><strong>{difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`}</strong></div>
           </div>
           <div className="payments-close-form">
-            <label>Факт в кассе<input inputMode="decimal" value={closeCountedCash} disabled={!canCloseShift} onChange={(event) => setCloseCountedCash(event.currentTarget.value)} /></label>
-            <label>Комментарий<input value={closingNote} disabled={!canCloseShift} onChange={(event) => setClosingNote(event.currentTarget.value)} /></label>
+            <label>{t('op.payments.reconcile.countedCashLabel')}<input inputMode="decimal" value={closeCountedCash} disabled={!canCloseShift} onChange={(event) => setCloseCountedCash(event.currentTarget.value)} /></label>
+            <label>{t('op.payments.reconcile.closingNoteLabel')}<input value={closingNote} disabled={!canCloseShift} onChange={(event) => setClosingNote(event.currentTarget.value)} /></label>
           </div>
           <button
             type="button"
@@ -432,17 +443,21 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
               setCriticalAction('close-shift');
             }}
           >
-            Подготовить закрытие
+            {t('op.payments.reconcile.prepareCloseBtn')}
           </button>
           {criticalAction === 'close-shift' && (
             <CriticalActionConfirmation
-              title="Подтвердите закрытие смены"
-              detail={`Факт ${closeCountedCash || '0'} ${currencyCode} · ожидается ${expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`}`}
-              impact="После подтверждения смена будет закрыта, новые продажи потребуют открытия следующей смены."
-              confirmLabel="Закрыть смену"
+              title={t('op.payments.reconcile.confirmTitle')}
+              detail={t('op.payments.reconcile.confirmDetail', {
+                counted: closeCountedCash || '0',
+                currency: currencyCode,
+                expected: expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`
+              })}
+              impact={t('op.payments.reconcile.confirmImpact')}
+              confirmLabel={t('op.payments.reconcile.confirmBtn')}
               disabled={feedback.state === 'pending'}
               onCancel={() => setCriticalAction(null)}
-              onConfirm={() => void runReportAction('Подготовить закрытие')}
+              onConfirm={() => void runReportAction(prepareCloseActionKey)}
             />
           )}
           <FeedbackNotice feedback={feedback} />
@@ -450,8 +465,8 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
 
         <section className="payments-panel payments-methods-panel">
           <header className="payments-panel-title">
-            <span>Методы оплаты</span>
-            <strong>структура отчёта</strong>
+            <span>{t('op.payments.methods.title')}</span>
+            <strong>{t('op.payments.methods.subtitle')}</strong>
           </header>
           <div className="payments-method-grid">
             {methods.map(([label, total, share, detail]) => (
@@ -471,42 +486,42 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
 
         <section className="payments-panel payments-cash-panel">
           <header className="payments-panel-title">
-            <span>Движение наличных</span>
-            <strong>кассовые движения</strong>
+            <span>{t('op.payments.cash.title')}</span>
+            <strong>{t('op.payments.cash.subtitle')}</strong>
           </header>
           <div className="payments-cash-list">
             {cashRows.slice(0, 4).map((row) => (
               <article key={readString(row, 'operationId')} className="payment-cash-row">
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'))}</strong>
+                <strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t)}</strong>
                 <b>{formatMoney(readMoney(row, 'cashImpact'), currencyCode)}</b>
               </article>
             ))}
           </div>
           <div className="payments-cash-form">
-            <label>Тип
+            <label>{t('op.payments.cash.typeLabel')}
               <select value={cashMovementType} disabled={!canRecordCashMovement} onChange={(event) => setCashMovementType(event.currentTarget.value)}>
-                <option value="cash_in">Внесение</option>
-                <option value="cash_out">Изъятие</option>
+                <option value="cash_in">{t('op.payments.cash.typeIn')}</option>
+                <option value="cash_out">{t('op.payments.cash.typeOut')}</option>
               </select>
             </label>
-            <label>Сумма<input inputMode="decimal" value={cashMovementAmount} disabled={!canRecordCashMovement} onChange={(event) => setCashMovementAmount(event.currentTarget.value)} /></label>
-            <label className="payments-cash-reason">Причина<input value={cashMovementReason} disabled={!canRecordCashMovement} onChange={(event) => setCashMovementReason(event.currentTarget.value)} /></label>
-            <button type="button" disabled={!canRecordCashMovement} onClick={() => runReportAction('Добавить движение')}>Добавить движение</button>
+            <label>{t('op.payments.cash.amountLabel')}<input inputMode="decimal" value={cashMovementAmount} disabled={!canRecordCashMovement} onChange={(event) => setCashMovementAmount(event.currentTarget.value)} /></label>
+            <label className="payments-cash-reason">{t('op.payments.cash.reasonLabel')}<input value={cashMovementReason} disabled={!canRecordCashMovement} onChange={(event) => setCashMovementReason(event.currentTarget.value)} /></label>
+            <button type="button" disabled={!canRecordCashMovement} onClick={() => runReportAction(addMovementActionKey)}>{t('op.payments.cash.addBtn')}</button>
           </div>
         </section>
 
         <section className="payments-panel payments-export-panel">
           <header className="payments-panel-title">
-            <span>Отчёты</span>
-            <strong>файлы для сверки</strong>
+            <span>{t('op.payments.export.title')}</span>
+            <strong>{t('op.payments.export.subtitle')}</strong>
           </header>
           <div className="payments-export-grid">
             {[
-              ['Сводка смены', ReceiptText],
-              ['Движение кассы', Banknote],
-              ['Список чеков', ArrowRightLeft],
-              ['Сверка смены', ShieldAlert]
+              [shiftSummaryActionKey, ReceiptText],
+              [cashMovementsActionKey, Banknote],
+              [receiptListActionKey, ArrowRightLeft],
+              [reconciliationActionKey, ShieldAlert]
             ].map(([label, Icon]) => (
               <button key={label as string} type="button" onClick={() => runReportAction(label as string)}><Icon size={16} />{label as string}</button>
             ))}

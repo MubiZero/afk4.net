@@ -13,4 +13,16 @@ public interface IOperatorAuthApiClient
     Task<StaffSignInResponse> RefreshAsync(
         string refreshToken,
         CancellationToken cancellationToken);
+
+    Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken);
+
+    Task ResetPasswordByEmailAsync(string token, string newPassword, CancellationToken cancellationToken);
+
+    Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken);
+
+    Task ResetPasswordByPhoneAsync(
+        string phoneNumber,
+        string code,
+        string newPassword,
+        CancellationToken cancellationToken);
 }
