@@ -432,6 +432,65 @@ button {
   font-weight: 800;
 }
 
+.auth-channel-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.auth-channel-toggle button {
+  flex: 1;
+  height: 34px;
+  border: 1px solid #cfd8e5;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #2f3b4e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.auth-channel-toggle button.primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.auth-channel-toggle button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.auth-confirm {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-hint {
+  margin: 0;
+  color: #536074;
+  font-size: 12px;
+}
+
+.auth-link {
+  justify-self: start;
+  border: 0;
+  padding: 4px 0;
+  background: none;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-link:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .auth-context-panel {
   align-self: start;
   display: grid;

@@ -953,7 +953,8 @@ export const messages = {
     "auth.reset.error.fields": "Введите код и новый пароль (не короче 8 символов).",
     "auth.reset.error.invalid": "Ссылка для сброса недействительна или устарела.",
     "auth.reset.toSignIn": "Перейти ко входу",
-    "op.dashboard.signals": "{count, plural, one {# сигнал} few {# сигнала} many {# сигналов} other {# сигнала}}"
+    "op.dashboard.signals": "{count, plural, one {# сигнал} few {# сигнала} many {# сигналов} other {# сигнала}}",
+    "op.auth.operator": "Оператор"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -1905,7 +1906,8 @@ export const messages = {
     "auth.reset.error.fields": "Enter the code and a new password (at least 8 characters).",
     "auth.reset.error.invalid": "The reset link is invalid or has expired.",
     "auth.reset.toSignIn": "Go to sign in",
-    "op.dashboard.signals": "{count, plural, one {# signal} other {# signals}}"
+    "op.dashboard.signals": "{count, plural, one {# signal} other {# signals}}",
+    "op.auth.operator": "Operator"
   },
   tg: {
     "auth.club.title": "Вход в клуб",
@@ -2857,7 +2859,8 @@ export const messages = {
     "auth.reset.error.fields": "Введите код и новый пароль (не короче 8 символов).",
     "auth.reset.error.invalid": "Ссылка для сброса недействительна или устарела.",
     "auth.reset.toSignIn": "Перейти ко входу",
-    "op.dashboard.signals": "{count, plural, one {# сигнал} other {# сигнал}}"
+    "op.dashboard.signals": "{count, plural, one {# сигнал} other {# сигнал}}",
+    "op.auth.operator": "Оператор"
   },
 } as const;
 

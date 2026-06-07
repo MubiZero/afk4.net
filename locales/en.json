@@ -948,5 +948,6 @@
   "auth.reset.error.fields": "Enter the code and a new password (at least 8 characters).",
   "auth.reset.error.invalid": "The reset link is invalid or has expired.",
   "auth.reset.toSignIn": "Go to sign in",
-  "op.dashboard.signals": "{count, plural, one {# signal} other {# signals}}"
+  "op.dashboard.signals": "{count, plural, one {# signal} other {# signals}}",
+  "op.auth.operator": "Operator"
 }
