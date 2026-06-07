@@ -2405,5 +2405,22 @@
   "op.status.none": "Нет",
   "op.shell.focus.lockFailed": "Блокировка не выполнена",
   "op.shell.focus.unlockFailed": "Разблокировка не выполнена",
-  "op.shell.focus.failed": "не выполнена"
+  "op.shell.focus.failed": "не выполнена",
+  "op.helper.appVer.agent": "Агент",
+  "op.helper.appVer.shell": "Оболочка",
+  "op.helper.update.msg.targetReached": "цель достигнута",
+  "op.helper.update.msg.installed": "установлено",
+  "op.helper.deviceStatus.unassigned": "Устройство не назначено",
+  "op.helper.deviceStatus.online": "Онлайн",
+  "op.helper.deviceStatus.offline": "Нет связи",
+  "op.helper.deviceStatus.unlocked": "разблокирован",
+  "op.helper.deviceStatus.lockUnknown": "статус блокировки неизвестен",
+  "op.helper.deviceStatus.locked": "заблокирован",
+  "op.helper.cmdMsg.acceptedLock": "ПК принял команду блокировки",
+  "op.helper.cmdMsg.acceptedUnlock": "ПК принял команду разблокировки",
+  "op.helper.cmdMsg.acceptedTransfer": "ПК принял команду переноса",
+  "op.helper.cmdMsg.agentTimeout": "Агент не ответил",
+  "op.helper.cmdMsg.agentTimeoutWait": "Агент не ответил вовремя",
+  "op.helper.cmdMsg.queued": "Поставлено в очередь агента",
+  "op.helper.cmdMsg.notConfirmedLock": "Агент не подтвердил блокировку."
 }

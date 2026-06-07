@@ -1337,7 +1337,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                 <span key={readString(command, 'commandId')}>
                   <strong>{commandTypeLabel(readString(command, 'type', 'command'), t)}</strong>
                   <b>{commandStatusLabel(readString(command, 'status', 'unknown'), t)}</b>
-                  <em>{commandStatusMessageLabel(readString(command, 'message')) || formatTime(readString(command, 'updatedAtUtc'))}</em>
+                  <em>{commandStatusMessageLabel(readString(command, 'message'), t) || formatTime(readString(command, 'updatedAtUtc'))}</em>
                 </span>
               ))}
             </div>
@@ -1355,7 +1355,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                     <span key={`${deviceId}-${readString(command, 'commandId')}`}>
                       <strong>{getDeviceInventoryName(deviceId)}</strong>
                       <b>{commandTypeLabel(readString(command, 'type', 'command'), t)} · {commandStatusLabel(readString(command, 'status', 'unknown'), t)}</b>
-                      <em>{commandStatusMessageLabel(readString(command, 'message')) || formatTime(readString(command, 'updatedAtUtc'))}</em>
+                      <em>{commandStatusMessageLabel(readString(command, 'message'), t) || formatTime(readString(command, 'updatedAtUtc'))}</em>
                     </span>
                   );
                 })}
@@ -1656,7 +1656,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                 <span key={`${readString(status, 'deviceId')}-${readString(status, 'updatedAtUtc')}`}>
                   <strong>{getDeviceInventoryName(readString(status, 'deviceId'))}</strong>
                   <b>{updateDeviceStatusLabel(readString(status, 'status', 'unknown'), t)}</b>
-                  <em>{updateDeviceMessageLabel(readString(status, 'message')) || t('op.settings.rollouts.detail.versionArrow', { from: readString(status, 'installedVersion'), to: readString(status, 'targetVersion') })}</em>
+                  <em>{updateDeviceMessageLabel(readString(status, 'message'), t) || t('op.settings.rollouts.detail.versionArrow', { from: readString(status, 'installedVersion'), to: readString(status, 'targetVersion') })}</em>
                 </span>
               ))}
             </div>

@@ -54,7 +54,7 @@ function SeatTile({
       </header>
       <div className="seat-main">
         <span>{seat.player}</span>
-        <span>{appVersionLabel(seat.app)}</span>
+        <span>{appVersionLabel(seat.app, t)}</span>
       </div>
       <footer>
         <strong>{seat.remaining}</strong>
@@ -290,7 +290,7 @@ export function MapWorkspace({
                     <td><strong>{toneLabel(seat.tone, t)}</strong><span>{seat.stateLabel}</span></td>
                     <td>{seat.player}</td>
                     <td>{seat.remaining}</td>
-                    <td>{deviceStatusLabel(seat.device)}</td>
+                    <td>{deviceStatusLabel(seat.device, t)}</td>
                     <td>{commandLabel(seat.command, t)}</td>
                     <td>{billingLabel(seat.billing, t)}</td>
                   </tr>

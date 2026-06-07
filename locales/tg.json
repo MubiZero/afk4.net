@@ -2405,5 +2405,22 @@
   "op.helper.error.sessionEnded": "Сессия аллакай хотима меёбад ё хотима ёфт. Харитаро навсозӣ кунед.",
   "op.helper.error.sessionExpired": "Сессияи оператор кӯҳна шудааст. Дубора ворид шавед.",
   "op.helper.error.badRequest": "Платформа дархостро рад кард:",
-  "op.helper.error.serverError": "Платформа муваqqатан дастнорас аст:"
+  "op.helper.error.serverError": "Платформа муваққатан дастнорас аст:",
+  "op.helper.appVer.agent": "Агент",
+  "op.helper.appVer.shell": "Оболочка",
+  "op.helper.update.msg.targetReached": "ҳадаф ба даст омад",
+  "op.helper.update.msg.installed": "насб шуд",
+  "op.helper.deviceStatus.unassigned": "Дастгоҳ таъин нашудааст",
+  "op.helper.deviceStatus.online": "Онлайн",
+  "op.helper.deviceStatus.offline": "Алоқа нест",
+  "op.helper.deviceStatus.unlocked": "кушода",
+  "op.helper.deviceStatus.lockUnknown": "ҳолати қулф номаълум",
+  "op.helper.deviceStatus.locked": "қулфшуда",
+  "op.helper.cmdMsg.acceptedLock": "ПК фармони қулфро қабул кард",
+  "op.helper.cmdMsg.acceptedUnlock": "ПК фармони кушоданро қабул кард",
+  "op.helper.cmdMsg.acceptedTransfer": "ПК фармони интиқолро қабул кард",
+  "op.helper.cmdMsg.agentTimeout": "Агент ҷавоб надод",
+  "op.helper.cmdMsg.agentTimeoutWait": "Агент саривақт ҷавоб надод",
+  "op.helper.cmdMsg.queued": "Ба навбати агент гузошта шуд",
+  "op.helper.cmdMsg.notConfirmedLock": "Агент қулфро тасдиқ накард."
 }

@@ -585,7 +585,7 @@ export function MapSidePanel({
       <section className="context-section">
         <div className="detail-row">
           <span>{t('op.map.colDevice')}</span>
-          <strong>{deviceStatusLabel(seat.device)}</strong>
+          <strong>{deviceStatusLabel(seat.device, t)}</strong>
         </div>
         <div className="detail-row">
           <span>{t('op.map.colCommand')}</span>

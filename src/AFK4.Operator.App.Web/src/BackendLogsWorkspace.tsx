@@ -258,7 +258,7 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null, age
     ...recentCommandFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
       `${readString(failure, 'machineName', t('op.logs.row.deviceFallback'))} ${commandTypeLabel(readString(failure, 'type', 'command'), t)}`,
-      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
+      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed')), t),
       agentSource,
       'device',
       'commandFailure',
@@ -267,7 +267,7 @@ function mapDiagnosticsToLogEvents(diagnostics: BranchDiagnosticsDto | null, age
     ...recentUpdateFailures.map((failure): LogEventItem => [
       formatTime(readString(failure, 'updatedAtUtc')),
       `${updateComponentLabel(readString(failure, 'component', t('op.logs.row.updateFallback')), t)} ${readString(failure, 'targetVersion', '')}`.trim(),
-      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed'))),
+      commandStatusMessageLabel(readString(failure, 'message', readString(failure, 'status', 'failed')), t),
       updatesSource,
       'warning',
       'updateFailure',
@@ -340,7 +340,7 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
       [t('op.logs.row.device'), readString(record, 'machineName', t('op.logs.row.deviceFallback'))],
       [t('op.logs.row.command'), commandTypeLabel(readString(record, 'type', 'command'), t)],
       [t('op.logs.row.status'), commandStatusLabel(readString(record, 'status', 'failed'), t)],
-      [t('op.logs.row.message'), commandStatusMessageLabel(readString(record, 'message')) || t('op.logs.row.noMessage')],
+      [t('op.logs.row.message'), commandStatusMessageLabel(readString(record, 'message'), t) || t('op.logs.row.noMessage')],
       [t('op.logs.row.updated'), readString(record, 'updatedAtUtc', event[0])]
     ];
   }
@@ -350,7 +350,7 @@ function buildLogEventDetailRows(event: LogEventItem, backend: OperatorBackendCo
       [t('op.logs.row.device'), readString(record, 'machineName', t('op.logs.row.deviceFallback'))],
       [t('op.logs.row.component'), `${updateComponentLabel(readString(record, 'component', t('op.logs.row.updateFallback')), t)} ${readString(record, 'targetVersion')}`.trim()],
       [t('op.logs.row.status'), commandStatusLabel(readString(record, 'status', 'failed'), t)],
-      [t('op.logs.row.message'), commandStatusMessageLabel(readString(record, 'message')) || t('op.logs.row.noMessage')]
+      [t('op.logs.row.message'), commandStatusMessageLabel(readString(record, 'message'), t) || t('op.logs.row.noMessage')]
     ];
   }
 

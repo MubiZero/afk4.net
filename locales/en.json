@@ -2405,5 +2405,22 @@
   "op.helper.error.sessionEnded": "Session is already ending or ended. Wait for the map to refresh.",
   "op.helper.error.sessionExpired": "Operator session is stale. Sign in again.",
   "op.helper.error.badRequest": "Platform rejected the request:",
-  "op.helper.error.serverError": "Platform is temporarily unavailable:"
+  "op.helper.error.serverError": "Platform is temporarily unavailable:",
+  "op.helper.appVer.agent": "Agent",
+  "op.helper.appVer.shell": "Shell",
+  "op.helper.update.msg.targetReached": "target reached",
+  "op.helper.update.msg.installed": "installed",
+  "op.helper.deviceStatus.unassigned": "Device unassigned",
+  "op.helper.deviceStatus.online": "Online",
+  "op.helper.deviceStatus.offline": "Offline",
+  "op.helper.deviceStatus.unlocked": "unlocked",
+  "op.helper.deviceStatus.lockUnknown": "lock state unknown",
+  "op.helper.deviceStatus.locked": "locked",
+  "op.helper.cmdMsg.acceptedLock": "PC accepted the lock command",
+  "op.helper.cmdMsg.acceptedUnlock": "PC accepted the unlock command",
+  "op.helper.cmdMsg.acceptedTransfer": "PC accepted the transfer command",
+  "op.helper.cmdMsg.agentTimeout": "Agent did not respond",
+  "op.helper.cmdMsg.agentTimeoutWait": "Agent did not respond in time",
+  "op.helper.cmdMsg.queued": "Queued for the agent",
+  "op.helper.cmdMsg.notConfirmedLock": "Agent did not confirm the lock."
 }

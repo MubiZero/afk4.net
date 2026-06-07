@@ -238,11 +238,10 @@ export function zoneLabel(zone: string, t: TFunc): string {
     .replace('Bootcamp', t('op.helper.zone.bootcamp'));
 }
 
-export function appVersionLabel(app: string): string {
-  // Agent/Shell are loanword replacements — no t() needed, they stay in all locales
+export function appVersionLabel(app: string, t: TFunc): string {
   return app
-    .replaceAll('Agent', 'Агент')
-    .replaceAll('Shell', 'Оболочка');
+    .replaceAll('Agent', t('op.helper.appVer.agent'))
+    .replaceAll('Shell', t('op.helper.appVer.shell'));
 }
 
 export function operatorDisplayNameLabel(displayName: string | null | undefined, t: TFunc): string {
@@ -385,16 +384,16 @@ export function stockMovementTypeLabel(type: string, t: TFunc): string {
   }
 }
 
-export function updateDeviceMessageLabel(message: string): string {
+export function updateDeviceMessageLabel(message: string, t: TFunc): string {
   if (message === 'target reached') {
-    return 'цель достигнута';
+    return t('op.helper.update.msg.targetReached');
   }
 
   if (message === 'installed') {
-    return 'установлено';
+    return t('op.helper.update.msg.installed');
   }
 
-  return commandStatusMessageLabel(message);
+  return commandStatusMessageLabel(message, t);
 }
 
 export function commandLabel(command: string, t: TFunc) {
@@ -441,16 +440,16 @@ export function commandLabel(command: string, t: TFunc) {
   return command;
 }
 
-export function deviceStatusLabel(device: string) {
+export function deviceStatusLabel(device: string, t: TFunc) {
   return device
-    .replace('Device unassigned', 'Устройство не назначено')
-    .replace('Online', 'Онлайн')
-    .replace('Offline', 'Нет связи')
-    .replaceAll('Agent', 'Агент')
-    .replaceAll('Shell', 'Оболочка')
-    .replace('unlocked', 'разблокирован')
-    .replace('locked state unknown', 'статус блокировки неизвестен')
-    .replace('locked', 'заблокирован');
+    .replace('Device unassigned', t('op.helper.deviceStatus.unassigned'))
+    .replace('Online', t('op.helper.deviceStatus.online'))
+    .replace('Offline', t('op.helper.deviceStatus.offline'))
+    .replaceAll('Agent', t('op.helper.appVer.agent'))
+    .replaceAll('Shell', t('op.helper.appVer.shell'))
+    .replace('unlocked', t('op.helper.deviceStatus.unlocked'))
+    .replace('locked state unknown', t('op.helper.deviceStatus.lockUnknown'))
+    .replace('locked', t('op.helper.deviceStatus.locked'));
 }
 
 export function mapSeatStatus(seat: SeatSummary, t: TFunc) {
@@ -1131,7 +1130,7 @@ export function describeDeviceCommandStatus(status: Record<string, unknown>, t: 
   const message = readString(status, 'message');
   const typeLabel = commandTypeLabel(type, t);
   const stateLabel = commandStatusLabel(state, t);
-  const messageLabel = commandStatusMessageLabel(message);
+  const messageLabel = commandStatusMessageLabel(message, t);
   return messageLabel ? `${typeLabel}: ${stateLabel} · ${messageLabel}` : `${typeLabel}: ${stateLabel}`;
 }
 
@@ -1186,23 +1185,23 @@ export function commandStatusLabel(status: string, t: TFunc): string {
   }
 }
 
-export function commandStatusMessageLabel(message: string): string {
+export function commandStatusMessageLabel(message: string, t: TFunc): string {
   return message
-    .replace('Agent accepted lock', 'ПК принял команду блокировки')
-    .replace('Agent accepted unlock', 'ПК принял команду разблокировки')
-    .replace('Agent accepted transfer', 'ПК принял команду переноса')
-    .replace('Agent timeout', 'Агент не ответил')
-    .replace('timeout waiting for Agent', 'Агент не ответил вовремя')
-    .replace('Queued for Agent', 'Поставлено в очередь агента')
-    .replace('Agent did not confirm lock.', 'Агент не подтвердил блокировку.');
+    .replace('Agent accepted lock', t('op.helper.cmdMsg.acceptedLock'))
+    .replace('Agent accepted unlock', t('op.helper.cmdMsg.acceptedUnlock'))
+    .replace('Agent accepted transfer', t('op.helper.cmdMsg.acceptedTransfer'))
+    .replace('Agent timeout', t('op.helper.cmdMsg.agentTimeout'))
+    .replace('timeout waiting for Agent', t('op.helper.cmdMsg.agentTimeoutWait'))
+    .replace('Queued for Agent', t('op.helper.cmdMsg.queued'))
+    .replace('Agent did not confirm lock.', t('op.helper.cmdMsg.notConfirmedLock'));
 }
 
 export function dashboardFocusTextLabel(text: string, t: TFunc): string {
-  return commandStatusMessageLabel(text)
+  return commandStatusMessageLabel(text, t)
     .replace('lock Failed', t('op.shell.focus.lockFailed'))
     .replace('unlock Failed', t('op.shell.focus.unlockFailed'))
     .replace('Failed', t('op.shell.focus.failed'))
-    .replace('Agent', 'Агент');
+    .replace('Agent', t('op.helper.appVer.agent'));
 }
 
 export async function describeSeatActionResult(
