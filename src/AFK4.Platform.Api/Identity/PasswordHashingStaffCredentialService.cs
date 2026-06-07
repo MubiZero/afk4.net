@@ -23,14 +23,7 @@ public sealed class PasswordHashingStaffCredentialService(
             return null;
         }
 
-        var normalizedUserName = request.UserName.Trim().ToUpperInvariant();
-        var user = await dbContext.StaffUsers.SingleOrDefaultAsync(
-            candidate =>
-                candidate.OrganizationId == request.OrganizationId &&
-                candidate.NormalizedUserName == normalizedUserName &&
-                candidate.IsActive,
-            cancellationToken);
-
+        var user = await ResolveOrgUserAsync(request.OrganizationId, request.UserName, cancellationToken);
         if (user is null)
         {
             return null;
@@ -85,9 +78,12 @@ public sealed class PasswordHashingStaffCredentialService(
         }
 
         var normalizedLogin = request.Login.Trim().ToUpperInvariant();
+        var loweredLogin = request.Login.Trim().ToLowerInvariant();
         var candidates = await dbContext.StaffUsers
             .AsNoTracking()
-            .Where(candidate => candidate.NormalizedUserName == normalizedLogin && candidate.IsActive)
+            .Where(candidate => candidate.IsActive &&
+                (candidate.NormalizedUserName == normalizedLogin ||
+                 (candidate.Email != null && candidate.Email.ToLower() == loweredLogin)))
             .Select(candidate => new { candidate.OrganizationId, candidate.StaffUserId, candidate.PasswordHash })
             .ToListAsync(cancellationToken);
 
@@ -106,6 +102,8 @@ public sealed class PasswordHashingStaffCredentialService(
                 matchedOrgIds.Add(candidate.OrganizationId);
             }
         }
+
+        matchedOrgIds = matchedOrgIds.Distinct().ToList();
 
         if (matchedOrgIds.Count == 0)
         {
@@ -126,6 +124,34 @@ public sealed class PasswordHashingStaffCredentialService(
             .Select(organization => new StaffSignInClubChoice(organization.OrganizationId, organization.Name))
             .ToListAsync(cancellationToken);
         return new StaffLoginResolution(null, clubs);
+    }
+
+    // Resolves an active staff user in the org by username first, then by email
+    // (case-insensitive). Username wins on the pathological collision. Mirrors
+    // EfStaffPasswordResetService.ResolveStaffAsync.
+    private async Task<StaffUserEntity?> ResolveOrgUserAsync(
+        Guid organizationId, string loginOrEmail, CancellationToken cancellationToken)
+    {
+        var normalizedUserName = loginOrEmail.Trim().ToUpperInvariant();
+        var byUserName = await dbContext.StaffUsers.SingleOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == organizationId &&
+                candidate.NormalizedUserName == normalizedUserName &&
+                candidate.IsActive,
+            cancellationToken);
+        if (byUserName is not null)
+        {
+            return byUserName;
+        }
+
+        var loweredEmail = loginOrEmail.Trim().ToLowerInvariant();
+        return await dbContext.StaffUsers.FirstOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == organizationId &&
+                candidate.Email != null &&
+                candidate.Email.ToLower() == loweredEmail &&
+                candidate.IsActive,
+            cancellationToken);
     }
 
     public async Task<StaffSignInResponse?> SignInByPhoneAsync(
