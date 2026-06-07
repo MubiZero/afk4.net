@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowRightLeft, Banknote, CircleDollarSign, Clock3, Plus, ReceiptText, Square, TimerReset, X } from 'lucide-react';
+import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import {
   buildCheckoutPayments,
@@ -80,6 +81,7 @@ function CheckoutDialog({
   onCancel: () => void;
   onConfirm: (payments: PaymentPartDto[]) => void;
 }) {
+  const { t } = useI18n();
   const [quote, setQuote] = useState<SessionCheckoutQuoteResponse | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +92,7 @@ function CheckoutDialog({
     const sessionId = seat.activeSessionId;
     if (!sessionId) {
       setStatus('failed');
-      setError('На выбранном ПК нет активной сессии.');
+      setError(t('op.map.panel.noActiveSession'));
       return undefined;
     }
 
@@ -152,30 +154,30 @@ function CheckoutDialog({
   };
 
   return (
-    <section className="critical-confirmation warning checkout-dialog" role="alertdialog" aria-label="Завершить и принять оплату">
+    <section className="critical-confirmation warning checkout-dialog" role="alertdialog" aria-label={t('op.map.panel.checkoutLabel')}>
       <div>
-        <strong>Завершить и принять оплату</strong>
+        <strong>{t('op.map.panel.checkoutLabel')}</strong>
         <span>{seat.name} · {seat.player}</span>
-        <em>После оплаты сессия закрывается, платформа блокирует ПК.</em>
+        <em>{t('op.map.panel.checkoutSubtitle')}</em>
       </div>
 
-      {status === 'loading' && <p className="checkout-loading">Расчёт счёта…</p>}
-      {status === 'failed' && <p className="checkout-error">{error ?? 'Не удалось получить счёт.'}</p>}
+      {status === 'loading' && <p className="checkout-loading">{t('op.map.panel.checkoutLoading')}</p>}
+      {status === 'failed' && <p className="checkout-error">{error ?? t('op.map.panel.checkoutFailed')}</p>}
 
       {status === 'ready' && quote && (
         <>
           <dl className="checkout-breakdown">
-            <div><dt>Наиграно</dt><dd>{formatBilledDuration(quote.billableSeconds)}</dd></div>
-            <div><dt>Время</dt><dd>{formatMinorUnits(quote.timeCharge.minorUnits, currencyCode)}</dd></div>
-            <div><dt>Снеки</dt><dd>{formatMinorUnits(quote.posTotal.minorUnits, currencyCode)}</dd></div>
-            <div className="checkout-breakdown-total"><dt>Итого</dt><dd>{formatMinorUnits(grandTotal, currencyCode)}</dd></div>
+            <div><dt>{t('op.map.panel.billableTime')}</dt><dd>{formatBilledDuration(quote.billableSeconds)}</dd></div>
+            <div><dt>{t('op.map.panel.billableTimeCharge')}</dt><dd>{formatMinorUnits(quote.timeCharge.minorUnits, currencyCode)}</dd></div>
+            <div><dt>{t('op.map.panel.billableSnacks')}</dt><dd>{formatMinorUnits(quote.posTotal.minorUnits, currencyCode)}</dd></div>
+            <div className="checkout-breakdown-total"><dt>{t('op.map.panel.billableTotal')}</dt><dd>{formatMinorUnits(grandTotal, currencyCode)}</dd></div>
           </dl>
 
           <div className="checkout-payments">
             {drafts.map((draft, index) => (
               <div className="checkout-payment-row" key={index}>
                 <select
-                  aria-label="Способ оплаты"
+                  aria-label={t('op.map.panel.paymentMethod')}
                   value={draft.method}
                   disabled={disabled}
                   onChange={(event) => updateDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
@@ -188,7 +190,7 @@ function CheckoutDialog({
                 <input
                   type="text"
                   inputMode="decimal"
-                  aria-label="Сумма"
+                  aria-label={t('op.map.panel.paymentAmount')}
                   placeholder="0.00"
                   value={draft.amountText}
                   disabled={disabled}
@@ -197,7 +199,7 @@ function CheckoutDialog({
                 <button
                   type="button"
                   className="checkout-payment-remove"
-                  aria-label="Убрать строку"
+                  aria-label={t('op.map.panel.removePaymentRow')}
                   disabled={disabled || drafts.length <= 1}
                   onClick={() => removeDraft(index)}
                 >
@@ -206,10 +208,10 @@ function CheckoutDialog({
               </div>
             ))}
             <div className="checkout-payment-controls">
-              <button type="button" disabled={disabled} onClick={addDraft}><Plus size={14} />Ещё способ</button>
+              <button type="button" disabled={disabled} onClick={addDraft}><Plus size={14} />{t('op.map.panel.addPaymentMethod')}</button>
               {walletBalance !== null && walletBalance > 0 && (
                 <button type="button" disabled={disabled} onClick={suggestWallet}>
-                  <ReceiptText size={14} />Депозит ({formatMinorUnits(walletBalance, currencyCode)})
+                  <ReceiptText size={14} />{t('op.map.panel.walletSuggest', { amount: formatMinorUnits(walletBalance, currencyCode) })}
                 </button>
               )}
             </div>
@@ -217,19 +219,19 @@ function CheckoutDialog({
 
           {validation.error
             ? <p className="checkout-error">{validation.error}</p>
-            : <p className="checkout-balanced">Сумма совпадает</p>}
+            : <p className="checkout-balanced">{t('op.map.panel.checkoutBalanced')}</p>}
         </>
       )}
 
       <div className="critical-confirmation-actions">
-        <button type="button" onClick={onCancel} disabled={disabled}>Отмена</button>
+        <button type="button" onClick={onCancel} disabled={disabled}>{t('common.cancel')}</button>
         <button
           type="button"
           className="danger"
           disabled={!canConfirm}
           onClick={() => onConfirm(buildCheckoutPayments(drafts, currencyCode))}
         >
-          Принять оплату
+          {t('op.map.panel.confirmPayment')}
         </button>
       </div>
     </section>
@@ -251,6 +253,7 @@ export function MapSidePanel({
   actionsEnabled: boolean;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
 }) {
+  const { t } = useI18n();
   const session = backend?.session ?? null;
   const status = mapSeatStatus(seat);
   const activeBilling = billingLabel(seat.billing);
@@ -316,11 +319,11 @@ export function MapSidePanel({
           tariffVersionId: selectedTariff === null ? null : readString(selectedTariff, 'tariffVersionId')
         };
   const billingMissing = billingMode !== 'guest' && !selectedPlayerId
-    ? 'выберите игрока'
+    ? t('op.map.panel.billingMissingPlayer')
     : (billingMode === 'prepaid_wallet' || billingMode === 'postpaid_debt') && !billingSelection.tariffVersionId
-      ? 'выберите тариф'
+      ? t('op.map.panel.billingMissingTariff')
       : billingMode === 'package' && !billingSelection.playerPackageId
-        ? 'выберите пакет игрока'
+        ? t('op.map.panel.billingMissingPackage')
         : null;
   const billingReady = billingMissing === null;
   // An open tab (no fixed duration, settled later at checkout) is only valid for
@@ -332,23 +335,23 @@ export function MapSidePanel({
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
   const canTransferSession = actionsEnabled && canTransferPermission && hasActionableSession && targetSeatId.length > 0;
   const confirmationText = !actionsEnabled
-    ? 'Карта платформы недоступна'
+    ? t('op.map.panel.confirmStatusUnavailable')
     : !hasAnySessionActionPermission
-      ? 'Нет прав на действия с сессией'
+      ? t('op.map.panel.confirmStatusNoPermission')
       : !billingReady
-        ? `Биллинг: ${billingMissing}`
+        ? t('op.map.panel.confirmStatusBilling', { missing: billingMissing ?? '' })
       : hasPendingSessionCommand
-        ? 'Команда уже отправлена. Дождитесь подтверждения ПК.'
+        ? t('op.map.panel.confirmStatusPending')
       : feedback.state === 'idle'
-        ? 'Ждём платформу'
+        ? t('op.map.panel.confirmStatusWaiting')
         : feedbackText(feedback);
   const billingLoadText = billingStatus === 'backend'
-    ? 'данные платформы'
+    ? t('op.map.panel.billingLoadData')
     : billingStatus === 'loading'
-      ? 'загрузка'
+      ? t('op.map.panel.billingLoadLoading')
       : billingStatus === 'failed'
-        ? billingError ?? 'ошибка загрузки'
-        : 'ожидает платформу';
+        ? billingError ?? t('op.map.panel.billingLoadError')
+        : t('op.map.panel.billingLoadWaiting');
 
   useEffect(() => {
     if (targetSeatId.length > 0 && transferCandidates.some((candidate) => candidate.id === targetSeatId)) {
@@ -365,7 +368,7 @@ export function MapSidePanel({
       setTariffOptions([]);
       setSelectedTariffVersionId('');
       setBillingStatus(backend === null ? 'failed' : 'fixture');
-      setBillingError(backend === null ? 'Сессия оператора платформы недоступна.' : null);
+      setBillingError(backend === null ? t('op.map.panel.sessionUnavailable') : null);
       return undefined;
     }
 
@@ -503,18 +506,18 @@ export function MapSidePanel({
         <strong>{status.value}</strong>
       </section>
 
-      <section className="action-grid context-actions" aria-label="Быстрые действия">
+      <section className="action-grid context-actions" aria-label={t('op.map.panel.quickActions')}>
         {hasActiveSession ? (
           <>
-            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+15 мин', { type: 'extend', seat, minutes: 15, billing: billingSelection })}><Plus size={15} />15 мин</button>
-            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction('+30 мин', { type: 'extend', seat, minutes: 30, billing: billingSelection })}><TimerReset size={15} />30 мин</button>
-            <button type="button" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction('Перенос', { type: 'transfer', seat, targetSeatId })}><ArrowRightLeft size={15} />Перенос</button>
-            <button type="button" className="danger" disabled={!canEndSession || isBusy} onClick={() => setCriticalAction('end-session')}><Square size={15} />Стоп</button>
+            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}><Plus size={15} />{t('op.map.panel.extend15Action')}</button>
+            <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}><TimerReset size={15} />{t('op.map.panel.extend30Action')}</button>
+            <button type="button" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}><ArrowRightLeft size={15} />{t('op.map.panel.transferAction')}</button>
+            <button type="button" className="danger" disabled={!canEndSession || isBusy} onClick={() => setCriticalAction('end-session')}><Square size={15} />{t('op.map.panel.stopAction')}</button>
           </>
         ) : (
           <>
-            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction(effectiveDurationMode === 'open' ? 'Старт (открытый счёт)' : 'Старт 60 мин', { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode })}><Plus size={15} />{effectiveDurationMode === 'open' ? 'Старт · открытый счёт' : 'Старт 60 мин'}</button>
-            <button type="button" disabled><TimerReset size={15} />Нет сессии</button>
+            <button type="button" className="start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction(effectiveDurationMode === 'open' ? t('op.map.panel.startOpenAction') : t('op.map.panel.startFixed'), { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode })}><Plus size={15} />{effectiveDurationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startFixed')}</button>
+            <button type="button" disabled><TimerReset size={15} />{t('op.map.panel.noSession')}</button>
           </>
         )}
       </section>
@@ -525,14 +528,14 @@ export function MapSidePanel({
           disabled={!canEndSession || isBusy}
           onClick={() => setCriticalAction('checkout')}
         >
-          <ReceiptText size={15} />Завершить и принять оплату
+          <ReceiptText size={15} />{t('op.map.panel.checkoutLabel')}
         </button>
       )}
       {hasActiveSession && (
         <label className="context-transfer-target">
-          <span>Перенести на</span>
+          <span>{t('op.map.panel.transferTo')}</span>
           <select value={targetSeatId} disabled={!actionsEnabled || !canTransferPermission || hasPendingSessionCommand || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
-            {transferCandidates.length === 0 && <option value="">Нет свободных ПК</option>}
+            {transferCandidates.length === 0 && <option value="">{t('op.map.panel.noFreePc')}</option>}
             {transferCandidates.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
             ))}
@@ -541,13 +544,13 @@ export function MapSidePanel({
       )}
       {criticalAction === 'end-session' && (
         <CriticalActionConfirmation
-          title="Подтвердите остановку сессии"
+          title={t('op.map.panel.stopConfirmTitle')}
           detail={`${seat.name} · ${seat.remaining} · ${activeBilling}`}
-          impact="Сессия будет завершена, платформа отправит команду блокировки ПК."
-          confirmLabel="Подтвердить стоп"
+          impact={t('op.map.panel.stopConfirmImpact')}
+          confirmLabel={t('op.map.panel.stopConfirmBtn')}
           disabled={isBusy}
           onCancel={() => setCriticalAction(null)}
-          onConfirm={() => void runSeatAction('Стоп', { type: 'end', seat })}
+          onConfirm={() => void runSeatAction(t('op.map.panel.stopAction'), { type: 'end', seat })}
         />
       )}
       {criticalAction === 'checkout' && backend !== null && (
@@ -556,7 +559,7 @@ export function MapSidePanel({
           backend={backend}
           disabled={isBusy}
           onCancel={() => setCriticalAction(null)}
-          onConfirm={(payments) => void runSeatAction('Оплата', { type: 'checkout', seat, payments })}
+          onConfirm={(payments) => void runSeatAction(t('op.map.panel.paymentAction'), { type: 'checkout', seat, payments })}
         />
       )}
       <FeedbackNotice feedback={feedback} />
@@ -565,42 +568,42 @@ export function MapSidePanel({
         <div className="session-timer">
           <Clock3 size={17} />
           <div>
-            <span>Активная сессия</span>
+            <span>{t('op.map.panel.activeSession')}</span>
             <strong>{seat.remaining}</strong>
           </div>
         </div>
         <div className="detail-row">
-          <span>Игрок</span>
+          <span>{t('op.map.colPlayer')}</span>
           <strong>{seat.player}</strong>
         </div>
         <div className="detail-row">
-          <span>Биллинг</span>
+          <span>{t('op.map.colBilling')}</span>
           <strong>{activeBilling} · {currencyCode}</strong>
         </div>
       </section>
 
       <section className="context-section">
         <div className="detail-row">
-          <span>Устройство</span>
+          <span>{t('op.map.colDevice')}</span>
           <strong>{deviceStatusLabel(seat.device)}</strong>
         </div>
         <div className="detail-row">
-          <span>Команда</span>
+          <span>{t('op.map.colCommand')}</span>
           <strong>{commandLabel(seat.command)}</strong>
         </div>
         <div className="detail-row">
-          <span>Подтверждение</span>
+          <span>{t('op.map.panel.confirmationLabel')}</span>
           <strong>{confirmationText}</strong>
         </div>
       </section>
 
-      <section className="context-section billing-selection-panel" aria-label="Настройка биллинга">
+      <section className="context-section billing-selection-panel" aria-label={t('op.map.panel.billingSetup')}>
         <div className="billing-panel-head">
-          <span>Биллинг сессии</span>
+          <span>{t('op.map.panel.billingSession')}</span>
           <strong>{billingModeLabel(billingMode)}</strong>
           <em>{billingLoadText}</em>
         </div>
-        <div className="billing-mode" aria-label="Режим биллинга">
+        <div className="billing-mode" aria-label={t('op.map.panel.billingModeLabel')}>
           {billingModeOptions.map((option) => {
             const isBilledMode = option.id !== 'guest';
             return (
@@ -619,42 +622,42 @@ export function MapSidePanel({
           })}
         </div>
         {!hasActiveSession && (
-          <div className="billing-mode duration-mode" aria-label="Длительность сессии">
+          <div className="billing-mode duration-mode" aria-label={t('op.map.panel.sessionDuration')}>
             <button
               type="button"
               className={effectiveDurationMode === 'fixed' ? 'active' : undefined}
               disabled={!actionsEnabled || isBusy}
-              title="Фиксированные 60 минут"
+              title={t('op.map.panel.duration60Title')}
               onClick={() => setDurationMode('fixed')}
             >
-              <span>60 мин</span>
-              <small>фиксировано</small>
+              <span>{t('op.map.panel.duration60')}</span>
+              <small>{t('op.map.panel.duration60Detail')}</small>
             </button>
             <button
               type="button"
               className={effectiveDurationMode === 'open' ? 'active' : undefined}
               disabled={!actionsEnabled || isBusy || !openTabAllowed}
-              title={openTabAllowed ? 'Время идёт, оплата при завершении' : 'Доступно для гостя или постоплаты'}
+              title={openTabAllowed ? t('op.map.panel.openTabAllowedTitle') : t('op.map.panel.openTabDisabledTitle')}
               onClick={() => setDurationMode('open')}
             >
-              <span>Открытый счёт</span>
-              <small>{openTabAllowed ? 'оплата при завершении' : 'гость / постоплата'}</small>
+              <span>{t('op.map.panel.openTab')}</span>
+              <small>{openTabAllowed ? t('op.map.panel.openTabAllowed') : t('op.map.panel.openTabDisabled')}</small>
             </button>
           </div>
         )}
         {billingMode !== 'guest' && (
           <>
             <label className="context-transfer-target billing-input-row">
-              <span>Игрок</span>
+              <span>{t('op.map.colPlayer')}</span>
               <input
-                aria-label="Игрок для биллинга"
+                aria-label={t('op.map.panel.playerInput')}
                 value={playerSearch}
                 disabled={!actionsEnabled || isBusy || !hasPermission(session, permissionNames.viewPlayers)}
-                placeholder="имя или телефон"
+                placeholder={t('op.map.panel.playerSearch')}
                 onChange={(event) => setPlayerSearch(event.currentTarget.value)}
               />
             </label>
-            <div className="billing-candidate-list" aria-label="Найденные игроки">
+            <div className="billing-candidate-list" aria-label={t('op.map.panel.playersFoundLabel')}>
               {billingPlayers.map((player) => (
                 <button
                   key={player.playerAccountId ?? player.name}
@@ -664,23 +667,23 @@ export function MapSidePanel({
                   onClick={() => setSelectedPlayerId(player.playerAccountId ?? '')}
                 >
                   <strong>{player.name}</strong>
-                  <span>{formatMinorUnits(player.balanceMinorUnits, currencyCode)} · долг {formatMinorUnits(player.debtMinorUnits, currencyCode)}</span>
+                  <span>{formatMinorUnits(player.balanceMinorUnits, currencyCode)} · {t('op.map.panel.playerDebt', { amount: formatMinorUnits(player.debtMinorUnits, currencyCode) })}</span>
                 </button>
               ))}
               {playerSearch.trim().length > 1 && billingPlayers.length === 0 && (
-                <p>Игрок не найден</p>
+                <p>{t('op.map.panel.playerNotFound')}</p>
               )}
             </div>
             {(billingMode === 'prepaid_wallet' || billingMode === 'postpaid_debt') && (
               <label className="context-transfer-target billing-input-row">
-                <span>Тариф</span>
+                <span>{t('op.map.panel.tariffLabel')}</span>
                 <select
-                  aria-label="Тариф для сессии"
+                  aria-label={t('op.map.panel.tariffSession')}
                   value={selectedTariffVersionId}
                   disabled={!actionsEnabled || isBusy || tariffOptions.length === 0}
                   onChange={(event) => setSelectedTariffVersionId(event.currentTarget.value)}
                 >
-                  {tariffOptions.length === 0 && <option value="">Нет тарифов</option>}
+                  {tariffOptions.length === 0 && <option value="">{t('op.map.panel.noTariffs')}</option>}
                   {tariffOptions.map((tariff) => (
                     <option key={readString(tariff, 'tariffVersionId')} value={readString(tariff, 'tariffVersionId')}>
                       {tariffOptionLabel(tariff, currencyCode)}
@@ -691,14 +694,14 @@ export function MapSidePanel({
             )}
             {billingMode === 'package' && (
               <label className="context-transfer-target billing-input-row">
-                <span>Пакет</span>
+                <span>{t('op.map.panel.packageLabel')}</span>
                 <select
-                  aria-label="Пакет для сессии"
+                  aria-label={t('op.map.panel.packageSession')}
                   value={selectedPlayerPackageId}
                   disabled={!actionsEnabled || isBusy || !selectedPlayer || playerPackages.length === 0}
                   onChange={(event) => setSelectedPlayerPackageId(event.currentTarget.value)}
                 >
-                  {playerPackages.length === 0 && <option value="">Нет активных пакетов</option>}
+                  {playerPackages.length === 0 && <option value="">{t('op.map.panel.noPackages')}</option>}
                   {playerPackages.map((playerPackage) => (
                     <option key={readString(playerPackage, 'playerPackageId')} value={readString(playerPackage, 'playerPackageId')}>
                       {playerPackageLabel(playerPackage)}
@@ -708,8 +711,8 @@ export function MapSidePanel({
               </label>
             )}
             <div className="detail-row billing-meta">
-              <span>Выбор</span>
-              <strong>{billingMissing ?? `${billingModeLabel(billingMode)} готов`}</strong>
+              <span>{t('op.map.panel.billingChoice')}</span>
+              <strong>{billingMissing ?? t('op.map.panel.billingReady', { mode: billingModeLabel(billingMode) })}</strong>
             </div>
           </>
         )}
