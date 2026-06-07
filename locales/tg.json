@@ -949,5 +949,6 @@
   "auth.reset.error.invalid": "Ссылка для сброса недействительна или устарела.",
   "auth.reset.toSignIn": "Перейти ко входу",
   "op.dashboard.signals": "{count, plural, one {# сигнал} other {# сигнал}}",
-  "op.auth.operator": "Оператор"
+  "op.auth.operator": "Оператор",
+  "op.auth.connectionMissing": "Пайвасти клуб танзим нашудааст. Пайвастро иваз кунед ва аз нав ворид шавед."
 }

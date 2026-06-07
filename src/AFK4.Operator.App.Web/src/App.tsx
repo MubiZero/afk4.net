@@ -10,7 +10,7 @@ import {
   X
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent } from 'react';
-import { I18nProvider } from '@afk4/i18n';
+import { I18nProvider, useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
 import {
@@ -62,6 +62,8 @@ import { BackendPaymentsWorkspace } from './BackendPaymentsWorkspace';
 import { ReviewWorkspace } from './ReviewWorkspace';
 import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { BackendSettingsWorkspace } from './BackendSettingsWorkspace';
+import { ForgotPassword } from './ForgotPassword';
+import { ResetPassword } from './ResetPassword';
 import type {
   WorkspaceId,
   AuthStatus,
@@ -180,13 +182,16 @@ function SignInScreen({
   config,
   authStatus,
   hostError,
-  onSignIn
+  onSignIn,
+  onForgotPassword
 }: {
   config: ReturnType<typeof getOperatorConfig>;
   authStatus: AuthStatus;
   hostError: string | null;
   onSignIn: (request: OperatorSignInRequest) => Promise<void>;
+  onForgotPassword: () => void;
 }) {
+  const { t } = useI18n();
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const [isBusy, setIsBusy] = useState(false);
@@ -203,17 +208,17 @@ function SignInScreen({
 
     const organizationId = config.organizationId?.trim() ?? '';
     if (!isGuid(organizationId)) {
-      setError('Подключение клуба не настроено. Смените подключение и повторите вход.');
+      setError(t('op.auth.connectionMissing'));
       return;
     }
 
     if (!userName.trim()) {
-      setError('Укажите имя пользователя.');
+      setError(t('auth.error.required'));
       return;
     }
 
     if (!password) {
-      setError('Укажите пароль.');
+      setError(t('auth.error.required'));
       return;
     }
 
@@ -258,7 +263,7 @@ function SignInScreen({
 
           <form className="auth-form" onSubmit={submit}>
             <label>
-              Пользователь
+              {t('auth.field.login')}
               <input
                 value={userName}
                 onChange={(event) => setUserName(event.currentTarget.value)}
@@ -267,7 +272,7 @@ function SignInScreen({
               />
             </label>
             <label>
-              Пароль
+              {t('auth.field.password')}
               <input
                 type="password"
                 value={password}
@@ -277,9 +282,13 @@ function SignInScreen({
             </label>
 
             <button type="submit" className="primary-wide" disabled={isBusy || isChecking}>
-              {isBusy ? 'Проверяем' : 'Войти'}
+              {isBusy ? t('auth.action.signingIn') : t('auth.action.signIn')}
             </button>
           </form>
+
+          <button type="button" className="auth-link" onClick={onForgotPassword}>
+            {t('auth.forgot.link')}
+          </button>
 
           {error && (
             <div className="auth-error" role="alert">
@@ -408,6 +417,7 @@ function AppInner() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [authSession, setAuthSession] = useState<OperatorAuthSession | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authView, setAuthView] = useState<'signIn' | 'forgot' | 'reset'>('signIn');
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
   const floorMapRef = useRef(floorMap);
@@ -1107,12 +1117,24 @@ function AppInner() {
   }
 
   if (authStatus !== 'signed-in' || authSession === null) {
+    if (authView === 'forgot') {
+      return (
+        <ForgotPassword
+          onBackToSignIn={() => setAuthView('signIn')}
+          onOpenReset={() => setAuthView('reset')}
+        />
+      );
+    }
+    if (authView === 'reset') {
+      return <ResetPassword onBackToSignIn={() => setAuthView('signIn')} />;
+    }
     return (
       <SignInScreen
         config={config}
         authStatus={authStatus}
         hostError={authError}
         onSignIn={handleSignIn}
+        onForgotPassword={() => setAuthView('forgot')}
       />
     );
   }

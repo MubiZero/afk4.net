@@ -193,7 +193,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
     expect(screen.getByText('Защищённое хранилище Windows')).toBeInTheDocument();
     expect(screen.queryByText('Windows Protected Data')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Пользователь'), { target: { value: 'cashier' } });
+    fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'cashier' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
@@ -205,6 +205,23 @@ describe('App', () => {
     );
     expect(sessionishKeys).toEqual([]);
     expect(sessionStorage.length).toBe(0);
+  });
+
+  it('opens the forgot-password screen from the sign-in link', async () => {
+    window.__AFK4_OPERATOR_CONFIG__ = {
+      runtime: 'browser-dev',
+      shellMode: 'vite-dev',
+      platformBaseUrl: 'http://localhost:5074/',
+      currencyCode: 'TJS',
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2'
+    };
+    installSessionBridge(null);
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Забыли пароль?' }));
+    expect(await screen.findByRole('button', { name: 'По SMS' })).toBeInTheDocument();
   });
 
   it('clears restored native session when token refresh is rejected', async () => {
@@ -3231,6 +3248,11 @@ function installSessionBridge(
 
         if (request.type === 'auth:signOut') {
           payload = { signedOut: true };
+        }
+
+        if (request.type === 'auth:forgotByEmail' || request.type === 'auth:resetByEmail'
+          || request.type === 'auth:forgotByPhone' || request.type === 'auth:resetByPhone') {
+          payload = { ok: true };
         }
 
         if (request.type === 'connection:loadConnection') {

@@ -949,5 +949,6 @@
   "auth.reset.error.invalid": "The reset link is invalid or has expired.",
   "auth.reset.toSignIn": "Go to sign in",
   "op.dashboard.signals": "{count, plural, one {# signal} other {# signals}}",
-  "op.auth.operator": "Operator"
+  "op.auth.operator": "Operator",
+  "op.auth.connectionMissing": "Club connection isn't set up. Change the connection and sign in again."
 }
