@@ -408,7 +408,11 @@ internal static class PaymentGatewayEndpoints
             if (error is not null) return error;
             try
             {
-                var result = await adminClient.StartTelegramAsync(row!.DcgateProjectId, request.Phone, cancellationToken);
+                // TODO(Task 4): resolve/store creds + handle attached
+                var result = await adminClient.StartTelegramAsync(
+                    row!.DcgateProjectId, request.Phone,
+                    request.ApiId ?? 0, request.ApiHash ?? "",
+                    cancellationToken);
                 return Results.Ok(new TelegramStartResponse(result.LoginAttemptId, result.State));
             }
             catch (DcGateAdminException ex)

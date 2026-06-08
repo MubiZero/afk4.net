@@ -1100,6 +1100,44 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("organizations", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationTelegramApiCredentialEntity", b =>
+                {
+                    b.Property<Guid>("OrganizationTelegramApiCredentialId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApiHashEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("ApiIdEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OrganizationTelegramApiCredentialId");
+
+                    b.HasIndex("OrganizationId", "PhoneNumber")
+                        .IsUnique();
+
+                    b.ToTable("organization_telegram_api_credentials", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.OutboxMessageEntity", b =>
                 {
                     b.Property<Guid>("OutboxMessageId")

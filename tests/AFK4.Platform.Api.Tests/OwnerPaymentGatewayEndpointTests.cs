@@ -77,7 +77,7 @@ public sealed class OwnerPaymentGatewayEndpointTests
 
         public Task<DcGateAdminProjectResult> CreateProjectAsync(DcGateCreateProjectRequest request, CancellationToken ct)
         { LastCreate = request; return Task.FromResult(CreateResult); }
-        public Task<DcGateTelegramStartResult> StartTelegramAsync(string p, string phone, CancellationToken ct)
+        public Task<DcGateTelegramStartResult> StartTelegramAsync(string p, string phone, long apiId, string apiHash, CancellationToken ct)
             => Task.FromResult(new DcGateTelegramStartResult("att", "code_required"));
         public Task<DcGateTelegramVerifyResult> VerifyTelegramCodeAsync(string p, string a, string c, CancellationToken ct)
             => Task.FromResult(new DcGateTelegramVerifyResult("attached"));
@@ -197,7 +197,7 @@ public sealed class OwnerPaymentGatewayEndpointTests
     {
         public Task<DcGateAdminProjectResult> CreateProjectAsync(DcGateCreateProjectRequest r, CancellationToken ct)
             => throw new DcGateAdminException(HttpStatusCode.BadRequest, "card already in use");
-        public Task<DcGateTelegramStartResult> StartTelegramAsync(string p, string phone, CancellationToken ct) => throw new NotImplementedException();
+        public Task<DcGateTelegramStartResult> StartTelegramAsync(string p, string phone, long apiId, string apiHash, CancellationToken ct) => throw new NotImplementedException();
         public Task<DcGateTelegramVerifyResult> VerifyTelegramCodeAsync(string p, string a, string c, CancellationToken ct) => throw new NotImplementedException();
         public Task<DcGateTelegramVerifyResult> VerifyTelegramPasswordAsync(string p, string a, string pw, CancellationToken ct) => throw new NotImplementedException();
         public Task<DcGateProjectStatusResult> GetStatusAsync(string p, CancellationToken ct) => throw new NotImplementedException();

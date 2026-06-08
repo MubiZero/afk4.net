@@ -11,6 +11,8 @@ public interface IDcGateAdminClient
     Task<DcGateTelegramStartResult> StartTelegramAsync(
         string dcgateProjectId,
         string phone,
+        long apiId,
+        string apiHash,
         CancellationToken cancellationToken);
 
     Task<DcGateTelegramVerifyResult> VerifyTelegramCodeAsync(
@@ -47,7 +49,7 @@ public sealed record DcGateAdminProjectResult(
     bool IdempotentReplay);
 
 public sealed record DcGateTelegramStartResult(
-    string LoginAttemptId,
+    string? LoginAttemptId,
     string State);
 
 public sealed record DcGateTelegramVerifyResult(

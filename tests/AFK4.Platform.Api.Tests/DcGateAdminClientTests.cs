@@ -79,11 +79,38 @@ public sealed class DcGateAdminClientTests
             """{"loginAttemptId":"att_9","state":"code_required"}""");
         var client = Create(handler);
 
-        var result = await client.StartTelegramAsync("proj_1", "+992900000000", CancellationToken.None);
+        var result = await client.StartTelegramAsync("proj_1", "+992900000000", 0, "", CancellationToken.None);
 
         Assert.Equal("att_9", result.LoginAttemptId);
         Assert.Equal("code_required", result.State);
         Assert.Equal("/api/admin/projects/proj_1/telegram-session/start", handler.LastRequest!.RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task StartTelegram_sends_creds_and_parses_attached_without_attempt()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, """{"state":"attached"}""");
+        var client = Create(handler);
+
+        var result = await client.StartTelegramAsync("proj_1", "+992900000000", 123, "hash", CancellationToken.None);
+
+        Assert.Null(result.LoginAttemptId);
+        Assert.Equal("attached", result.State);
+        Assert.Contains("\"apiId\":123", handler.LastBody);
+        Assert.Contains("\"apiHash\":\"hash\"", handler.LastBody);
+    }
+
+    [Fact]
+    public async Task StartTelegram_sends_creds_and_parses_code_required()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK,
+            """{"loginAttemptId":"att","state":"code_required"}""");
+        var client = Create(handler);
+
+        var result = await client.StartTelegramAsync("proj_1", "+992900000000", 456, "hash2", CancellationToken.None);
+
+        Assert.Equal("att", result.LoginAttemptId);
+        Assert.Equal("code_required", result.State);
     }
 
     [Fact]
