@@ -167,10 +167,9 @@ internal static class PaymentGatewayEndpoints
                             TopUpIntentCreditReason,
                             intent.PaymentIntentId.ToString("N"));
 
-                        var billingResult = await billingCommandService.TopUpWalletAsync(
+                        var billingResult = await billingCommandService.CreditOnlineTopUpAsync(
                             intent.PlayerAccountId,
                             intent.BranchId,
-                            Guid.Empty,
                             topUpRequest,
                             cancellationToken);
 

@@ -86,11 +86,29 @@ public sealed class EfBillingCommandService(
             cancellationToken), cancellationToken);
     }
 
-    public async Task<BillingCommandServiceResult<WalletSummaryDto>> TopUpWalletAsync(
+    public Task<BillingCommandServiceResult<WalletSummaryDto>> TopUpWalletAsync(
         Guid playerAccountId,
         Guid branchId,
         Guid actorStaffUserId,
         TopUpWalletRequest request,
+        CancellationToken cancellationToken) =>
+        TopUpWalletCoreAsync(playerAccountId, branchId, actorStaffUserId, request,
+            requireOpenShift: true, cancellationToken);
+
+    public Task<BillingCommandServiceResult<WalletSummaryDto>> CreditOnlineTopUpAsync(
+        Guid playerAccountId,
+        Guid branchId,
+        TopUpWalletRequest request,
+        CancellationToken cancellationToken) =>
+        TopUpWalletCoreAsync(playerAccountId, branchId, actorStaffUserId: Guid.Empty, request,
+            requireOpenShift: false, cancellationToken);
+
+    private async Task<BillingCommandServiceResult<WalletSummaryDto>> TopUpWalletCoreAsync(
+        Guid playerAccountId,
+        Guid branchId,
+        Guid actorStaffUserId,
+        TopUpWalletRequest request,
+        bool requireOpenShift,
         CancellationToken cancellationToken)
     {
         var idempotency = await GetExistingIdempotencyAsync<WalletSummaryDto, object>(
@@ -136,13 +154,19 @@ public sealed class EfBillingCommandService(
             return currencyValidation.Error;
         }
 
-        var openShift = await RequireOpenShiftAsync<WalletSummaryDto>(
-            request.OrganizationId,
-            branchId,
-            cancellationToken);
-        if (openShift.Error is not null)
+        Guid? shiftId = null;
+        if (requireOpenShift)
         {
-            return openShift.Error;
+            var openShift = await RequireOpenShiftAsync<WalletSummaryDto>(
+                request.OrganizationId,
+                branchId,
+                cancellationToken);
+            if (openShift.Error is not null)
+            {
+                return openShift.Error;
+            }
+
+            shiftId = openShift.ShiftId;
         }
 
         return await ExecuteLedgerSummaryCommandAsync(
@@ -168,7 +192,7 @@ public sealed class EfBillingCommandService(
                 reversesLedgerEntryId: null,
                 actorStaffUserId,
                 timeProvider.GetUtcNow(),
-                openShift.ShiftId),
+                shiftId),
             cancellationToken);
     }
 

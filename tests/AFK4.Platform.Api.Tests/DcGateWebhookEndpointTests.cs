@@ -163,6 +163,30 @@ public sealed class DcGateWebhookEndpointTests
     }
 
     [Fact]
+    public async Task Webhook_ValidPaid_CreditsWithoutOpenShift()
+    {
+        await using var factory = CreateFactory();
+        var intentId = await SeedDcGateIntentAsync(factory);
+        await SeedGatewayAsync(factory, "afk4", WebhookSecret);
+        // No open shift seeded: an online payment confirms 24/7, independent of cashier shifts.
+        using var client = factory.CreateClient();
+
+        var body = PaidBody(intentId, "evt_paid_noshift");
+        var response = await client.SendAsync(SignedRequest(body, WebhookSecret));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, await CountTopUpsAsync(factory, intentId));
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var intent = await db.PaymentIntents.SingleAsync(i => i.PaymentIntentId == intentId);
+        Assert.Equal("fulfilled", intent.State);
+        var playerId = intent.PlayerAccountId;
+        var entry = await db.LedgerEntries.SingleAsync(e => e.PlayerAccountId == playerId && e.EntryType == "top_up");
+        Assert.Null(entry.ShiftId);
+    }
+
+    [Fact]
     public async Task Webhook_ReplaySameEventId_DoesNotDoubleCredit()
     {
         await using var factory = CreateFactory();

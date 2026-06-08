@@ -91,6 +91,71 @@ public sealed class EfBillingCommandServiceTests
     }
 
     [Fact]
+    public async Task CreditOnlineTopUpAsync_CreditsWithoutOpenShiftAndRecordsNoShift()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        // Deliberately NO open shift: an online payment can confirm 24/7, independent of
+        // whether a cashier shift is open.
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(
+            TestIds.OrganizationId,
+            new MoneyDto("TJS", 1000),
+            "dcgate online top-up",
+            "intent-online-001");
+
+        var result = await service.CreditOnlineTopUpAsync(PlayerAccountId, TestIds.BranchId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        var entry = await db.LedgerEntries.SingleAsync();
+        Assert.Equal(LedgerEntryTypeNames.TopUp, entry.EntryType);
+        Assert.Equal(1000, entry.AmountMinorUnits);
+        Assert.Null(entry.ShiftId);
+        Assert.Equal(Guid.Empty, entry.CreatedByStaffUserId);
+        Assert.Equal(1000, result.Response.WalletBalance.MinorUnits);
+    }
+
+    [Fact]
+    public async Task CreditOnlineTopUpAsync_IsIdempotentOnRepeatedIntent()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(
+            TestIds.OrganizationId,
+            new MoneyDto("TJS", 1000),
+            "dcgate online top-up",
+            "intent-online-001");
+
+        var first = await service.CreditOnlineTopUpAsync(PlayerAccountId, TestIds.BranchId, request, CancellationToken.None);
+        var second = await service.CreditOnlineTopUpAsync(PlayerAccountId, TestIds.BranchId, request, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.Single(await db.LedgerEntries.ToListAsync());
+    }
+
+    [Fact]
+    public async Task TopUpWalletAsync_WithoutOpenShiftReturnsInvalidAndDoesNotAppendEntry()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        // No open shift: the counter top-up must still refuse (cash belongs to a shift).
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(
+            TestIds.OrganizationId,
+            new MoneyDto("TJS", 5000),
+            "front desk cash top-up",
+            "topup-noshift-001");
+
+        var result = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(await db.LedgerEntries.ToListAsync());
+    }
+
+    [Fact]
     public async Task TopUpWalletAsync_RepeatedWithSameRequestReturnsOriginalSummaryWithoutDuplicateEntry()
     {
         await using var db = CreateDbContext();
