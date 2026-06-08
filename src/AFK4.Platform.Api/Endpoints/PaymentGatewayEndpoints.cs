@@ -253,6 +253,26 @@ internal static class PaymentGatewayEndpoints
             return Results.Ok(new OwnerPaymentGatewayListResponse(rows));
         });
 
+        app.MapGet("/api/owner/payment-gateways/telegram-credentials", async (
+            string phone,
+            StaffAuthorizationService authorizationService,
+            ISecretProtector secretProtector,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManagePaymentGateways);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+            var orgId = authorization.StaffContext!.OrganizationId;
+            var normalized = (phone ?? string.Empty).Trim();
+            var existing = await dbContext.OrganizationTelegramApiCredentials.AsNoTracking().SingleOrDefaultAsync(
+                c => c.OrganizationId == orgId && c.PhoneNumber == normalized, cancellationToken);
+            if (existing is null) return Results.Ok(new OwnerTelegramCredentialsResponse(false, null));
+            var apiId = long.Parse(secretProtector.Unprotect(existing.ApiIdEncrypted), System.Globalization.CultureInfo.InvariantCulture);
+            return Results.Ok(new OwnerTelegramCredentialsResponse(true, apiId));
+        });
+
         app.MapPost("/api/owner/payment-gateways", async (
             ProvisionPaymentGatewayRequest request,
             StaffAuthorizationService authorizationService,

@@ -430,4 +430,29 @@ public sealed class OwnerPaymentGatewayEndpointTests
             new ProvisionPaymentGatewayRequest(BranchId: null, CardNumber: "4111111111114242"));
         Assert.Equal(HttpStatusCode.OK, provisionResponse.StatusCode);
     }
+
+    // ---- Task 5: telegram-credentials lookup ----
+
+    [Fact]
+    public async Task TelegramCredentials_reports_saved_state_without_hash()
+    {
+        var fake = new FakeAdminClient();
+        await using var factory = FactoryWithAdmin(fake);
+        var client = factory.CreateClient();
+        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
+        // save creds for +992900000000 via the start endpoint
+        await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
+            new TelegramStartRequest("+992900000000", 123, "hash"));
+
+        var none = await owner.GetFromJsonAsync<OwnerTelegramCredentialsResponse>(
+            "/api/owner/payment-gateways/telegram-credentials?phone=%2B992999999999");
+        Assert.False(none!.HasCredentials);
+        Assert.Null(none.ApiId);
+
+        var saved = await owner.GetFromJsonAsync<OwnerTelegramCredentialsResponse>(
+            "/api/owner/payment-gateways/telegram-credentials?phone=%2B992900000000");
+        Assert.True(saved!.HasCredentials);
+        Assert.Equal(123, saved.ApiId);
+    }
 }
