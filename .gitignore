@@ -29,6 +29,8 @@ Secrets/
 # Local agent/editor settings (ignore everything except the versioned project memory)
 .claude/*
 !.claude/memory/
+# Same for nested .claude folders inside subprojects
+**/.claude/
 
 # One-off command-output dumps
 diffstat.txt
