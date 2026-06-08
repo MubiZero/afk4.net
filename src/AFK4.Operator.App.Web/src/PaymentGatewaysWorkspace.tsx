@@ -62,7 +62,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
       setGateways(result.gateways);
       setLoadError(null);
     } catch (error) {
-      setLoadError(projectOperatorError(error).detail);
+      setLoadError(projectOperatorError(error, t).detail);
     }
   }, [clients]);
 
@@ -73,7 +73,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
         const result = await clients.list();
         if (!disposed) { setGateways(result.gateways); setLoadError(null); }
       } catch (error) {
-        if (!disposed) setLoadError(projectOperatorError(error).detail);
+        if (!disposed) setLoadError(projectOperatorError(error, t).detail);
       }
     })();
     return () => { disposed = true; };
@@ -109,7 +109,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
       setCardNumber('');
       await reload();
     } catch (error) {
-      setLoadError(projectOperatorError(error).detail);
+      setLoadError(projectOperatorError(error, t).detail);
     } finally {
       setBusy(false);
     }
@@ -122,7 +122,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
       await clients.disable(id);
       await reload();
     } catch (error) {
-      setLoadError(projectOperatorError(error).detail);
+      setLoadError(projectOperatorError(error, t).detail);
     } finally {
       setBusy(false);
     }
@@ -156,7 +156,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
         setAttachPhase(result.state as AttachPhase);
       }
     } catch (error) {
-      setLoadError(projectOperatorError(error).detail);
+      setLoadError(projectOperatorError(error, t).detail);
     } finally {
       setBusy(false);
     }
@@ -176,7 +176,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
         setLoadError(t('payments_cards.error.generic'));
       }
     } catch (error) {
-      setLoadError(projectOperatorError(error).detail);
+      setLoadError(projectOperatorError(error, t).detail);
     } finally {
       setBusy(false);
     }
@@ -194,7 +194,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
         setLoadError(t('payments_cards.error.generic'));
       }
     } catch (error) {
-      setLoadError(projectOperatorError(error).detail);
+      setLoadError(projectOperatorError(error, t).detail);
     } finally {
       setBusy(false);
     }

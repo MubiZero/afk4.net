@@ -622,11 +622,11 @@ export function projectAuthHostError(error: unknown, config: OperatorConfig, t: 
     return t('op.shell.err.nativeAuthUnavailable');
   }
 
-  return projectOperatorError(error).detail;
+  return projectOperatorError(error, t).detail;
 }
 
 export function projectOperatorFacingError(error: unknown, t: TFunc): string {
-  const detail = projectOperatorError(error).detail;
+  const detail = projectOperatorError(error, t).detail;
   const platformDetail = extractPlatformError(detail);
 
   if (detail.includes('Only active or paused sessions can be ended') ||
@@ -1228,7 +1228,7 @@ export async function describeSeatActionResult(
   try {
     return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId), t);
   } catch (error) {
-    const statusUnavail = t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error).detail });
+    const statusUnavail = t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error, t).detail });
     return `${fallback} · ${statusUnavail}`;
   }
 }
@@ -1251,7 +1251,7 @@ export async function describeDispatchedDeviceCommand(
   try {
     return describeDeviceCommandStatus(await clients.devices.getDeviceCommandStatus(deviceId, commandId), t);
   } catch (error) {
-    const statusUnavail = t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error).detail });
+    const statusUnavail = t('op.helper.command.statusUnavailable', { detail: projectOperatorError(error, t).detail });
     return `${fallback} · ${statusUnavail}`;
   }
 }
@@ -1272,10 +1272,28 @@ export type PlayerClientItem = {
 export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem[] {
   const example = t('op.helper.player.fixture.example');
   return [
-    { name: 'Madina S.', status: 'VIP', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'vip', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
-    { name: 'Amir K.', status: 'Активен', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
-    { name: 'Olim K.', status: 'Долг', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture' }
+    { name: 'Madina S.', status: 'vip', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'vip', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Amir K.', status: 'active', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: `120 ${currencyCode}`, phoneNumber: '', source: 'fixture' },
+    { name: 'Olim K.', status: 'debt', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture' }
   ];
+}
+
+// Maps the stable status key from projectPlayerClient/fixturePlayers to a localized label.
+export function playerStatusLabel(status: string, t: TFunc): string {
+  switch (status) {
+    case 'vip':
+      return t('op.players.status.vip');
+    case 'active':
+      return t('op.players.status.active');
+    case 'debt':
+      return t('op.players.status.debt');
+    case 'package':
+      return t('op.players.status.package');
+    case 'inactive':
+      return t('op.players.status.inactive');
+    default:
+      return status;
+  }
 }
 
 export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem {
@@ -1290,8 +1308,8 @@ export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem
   return {
     playerAccountId: readString(player, 'playerAccountId') || undefined,
     name: readString(player, 'displayName', t('op.helper.player.nameFallback')),
-    // Status values are sentinels compared in BackendPlayersWorkspace — keep raw Russian
-    status: debt > 0 ? 'Долг' : packages > 0 ? 'Пакет' : isActive ? 'Активен' : 'Неактивен',
+    // Stable status key — rendered via playerStatusLabel and filtered on in BackendPlayersWorkspace.
+    status: debt > 0 ? 'debt' : packages > 0 ? 'package' : isActive ? 'active' : 'inactive',
     balanceMinorUnits: readNumber(player, 'walletBalanceMinorUnits', 0),
     debtMinorUnits: debt,
     last: lastLabel,

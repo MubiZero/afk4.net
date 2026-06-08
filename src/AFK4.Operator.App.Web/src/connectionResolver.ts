@@ -75,7 +75,8 @@ export class ConnectionResolver {
   }
 
   private static async toError(response: Response): Promise<ConnectionResolutionError> {
-    let message = 'Не удалось настроить подключение оператора.';
+    // Sentinel mapped to a localized message by localizeResolutionErrorDetail in the UI layer.
+    let message = 'Failed to resolve operator connection.';
     try {
       const text = await response.text();
       if (text.length > 0) {

@@ -82,7 +82,7 @@ export function BackendBookingWorkspace({
 
         setReservationResult(null);
         setLoadStatus('failed');
-        setLoadError(projectOperatorError(error).detail);
+        setLoadError(projectOperatorError(error, t).detail);
       });
 
     return () => {
@@ -179,7 +179,7 @@ export function BackendBookingWorkspace({
       setReloadVersion((value) => value + 1);
       afterSuccess?.();
     } catch (error) {
-      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
   const requireSelectedReservationId = () => {

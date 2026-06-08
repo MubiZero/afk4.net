@@ -178,7 +178,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.pos'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -221,7 +221,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
         setPosPlayers([]);
         setSelectedPlayerId('');
         setPlayerLoadStatus('failed');
-        setFeedback({ label: t('op.pos.feedback.client'), state: 'failed', detail: projectOperatorError(error).detail });
+        setFeedback({ label: t('op.pos.feedback.client'), state: 'failed', detail: projectOperatorError(error, t).detail });
       });
 
     return () => {
@@ -333,7 +333,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.newCard'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -369,7 +369,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.stockWriteOff'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -411,7 +411,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.topUp'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -471,7 +471,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.payment'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -505,7 +505,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.refund'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -535,7 +535,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.receiptDetails'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -564,7 +564,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.print'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -584,7 +584,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.export'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };
@@ -645,7 +645,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       setFeedback({
         label: t('op.pos.feedback.void'),
         state: 'failed',
-        detail: projectOperatorError(error).detail
+        detail: projectOperatorError(error, t).detail
       });
     }
   };

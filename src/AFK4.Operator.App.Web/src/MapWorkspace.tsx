@@ -106,7 +106,7 @@ export function MapWorkspace({
       const result = await onPcControlAction(selectedSeat, action);
       setFeedback({ label, state: 'confirmed', detail: result.detail });
     } catch (error) {
-      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -181,7 +181,7 @@ export function MapWorkspace({
             <b className={`state-chip state-${selectedSeat.tone}`}>{toneLabel(selectedSeat.tone, t)}</b>
           </header>
           <div className="pc-control-summary">
-            <span>{selectedSeat.device}</span>
+            <span>{deviceStatusLabel(selectedSeat.device, t)}</span>
             <span>{commandLabel(selectedSeat.command, t)}</span>
           </div>
           <span className="pc-control-section-title">{t('op.map.availableNow')}</span>

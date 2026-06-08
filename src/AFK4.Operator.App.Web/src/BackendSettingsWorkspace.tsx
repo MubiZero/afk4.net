@@ -135,9 +135,9 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
     null
   >(null);
   const [deviceCommandType, setDeviceCommandType] = useState('lock');
-  const [deviceCommandReason, setDeviceCommandReason] = useState('Проверка оператором'); // default prefill, not user-facing copy
+  const [deviceCommandReason, setDeviceCommandReason] = useState(() => t('op.settings.prefill.deviceCommandReason')); // editable prefill
   const [lastDeviceCommand, setLastDeviceCommand] = useState<Record<string, unknown> | null>(null);
-  const [layoutZoneName, setLayoutZoneName] = useState('Основной зал'); // default prefill
+  const [layoutZoneName, setLayoutZoneName] = useState(() => t('op.settings.prefill.zoneName')); // editable prefill
   const [layoutZoneSortOrder, setLayoutZoneSortOrder] = useState('10');
   const [layoutSeatZoneId, setLayoutSeatZoneId] = useState('');
   const [layoutSeatName, setLayoutSeatName] = useState('PC-01');
@@ -145,7 +145,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [selectedLayoutZoneId, setSelectedLayoutZoneId] = useState('');
   const [selectedLayoutSeatId, setSelectedLayoutSeatId] = useState('');
   const [inviteUserName, setInviteUserName] = useState('operator');
-  const [inviteDisplayName, setInviteDisplayName] = useState('Новый оператор'); // default prefill
+  const [inviteDisplayName, setInviteDisplayName] = useState(() => t('op.settings.prefill.inviteDisplayName')); // editable prefill
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState('');
@@ -154,8 +154,8 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [staffProfileUserName, setStaffProfileUserName] = useState('');
   const [staffProfileDisplayName, setStaffProfileDisplayName] = useState('');
   const [staffRoleName, setStaffRoleName] = useState('cashier_operator');
-  const [productCategoryName, setProductCategoryName] = useState('Категория 1'); // default prefill
-  const [productName, setProductName] = useState('Товар 1'); // default prefill
+  const [productCategoryName, setProductCategoryName] = useState(() => t('op.settings.prefill.categoryNameIndexed', { n: 1 })); // editable prefill
+  const [productName, setProductName] = useState(() => t('op.settings.prefill.productNameIndexed', { n: 1 })); // editable prefill
   const [productSku, setProductSku] = useState('SKU-001');
   const [productPrice, setProductPrice] = useState('12.00');
   const [productTrackStock, setProductTrackStock] = useState(true);
@@ -165,14 +165,14 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [stockMovementType, setStockMovementType] = useState('purchase');
   const [stockQuantityDelta, setStockQuantityDelta] = useState('10');
   const [stockUnitCost, setStockUnitCost] = useState('0.00');
-  const [stockReason, setStockReason] = useState('Первичное поступление'); // default prefill
-  const [tariffName, setTariffName] = useState('Дневной тариф'); // default prefill
+  const [stockReason, setStockReason] = useState(() => t('op.settings.prefill.stockReason')); // editable prefill
+  const [tariffName, setTariffName] = useState(() => t('op.settings.prefill.tariffName')); // editable prefill
   const [tariffPricePerHour, setTariffPricePerHour] = useState('90.00');
   const [tariffMinimumMinutes, setTariffMinimumMinutes] = useState('15');
   const [tariffRoundingMinutes, setTariffRoundingMinutes] = useState('5');
   const [tariffEffectiveFromUtc, setTariffEffectiveFromUtc] = useState(() => new Date().toISOString());
   const [selectedTariffVersionId, setSelectedTariffVersionId] = useState('');
-  const [packageName, setPackageName] = useState('Ночной пакет 5ч'); // default prefill
+  const [packageName, setPackageName] = useState(() => t('op.settings.prefill.packageName')); // editable prefill
   const [packagePrice, setPackagePrice] = useState('250.00');
   const [packageMinutes, setPackageMinutes] = useState('300');
   const [packageBonusMinutes, setPackageBonusMinutes] = useState('30');
@@ -186,20 +186,20 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [updateSignature, setUpdateSignature] = useState('signed-update-package');
   const [updateSignatureAlgorithm, setUpdateSignatureAlgorithm] = useState('ECDSA-P256-SHA256-IEEE-P1363');
   const [updateSizeKilobytes, setUpdateSizeKilobytes] = useState('1024');
-  const [updateReleaseNotes, setUpdateReleaseNotes] = useState('Пакет обновления приложения оператора.'); // default prefill
+  const [updateReleaseNotes, setUpdateReleaseNotes] = useState(() => t('op.settings.prefill.updateReleaseNotes')); // editable prefill
   const [rolloutPackageId, setRolloutPackageId] = useState('');
   const [rolloutChannel, setRolloutChannel] = useState('internal');
   const [rolloutTargetKind, setRolloutTargetKind] = useState('branch');
   const [rolloutTargetDeviceIds, setRolloutTargetDeviceIds] = useState('');
   const [rolloutBatchPercent, setRolloutBatchPercent] = useState('100');
   const [rolloutStartsAtUtc, setRolloutStartsAtUtc] = useState(() => new Date(Date.now() + 60 * 60 * 1000).toISOString());
-  const [rolloutReason, setRolloutReason] = useState('Публикация обновления оператором.'); // default prefill
+  const [rolloutReason, setRolloutReason] = useState(() => t('op.settings.prefill.rolloutReason')); // editable prefill
   const [packageStatePackageId, setPackageStatePackageId] = useState('');
   const [packageState, setPackageState] = useState('validated');
-  const [packageStateReason, setPackageStateReason] = useState('Подпись проверена.'); // default prefill
+  const [packageStateReason, setPackageStateReason] = useState(() => t('op.settings.prefill.packageStateReason')); // editable prefill
   const [rolloutStateRolloutId, setRolloutStateRolloutId] = useState('');
   const [rolloutState, setRolloutState] = useState('paused');
-  const [rolloutStateReason, setRolloutStateReason] = useState('Изменение состояния оператором.'); // default prefill
+  const [rolloutStateReason, setRolloutStateReason] = useState(() => t('op.settings.prefill.rolloutStateReason')); // editable prefill
 
   const loadSettings = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -281,7 +281,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       setLoadStatus('backend');
     } catch (error) {
       setLoadStatus('failed');
-      setFeedback({ label: t('op.settings.profile.loadFeedbackLabel'), state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.settings.profile.loadFeedbackLabel'), state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -705,7 +705,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
             idempotencyKey: createIdempotencyKey('tariff-version-create')
           });
         }
-        setTariffName(`Тариф ${tariffs.length + 2}`); // default prefill
+        setTariffName(t('op.settings.prefill.tariffNameIndexed', { n: tariffs.length + 2 })); // editable prefill
         setTariffEffectiveFromUtc(new Date().toISOString());
         await loadSettings(nextBackend);
       } else if (label === updateTariffActionKey || label === retireTariffActionKey) {
@@ -823,7 +823,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
         // The invitee appears in the staff list only after they accept and set a password.
         setInviteCode(invite.code);
         setInviteUserName(`operator${staffUsers.length + 2}`);
-        setInviteDisplayName('Новый оператор'); // default prefill
+        setInviteDisplayName(t('op.settings.prefill.inviteDisplayName')); // editable prefill
         setInviteEmail('');
       } else if (label === updateStaffProfileActionKey) {
         if (!hasPermission(nextBackend.session, permissionNames.manageBranchStaff)) {
@@ -935,8 +935,8 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
         });
         setCatalog((items) => [...items, product]);
         const nextIndex = catalog.length + 2;
-        setProductCategoryName(`Категория ${nextIndex}`); // default prefill
-        setProductName(`Товар ${nextIndex}`); // default prefill
+        setProductCategoryName(t('op.settings.prefill.categoryNameIndexed', { n: nextIndex })); // editable prefill
+        setProductName(t('op.settings.prefill.productNameIndexed', { n: nextIndex })); // editable prefill
         setProductSku(`SKU-${String(nextIndex).padStart(3, '0')}`);
         setProductPrice('12.00');
         setProductTrackStock(true);
@@ -1115,7 +1115,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
 
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -1139,7 +1139,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       setSettingsDirty(false);
       setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 

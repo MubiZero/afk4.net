@@ -1,25 +1,22 @@
+import type { MessageKey } from '@afk4/i18n';
+
+type TFn = (key: MessageKey, values?: Record<string, string | number>) => string;
+
 export interface OperatorErrorProjection {
   title: string;
   detail: string;
 }
 
-export function projectOperatorError(error: unknown): OperatorErrorProjection {
+export function projectOperatorError(error: unknown, t: TFn): OperatorErrorProjection {
+  const title = t('op.error.actionFailed.title');
+
   if (error instanceof Error && error.message.trim().length > 0) {
-    return {
-      title: 'Действие не выполнено',
-      detail: error.message
-    };
+    return { title, detail: error.message };
   }
 
   if (typeof error === 'string' && error.trim().length > 0) {
-    return {
-      title: 'Действие не выполнено',
-      detail: error
-    };
+    return { title, detail: error };
   }
 
-  return {
-    title: 'Действие не выполнено',
-    detail: 'Платформа не вернула подробности. Повторите действие или проверьте связь.'
-  };
+  return { title, detail: t('op.error.actionFailed.noDetail') };
 }
