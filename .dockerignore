@@ -8,6 +8,8 @@
 
 **/bin/
 **/obj/
+**/node_modules/
+**/dist/
 TestResults/
 artifacts/
 installers/artifacts/
