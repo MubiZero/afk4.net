@@ -172,7 +172,7 @@ describe('StaffAuthApiClient', () => {
     expect(JSON.parse(call[1].body as string)).toEqual({ userNameOrEmail: 'owner@demo.test' });
   });
 
-  it('completes a token reset through reset-password', async () => {
+  it('completes an email code reset through reset-password', async () => {
     const fetchImpl = mock(async () => jsonResponse(200, { message: 'ok' }));
     const client = new StaffAuthApiClient({
       baseUrl: 'http://localhost',
@@ -181,11 +181,15 @@ describe('StaffAuthApiClient', () => {
       onSessionChanged: () => {}
     });
 
-    await client.resetPasswordByToken('tok.en', 'Passw0rd!New');
+    await client.resetPasswordByEmail('owner@club.example', '123456', 'Passw0rd!New');
 
     const call = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(call[0]).toBe('http://localhost/api/auth/staff/reset-password');
-    expect(JSON.parse(call[1].body as string)).toEqual({ token: 'tok.en', newPassword: 'Passw0rd!New' });
+    expect(JSON.parse(call[1].body as string)).toEqual({
+      userNameOrEmail: 'owner@club.example',
+      code: '123456',
+      newPassword: 'Passw0rd!New'
+    });
   });
 
   it('requests an SMS reset through forgot-password-by-phone', async () => {

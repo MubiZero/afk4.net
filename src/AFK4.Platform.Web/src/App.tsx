@@ -27,7 +27,6 @@ import { BranchSwitcher } from './components/shell/BranchSwitcher';
 import { EmptyState } from './components/ui/states';
 import { useI18n, type MessageKey } from './i18n/I18nProvider';
 import { ForgotPassword } from './components/ForgotPassword';
-import { ResetPassword } from './components/ResetPassword';
 import { SignIn } from './components/SignIn';
 import { StaffSignIn } from './components/StaffSignIn';
 import { NewTenantScreen } from './platform/tenants/NewTenantScreen';
@@ -52,8 +51,7 @@ export type AdminRoute =
 export type AuthRoute =
   | { kind: 'acceptInvite'; code: string | null }
   | { kind: 'staffSignIn' }
-  | { kind: 'forgotPassword' }
-  | { kind: 'resetPassword'; token: string | null };
+  | { kind: 'forgotPassword' };
 
 export type ClubRoute =
   | { kind: 'clubDashboard' }
@@ -195,10 +193,6 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
     () => navigate({ kind: 'forgotPassword' }, '/auth/forgot-password'),
     [navigate]
   );
-  const navigateToResetPassword = useCallback(
-    () => navigate({ kind: 'resetPassword', token: null }, '/auth/reset-password'),
-    [navigate]
-  );
 
   const navigateToClubInstall = useCallback(
     () => navigate({ kind: 'clubInstall' }, '/club/install'),
@@ -256,17 +250,6 @@ export default function App({ apiBaseUrl, audience = defaultAudience }: AppProps
     return (
       <ForgotPassword
         client={staffClient}
-        onBackToSignIn={navigateToStaffSignIn}
-        onOpenReset={navigateToResetPassword}
-      />
-    );
-  }
-
-  if (route.kind === 'resetPassword') {
-    return (
-      <ResetPassword
-        client={staffClient}
-        initialToken={route.token}
         onBackToSignIn={navigateToStaffSignIn}
       />
     );
@@ -691,9 +674,6 @@ export function resolvePlatformRoute(
   if (path === '/auth/forgot-password') {
     return { route: { kind: 'forgotPassword' } };
   }
-  if (path === '/auth/reset-password') {
-    return { route: { kind: 'resetPassword', token: readQueryValue(search, 'token') } };
-  }
 
   if (allowsClubRoutes(audience)) {
     if (path === '/club') {
@@ -841,8 +821,7 @@ function isRouteAllowedForAudience(route: AppRoute, audience: PlatformWebAudienc
 function isAuthRoute(route: AppRoute): route is AuthRoute {
   return route.kind === 'acceptInvite'
     || route.kind === 'staffSignIn'
-    || route.kind === 'forgotPassword'
-    || route.kind === 'resetPassword';
+    || route.kind === 'forgotPassword';
 }
 
 function allowsAdminRoutes(audience: PlatformWebAudience): boolean {
