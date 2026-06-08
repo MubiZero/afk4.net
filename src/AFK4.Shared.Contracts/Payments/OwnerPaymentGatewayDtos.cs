@@ -19,8 +19,11 @@ public sealed record ProvisionPaymentGatewayRequest(
     string CardNumber);
 
 // Phase 2 — telegram attach.
-public sealed record TelegramStartRequest(string Phone);
-public sealed record TelegramStartResponse(string LoginAttemptId, string State);
+public sealed record TelegramStartRequest(string Phone, long? ApiId = null, string? ApiHash = null);
+public sealed record TelegramStartResponse(string? LoginAttemptId, string State);
+
+// Credentials-lookup: tells the cabinet whether owner has saved Telegram API creds.
+public sealed record OwnerTelegramCredentialsResponse(bool HasCredentials, long? ApiId);
 
 public sealed record TelegramVerifyCodeRequest(string LoginAttemptId, string Code);
 public sealed record TelegramVerifyPasswordRequest(string LoginAttemptId, string Password);
