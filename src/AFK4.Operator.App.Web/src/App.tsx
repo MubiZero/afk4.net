@@ -503,7 +503,7 @@ function AppInner() {
               nextShift = shift;
             })
             .catch((error) => {
-              errors.push(projectOperatorError(error).detail);
+              errors.push(projectOperatorError(error, t).detail);
             })
           : Promise.resolve(),
         canLoadSummary
@@ -512,7 +512,7 @@ function AppInner() {
               nextSummary = summary;
             })
             .catch((error) => {
-              errors.push(projectOperatorError(error).detail);
+              errors.push(projectOperatorError(error, t).detail);
             })
           : Promise.resolve()
       ]);
@@ -704,7 +704,7 @@ function AppInner() {
           ...current,
           branchId,
           loadStatus: 'failed',
-          error: projectOperatorError(error).detail
+          error: projectOperatorError(error, t).detail
         }));
       }
     })();
@@ -755,7 +755,7 @@ function AppInner() {
           })
           .catch((error) => {
             if (!disposed) {
-              setRealtimeError(projectOperatorError(error).detail);
+              setRealtimeError(projectOperatorError(error, t).detail);
             }
           })
           .finally(() => {
@@ -812,7 +812,7 @@ function AppInner() {
         }
 
         setRealtimeState('disconnected');
-        setRealtimeError(projectOperatorError(error).detail);
+        setRealtimeError(projectOperatorError(error, t).detail);
       });
 
     return () => {
@@ -886,7 +886,7 @@ function AppInner() {
 
       setWorkspaceFeedback(t('op.shell.err.noPermNav', { label }));
     } catch (error) {
-      setWorkspaceFeedback(t('op.shell.err.navRefreshFailed', { label, detail: projectOperatorError(error).detail }));
+      setWorkspaceFeedback(t('op.shell.err.navRefreshFailed', { label, detail: projectOperatorError(error, t).detail }));
     }
   };
 

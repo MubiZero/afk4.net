@@ -97,7 +97,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
       setStaffNames(names);
       setLoadStatus('backend');
     } catch (error) {
-      const detail = projectOperatorError(error).detail;
+      const detail = projectOperatorError(error, t).detail;
       setLoadStatus('failed');
       setLoadError(detail);
       setFeedback({ label: t('op.review.feedbackLoad'), state: 'failed', detail });
@@ -117,7 +117,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
       setFeedback({ label: t('op.review.feedbackApprove'), state: 'confirmed' });
       await loadQueue();
     } catch (error) {
-      setFeedback({ label: t('op.review.feedbackApprove'), state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.review.feedbackApprove'), state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -137,7 +137,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
       setFeedback({ label: t('op.review.feedbackReject'), state: 'confirmed' });
       await loadQueue();
     } catch (error) {
-      setFeedback({ label: t('op.review.feedbackReject'), state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.review.feedbackReject'), state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -164,7 +164,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
       setAuditResult(result);
       setFeedback({ label: t('op.review.feedbackAudit'), state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label: t('op.review.feedbackAudit'), state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.review.feedbackAudit'), state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 

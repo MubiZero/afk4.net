@@ -18,6 +18,7 @@ import {
   parseMoneyInputMinorUnits,
   formatMoneyInputMinorUnits,
   playerPackageLabel,
+  playerStatusLabel,
   type PlayerClientItem,
   projectPlayerClient,
   readArray,
@@ -86,7 +87,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
       } catch (error) {
         if (!disposed) {
           setLoadStatus('failed');
-          setFeedback({ label: t('op.players.error.loadFailed'), state: 'failed', detail: projectOperatorError(error).detail });
+          setFeedback({ label: t('op.players.error.loadFailed'), state: 'failed', detail: projectOperatorError(error, t).detail });
         }
       }
     };
@@ -126,7 +127,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         }
       } catch (error) {
         if (!disposed) {
-          setFeedback({ label: client.name, state: 'failed', detail: projectOperatorError(error).detail });
+          setFeedback({ label: client.name, state: 'failed', detail: projectOperatorError(error, t).detail });
           setSelectedClientPackages([]);
         }
       }
@@ -149,8 +150,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
       || (activeSegment === segmentVip && client.tone === 'vip')
       || (activeSegment === segmentDebt && client.debtMinorUnits > 0)
       || (activeSegment === segmentNew && client.source === 'backend')
-      || (activeSegment === segmentSleeping && client.status === 'Неактивен');
-    const searchMatches = `${client.name} ${client.status} ${client.detail} ${client.last}`.toLowerCase().includes(clientSearch.trim().toLowerCase());
+      || (activeSegment === segmentSleeping && client.status === 'inactive');
+    const searchMatches = `${client.name} ${playerStatusLabel(client.status, t)} ${client.detail} ${client.last}`.toLowerCase().includes(clientSearch.trim().toLowerCase());
     return segmentMatches && searchMatches;
   });
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient?.balanceMinorUnits ?? 0;
@@ -337,8 +338,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           startsAtUtc: new Date(Date.now() + 30 * 60_000).toISOString(),
           durationMinutes: 60,
           source: 'operator',
-          // technical note sent to the API, not displayed to the user
-          note: 'Создано из карточки клиента'
+          // note sent to the API; surfaces in the audit log shown to operators
+          note: t('op.players.note.createdFromCard')
         });
       } else {
         throw new Error(t('op.players.error.actionNotConnected'));
@@ -346,7 +347,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -473,7 +474,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
                   className={`client-row ${client.tone}${client.playerAccountId === selectedClient?.playerAccountId ? ' selected' : ''}`}
                   onClick={() => setSelectedClientId(client.playerAccountId ?? null)}
                 >
-                  <span>{client.status}</span>
+                  <span>{playerStatusLabel(client.status, t)}</span>
                   <div>
                     <strong>{client.name}</strong>
                     <em>{client.detail}</em>
@@ -504,7 +505,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             <div className="client-profile-card">
               <div className="client-avatar">{selectedClient.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</div>
               <div>
-                <span>{selectedClient.status}</span>
+                <span>{playerStatusLabel(selectedClient.status, t)}</span>
                 <strong>{selectedClient.name}</strong>
                 <em>{selectedClient.phoneNumber || t('op.pos.cart.clientNoPhone')} · {dataSourceLabel(selectedClient.source, t)}</em>
               </div>

@@ -115,7 +115,7 @@ function CheckoutDialog({
         }
 
         setStatus('failed');
-        setError(projectOperatorError(fetchError).detail);
+        setError(projectOperatorError(fetchError, t).detail);
       });
 
     return () => {
@@ -393,7 +393,7 @@ export function MapSidePanel({
         setTariffOptions([]);
         setSelectedTariffVersionId('');
         setBillingStatus('failed');
-        setBillingError(projectOperatorError(error).detail);
+        setBillingError(projectOperatorError(error, t).detail);
       });
 
     return () => {
@@ -433,7 +433,7 @@ export function MapSidePanel({
 
         setBillingPlayers([]);
         setSelectedPlayerId('');
-        setBillingError(projectOperatorError(error).detail);
+        setBillingError(projectOperatorError(error, t).detail);
       });
 
     return () => {
@@ -467,7 +467,7 @@ export function MapSidePanel({
 
         setPlayerPackages([]);
         setSelectedPlayerPackageId('');
-        setBillingError(projectOperatorError(error).detail);
+        setBillingError(projectOperatorError(error, t).detail);
       });
 
     return () => {

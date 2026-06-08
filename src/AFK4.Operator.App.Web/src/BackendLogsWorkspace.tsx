@@ -589,7 +589,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
       setLoadError(null);
       setLoadStatus('backend');
     } catch (error) {
-      const detail = projectOperatorError(error).detail;
+      const detail = projectOperatorError(error, t).detail;
       setLoadStatus('failed');
       setLoadError(detail);
       setFeedback({ label: t('op.logs.feedbackLabel'), state: 'failed', detail });
@@ -645,7 +645,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
       setLoadStatus('backend');
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -712,7 +712,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
       }
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 

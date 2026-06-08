@@ -146,7 +146,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
       setLoadError(null);
       setLoadStatus('backend');
     } catch (error) {
-      const detail = projectOperatorError(error).detail;
+      const detail = projectOperatorError(error, t).detail;
       setLoadStatus('failed');
       setLoadError(detail);
       setFeedback({ label: t('op.payments.title'), state: 'failed', detail });
@@ -333,7 +333,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
 
       setFeedback({ label, state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label, state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 

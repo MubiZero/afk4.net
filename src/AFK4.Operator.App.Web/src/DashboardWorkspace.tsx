@@ -207,7 +207,7 @@ export function DashboardWorkspace({
 
         setDashboardSummary(null);
         setDashboardLoadStatus('failed');
-        setDashboardLoadError(projectOperatorError(error).detail);
+        setDashboardLoadError(projectOperatorError(error, t).detail);
       });
 
     return () => {
@@ -284,7 +284,7 @@ export function DashboardWorkspace({
       downloadTextFile(`afk4-overview-sales-${exportStamp}.csv`, salesCsv, 'text/csv;charset=utf-8');
       setFeedback({ label: t('op.dashboard.export'), state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label: t('op.dashboard.export'), state: 'failed', detail: projectOperatorError(error).detail });
+      setFeedback({ label: t('op.dashboard.export'), state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
