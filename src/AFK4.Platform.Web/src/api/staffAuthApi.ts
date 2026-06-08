@@ -78,11 +78,11 @@ export class StaffAuthApiClient {
     }
   }
 
-  public async resetPasswordByToken(token: string, newPassword: string): Promise<void> {
+  public async resetPasswordByEmail(userNameOrEmail: string, code: string, newPassword: string): Promise<void> {
     const response = await this.fetchImpl(`${this.baseUrl}/api/auth/staff/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, newPassword })
+      body: JSON.stringify({ userNameOrEmail, code, newPassword })
     });
     if (!response.ok) {
       throw await toApiError(response, 'Reset failed.');

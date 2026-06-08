@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { PlatformApiError } from './platformApi';
 
@@ -16,6 +16,16 @@ mock.module('./operatorApiClients', () => ({
 }));
 
 const { PhoneVerificationCard } = await import('./PhoneVerificationCard');
+
+// mock.module registrations persist across files in one bun run (mock.restore() doesn't clear them)
+// and mutate the shared namespace, so hand './operatorApiClients' back to the genuine factories
+// (snapshotted in the preload) once this file is done — otherwise App.test.tsx and
+// operatorApiClients.test.ts see this partial mock and their clients come back undefined.
+afterAll(() => {
+  mock.module('./operatorApiClients', () => (globalThis as typeof globalThis & {
+    __afk4RealOperatorApiClients: typeof import('./operatorApiClients');
+  }).__afk4RealOperatorApiClients);
+});
 
 const backend = { config: { platformBaseUrl: 'http://test' }, session: { accessToken: 't' } };
 

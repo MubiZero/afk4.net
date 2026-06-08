@@ -27,8 +27,10 @@ it('renders the active session seat and a running timer', async () => {
     walletBalance: { currencyCode: 'TJS', minorUnits: 24500 },
     debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
     activeSession: {
+      // A recent, relative start keeps the open-mode timer at two-digit hours forever — a fixed past
+      // date drifts and eventually renders 3-digit hours, racing the first tick (flaky in CI).
       sessionId: 's1', seatId: 'seat1', seatName: 'PC-14 · VIP',
-      startedAtUtc: '2026-06-03T20:00:00Z', durationMode: 'open',
+      startedAtUtc: new Date(Date.now() - 90_000).toISOString(), durationMode: 'open',
       remainingSeconds: null, accruedCostMinorUnits: 3850, currencyCode: 'TJS'
     }
   });

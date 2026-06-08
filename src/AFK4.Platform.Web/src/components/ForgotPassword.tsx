@@ -5,21 +5,24 @@ import { useI18n, type MessageKey } from '../i18n/I18nProvider';
 import { ErrorBanner, Field } from './ui';
 
 type Channel = 'email' | 'phone';
-type PhoneStep = 'request' | 'verify' | 'done';
+type Step = 'request' | 'verify' | 'done';
 
 export interface ForgotPasswordProps {
-  client: Pick<StaffAuthApiClient, 'forgotPasswordByEmail' | 'forgotPasswordByPhone' | 'resetPasswordByPhone'>;
+  client: Pick<
+    StaffAuthApiClient,
+    'forgotPasswordByEmail' | 'resetPasswordByEmail' | 'forgotPasswordByPhone' | 'resetPasswordByPhone'
+  >;
   onBackToSignIn: () => void;
-  onOpenReset: () => void;
 }
 
-export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPasswordProps) {
+// Both channels follow the same shape: request a 6-digit code, then enter it with a new password.
+// Email mails the code; SMS texts it — the verify step is identical from here on.
+export function ForgotPassword({ client, onBackToSignIn }: ForgotPasswordProps) {
   const { t } = useI18n();
   const [channel, setChannel] = useState<Channel>('email');
   const [emailLogin, setEmailLogin] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
   const [phone, setPhone] = useState('');
-  const [phoneStep, setPhoneStep] = useState<PhoneStep>('request');
+  const [step, setStep] = useState<Step>('request');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -27,48 +30,36 @@ export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPa
 
   function selectChannel(next: Channel) {
     setChannel(next);
+    setStep('request');
+    setCode('');
+    setNewPassword('');
     setError(null);
-    setPhoneStep('request');
-    setEmailSent(false);
   }
 
-  async function submitEmail(event: FormEvent<HTMLFormElement>) {
+  async function submitRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (emailLogin.trim().length === 0) {
+    const recipient = channel === 'email' ? emailLogin.trim() : phone.trim();
+    if (recipient.length === 0) {
       setError(t('auth.error.required'));
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await client.forgotPasswordByEmail(emailLogin.trim());
-      setEmailSent(true);
-    } catch {
-      setError(t('auth.forgot.email.error'));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function submitPhoneRequest(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (phone.trim().length === 0) {
-      setError(t('auth.error.required'));
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await client.forgotPasswordByPhone(phone.trim());
-      setPhoneStep('verify');
+      if (channel === 'email') {
+        await client.forgotPasswordByEmail(recipient);
+      } else {
+        await client.forgotPasswordByPhone(recipient);
+      }
+      setStep('verify');
     } catch (cause) {
-      setError(projectPhoneError(cause, t));
+      setError(channel === 'email' ? t('auth.forgot.email.error') : projectResetError(cause, t));
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function submitPhoneReset(event: FormEvent<HTMLFormElement>) {
+  async function submitReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (code.trim().length === 0 || newPassword.length < 8) {
       setError(t('auth.forgot.phone.error.fields'));
@@ -77,10 +68,14 @@ export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPa
     setSubmitting(true);
     setError(null);
     try {
-      await client.resetPasswordByPhone(phone.trim(), code.trim(), newPassword);
-      setPhoneStep('done');
+      if (channel === 'email') {
+        await client.resetPasswordByEmail(emailLogin.trim(), code.trim(), newPassword);
+      } else {
+        await client.resetPasswordByPhone(phone.trim(), code.trim(), newPassword);
+      }
+      setStep('done');
     } catch (cause) {
-      setError(projectPhoneError(cause, t));
+      setError(projectResetError(cause, t));
     } finally {
       setSubmitting(false);
     }
@@ -112,41 +107,15 @@ export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPa
 
       <ErrorBanner message={error} onDismiss={() => setError(null)} />
 
-      {channel === 'email' && (emailSent ? (
-        <section className="section">
-          <p>{t('auth.forgot.email.sent')}</p>
-          <div className="actions actions-stack">
-            <button type="button" className="primary" onClick={onOpenReset}>{t('auth.forgot.email.openReset')}</button>
-          </div>
-        </section>
-      ) : (
-        <form className="form" onSubmit={(e) => void submitEmail(e)}>
-          <Field label={t('auth.forgot.email.field')} htmlFor="forgot-email">
-            <input
-              id="forgot-email"
-              type="text"
-              autoComplete="username"
-              value={emailLogin}
-              onChange={(event) => setEmailLogin(event.target.value)}
-              disabled={isSubmitting}
-              required
-            />
-          </Field>
-          <button type="submit" className="primary" disabled={isSubmitting}>
-            {isSubmitting ? t('auth.forgot.email.submitting') : t('auth.forgot.email.submit')}
-          </button>
-        </form>
-      ))}
-
-      {channel === 'phone' && (phoneStep === 'done' ? (
+      {step === 'done' ? (
         <section className="section">
           <p>{t('auth.forgot.phone.done')}</p>
           <button type="button" className="primary" onClick={onBackToSignIn}>{t('auth.forgot.phone.toSignIn')}</button>
         </section>
-      ) : phoneStep === 'verify' ? (
-        <form className="form" onSubmit={(e) => void submitPhoneReset(e)}>
-          <p className="muted">{t('auth.forgot.phone.sent')}</p>
-          <Field label={t('auth.forgot.phone.codeField')} htmlFor="forgot-code">
+      ) : step === 'verify' ? (
+        <form className="form" onSubmit={(event) => void submitReset(event)}>
+          <p className="muted">{channel === 'email' ? t('auth.forgot.email.sent') : t('auth.forgot.phone.sent')}</p>
+          <Field label={channel === 'email' ? t('auth.reset.field.token') : t('auth.forgot.phone.codeField')} htmlFor="forgot-code">
             <input
               id="forgot-code"
               type="text"
@@ -173,8 +142,25 @@ export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPa
             {isSubmitting ? t('auth.forgot.phone.resetting') : t('auth.forgot.phone.reset')}
           </button>
         </form>
+      ) : channel === 'email' ? (
+        <form className="form" onSubmit={(event) => void submitRequest(event)}>
+          <Field label={t('auth.forgot.email.field')} htmlFor="forgot-email">
+            <input
+              id="forgot-email"
+              type="text"
+              autoComplete="username"
+              value={emailLogin}
+              onChange={(event) => setEmailLogin(event.target.value)}
+              disabled={isSubmitting}
+              required
+            />
+          </Field>
+          <button type="submit" className="primary" disabled={isSubmitting}>
+            {isSubmitting ? t('auth.forgot.email.submitting') : t('auth.forgot.email.submit')}
+          </button>
+        </form>
       ) : (
-        <form className="form" onSubmit={(e) => void submitPhoneRequest(e)}>
+        <form className="form" onSubmit={(event) => void submitRequest(event)}>
           <Field label={t('auth.forgot.phone.field')} htmlFor="forgot-phone">
             <input
               id="forgot-phone"
@@ -191,14 +177,14 @@ export function ForgotPassword({ client, onBackToSignIn, onOpenReset }: ForgotPa
             {isSubmitting ? t('auth.forgot.phone.submitting') : t('auth.forgot.phone.submit')}
           </button>
         </form>
-      ))}
+      )}
 
       <button type="button" className="linklike" onClick={onBackToSignIn}>{t('auth.forgot.back')}</button>
     </div>
   );
 }
 
-function projectPhoneError(cause: unknown, t: (key: MessageKey) => string): string {
+function projectResetError(cause: unknown, t: (key: MessageKey) => string): string {
   if (cause instanceof PlatformApiError) {
     switch (cause.errorCode) {
       case 'invalid_phone':

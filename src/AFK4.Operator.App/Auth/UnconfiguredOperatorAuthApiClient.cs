@@ -21,7 +21,11 @@ public sealed class UnconfiguredOperatorAuthApiClient : IOperatorAuthApiClient
     public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken)
         => NotConfiguredVoid();
 
-    public Task ResetPasswordByEmailAsync(string token, string newPassword, CancellationToken cancellationToken)
+    public Task ResetPasswordByEmailAsync(
+        string userNameOrEmail,
+        string code,
+        string newPassword,
+        CancellationToken cancellationToken)
         => NotConfiguredVoid();
 
     public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)

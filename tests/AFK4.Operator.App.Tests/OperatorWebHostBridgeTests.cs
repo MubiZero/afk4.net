@@ -353,7 +353,7 @@ public sealed class OperatorWebHostBridgeTests
         public string LastUserName { get; private set; } = string.Empty;
 
         public string? LastForgotEmail { get; private set; }
-        public (string Token, string NewPassword)? LastResetEmail { get; private set; }
+        public (string UserNameOrEmail, string Code, string NewPassword)? LastResetEmail { get; private set; }
         public string? LastForgotPhone { get; private set; }
         public (string Phone, string Code, string NewPassword)? LastResetPhone { get; private set; }
         public OperatorAuthApiException? ResetException { get; set; }
@@ -380,9 +380,9 @@ public sealed class OperatorWebHostBridgeTests
             return ResetException is null ? Task.CompletedTask : throw ResetException;
         }
 
-        public Task ResetPasswordByEmailAsync(string token, string newPassword, CancellationToken cancellationToken)
+        public Task ResetPasswordByEmailAsync(string userNameOrEmail, string code, string newPassword, CancellationToken cancellationToken)
         {
-            LastResetEmail = (token, newPassword);
+            LastResetEmail = (userNameOrEmail, code, newPassword);
             return ResetException is null ? Task.CompletedTask : throw ResetException;
         }
 

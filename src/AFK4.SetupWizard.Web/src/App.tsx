@@ -5,6 +5,7 @@ import { BrandMark } from './BrandMark';
 import { BranchSelectionScreen } from './BranchSelectionScreen';
 import { DeviceScreen } from './DeviceScreen';
 import { FinishedScreen } from './FinishedScreen';
+import { ForgotPasswordScreen } from './ForgotPasswordScreen';
 import { OwnerCodeScreen } from './OwnerCodeScreen';
 import { PhoneLoginScreen } from './PhoneLoginScreen';
 import { RoleScreen } from './RoleScreen';
@@ -123,6 +124,10 @@ export function App() {
     setState(initialState);
   }, []);
 
+  const goToForgotPassword = useCallback(() => {
+    setState((prev) => ({ ...prev, step: 'forgotPassword' }));
+  }, []);
+
   const handleSelectBranch = useCallback((branch: WizardBranch) => {
     setState((prev) => ({ ...prev, branch, step: 'role' }));
   }, []);
@@ -182,13 +187,16 @@ export function App() {
     const stepLabelKey: Record<typeof state.step, MessageKey> = {
       phoneLogin: 'setup.wizard.stepper.signIn',
       ownerCode: 'setup.wizard.stepper.signIn',
+      forgotPassword: 'setup.wizard.stepper.signIn',
       branchSelection: 'setup.wizard.stepper.branch',
       role: 'setup.wizard.stepper.role',
       device: 'setup.wizard.stepper.device',
       finished: 'setup.wizard.stepper.done',
     };
     const order = ['phoneLogin', 'branchSelection', 'role', 'device', 'finished'];
-    const announceStep = state.step === 'ownerCode' ? 'phoneLogin' : state.step;
+    const announceStep = state.step === 'ownerCode' || state.step === 'forgotPassword'
+      ? 'phoneLogin'
+      : state.step;
     const stepNumber = order.indexOf(announceStep) + 1;
     return `${t('setup.wizard.common.step')} ${stepNumber}: ${t(stepLabelKey[state.step])}`;
   }, [state.step, t]);
@@ -274,7 +282,15 @@ export function App() {
 
       <main className="wizard-body">
         {state.step === 'phoneLogin' && (
-          <PhoneLoginScreen onDiscovered={handlePhoneDiscovered} onUseOwnerCode={goToOwnerCode} />
+          <PhoneLoginScreen
+            onDiscovered={handlePhoneDiscovered}
+            onUseOwnerCode={goToOwnerCode}
+            onForgotPassword={goToForgotPassword}
+          />
+        )}
+
+        {state.step === 'forgotPassword' && (
+          <ForgotPasswordScreen onBack={goToPhoneLogin} />
         )}
 
         {state.step === 'ownerCode' && (

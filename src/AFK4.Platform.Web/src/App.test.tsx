@@ -250,9 +250,6 @@ describe('Platform Web routing', () => {
     expect(resolvePlatformRoute('/auth/forgot-password')).toMatchObject({
       route: { kind: 'forgotPassword' }
     });
-    expect(resolvePlatformRoute('/auth/reset-password')).toMatchObject({
-      route: { kind: 'resetPassword' }
-    });
   });
 
   it('resolves customer dashboard URLs under /club', () => {

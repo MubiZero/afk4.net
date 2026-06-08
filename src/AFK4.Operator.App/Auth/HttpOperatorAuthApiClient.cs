@@ -47,10 +47,14 @@ public sealed class HttpOperatorAuthApiClient(HttpClient httpClient, IOperatorTo
             new StaffForgotPasswordRequest(userNameOrEmail),
             cancellationToken);
 
-    public Task ResetPasswordByEmailAsync(string token, string newPassword, CancellationToken cancellationToken)
+    public Task ResetPasswordByEmailAsync(
+        string userNameOrEmail,
+        string code,
+        string newPassword,
+        CancellationToken cancellationToken)
         => PostResetAsync(
             "/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest(token, newPassword),
+            new StaffResetPasswordRequest(userNameOrEmail, code, newPassword),
             cancellationToken);
 
     public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)

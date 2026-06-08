@@ -109,6 +109,147 @@ public sealed class SetupWizardApiClientTests
     }
 
     [Fact]
+    public async Task ForgotPasswordByEmailAsync_PostsLoginOrEmailToForgotEndpoint()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var client = CreateClient(handler);
+
+        await client.ForgotPasswordByEmailAsync("owner@club.tj", CancellationToken.None);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("/api/auth/staff/forgot-password", request.RequestUri!.AbsolutePath);
+        Assert.Contains("owner@club.tj", handler.RequestBodies.Single());
+    }
+
+    [Fact]
+    public async Task SignInByLoginAsync_SingleClub_PostsToSignInByLoginAndReturnsSession()
+    {
+        var expected = new StaffSignInResponse(
+            Guid.NewGuid(), OrganizationId, "Сотрудник", "access-123",
+            DateTimeOffset.UnixEpoch.AddHours(8), "refresh-123", DateTimeOffset.UnixEpoch.AddDays(30),
+            new[] { Guid.NewGuid() }, new[] { "devices.install" });
+        var handler = new RecordingHandler(_ => JsonResponse(expected));
+        var client = CreateClient(handler);
+
+        var result = await client.SignInByLoginAsync("owner@club.tj", "Passw0rd!", CancellationToken.None);
+
+        Assert.NotNull(result.SignedIn);
+        Assert.Equal("access-123", result.SignedIn!.AccessToken);
+        Assert.Empty(result.Clubs);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("/api/auth/staff/sign-in-by-login", request.RequestUri!.AbsolutePath);
+        Assert.Contains("owner@club.tj", handler.RequestBodies.Single());
+    }
+
+    [Fact]
+    public async Task SignInByLoginAsync_MultipleClubs_ReturnsClubChoices()
+    {
+        var clubs = new StaffSignInChooseClubResponse(new[]
+        {
+            new StaffSignInClubChoice(OrganizationId, "Клуб А"),
+            new StaffSignInClubChoice(Guid.NewGuid(), "Клуб Б"),
+        });
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.Conflict)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(clubs, JsonOptions), Encoding.UTF8, "application/json"),
+        });
+        var client = CreateClient(handler);
+
+        var result = await client.SignInByLoginAsync("owner@club.tj", "Passw0rd!", CancellationToken.None);
+
+        Assert.Null(result.SignedIn);
+        Assert.Equal(2, result.Clubs.Count);
+        Assert.Equal("Клуб А", result.Clubs[0].Name);
+    }
+
+    [Fact]
+    public async Task SignInToClubAsync_PostsOrganizationScopedSignIn()
+    {
+        var expected = new StaffSignInResponse(
+            Guid.NewGuid(), OrganizationId, "Сотрудник", "access-123",
+            DateTimeOffset.UnixEpoch.AddHours(8), "refresh-123", DateTimeOffset.UnixEpoch.AddDays(30),
+            new[] { Guid.NewGuid() }, new[] { "devices.install" });
+        var handler = new RecordingHandler(_ => JsonResponse(expected));
+        var client = CreateClient(handler);
+
+        var result = await client.SignInToClubAsync(OrganizationId, "owner@club.tj", "Passw0rd!", CancellationToken.None);
+
+        Assert.Equal("access-123", result.AccessToken);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("/api/auth/staff/sign-in", request.RequestUri!.AbsolutePath);
+        var body = handler.RequestBodies.Single();
+        Assert.Contains(OrganizationId.ToString("D"), body);
+        Assert.Contains("owner@club.tj", body);
+    }
+
+    [Fact]
+    public async Task ResetPasswordByEmailAsync_PostsCodeAndPasswordToResetEndpoint()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var client = CreateClient(handler);
+
+        await client.ResetPasswordByEmailAsync("owner@club.tj", "123456", "Passw0rd!New", CancellationToken.None);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("/api/auth/staff/reset-password", request.RequestUri!.AbsolutePath);
+        var body = handler.RequestBodies.Single();
+        Assert.Contains("owner@club.tj", body);
+        Assert.Contains("123456", body);
+        Assert.Contains("Passw0rd!New", body);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordByPhoneAsync_PostsPhoneToForgotByPhoneEndpoint()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var client = CreateClient(handler);
+
+        await client.ForgotPasswordByPhoneAsync("+992937380070", CancellationToken.None);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("/api/auth/staff/forgot-password-by-phone", request.RequestUri!.AbsolutePath);
+        Assert.Contains("992937380070", handler.RequestBodies.Single());
+    }
+
+    [Fact]
+    public async Task ResetPasswordByPhoneAsync_PostsCodeAndPasswordToResetByPhoneEndpoint()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var client = CreateClient(handler);
+
+        await client.ResetPasswordByPhoneAsync("+992937380070", "123456", "Passw0rd!New", CancellationToken.None);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("/api/auth/staff/reset-password-by-phone", request.RequestUri!.AbsolutePath);
+        var body = handler.RequestBodies.Single();
+        Assert.Contains("123456", body);
+        Assert.Contains("Passw0rd!New", body);
+    }
+
+    [Fact]
+    public async Task ResetPasswordByPhoneAsync_OnError_ThrowsWithCodeAndRemainingAttempts()
+    {
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent(
+                "{\"error\":\"invalid_code\",\"remainingAttempts\":2}",
+                Encoding.UTF8,
+                "application/json")
+        });
+        var client = CreateClient(handler);
+
+        var exception = await Assert.ThrowsAsync<SetupWizardApiException>(
+            () => client.ResetPasswordByPhoneAsync("+992937380070", "000000", "Passw0rd!New", CancellationToken.None));
+
+        Assert.Equal("invalid_code", exception.Code);
+        Assert.Equal(2, exception.RemainingAttempts);
+    }
+
+    [Fact]
     public async Task EnrollAuthenticatedAsync_AttachesBearerToken_PostsToAuthEnroll()
     {
         var expected = new InstallEnrollResponse(

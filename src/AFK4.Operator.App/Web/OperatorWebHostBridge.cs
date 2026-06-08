@@ -146,12 +146,15 @@ public sealed class OperatorWebHostBridge(
     private async Task<object> ResetPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
     {
         var request = DeserializePayload<OperatorWebResetByEmailPayload>(payload);
-        if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
+        if (string.IsNullOrWhiteSpace(request.UserNameOrEmail)
+            || string.IsNullOrWhiteSpace(request.Code)
+            || string.IsNullOrWhiteSpace(request.NewPassword))
         {
-            throw new InvalidOperationException("Token and new password are required.");
+            throw new InvalidOperationException("Login or email, code, and new password are required.");
         }
 
-        await authApiClient.ResetPasswordByEmailAsync(request.Token.Trim(), request.NewPassword, cancellationToken);
+        await authApiClient.ResetPasswordByEmailAsync(
+            request.UserNameOrEmail.Trim(), request.Code.Trim(), request.NewPassword, cancellationToken);
         return new { ok = true };
     }
 
@@ -317,7 +320,7 @@ public sealed class OperatorWebHostBridge(
 
     private sealed record OperatorWebForgotByEmailPayload(string? UserNameOrEmail);
 
-    private sealed record OperatorWebResetByEmailPayload(string? Token, string? NewPassword);
+    private sealed record OperatorWebResetByEmailPayload(string? UserNameOrEmail, string? Code, string? NewPassword);
 
     private sealed record OperatorWebForgotByPhonePayload(string? PhoneNumber);
 

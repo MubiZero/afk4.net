@@ -1,6 +1,7 @@
 export interface HostBridgeError {
   code: string;
   message: string;
+  remainingAttempts?: number | null;
 }
 
 export interface HostBridgeResponse<TPayload> {
@@ -23,6 +24,20 @@ export class HostBridgeUnavailableError extends Error {
   constructor() {
     super(hostBridgeUnavailableMessage);
     this.name = 'HostBridgeUnavailableError';
+  }
+}
+
+// A host bridge op failed with a structured business error (e.g. invalid_code with a
+// remaining-attempts count from the SMS reset endpoint). Carries the backend code and
+// attempts so the inline reset screen can show the specific reason, not a generic message.
+export class HostBridgeRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly remainingAttempts: number | null,
+  ) {
+    super(message);
+    this.name = 'HostBridgeRequestError';
   }
 }
 
@@ -66,7 +81,11 @@ export function postHostRequest<TPayload>(
         return;
       }
 
-      reject(new Error(response.error?.message ?? 'Native host bridge request failed.'));
+      reject(new HostBridgeRequestError(
+        response.error?.message ?? 'Native host bridge request failed.',
+        response.error?.code ?? 'host_error',
+        response.error?.remainingAttempts ?? null,
+      ));
     };
 
     function cleanup() {

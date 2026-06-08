@@ -14,6 +14,14 @@ public enum SetupWizardStep
 
 public sealed record SetupWizardMachineInfo(string MachineName);
 
+/// <summary>
+/// Result of a login/email sign-in: either the staffer is signed in (single club), or the same
+/// login matches several clubs and the caller must pick one (<see cref="Clubs"/>) and re-submit.
+/// </summary>
+public sealed record SetupWizardLoginResult(
+    StaffSignInResponse? SignedIn,
+    IReadOnlyList<StaffSignInClubChoice> Clubs);
+
 public sealed record SetupWizardBootstrapConfig(
     Guid OrganizationId,
     Guid BranchId,
@@ -42,6 +50,33 @@ public interface ISetupWizardApiClient
     Task<StaffSignInResponse> SignInByPhoneAsync(
         string phoneNumber,
         string password,
+        CancellationToken cancellationToken);
+
+    Task<SetupWizardLoginResult> SignInByLoginAsync(
+        string login,
+        string password,
+        CancellationToken cancellationToken);
+
+    Task<StaffSignInResponse> SignInToClubAsync(
+        Guid organizationId,
+        string login,
+        string password,
+        CancellationToken cancellationToken);
+
+    Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken);
+
+    Task ResetPasswordByEmailAsync(
+        string userNameOrEmail,
+        string code,
+        string newPassword,
+        CancellationToken cancellationToken);
+
+    Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken);
+
+    Task ResetPasswordByPhoneAsync(
+        string phoneNumber,
+        string code,
+        string newPassword,
         CancellationToken cancellationToken);
 
     Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(

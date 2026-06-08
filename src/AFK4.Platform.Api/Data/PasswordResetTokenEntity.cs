@@ -1,9 +1,10 @@
 namespace AFK4.Platform.Api.Data;
 
 /// <summary>
-/// A single-use, expiring self-service password-reset token for a staff/owner account. Mirrors the
-/// staff access/refresh token storage shape: the plaintext token is returned once (emailed) and only
-/// its SHA-256 hash is persisted. <see cref="ConsumedAtUtc"/> marks it spent so a token works once.
+/// A single-use, expiring self-service password-reset code for a staff/owner account. Only the
+/// SHA-256 hash of the 6-digit code is persisted (the plaintext is emailed once).
+/// <see cref="ConsumedAtUtc"/> marks it spent so a code works once; <see cref="AttemptCount"/>
+/// caps wrong guesses (parity with the SMS OTP).
 /// </summary>
 public sealed class PasswordResetTokenEntity
 {
@@ -14,6 +15,8 @@ public sealed class PasswordResetTokenEntity
     public Guid OrganizationId { get; set; }
 
     public byte[] TokenHash { get; set; } = [];
+
+    public int AttemptCount { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 

@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 
 // bun's mock.module is not hoisted above static imports, so register it before
@@ -52,6 +52,15 @@ mock.module('./operatorApiClients', () => ({
 }));
 
 const { PaymentGatewaysWorkspace } = await import('./PaymentGatewaysWorkspace');
+
+// Restore the real './operatorApiClients' (snapshotted in the preload) once this file is done —
+// bun keeps mock.module registrations for the rest of the run and mutates the shared namespace,
+// which would break App.test.tsx and operatorApiClients.test.ts.
+afterAll(() => {
+  mock.module('./operatorApiClients', () => (globalThis as typeof globalThis & {
+    __afk4RealOperatorApiClients: typeof import('./operatorApiClients');
+  }).__afk4RealOperatorApiClients);
+});
 
 const backend = {
   config: { platformBaseUrl: 'http://test' },

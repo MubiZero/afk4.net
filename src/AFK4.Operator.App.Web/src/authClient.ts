@@ -39,8 +39,8 @@ export function forgotPasswordByEmail(userNameOrEmail: string): Promise<void> {
   return postHostRequest<void>('auth:forgotByEmail', { userNameOrEmail });
 }
 
-export function resetPasswordByEmail(token: string, newPassword: string): Promise<void> {
-  return postHostRequest<void>('auth:resetByEmail', { token, newPassword });
+export function resetPasswordByEmail(userNameOrEmail: string, code: string, newPassword: string): Promise<void> {
+  return postHostRequest<void>('auth:resetByEmail', { userNameOrEmail, code, newPassword });
 }
 
 export function forgotPasswordByPhone(phoneNumber: string): Promise<void> {
