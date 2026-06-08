@@ -28,6 +28,7 @@ const disableMock = mock(async () => ({
   createdAtUtc: '2026-06-04T00:00:00Z',
   updatedAtUtc: '2026-06-04T00:00:00Z'
 }));
+const credentialsMock = mock(async () => ({ hasCredentials: false, apiId: null }));
 
 const actualClients = await import('./operatorApiClients');
 mock.module('./operatorApiClients', () => ({
@@ -38,6 +39,7 @@ mock.module('./operatorApiClients', () => ({
       provision: provisionMock,
       telegramStart: startMock,
       disable: disableMock,
+      telegramCredentials: credentialsMock,
       telegramVerifyCode: mock(async () => ({ state: 'attached', gatewayStatus: 'active' })),
       telegramVerifyPassword: mock(async () => ({ state: 'attached', gatewayStatus: 'active' })),
       status: mock(async () => ({
@@ -107,5 +109,20 @@ describe('PaymentGatewaysWorkspace', () => {
     } finally {
       globalThis.confirm = originalConfirm;
     }
+  });
+
+  it('sends api creds on first attach and skips OTP when attached', async () => {
+    credentialsMock.mockResolvedValueOnce({ hasCredentials: false, apiId: null });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    startMock.mockResolvedValueOnce({ loginAttemptId: null, state: 'attached' } as any);
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    await screen.findByText(/4242/);
+    fireEvent.change(screen.getByLabelText(/телефон|phone/i), { target: { value: '+992900000000' } });
+    fireEvent.change(screen.getByLabelText(/api_id/i), { target: { value: '123' } });
+    fireEvent.change(screen.getByLabelText(/api_hash/i), { target: { value: 'hash' } });
+    fireEvent.click(screen.getByRole('button', { name: /код|code/i }));
+    await waitFor(() => expect(startMock).toHaveBeenCalledWith('g1', { phone: '+992900000000', apiId: 123, apiHash: 'hash' }));
+    await screen.findByText(/карта активна|card active/i);
+    expect(screen.queryByLabelText(/код из telegram|code from telegram/i)).toBeNull();
   });
 });
