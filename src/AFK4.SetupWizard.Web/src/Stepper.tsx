@@ -4,7 +4,6 @@ import { useI18n, type MessageKey } from '@afk4/i18n';
 
 export type WizardStep =
   | 'phoneLogin'
-  | 'ownerCode'
   | 'forgotPassword'
   | 'branchSelection'
   | 'role'
@@ -19,10 +18,9 @@ const STEPS: { id: WizardStep; index: number; labelKey: MessageKey }[] = [
   { id: 'finished', index: 5, labelKey: 'setup.wizard.stepper.done' },
 ];
 
-// The owner-code fallback and forgot-password screens share stepper position 1 with phone login.
+// The forgot-password screen shares stepper position 1 with the sign-in screen.
 const STEP_TO_INDEX: Record<WizardStep, number> = {
   phoneLogin: 0,
-  ownerCode: 0,
   forgotPassword: 0,
   branchSelection: 1,
   role: 2,

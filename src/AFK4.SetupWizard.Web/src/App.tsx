@@ -5,8 +5,7 @@ import { BrandMark } from './BrandMark';
 import { BranchSelectionScreen } from './BranchSelectionScreen';
 import { DeviceScreen } from './DeviceScreen';
 import { FinishedScreen } from './FinishedScreen';
-import { ForgotPasswordScreen } from './ForgotPasswordScreen';
-import { OwnerCodeScreen } from './OwnerCodeScreen';
+import { ForgotPasswordScreen, type SignInPrefill } from './ForgotPasswordScreen';
 import { PhoneLoginScreen } from './PhoneLoginScreen';
 import { RoleScreen } from './RoleScreen';
 import { Stepper, type WizardStep } from './Stepper';
@@ -14,7 +13,6 @@ import { postHostWindowCommand } from './hostBridge';
 import {
   authenticatedInstallClient,
   getBootstrapConfig,
-  ownerCodeInstallClient,
   type WizardBranch,
   type WizardDiscoverResponse,
   type WizardEnrollResult,
@@ -23,30 +21,26 @@ import {
   type WizardSeat,
 } from './wizardApi';
 
-type AuthMode = 'phone' | 'code';
-
 interface WizardState {
   step: WizardStep;
-  authMode: AuthMode;
-  ownerCode: string;
   ownerName: string;
   branches: WizardBranch[];
   branch: WizardBranch | null;
   role: WizardRole;
   enrollResult: WizardEnrollResult | null;
   selectedSeat: WizardSeat | null;
+  signInPrefill: SignInPrefill | null;
 }
 
 const initialState: WizardState = {
   step: 'phoneLogin',
-  authMode: 'phone',
-  ownerCode: '',
   ownerName: '',
   branches: [],
   branch: null,
   role: 'gaming_pc',
   enrollResult: null,
   selectedSeat: null,
+  signInPrefill: null,
 };
 
 type Theme = 'light' | 'dark';
@@ -89,39 +83,17 @@ export function App() {
     }
   }, []);
 
-  const applyDiscovery = useCallback(
-    (authMode: AuthMode, ownerCode: string, response: WizardDiscoverResponse) => {
-      const base = {
-        authMode,
-        ownerCode,
-        ownerName: response.ownerName,
-        branches: response.branches,
-      } as const;
-      if (response.branches.length === 1) {
-        setState((prev) => ({ ...prev, ...base, branch: response.branches[0], step: 'role' }));
-        return;
-      }
-      setState((prev) => ({ ...prev, ...base, branch: null, step: 'branchSelection' }));
-    },
-    [],
-  );
-
-  const handleCodeDiscovered = useCallback(
-    (ownerCode: string, response: WizardDiscoverResponse) => applyDiscovery('code', ownerCode, response),
-    [applyDiscovery],
-  );
-
-  const handlePhoneDiscovered = useCallback(
-    (response: WizardDiscoverResponse) => applyDiscovery('phone', '', response),
-    [applyDiscovery],
-  );
-
-  const goToOwnerCode = useCallback(() => {
-    setState((prev) => ({ ...prev, step: 'ownerCode', authMode: 'code' }));
+  const handlePhoneDiscovered = useCallback((response: WizardDiscoverResponse) => {
+    const base = { ownerName: response.ownerName, branches: response.branches } as const;
+    if (response.branches.length === 1) {
+      setState((prev) => ({ ...prev, ...base, branch: response.branches[0], step: 'role' }));
+      return;
+    }
+    setState((prev) => ({ ...prev, ...base, branch: null, step: 'branchSelection' }));
   }, []);
 
-  const goToPhoneLogin = useCallback(() => {
-    setState(initialState);
+  const goToPhoneLogin = useCallback((prefill?: SignInPrefill) => {
+    setState({ ...initialState, signInPrefill: prefill ?? null });
   }, []);
 
   const goToForgotPassword = useCallback(() => {
@@ -150,20 +122,12 @@ export function App() {
   const backFromRole = useCallback(() => {
     setState((prev) => ({
       ...prev,
-      step:
-        prev.branches.length > 1
-          ? 'branchSelection'
-          : prev.authMode === 'phone'
-            ? 'phoneLogin'
-            : 'ownerCode',
+      step: prev.branches.length > 1 ? 'branchSelection' : 'phoneLogin',
       branch: prev.branches.length > 1 ? null : prev.branch,
     }));
   }, []);
 
-  const installClient = useMemo<WizardInstallClient>(
-    () => (state.authMode === 'phone' ? authenticatedInstallClient() : ownerCodeInstallClient(state.ownerCode)),
-    [state.authMode, state.ownerCode],
-  );
+  const installClient = useMemo<WizardInstallClient>(() => authenticatedInstallClient(), []);
 
   const backToRole = useCallback(() => {
     setState((prev) => ({ ...prev, step: 'role' }));
@@ -186,7 +150,6 @@ export function App() {
   const stepAnnouncement = useMemo(() => {
     const stepLabelKey: Record<typeof state.step, MessageKey> = {
       phoneLogin: 'setup.wizard.stepper.signIn',
-      ownerCode: 'setup.wizard.stepper.signIn',
       forgotPassword: 'setup.wizard.stepper.signIn',
       branchSelection: 'setup.wizard.stepper.branch',
       role: 'setup.wizard.stepper.role',
@@ -194,9 +157,7 @@ export function App() {
       finished: 'setup.wizard.stepper.done',
     };
     const order = ['phoneLogin', 'branchSelection', 'role', 'device', 'finished'];
-    const announceStep = state.step === 'ownerCode' || state.step === 'forgotPassword'
-      ? 'phoneLogin'
-      : state.step;
+    const announceStep = state.step === 'forgotPassword' ? 'phoneLogin' : state.step;
     const stepNumber = order.indexOf(announceStep) + 1;
     return `${t('setup.wizard.common.step')} ${stepNumber}: ${t(stepLabelKey[state.step])}`;
   }, [state.step, t]);
@@ -284,17 +245,14 @@ export function App() {
         {state.step === 'phoneLogin' && (
           <PhoneLoginScreen
             onDiscovered={handlePhoneDiscovered}
-            onUseOwnerCode={goToOwnerCode}
             onForgotPassword={goToForgotPassword}
+            initialMode={state.signInPrefill?.channel}
+            initialIdentity={state.signInPrefill?.identity}
           />
         )}
 
         {state.step === 'forgotPassword' && (
           <ForgotPasswordScreen onBack={goToPhoneLogin} />
-        )}
-
-        {state.step === 'ownerCode' && (
-          <OwnerCodeScreen onDiscovered={handleCodeDiscovered} onUsePhone={goToPhoneLogin} />
         )}
 
         {state.step === 'branchSelection' && (

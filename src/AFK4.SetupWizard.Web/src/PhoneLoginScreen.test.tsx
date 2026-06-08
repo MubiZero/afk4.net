@@ -45,19 +45,17 @@ const { PhoneLoginScreen } = await import('./PhoneLoginScreen');
 
 function renderScreen(props: Partial<Parameters<typeof PhoneLoginScreen>[0]> = {}) {
   const onDiscovered = mock(() => {});
-  const onUseOwnerCode = mock(() => {});
   const onForgotPassword = mock(() => {});
   render(
     <I18nProvider>
       <PhoneLoginScreen
         onDiscovered={onDiscovered}
-        onUseOwnerCode={onUseOwnerCode}
         onForgotPassword={onForgotPassword}
         {...props}
       />
     </I18nProvider>,
   );
-  return { onDiscovered, onUseOwnerCode, onForgotPassword };
+  return { onDiscovered, onForgotPassword };
 }
 
 describe('PhoneLoginScreen', () => {
@@ -74,7 +72,7 @@ describe('PhoneLoginScreen', () => {
     fireEvent.change(screen.getByLabelText(/номер телефона/i), {
       target: { value: '+992 93 738-00-70' },
     });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
     await waitFor(() => expect(signInByPhone).toHaveBeenCalledTimes(1));
@@ -84,9 +82,9 @@ describe('PhoneLoginScreen', () => {
 
   it('signs in by email and discovers branches', async () => {
     const { onDiscovered } = renderScreen();
-    fireEvent.click(screen.getByRole('radio', { name: /по email/i }));
+    fireEvent.click(screen.getByRole('button', { name: /войти по email/i }));
     fireEvent.change(screen.getByLabelText(/email или логин/i), { target: { value: 'owner@club.tj' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
     await waitFor(() => expect(signInByLogin).toHaveBeenCalledWith('owner@club.tj', 'Passw0rd!'));
@@ -103,9 +101,9 @@ describe('PhoneLoginScreen', () => {
       ],
     }));
     const { onDiscovered } = renderScreen();
-    fireEvent.click(screen.getByRole('radio', { name: /по email/i }));
+    fireEvent.click(screen.getByRole('button', { name: /войти по email/i }));
     fireEvent.change(screen.getByLabelText(/email или логин/i), { target: { value: 'owner@club.tj' } });
-    fireEvent.change(screen.getByLabelText(/пароль/i), { target: { value: 'Passw0rd!' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Клуб Б' }));
@@ -113,15 +111,23 @@ describe('PhoneLoginScreen', () => {
     await waitFor(() => expect(onDiscovered).toHaveBeenCalledTimes(1));
   });
 
-  it('routes to the owner-code fallback', () => {
-    const { onUseOwnerCode } = renderScreen();
-    fireEvent.click(screen.getByRole('button', { name: /коду владельца/i }));
-    expect(onUseOwnerCode).toHaveBeenCalledTimes(1);
-  });
-
-  it('routes to the forgot-password screen', () => {
+  it('reveals "forgot password" only after a failed sign-in, then routes to it', async () => {
+    signInByPhone.mockImplementationOnce(async () => {
+      throw new Error('bad credentials');
+    });
     const { onForgotPassword } = renderScreen();
-    fireEvent.click(screen.getByRole('button', { name: /забыли пароль/i }));
+
+    // Hidden until the user actually gets the password wrong — keeps the resting screen clean.
+    expect(screen.queryByRole('button', { name: /забыли пароль/i })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), {
+      target: { value: '+992 93 738-00-70' },
+    });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'wrong' } });
+    fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
+
+    const forgot = await screen.findByRole('button', { name: /забыли пароль/i });
+    fireEvent.click(forgot);
     expect(onForgotPassword).toHaveBeenCalledTimes(1);
   });
 });

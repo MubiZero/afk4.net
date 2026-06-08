@@ -79,7 +79,7 @@ describe('ForgotPasswordScreen', () => {
 
   it('runs the email reset inline: request a code then set a new password', async () => {
     renderScreen();
-    fireEvent.click(screen.getByRole('radio', { name: /по email/i }));
+    fireEvent.click(screen.getByRole('button', { name: /сбросить по email/i }));
     fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'owner@club.tj' } });
     fireEvent.click(screen.getByRole('button', { name: /отправить код/i }));
 
@@ -97,5 +97,24 @@ describe('ForgotPasswordScreen', () => {
     const { onBack } = renderScreen();
     fireEvent.click(screen.getByRole('button', { name: /вернуться ко входу/i }));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the typed phone back to sign-in when cancelling from the request step', () => {
+    const { onBack } = renderScreen();
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '+992937380070' } });
+    fireEvent.click(screen.getByRole('button', { name: /вернуться ко входу/i }));
+    expect(onBack).toHaveBeenCalledWith({ channel: 'phone', identity: '+992937380070' });
+  });
+
+  it('hands the identity back to sign-in from the success screen', async () => {
+    const { onBack } = renderScreen();
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '+992937380070' } });
+    fireEvent.click(screen.getByRole('button', { name: /получить код/i }));
+    fireEvent.change(await screen.findByLabelText(/код из sms/i), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText(/новый пароль/i), { target: { value: 'Passw0rd!New' } });
+    fireEvent.click(screen.getByRole('button', { name: /сменить пароль/i }));
+
+    fireEvent.click(await screen.findByRole('button', { name: /перейти ко входу/i }));
+    expect(onBack).toHaveBeenCalledWith({ channel: 'phone', identity: '+992937380070' });
   });
 });
