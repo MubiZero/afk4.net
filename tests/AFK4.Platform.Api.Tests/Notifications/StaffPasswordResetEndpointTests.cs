@@ -12,8 +12,8 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed partial class StaffPasswordResetEndpointTests
 {
-    [GeneratedRegex(@"[0-9a-fA-F]{32}\.[0-9A-Fa-f]{64}")]
-    private static partial Regex TokenPattern();
+    [GeneratedRegex(@"\b[0-9]{6}\b")]
+    private static partial Regex CodePattern();
 
     private static async Task<Guid> SeedStaffAsync(PlatformApiFactory factory, string userName, string email, string password)
     {
@@ -46,18 +46,18 @@ public sealed partial class StaffPasswordResetEndpointTests
             new StaffForgotPasswordRequest("reset.owner@club.example"));
         Assert.Equal(HttpStatusCode.OK, forgot.StatusCode);
 
-        // The reset token is rendered into the outbox snapshot body even though SMTP is unconfigured.
-        string token;
+        // The 6-digit reset code is rendered into the outbox snapshot body even though SMTP is unconfigured.
+        string code;
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
             var row = await db.NotificationOutbox.SingleAsync(r => r.TemplateKey == NotificationTemplateKeys.StaffPasswordReset);
-            token = TokenPattern().Match(row.BodyText).Value;
-            Assert.NotEmpty(token);
+            code = CodePattern().Match(row.BodyText).Value;
+            Assert.NotEmpty(code);
         }
 
         var reset = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest(token, "BrandNewPass1"));
+            new StaffResetPasswordRequest("reset.owner@club.example", code, "BrandNewPass1"));
         Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
 
         using (var scope = factory.Services.CreateScope())
@@ -87,15 +87,34 @@ public sealed partial class StaffPasswordResetEndpointTests
     }
 
     [Fact]
-    public async Task Reset_InvalidToken_Returns400()
+    public async Task Reset_WrongCode_Returns400WithRemainingAttempts()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
+        await SeedStaffAsync(factory, "reset.owner", "reset.owner@club.example", "OldPassw0rd");
+        await client.PostAsJsonAsync("/api/auth/staff/forgot-password",
+            new StaffForgotPasswordRequest("reset.owner@club.example"));
 
         var response = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest("00000000000000000000000000000000.deadbeef", "BrandNewPass1"));
+            new StaffResetPasswordRequest("reset.owner@club.example", "000001", "BrandNewPass1"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ResetErrorBody>();
+        Assert.Equal("invalid_code", body!.Error);
+        Assert.Equal(2, body.RemainingAttempts);
+    }
+
+    [Fact]
+    public async Task Reset_NoPendingCode_Returns410()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await SeedStaffAsync(factory, "reset.owner", "reset.owner@club.example", "OldPassw0rd");
+
+        var response = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
+            new StaffResetPasswordRequest("reset.owner@club.example", "123456", "BrandNewPass1"));
+
+        Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
     }
 
     [Fact]
@@ -105,8 +124,10 @@ public sealed partial class StaffPasswordResetEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/api/auth/staff/reset-password",
-            new StaffResetPasswordRequest("00000000000000000000000000000000.deadbeef", "short"));
+            new StaffResetPasswordRequest("reset.owner@club.example", "123456", "short"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    private sealed record ResetErrorBody(string Error, int RemainingAttempts);
 }

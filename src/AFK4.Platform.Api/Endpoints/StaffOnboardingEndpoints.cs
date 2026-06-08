@@ -90,16 +90,21 @@ internal static class StaffOnboardingEndpoints
             // Anti-enumeration: always report acceptance regardless of whether the account exists.
             await passwordResetService.RequestResetAsync(request.UserNameOrEmail, cancellationToken);
             return Results.Ok(new { message = "If the account exists, a reset email has been sent." });
-        });
+        }).RequireRateLimiting("staff-reset");
 
         app.MapPost("/api/auth/staff/reset-password", async (
             StaffResetPasswordRequest request,
             IStaffPasswordResetService passwordResetService,
             CancellationToken cancellationToken) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Token))
+            if (string.IsNullOrWhiteSpace(request.UserNameOrEmail))
             {
-                return Results.BadRequest(new { error = "Token is required." });
+                return Results.BadRequest(new { error = "UserNameOrEmail is required." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Code))
+            {
+                return Results.BadRequest(new { error = "Code is required." });
             }
 
             var passwordValidation = ValidateStaffPassword(request.NewPassword);
@@ -108,11 +113,23 @@ internal static class StaffOnboardingEndpoints
                 return Results.BadRequest(new { error = passwordValidation });
             }
 
-            var reset = await passwordResetService.CompleteResetAsync(request.Token, request.NewPassword, cancellationToken);
-            return reset
-                ? Results.Ok(new { message = "Password updated." })
-                : Results.BadRequest(new { error = "The reset link is invalid or has expired." });
-        });
+            var result = await passwordResetService.ResetAsync(
+                request.UserNameOrEmail, request.Code, request.NewPassword, cancellationToken);
+            return result.Status switch
+            {
+                ResetPasswordByEmailStatus.Success => Results.Ok(new { message = "Password updated." }),
+                ResetPasswordByEmailStatus.InvalidCode => Results.Json(
+                    new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
+                    statusCode: StatusCodes.Status400BadRequest),
+                ResetPasswordByEmailStatus.Expired => Results.Json(
+                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+                ResetPasswordByEmailStatus.NoActiveCode => Results.Json(
+                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+                ResetPasswordByEmailStatus.TooManyAttempts => Results.Json(
+                    new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+            };
+        }).RequireRateLimiting("staff-reset");
 
         app.MapPost("/api/branches/{branchId:guid}/staff/invites", async (
             Guid branchId,
