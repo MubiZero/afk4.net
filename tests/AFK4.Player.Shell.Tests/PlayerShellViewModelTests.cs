@@ -58,7 +58,7 @@ public sealed class PlayerShellViewModelTests
         viewModel.ApplyState(CreateState(
             PlayerShellStateNames.Locked, remainingSeconds: null, launcherApps: [], locale: Locales.Ru));
 
-        Assert.Equal("Этот компьютер заблокирован.", viewModel.StatusMessage);
+        Assert.Equal("Этот ПК заблокирован.", viewModel.StatusMessage);
     }
 
     [Fact]
