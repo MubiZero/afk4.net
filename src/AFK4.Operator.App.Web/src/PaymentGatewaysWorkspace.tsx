@@ -279,14 +279,14 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
                     </label>
                     {hasSavedCreds && !changeCreds ? (
                       <p className="payment-card-saved-creds">
-                        {t('payments_cards.telegram.saved_creds' as MessageKey, { apiId: savedApiId ?? '' })}
+                        {t('payments_cards.telegram.saved_creds', { apiId: savedApiId ?? '' })}
                         <button type="button" onClick={() => setChangeCreds(true)}>
-                          {t('payments_cards.telegram.change_creds' as MessageKey)}
+                          {t('payments_cards.telegram.change_creds')}
                         </button>
                       </p>
                     ) : (
                       <>
-                        <label>{t('payments_cards.telegram.api_id' as MessageKey)}
+                        <label>{t('payments_cards.telegram.api_id')}
                           <input
                             aria-label="api_id"
                             inputMode="numeric"
@@ -294,7 +294,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
                             onChange={(e) => setApiId(e.currentTarget.value)}
                           />
                         </label>
-                        <label>{t('payments_cards.telegram.api_hash' as MessageKey)}
+                        <label>{t('payments_cards.telegram.api_hash')}
                           <input
                             aria-label="api_hash"
                             type="password"
@@ -302,7 +302,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
                             onChange={(e) => setApiHash(e.currentTarget.value)}
                           />
                         </label>
-                        <p className="payment-card-api-help">{t('payments_cards.telegram.api_help' as MessageKey)}</p>
+                        <p className="payment-card-api-help">{t('payments_cards.telegram.api_help')}</p>
                       </>
                     )}
                     <button type="button" disabled={busy} onClick={() => void startAttach(g.branchPaymentGatewayId)}>
