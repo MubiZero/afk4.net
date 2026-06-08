@@ -20,6 +20,14 @@ const { cleanup } = await import('@testing-library/react');
   __afk4RealOperatorRealtime?: typeof import('../operatorRealtime');
 }).__afk4RealOperatorRealtime = { ...(await import('../operatorRealtime')) };
 
+// Same hazard for operatorApiClients: PaymentGatewaysWorkspace/PhoneVerificationCard tests install
+// a partial mock.module('./operatorApiClients') that bun keeps for the rest of the run and that
+// mutates the shared namespace, breaking App.test.tsx and operatorApiClients.test.ts. Snapshot the
+// genuine factories here so those files can restore/read the real implementation.
+(globalThis as typeof globalThis & {
+  __afk4RealOperatorApiClients?: typeof import('../operatorApiClients');
+}).__afk4RealOperatorApiClients = { ...(await import('../operatorApiClients')) };
+
 afterEach(() => {
   cleanup();
   // Isolate persisted web storage between tests: the i18n provider seeds locale from localStorage,
