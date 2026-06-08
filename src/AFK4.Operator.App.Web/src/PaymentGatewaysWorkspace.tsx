@@ -127,7 +127,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
     try {
       const result = await clients.telegramStart(id, { phone: phone.trim() });
       setAttachId(id);
-      setLoginAttemptId(result.loginAttemptId);
+      setLoginAttemptId(result.loginAttemptId ?? '');
       setAttachPhase('code_required');
     } catch (error) {
       setLoadError(projectOperatorError(error).detail);
