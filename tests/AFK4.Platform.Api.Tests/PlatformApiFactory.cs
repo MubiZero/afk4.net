@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -27,6 +28,16 @@ internal sealed class PlatformApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // The app logs at Information by default (every EF SQL command included). Written to the
+        // Console/Debug providers — both process-wide synchronized — that logging serializes the
+        // hundreds of parallel factory-backed tests on a single lock. Tests assert on behaviour,
+        // not log output, so silence the providers and raise the floor to Warning.
+        builder.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.SetMinimumLevel(LogLevel.Warning);
+        });
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IDbContextOptionsConfiguration<PlatformDbContext>>();
