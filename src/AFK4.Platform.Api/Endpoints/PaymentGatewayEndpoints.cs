@@ -254,7 +254,7 @@ internal static class PaymentGatewayEndpoints
         });
 
         app.MapGet("/api/owner/payment-gateways/telegram-credentials", async (
-            string phone,
+            string? phone,
             StaffAuthorizationService authorizationService,
             ISecretProtector secretProtector,
             PlatformDbContext dbContext,
@@ -269,7 +269,17 @@ internal static class PaymentGatewayEndpoints
             var existing = await dbContext.OrganizationTelegramApiCredentials.AsNoTracking().SingleOrDefaultAsync(
                 c => c.OrganizationId == orgId && c.PhoneNumber == normalized, cancellationToken);
             if (existing is null) return Results.Ok(new OwnerTelegramCredentialsResponse(false, null));
-            var apiId = long.Parse(secretProtector.Unprotect(existing.ApiIdEncrypted), System.Globalization.CultureInfo.InvariantCulture);
+            long apiId;
+            try
+            {
+                apiId = long.Parse(secretProtector.Unprotect(existing.ApiIdEncrypted), System.Globalization.CultureInfo.InvariantCulture);
+            }
+            catch (Exception)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status500InternalServerError,
+                    title: "telegram_api_credentials_unreadable",
+                    detail: "Saved Telegram credentials could not be read. Re-enter them.");
+            }
             return Results.Ok(new OwnerTelegramCredentialsResponse(true, apiId));
         });
 
@@ -457,19 +467,38 @@ internal static class PaymentGatewayEndpoints
                         CreatedAtUtc = now,
                         UpdatedAtUtc = now
                     });
+                    try
+                    {
+                        await dbContext.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+                    {
+                        return Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                            title: "telegram_api_credentials_conflict",
+                            detail: "Credentials for this phone are being saved concurrently. Retry.");
+                    }
                 }
                 else
                 {
                     existing.ApiIdEncrypted = secretProtector.Protect(apiId.ToString(CultureInfo.InvariantCulture));
                     existing.ApiHashEncrypted = secretProtector.Protect(apiHash);
                     existing.UpdatedAtUtc = now;
+                    await dbContext.SaveChangesAsync(cancellationToken);
                 }
-                await dbContext.SaveChangesAsync(cancellationToken);
             }
             else if (existing is not null)
             {
-                apiId = long.Parse(secretProtector.Unprotect(existing.ApiIdEncrypted), CultureInfo.InvariantCulture);
-                apiHash = secretProtector.Unprotect(existing.ApiHashEncrypted);
+                try
+                {
+                    apiId = long.Parse(secretProtector.Unprotect(existing.ApiIdEncrypted), CultureInfo.InvariantCulture);
+                    apiHash = secretProtector.Unprotect(existing.ApiHashEncrypted);
+                }
+                catch (Exception)
+                {
+                    return Results.Problem(statusCode: StatusCodes.Status500InternalServerError,
+                        title: "telegram_api_credentials_unreadable",
+                        detail: "Saved Telegram credentials could not be read. Re-enter them.");
+                }
             }
             else
             {

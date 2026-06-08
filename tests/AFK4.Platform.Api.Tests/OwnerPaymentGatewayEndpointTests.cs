@@ -455,4 +455,17 @@ public sealed class OwnerPaymentGatewayEndpointTests
         Assert.True(saved!.HasCredentials);
         Assert.Equal(123, saved.ApiId);
     }
+
+    [Fact]
+    public async Task TelegramStart_rejects_non_positive_apiId()
+    {
+        var fake = new FakeAdminClient();
+        await using var factory = FactoryWithAdmin(fake);
+        var client = factory.CreateClient();
+        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
+        var response = await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
+            new TelegramStartRequest("+992900000000", 0, "hash"));
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
