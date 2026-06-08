@@ -305,7 +305,11 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
                         <p className="payment-card-api-help">{t('payments_cards.telegram.api_help')}</p>
                       </>
                     )}
-                    <button type="button" disabled={busy} onClick={() => void startAttach(g.branchPaymentGatewayId)}>
+                    <button
+                      type="button"
+                      disabled={busy || !phone.trim() || ((!hasSavedCreds || changeCreds) && (!apiId.trim() || !apiHash.trim()))}
+                      onClick={() => void startAttach(g.branchPaymentGatewayId)}
+                    >
                       {t('payments_cards.telegram.start')}
                     </button>
                   </>
