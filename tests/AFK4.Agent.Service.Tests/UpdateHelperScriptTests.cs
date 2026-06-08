@@ -131,11 +131,11 @@ public sealed class UpdateHelperScriptTests
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
         var script = File.ReadAllText(scriptPath);
 
-        Assert.Contains("NpmPath", script, StringComparison.Ordinal);
+        Assert.Contains("BunPath", script, StringComparison.Ordinal);
         Assert.Contains("SkipOperatorWebRestore", script, StringComparison.Ordinal);
         Assert.Contains("src/AFK4.Operator.App.Web", script, StringComparison.Ordinal);
-        Assert.Contains("& $NpmPath ci", script, StringComparison.Ordinal);
-        Assert.Contains("& $NpmPath run build", script, StringComparison.Ordinal);
+        Assert.Contains("& $BunPath install --frozen-lockfile", script, StringComparison.Ordinal);
+        Assert.Contains("& $BunPath run build", script, StringComparison.Ordinal);
         Assert.Contains("Operator App frontend build did not produce", script, StringComparison.Ordinal);
         Assert.Contains("$operatorWebAssetsPublishDir = Join-Path $operatorAppPublishDir 'WebAssets'", script, StringComparison.Ordinal);
         Assert.Contains("Copy-Item -Destination $operatorWebAssetsPublishDir -Recurse -Force", script, StringComparison.Ordinal);

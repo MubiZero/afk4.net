@@ -680,7 +680,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/setup-node@v4", workflow, StringComparison.Ordinal);
         Assert.Contains("node-version: 24", workflow, StringComparison.Ordinal);
-        Assert.Contains("cache-dependency-path: src/AFK4.Operator.App.Web/package-lock.json", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: oven-sh/setup-bun@v2", workflow, StringComparison.Ordinal);
+        Assert.Contains("bun-version: 1.3.14", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_PACKAGE_VERSION=$version", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"scripts/publish-client-msi-updates.ps1\"", workflow, StringComparison.Ordinal);
@@ -814,7 +815,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/setup-node@v4", workflow, StringComparison.Ordinal);
         Assert.Contains("node-version: 24", workflow, StringComparison.Ordinal);
-        Assert.Contains("cache-dependency-path: src/AFK4.Operator.App.Web/package-lock.json", workflow, StringComparison.Ordinal);
+        Assert.Contains("uses: oven-sh/setup-bun@v2", workflow, StringComparison.Ordinal);
+        Assert.Contains("bun-version: 1.3.14", workflow, StringComparison.Ordinal);
         Assert.Contains("if-no-files-found: error", workflow, StringComparison.Ordinal);
         Assert.Equal(2, CountOccurrences(workflow, "retention-days: 3"));
     }
