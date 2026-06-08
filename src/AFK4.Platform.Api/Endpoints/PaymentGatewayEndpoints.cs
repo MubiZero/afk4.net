@@ -401,18 +401,70 @@ internal static class PaymentGatewayEndpoints
             Guid id, TelegramStartRequest request,
             StaffAuthorizationService authorizationService,
             IDcGateAdminClient adminClient,
+            ISecretProtector secretProtector,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
             var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
             if (error is not null) return error;
+            var orgId = row!.OrganizationId;
+            var phone = (request.Phone ?? string.Empty).Trim();
+
+            long apiId;
+            string apiHash;
+            var existing = await dbContext.OrganizationTelegramApiCredentials.SingleOrDefaultAsync(
+                c => c.OrganizationId == orgId && c.PhoneNumber == phone, cancellationToken);
+
+            if (request.ApiId is long suppliedId && !string.IsNullOrWhiteSpace(request.ApiHash))
+            {
+                if (suppliedId <= 0)
+                {
+                    return Results.ValidationProblem(new Dictionary<string, string[]>
+                    { ["apiId"] = ["api_id must be a positive integer."] });
+                }
+                apiId = suppliedId;
+                apiHash = request.ApiHash.Trim();
+                var now = DateTimeOffset.UtcNow;
+                if (existing is null)
+                {
+                    dbContext.OrganizationTelegramApiCredentials.Add(new OrganizationTelegramApiCredentialEntity
+                    {
+                        OrganizationTelegramApiCredentialId = Guid.NewGuid(),
+                        OrganizationId = orgId,
+                        PhoneNumber = phone,
+                        ApiIdEncrypted = secretProtector.Protect(apiId.ToString(CultureInfo.InvariantCulture)),
+                        ApiHashEncrypted = secretProtector.Protect(apiHash),
+                        CreatedAtUtc = now,
+                        UpdatedAtUtc = now
+                    });
+                }
+                else
+                {
+                    existing.ApiIdEncrypted = secretProtector.Protect(apiId.ToString(CultureInfo.InvariantCulture));
+                    existing.ApiHashEncrypted = secretProtector.Protect(apiHash);
+                    existing.UpdatedAtUtc = now;
+                }
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            else if (existing is not null)
+            {
+                apiId = long.Parse(secretProtector.Unprotect(existing.ApiIdEncrypted), CultureInfo.InvariantCulture);
+                apiHash = secretProtector.Unprotect(existing.ApiHashEncrypted);
+            }
+            else
+            {
+                return Results.Problem(statusCode: StatusCodes.Status400BadRequest,
+                    title: "telegram_api_credentials_required",
+                    detail: "Enter api_id and api_hash for this Telegram account.");
+            }
+
             try
             {
-                // TODO(Task 4): resolve/store creds + handle attached
-                var result = await adminClient.StartTelegramAsync(
-                    row!.DcgateProjectId, request.Phone,
-                    request.ApiId ?? 0, request.ApiHash ?? "",
-                    cancellationToken);
+                var result = await adminClient.StartTelegramAsync(row.DcgateProjectId, phone, apiId, apiHash, cancellationToken);
+                if (result.State == DcGateTelegramState.Attached)
+                {
+                    await ApplyAttachResultAsync(row, result.State, dbContext, cancellationToken);
+                }
                 return Results.Ok(new TelegramStartResponse(result.LoginAttemptId, result.State));
             }
             catch (DcGateAdminException ex)
