@@ -227,6 +227,14 @@ export function billingLabel(value: string, t: TFunc) {
     return t('op.helper.billing.guestLabel');
   }
 
+  if (normalized.includes('открытый') || normalized.includes('open')) {
+    return t('op.helper.billing.openTab');
+  }
+
+  if (normalized.includes('cash') || normalized.includes('наличн')) {
+    return t('op.helper.billing.cash');
+  }
+
   return t('op.helper.billing.notSet');
 }
 

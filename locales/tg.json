@@ -2229,6 +2229,8 @@
   "op.helper.billing.deposit": "Хазина",
   "op.helper.billing.postpaidLabel": "Пасмонд",
   "op.helper.billing.guestLabel": "Меҳмон",
+  "op.helper.billing.openTab": "Ҳисоби кушода",
+  "op.helper.billing.cash": "Нақд",
 
   "op.helper.zone.consoleLounge": "Зонаи консолӣ",
   "op.helper.zone.mainHall": "Толори асосӣ",
