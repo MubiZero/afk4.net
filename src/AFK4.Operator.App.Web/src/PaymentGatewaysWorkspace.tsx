@@ -4,7 +4,8 @@ import { PlatformApiClient } from './platformApi';
 import {
   createOperatorApiClients,
   type OwnerPaymentGatewayDto,
-  type OwnerGatewayStatusResponse
+  type OwnerGatewayStatusResponse,
+  type TelegramStartRequest
 } from './operatorApiClients';
 import { projectOperatorError } from './apiErrors';
 
@@ -41,6 +42,11 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
+  const [apiId, setApiId] = useState('');
+  const [apiHash, setApiHash] = useState('');
+  const [savedApiId, setSavedApiId] = useState<number | null>(null);
+  const [hasSavedCreds, setHasSavedCreds] = useState(false);
+  const [changeCreds, setChangeCreds] = useState(false);
 
   const clients = useMemo(
     () => createOperatorApiClients(new PlatformApiClient({
@@ -122,13 +128,33 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
     }
   };
 
+  const lookupCreds = async () => {
+    const trimmed = phone.trim();
+    if (!trimmed) return;
+    try {
+      const res = await clients.telegramCredentials(trimmed);
+      setHasSavedCreds(res.hasCredentials);
+      setSavedApiId(res.apiId);
+      setChangeCreds(false);
+    } catch { /* best-effort */ }
+  };
+
   const startAttach = async (id: string) => {
     setBusy(true);
     try {
-      const result = await clients.telegramStart(id, { phone: phone.trim() });
+      const sendCreds = !hasSavedCreds || changeCreds;
+      const request: TelegramStartRequest = sendCreds
+        ? { phone: phone.trim(), apiId: Number(apiId), apiHash: apiHash.trim() }
+        : { phone: phone.trim() };
+      const result = await clients.telegramStart(id, request);
       setAttachId(id);
-      setLoginAttemptId(result.loginAttemptId);
-      setAttachPhase('code_required');
+      if (result.state === 'attached') {
+        setAttachPhase('attached');
+        await reload();
+      } else {
+        setLoginAttemptId(result.loginAttemptId ?? '');
+        setAttachPhase(result.state as AttachPhase);
+      }
     } catch (error) {
       setLoadError(projectOperatorError(error).detail);
     } finally {
@@ -244,9 +270,46 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
                 {(attachId !== g.branchPaymentGatewayId || attachPhase === 'idle') && (
                   <>
                     <label>{t('payments_cards.telegram.phone')}
-                      <input value={phone} onChange={(e) => setPhone(e.currentTarget.value)} />
+                      <input
+                        aria-label="phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.currentTarget.value)}
+                        onBlur={() => void lookupCreds()}
+                      />
                     </label>
-                    <button type="button" disabled={busy} onClick={() => void startAttach(g.branchPaymentGatewayId)}>
+                    {hasSavedCreds && !changeCreds ? (
+                      <p className="payment-card-saved-creds">
+                        {t('payments_cards.telegram.saved_creds', { apiId: savedApiId ?? '' })}
+                        <button type="button" onClick={() => setChangeCreds(true)}>
+                          {t('payments_cards.telegram.change_creds')}
+                        </button>
+                      </p>
+                    ) : (
+                      <>
+                        <label>{t('payments_cards.telegram.api_id')}
+                          <input
+                            aria-label="api_id"
+                            inputMode="numeric"
+                            value={apiId}
+                            onChange={(e) => setApiId(e.currentTarget.value)}
+                          />
+                        </label>
+                        <label>{t('payments_cards.telegram.api_hash')}
+                          <input
+                            aria-label="api_hash"
+                            type="password"
+                            value={apiHash}
+                            onChange={(e) => setApiHash(e.currentTarget.value)}
+                          />
+                        </label>
+                        <p className="payment-card-api-help">{t('payments_cards.telegram.api_help')}</p>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy || !phone.trim() || ((!hasSavedCreds || changeCreds) && (!apiId.trim() || !apiHash.trim()))}
+                      onClick={() => void startAttach(g.branchPaymentGatewayId)}
+                    >
                       {t('payments_cards.telegram.start')}
                     </button>
                   </>

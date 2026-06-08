@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
+import type { TelegramStartResponse, OwnerTelegramCredentialsResponse } from './operatorApiClients';
 
 // bun's mock.module is not hoisted above static imports, so register it before
 // importing the component under test.
@@ -18,7 +19,7 @@ const listMock = mock(async () => ({
   ]
 }));
 const provisionMock = mock(async () => ({}));
-const startMock = mock(async () => ({ loginAttemptId: 'att', state: 'code_required' }));
+const startMock = mock(async (): Promise<TelegramStartResponse> => ({ loginAttemptId: 'att', state: 'code_required' }));
 const disableMock = mock(async () => ({
   branchPaymentGatewayId: 'g1',
   branchId: null,
@@ -28,6 +29,7 @@ const disableMock = mock(async () => ({
   createdAtUtc: '2026-06-04T00:00:00Z',
   updatedAtUtc: '2026-06-04T00:00:00Z'
 }));
+const credentialsMock = mock(async (): Promise<OwnerTelegramCredentialsResponse> => ({ hasCredentials: false, apiId: null }));
 
 const actualClients = await import('./operatorApiClients');
 mock.module('./operatorApiClients', () => ({
@@ -38,6 +40,7 @@ mock.module('./operatorApiClients', () => ({
       provision: provisionMock,
       telegramStart: startMock,
       disable: disableMock,
+      telegramCredentials: credentialsMock,
       telegramVerifyCode: mock(async () => ({ state: 'attached', gatewayStatus: 'active' })),
       telegramVerifyPassword: mock(async () => ({ state: 'attached', gatewayStatus: 'active' })),
       status: mock(async () => ({
@@ -88,10 +91,15 @@ describe('PaymentGatewaysWorkspace', () => {
   });
 
   it('starts telegram attach for a pending gateway', async () => {
+    credentialsMock.mockResolvedValueOnce({ hasCredentials: false, apiId: null });
     render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
     await screen.findByText(/4242/);
-    const phone = screen.getByLabelText(/телефон|phone/i);
-    fireEvent.change(phone, { target: { value: '+992900000000' } });
+    const phoneInput = screen.getByLabelText(/телефон|phone/i);
+    fireEvent.change(phoneInput, { target: { value: '+992900000000' } });
+    fireEvent.blur(phoneInput);
+    await waitFor(() => expect(credentialsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByLabelText(/api_id/i), { target: { value: '123' } });
+    fireEvent.change(screen.getByLabelText(/api_hash/i), { target: { value: 'hash' } });
     fireEvent.click(screen.getByRole('button', { name: /код|code/i }));
     await waitFor(() => expect(startMock).toHaveBeenCalled());
   });
@@ -107,5 +115,35 @@ describe('PaymentGatewaysWorkspace', () => {
     } finally {
       globalThis.confirm = originalConfirm;
     }
+  });
+
+  it('sends api creds on first attach and skips OTP when attached', async () => {
+    credentialsMock.mockResolvedValueOnce({ hasCredentials: false, apiId: null });
+    startMock.mockResolvedValueOnce({ loginAttemptId: null, state: 'attached' });
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    await screen.findByText(/4242/);
+    const phoneInput = screen.getByLabelText(/телефон|phone/i);
+    fireEvent.change(phoneInput, { target: { value: '+992900000000' } });
+    fireEvent.blur(phoneInput);
+    await waitFor(() => expect(credentialsMock).toHaveBeenCalledWith('+992900000000'));
+    fireEvent.change(screen.getByLabelText(/api_id/i), { target: { value: '123' } });
+    fireEvent.change(screen.getByLabelText(/api_hash/i), { target: { value: 'hash' } });
+    fireEvent.click(screen.getByRole('button', { name: /код|code/i }));
+    await waitFor(() => expect(startMock).toHaveBeenCalledWith('g1', { phone: '+992900000000', apiId: 123, apiHash: 'hash' }));
+    await screen.findByText(/карта активна|card active/i);
+    expect(screen.queryByLabelText(/код из telegram|code from telegram/i)).toBeNull();
+  });
+
+  it('reuses saved creds without resending them', async () => {
+    credentialsMock.mockResolvedValueOnce({ hasCredentials: true, apiId: 123 });
+    startMock.mockResolvedValueOnce({ loginAttemptId: 'att', state: 'code_required' });
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    await screen.findByText(/4242/);
+    const phoneInput = screen.getByLabelText(/телефон|phone/i);
+    fireEvent.change(phoneInput, { target: { value: '+992900000000' } });
+    fireEvent.blur(phoneInput);
+    await waitFor(() => expect(credentialsMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /код|code/i }));
+    await waitFor(() => expect(startMock).toHaveBeenCalledWith('g1', { phone: '+992900000000' }));
   });
 });
