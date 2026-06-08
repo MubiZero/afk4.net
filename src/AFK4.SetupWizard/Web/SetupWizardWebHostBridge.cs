@@ -50,6 +50,12 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:createSeat" => await CreateSeatAsync(request.Payload, cancellationToken),
                 "wizard:enroll" => await EnrollAsync(request.Payload, cancellationToken),
                 "wizard:phoneSignIn" => await PhoneSignInAsync(request.Payload, cancellationToken),
+                "wizard:signInByLogin" => await LoginSignInAsync(request.Payload, cancellationToken),
+                "wizard:signInToClub" => await ClubSignInAsync(request.Payload, cancellationToken),
+                "wizard:forgotByEmail" => await ForgotPasswordByEmailAsync(request.Payload, cancellationToken),
+                "wizard:resetByEmail" => await ResetPasswordByEmailAsync(request.Payload, cancellationToken),
+                "wizard:forgotByPhone" => await ForgotPasswordByPhoneAsync(request.Payload, cancellationToken),
+                "wizard:resetByPhone" => await ResetPasswordByPhoneAsync(request.Payload, cancellationToken),
                 "wizard:discoverAuth" => await DiscoverAuthenticatedAsync(cancellationToken),
                 "wizard:createSeatAuth" => await CreateSeatAuthenticatedAsync(request.Payload, cancellationToken),
                 "wizard:enrollAuth" => await EnrollAuthenticatedAsync(request.Payload, cancellationToken),
@@ -57,6 +63,16 @@ public sealed class SetupWizardWebHostBridge(
             };
 
             return CreateResponse(request.RequestId, ok: true, payload, error: null);
+        }
+        catch (SetupWizardApiException exception)
+        {
+            // Structured reset error (e.g. invalid_code with a remaining-attempts count):
+            // forward the backend code and attempts so the inline SMS reset screen can show them.
+            return CreateResponse(
+                request.RequestId,
+                ok: false,
+                payload: null,
+                new SetupWizardWebBridgeError(exception.Code, exception.Message, exception.RemainingAttempts));
         }
         catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
         {
@@ -182,6 +198,100 @@ public sealed class SetupWizardWebHostBridge(
         var response = await apiClient.SignInByPhoneAsync(phone, password, cancellationToken);
         accessToken = response.AccessToken;
         return new WizardPhoneSignInResult(response.DisplayName);
+    }
+
+    private async Task<object> LoginSignInAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardLoginPayload>(payload);
+        var login = (request.Login ?? string.Empty).Trim();
+        var password = request.Password ?? string.Empty;
+        if (login.Length == 0 || password.Length == 0)
+        {
+            throw new InvalidOperationException("Login and password are required.");
+        }
+
+        var result = await apiClient.SignInByLoginAsync(login, password, cancellationToken);
+        if (result.SignedIn is not null)
+        {
+            accessToken = result.SignedIn.AccessToken;
+            return new WizardLoginResult(result.SignedIn.DisplayName, RequiresClubChoice: false, []);
+        }
+
+        // Several clubs share this login — the web shows a picker and re-submits via signInToClub.
+        var clubs = result.Clubs.Select(club => new WizardClubChoice(club.OrganizationId, club.Name)).ToArray();
+        return new WizardLoginResult(DisplayName: null, RequiresClubChoice: true, clubs);
+    }
+
+    private async Task<object> ClubSignInAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardClubSignInPayload>(payload);
+        var login = (request.Login ?? string.Empty).Trim();
+        var password = request.Password ?? string.Empty;
+        var organizationId = ParseGuid(request.OrganizationId, nameof(request.OrganizationId));
+        if (login.Length == 0 || password.Length == 0)
+        {
+            throw new InvalidOperationException("Login and password are required.");
+        }
+
+        var response = await apiClient.SignInToClubAsync(organizationId, login, password, cancellationToken);
+        accessToken = response.AccessToken;
+        return new WizardPhoneSignInResult(response.DisplayName);
+    }
+
+    private async Task<object> ForgotPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardForgotByEmailPayload>(payload);
+        var userNameOrEmail = (request.UserNameOrEmail ?? string.Empty).Trim();
+        if (userNameOrEmail.Length == 0)
+        {
+            throw new InvalidOperationException("Login or email is required.");
+        }
+
+        await apiClient.ForgotPasswordByEmailAsync(userNameOrEmail, cancellationToken);
+        return new { ok = true };
+    }
+
+    private async Task<object> ResetPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardResetByEmailPayload>(payload);
+        var userNameOrEmail = (request.UserNameOrEmail ?? string.Empty).Trim();
+        var code = (request.Code ?? string.Empty).Trim();
+        var newPassword = request.NewPassword ?? string.Empty;
+        if (userNameOrEmail.Length == 0 || code.Length == 0 || newPassword.Length == 0)
+        {
+            throw new InvalidOperationException("Login or email, code, and new password are required.");
+        }
+
+        await apiClient.ResetPasswordByEmailAsync(userNameOrEmail, code, newPassword, cancellationToken);
+        return new { ok = true };
+    }
+
+    private async Task<object> ForgotPasswordByPhoneAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardForgotByPhonePayload>(payload);
+        var phone = (request.PhoneNumber ?? string.Empty).Trim();
+        if (phone.Length == 0)
+        {
+            throw new InvalidOperationException("Phone number is required.");
+        }
+
+        await apiClient.ForgotPasswordByPhoneAsync(phone, cancellationToken);
+        return new { ok = true };
+    }
+
+    private async Task<object> ResetPasswordByPhoneAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        var request = DeserializePayload<WizardResetByPhonePayload>(payload);
+        var phone = (request.PhoneNumber ?? string.Empty).Trim();
+        var code = (request.Code ?? string.Empty).Trim();
+        var newPassword = request.NewPassword ?? string.Empty;
+        if (phone.Length == 0 || code.Length == 0 || newPassword.Length == 0)
+        {
+            throw new InvalidOperationException("Phone, code, and new password are required.");
+        }
+
+        await apiClient.ResetPasswordByPhoneAsync(phone, code, newPassword, cancellationToken);
+        return new { ok = true };
     }
 
     private string RequireAccessToken() =>
@@ -386,6 +496,12 @@ public sealed class SetupWizardWebHostBridge(
         "wizard:createSeat" => "wizard_create_seat_failed",
         "wizard:enroll" => "wizard_enroll_failed",
         "wizard:phoneSignIn" => "wizard_phone_sign_in_failed",
+        "wizard:signInByLogin" => "wizard_sign_in_failed",
+        "wizard:signInToClub" => "wizard_sign_in_failed",
+        "wizard:forgotByEmail" => "wizard_forgot_password_failed",
+        "wizard:resetByEmail" => "wizard_reset_password_failed",
+        "wizard:forgotByPhone" => "wizard_forgot_password_failed",
+        "wizard:resetByPhone" => "wizard_reset_password_failed",
         "wizard:discoverAuth" => "wizard_discover_failed",
         "wizard:createSeatAuth" => "wizard_create_seat_failed",
         "wizard:enrollAuth" => "wizard_enroll_failed",
@@ -416,7 +532,7 @@ public sealed class SetupWizardWebHostBridge(
         object? Payload,
         SetupWizardWebBridgeError? Error);
 
-    private sealed record SetupWizardWebBridgeError(string Code, string Message);
+    private sealed record SetupWizardWebBridgeError(string Code, string Message, int? RemainingAttempts = null);
 
     private sealed record WizardDiscoverPayload(string? OwnerCode);
 
@@ -436,6 +552,18 @@ public sealed class SetupWizardWebHostBridge(
 
     private sealed record WizardPhoneSignInPayload(string? Phone, string? Password);
 
+    private sealed record WizardLoginPayload(string? Login, string? Password);
+
+    private sealed record WizardClubSignInPayload(string? OrganizationId, string? Login, string? Password);
+
+    private sealed record WizardForgotByEmailPayload(string? UserNameOrEmail);
+
+    private sealed record WizardResetByEmailPayload(string? UserNameOrEmail, string? Code, string? NewPassword);
+
+    private sealed record WizardForgotByPhonePayload(string? PhoneNumber);
+
+    private sealed record WizardResetByPhonePayload(string? PhoneNumber, string? Code, string? NewPassword);
+
     private sealed record WizardCreateSeatAuthPayload(
         string? BranchId,
         string? ZoneId,
@@ -449,6 +577,13 @@ public sealed class SetupWizardWebHostBridge(
         string? DisplayName);
 
     private sealed record WizardPhoneSignInResult(string DisplayName);
+
+    private sealed record WizardLoginResult(
+        string? DisplayName,
+        bool RequiresClubChoice,
+        IReadOnlyList<WizardClubChoice> Clubs);
+
+    private sealed record WizardClubChoice(Guid OrganizationId, string Name);
 
     private sealed record WizardDiscoverResult(string OwnerName, IReadOnlyList<WizardBranch> Branches);
 

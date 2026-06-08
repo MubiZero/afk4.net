@@ -47,16 +47,37 @@ internal static class PreviewSetupWizard
                 EnrolledAtUtc: DateTimeOffset.UnixEpoch));
 
         public Task<StaffSignInResponse> SignInByPhoneAsync(string phoneNumber, string password, CancellationToken cancellationToken)
-            => Task.FromResult(new StaffSignInResponse(
+            => Task.FromResult(PreviewSignIn("Preview Staff"));
+
+        private static StaffSignInResponse PreviewSignIn(string displayName)
+            => new(
                 StaffUserId: Guid.NewGuid(),
                 OrganizationId: OrgId,
-                DisplayName: "Preview Staff",
+                DisplayName: displayName,
                 AccessToken: "preview-access-token",
                 AccessTokenExpiresAtUtc: DateTimeOffset.UtcNow.AddHours(8),
                 RefreshToken: "preview-refresh-token",
                 RefreshTokenExpiresAtUtc: DateTimeOffset.UtcNow.AddDays(30),
                 BranchIds: [BranchId],
-                Permissions: [StaffPermissionNames.InstallDevice]));
+                Permissions: [StaffPermissionNames.InstallDevice]);
+
+        public Task<SetupWizardLoginResult> SignInByLoginAsync(string login, string password, CancellationToken cancellationToken)
+            => Task.FromResult(new SetupWizardLoginResult(SignedIn: PreviewSignIn("Preview Staff"), Clubs: []));
+
+        public Task<StaffSignInResponse> SignInToClubAsync(Guid organizationId, string login, string password, CancellationToken cancellationToken)
+            => Task.FromResult(PreviewSignIn("Preview Staff"));
+
+        public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task ResetPasswordByEmailAsync(string userNameOrEmail, string code, string newPassword, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public Task ResetPasswordByPhoneAsync(string phoneNumber, string code, string newPassword, CancellationToken cancellationToken)
+            => Task.CompletedTask;
 
         public Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(string accessToken, CancellationToken cancellationToken)
             => Task.FromResult(new InstallDiscoverResponse("Preview Staff", [BuildBranch()]));

@@ -318,6 +318,24 @@ public sealed class SetupWizardViewModelTests
         public Task<StaffSignInResponse> SignInByPhoneAsync(string phoneNumber, string password, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
+        public Task<SetupWizardLoginResult> SignInByLoginAsync(string login, string password, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task<StaffSignInResponse> SignInToClubAsync(Guid organizationId, string login, string password, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task ForgotPasswordByEmailAsync(string userNameOrEmail, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task ResetPasswordByEmailAsync(string userNameOrEmail, string code, string newPassword, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task ForgotPasswordByPhoneAsync(string phoneNumber, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public Task ResetPasswordByPhoneAsync(string phoneNumber, string code, string newPassword, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task<InstallDiscoverResponse> DiscoverAuthenticatedAsync(string accessToken, CancellationToken cancellationToken)
             => throw new NotSupportedException();
 
