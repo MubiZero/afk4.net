@@ -64,16 +64,11 @@ export interface WizardEnrollDraft {
   displayName: string;
 }
 
-/** Install operations bound to an authentication mode. The owner-code path threads
- *  the code into every payload; the authenticated path carries no code — the bearer
- *  token is held by the native host after `signInByPhone`. */
+/** Install operations carrying no credentials in the payload — the bearer token is held
+ *  by the native host after `signInByPhone` / `signInByLogin`. */
 export interface WizardInstallClient {
   createSeat(draft: WizardSeatDraft): Promise<WizardSeat>;
   enrollDevice(draft: WizardEnrollDraft): Promise<WizardEnrollResult>;
-}
-
-export function discoverOwner(ownerCode: string): Promise<WizardDiscoverResponse> {
-  return postHostRequest<WizardDiscoverResponse>('wizard:discover', { ownerCode });
 }
 
 export function signInByPhone(phone: string, password: string): Promise<WizardPhoneSignInResult> {
@@ -135,15 +130,6 @@ export function resetPasswordByPhone(
   newPassword: string,
 ): Promise<void> {
   return postHostRequest<void>('wizard:resetByPhone', { phoneNumber, code, newPassword });
-}
-
-export function ownerCodeInstallClient(ownerCode: string): WizardInstallClient {
-  return {
-    createSeat: (draft) =>
-      postHostRequest<WizardSeat>('wizard:createSeat', { ownerCode, ...draft }),
-    enrollDevice: (draft) =>
-      postHostRequest<WizardEnrollResult>('wizard:enroll', { ownerCode, ...draft }),
-  };
 }
 
 export function authenticatedInstallClient(): WizardInstallClient {

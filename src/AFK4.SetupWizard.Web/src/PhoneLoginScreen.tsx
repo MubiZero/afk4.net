@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import {
   discoverAuthenticated,
@@ -11,13 +11,14 @@ import {
 } from './wizardApi';
 import { isHostBridgeUnavailableError } from './hostBridge';
 
+type Mode = 'phone' | 'email';
+
 interface PhoneLoginScreenProps {
   onDiscovered(response: WizardDiscoverResponse): void;
-  onUseOwnerCode(): void;
   onForgotPassword(): void;
+  initialMode?: Mode;
+  initialIdentity?: string;
 }
-
-type Mode = 'phone' | 'email';
 
 type RequestState =
   | { kind: 'idle' }
@@ -29,13 +30,17 @@ function normalizePhone(value: string): string {
   return value.replace(/[\s\-()]/g, '').replace(/^\+/, '');
 }
 
-export function PhoneLoginScreen({ onDiscovered, onUseOwnerCode, onForgotPassword }: PhoneLoginScreenProps) {
+export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, initialIdentity }: PhoneLoginScreenProps) {
   const { t } = useI18n();
-  const [mode, setMode] = useState<Mode>('phone');
-  const [phone, setPhone] = useState('');
-  const [login, setLogin] = useState('');
+  const [mode, setMode] = useState<Mode>(initialMode ?? 'phone');
+  const [phone, setPhone] = useState(initialMode === 'phone' ? (initialIdentity ?? '') : '');
+  const [login, setLogin] = useState(initialMode === 'email' ? (initialIdentity ?? '') : '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState(false);
+  // «Забыли пароль?» показываем только после первой неудачной попытки входа —
+  // это путь восстановления, а не постоянный элемент, который грузит экран.
+  const [authFailed, setAuthFailed] = useState(false);
   const [request, setRequest] = useState<RequestState>({ kind: 'idle' });
   const [showSlowSkeleton, setShowSlowSkeleton] = useState(false);
   const [clubChoices, setClubChoices] = useState<WizardClubChoice[] | null>(null);
@@ -58,6 +63,13 @@ export function PhoneLoginScreen({ onDiscovered, onUseOwnerCode, onForgotPasswor
 
   function clearError() {
     if (request.kind === 'error') setRequest({ kind: 'idle' });
+  }
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setTouched(false);
+    setAuthFailed(false);
+    clearError();
   }
 
   const finishWithDiscovery = useCallback(async () => {
@@ -91,7 +103,9 @@ export function PhoneLoginScreen({ onDiscovered, onUseOwnerCode, onForgotPasswor
         }
         await finishWithDiscovery();
       } catch (error) {
-        setRequest({ kind: 'error', message: messageForError(error, t) });
+        const { message, reason } = describeError(error, t);
+        if (reason === 'auth') setAuthFailed(true);
+        setRequest({ kind: 'error', message });
       }
     },
     [canSubmit, finishWithDiscovery, login, mode, normalizedPhone, password, t],
@@ -104,8 +118,10 @@ export function PhoneLoginScreen({ onDiscovered, onUseOwnerCode, onForgotPasswor
         await signInToClub(organizationId, login.trim(), password);
         await finishWithDiscovery();
       } catch (error) {
+        const { message, reason } = describeError(error, t);
+        if (reason === 'auth') setAuthFailed(true);
         setClubChoices(null);
-        setRequest({ kind: 'error', message: messageForError(error, t) });
+        setRequest({ kind: 'error', message });
       }
     },
     [finishWithDiscovery, login, password, t],
@@ -151,32 +167,11 @@ export function PhoneLoginScreen({ onDiscovered, onUseOwnerCode, onForgotPasswor
   return (
     <section className="wizard-screen is-narrow is-static">
       <div className="wizard-screen-head">
-        <span className="wizard-eyebrow">{t('setup.wizard.common.step')} 1</span>
+        <span className="wizard-eyebrow">
+          {t('setup.wizard.common.step')} 1
+          <span className="wizard-eyebrow-context">{t('setup.wizard.phoneLogin.subtitle')}</span>
+        </span>
         <h1>{t('setup.wizard.phoneLogin.title')}</h1>
-        <p>{t('setup.wizard.phoneLogin.subtitle')}</p>
-      </div>
-
-      <div className="wizard-segment" role="radiogroup" aria-label={t('setup.wizard.phoneLogin.title')}>
-        <button
-          type="button"
-          role="radio"
-          className="wizard-segment-button"
-          aria-checked={mode === 'phone'}
-          aria-pressed={mode === 'phone'}
-          onClick={() => { setMode('phone'); clearError(); }}
-        >
-          <span className="wizard-segment-body"><strong>{t('setup.wizard.phoneLogin.mode.phone')}</strong></span>
-        </button>
-        <button
-          type="button"
-          role="radio"
-          className="wizard-segment-button"
-          aria-checked={mode === 'email'}
-          aria-pressed={mode === 'email'}
-          onClick={() => { setMode('email'); clearError(); }}
-        >
-          <span className="wizard-segment-body"><strong>{t('setup.wizard.phoneLogin.mode.email')}</strong></span>
-        </button>
       </div>
 
       <form className="wizard-form" onSubmit={submit} noValidate>
@@ -192,15 +187,15 @@ export function PhoneLoginScreen({ onDiscovered, onUseOwnerCode, onForgotPasswor
               value={phone}
               onChange={(event) => { setPhone(event.target.value); clearError(); }}
               onBlur={() => setTouched(true)}
-              placeholder="+992 93 738-00-70"
+              placeholder="+992 93 738 00-70"
               aria-invalid={showPhoneHint}
-              aria-describedby="phone-hint"
+              aria-describedby={showPhoneHint ? 'phone-hint' : undefined}
             />
-            <span id="phone-hint" className="wizard-field-hint">
-              {showPhoneHint
-                ? t('setup.wizard.phoneLogin.error.invalidPhone')
-                : t('setup.wizard.phoneLogin.hint.phone')}
-            </span>
+            {showPhoneHint && (
+              <span id="phone-hint" className="wizard-field-hint">
+                {t('setup.wizard.phoneLogin.error.invalidPhone')}
+              </span>
+            )}
           </label>
         ) : (
           <label className="wizard-field">
@@ -216,19 +211,36 @@ export function PhoneLoginScreen({ onDiscovered, onUseOwnerCode, onForgotPasswor
           </label>
         )}
 
-        <label className="wizard-field">
-          <span className="wizard-field-label">{t('setup.wizard.phoneLogin.field.password')}</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => { setPassword(event.target.value); clearError(); }}
-            aria-describedby="password-hint"
-          />
-          <span id="password-hint" className="wizard-field-hint">
-            {t('setup.wizard.phoneLogin.hint.password')}
-          </span>
-        </label>
+        <div className="wizard-field">
+          <div className="wizard-field-label wizard-label-with-action">
+            <label htmlFor="wizard-password-input">{t('setup.wizard.phoneLogin.field.password')}</label>
+            {authFailed && (
+              <button type="button" className="wizard-link-inline" onClick={onForgotPassword}>
+                {t('setup.wizard.phoneLogin.action.forgotPassword')}
+              </button>
+            )}
+          </div>
+          <div className="wizard-password">
+            <input
+              id="wizard-password-input"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => { setPassword(event.target.value); clearError(); }}
+            />
+            <button
+              type="button"
+              className="wizard-password-toggle"
+              aria-pressed={showPassword}
+              aria-label={showPassword
+                ? t('setup.wizard.phoneLogin.action.hidePassword')
+                : t('setup.wizard.phoneLogin.action.showPassword')}
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+            </button>
+          </div>
+        </div>
 
         {showSlowSkeleton && (
           <div className="wizard-skeleton-list" aria-hidden>
@@ -256,23 +268,31 @@ export function PhoneLoginScreen({ onDiscovered, onUseOwnerCode, onForgotPasswor
             </>
           )}
         </button>
-
-        <button type="button" className="wizard-link-action" onClick={onForgotPassword}>
-          {t('setup.wizard.phoneLogin.action.forgotPassword')}
-        </button>
-
-        <button type="button" className="wizard-link-action wizard-fallback-link" onClick={onUseOwnerCode}>
-          {t('setup.wizard.phoneLogin.action.useCode')}
-        </button>
       </form>
+
+      <div className="wizard-alt-actions">
+        {mode === 'phone' ? (
+          <button type="button" className="wizard-link-action" onClick={() => switchMode('email')}>
+            {t('setup.wizard.phoneLogin.action.useEmail')}
+          </button>
+        ) : (
+          <button type="button" className="wizard-link-action" onClick={() => switchMode('phone')}>
+            {t('setup.wizard.phoneLogin.action.usePhone')}
+          </button>
+        )}
+      </div>
     </section>
   );
 }
 
-function messageForError(error: unknown, t: (key: MessageKey) => string): string {
+function describeError(
+  error: unknown,
+  t: (key: MessageKey) => string,
+): { message: string; reason: 'auth' | 'other' } {
   if (isHostBridgeUnavailableError(error)) {
-    return t('setup.wizard.phoneLogin.error.bridgeMissing');
+    return { message: t('setup.wizard.phoneLogin.error.bridgeMissing'), reason: 'other' };
   }
   // Backend returns 401 with no detail (no user enumeration) → one combined, honest message.
-  return t('setup.wizard.phoneLogin.error.signInFailed');
+  // reason 'auth' surfaces the "forgot password?" recovery link.
+  return { message: t('setup.wizard.phoneLogin.error.signInFailed'), reason: 'auth' };
 }
