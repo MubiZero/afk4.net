@@ -2229,6 +2229,8 @@
   "op.helper.billing.deposit": "Deposit",
   "op.helper.billing.postpaidLabel": "Postpaid",
   "op.helper.billing.guestLabel": "Guest",
+  "op.helper.billing.openTab": "Open tab",
+  "op.helper.billing.cash": "Cash",
 
   "op.helper.zone.consoleLounge": "Console Lounge",
   "op.helper.zone.mainHall": "Main Hall",

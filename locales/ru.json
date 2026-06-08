@@ -2170,6 +2170,8 @@
   "op.helper.billing.deposit": "Депозит",
   "op.helper.billing.postpaidLabel": "Постоплата",
   "op.helper.billing.guestLabel": "Гость",
+  "op.helper.billing.openTab": "Открытый счёт",
+  "op.helper.billing.cash": "Наличные",
 
   "op.helper.zone.consoleLounge": "Консольная зона",
   "op.helper.zone.mainHall": "Основной зал",
