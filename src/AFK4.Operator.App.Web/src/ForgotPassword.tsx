@@ -1,25 +1,20 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { forgotPasswordByEmail, forgotPasswordByPhone, resetPasswordByPhone } from './authClient';
+import { forgotPasswordByEmail, forgotPasswordByPhone, resetPasswordByEmail, resetPasswordByPhone } from './authClient';
 import { HostBridgeRequestError } from './hostBridge';
 
 type Channel = 'email' | 'phone';
-type PhoneStep = 'request' | 'verify' | 'done';
+type Step = 'request' | 'verify' | 'done';
 
-export function ForgotPassword({
-  onBackToSignIn,
-  onOpenReset
-}: {
-  onBackToSignIn: () => void;
-  onOpenReset: () => void;
-}) {
+// Both channels follow the same shape: request a 6-digit code, then enter it with a new password.
+// Email mails the code; SMS texts it — the verify step is identical from there on.
+export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void }) {
   const { t } = useI18n();
   const [channel, setChannel] = useState<Channel>('email');
   const [emailLogin, setEmailLogin] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
   const [phone, setPhone] = useState('');
-  const [phoneStep, setPhoneStep] = useState<PhoneStep>('request');
+  const [step, setStep] = useState<Step>('request');
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -27,44 +22,42 @@ export function ForgotPassword({
 
   function selectChannel(next: Channel) {
     setChannel(next);
+    setStep('request');
+    setCode('');
+    setNewPassword('');
     setError(null);
   }
 
-  async function submitEmail(event: FormEvent<HTMLFormElement>) {
+  async function submitRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!emailLogin.trim()) { setError(t('auth.error.required')); return; }
+    const recipient = channel === 'email' ? emailLogin.trim() : phone.trim();
+    if (!recipient) { setError(t('auth.error.required')); return; }
     setIsBusy(true); setError(null);
     try {
-      await forgotPasswordByEmail(emailLogin.trim());
-      setEmailSent(true);
-    } catch {
-      setError(t('auth.forgot.email.error'));
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function submitPhoneRequest(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!phone.trim()) { setError(t('auth.error.required')); return; }
-    setIsBusy(true); setError(null);
-    try {
-      await forgotPasswordByPhone(phone.trim());
-      setPhoneStep('verify');
+      if (channel === 'email') {
+        await forgotPasswordByEmail(recipient);
+      } else {
+        await forgotPasswordByPhone(recipient);
+      }
+      setStep('verify');
     } catch (cause) {
-      setError(projectResetError(cause, t));
+      setError(channel === 'email' ? t('auth.forgot.email.error') : projectResetError(cause, t));
     } finally {
       setIsBusy(false);
     }
   }
 
-  async function submitPhoneReset(event: FormEvent<HTMLFormElement>) {
+  async function submitReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!code.trim() || newPassword.length < 8) { setError(t('auth.forgot.phone.error.fields')); return; }
     setIsBusy(true); setError(null);
     try {
-      await resetPasswordByPhone(phone.trim(), code.trim(), newPassword);
-      setPhoneStep('done');
+      if (channel === 'email') {
+        await resetPasswordByEmail(emailLogin.trim(), code.trim(), newPassword);
+      } else {
+        await resetPasswordByPhone(phone.trim(), code.trim(), newPassword);
+      }
+      setStep('done');
     } catch (cause) {
       setError(projectResetError(cause, t));
     } finally {
@@ -91,34 +84,16 @@ export function ForgotPassword({
             </button>
           </div>
 
-          {channel === 'email' && (emailSent ? (
-            <section className="auth-confirm">
-              <p>{t('auth.forgot.email.sent')}</p>
-              <button type="button" className="primary-wide" onClick={onOpenReset}>{t('auth.forgot.email.openReset')}</button>
-              <button type="button" className="auth-link" onClick={onBackToSignIn}>{t('auth.forgot.back')}</button>
-            </section>
-          ) : (
-            <form className="auth-form" onSubmit={submitEmail}>
-              <label>
-                {t('auth.forgot.email.field')}
-                <input value={emailLogin} onChange={(e) => setEmailLogin(e.currentTarget.value)} autoComplete="username" disabled={isBusy} autoFocus />
-              </label>
-              <button type="submit" className="primary-wide" disabled={isBusy}>
-                {isBusy ? t('auth.forgot.email.submitting') : t('auth.forgot.email.submit')}
-              </button>
-            </form>
-          ))}
-
-          {channel === 'phone' && (phoneStep === 'done' ? (
+          {step === 'done' ? (
             <section className="auth-confirm">
               <p>{t('auth.forgot.phone.done')}</p>
               <button type="button" className="primary-wide" onClick={onBackToSignIn}>{t('auth.forgot.phone.toSignIn')}</button>
             </section>
-          ) : phoneStep === 'verify' ? (
-            <form className="auth-form" onSubmit={submitPhoneReset}>
-              <p className="auth-hint">{t('auth.forgot.phone.sent')}</p>
+          ) : step === 'verify' ? (
+            <form className="auth-form" onSubmit={submitReset}>
+              <p className="auth-hint">{channel === 'email' ? t('auth.forgot.email.sent') : t('auth.forgot.phone.sent')}</p>
               <label>
-                {t('auth.forgot.phone.codeField')}
+                {channel === 'email' ? t('auth.reset.field.token') : t('auth.forgot.phone.codeField')}
                 <input value={code} onChange={(e) => setCode(e.currentTarget.value)} inputMode="numeric" autoComplete="one-time-code" disabled={isBusy} />
               </label>
               <label>
@@ -129,8 +104,18 @@ export function ForgotPassword({
                 {isBusy ? t('auth.forgot.phone.resetting') : t('auth.forgot.phone.reset')}
               </button>
             </form>
+          ) : channel === 'email' ? (
+            <form className="auth-form" onSubmit={submitRequest}>
+              <label>
+                {t('auth.forgot.email.field')}
+                <input value={emailLogin} onChange={(e) => setEmailLogin(e.currentTarget.value)} autoComplete="username" disabled={isBusy} autoFocus />
+              </label>
+              <button type="submit" className="primary-wide" disabled={isBusy}>
+                {isBusy ? t('auth.forgot.email.submitting') : t('auth.forgot.email.submit')}
+              </button>
+            </form>
           ) : (
-            <form className="auth-form" onSubmit={submitPhoneRequest}>
+            <form className="auth-form" onSubmit={submitRequest}>
               <label>
                 {t('auth.forgot.phone.field')}
                 <input type="tel" value={phone} onChange={(e) => setPhone(e.currentTarget.value)} inputMode="tel" autoComplete="tel" disabled={isBusy} />
@@ -139,7 +124,7 @@ export function ForgotPassword({
                 {isBusy ? t('auth.forgot.phone.submitting') : t('auth.forgot.phone.submit')}
               </button>
             </form>
-          ))}
+          )}
 
           {error && (
             <div className="auth-error" role="alert">

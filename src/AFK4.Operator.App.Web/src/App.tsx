@@ -63,7 +63,6 @@ import { ReviewWorkspace } from './ReviewWorkspace';
 import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { BackendSettingsWorkspace } from './BackendSettingsWorkspace';
 import { ForgotPassword } from './ForgotPassword';
-import { ResetPassword } from './ResetPassword';
 import type {
   WorkspaceId,
   AuthStatus,
@@ -420,7 +419,7 @@ function AppInner() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [authSession, setAuthSession] = useState<OperatorAuthSession | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [authView, setAuthView] = useState<'signIn' | 'forgot' | 'reset'>('signIn');
+  const [authView, setAuthView] = useState<'signIn' | 'forgot'>('signIn');
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
   const floorMapRef = useRef(floorMap);
@@ -1121,15 +1120,7 @@ function AppInner() {
 
   if (authStatus !== 'signed-in' || authSession === null) {
     if (authView === 'forgot') {
-      return (
-        <ForgotPassword
-          onBackToSignIn={() => setAuthView('signIn')}
-          onOpenReset={() => setAuthView('reset')}
-        />
-      );
-    }
-    if (authView === 'reset') {
-      return <ResetPassword onBackToSignIn={() => setAuthView('signIn')} />;
+      return <ForgotPassword onBackToSignIn={() => setAuthView('signIn')} />;
     }
     return (
       <SignInScreen
