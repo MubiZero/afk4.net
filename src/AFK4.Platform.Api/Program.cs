@@ -113,6 +113,7 @@ var platformWebOrigins = ResolveCorsOrigins(
     "Cors:PlatformWebOrigins",
     [
         "https://platform.afk4.local",
+        "https://player.afk4.local",
         "http://localhost:5175",
         "http://127.0.0.1:5175",
         "http://localhost:4175",
