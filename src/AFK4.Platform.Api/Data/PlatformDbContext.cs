@@ -6,6 +6,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 {
     public DbSet<OrganizationEntity> Organizations => Set<OrganizationEntity>();
 
+    public DbSet<OrganizationLoyaltySettingsEntity> OrganizationLoyaltySettings => Set<OrganizationLoyaltySettingsEntity>();
+
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
     public DbSet<BranchPaymentGatewayEntity> BranchPaymentGateways => Set<BranchPaymentGatewayEntity>();
@@ -158,6 +160,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(organization => organization.LimitsJson).HasColumnType("jsonb").IsRequired();
             entity.HasIndex(organization => organization.Slug).IsUnique();
             entity.HasIndex(organization => organization.Status);
+        });
+
+        modelBuilder.Entity<OrganizationLoyaltySettingsEntity>(entity =>
+        {
+            entity.ToTable("organization_loyalty_settings");
+            entity.HasKey(settings => settings.OrganizationId);
         });
 
         modelBuilder.Entity<SubscriptionPlanEntity>(entity =>
