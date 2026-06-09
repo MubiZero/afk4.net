@@ -58,5 +58,7 @@ describe('ShopOrdersWorkspace', () => {
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /принять|accept/i }));
     await waitFor(() => expect(accept).toHaveBeenCalledWith('b1', 'o1', 1));
+    await waitFor(() => expect(screen.queryByRole('button', { name: /принять|accept/i })).toBeNull());
+    expect(screen.getByRole('button', { name: /выдать|deliver/i })).toBeInTheDocument();
   });
 });

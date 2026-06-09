@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
 import { createOperatorRealtimeClient } from './operatorRealtime';
@@ -35,15 +35,19 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
   const { t } = useI18n();
   const [orders, setOrders] = useState<ShopOrderDto[]>([]);
 
+  const clients = useMemo(
+    () => (backend ? createAuthenticatedOperatorClients(backend.config, backend.session) : null),
+    [backend?.config, backend?.session]
+  );
+
   useEffect(() => {
     let disposed = false;
 
-    if (backend === null) {
+    if (backend === null || clients === null) {
       setOrders([]);
       return undefined;
     }
 
-    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
     const branchId = backend.branchId;
 
     clients.shopOrders.listQueue(branchId)
@@ -75,17 +79,15 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
       disposed = true;
       void realtime.stop();
     };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
+  }, [clients, backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
   const runAction = (
     order: ShopOrderDto,
     verb: 'accept' | 'deliver' | 'cancel'
   ) => async () => {
-    if (backend === null) {
+    if (backend === null || clients === null) {
       return;
     }
-
-    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
 
     try {
       const updated = await clients.shopOrders[verb](backend.branchId, order.id, order.version);
@@ -117,9 +119,7 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
               </div>
               <div className="shop-order-meta">
                 <span>{t('op.shopOrders.seat')} {order.seatId}</span>
-                {order.total && (
-                  <span>{(order.total.minorUnits / 100).toFixed(2)} {order.total.currencyCode}</span>
-                )}
+                <span>{(order.total.minorUnits / 100).toFixed(2)} {order.total.currencyCode}</span>
               </div>
               <div className="shop-order-actions">
                 {order.status === 'placed' && (
