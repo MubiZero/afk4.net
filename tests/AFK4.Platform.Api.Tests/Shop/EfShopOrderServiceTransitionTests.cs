@@ -107,6 +107,20 @@ public sealed class EfShopOrderServiceTransitionTests
     }
 
     [Fact]
+    public async Task DeliverAsync_AccruesNoCashbackWhenNoOrgSettings()
+    {
+        await using var db = NewDb();
+        var order = await SeedPlacedOrderAsync(db);
+        var service = NewService(db);
+
+        var accepted = await service.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        var delivered = await service.DeliverAsync(Branch, order.Id, Staff, accepted.Order!.Version, CancellationToken.None);
+
+        Assert.True(delivered.Succeeded);
+        Assert.Empty(db.LedgerEntries.Where(e => e.EntryType == LedgerEntryTypeNames.Cashback));
+    }
+
+    [Fact]
     public async Task Accept_WithStaleVersion_ReturnsConflict()
     {
         await using var db = NewDb();
