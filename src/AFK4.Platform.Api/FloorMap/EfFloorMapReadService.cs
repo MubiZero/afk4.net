@@ -157,7 +157,8 @@ public sealed class EfFloorMapReadService(
             ActiveSessionId: activeSession?.SessionId,
             RemainingSeconds: GetRemainingSeconds(activeSession, now),
             AccruedCostMinorUnits: accruedCostMinorUnits,
-            CurrencyCode: currencyCode);
+            CurrencyCode: currencyCode,
+            SessionVersion: activeSession?.Version);
     }
 
     private static (long? AccruedCostMinorUnits, string? CurrencyCode) GetAccruedCost(

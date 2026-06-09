@@ -728,7 +728,8 @@ public sealed class EfSessionBillingIntegrationTests
             dispatcher,
             new FakeSessionLeaseSigner(),
             timeProvider,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, timeProvider));
+            new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, timeProvider),
+            new RecordingSessionLifecycleNotifier());
     }
 
     private static async Task SeedLayoutAsync(PlatformDbContext db)

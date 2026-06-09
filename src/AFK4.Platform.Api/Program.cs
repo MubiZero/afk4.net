@@ -281,6 +281,7 @@ builder.Services.AddScoped<IReservationService, EfReservationService>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
+builder.Services.AddScoped<ISessionLifecycleNotifier, SignalRSessionLifecycleNotifier>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
 builder.Services.AddScoped<ISessionCheckoutService, EfSessionCheckoutService>();
 builder.Services.AddSingleton(new AutoProtectionOptions());

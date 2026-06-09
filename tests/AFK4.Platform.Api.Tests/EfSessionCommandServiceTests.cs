@@ -526,6 +526,86 @@ public sealed class EfSessionCommandServiceTests
         Assert.Equal(SeatId, session.SeatId);
     }
 
+    [Fact]
+    public async Task SessionMutations_BroadcastLifecycleEventsWithPostCommitVersion()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: true);
+        var notifier = new RecordingSessionLifecycleNotifier();
+        var service = CreateService(db, new RecordingCommandDispatchService(), lifecycleNotifier: notifier);
+
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+        var sessionId = start.Response.Session.SessionId;
+
+        var started = Assert.Single(notifier.Events);
+        Assert.Equal(SessionLifecycleKinds.Started, started.Kind);
+        Assert.Equal(SeatId, started.SeatId);
+        Assert.Equal(sessionId, started.SessionId);
+        Assert.Equal(TestIds.BranchId, started.BranchId);
+        Assert.Equal(1, started.Version);
+
+        notifier.Events.Clear();
+        await service.ExtendSessionAsync(
+            sessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(30, "manual-v1", "extend-1"),
+            CancellationToken.None);
+        var extended = Assert.Single(notifier.Events);
+        Assert.Equal(SessionLifecycleKinds.Extended, extended.Kind);
+        Assert.Equal(2, extended.Version);
+
+        notifier.Events.Clear();
+        await service.TransferSessionAsync(
+            sessionId,
+            ActorStaffUserId,
+            new TransferSessionRequest(TargetSeatId, "transfer-1"),
+            CancellationToken.None);
+        var transferred = Assert.Single(notifier.Events);
+        Assert.Equal(SessionLifecycleKinds.Transferred, transferred.Kind);
+        Assert.Equal(TargetSeatId, transferred.SeatId);
+        Assert.Equal(3, transferred.Version);
+
+        notifier.Events.Clear();
+        await service.EndSessionAsync(
+            sessionId,
+            ActorStaffUserId,
+            new EndSessionRequest("operator-end", "end-1"),
+            CancellationToken.None);
+        var ended = Assert.Single(notifier.Events);
+        Assert.Equal(SessionLifecycleKinds.Ended, ended.Kind);
+        Assert.Equal(4, ended.Version);
+    }
+
+    [Fact]
+    public async Task StaleMutation_EmitsNoLifecycleEvent()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var notifier = new RecordingSessionLifecycleNotifier();
+        var service = CreateService(db, new RecordingCommandDispatchService(), lifecycleNotifier: notifier);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+        notifier.Events.Clear();
+
+        var stale = await service.ExtendSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(30, "manual-v1", "extend-1", ExpectedVersion: 99),
+            CancellationToken.None);
+
+        Assert.True(stale.Conflict);
+        Assert.Empty(notifier.Events);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -538,14 +618,16 @@ public sealed class EfSessionCommandServiceTests
     private static EfSessionCommandService CreateService(
         PlatformDbContext db,
         RecordingCommandDispatchService dispatcher,
-        FakeSessionBillingService? billing = null)
+        FakeSessionBillingService? billing = null,
+        RecordingSessionLifecycleNotifier? lifecycleNotifier = null)
     {
         return new EfSessionCommandService(
             db,
             dispatcher,
             new FakeSessionLeaseSigner(),
             new FixedTimeProvider(Now),
-            billing ?? new FakeSessionBillingService());
+            billing ?? new FakeSessionBillingService(),
+            lifecycleNotifier ?? new RecordingSessionLifecycleNotifier());
     }
 
     private static async Task SeedLayoutAsync(PlatformDbContext db, bool includeTargetSeat)

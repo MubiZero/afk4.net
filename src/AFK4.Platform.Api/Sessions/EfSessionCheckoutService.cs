@@ -29,6 +29,7 @@ public sealed class EfSessionCheckoutService(
     IDeviceCommandDispatchService deviceCommandDispatchService,
     IOpenShiftResolver openShiftResolver,
     IBillingOutbox billingOutbox,
+    ISessionLifecycleNotifier lifecycleNotifier,
     TimeProvider timeProvider) : ISessionCheckoutService
 {
     private const string CheckoutOperation = "session-checkout";
@@ -398,6 +399,26 @@ public sealed class EfSessionCheckoutService(
                 .Select(candidate => (int?)candidate.Version)
                 .SingleOrDefaultAsync(cancellationToken) ?? 0;
             return SessionCheckoutResult.StaleVersion(currentVersion);
+        }
+
+        if (result.Succeeded && result.Response is not null)
+        {
+            var settled = result.Response.Session;
+            await lifecycleNotifier.NotifyAsync(
+                new SessionLifecycleChangedDto(
+                    OrganizationId: settled.OrganizationId,
+                    BranchId: settled.BranchId,
+                    SeatId: settled.SeatId,
+                    SessionId: settled.SessionId,
+                    Kind: SessionLifecycleKinds.Checkout,
+                    State: settled.State,
+                    Version: settled.Version,
+                    StartedAtUtc: settled.StartedAtUtc,
+                    EndsAtUtc: settled.EndsAtUtc,
+                    ObservedAtUtc: timeProvider.GetUtcNow(),
+                    AccruedCostMinorUnits: result.Response.GrandTotal.MinorUnits,
+                    CurrencyCode: result.Response.GrandTotal.CurrencyCode),
+                cancellationToken);
         }
 
         return result;

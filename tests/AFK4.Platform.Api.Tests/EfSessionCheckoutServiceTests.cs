@@ -138,6 +138,35 @@ public sealed class EfSessionCheckoutServiceTests
     }
 
     [Fact]
+    public async Task CheckoutAsync_BroadcastsCheckoutLifecycleEventWithGrandTotal()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var notifier = new RecordingSessionLifecycleNotifier();
+        var service = CreateService(db, new RecordingDispatch(), notifier);
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge))],
+                "checkout-lifecycle"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var lifecycle = Assert.Single(notifier.Events);
+        Assert.Equal(SessionLifecycleKinds.Checkout, lifecycle.Kind);
+        Assert.Equal(SessionId, lifecycle.SessionId);
+        Assert.Equal(SeatId, lifecycle.SeatId);
+        Assert.Equal(SessionStateNames.Ending, lifecycle.State);
+        Assert.Equal(1, lifecycle.Version);
+        Assert.Equal(ExpectedTimeCharge, lifecycle.AccruedCostMinorUnits);
+        Assert.Equal("TJS", lifecycle.CurrencyCode);
+    }
+
+    [Fact]
     public async Task Checkout_OutboxRow_WhenDispatched_NotifiesDeviceAndMarksDispatched()
     {
         await using var db = CreateDbContext();
@@ -373,7 +402,10 @@ public sealed class EfSessionCheckoutServiceTests
         return new PlatformDbContext(options);
     }
 
-    private static EfSessionCheckoutService CreateService(PlatformDbContext db, RecordingDispatch dispatcher)
+    private static EfSessionCheckoutService CreateService(
+        PlatformDbContext db,
+        RecordingDispatch dispatcher,
+        RecordingSessionLifecycleNotifier? lifecycleNotifier = null)
     {
         var timeProvider = new FixedTimeProvider(Now);
         var shiftService = new EfShiftService(db, timeProvider);
@@ -384,6 +416,7 @@ public sealed class EfSessionCheckoutServiceTests
             dispatcher,
             shiftService,
             new EfBillingOutbox(db),
+            lifecycleNotifier ?? new RecordingSessionLifecycleNotifier(),
             timeProvider);
     }
 

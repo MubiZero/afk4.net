@@ -155,7 +155,8 @@ public sealed class BillingShiftIntegrationTests
             dispatcher,
             new FakeSessionLeaseSigner(),
             timeProvider,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, timeProvider));
+            new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, timeProvider),
+            new RecordingSessionLifecycleNotifier());
     }
 
     private static async Task<ShiftDto> OpenShiftAsync(EfShiftService service)

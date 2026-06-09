@@ -17,7 +17,8 @@ public sealed class EfSessionCommandService(
     IDeviceCommandDispatchService deviceCommandDispatchService,
     ISessionLeaseSigner leaseSigner,
     TimeProvider timeProvider,
-    ISessionBillingService sessionBillingService) : ISessionCommandService
+    ISessionBillingService sessionBillingService,
+    ISessionLifecycleNotifier lifecycleNotifier) : ISessionCommandService
 {
     private const int LeaseMinutes = 15;
     private const int CompReasonMinLength = 8;
@@ -294,6 +295,11 @@ public sealed class EfSessionCommandService(
             await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
         }
 
+        if (result.Succeeded && result.Response is not null)
+        {
+            await NotifyLifecycleAsync(result.Response.Session, SessionLifecycleKinds.Started, cancellationToken);
+        }
+
         return result;
     }
 
@@ -306,6 +312,25 @@ public sealed class EfSessionCommandService(
         return expectedVersion is int expected && expected != session.Version
             ? SessionCommandServiceResult.StaleVersion(session.Version)
             : null;
+    }
+
+    // Broadcasts a lifecycle change from the committed response so clients can patch the floor map
+    // and apply a dashboard delta. The post-commit Version lets clients order/dedupe events.
+    private Task NotifyLifecycleAsync(SessionDto session, string kind, CancellationToken cancellationToken)
+    {
+        return lifecycleNotifier.NotifyAsync(
+            new SessionLifecycleChangedDto(
+                OrganizationId: session.OrganizationId,
+                BranchId: session.BranchId,
+                SeatId: session.SeatId,
+                SessionId: session.SessionId,
+                Kind: kind,
+                State: session.State,
+                Version: session.Version,
+                StartedAtUtc: session.StartedAtUtc,
+                EndsAtUtc: session.EndsAtUtc,
+                ObservedAtUtc: timeProvider.GetUtcNow()),
+            cancellationToken);
     }
 
     public async Task<SessionCommandServiceResult> ExtendSessionAsync(
@@ -434,6 +459,11 @@ public sealed class EfSessionCommandService(
             await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
         }
 
+        if (result.Succeeded && result.Response is not null)
+        {
+            await NotifyLifecycleAsync(result.Response.Session, SessionLifecycleKinds.Extended, cancellationToken);
+        }
+
         return result;
     }
 
@@ -552,6 +582,11 @@ public sealed class EfSessionCommandService(
             }
         }
 
+        if (result.Succeeded && result.Response is not null)
+        {
+            await NotifyLifecycleAsync(result.Response.Session, SessionLifecycleKinds.Transferred, cancellationToken);
+        }
+
         return result;
     }
 
@@ -652,6 +687,11 @@ public sealed class EfSessionCommandService(
         if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
         {
             await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
+        }
+
+        if (result.Succeeded && result.Response is not null)
+        {
+            await NotifyLifecycleAsync(result.Response.Session, SessionLifecycleKinds.Ended, cancellationToken);
         }
 
         return result;

@@ -9,4 +9,6 @@ public static class DeviceRealtimeEvents
     public const string DeviceCommandResult = "deviceCommandResult";
 
     public const string DeviceRegistered = "deviceRegistered";
+
+    public const string SessionLifecycleChanged = "sessionLifecycleChanged";
 }
