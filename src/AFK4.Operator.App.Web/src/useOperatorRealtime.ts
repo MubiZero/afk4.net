@@ -3,13 +3,18 @@ import type { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import type { OperatorAuthSession } from './authClient';
 import { applyDeviceStatusToSeats, type OperatorFloorMapState } from './floorMapState';
-import { createOperatorRealtimeClient, type OperatorRealtimeConnectionState } from './operatorRealtime';
+import {
+  createOperatorRealtimeClient,
+  type OperatorRealtimeConnectionState,
+  type SessionLifecycleChangedDto
+} from './operatorRealtime';
 import { seats } from './operatorData';
 import type { AuthStatus, OperatorConfig } from './operatorTypes';
 import {
   resolveActiveBranchId,
   matchesRealtimeScope,
   matchesCommandResultScope,
+  matchesLifecycleScope,
   findSeatForDeviceStatus,
   shouldReloadFloorMapAfterDeviceStatus,
   loadBackendFloorMapState
@@ -30,6 +35,9 @@ export interface UseOperatorRealtimeOptions {
   floorMapRef: MutableRefObject<OperatorFloorMapState>;
   setFloorMap: Dispatch<SetStateAction<OperatorFloorMapState>>;
   setSelectedSeatId: Dispatch<SetStateAction<string>>;
+  // Called (debounced) when a session-lifecycle push or a reconnect should reconcile the dashboard
+  // KPIs; the shell hook re-fetches them on the bump.
+  onShellReconcile?: () => void;
 }
 
 // Owns the operator realtime connection: floor-map device pushes patch seats optimistically and a
@@ -41,7 +49,8 @@ export function useOperatorRealtime({
   t,
   floorMapRef,
   setFloorMap,
-  setSelectedSeatId
+  setSelectedSeatId,
+  onShellReconcile
 }: UseOperatorRealtimeOptions): OperatorRealtime {
   const [realtimeState, setRealtimeState] = useState<OperatorRealtimeConnectionState>('disconnected');
   const [realtimeError, setRealtimeError] = useState<string | null>(null);
@@ -102,12 +111,39 @@ export function useOperatorRealtime({
       }, 100);
     };
 
+    // Coalesce a burst of lifecycle pushes into a single dashboard reconcile.
+    let shellReconcileTimeoutId: number | null = null;
+    const scheduleShellReconcile = () => {
+      if (!onShellReconcile) {
+        return;
+      }
+      if (shellReconcileTimeoutId !== null) {
+        window.clearTimeout(shellReconcileTimeoutId);
+      }
+      shellReconcileTimeoutId = window.setTimeout(() => {
+        shellReconcileTimeoutId = null;
+        if (!disposed) {
+          onShellReconcile();
+        }
+      }, 100);
+    };
+
+    let wasReconnecting = false;
     const realtimeClient = createOperatorRealtimeClient({
       baseUrl: config.platformBaseUrl,
       getAccessToken: () => authSession.accessToken,
       onConnectionStateChanged: (state) => {
-        if (!disposed) {
-          setRealtimeState(state);
+        if (disposed) {
+          return;
+        }
+        setRealtimeState(state);
+        if (state === 'reconnecting') {
+          wasReconnecting = true;
+        } else if (state === 'connected' && wasReconnecting) {
+          // A reconnect may have missed events; force an authoritative reconcile of both surfaces.
+          wasReconnecting = false;
+          scheduleAuthoritativeFloorMapReload();
+          scheduleShellReconcile();
         }
       },
       onDeviceStatusChanged: (status) => {
@@ -135,6 +171,16 @@ export function useOperatorRealtime({
         }
 
         scheduleAuthoritativeFloorMapReload();
+      },
+      onSessionLifecycleChanged: (change: SessionLifecycleChangedDto) => {
+        if (disposed || !matchesLifecycleScope(change, authSession, branchId)) {
+          return;
+        }
+
+        // The push is a hint: reconcile the floor map (authoritative seat + version) and the
+        // dashboard KPIs against the backend rather than trusting the event's fields blindly.
+        scheduleAuthoritativeFloorMapReload();
+        scheduleShellReconcile();
       }
     });
 
@@ -153,6 +199,9 @@ export function useOperatorRealtime({
       disposed = true;
       if (reloadTimeoutId !== null) {
         window.clearTimeout(reloadTimeoutId);
+      }
+      if (shellReconcileTimeoutId !== null) {
+        window.clearTimeout(shellReconcileTimeoutId);
       }
       void realtimeClient.stop();
     };

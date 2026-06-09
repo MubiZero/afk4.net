@@ -26,6 +26,21 @@ export interface DeviceCommandResultDto {
   observedAtUtc: string;
 }
 
+export interface SessionLifecycleChangedDto {
+  organizationId: string;
+  branchId: string;
+  seatId: string;
+  sessionId: string;
+  kind: string;
+  state: string;
+  version: number;
+  startedAtUtc?: string | null;
+  endsAtUtc?: string | null;
+  observedAtUtc: string;
+  accruedCostMinorUnits?: number | null;
+  currencyCode?: string | null;
+}
+
 export interface OperatorRealtimeClient {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -46,12 +61,14 @@ export interface OperatorRealtimeOptions {
   getAccessToken: () => string | null | Promise<string | null>;
   onDeviceStatusChanged: (status: DeviceStatusChangedDto) => void;
   onDeviceCommandResult?: (result: DeviceCommandResultDto) => void;
+  onSessionLifecycleChanged?: (change: SessionLifecycleChangedDto) => void;
   onConnectionStateChanged?: (state: OperatorRealtimeConnectionState) => void;
   connectionFactory?: () => SignalRConnectionLike;
 }
 
 export const deviceStatusChangedEventName = 'deviceStatusChanged';
 export const deviceCommandResultEventName = 'deviceCommandResult';
+export const sessionLifecycleChangedEventName = 'sessionLifecycleChanged';
 
 export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): OperatorRealtimeClient {
   const connection = options.connectionFactory?.() ?? createSignalRConnection(options);
@@ -60,6 +77,9 @@ export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): 
   connection.on<DeviceStatusChangedDto>(deviceStatusChangedEventName, options.onDeviceStatusChanged);
   if (options.onDeviceCommandResult) {
     connection.on<DeviceCommandResultDto>(deviceCommandResultEventName, options.onDeviceCommandResult);
+  }
+  if (options.onSessionLifecycleChanged) {
+    connection.on<SessionLifecycleChangedDto>(sessionLifecycleChangedEventName, options.onSessionLifecycleChanged);
   }
   connection.onreconnecting(() => setState('reconnecting'));
   connection.onreconnected(() => setState('connected'));

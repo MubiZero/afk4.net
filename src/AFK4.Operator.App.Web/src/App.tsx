@@ -88,6 +88,8 @@ function AppInner() {
   const [authView, setAuthView] = useState<'signIn' | 'forgot'>('signIn');
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
+  // Bumped by the realtime hook to make the shell KPIs reconcile event-driven instead of polled.
+  const [shellReconcileSignal, setShellReconcileSignal] = useState(0);
   const activeBranchId = authSession === null ? null : resolveActiveBranchId(authSession, config.branchId);
   const backendContext: OperatorBackendContext | null = authSession !== null && activeBranchId !== null
     ? { config, session: authSession, branchId: activeBranchId }
@@ -120,13 +122,15 @@ function AppInner() {
     t,
     floorMapRef,
     setFloorMap,
-    setSelectedSeatId
+    setSelectedSeatId,
+    onShellReconcile: () => setShellReconcileSignal((signal) => signal + 1)
   });
   const { shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError } = useShellData(
     authStatus,
     authSession,
     config,
-    t
+    t,
+    shellReconcileSignal
   );
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))

@@ -7,6 +7,7 @@ const realtimeMock = {
     onConnectionStateChanged?: (state: string) => void;
     onDeviceStatusChanged: (status: unknown) => void;
     onDeviceCommandResult?: (result: unknown) => void;
+    onSessionLifecycleChanged?: (change: unknown) => void;
   }>
 };
 
@@ -522,6 +523,81 @@ describe('App', () => {
     await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(3));
     expect(await screen.findByRole('button', { name: /\u0421\u0442\u0430\u0440\u0442 60 \u043c\u0438\u043d/ })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /\u0421\u0442\u043e\u043f/ })).not.toBeInTheDocument();
+  });
+
+  it('reconciles the floor map and dashboard when a session-lifecycle event arrives over realtime', async () => {
+    installSessionBridge();
+    let floorMapRequestCount = 0;
+    let summaryRequestCount = 0;
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/floor-map')) {
+        floorMapRequestCount += 1;
+      }
+      if (pathname.endsWith('/dashboard/summary')) {
+        summaryRequestCount += 1;
+      }
+
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
+    // Wait for the initial KPI load to settle so the assertions below prove an event-driven
+    // reconcile, not the first mount.
+    await waitFor(() => expect(summaryRequestCount).toBeGreaterThan(0));
+    const floorMapBefore = floorMapRequestCount;
+    const summaryBefore = summaryRequestCount;
+
+    realtimeMock.clients.at(-1)?.onSessionLifecycleChanged?.({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+      seatId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      sessionId: '22222222-2222-2222-2222-222222222222',
+      kind: 'ended',
+      state: 'ending',
+      version: 4,
+      startedAtUtc: '2026-05-21T09:00:00Z',
+      endsAtUtc: null,
+      observedAtUtc: '2026-05-21T10:00:02Z'
+    });
+
+    await waitFor(() => expect(floorMapRequestCount).toBeGreaterThan(floorMapBefore));
+    await waitFor(() => expect(summaryRequestCount).toBeGreaterThan(summaryBefore));
+  });
+
+  it('ignores a session-lifecycle event from another branch', async () => {
+    installSessionBridge();
+    let floorMapRequestCount = 0;
+    fetchMock.mockImplementation((input, init) => {
+      if (new URL(String(input)).pathname.endsWith('/floor-map')) {
+        floorMapRequestCount += 1;
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
+    const floorMapBefore = floorMapRequestCount;
+
+    realtimeMock.clients.at(-1)?.onSessionLifecycleChanged?.({
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+      seatId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      sessionId: '22222222-2222-2222-2222-222222222222',
+      kind: 'started',
+      state: 'active',
+      version: 1,
+      startedAtUtc: '2026-05-21T10:00:00Z',
+      endsAtUtc: null,
+      observedAtUtc: '2026-05-21T10:00:02Z'
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(floorMapRequestCount).toBe(floorMapBefore);
   });
 
   it('starts a ready seat as a fast guest session through the backend', async () => {

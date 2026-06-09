@@ -2,8 +2,10 @@ import { describe, expect, it } from 'bun:test';
 import {
   deviceCommandResultEventName,
   deviceStatusChangedEventName,
+  sessionLifecycleChangedEventName,
   type DeviceCommandResultDto,
   type DeviceStatusChangedDto,
+  type SessionLifecycleChangedDto,
   type SignalRConnectionLike
 } from './operatorRealtime';
 
@@ -28,16 +30,30 @@ describe('operator realtime client', () => {
     const states: string[] = [];
     const statuses: DeviceStatusChangedDto[] = [];
     const results: DeviceCommandResultDto[] = [];
+    const lifecycles: SessionLifecycleChangedDto[] = [];
     const client = createOperatorRealtimeClient({
       baseUrl: 'http://localhost:5074/',
       getAccessToken: () => 'access-token',
       connectionFactory: () => connection,
       onConnectionStateChanged: (state) => states.push(state),
       onDeviceStatusChanged: (status) => statuses.push(status),
-      onDeviceCommandResult: (result) => results.push(result)
+      onDeviceCommandResult: (result) => results.push(result),
+      onSessionLifecycleChanged: (change) => lifecycles.push(change)
     });
 
     await client.start();
+    connection.emit(sessionLifecycleChangedEventName, {
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+      seatId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      sessionId: '22222222-2222-2222-2222-222222222222',
+      kind: 'started',
+      state: 'active',
+      version: 1,
+      startedAtUtc: '2026-05-21T10:00:00Z',
+      endsAtUtc: null,
+      observedAtUtc: '2026-05-21T10:00:00Z'
+    });
     connection.emit(deviceStatusChangedEventName, {
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
@@ -69,6 +85,12 @@ describe('operator realtime client', () => {
     expect(results[0]).toMatchObject({
       commandId: '44444444-4444-4444-4444-444444444444',
       status: 'accepted'
+    });
+    expect(lifecycles).toHaveLength(1);
+    expect(lifecycles[0]).toMatchObject({
+      kind: 'started',
+      state: 'active',
+      version: 1
     });
   });
 });

@@ -22,12 +22,16 @@ export interface ShellData {
   shellLoadError: string | null;
 }
 
-// Operator shell KPI strip: current shift + today's dashboard summary, polled on a slow interval.
+// Operator shell KPI strip: current shift + today's dashboard summary. Refreshed event-driven from
+// the realtime hook (reconcileSignal) with a slow safety-net poll behind it.
 export function useShellData(
   authStatus: AuthStatus,
   authSession: OperatorAuthSession | null,
   config: OperatorConfig,
-  t: Translate
+  t: Translate,
+  // Bumped by the realtime hook on a session-lifecycle push or a reconnect; a change re-runs the
+  // effect, which reconciles the KPIs immediately and resets the safety-net poll.
+  reconcileSignal: number = 0
 ): ShellData {
   const [shellCurrentShift, setShellCurrentShift] = useState<ShiftDto | null>(null);
   const [shellDashboardSummary, setShellDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
@@ -113,7 +117,7 @@ export function useShellData(
       window.clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
+  }, [authStatus, authSession, config.branchId, config.platformBaseUrl, reconcileSignal]);
 
   return { shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError };
 }

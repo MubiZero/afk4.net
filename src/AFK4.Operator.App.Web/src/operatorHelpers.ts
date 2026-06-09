@@ -9,7 +9,7 @@ import { signOutOperator, type OperatorAuthSession } from './authClient';
 import { mapFloorMapDtoToState, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
 import { hasPermission, permissionNames } from './operatorPermissions';
-import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState } from './operatorRealtime';
+import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState, SessionLifecycleChangedDto } from './operatorRealtime';
 import type { SeatSummary, SeatTone } from './operatorData';
 import type {
   Feedback,
@@ -115,7 +115,10 @@ export function feedbackText(feedback: Feedback, t: TFunc) {
 
 export const defaultSessionDurationMinutes = 60;
 export const defaultTariffRuleVersionId = 'manual-v1';
-export const shellOperationalRefreshMs = 30_000;
+// Dashboard KPIs are now event-driven: a sessionLifecycleChanged push (or a reconnect) reconciles
+// them immediately, so this poll is only a slow safety net that corrects drift / covers a realtime
+// outage, not the primary refresh path.
+export const shellOperationalRefreshMs = 120_000;
 
 export function billingModeOptions(t: TFunc): Array<{ id: SessionBillingModeId; label: string; detail: string }> {
   return [
@@ -705,6 +708,11 @@ export function matchesRealtimeScope(status: DeviceStatusChangedDto, session: Op
 export function matchesCommandResultScope(result: DeviceCommandResultDto, session: OperatorAuthSession, branchId: string): boolean {
   return result.organizationId.toLowerCase() === session.organizationId.toLowerCase()
     && result.branchId.toLowerCase() === branchId.toLowerCase();
+}
+
+export function matchesLifecycleScope(change: SessionLifecycleChangedDto, session: OperatorAuthSession, branchId: string): boolean {
+  return change.organizationId.toLowerCase() === session.organizationId.toLowerCase()
+    && change.branchId.toLowerCase() === branchId.toLowerCase();
 }
 
 export function findSeatForDeviceStatus(nextSeats: SeatSummary[], status: DeviceStatusChangedDto): SeatSummary | null {
