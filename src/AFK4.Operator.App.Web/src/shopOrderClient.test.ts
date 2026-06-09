@@ -27,4 +27,18 @@ describe('shopOrders client', () => {
     await clients.shopOrders.accept('b1', 'o1', 2);
     expect(captured).toEqual({ method: 'POST', path: '/api/branches/b1/shop/orders/o1/accept', body: { expectedVersion: 2 } });
   });
+
+  it('delivers an order with expectedVersion', async () => {
+    let captured: { method: string; path: string; body: unknown } | null = null as { method: string; path: string; body: unknown } | null;
+    const clients = createOperatorApiClients(clientCapturing((method, path, body) => { captured = { method, path, body }; }));
+    await clients.shopOrders.deliver('b1', 'o1', 3);
+    expect(captured).toEqual({ method: 'POST', path: '/api/branches/b1/shop/orders/o1/deliver', body: { expectedVersion: 3 } });
+  });
+
+  it('cancels an order with expectedVersion', async () => {
+    let captured: { method: string; path: string; body: unknown } | null = null as { method: string; path: string; body: unknown } | null;
+    const clients = createOperatorApiClients(clientCapturing((method, path, body) => { captured = { method, path, body }; }));
+    await clients.shopOrders.cancel('b1', 'o1', 3);
+    expect(captured).toEqual({ method: 'POST', path: '/api/branches/b1/shop/orders/o1/cancel', body: { expectedVersion: 3 } });
+  });
 });
