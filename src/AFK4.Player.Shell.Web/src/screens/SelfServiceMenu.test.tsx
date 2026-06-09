@@ -4,7 +4,17 @@ import { SelfServiceMenu } from './SelfServiceMenu';
 import type { ShellApi } from '../shellApi';
 
 const api = { listTariffs: async () => [], listPackages: async () => [], createTopUpIntent: async () => ({} as any),
-  getTopUpIntents: async () => [], extendSession: async () => ({}) } as ShellApi;
+  getTopUpIntents: async () => [], extendSession: async () => ({}),
+  listShopCatalog: async () => [], listShopOrders: async () => [], placeShopOrder: async () => ({} as any), cancelShopOrder: async () => ({} as any) } as unknown as ShellApi;
+
+function shopApi(): ShellApi {
+  return {
+    listTariffs: async () => [], listPackages: async () => [], createTopUpIntent: async () => ({} as any),
+    getTopUpIntents: async () => [], extendSession: async () => ({}),
+    listShopCatalog: async () => [{ productId: 'p1', name: 'Cola', sku: 'C', price: { currencyCode: 'TJS', minorUnits: 500 }, stockOnHand: 5 }],
+    listShopOrders: async () => [], placeShopOrder: async () => ({} as any), cancelShopOrder: async () => ({} as any)
+  } as unknown as ShellApi;
+}
 
 describe('SelfServiceMenu', () => {
   it('shows login when not authenticated', () => {
@@ -18,5 +28,14 @@ describe('SelfServiceMenu', () => {
       sessionId="s1" branchId="b" onReloadState={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /продлить/i }));
     await waitFor(() => expect(screen.getByText(/продлить время/i)).toBeInTheDocument());
+  });
+});
+
+describe('SelfServiceMenu shop entry', () => {
+  it('opens the shop from the menu', async () => {
+    render(<SelfServiceMenu authenticated onSignIn={async () => true} api={shopApi()}
+      sessionId="s1" branchId="b1" onReloadState={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /магазин/i }));
+    await waitFor(() => expect(screen.getByText('Cola')).toBeInTheDocument());
   });
 });

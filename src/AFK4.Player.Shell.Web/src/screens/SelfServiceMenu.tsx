@@ -3,6 +3,7 @@ import type { ShellApi } from '../shellApi';
 import { LoginScreen } from './LoginScreen';
 import { ExtendScreen } from './ExtendScreen';
 import { TopUpScreen } from './TopUpScreen';
+import { ShopScreen } from './ShopScreen';
 
 export interface SelfServiceMenuProps {
   authenticated: boolean;
@@ -13,7 +14,7 @@ export interface SelfServiceMenuProps {
   onReloadState: () => void;
 }
 
-type View = 'menu' | 'extend' | 'topup';
+type View = 'menu' | 'extend' | 'topup' | 'shop';
 
 export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branchId, onReloadState }: SelfServiceMenuProps) {
   const [view, setView] = useState<View>('menu');
@@ -32,10 +33,17 @@ export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branc
     return <TopUpScreen api={api} amountMinorUnits={5000} />;
   }
 
+  if (view === 'shop') {
+    return <ShopScreen api={api}
+      onNeedTopUp={() => setView('topup')}
+      onDone={() => { setView('menu'); onReloadState(); }} />;
+  }
+
   return (
     <nav aria-label="self-service">
       <button type="button" onClick={() => setView('extend')} disabled={!sessionId}>Продлить</button>
       <button type="button" onClick={() => setView('topup')}>Пополнить</button>
+      <button type="button" onClick={() => setView('shop')}>Магазин</button>
     </nav>
   );
 }
