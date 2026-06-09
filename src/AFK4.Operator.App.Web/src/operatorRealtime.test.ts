@@ -4,6 +4,7 @@ import {
   deviceStatusChangedEventName,
   sessionLifecycleChangedEventName,
   shopOrderCreatedEventName,
+  shopOrderUpdatedEventName,
   type DeviceCommandResultDto,
   type DeviceStatusChangedDto,
   type SessionLifecycleChangedDto,
@@ -121,7 +122,7 @@ describe('operator realtime shop events', () => {
       onDeviceStatusChanged: () => {},
       onShopOrderUpdated: (order) => { received = order; }
     });
-    connection.emit('shopOrderUpdated', { id: 'o2', status: 'accepted' });
+    connection.emit(shopOrderUpdatedEventName, { id: 'o2', status: 'accepted' });
     expect(received).toEqual({ id: 'o2', status: 'accepted' });
   });
 });
