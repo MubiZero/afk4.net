@@ -18,20 +18,17 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
   </ItemGroup>
 
+  <!-- The React build (src/AFK4.Player.Shell.Web/dist, produced by `bun run build`) ships as the
+       shell UI under WebAssets/. Include the dist directly as linked Content so it flows into BOTH
+       the build output AND `dotnet publish` (and therefore the WiX MSI, which globs the publish dir).
+       Pointing at dist (which exists at evaluation when the web is built before publish, as the
+       packaging script does) rather than at an empty WebAssets folder is what makes publish include
+       it; a clean checkout without a dist simply matches nothing and falls back at runtime. -->
   <ItemGroup>
-    <Content Include="WebAssets\**\*">
+    <Content Include="$(MSBuildProjectDirectory)\..\AFK4.Player.Shell.Web\dist\**\*">
+      <Link>WebAssets\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-
-  <Target Name="CopyPlayerWebAssets" BeforeTargets="Build">
-    <ItemGroup>
-      <PlayerWebDist Include="$(MSBuildProjectDirectory)\..\AFK4.Player.Shell.Web\dist\**\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(PlayerWebDist)"
-          DestinationFiles="@(PlayerWebDist->'$(OutDir)WebAssets\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true"
-          Condition="'@(PlayerWebDist)' != ''" />
-  </Target>
 
 </Project>
