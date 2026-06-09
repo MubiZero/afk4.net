@@ -47,5 +47,16 @@ public sealed class ShopOrderProjectionTests
         Assert.Equal(3, line.Quantity);
         Assert.Equal(500, line.UnitPrice.MinorUnits);
         Assert.Equal(1500, line.LineTotal.MinorUnits);
+        Assert.Equal(order.BranchId, dto.BranchId);
+        Assert.Equal(order.SeatId, dto.SeatId);
+        Assert.Equal(order.PlayerAccountId, dto.PlayerAccountId);
+        Assert.Equal(ShopOrderStatusNames.Placed, dto.Status);
+        Assert.Equal(DateTimeOffset.UnixEpoch, dto.PlacedAtUtc);
+        Assert.Equal(1, dto.Version);
+        Assert.Null(dto.AcceptedAtUtc);
+        Assert.Null(dto.DeliveredAtUtc);
+        Assert.Null(dto.CancelledAtUtc);
+        Assert.Equal("TJS", line.UnitPrice.CurrencyCode);
+        Assert.Equal("TJS", line.LineTotal.CurrencyCode);
     }
 }
