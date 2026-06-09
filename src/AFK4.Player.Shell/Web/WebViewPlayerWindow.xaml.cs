@@ -14,6 +14,7 @@ public partial class WebViewPlayerWindow : Window
     private readonly PlayerShellOptions options;
     private readonly IPlayerShellStateClient stateClient;
     private readonly CancellationTokenSource lifetime = new();
+    private readonly PlayerShellWebHostBridge bridge;
     private PlayerShellStateDto? latestState;
 
     public WebViewPlayerWindow()
@@ -30,6 +31,7 @@ public partial class WebViewPlayerWindow : Window
     {
         this.options = options;
         stateClient = new NamedPipePlayerShellStateClient(options);
+        bridge = new PlayerShellWebHostBridge(new LauncherCommandClient(options), getLatestState: () => latestState);
         InitializeComponent();
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -54,6 +56,9 @@ public partial class WebViewPlayerWindow : Window
 
         Browser.CoreWebView2.ProcessFailed += OnProcessFailed;
         Browser.Source = new Uri(target.Source);
+
+        Browser.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+        _ = ListenForStateAsync(lifetime.Token);
     }
 
     private static void HardenForKiosk(CoreWebView2 core)
@@ -91,6 +96,33 @@ public partial class WebViewPlayerWindow : Window
     {
         var candidate = Path.Combine(AppContext.BaseDirectory, "WebAssets", "index.html");
         return File.Exists(candidate) ? candidate : candidate;
+    }
+
+    private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        var responseJson = await bridge.HandleAsync(e.WebMessageAsJson, lifetime.Token);
+        if (responseJson is not null && Browser.CoreWebView2 is not null)
+        {
+            Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
+        }
+    }
+
+    private async Task ListenForStateAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var state in stateClient.ReadStatesAsync(cancellationToken))
+            {
+                latestState = state;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    Browser.CoreWebView2?.PostWebMessageAsJson(PlayerShellWebHostBridge.CreateStatePush(state));
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
     }
 
     private void OnClosed(object? sender, EventArgs e)
