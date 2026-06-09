@@ -246,4 +246,6 @@ public static class AuditActionNames
     public const string DeliverShopOrder = "shop.order.deliver";
 
     public const string CancelShopOrder = "shop.order.cancel";
+
+    public const string UpdateLoyaltySettings = "loyalty.settings.update";
 }

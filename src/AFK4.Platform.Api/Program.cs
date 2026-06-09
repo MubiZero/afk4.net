@@ -415,6 +415,7 @@ app.MapFloorMapEndpoints();
 app.MapBranchSettingsEndpoints();
 app.MapAuthEndpoints();
 app.MapPaymentGatewayEndpoints();
+app.MapLoyaltySettingsEndpoints();
 app.MapPlayerSelfServiceEndpoints();
 app.MapPlayerCatalogEndpoints();
 app.MapPlayerShopEndpoints();
