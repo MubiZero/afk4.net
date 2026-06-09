@@ -416,6 +416,7 @@ app.MapPaymentGatewayEndpoints();
 app.MapPlayerSelfServiceEndpoints();
 app.MapPlayerCatalogEndpoints();
 app.MapPlayerShopEndpoints();
+app.MapShopOrderEndpoints();
 app.MapWalletEndpoints();
 app.MapStaffOnboardingEndpoints();
 app.MapReportScheduleEndpoints();

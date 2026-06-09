@@ -2,7 +2,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -151,6 +153,69 @@ internal static class ShopTestSeed
             new AFK4.Shared.Contracts.Players.PlayerSignInRequest(seeded.OrganizationId, seeded.Phone, seeded.Pin));
         signIn.EnsureSuccessStatusCode();
         var tokens = await signIn.Content.ReadFromJsonAsync<AFK4.Shared.Contracts.Players.PlayerSignInResponse>();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
+    }
+
+    // Seeds a staff user + credential + role assignment into the SAME org/branch the player was
+    // seeded into (ShopTestSeed already created that branch), signs in via the staff route, and sets
+    // the Bearer header. The Owner role carries ManageShopOrders; ShiftSupervisor deliberately lacks
+    // it (for the 403 path).
+    public static async Task AuthorizeStaffForBranchAsync(
+        PlatformApiFactory factory,
+        HttpClient client,
+        Guid organizationId,
+        Guid branchId,
+        bool withShopPermission)
+    {
+        var email = $"staff-{Guid.NewGuid():N}@afk4.test";
+        const string password = "Passw0rd!";
+        var roleName = withShopPermission ? StaffRoleNames.Owner : StaffRoleNames.ShiftSupervisor;
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var createdAt = DateTimeOffset.UtcNow;
+            var staffUserId = Guid.NewGuid();
+
+            // The player branch already exists; the staff sign-in route resolves the org row.
+            db.Organizations.Add(new OrganizationEntity
+            {
+                OrganizationId = organizationId,
+                Name = "Shop Org",
+                CreatedAtUtc = createdAt
+            });
+
+            var user = new StaffUserEntity
+            {
+                StaffUserId = staffUserId,
+                OrganizationId = organizationId,
+                UserName = email,
+                NormalizedUserName = email.ToUpperInvariant(),
+                DisplayName = "Shop Staff",
+                IsActive = true,
+                CreatedAtUtc = createdAt
+            };
+            user.PasswordHash = new PasswordHasher<StaffUserEntity>().HashPassword(user, password);
+            db.StaffUsers.Add(user);
+
+            db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+            {
+                StaffRoleAssignmentId = Guid.NewGuid(),
+                StaffUserId = staffUserId,
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                RoleName = roleName
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        var signIn = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(organizationId, email, password));
+        signIn.EnsureSuccessStatusCode();
+        var tokens = await signIn.Content.ReadFromJsonAsync<StaffSignInResponse>();
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
     }

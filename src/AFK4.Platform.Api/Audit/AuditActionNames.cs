@@ -240,4 +240,10 @@ public static class AuditActionNames
     public const string VoidInvoice = "billing.invoice.void";
 
     public const string FulfilPaymentIntent = "billing.payment_intent.fulfil";
+
+    public const string AcceptShopOrder = "shop.order.accept";
+
+    public const string DeliverShopOrder = "shop.order.deliver";
+
+    public const string CancelShopOrder = "shop.order.cancel";
 }
