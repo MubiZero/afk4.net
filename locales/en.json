@@ -2010,6 +2010,7 @@
   "op.settings.pos.price": "Price",
   "op.settings.pos.trackStock": "Track stock",
   "op.settings.pos.allowNegative": "Allow negative stock",
+  "op.pos.product.availableInShell": "Available in shell",
   "op.settings.pos.yes": "yes",
   "op.settings.pos.no": "no",
   "op.settings.pos.productFallback": "Product",

@@ -154,6 +154,7 @@ export interface PosProductDto extends Record<string, unknown> {
   productId: Guid;
   name: string;
   price: MoneyDto;
+  availableInShell?: boolean;
 }
 
 export type PosSaleDto = Record<string, unknown>;
@@ -400,10 +401,12 @@ export interface CreateProductCategoryRequest extends Record<string, unknown> {
 
 export interface CreateProductRequest extends Record<string, unknown> {
   organizationId: Guid;
+  availableInShell?: boolean;
 }
 
 export interface UpdateProductRequest extends Record<string, unknown> {
   organizationId: Guid;
+  availableInShell?: boolean;
 }
 
 export interface CreateStockMovementRequest extends Record<string, unknown> {

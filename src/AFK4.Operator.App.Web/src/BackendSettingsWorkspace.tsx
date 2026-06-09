@@ -160,6 +160,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [productPrice, setProductPrice] = useState('12.00');
   const [productTrackStock, setProductTrackStock] = useState(true);
   const [productAllowNegativeStock, setProductAllowNegativeStock] = useState(false);
+  const [productAvailableInShell, setProductAvailableInShell] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [stockProductId, setStockProductId] = useState('');
   const [stockMovementType, setStockMovementType] = useState('purchase');
@@ -390,6 +391,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
     setProductPrice(price ? formatMoneyInputMinorUnits(price.minorUnits) : productPrice);
     setProductTrackStock(readBoolean(product, 'trackStock', true));
     setProductAllowNegativeStock(readBoolean(product, 'allowNegativeStock'));
+    setProductAvailableInShell(readBoolean(product, 'availableInShell'));
     triggerFeedback(setFeedback, readString(product, 'name', t('op.settings.pos.productFallback')), 'confirmed');
   };
   const selectTariffOption = (option: TariffOptionDto) => {
@@ -931,6 +933,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
           price: { currencyCode, minorUnits: priceMinorUnits },
           trackStock: productTrackStock,
           allowNegativeStock: productAllowNegativeStock,
+          availableInShell: productAvailableInShell,
           idempotencyKey: createIdempotencyKey('pos-product-create')
         });
         setCatalog((items) => [...items, product]);
@@ -941,6 +944,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
         setProductPrice('12.00');
         setProductTrackStock(true);
         setProductAllowNegativeStock(false);
+        setProductAvailableInShell(false);
         setSelectedProductId(readString(product, 'productId'));
       } else if (label === updateProductActionKey || label === delistProductActionKey) {
         if (!hasPermission(nextBackend.session, permissionNames.managePosCatalog)) {
@@ -963,6 +967,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
           price: { currencyCode, minorUnits: priceMinorUnits },
           trackStock: productTrackStock,
           allowNegativeStock: productAllowNegativeStock,
+          availableInShell: productAvailableInShell,
           isActive: label !== delistProductActionKey
         });
         if (label === delistProductActionKey) {
@@ -1515,6 +1520,9 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                 <option value="no">{t('op.settings.pos.no')}</option>
                 <option value="yes">{t('op.settings.pos.yes')}</option>
               </select>
+            </label>
+            <label>{t('op.pos.product.availableInShell')}
+              <input type="checkbox" checked={productAvailableInShell} disabled={!canManagePosCatalog} onChange={(event) => setProductAvailableInShell(event.currentTarget.checked)} />
             </label>
           </div>
           <div className="settings-section-title">
