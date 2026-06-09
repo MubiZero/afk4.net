@@ -1,6 +1,7 @@
 using System.Data;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Loyalty;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Sessions;
@@ -12,7 +13,8 @@ namespace AFK4.Platform.Api.Shop;
 public sealed class EfShopOrderService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IShopOrderNotifier notifier) : IShopOrderService
+    IShopOrderNotifier notifier,
+    ILoyaltyAccrualService loyaltyAccrualService) : IShopOrderService
 {
     public async Task<ShopOrderActionResult> PlaceAsync(
         Guid playerAccountId, IReadOnlyList<ShopOrderLineInput> lines, CancellationToken cancellationToken)
@@ -223,7 +225,25 @@ public sealed class EfShopOrderService(
         order.Status = toStatus;
         order.Version += 1;
         if (toStatus == ShopOrderStatusNames.Accepted) order.AcceptedAtUtc = now;
-        else if (toStatus == ShopOrderStatusNames.Delivered) order.DeliveredAtUtc = now;
+        else if (toStatus == ShopOrderStatusNames.Delivered)
+        {
+            order.DeliveredAtUtc = now;
+            var cashback = await loyaltyAccrualService.BuildCashbackEntryAsync(
+                LoyaltyAccrualSource.Shop,
+                order.OrganizationId,
+                order.BranchId,
+                order.PlayerAccountId,
+                order.SessionId,
+                order.TotalMinorUnits,
+                order.CurrencyCode,
+                reason: $"cashback:shop:{order.ShopOrderId:D}",
+                now,
+                cancellationToken);
+            if (cashback is not null)
+            {
+                dbContext.LedgerEntries.Add(cashback);
+            }
+        }
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
