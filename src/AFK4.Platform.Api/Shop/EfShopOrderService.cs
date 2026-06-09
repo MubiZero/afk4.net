@@ -224,7 +224,14 @@ public sealed class EfShopOrderService(
         order.Version += 1;
         if (toStatus == ShopOrderStatusNames.Accepted) order.AcceptedAtUtc = now;
         else if (toStatus == ShopOrderStatusNames.Delivered) order.DeliveredAtUtc = now;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ShopOrderActionResult.VersionConflict(null);
+        }
 
         var dto = await ProjectSingleAsync(order, cancellationToken);
         await notifier.NotifyUpdatedAsync(dto, cancellationToken);
@@ -264,7 +271,14 @@ public sealed class EfShopOrderService(
         order.Status = ShopOrderStatusNames.Cancelled;
         order.CancelledAtUtc = now;
         order.Version += 1;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ShopOrderActionResult.VersionConflict(null);
+        }
 
         var dto = await ProjectSingleAsync(order, cancellationToken);
         await notifier.NotifyUpdatedAsync(dto, cancellationToken);
