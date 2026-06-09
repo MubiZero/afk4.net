@@ -419,6 +419,7 @@ app.MapLoyaltySettingsEndpoints();
 app.MapPlayerSelfServiceEndpoints();
 app.MapPlayerCatalogEndpoints();
 app.MapPlayerShopEndpoints();
+app.MapPlayerLoyaltyEndpoints();
 app.MapShopOrderEndpoints();
 app.MapWalletEndpoints();
 app.MapStaffOnboardingEndpoints();
