@@ -1,9 +1,10 @@
+import { AuthProvider } from './useAuth';
 import { ActiveSessionScreen } from './screens/ActiveSessionScreen';
 import { LockedScreen } from './screens/LockedScreen';
 import { PlayerShellStateNames } from './shellContracts';
 import { useShellBridge } from './useShellBridge';
 
-export function App() {
+function ShellRouter() {
   const { state, launch, requestOperator } = useShellBridge();
 
   const locked =
@@ -17,4 +18,12 @@ export function App() {
   }
 
   return <ActiveSessionScreen state={state} onLaunch={launch} onRequestOperator={requestOperator} />;
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <ShellRouter />
+    </AuthProvider>
+  );
 }
