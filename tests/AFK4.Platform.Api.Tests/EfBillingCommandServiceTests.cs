@@ -111,6 +111,25 @@ public sealed class EfBillingCommandServiceTests
     }
 
     [Fact]
+    public async Task TopUpWalletAsync_IdempotentRetryWithLoyaltyEnabledDoesNotDoubleCashback()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
+        await SeedLoyaltyAsync(db, topUpEnabled: true, topUpBps: 500);
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "cash top-up", "topup-idem-cb");
+
+        var first = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var second = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.Equal(2, await db.LedgerEntries.CountAsync()); // top-up + cashback, not 3
+        Assert.Equal(first.Response!.WalletBalance, second.Response!.WalletBalance);
+    }
+
+    [Fact]
     public async Task TopUpWalletAsync_NoCashbackWhenLoyaltyDisabled()
     {
         await using var db = CreateDbContext();

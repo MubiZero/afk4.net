@@ -49,6 +49,9 @@ public sealed class LoyaltyAccrualService(PlatformDbContext dbContext) : ILoyalt
             return null;
         }
 
+        // Cashback is a system-initiated grant (actor = Guid.Empty), not a cashier cash operation,
+        // and its sources (online top-ups, shop deliveries) need not run within a shift — so the
+        // entry is intentionally not tied to a shift (ShiftId stays null).
         return BillingEntryFactory.Create(
             organizationId,
             branchId,
