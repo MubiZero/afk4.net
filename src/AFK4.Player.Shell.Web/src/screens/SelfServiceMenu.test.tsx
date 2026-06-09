@@ -1,0 +1,22 @@
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { describe, expect, it } from 'bun:test';
+import { SelfServiceMenu } from './SelfServiceMenu';
+import type { ShellApi } from '../shellApi';
+
+const api = { listTariffs: async () => [], listPackages: async () => [], createTopUpIntent: async () => ({} as any),
+  getTopUpIntents: async () => [], extendSession: async () => ({}) } as ShellApi;
+
+describe('SelfServiceMenu', () => {
+  it('shows login when not authenticated', () => {
+    render(<SelfServiceMenu authenticated={false} onSignIn={async () => true} api={api}
+      sessionId="s1" branchId="b" onReloadState={() => {}} />);
+    expect(screen.getByLabelText(/телефон|phone/i)).toBeInTheDocument();
+  });
+
+  it('shows the menu when authenticated and opens extend', async () => {
+    render(<SelfServiceMenu authenticated={true} onSignIn={async () => true} api={api}
+      sessionId="s1" branchId="b" onReloadState={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /продлить/i }));
+    await waitFor(() => expect(screen.getByText(/продлить время/i)).toBeInTheDocument());
+  });
+});
