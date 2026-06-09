@@ -7,7 +7,7 @@ const baseState: PlayerShellState = {
   organizationId: 'o',
   branchId: 'b',
   deviceId: 'd',
-  state: 'Active',
+  state: 'active',
   sessionId: 's',
   leaseExpiresAtUtc: null,
   remainingSeconds: 3661,
@@ -20,7 +20,7 @@ const baseState: PlayerShellState = {
     { appId: 'valorant', displayName: 'Valorant', category: 'game', iconUri: null, isAvailable: false }
   ],
   locale: 'ru',
-  warningKind: 'None'
+  warningKind: 'none'
 };
 
 describe('ActiveSessionScreen', () => {

@@ -1,13 +1,16 @@
 // Hand-mirrored from AFK4.Shared.Contracts/Shell. No codegen exists; keep in sync.
 
+// Values are lowercase to match the C# source of truth
+// (AFK4.Shared.Contracts/Shell/PlayerShellStateNames.cs), which is what
+// arrives over the wire — NOT the PascalCase member names.
 export const PlayerShellStateNames = {
-  Locked: 'Locked',
-  Active: 'Active',
-  Grace: 'Grace',
-  Ending: 'Ending',
-  Maintenance: 'Maintenance',
-  Offline: 'Offline',
-  Error: 'Error'
+  Locked: 'locked',
+  Active: 'active',
+  Grace: 'grace',
+  Ending: 'ending',
+  Maintenance: 'maintenance',
+  Offline: 'offline',
+  Error: 'error'
 } as const;
 
 export type PlayerShellStateName = (typeof PlayerShellStateNames)[keyof typeof PlayerShellStateNames];

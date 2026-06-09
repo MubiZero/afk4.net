@@ -28,8 +28,8 @@ describe('useShellBridge', () => {
 
     expect(result.current.state).toBeNull();
 
-    harness.push({ type: 'shell:stateChanged', payload: { state: 'Active', remainingSeconds: 600, launcherApps: [] } });
+    harness.push({ type: 'shell:stateChanged', payload: { state: 'active', remainingSeconds: 600, launcherApps: [] } });
 
-    await waitFor(() => expect(result.current.state?.state).toBe('Active'));
+    await waitFor(() => expect(result.current.state?.state).toBe('active'));
   });
 });

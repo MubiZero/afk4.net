@@ -18,7 +18,7 @@ export function ActiveSessionScreen({ state, onLaunch, onRequestOperator }: Prop
       </header>
 
       <main style={{ flex: 1, padding: 42 }}>
-        {state.warningKind !== 'None' && (
+        {state.warningKind !== 'none' && (
           <p style={{ color: '#fde68a' }}>{state.message}</p>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
