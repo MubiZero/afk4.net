@@ -171,6 +171,7 @@ public sealed class EfInventoryService(
                 TrackStock = request.TrackStock,
                 AllowNegativeStock = request.AllowNegativeStock,
                 ReorderThreshold = request.ReorderThreshold,
+                AvailableInShell = request.AvailableInShell,
                 IsActive = true,
                 CreatedAtUtc = now
             };
@@ -269,6 +270,7 @@ public sealed class EfInventoryService(
         product.TrackStock = request.TrackStock;
         product.AllowNegativeStock = request.AllowNegativeStock;
         product.ReorderThreshold = request.ReorderThreshold;
+        product.AvailableInShell = request.AvailableInShell;
         product.IsActive = request.IsActive;
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -761,7 +763,8 @@ public sealed class EfInventoryService(
             product.IsActive,
             stockOnHand,
             product.CreatedAtUtc,
-            product.ReorderThreshold);
+            product.ReorderThreshold,
+            product.AvailableInShell);
     }
 
     private static StockMovementDto ToDto(StockMovementEntity movement)

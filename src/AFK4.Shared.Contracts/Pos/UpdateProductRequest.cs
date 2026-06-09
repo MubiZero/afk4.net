@@ -11,4 +11,5 @@ public sealed record UpdateProductRequest(
     bool TrackStock,
     bool AllowNegativeStock,
     bool IsActive,
-    int ReorderThreshold = 0);
+    int ReorderThreshold = 0,
+    bool AvailableInShell = false);
