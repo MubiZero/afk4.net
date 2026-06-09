@@ -77,6 +77,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StockMovementEntity> StockMovements => Set<StockMovementEntity>();
 
+    public DbSet<ShopOrderEntity> ShopOrders => Set<ShopOrderEntity>();
+
+    public DbSet<ShopOrderLineEntity> ShopOrderLines => Set<ShopOrderLineEntity>();
+
     public DbSet<PosSaleEntity> PosSales => Set<PosSaleEntity>();
 
     public DbSet<PosSaleLineEntity> PosSaleLines => Set<PosSaleLineEntity>();
@@ -614,6 +618,26 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 movement.BranchId,
                 movement.CreatedAtUtc
             });
+        });
+
+        modelBuilder.Entity<ShopOrderEntity>(entity =>
+        {
+            entity.ToTable("shop_orders");
+            entity.HasKey(order => order.ShopOrderId);
+            entity.Property(order => order.Status).HasMaxLength(32).IsRequired();
+            entity.Property(order => order.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(order => order.CancelReason).HasMaxLength(240);
+            entity.Property(order => order.Version).IsConcurrencyToken();
+            entity.HasIndex(order => new { order.BranchId, order.Status });
+            entity.HasIndex(order => new { order.PlayerAccountId, order.PlacedAtUtc });
+        });
+
+        modelBuilder.Entity<ShopOrderLineEntity>(entity =>
+        {
+            entity.ToTable("shop_order_lines");
+            entity.HasKey(line => line.ShopOrderLineId);
+            entity.Property(line => line.NameSnapshot).HasMaxLength(160).IsRequired();
+            entity.HasIndex(line => line.ShopOrderId);
         });
 
         modelBuilder.Entity<PosSaleEntity>(entity =>
