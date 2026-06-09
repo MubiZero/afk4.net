@@ -168,21 +168,135 @@ public sealed class EfShopOrderService(
         return result;
     }
 
-    public Task<IReadOnlyList<ShopOrderDto>> ListForPlayerAsync(Guid playerAccountId, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+    public async Task<IReadOnlyList<ShopOrderDto>> ListForPlayerAsync(Guid playerAccountId, CancellationToken cancellationToken)
+    {
+        var orders = await dbContext.ShopOrders.AsNoTracking()
+            .Where(o => o.PlayerAccountId == playerAccountId)
+            .OrderByDescending(o => o.PlacedAtUtc)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+        return await ProjectAsync(orders, cancellationToken);
+    }
 
-    public Task<IReadOnlyList<ShopOrderDto>> ListQueueAsync(Guid branchId, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+    public async Task<IReadOnlyList<ShopOrderDto>> ListQueueAsync(Guid branchId, CancellationToken cancellationToken)
+    {
+        var open = new[] { ShopOrderStatusNames.Placed, ShopOrderStatusNames.Accepted };
+        var orders = await dbContext.ShopOrders.AsNoTracking()
+            .Where(o => o.BranchId == branchId && open.Contains(o.Status))
+            .OrderBy(o => o.PlacedAtUtc)
+            .ToListAsync(cancellationToken);
+        return await ProjectAsync(orders, cancellationToken);
+    }
 
     public Task<ShopOrderActionResult> AcceptAsync(Guid branchId, Guid shopOrderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+        TransitionAsync(branchId, shopOrderId, expectedVersion, ShopOrderStatusNames.Placed, ShopOrderStatusNames.Accepted, cancellationToken);
 
     public Task<ShopOrderActionResult> DeliverAsync(Guid branchId, Guid shopOrderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+        TransitionAsync(branchId, shopOrderId, expectedVersion, ShopOrderStatusNames.Accepted, ShopOrderStatusNames.Delivered, cancellationToken);
 
-    public Task<ShopOrderActionResult> CancelByOperatorAsync(Guid branchId, Guid shopOrderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+    public async Task<ShopOrderActionResult> CancelByOperatorAsync(Guid branchId, Guid shopOrderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken)
+    {
+        var order = await dbContext.ShopOrders.SingleOrDefaultAsync(o => o.ShopOrderId == shopOrderId && o.BranchId == branchId, cancellationToken);
+        if (order is null) return ShopOrderActionResult.Missing();
+        if (expectedVersion is { } expected && expected != order.Version) return ShopOrderActionResult.VersionConflict(order.Version);
+        if (order.Status is ShopOrderStatusNames.Delivered or ShopOrderStatusNames.Cancelled) return ShopOrderActionResult.Business("invalid_transition");
+        return await ExecuteInTransactionAsync(() => CancelInternalAsync(order, staffUserId, cancellationToken), cancellationToken);
+    }
 
-    public Task<ShopOrderActionResult> CancelByPlayerAsync(Guid playerAccountId, Guid shopOrderId, CancellationToken cancellationToken) =>
-        throw new NotImplementedException();
+    public async Task<ShopOrderActionResult> CancelByPlayerAsync(Guid playerAccountId, Guid shopOrderId, CancellationToken cancellationToken)
+    {
+        var order = await dbContext.ShopOrders.SingleOrDefaultAsync(o => o.ShopOrderId == shopOrderId && o.PlayerAccountId == playerAccountId, cancellationToken);
+        if (order is null) return ShopOrderActionResult.Missing();
+        if (order.Status != ShopOrderStatusNames.Placed) return ShopOrderActionResult.Business("invalid_transition");
+        return await ExecuteInTransactionAsync(() => CancelInternalAsync(order, Guid.Empty, cancellationToken), cancellationToken);
+    }
+
+    private async Task<ShopOrderActionResult> TransitionAsync(
+        Guid branchId, Guid shopOrderId, int? expectedVersion, string fromStatus, string toStatus, CancellationToken cancellationToken)
+    {
+        var order = await dbContext.ShopOrders.SingleOrDefaultAsync(o => o.ShopOrderId == shopOrderId && o.BranchId == branchId, cancellationToken);
+        if (order is null) return ShopOrderActionResult.Missing();
+        if (expectedVersion is { } expected && expected != order.Version) return ShopOrderActionResult.VersionConflict(order.Version);
+        if (order.Status != fromStatus) return ShopOrderActionResult.Business("invalid_transition");
+
+        var now = timeProvider.GetUtcNow();
+        order.Status = toStatus;
+        order.Version += 1;
+        if (toStatus == ShopOrderStatusNames.Accepted) order.AcceptedAtUtc = now;
+        else if (toStatus == ShopOrderStatusNames.Delivered) order.DeliveredAtUtc = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var dto = await ProjectSingleAsync(order, cancellationToken);
+        await notifier.NotifyUpdatedAsync(dto, cancellationToken);
+        return ShopOrderActionResult.Ok(dto);
+    }
+
+    private async Task<ShopOrderActionResult> CancelInternalAsync(ShopOrderEntity order, Guid staffUserId, CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var lines = await dbContext.ShopOrderLines.AsNoTracking()
+            .Where(l => l.ShopOrderId == order.ShopOrderId).ToListAsync(cancellationToken);
+
+        dbContext.LedgerEntries.Add(BillingEntryFactory.Create(
+            order.OrganizationId, order.BranchId, order.PlayerAccountId, order.SessionId, null,
+            LedgerEntryTypeNames.Reversal, LedgerAccountTypeNames.Wallet,
+            order.TotalMinorUnits, 0, order.CurrencyCode, "shop_order_cancel", order.ShopOrderId.ToString("D"),
+            reversesLedgerEntryId: order.WalletLedgerEntryId, actorStaffUserId: staffUserId, createdAtUtc: now));
+
+        foreach (var line in lines)
+        {
+            dbContext.StockMovements.Add(new StockMovementEntity
+            {
+                StockMovementId = Guid.NewGuid(),
+                OrganizationId = order.OrganizationId,
+                BranchId = order.BranchId,
+                ProductId = line.ProductId,
+                MovementType = StockMovementTypeNames.Refund,
+                QuantityDelta = line.Quantity,
+                CurrencyCode = order.CurrencyCode,
+                UnitCostMinorUnits = 0,
+                Reason = "shop_order_cancel",
+                CreatedByStaffUserId = staffUserId,
+                CreatedAtUtc = now
+            });
+        }
+
+        order.Status = ShopOrderStatusNames.Cancelled;
+        order.CancelledAtUtc = now;
+        order.Version += 1;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var dto = await ProjectSingleAsync(order, cancellationToken);
+        await notifier.NotifyUpdatedAsync(dto, cancellationToken);
+        return ShopOrderActionResult.Ok(dto);
+    }
+
+    private async Task<ShopOrderDto> ProjectSingleAsync(ShopOrderEntity order, CancellationToken cancellationToken)
+    {
+        var lines = await dbContext.ShopOrderLines.AsNoTracking()
+            .Where(l => l.ShopOrderId == order.ShopOrderId).ToListAsync(cancellationToken);
+        var name = await dbContext.PlayerAccounts.AsNoTracking()
+            .Where(p => p.PlayerAccountId == order.PlayerAccountId).Select(p => p.DisplayName)
+            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+        return ShopOrderProjection.ToDto(order, lines, name);
+    }
+
+    private async Task<IReadOnlyList<ShopOrderDto>> ProjectAsync(
+        IReadOnlyList<ShopOrderEntity> orders, CancellationToken cancellationToken)
+    {
+        if (orders.Count == 0) return Array.Empty<ShopOrderDto>();
+        var orderIds = orders.Select(o => o.ShopOrderId).ToList();
+        var playerIds = orders.Select(o => o.PlayerAccountId).Distinct().ToList();
+        var linesByOrder = (await dbContext.ShopOrderLines.AsNoTracking()
+                .Where(l => orderIds.Contains(l.ShopOrderId)).ToListAsync(cancellationToken))
+            .GroupBy(l => l.ShopOrderId).ToDictionary(g => g.Key, g => (IReadOnlyCollection<ShopOrderLineEntity>)g.ToList());
+        var names = await dbContext.PlayerAccounts.AsNoTracking()
+            .Where(p => playerIds.Contains(p.PlayerAccountId))
+            .ToDictionaryAsync(p => p.PlayerAccountId, p => p.DisplayName, cancellationToken);
+
+        return orders.Select(o => ShopOrderProjection.ToDto(
+            o,
+            linesByOrder.GetValueOrDefault(o.ShopOrderId, Array.Empty<ShopOrderLineEntity>()),
+            names.GetValueOrDefault(o.PlayerAccountId, string.Empty))).ToList();
+    }
 }
