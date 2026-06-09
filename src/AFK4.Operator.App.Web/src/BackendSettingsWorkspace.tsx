@@ -1521,7 +1521,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
                 <option value="yes">{t('op.settings.pos.yes')}</option>
               </select>
             </label>
-            <label>{t('op.pos.product.availableInShell')}
+            <label>{t('op.settings.pos.availableInShell')}
               <input type="checkbox" checked={productAvailableInShell} disabled={!canManagePosCatalog} onChange={(event) => setProductAvailableInShell(event.currentTarget.checked)} />
             </label>
           </div>

@@ -74,6 +74,7 @@ describe('POS product editor availableInShell', () => {
     fireEvent.click(await screen.findByLabelText(/доступно в шелле|available in shell/i));
     fireEvent.click(screen.getByRole('button', { name: /создать товар|create product/i }));
     await waitFor(() => expect(createProduct).toHaveBeenCalledWith('b1', expect.objectContaining({ availableInShell: true })));
+    await waitFor(() => expect((screen.getByLabelText(/доступно в шелле|available in shell/i) as HTMLInputElement).checked).toBe(false));
   });
 
   it('initialises the checkbox from the product and sends it on update', async () => {
