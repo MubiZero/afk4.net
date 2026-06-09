@@ -14,4 +14,5 @@ public static class LedgerEntryTypeNames
     public const string DebtPayment = "debt_payment";
     public const string WalletPayment = "wallet_payment";
     public const string Reversal = "reversal";
+    public const string Cashback = "cashback";
 }

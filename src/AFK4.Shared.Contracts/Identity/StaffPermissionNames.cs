@@ -113,4 +113,7 @@ public static class StaffPermissionNames
     public const string ManagePaymentGateways = "payments.gateways.manage";
 
     public const string ManageShopOrders = "shop.orders.manage";
+
+    // Owner-only: configure org-wide loyalty/cashback rates.
+    public const string ManageLoyaltySettings = "loyalty.settings.manage";
 }
