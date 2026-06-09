@@ -303,6 +303,7 @@ git commit -m "feat(player-shell): fail-locked lock policy"
 Create `tests/AFK4.Player.Shell.Tests/Web/PlayerWebAssetResolverTests.cs`:
 
 ```csharp
+using System.IO;
 using AFK4.Player.Shell.Web;
 
 namespace AFK4.Player.Shell.Tests.Web;
@@ -339,12 +340,16 @@ public sealed class PlayerWebAssetResolverTests
     [Fact]
     public void NoDevServer_UsesDistFolderViaVirtualHost()
     {
+        // Build the path with the OS-native separator so the expected folder
+        // matches Path.GetDirectoryName on both Windows (\) and Linux (/).
+        var indexPath = Path.Combine("repo", "src", "AFK4.Player.Shell.Web", "dist", "index.html");
+
         var target = PlayerWebAssetResolver.Resolve(
             devServerUrl: null,
-            distIndexHtmlPath: "/repo/src/AFK4.Player.Shell.Web/dist/index.html");
+            distIndexHtmlPath: indexPath);
 
         Assert.Equal(PlayerWebLaunchKind.LocalFolder, target.Kind);
-        Assert.Equal("/repo/src/AFK4.Player.Shell.Web/dist", target.LocalFolderPath);
+        Assert.Equal(Path.GetDirectoryName(indexPath), target.LocalFolderPath);
         Assert.Equal("https://player.afk4.local/index.html", target.Source);
     }
 }
