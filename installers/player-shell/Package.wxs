@@ -8,6 +8,25 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Player Shell is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
+    <!-- The shell host renders its UI in the Microsoft Edge WebView2 Evergreen Runtime, so the
+         runtime is a hard prerequisite. EdgeUpdate records the per-machine runtime version (pv)
+         under the 64-bit client key, which lives in WOW6432Node on 64-bit Windows (read via the
+         32-bit registry view). Block a fresh install with a clear message when it is absent;
+         "Installed" keeps uninstall/repair working. Managed gaming-PC fleets pre-provision the
+         runtime; a future Burn bundle could chain the Evergreen bootstrapper to auto-install it. -->
+    <Property Id="WEBVIEW2RUNTIME">
+      <RegistrySearch
+          Id="WebView2RuntimePv"
+          Root="HKLM"
+          Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+          Name="pv"
+          Type="raw"
+          Bitness="always32" />
+    </Property>
+    <Launch
+        Condition="Installed OR WEBVIEW2RUNTIME"
+        Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen WebView2 Runtime and run this installer again." />
+
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="AFK4RootFolder" Name="AFK4">
         <Directory Id="PlayerShellFolder" Name="Player Shell" />
