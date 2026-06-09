@@ -1,7 +1,9 @@
+using System.Data;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,7 +30,7 @@ public sealed class EfShopOrderService(
         }
 
         var session = await dbContext.Sessions.AsNoTracking()
-            .Where(s => s.PlayerAccountId == playerAccountId && s.State == "active")
+            .Where(s => s.PlayerAccountId == playerAccountId && (s.State == SessionStateNames.Active || s.State == SessionStateNames.Paused))
             .OrderByDescending(s => s.SessionId)
             .FirstOrDefaultAsync(cancellationToken);
         if (session is null)
@@ -57,92 +59,113 @@ public sealed class EfShopOrderService(
         }
 
         var productIds = requested.Keys.ToList();
-        var onHand = await dbContext.StockMovements.AsNoTracking()
-            .Where(m => m.BranchId == session.BranchId && productIds.Contains(m.ProductId))
-            .GroupBy(m => m.ProductId)
-            .Select(g => new { ProductId = g.Key, Quantity = g.Sum(m => m.QuantityDelta) })
-            .ToDictionaryAsync(x => x.ProductId, x => x.Quantity, cancellationToken);
 
-        foreach (var product in products.Where(p => p.TrackStock && !p.AllowNegativeStock))
+        return await ExecuteInTransactionAsync(async () =>
         {
-            if (onHand.GetValueOrDefault(product.ProductId) < requested[product.ProductId])
+            var onHand = await dbContext.StockMovements.AsNoTracking()
+                .Where(m => m.BranchId == session.BranchId && productIds.Contains(m.ProductId))
+                .GroupBy(m => m.ProductId)
+                .Select(g => new { ProductId = g.Key, Quantity = g.Sum(m => m.QuantityDelta) })
+                .ToDictionaryAsync(x => x.ProductId, x => x.Quantity, cancellationToken);
+
+            foreach (var product in products.Where(p => p.TrackStock && !p.AllowNegativeStock))
             {
-                return ShopOrderActionResult.Business("out_of_stock");
+                if (onHand.GetValueOrDefault(product.ProductId) < requested[product.ProductId])
+                {
+                    return ShopOrderActionResult.Business("out_of_stock");
+                }
             }
-        }
 
-        var total = products.Sum(p => (long)requested[p.ProductId] * p.PriceMinorUnits);
+            var total = products.Sum(p => (long)requested[p.ProductId] * p.PriceMinorUnits);
 
-        var wallet = await dbContext.LedgerEntries.AsNoTracking()
-            .Where(e => e.PlayerAccountId == playerAccountId && e.AccountType == LedgerAccountTypeNames.Wallet)
-            .SumAsync(e => (long?)e.AmountMinorUnits, cancellationToken) ?? 0;
-        if (wallet < total)
-        {
-            return ShopOrderActionResult.Business("insufficient_funds");
-        }
-
-        var now = timeProvider.GetUtcNow();
-        var orderId = Guid.NewGuid();
-
-        var debit = BillingEntryFactory.Create(
-            player.OrganizationId, session.BranchId, playerAccountId, session.SessionId, null,
-            LedgerEntryTypeNames.WalletPayment, LedgerAccountTypeNames.Wallet,
-            -total, 0, currency, "shop_order", orderId.ToString("D"),
-            reversesLedgerEntryId: null, actorStaffUserId: Guid.Empty, createdAtUtc: now);
-        dbContext.LedgerEntries.Add(debit);
-
-        foreach (var product in products)
-        {
-            dbContext.StockMovements.Add(new StockMovementEntity
+            var wallet = await dbContext.LedgerEntries.AsNoTracking()
+                .Where(e => e.PlayerAccountId == playerAccountId && e.AccountType == LedgerAccountTypeNames.Wallet)
+                .SumAsync(e => (long?)e.AmountMinorUnits, cancellationToken) ?? 0;
+            if (wallet < total)
             {
-                StockMovementId = Guid.NewGuid(),
+                return ShopOrderActionResult.Business("insufficient_funds");
+            }
+
+            var now = timeProvider.GetUtcNow();
+            var orderId = Guid.NewGuid();
+
+            var debit = BillingEntryFactory.Create(
+                player.OrganizationId, session.BranchId, playerAccountId, session.SessionId, null,
+                LedgerEntryTypeNames.WalletPayment, LedgerAccountTypeNames.Wallet,
+                -total, 0, currency, "shop_order", orderId.ToString("D"),
+                reversesLedgerEntryId: null, actorStaffUserId: Guid.Empty, createdAtUtc: now);
+            dbContext.LedgerEntries.Add(debit);
+
+            foreach (var product in products)
+            {
+                dbContext.StockMovements.Add(new StockMovementEntity
+                {
+                    StockMovementId = Guid.NewGuid(),
+                    OrganizationId = player.OrganizationId,
+                    BranchId = session.BranchId,
+                    ProductId = product.ProductId,
+                    MovementType = StockMovementTypeNames.Sale,
+                    QuantityDelta = -requested[product.ProductId],
+                    CurrencyCode = currency,
+                    UnitCostMinorUnits = 0,
+                    Reason = "shop_order",
+                    CreatedByStaffUserId = Guid.Empty,
+                    CreatedAtUtc = now
+                });
+            }
+
+            var order = new ShopOrderEntity
+            {
+                ShopOrderId = orderId,
                 OrganizationId = player.OrganizationId,
                 BranchId = session.BranchId,
-                ProductId = product.ProductId,
-                MovementType = StockMovementTypeNames.Sale,
-                QuantityDelta = -requested[product.ProductId],
+                PlayerAccountId = playerAccountId,
+                SessionId = session.SessionId,
+                SeatId = session.SeatId,
+                Status = ShopOrderStatusNames.Placed,
+                TotalMinorUnits = total,
                 CurrencyCode = currency,
-                UnitCostMinorUnits = 0,
-                Reason = "shop_order",
-                CreatedByStaffUserId = Guid.Empty,
-                CreatedAtUtc = now
-            });
+                WalletLedgerEntryId = debit.LedgerEntryId,
+                PlacedAtUtc = now,
+                Version = 1
+            };
+            dbContext.ShopOrders.Add(order);
+
+            var lineEntities = products.Select(product => new ShopOrderLineEntity
+            {
+                ShopOrderLineId = Guid.NewGuid(),
+                ShopOrderId = orderId,
+                ProductId = product.ProductId,
+                NameSnapshot = product.Name,
+                UnitPriceMinorUnits = product.PriceMinorUnits,
+                Quantity = requested[product.ProductId],
+                LineTotalMinorUnits = (long)requested[product.ProductId] * product.PriceMinorUnits
+            }).ToList();
+            dbContext.ShopOrderLines.AddRange(lineEntities);
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            var dto = ShopOrderProjection.ToDto(order, lineEntities, player.DisplayName);
+            await notifier.NotifyCreatedAsync(dto, cancellationToken);
+            return ShopOrderActionResult.Ok(dto);
+        }, cancellationToken);
+    }
+
+    // Mirrors the wallet/stock mutation guard used by EfBillingCommandService/EfInventoryService:
+    // serializable transaction on relational providers, plain execution on the in-memory test provider
+    // (BeginTransaction throws there).
+    private async Task<ShopOrderActionResult> ExecuteInTransactionAsync(
+        Func<Task<ShopOrderActionResult>> action, CancellationToken cancellationToken)
+    {
+        if (!dbContext.Database.IsRelational())
+        {
+            return await action();
         }
 
-        var order = new ShopOrderEntity
-        {
-            ShopOrderId = orderId,
-            OrganizationId = player.OrganizationId,
-            BranchId = session.BranchId,
-            PlayerAccountId = playerAccountId,
-            SessionId = session.SessionId,
-            SeatId = session.SeatId,
-            Status = ShopOrderStatusNames.Placed,
-            TotalMinorUnits = total,
-            CurrencyCode = currency,
-            WalletLedgerEntryId = debit.LedgerEntryId,
-            PlacedAtUtc = now,
-            Version = 1
-        };
-        dbContext.ShopOrders.Add(order);
-
-        var lineEntities = products.Select(product => new ShopOrderLineEntity
-        {
-            ShopOrderLineId = Guid.NewGuid(),
-            ShopOrderId = orderId,
-            ProductId = product.ProductId,
-            NameSnapshot = product.Name,
-            UnitPriceMinorUnits = product.PriceMinorUnits,
-            Quantity = requested[product.ProductId],
-            LineTotalMinorUnits = requested[product.ProductId] * product.PriceMinorUnits
-        }).ToList();
-        dbContext.ShopOrderLines.AddRange(lineEntities);
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        var dto = ShopOrderProjection.ToDto(order, lineEntities, player.DisplayName);
-        await notifier.NotifyCreatedAsync(dto, cancellationToken);
-        return ShopOrderActionResult.Ok(dto);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var result = await action();
+        await transaction.CommitAsync(cancellationToken);
+        return result;
     }
 
     public Task<IReadOnlyList<ShopOrderDto>> ListForPlayerAsync(Guid playerAccountId, CancellationToken cancellationToken) =>

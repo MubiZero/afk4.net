@@ -78,7 +78,7 @@ public sealed class EfShopOrderServicePlaceTests
         Assert.Equal(1500, result.Order.Total.MinorUnits);
         Assert.Equal(Seat, result.Order.SeatId);
 
-        var wallet = await db.LedgerEntries.Where(e => e.AccountType == LedgerAccountTypeNames.Wallet)
+        var wallet = await db.LedgerEntries.Where(e => e.PlayerAccountId == Player && e.AccountType == LedgerAccountTypeNames.Wallet)
             .SumAsync(e => e.AmountMinorUnits);
         Assert.Equal(3500, wallet);
 
@@ -127,6 +127,22 @@ public sealed class EfShopOrderServicePlaceTests
 
         Assert.False(result.Succeeded);
         Assert.Equal("product_unavailable", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Place_WithPausedSession_Succeeds()
+    {
+        await using var db = NewDb();
+        var productId = Guid.NewGuid();
+        await SeedAsync(db, productId, walletMinor: 5000, stock: 10);
+        var session = await db.Sessions.SingleAsync();
+        session.State = "paused";
+        await db.SaveChangesAsync();
+
+        var result = await NewService(db).PlaceAsync(
+            Player, new[] { new ShopOrderLineInput(productId, 1) }, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
     }
 
     [Fact]
