@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { TariffOptionDto } from '../apiTypes';
+import { createCachedLoader, indexedDbStore } from '../idbCache';
 import { ApiError, OfflineError, type ShellApi } from '../shellApi';
 
 export interface ExtendScreenProps {
@@ -18,7 +19,8 @@ export function ExtendScreen({ api, branchId, sessionId, onExtended, onConflict 
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.listTariffs(branchId).then(setTariffs).catch((e) => { if (e instanceof OfflineError) setOffline(true); });
+    const load = createCachedLoader(indexedDbStore(), `tariffs:${branchId}`, () => api.listTariffs(branchId));
+    load().then(setTariffs).catch((e) => { if (e instanceof OfflineError) setOffline(true); });
   }, [api, branchId]);
 
   async function extend() {
