@@ -24,4 +24,14 @@
     </Content>
   </ItemGroup>
 
+  <Target Name="CopyPlayerWebAssets" BeforeTargets="Build">
+    <ItemGroup>
+      <PlayerWebDist Include="$(MSBuildProjectDirectory)\..\AFK4.Player.Shell.Web\dist\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PlayerWebDist)"
+          DestinationFiles="@(PlayerWebDist->'$(OutDir)WebAssets\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(PlayerWebDist)' != ''" />
+  </Target>
+
 </Project>
