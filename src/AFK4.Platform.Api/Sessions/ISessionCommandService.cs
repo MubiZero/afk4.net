@@ -7,11 +7,19 @@ public sealed record SessionCommandServiceResult(
     bool Conflict,
     bool NotFound,
     string? Error,
-    SessionCommandResponse? Response)
+    SessionCommandResponse? Response,
+    // Machine-readable conflict reason ("stale_version", "seat_occupied") and, for a stale
+    // version, the authoritative current version so the client can refresh and retry.
+    string? Code = null,
+    int? CurrentVersion = null)
 {
     public static SessionCommandServiceResult Ok(SessionCommandResponse response) => new(true, false, false, null, response);
 
-    public static SessionCommandServiceResult RequestConflict(string error) => new(false, true, false, error, null);
+    public static SessionCommandServiceResult RequestConflict(string error, string? code = null) =>
+        new(false, true, false, error, null, code);
+
+    public static SessionCommandServiceResult StaleVersion(int currentVersion) =>
+        new(false, true, false, "This session changed since you last loaded it; refresh and try again.", null, "stale_version", currentVersion);
 
     public static SessionCommandServiceResult Missing(string error) => new(false, false, true, error, null);
 

@@ -84,6 +84,60 @@ public sealed class EfSessionCheckoutServiceTests
     }
 
     [Fact]
+    public async Task CheckoutAsync_WithStaleExpectedVersion_ReturnsStaleVersionConflictAndDoesNotSettle()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var dispatcher = new RecordingDispatch();
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge))],
+                "checkout-stale",
+                ExpectedVersion: 99),
+            CancellationToken.None);
+
+        Assert.True(result.Conflict);
+        Assert.Equal("stale_version", result.Code);
+        Assert.Equal(0, result.CurrentVersion);
+        Assert.Null(result.Response);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Active, session.State);
+        Assert.Empty(db.Payments);
+        Assert.Empty(db.Receipts);
+    }
+
+    [Fact]
+    public async Task CheckoutAsync_WithCurrentExpectedVersion_SettlesAndBumpsVersion()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var dispatcher = new RecordingDispatch();
+        var service = CreateService(db, dispatcher);
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge))],
+                "checkout-current",
+                ExpectedVersion: 0),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Ending, session.State);
+        Assert.Equal(1, session.Version);
+    }
+
+    [Fact]
     public async Task Checkout_OutboxRow_WhenDispatched_NotifiesDeviceAndMarksDispatched()
     {
         await using var db = CreateDbContext();

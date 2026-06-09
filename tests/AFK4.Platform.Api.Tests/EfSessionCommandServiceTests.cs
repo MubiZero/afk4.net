@@ -390,6 +390,142 @@ public sealed class EfSessionCommandServiceTests
         Assert.False(string.IsNullOrWhiteSpace(dispatcher.Calls[1].Request.Payload["sessionLease"]));
     }
 
+    [Fact]
+    public async Task StartGuestSessionAsync_SetsInitialVersionToOne()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+
+        var result = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(1, result.Response.Session.Version);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(1, session.Version);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_WithStaleExpectedVersion_ReturnsStaleVersionConflictAndDoesNotMutate()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var dispatcher = new RecordingCommandDispatchService();
+        var service = CreateService(db, dispatcher);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+        dispatcher.Clear();
+
+        var result = await service.ExtendSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(30, "manual-v1", "extend-1", ExpectedVersion: 99),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.Conflict);
+        Assert.Equal("stale_version", result.Code);
+        Assert.Equal(1, result.CurrentVersion);
+        Assert.Null(result.Response);
+        Assert.Empty(dispatcher.Calls);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(1, session.Version);
+        Assert.Equal(SessionStateNames.Active, session.State);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_WithCurrentExpectedVersion_SucceedsAndBumpsVersion()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+
+        var result = await service.ExtendSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(30, "manual-v1", "extend-1", ExpectedVersion: 1),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(2, result.Response.Session.Version);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(2, session.Version);
+    }
+
+    [Fact]
+    public async Task EndSessionAsync_WithStaleExpectedVersion_ReturnsStaleVersionConflict()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var dispatcher = new RecordingCommandDispatchService();
+        var service = CreateService(db, dispatcher);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+        dispatcher.Clear();
+
+        var result = await service.EndSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new EndSessionRequest("operator-end", "end-1", ExpectedVersion: 99),
+            CancellationToken.None);
+
+        Assert.True(result.Conflict);
+        Assert.Equal("stale_version", result.Code);
+        Assert.Equal(1, result.CurrentVersion);
+        Assert.Empty(dispatcher.Calls);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SessionStateNames.Active, session.State);
+    }
+
+    [Fact]
+    public async Task TransferSessionAsync_WithStaleExpectedVersion_ReturnsStaleVersionConflict()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: true);
+        var dispatcher = new RecordingCommandDispatchService();
+        var service = CreateService(db, dispatcher);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+        dispatcher.Clear();
+
+        var result = await service.TransferSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new TransferSessionRequest(TargetSeatId, "transfer-1", ExpectedVersion: 99),
+            CancellationToken.None);
+
+        Assert.True(result.Conflict);
+        Assert.Equal("stale_version", result.Code);
+        Assert.Equal(1, result.CurrentVersion);
+        Assert.Empty(dispatcher.Calls);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(SeatId, session.SeatId);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()

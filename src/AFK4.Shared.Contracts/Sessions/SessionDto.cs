@@ -12,4 +12,6 @@ public sealed record SessionDto(
     DateTimeOffset? EndsAtUtc,
     DateTimeOffset? EndedAtUtc,
     int? RemainingSeconds,
-    SessionLeaseDto? CurrentLease);
+    SessionLeaseDto? CurrentLease,
+    // Optimistic-concurrency version the client echoes back as ExpectedVersion on the next mutation.
+    int Version = 0);

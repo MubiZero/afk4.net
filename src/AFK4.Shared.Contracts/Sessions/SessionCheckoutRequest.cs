@@ -7,4 +7,5 @@ namespace AFK4.Shared.Contracts.Sessions;
 public sealed record SessionCheckoutRequest(
     Guid OrganizationId,
     IReadOnlyList<PaymentPartDto> Payments,
-    string IdempotencyKey);
+    string IdempotencyKey,
+    int? ExpectedVersion = null);

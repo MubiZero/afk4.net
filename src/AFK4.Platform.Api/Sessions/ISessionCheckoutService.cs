@@ -7,11 +7,16 @@ public sealed record SessionCheckoutResult(
     bool Conflict,
     bool NotFound,
     string? Error,
-    SessionCheckoutResponse? Response)
+    SessionCheckoutResponse? Response,
+    string? Code = null,
+    int? CurrentVersion = null)
 {
     public static SessionCheckoutResult Ok(SessionCheckoutResponse response) => new(true, false, false, null, response);
 
     public static SessionCheckoutResult RequestConflict(string error) => new(false, true, false, error, null);
+
+    public static SessionCheckoutResult StaleVersion(int currentVersion) =>
+        new(false, true, false, "This session changed since you last loaded it; refresh and try again.", null, "stale_version", currentVersion);
 
     public static SessionCheckoutResult Missing(string error) => new(false, false, true, error, null);
 

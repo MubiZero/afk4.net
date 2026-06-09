@@ -19,4 +19,7 @@ public sealed record SeatStatusDto(
     // Live accrued time cost for an open-tab session (count-up). Null for fixed
     // sessions (which expose RemainingSeconds instead) and unbilled guests.
     long? AccruedCostMinorUnits = null,
-    string? CurrencyCode = null);
+    string? CurrencyCode = null,
+    // Optimistic-concurrency version of the active session; the operator echoes it back as
+    // ExpectedVersion on a seat mutation so a stale view loses the race with a 409.
+    int? SessionVersion = null);

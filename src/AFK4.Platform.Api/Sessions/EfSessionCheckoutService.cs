@@ -78,6 +78,11 @@ public sealed class EfSessionCheckoutService(
             return SessionCheckoutResult.Invalid("Only an active session can be checked out.");
         }
 
+        if (request.ExpectedVersion is int expectedVersion && expectedVersion != session.Version)
+        {
+            return SessionCheckoutResult.StaleVersion(session.Version);
+        }
+
         var now = timeProvider.GetUtcNow();
         var (bill, billError) = await ComputeBillAsync(sessionId, now, cancellationToken);
         if (bill is null)
@@ -148,7 +153,10 @@ public sealed class EfSessionCheckoutService(
 
         var shiftId = openShift.Response;
 
-        var result = await ExecuteInTransactionAsync(async () =>
+        SessionCheckoutResult result;
+        try
+        {
+            result = await ExecuteInTransactionAsync(async () =>
         {
             var trackedSession = await dbContext.Sessions
                 .SingleAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
@@ -306,6 +314,7 @@ public sealed class EfSessionCheckoutService(
             // End the session and lock the device (mirrors the end flow).
             trackedSession.State = SessionStateNames.Ending;
             trackedSession.UpdatedAtUtc = now;
+            trackedSession.Version += 1;
             dbContext.SessionEvents.Add(new SessionEventEntity
             {
                 SessionEventId = Guid.NewGuid(),
@@ -377,6 +386,19 @@ public sealed class EfSessionCheckoutService(
             request.IdempotencyKey,
             requestHashInput,
             cancellationToken), cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another mutation bumped the version between our snapshot and commit: the loser
+            // gets a typed 409 with the now-current version instead of a phantom double-checkout.
+            dbContext.ChangeTracker.Clear();
+            var currentVersion = await dbContext.Sessions
+                .AsNoTracking()
+                .Where(candidate => candidate.SessionId == sessionId)
+                .Select(candidate => (int?)candidate.Version)
+                .SingleOrDefaultAsync(cancellationToken) ?? 0;
+            return SessionCheckoutResult.StaleVersion(currentVersion);
+        }
 
         return result;
     }
@@ -523,7 +545,8 @@ public sealed class EfSessionCheckoutService(
             RemainingSeconds: session.EndsAtUtc is null
                 ? null
                 : Math.Max(0, (int)(session.EndsAtUtc.Value - now).TotalSeconds),
-            CurrentLease: null);
+            CurrentLease: null,
+            Version: session.Version);
 
     private async Task<SessionCheckoutResult?> GetExistingIdempotencyAsync(
         Guid organizationId,

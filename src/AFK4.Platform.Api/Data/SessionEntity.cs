@@ -44,4 +44,9 @@ public sealed class SessionEntity
     public DateTimeOffset? AutoLockedAtUtc { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; }
+
+    // Optimistic-concurrency token: bumped on every mutation (start sets it to 1). A mutating
+    // command may carry the version it last saw; a mismatch loses the race and gets a 409 so two
+    // operators can never silently double-act on the same session.
+    public int Version { get; set; }
 }

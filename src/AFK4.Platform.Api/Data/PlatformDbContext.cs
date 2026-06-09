@@ -370,6 +370,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(session => session.PlayerKind).HasMaxLength(32).IsRequired();
             entity.Property(session => session.TariffRuleVersionId).HasMaxLength(128).IsRequired();
             entity.Property(session => session.State).HasMaxLength(32).IsRequired();
+            entity.Property(session => session.Version).IsConcurrencyToken();
+            // One active-ish session per seat, enforced by the database so two concurrent starts
+            // cannot both win the read-then-write occupancy check (the loser hits this and gets a 409).
+            entity.HasIndex(session => session.SeatId)
+                .IsUnique()
+                .HasFilter("\"State\" IN ('active', 'paused', 'ending')")
+                .HasDatabaseName("ix_sessions_seat_active_unique");
             entity.HasIndex(session => new
             {
                 session.OrganizationId,

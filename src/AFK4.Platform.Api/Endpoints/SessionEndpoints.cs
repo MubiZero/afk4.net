@@ -130,7 +130,7 @@ internal static class SessionEndpoints
 
             if (result.Conflict)
             {
-                return Results.Conflict(new { Error = result.Error });
+                return Results.Conflict(new { Error = result.Error, result.Code, result.CurrentVersion });
             }
 
             if (result.NotFound)
@@ -221,7 +221,7 @@ internal static class SessionEndpoints
 
             if (result.Conflict)
             {
-                return Results.Conflict(new { Error = result.Error });
+                return Results.Conflict(new { Error = result.Error, result.Code, result.CurrentVersion });
             }
 
             if (result.NotFound)
@@ -310,7 +310,7 @@ internal static class SessionEndpoints
 
             if (result.Conflict)
             {
-                return Results.Conflict(new { Error = result.Error });
+                return Results.Conflict(new { Error = result.Error, result.Code, result.CurrentVersion });
             }
 
             if (result.NotFound)
@@ -398,7 +398,7 @@ internal static class SessionEndpoints
 
             if (result.Conflict)
             {
-                return Results.Conflict(new { Error = result.Error });
+                return Results.Conflict(new { Error = result.Error, result.Code, result.CurrentVersion });
             }
 
             if (result.NotFound)
@@ -485,7 +485,7 @@ internal static class SessionEndpoints
 
             if (result.Conflict)
             {
-                return Results.Conflict(new { Error = result.Error });
+                return Results.Conflict(new { Error = result.Error, result.Code, result.CurrentVersion });
             }
 
             if (result.NotFound)

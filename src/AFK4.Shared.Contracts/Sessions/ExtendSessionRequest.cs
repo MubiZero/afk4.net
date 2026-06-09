@@ -7,4 +7,5 @@ public sealed record ExtendSessionRequest(
     Guid? PlayerAccountId = null,
     string BillingMode = "",
     Guid? TariffVersionId = null,
-    Guid? PlayerPackageId = null);
+    Guid? PlayerPackageId = null,
+    int? ExpectedVersion = null);

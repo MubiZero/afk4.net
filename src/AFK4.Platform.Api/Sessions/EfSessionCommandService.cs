@@ -174,7 +174,10 @@ public sealed class EfSessionCommandService(
 
         Guid? deviceIdToNotify = null;
         DeviceCommandDto? commandToNotify = null;
-        var result = await ExecuteInTransactionAsync(async () =>
+        SessionCommandServiceResult result;
+        try
+        {
+            result = await ExecuteInTransactionAsync(async () =>
         {
             var billingValidation = await sessionBillingService.ValidateStartAsync(
                 request.OrganizationId,
@@ -225,7 +228,8 @@ public sealed class EfSessionCommandService(
                 CurrentLeaseId = leaseEntity.SessionLeaseId,
                 IsComp = request.IsComp,
                 CompValueMinorUnits = compValue,
-                UpdatedAtUtc = now
+                UpdatedAtUtc = now,
+                Version = 1
             };
 
             dbContext.Sessions.Add(session);
@@ -276,6 +280,14 @@ public sealed class EfSessionCommandService(
 
             return SessionCommandServiceResult.Ok(response);
         }, IsolationLevel.Serializable, cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // The unique partial index on an active seat fired: another start won the race between
+            // our occupancy pre-check and our insert. The database, not timing, decides the winner.
+            return SessionCommandServiceResult.RequestConflict(
+                "Seat already has an active session.", "seat_occupied");
+        }
 
         if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
         {
@@ -283,6 +295,17 @@ public sealed class EfSessionCommandService(
         }
 
         return result;
+    }
+
+    // A mutating command may carry the version the caller last saw. If it no longer matches the
+    // authoritative row, the caller's view is stale and loses the race with a 409 instead of
+    // silently double-acting. No expected version (legacy/idempotent caller) skips the check and
+    // relies on the DB concurrency token to catch a genuine concurrent write.
+    private static SessionCommandServiceResult? CheckExpectedVersion(SessionEntity session, int? expectedVersion)
+    {
+        return expectedVersion is int expected && expected != session.Version
+            ? SessionCommandServiceResult.StaleVersion(session.Version)
+            : null;
     }
 
     public async Task<SessionCommandServiceResult> ExtendSessionAsync(
@@ -323,6 +346,11 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid("Only active or paused sessions can be extended.");
         }
 
+        if (CheckExpectedVersion(session, request.ExpectedVersion) is { } extendStale)
+        {
+            return extendStale;
+        }
+
         if (session.PlayerAccountId is not null &&
             request.PlayerAccountId is not null &&
             session.PlayerAccountId.Value != request.PlayerAccountId.Value)
@@ -334,7 +362,7 @@ public sealed class EfSessionCommandService(
 
         Guid? deviceIdToNotify = null;
         DeviceCommandDto? commandToNotify = null;
-        var result = await ExecuteInTransactionAsync(async () =>
+        var result = await ExecuteVersionedMutationAsync(sessionId, async () =>
         {
             var billingValidation = await sessionBillingService.ValidateExtendAsync(
                 session.OrganizationId,
@@ -358,6 +386,7 @@ public sealed class EfSessionCommandService(
                 : billingValidation.TariffRuleVersionId;
             session.EndsAtUtc = (session.EndsAtUtc ?? now).AddMinutes(request.AdditionalMinutes);
             session.UpdatedAtUtc = now;
+            session.Version += 1;
 
             var lease = await IssueNextLeaseAsync(session, now, cancellationToken);
             AddEvent(session, "session-extended", actorStaffUserId, session.DeviceId, now);
@@ -441,6 +470,11 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid("Only active sessions can be transferred.");
         }
 
+        if (CheckExpectedVersion(session, request.ExpectedVersion) is { } transferStale)
+        {
+            return transferStale;
+        }
+
         var assignment = await LoadActiveAssignmentAsync(
             session.OrganizationId,
             session.BranchId,
@@ -464,13 +498,14 @@ public sealed class EfSessionCommandService(
         }
 
         var commandsToNotify = new List<(Guid DeviceId, DeviceCommandDto Command)>();
-        var result = await ExecuteInTransactionAsync(async () =>
+        var result = await ExecuteVersionedMutationAsync(sessionId, async () =>
         {
             var now = timeProvider.GetUtcNow();
             var oldDeviceId = session.DeviceId;
             session.SeatId = assignment.SeatId;
             session.DeviceId = assignment.DeviceId;
             session.UpdatedAtUtc = now;
+            session.Version += 1;
 
             var lease = await IssueNextLeaseAsync(session, now, cancellationToken);
             AddEvent(session, "session-transferred", actorStaffUserId, assignment.DeviceId, now);
@@ -507,7 +542,7 @@ public sealed class EfSessionCommandService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return SessionCommandServiceResult.Ok(response);
-        }, cancellationToken);
+        }, isolationLevel: null, cancellationToken);
 
         if (result.Succeeded)
         {
@@ -571,13 +606,19 @@ public sealed class EfSessionCommandService(
             return SessionCommandServiceResult.Invalid("Only active or paused sessions can be ended.");
         }
 
+        if (CheckExpectedVersion(session, request.ExpectedVersion) is { } endStale)
+        {
+            return endStale;
+        }
+
         Guid? deviceIdToNotify = null;
         DeviceCommandDto? commandToNotify = null;
-        var result = await ExecuteInTransactionAsync(async () =>
+        var result = await ExecuteVersionedMutationAsync(sessionId, async () =>
         {
             var now = timeProvider.GetUtcNow();
             session.State = SessionStateNames.Ending;
             session.UpdatedAtUtc = now;
+            session.Version += 1;
             AddEvent(session, "session-ending", actorStaffUserId, session.DeviceId, now);
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -606,7 +647,7 @@ public sealed class EfSessionCommandService(
             await dbContext.SaveChangesAsync(cancellationToken);
 
             return SessionCommandServiceResult.Ok(response);
-        }, cancellationToken);
+        }, isolationLevel: null, cancellationToken);
 
         if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
         {
@@ -830,7 +871,8 @@ public sealed class EfSessionCommandService(
                 RemainingSeconds: session.EndsAtUtc is null
                     ? null
                     : Math.Max(0, (int)(session.EndsAtUtc.Value - now).TotalSeconds),
-                CurrentLease: CurrentLease),
+                CurrentLease: CurrentLease,
+                Version: session.Version),
             DeviceCommands: commands,
             CompValueMinorUnits: session.CompValueMinorUnits);
     }
@@ -870,6 +912,31 @@ public sealed class EfSessionCommandService(
     private static string HashRequest<TRequest>(TRequest request)
     {
         return SessionCommandIdempotencyKeyHasher.Hash(JsonSerializer.Serialize(request, JsonOptions));
+    }
+
+    // Runs a session mutation and converts a lost optimistic-concurrency race (the DB concurrency
+    // token mismatched on commit) into a typed 409 carrying the now-current version, so a caller
+    // that omitted ExpectedVersion still cannot silently double-act under a genuine simultaneous write.
+    private async Task<SessionCommandServiceResult> ExecuteVersionedMutationAsync(
+        Guid sessionId,
+        Func<Task<SessionCommandServiceResult>> action,
+        IsolationLevel? isolationLevel,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ExecuteInTransactionAsync(action, isolationLevel, cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.ChangeTracker.Clear();
+            var currentVersion = await dbContext.Sessions
+                .AsNoTracking()
+                .Where(session => session.SessionId == sessionId)
+                .Select(session => (int?)session.Version)
+                .SingleOrDefaultAsync(cancellationToken) ?? 0;
+            return SessionCommandServiceResult.StaleVersion(currentVersion);
+        }
     }
 
     private async Task<SessionCommandServiceResult> ExecuteInTransactionAsync(
