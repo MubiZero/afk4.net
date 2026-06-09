@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createShellApi, OfflineError } from './shellApi';
+import { ApiError, createShellApi, OfflineError } from './shellApi';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -33,5 +33,42 @@ describe('shellApi', () => {
     const api = createShellApi('https://api.test', async () => jsonResponse({ error: 'conflict' }, 409));
     await expect(api.extendSession('s1', { additionalMinutes: 30, tariffRuleVersionId: 't', idempotencyKey: 'k' }))
       .rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe('shellApi shop methods', () => {
+  it('listShopCatalog GETs the catalog', async () => {
+    let seenUrl = '';
+    const api = createShellApi('https://api.test', async (url) => {
+      seenUrl = String(url);
+      return new Response(JSON.stringify([{ productId: 'p1', name: 'Cola', sku: 'COLA', price: { currencyCode: 'TJS', minorUnits: 500 }, stockOnHand: 10 }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const catalog = await api.listShopCatalog();
+    expect(seenUrl).toBe('https://api.test/api/me/shop/catalog');
+    expect(catalog[0].name).toBe('Cola');
+  });
+
+  it('placeShopOrder POSTs the lines', async () => {
+    let seenBody = '';
+    const api = createShellApi('https://api.test', async (_url, init) => {
+      seenBody = String(init?.body ?? '');
+      return new Response(JSON.stringify({ id: 'o1', status: 'placed' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    await api.placeShopOrder([{ productId: 'p1', quantity: 2 }]);
+    expect(JSON.parse(seenBody)).toEqual({ lines: [{ productId: 'p1', quantity: 2 }] });
+  });
+
+  it('surfaces the server error code on 409', async () => {
+    const api = createShellApi('https://api.test', async () =>
+      new Response(JSON.stringify({ error: 'insufficient_funds' }), { status: 409, headers: { 'Content-Type': 'application/json' } })
+    );
+    try {
+      await api.placeShopOrder([{ productId: 'p1', quantity: 99 }]);
+      throw new Error('should have thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect((e as ApiError).status).toBe(409);
+      expect((e as ApiError).code).toBe('insufficient_funds');
+    }
   });
 });
