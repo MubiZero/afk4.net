@@ -73,8 +73,8 @@ internal static class LoyaltySettingsEndpoints
                 Action: AuditActionNames.UpdateLoyaltySettings,
                 TargetType: "OrganizationLoyaltySettings",
                 TargetId: orgId.ToString("N"),
-                Outcome: "success",
-                SourceApp: "operator",
+                Outcome: AuditOutcome.Succeeded,
+                SourceApp: "PlatformApi",
                 DetailsJson: System.Text.Json.JsonSerializer.Serialize(request)), ct);
 
             return Results.Ok(new LoyaltySettingsDto(

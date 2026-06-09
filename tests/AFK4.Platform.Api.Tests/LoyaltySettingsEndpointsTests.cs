@@ -39,6 +39,18 @@ public sealed class LoyaltySettingsEndpointsTests
     }
 
     [Fact]
+    public async Task Put_ForbiddenForNonOwner()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+        var nonOwner = await OwnerTestAuth.SignInNonOwnerAsync(factory, client);
+
+        var put = await nonOwner.PutAsJsonAsync("/api/owner/loyalty-settings",
+            new UpdateLoyaltySettingsRequest(true, 500, false, 0));
+        Assert.Equal(HttpStatusCode.Forbidden, put.StatusCode);
+    }
+
+    [Fact]
     public async Task Get_DefaultsToAllDisabledWhenNoRow()
     {
         await using var factory = new PlatformApiFactory();
