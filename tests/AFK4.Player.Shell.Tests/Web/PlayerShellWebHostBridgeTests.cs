@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AFK4.Player.Shell.Identity;
 using AFK4.Player.Shell.Launcher;
 using AFK4.Player.Shell.Web;
 using AFK4.Shared.Contracts.Shell;
@@ -18,8 +19,25 @@ public sealed class PlayerShellWebHostBridgeTests
         }
     }
 
+    private sealed class StubAuth : IPlayerApiAuthClient
+    {
+        public AuthSnapshot Current { get; private set; }
+        public string? CurrentAccessToken => Current.Authenticated ? "tok" : null;
+        public Guid? LastOrg { get; private set; }
+        public bool Fail { get; set; }
+
+        public Task<AuthSnapshot> SignInAsync(Guid organizationId, string phone, string password, CancellationToken ct)
+        {
+            LastOrg = organizationId;
+            Current = Fail ? new AuthSnapshot(false, null, false) : new AuthSnapshot(true, "Alex", true);
+            return Task.FromResult(Current);
+        }
+        public Task EnsureFreshTokenAsync(CancellationToken ct) => Task.CompletedTask;
+        public void SignOut() => Current = new AuthSnapshot(false, null, false);
+    }
+
     private static PlayerShellWebHostBridge CreateBridge(StubLauncher launcher) =>
-        new(launcher, getLatestState: () => null);
+        new(launcher, getLatestState: () => null, new StubAuth());
 
     private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement;
 
@@ -82,7 +100,7 @@ public sealed class PlayerShellWebHostBridgeTests
             WarningThresholdSeconds: 300,
             Message: "ok",
             LauncherApps: []);
-        var bridge = new PlayerShellWebHostBridge(new StubLauncher(), getLatestState: () => state);
+        var bridge = new PlayerShellWebHostBridge(new StubLauncher(), getLatestState: () => state, new StubAuth());
 
         var request = """{"requestId":"r4","type":"shell:loadState"}""";
         var responseJson = await bridge.HandleAsync(request, CancellationToken.None);
@@ -114,5 +132,60 @@ public sealed class PlayerShellWebHostBridgeTests
         var envelope = Parse(json);
         Assert.Equal("shell:stateChanged", envelope.GetProperty("type").GetString());
         Assert.Equal("locked", envelope.GetProperty("payload").GetProperty("state").GetString());
+    }
+
+    private static PlayerShellStateDto StateWith(Guid org) =>
+        new(
+            OrganizationId: org,
+            BranchId: Guid.NewGuid(),
+            DeviceId: Guid.NewGuid(),
+            State: PlayerShellStateNames.Active,
+            SessionId: Guid.NewGuid(),
+            LeaseExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(10),
+            RemainingSeconds: 600,
+            IsOnline: true,
+            IsGraceMode: false,
+            WarningThresholdSeconds: 300,
+            Message: "ok",
+            LauncherApps: []);
+
+    [Fact]
+    public async Task SignIn_UsesOrgFromPipeState_ReturnsSnapshotWithoutToken()
+    {
+        var auth = new StubAuth();
+        var org = Guid.NewGuid();
+        var state = StateWith(org);
+        var bridge = new PlayerShellWebHostBridge(new StubLauncher(), () => state, auth);
+
+        var request = """{"requestId":"a1","type":"auth:signIn","payload":{"phoneNumber":"+992900000000","password":"pw"}}""";
+        var response = Parse((await bridge.HandleAsync(request, CancellationToken.None))!);
+
+        Assert.True(response.GetProperty("ok").GetBoolean());
+        Assert.Equal(org, auth.LastOrg);
+        Assert.True(response.GetProperty("payload").GetProperty("authenticated").GetBoolean());
+        Assert.Equal("Alex", response.GetProperty("payload").GetProperty("displayName").GetString());
+        Assert.False(response.GetProperty("payload").TryGetProperty("accessToken", out _));
+    }
+
+    [Fact]
+    public async Task SignIn_WithoutPipeState_IsRejected()
+    {
+        var bridge = new PlayerShellWebHostBridge(new StubLauncher(), getLatestState: () => null, new StubAuth());
+        var request = """{"requestId":"a2","type":"auth:signIn","payload":{"phoneNumber":"x","password":"y"}}""";
+        var response = Parse((await bridge.HandleAsync(request, CancellationToken.None))!);
+
+        Assert.False(response.GetProperty("ok").GetBoolean());
+        Assert.Equal("no_state", response.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task LoadAuthState_ReflectsClient()
+    {
+        var auth = new StubAuth();
+        await auth.SignInAsync(Guid.NewGuid(), "p", "pw", CancellationToken.None);
+        var bridge = new PlayerShellWebHostBridge(new StubLauncher(), () => StateWith(Guid.NewGuid()), auth);
+
+        var response = Parse((await bridge.HandleAsync("""{"requestId":"a3","type":"auth:loadState"}""", CancellationToken.None))!);
+        Assert.True(response.GetProperty("payload").GetProperty("authenticated").GetBoolean());
     }
 }
