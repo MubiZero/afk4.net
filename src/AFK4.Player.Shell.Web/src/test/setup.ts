@@ -8,6 +8,10 @@ import * as matchers from '@testing-library/jest-dom/matchers';
 GlobalRegistrator.register({ url: 'https://player.afk4.local/' });
 expect.extend(matchers);
 
+// Tell React 18+ that this is a test environment so it flushes state updates
+// synchronously after async callbacks, making waitFor() reliable without flushSync.
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
 const { cleanup } = await import('@testing-library/react');
 
 afterEach(() => {
