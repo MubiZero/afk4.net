@@ -20,6 +20,7 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
   const [order, setOrder] = useState<ShopOrderDto | null>(null);
   const [offline, setOffline] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = createCachedLoader(indexedDbStore(), 'shop-catalog', () => api.listShopCatalog());
@@ -47,6 +48,7 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
       .filter(([, qty]) => qty > 0)
       .map(([productId, quantity]) => ({ productId, quantity }));
     if (lines.length === 0) return;
+    setError(null);
     setBusy(true);
     try {
       setOrder(await api.placeShopOrder(lines));
@@ -54,6 +56,13 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
     } catch (e) {
       if (e instanceof ApiError && e.code === 'insufficient_funds') onNeedTopUp();
       else if (e instanceof OfflineError) setOffline(true);
+      else if (e instanceof ApiError) {
+        setError(
+          e.code === 'out_of_stock' ? 'Товар закончился'
+          : e.code === 'product_unavailable' ? 'Товар недоступен'
+          : 'Не удалось оформить заказ'
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -98,6 +107,7 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
         ))}
       </ul>
       <button type="button" onClick={placeOrder} disabled={cartCount === 0 || busy}>Заказать</button>
+      {error && <p role="alert">{error}</p>}
     </section>
   );
 }

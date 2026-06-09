@@ -37,6 +37,17 @@ describe('ShopScreen', () => {
     await waitFor(() => expect(asked).toBe(true));
   });
 
+  it('shows "Товар закончился" and does NOT call onNeedTopUp when out_of_stock', async () => {
+    let asked = false;
+    render(<ShopScreen api={api({ placeShopOrder: async () => { throw new ApiError(409, 'x', 'out_of_stock'); } })}
+      onNeedTopUp={() => { asked = true; }} onDone={() => {}} pollIntervalMs={5} />);
+    await waitFor(() => screen.getByText('Cola'));
+    fireEvent.click(screen.getByRole('button', { name: /добавить/i }));
+    fireEvent.click(screen.getByRole('button', { name: /заказать/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Товар закончился'));
+    expect(asked).toBe(false);
+  });
+
   it('shows order status after placing and polls for updates', async () => {
     let polls = 0;
     render(<ShopScreen api={api({

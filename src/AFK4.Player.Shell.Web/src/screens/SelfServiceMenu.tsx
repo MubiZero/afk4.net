@@ -43,7 +43,7 @@ export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branc
     <nav aria-label="self-service">
       <button type="button" onClick={() => setView('extend')} disabled={!sessionId}>Продлить</button>
       <button type="button" onClick={() => setView('topup')}>Пополнить</button>
-      <button type="button" onClick={() => setView('shop')}>Магазин</button>
+      <button type="button" onClick={() => setView('shop')} disabled={!sessionId}>Магазин</button>
     </nav>
   );
 }
