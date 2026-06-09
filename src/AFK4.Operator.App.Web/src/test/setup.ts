@@ -28,6 +28,13 @@ const { cleanup } = await import('@testing-library/react');
   __afk4RealOperatorApiClients?: typeof import('../operatorApiClients');
 }).__afk4RealOperatorApiClients = { ...(await import('../operatorApiClients')) };
 
+// Same hazard for operatorHelpers: ShopOrdersWorkspace's test installs a partial
+// mock.module('./operatorHelpers') to stub createAuthenticatedOperatorClients. Snapshot the
+// genuine helpers here so that file can restore the real implementation afterwards.
+(globalThis as typeof globalThis & {
+  __afk4RealOperatorHelpers?: typeof import('../operatorHelpers');
+}).__afk4RealOperatorHelpers = { ...(await import('../operatorHelpers')) };
+
 afterEach(() => {
   cleanup();
   // Isolate persisted web storage between tests: the i18n provider seeds locale from localStorage,
