@@ -7,7 +7,8 @@
     "src/AFK4.Platform.Web",
     "src/AFK4.Operator.App.Web",
     "src/AFK4.Customer.Web",
-    "src/AFK4.SetupWizard.Web"
+    "src/AFK4.SetupWizard.Web",
+    "src/AFK4.Player.Shell.Web"
   ],
   "scripts": {
     "build:brand": "bun scripts/build-brand-assets.mjs"
