@@ -203,6 +203,77 @@ public sealed class DeviceHeartbeatServicePersistenceTests
             Assert.Equal(commandId, command.CommandId);
             Assert.Equal("unlock", command.Type);
             Assert.Equal("session-start", command.Payload["reason"]);
+            // A device with commands pending gets the shortened cadence so the poll fallback drains fast.
+            Assert.Equal(3, response.HeartbeatIntervalSeconds);
+        }
+    }
+
+    [Fact]
+    public async Task RecordHeartbeatAsync_IdleDevice_ReturnsDefaultInterval_PendingDevice_ReturnsActiveInterval()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
+        var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
+        var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+        var heartbeatOptions = new HeartbeatOptions { DefaultIntervalSeconds = 12, ActiveIntervalSeconds = 4 };
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.Devices.Add(new DeviceEntity
+            {
+                DeviceId = deviceId,
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                MachineName = "PC-001",
+                AgentVersion = "0.1.0",
+                ShellVersion = "0.1.0",
+                EnrolledAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
+            });
+            await db.SaveChangesAsync();
+        }
+
+        DeviceHeartbeatRequest Beat() => new(
+            OrganizationId: organizationId,
+            BranchId: branchId,
+            DeviceId: deviceId,
+            MachineName: "PC-001",
+            AgentVersion: "0.1.1",
+            ShellVersion: "0.1.2",
+            ObservedAtUtc: DateTimeOffset.Parse("2026-05-12T00:02:00Z"),
+            IsLocked: true,
+            ActiveSessionId: null,
+            ActiveSessionLeaseExpiresAtUtc: null,
+            ActiveSessionLeaseSequence: null);
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            var idle = await CreateService(db, heartbeatOptions: heartbeatOptions)
+                .RecordHeartbeatAsync(deviceId, Beat(), allowOperationalCommands: true, CancellationToken.None);
+            Assert.Empty(idle.Commands);
+            Assert.Equal(12, idle.HeartbeatIntervalSeconds);
+        }
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.DeviceCommands.Add(new DeviceCommandEntity
+            {
+                DeviceId = deviceId,
+                CommandId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+                Type = "lock",
+                PayloadJson = "{}",
+                Status = "Pending",
+                Message = null,
+                CreatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:01:00Z"),
+                UpdatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:01:00Z")
+            });
+            await db.SaveChangesAsync();
+
+            var pending = await CreateService(db, heartbeatOptions: heartbeatOptions)
+                .RecordHeartbeatAsync(deviceId, Beat(), allowOperationalCommands: true, CancellationToken.None);
+            Assert.NotEmpty(pending.Commands);
+            Assert.Equal(4, pending.HeartbeatIntervalSeconds);
         }
     }
 
@@ -279,7 +350,8 @@ public sealed class DeviceHeartbeatServicePersistenceTests
     private static DeviceHeartbeatService CreateService(
         PlatformDbContext dbContext,
         IHeartbeatSessionCommandPlanner? planner = null,
-        CapturingHubContext? hubContext = null)
+        CapturingHubContext? hubContext = null,
+        HeartbeatOptions? heartbeatOptions = null)
     {
         hubContext ??= new CapturingHubContext();
 
@@ -290,7 +362,8 @@ public sealed class DeviceHeartbeatServicePersistenceTests
             new DeviceCommandDispatchService(
                 hubContext,
                 new EfDeviceCommandStore(dbContext)),
-            Microsoft.Extensions.Options.Options.Create(new SessionLeaseOptions { LeaseMinutes = 15 }));
+            Microsoft.Extensions.Options.Options.Create(new SessionLeaseOptions { LeaseMinutes = 15 }),
+            Microsoft.Extensions.Options.Options.Create(heartbeatOptions ?? new HeartbeatOptions()));
     }
 
     private sealed class CapturingHubContext : IHubContext<DeviceHub>

@@ -279,6 +279,7 @@ builder.Services.AddScoped<IReportScheduleService, EfReportScheduleService>();
 builder.Services.AddScoped<IOperatorDashboardService, EfOperatorDashboardService>();
 builder.Services.AddScoped<IReservationService, EfReservationService>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
+builder.Services.Configure<HeartbeatOptions>(builder.Configuration.GetSection(HeartbeatOptions.ConfigurationSection));
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
 builder.Services.AddScoped<ISessionLifecycleNotifier, SignalRSessionLifecycleNotifier>();

@@ -13,7 +13,8 @@ public sealed class DeviceHeartbeatService(
     PlatformDbContext dbContext,
     IHeartbeatSessionCommandPlanner sessionCommandPlanner,
     IDeviceCommandDispatchService commandDispatchService,
-    IOptions<SessionLeaseOptions> leaseOptions) : IDeviceHeartbeatService
+    IOptions<SessionLeaseOptions> leaseOptions,
+    IOptions<HeartbeatOptions> heartbeatOptions) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
@@ -114,7 +115,7 @@ public sealed class DeviceHeartbeatService(
 
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: DateTimeOffset.UtcNow,
-            HeartbeatIntervalSeconds: 10,
+            HeartbeatIntervalSeconds: HeartbeatIntervalPolicy.Resolve(commands.Count > 0, heartbeatOptions.Value),
             Commands: commands,
             EffectiveGraceMinutes: GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes));
     }

@@ -1,9 +1,12 @@
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Devices;
 
-public sealed class InMemoryDeviceHeartbeatService(IHubContext<DeviceHub> hubContext) : IDeviceHeartbeatService
+public sealed class InMemoryDeviceHeartbeatService(
+    IHubContext<DeviceHub> hubContext,
+    IOptions<HeartbeatOptions> heartbeatOptions) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
@@ -26,7 +29,7 @@ public sealed class InMemoryDeviceHeartbeatService(IHubContext<DeviceHub> hubCon
 
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: DateTimeOffset.UtcNow,
-            HeartbeatIntervalSeconds: 10,
+            HeartbeatIntervalSeconds: HeartbeatIntervalPolicy.Resolve(hasPendingCommands: false, heartbeatOptions.Value),
             Commands: []);
     }
 }
