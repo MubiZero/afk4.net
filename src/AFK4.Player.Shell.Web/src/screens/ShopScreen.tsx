@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ShopCatalogItemDto, ShopOrderDto } from '../apiTypes';
 import { createCachedLoader, indexedDbStore } from '../idbCache';
 import { ApiError, OfflineError, type ShellApi } from '../shellApi';
@@ -10,7 +10,7 @@ export interface ShopScreenProps {
   pollIntervalMs?: number;
 }
 
-function formatTjs(minorUnits: number): string {
+function formatMinor(minorUnits: number): string {
   return `${(minorUnits / 100).toFixed(2)} с.`;
 }
 
@@ -20,7 +20,6 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
   const [order, setOrder] = useState<ShopOrderDto | null>(null);
   const [offline, setOffline] = useState(false);
   const [busy, setBusy] = useState(false);
-  const placed = useRef(false);
 
   useEffect(() => {
     const load = createCachedLoader(indexedDbStore(), 'shop-catalog', () => api.listShopCatalog());
@@ -37,7 +36,7 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
       } catch { /* keep last known status; offline is transient */ }
     }, pollIntervalMs);
     return () => clearInterval(timer);
-  }, [api, order, pollIntervalMs]);
+  }, [api, order?.id, order?.status, pollIntervalMs]);
 
   function add(item: ShopCatalogItemDto) {
     setCart((c) => ({ ...c, [item.productId]: (c[item.productId] ?? 0) + 1 }));
@@ -49,7 +48,6 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
       .map(([productId, quantity]) => ({ productId, quantity }));
     if (lines.length === 0) return;
     setBusy(true);
-    placed.current = true;
     try {
       setOrder(await api.placeShopOrder(lines));
       setCart({});
@@ -77,7 +75,7 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
       <section>
         <h1>Ваш заказ</h1>
         <p>{label}</p>
-        <p>Сумма: {formatTjs(order.total.minorUnits)}</p>
+        <p>Сумма: {formatMinor(order.total.minorUnits)}</p>
         {order.status === 'placed' && <button type="button" onClick={cancel}>Отменить заказ</button>}
         {(order.status === 'delivered' || order.status === 'cancelled') &&
           <button type="button" onClick={onDone}>Готово</button>}
@@ -93,7 +91,7 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
         {catalog.map((item) => (
           <li key={item.productId}>
             <span>{item.name}</span>
-            <span>{formatTjs(item.price.minorUnits)}</span>
+            <span>{formatMinor(item.price.minorUnits)}</span>
             <button type="button" onClick={() => add(item)}>Добавить</button>
             {cart[item.productId] ? <span aria-label={`в корзине: ${item.name}`}>×{cart[item.productId]}</span> : null}
           </li>
