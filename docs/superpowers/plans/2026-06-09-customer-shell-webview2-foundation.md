@@ -715,7 +715,7 @@ public sealed class PlayerShellWebHostBridgeTests
 
         var response = Parse(responseJson!);
         Assert.True(response.GetProperty("ok").GetBoolean());
-        Assert.Equal("Active", response.GetProperty("payload").GetProperty("state").GetString());
+        Assert.Equal("active", response.GetProperty("payload").GetProperty("state").GetString());
     }
 
     [Fact]
@@ -739,7 +739,7 @@ public sealed class PlayerShellWebHostBridgeTests
 
         var envelope = Parse(json);
         Assert.Equal("shell:stateChanged", envelope.GetProperty("type").GetString());
-        Assert.Equal("Locked", envelope.GetProperty("payload").GetProperty("state").GetString());
+        Assert.Equal("locked", envelope.GetProperty("payload").GetProperty("state").GetString());
     }
 }
 ```
@@ -1440,13 +1440,13 @@ import { PlayerShellStateNames } from './shellContracts';
 describe('shellContracts', () => {
   it('mirrors the C# PlayerShellStateNames constants exactly', () => {
     expect(PlayerShellStateNames).toEqual({
-      Locked: 'Locked',
-      Active: 'Active',
-      Grace: 'Grace',
-      Ending: 'Ending',
-      Maintenance: 'Maintenance',
-      Offline: 'Offline',
-      Error: 'Error'
+      Locked: 'locked',
+      Active: 'active',
+      Grace: 'grace',
+      Ending: 'ending',
+      Maintenance: 'maintenance',
+      Offline: 'offline',
+      Error: 'error'
     });
   });
 });
@@ -1464,14 +1464,17 @@ Create `src/AFK4.Player.Shell.Web/src/shellContracts.ts`:
 ```ts
 // Hand-mirrored from AFK4.Shared.Contracts/Shell. No codegen exists; keep in sync.
 
+// Values are lowercase to match the C# source of truth
+// (AFK4.Shared.Contracts/Shell/PlayerShellStateNames.cs), which is what
+// arrives over the wire — NOT the PascalCase member names.
 export const PlayerShellStateNames = {
-  Locked: 'Locked',
-  Active: 'Active',
-  Grace: 'Grace',
-  Ending: 'Ending',
-  Maintenance: 'Maintenance',
-  Offline: 'Offline',
-  Error: 'Error'
+  Locked: 'locked',
+  Active: 'active',
+  Grace: 'grace',
+  Ending: 'ending',
+  Maintenance: 'maintenance',
+  Offline: 'offline',
+  Error: 'error'
 } as const;
 
 export type PlayerShellStateName = (typeof PlayerShellStateNames)[keyof typeof PlayerShellStateNames];
@@ -1725,7 +1728,7 @@ const baseState: PlayerShellState = {
   organizationId: 'o',
   branchId: 'b',
   deviceId: 'd',
-  state: 'Active',
+  state: 'active',
   sessionId: 's',
   leaseExpiresAtUtc: null,
   remainingSeconds: 3661,
@@ -1738,7 +1741,7 @@ const baseState: PlayerShellState = {
     { appId: 'valorant', displayName: 'Valorant', category: 'game', iconUri: null, isAvailable: false }
   ],
   locale: 'ru',
-  warningKind: 'None'
+  warningKind: 'none'
 };
 
 describe('ActiveSessionScreen', () => {
@@ -1792,7 +1795,7 @@ export function ActiveSessionScreen({ state, onLaunch, onRequestOperator }: Prop
       </header>
 
       <main style={{ flex: 1, padding: 42 }}>
-        {state.warningKind !== 'None' && (
+        {state.warningKind !== 'none' && (
           <p style={{ color: '#fde68a' }}>{state.message}</p>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>

@@ -89,7 +89,7 @@ public sealed class PlayerShellWebHostBridgeTests
 
         var response = Parse(responseJson!);
         Assert.True(response.GetProperty("ok").GetBoolean());
-        Assert.Equal("Active", response.GetProperty("payload").GetProperty("state").GetString());
+        Assert.Equal("active", response.GetProperty("payload").GetProperty("state").GetString());
     }
 
     [Fact]
@@ -113,6 +113,6 @@ public sealed class PlayerShellWebHostBridgeTests
 
         var envelope = Parse(json);
         Assert.Equal("shell:stateChanged", envelope.GetProperty("type").GetString());
-        Assert.Equal("Locked", envelope.GetProperty("payload").GetProperty("state").GetString());
+        Assert.Equal("locked", envelope.GetProperty("payload").GetProperty("state").GetString());
     }
 }
