@@ -11,4 +11,8 @@ public static class DeviceRealtimeEvents
     public const string DeviceRegistered = "deviceRegistered";
 
     public const string SessionLifecycleChanged = "sessionLifecycleChanged";
+
+    public const string ShopOrderCreated = "shopOrderCreated";
+
+    public const string ShopOrderUpdated = "shopOrderUpdated";
 }
