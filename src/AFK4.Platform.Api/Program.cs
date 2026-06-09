@@ -410,6 +410,7 @@ app.MapBranchSettingsEndpoints();
 app.MapAuthEndpoints();
 app.MapPaymentGatewayEndpoints();
 app.MapPlayerSelfServiceEndpoints();
+app.MapPlayerCatalogEndpoints();
 app.MapWalletEndpoints();
 app.MapStaffOnboardingEndpoints();
 app.MapReportScheduleEndpoints();
