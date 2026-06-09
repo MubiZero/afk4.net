@@ -1,4 +1,5 @@
 import { HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
+import type { ShopOrderDto } from './operatorApiClients';
 
 export type OperatorRealtimeConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -62,6 +63,8 @@ export interface OperatorRealtimeOptions {
   onDeviceStatusChanged: (status: DeviceStatusChangedDto) => void;
   onDeviceCommandResult?: (result: DeviceCommandResultDto) => void;
   onSessionLifecycleChanged?: (change: SessionLifecycleChangedDto) => void;
+  onShopOrderCreated?: (order: ShopOrderDto) => void;
+  onShopOrderUpdated?: (order: ShopOrderDto) => void;
   onConnectionStateChanged?: (state: OperatorRealtimeConnectionState) => void;
   connectionFactory?: () => SignalRConnectionLike;
 }
@@ -69,6 +72,8 @@ export interface OperatorRealtimeOptions {
 export const deviceStatusChangedEventName = 'deviceStatusChanged';
 export const deviceCommandResultEventName = 'deviceCommandResult';
 export const sessionLifecycleChangedEventName = 'sessionLifecycleChanged';
+export const shopOrderCreatedEventName = 'shopOrderCreated';
+export const shopOrderUpdatedEventName = 'shopOrderUpdated';
 
 export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): OperatorRealtimeClient {
   const connection = options.connectionFactory?.() ?? createSignalRConnection(options);
@@ -80,6 +85,12 @@ export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): 
   }
   if (options.onSessionLifecycleChanged) {
     connection.on<SessionLifecycleChangedDto>(sessionLifecycleChangedEventName, options.onSessionLifecycleChanged);
+  }
+  if (options.onShopOrderCreated) {
+    connection.on<ShopOrderDto>(shopOrderCreatedEventName, options.onShopOrderCreated);
+  }
+  if (options.onShopOrderUpdated) {
+    connection.on<ShopOrderDto>(shopOrderUpdatedEventName, options.onShopOrderUpdated);
   }
   connection.onreconnecting(() => setState('reconnecting'));
   connection.onreconnected(() => setState('connected'));
