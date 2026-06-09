@@ -40,3 +40,19 @@ export interface ShopOrderDto {
 }
 
 export interface ShopOrderLineInput { productId: string; quantity: number; }
+
+export interface CashbackEntryDto {
+  amountMinorUnits: number;
+  currencyCode: string;
+  reason: string;
+  createdAtUtc: string;
+}
+
+export interface PlayerLoyaltyDto {
+  topUpEnabled: boolean;
+  topUpPercentBasisPoints: number;
+  shopEnabled: boolean;
+  shopPercentBasisPoints: number;
+  totalEarned: MoneyDto;
+  recent: CashbackEntryDto[];
+}
