@@ -480,3 +480,23 @@ function jsonResponse(body: unknown) {
     }
   });
 }
+
+import { createLoyaltySettingsClient } from './operatorApiClients';
+
+describe('createLoyaltySettingsClient', () => {
+  it('gets and updates /api/owner/loyalty-settings', async () => {
+    const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+    const apiFake = {
+      get: async <T,>(path: string) => { calls.push({ method: 'GET', path }); return { topUpEnabled: false, topUpPercentBasisPoints: 0, shopEnabled: false, shopPercentBasisPoints: 0 } as T; },
+      post: async <T,>(path: string, body: unknown) => { calls.push({ method: 'POST', path, body }); return body as T; },
+      patch: async <T,>() => ({} as T)
+    };
+    const client = createLoyaltySettingsClient(apiFake as never);
+    await client.get();
+    await client.update({ topUpEnabled: true, topUpPercentBasisPoints: 500, shopEnabled: false, shopPercentBasisPoints: 0 });
+    expect(calls).toEqual([
+      { method: 'GET', path: '/api/owner/loyalty-settings' },
+      { method: 'POST', path: '/api/owner/loyalty-settings', body: { topUpEnabled: true, topUpPercentBasisPoints: 500, shopEnabled: false, shopPercentBasisPoints: 0 } }
+    ]);
+  });
+});
