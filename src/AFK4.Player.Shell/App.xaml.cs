@@ -26,7 +26,7 @@ public partial class App : Application
         }
 #endif
 
-        var window = new MainWindow(localization);
+        var window = new AFK4.Player.Shell.Web.WebViewPlayerWindow();
         window.Show();
         base.OnStartup(e);
     }
