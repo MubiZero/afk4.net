@@ -1,7 +1,9 @@
 using System.IO;
+using System.Net.Http;
 using System.Threading;
 using System.Windows;
 using AFK4.Player.Shell.Configuration;
+using AFK4.Player.Shell.Identity;
 using AFK4.Player.Shell.Launcher;
 using AFK4.Player.Shell.Realtime;
 using AFK4.Shared.Contracts.Shell;
@@ -15,6 +17,8 @@ public partial class WebViewPlayerWindow : Window
     private readonly IPlayerShellStateClient stateClient;
     private readonly CancellationTokenSource lifetime = new();
     private readonly PlayerShellWebHostBridge bridge;
+    private readonly PlayerApiAuthClient authClient;
+    private readonly HttpClient apiHttp;
     private PlayerShellStateDto? latestState;
 
     public WebViewPlayerWindow()
@@ -31,7 +35,9 @@ public partial class WebViewPlayerWindow : Window
     {
         this.options = options;
         stateClient = new NamedPipePlayerShellStateClient(options);
-        bridge = new PlayerShellWebHostBridge(new LauncherCommandClient(options), getLatestState: () => latestState);
+        apiHttp = new HttpClient { BaseAddress = new Uri(options.ApiBaseUrl) };
+        authClient = new PlayerApiAuthClient(apiHttp);
+        bridge = new PlayerShellWebHostBridge(new LauncherCommandClient(options), getLatestState: () => latestState, authClient);
         InitializeComponent();
         Loaded += OnLoaded;
         Closed += OnClosed;
@@ -41,6 +47,10 @@ public partial class WebViewPlayerWindow : Window
     {
         await Browser.EnsureCoreWebView2Async();
         HardenForKiosk(Browser.CoreWebView2);
+
+        var apiBase = options.ApiBaseUrl.TrimEnd('/');
+        Browser.CoreWebView2.AddWebResourceRequestedFilter(apiBase + "/*", CoreWebView2WebResourceContext.All);
+        Browser.CoreWebView2.WebResourceRequested += OnApiResourceRequested;
 
         var target = PlayerWebAssetResolver.Resolve(
             devServerUrl: Environment.GetEnvironmentVariable("AFK4_PLAYER_WEB_DEV_SERVER_URL"),
@@ -59,6 +69,7 @@ public partial class WebViewPlayerWindow : Window
 
         Browser.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
         _ = ListenForStateAsync(lifetime.Token);
+        _ = RefreshAuthLoopAsync(lifetime.Token);
     }
 
     private static void HardenForKiosk(CoreWebView2 core)
@@ -104,6 +115,7 @@ public partial class WebViewPlayerWindow : Window
         if (responseJson is not null && Browser.CoreWebView2 is not null)
         {
             Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
+            Browser.CoreWebView2.PostWebMessageAsJson(PlayerShellWebHostBridge.CreateAuthPush(authClient.Current));
         }
     }
 
@@ -129,5 +141,30 @@ public partial class WebViewPlayerWindow : Window
     {
         lifetime.Cancel();
         lifetime.Dispose();
+        apiHttp.Dispose();
+    }
+
+    private void OnApiResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
+    {
+        var decision = AuthorizationHeaderPolicy.Decide(e.Request.Uri, options.ApiBaseUrl, authClient.CurrentAccessToken);
+        if (decision.ShouldInject)
+        {
+            e.Request.Headers.SetHeader("Authorization", decision.HeaderValue!);
+        }
+    }
+
+    private async Task RefreshAuthLoopAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1), ct);
+                await authClient.EnsureFreshTokenAsync(ct);
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
     }
 }
