@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
@@ -26,7 +27,7 @@ public sealed class BillingShiftIntegrationTests
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
         var shiftService = CreateShiftService(db);
-        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now));
+        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db));
 
         var result = await billing.TopUpWalletAsync(
             PlayerAccountId,
@@ -52,7 +53,7 @@ public sealed class BillingShiftIntegrationTests
         await SeedPlayerAsync(db);
         var shiftService = CreateShiftService(db);
         var shift = await OpenShiftAsync(shiftService);
-        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now));
+        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db));
 
         var result = await billing.TopUpWalletAsync(
             PlayerAccountId,
