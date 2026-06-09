@@ -1,5 +1,6 @@
 using System.IO;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Windows;
 using AFK4.Player.Shell.Configuration;
@@ -103,11 +104,11 @@ public partial class WebViewPlayerWindow : Window
     private string RemainingTimeFormatterText() =>
         Shell.RemainingTimeFormatter.Format(latestState?.RemainingSeconds);
 
-    private static string? ResolveDistIndexHtml()
-    {
-        var candidate = Path.Combine(AppContext.BaseDirectory, "WebAssets", "index.html");
-        return File.Exists(candidate) ? candidate : candidate;
-    }
+    private static string? ResolveDistIndexHtml() =>
+        // Where the packaged build lands. The resolver prefers a dev-server URL when one is set
+        // (checked first), otherwise serves this path via the virtual host; in production the file
+        // is always present, and a failed load is covered by the watchdog/native fallback.
+        Path.Combine(AppContext.BaseDirectory, "WebAssets", "index.html");
 
     private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
@@ -115,7 +116,27 @@ public partial class WebViewPlayerWindow : Window
         if (responseJson is not null && Browser.CoreWebView2 is not null)
         {
             Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
-            Browser.CoreWebView2.PostWebMessageAsJson(PlayerShellWebHostBridge.CreateAuthPush(authClient.Current));
+
+            // Only a sign-in/sign-out changes auth state, so only those warrant a push; pushing on
+            // every message (e.g. loadState, launch) would spam shell:authChanged with no change.
+            if (IsAuthMutation(e.WebMessageAsJson))
+            {
+                Browser.CoreWebView2.PostWebMessageAsJson(PlayerShellWebHostBridge.CreateAuthPush(authClient.Current));
+            }
+        }
+    }
+
+    private static bool IsAuthMutation(string requestJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(requestJson);
+            var type = doc.RootElement.TryGetProperty("type", out var t) ? t.GetString() : null;
+            return type is "auth:signIn" or "auth:signOut";
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 
