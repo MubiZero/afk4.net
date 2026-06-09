@@ -9,6 +9,7 @@ export function SummarySidePanel({ workspace, currencyCode }: { workspace: Works
     dashboard: t('op.summary.titleShift'),
     booking: t('op.summary.titleBooking'),
     pos: t('op.summary.titlePos'),
+    shop_orders: t('op.shopOrders.title'),
     players: t('op.summary.titlePlayers'),
     payments: t('op.summary.titlePayments'),
     payment_cards: t('payments_cards.nav'),

@@ -1954,6 +1954,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<bool>("AllowNegativeStock")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("AvailableInShell")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid>("BranchId")
                         .HasColumnType("uuid");
 
@@ -2649,6 +2652,105 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "BranchId", "State");
 
                     b.ToTable("shifts", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.ShopOrderEntity", b =>
+                {
+                    b.Property<Guid>("ShopOrderId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)");
+
+                    b.Property<DateTimeOffset?>("CancelledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<DateTimeOffset?>("DeliveredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("PlacedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SeatId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("TotalMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WalletLedgerEntryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ShopOrderId");
+
+                    b.HasIndex("BranchId", "Status");
+
+                    b.HasIndex("PlayerAccountId", "PlacedAtUtc");
+
+                    b.ToTable("shop_orders", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.ShopOrderLineEntity", b =>
+                {
+                    b.Property<Guid>("ShopOrderLineId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("LineTotalMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("NameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ShopOrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("UnitPriceMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ShopOrderLineId");
+
+                    b.HasIndex("ShopOrderId");
+
+                    b.ToTable("shop_order_lines", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.StaffAccessTokenEntity", b =>

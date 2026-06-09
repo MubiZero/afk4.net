@@ -23,3 +23,20 @@ export interface PlayerTopUpIntentDto {
 export interface ExtendSessionRequest {
   additionalMinutes: number; tariffRuleVersionId: string; idempotencyKey: string;
 }
+
+export interface ShopCatalogItemDto {
+  productId: string; name: string; sku: string; price: MoneyDto; stockOnHand: number;
+}
+
+export interface ShopOrderLineDto {
+  productId: string; name: string; unitPrice: MoneyDto; quantity: number; lineTotal: MoneyDto;
+}
+
+export interface ShopOrderDto {
+  id: string; branchId: string; seatId: string; playerAccountId: string; playerDisplayName: string;
+  status: string; total: MoneyDto; lines: ShopOrderLineDto[];
+  placedAtUtc: string; acceptedAtUtc: string | null; deliveredAtUtc: string | null;
+  cancelledAtUtc: string | null; version: number;
+}
+
+export interface ShopOrderLineInput { productId: string; quantity: number; }

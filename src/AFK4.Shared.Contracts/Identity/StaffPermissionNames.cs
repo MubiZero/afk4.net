@@ -111,4 +111,6 @@ public static class StaffPermissionNames
 
     // Owner-only: connect/manage the club's DC-Bank payment cards (dcgate gateways).
     public const string ManagePaymentGateways = "payments.gateways.manage";
+
+    public const string ManageShopOrders = "shop.orders.manage";
 }

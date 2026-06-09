@@ -15,4 +15,5 @@ public sealed record PosProductDto(
     bool IsActive,
     int StockOnHand,
     DateTimeOffset CreatedAtUtc,
-    int ReorderThreshold = 0);
+    int ReorderThreshold = 0,
+    bool AvailableInShell = false);

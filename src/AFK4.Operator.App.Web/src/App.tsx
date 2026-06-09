@@ -20,6 +20,7 @@ import { MapWorkspace } from './MapWorkspace';
 import { MapSidePanel } from './MapSidePanel';
 import { SummarySidePanel } from './SummarySidePanel';
 import { BackendPosWorkspace } from './BackendPosWorkspace';
+import { ShopOrdersWorkspace } from './ShopOrdersWorkspace';
 import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
 import { BackendPaymentsWorkspace } from './BackendPaymentsWorkspace';
 import { ReviewWorkspace } from './ReviewWorkspace';
@@ -356,6 +357,7 @@ function AppInner() {
         />
       )}
       {workspace === 'pos' && <BackendPosWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'shop_orders' && <ShopOrdersWorkspace backend={backendContext} />}
       {workspace === 'players' && <BackendPlayersWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'payments' && <BackendPaymentsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'payment_cards' && backendContext !== null && (
@@ -375,7 +377,7 @@ function AppInner() {
           onSeatAction={handleSeatAction}
         />
       )}
-      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review'
+      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'shop_orders' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review'
         && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">

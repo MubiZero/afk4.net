@@ -1,11 +1,11 @@
-import type { ExtendSessionRequest, PackageOptionDto, PlayerTopUpIntentDto, TariffOptionDto } from './apiTypes';
+import type { ExtendSessionRequest, PackageOptionDto, PlayerTopUpIntentDto, ShopCatalogItemDto, ShopOrderDto, ShopOrderLineInput, TariffOptionDto } from './apiTypes';
 
 export class OfflineError extends Error {
   constructor() { super('offline'); this.name = 'OfflineError'; }
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) { super(message); this.name = 'ApiError'; }
+  constructor(public status: number, message: string, public code?: string) { super(message); this.name = 'ApiError'; }
 }
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
@@ -28,7 +28,9 @@ export function createShellApi(baseUrl: string, fetchImpl: FetchLike = fetch) {
       throw new OfflineError();
     }
     if (!response.ok) {
-      throw new ApiError(response.status, `request to ${path} failed: ${response.status}`);
+      let code: string | undefined;
+      try { code = ((await response.clone().json()) as { error?: string }).error; } catch { /* no json body */ }
+      throw new ApiError(response.status, `request to ${path} failed: ${response.status}`, code);
     }
     return (await response.json()) as T;
   }
@@ -46,7 +48,13 @@ export function createShellApi(baseUrl: string, fetchImpl: FetchLike = fetch) {
       call<unknown>(`/api/me/sessions/${sessionId}/extend`, {
         method: 'POST',
         body: JSON.stringify({ ...req, idempotencyKey: req.idempotencyKey ?? newKey() })
-      })
+      }),
+    listShopCatalog: () => call<ShopCatalogItemDto[]>('/api/me/shop/catalog'),
+    placeShopOrder: (lines: ShopOrderLineInput[]) =>
+      call<ShopOrderDto>('/api/me/shop/orders', { method: 'POST', body: JSON.stringify({ lines }) }),
+    listShopOrders: () => call<ShopOrderDto[]>('/api/me/shop/orders'),
+    cancelShopOrder: (orderId: string) =>
+      call<ShopOrderDto>(`/api/me/shop/orders/${orderId}/cancel`, { method: 'POST' })
   };
 }
 

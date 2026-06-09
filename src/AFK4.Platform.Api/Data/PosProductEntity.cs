@@ -33,5 +33,8 @@ public sealed class PosProductEntity
 
     public bool IsActive { get; set; }
 
+    /// <summary>True when this product is offered to players in the shell shop (delivery to seat).</summary>
+    public bool AvailableInShell { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

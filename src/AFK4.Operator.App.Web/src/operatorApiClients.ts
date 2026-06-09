@@ -154,6 +154,7 @@ export interface PosProductDto extends Record<string, unknown> {
   productId: Guid;
   name: string;
   price: MoneyDto;
+  availableInShell?: boolean;
 }
 
 export type PosSaleDto = Record<string, unknown>;
@@ -192,6 +193,30 @@ export type UpdatePackageDto = Record<string, unknown>;
 export type UpdateRolloutDto = Record<string, unknown>;
 export type UpdateRolloutStatusDto = Record<string, unknown>;
 export type AuditSearchResultDto = Record<string, unknown>;
+
+export interface ShopOrderLineDto {
+  productId: Guid;
+  name: string;
+  unitPrice: MoneyDto;
+  quantity: number;
+  lineTotal: MoneyDto;
+}
+
+export interface ShopOrderDto {
+  id: Guid;
+  branchId: Guid;
+  seatId: Guid;
+  playerAccountId: Guid;
+  playerDisplayName: string;
+  status: string;
+  total: MoneyDto;
+  lines: ShopOrderLineDto[];
+  placedAtUtc: string;
+  acceptedAtUtc: string | null;
+  deliveredAtUtc: string | null;
+  cancelledAtUtc: string | null;
+  version: number;
+}
 
 export interface CreatePlayerAccountRequest extends Record<string, unknown> {
   organizationId: Guid;
@@ -376,10 +401,12 @@ export interface CreateProductCategoryRequest extends Record<string, unknown> {
 
 export interface CreateProductRequest extends Record<string, unknown> {
   organizationId: Guid;
+  availableInShell?: boolean;
 }
 
 export interface UpdateProductRequest extends Record<string, unknown> {
   organizationId: Guid;
+  availableInShell?: boolean;
 }
 
 export interface CreateStockMovementRequest extends Record<string, unknown> {
@@ -513,6 +540,23 @@ export interface OwnerGatewayStatusResponse {
   telegramMessagesCount: number;
 }
 
+export function createShopOrderClient(api: PlatformApiClient) {
+  return {
+    listQueue(branchId: Guid): Promise<ShopOrderDto[]> {
+      return api.get<ShopOrderDto[]>(`/api/branches/${branchId}/shop/orders`);
+    },
+    accept(branchId: Guid, orderId: Guid, expectedVersion: number): Promise<ShopOrderDto> {
+      return api.post<ShopOrderDto, { expectedVersion: number }>(`/api/branches/${branchId}/shop/orders/${orderId}/accept`, { expectedVersion });
+    },
+    deliver(branchId: Guid, orderId: Guid, expectedVersion: number): Promise<ShopOrderDto> {
+      return api.post<ShopOrderDto, { expectedVersion: number }>(`/api/branches/${branchId}/shop/orders/${orderId}/deliver`, { expectedVersion });
+    },
+    cancel(branchId: Guid, orderId: Guid, expectedVersion: number): Promise<ShopOrderDto> {
+      return api.post<ShopOrderDto, { expectedVersion: number }>(`/api/branches/${branchId}/shop/orders/${orderId}/cancel`, { expectedVersion });
+    }
+  };
+}
+
 export function createPaymentGatewayClient(api: PlatformApiClient) {
   return {
     list(): Promise<OwnerPaymentGatewayListResponse> {
@@ -594,7 +638,8 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     audit: createAuditClient(api),
     moneyActions: createMoneyActionClient(api),
     paymentGateways: createPaymentGatewayClient(api),
-    account: createAccountClient(api)
+    account: createAccountClient(api),
+    shopOrders: createShopOrderClient(api)
   };
 }
 

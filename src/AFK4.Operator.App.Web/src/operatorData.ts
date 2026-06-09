@@ -9,6 +9,7 @@ import {
   ReceiptText,
   ScrollText,
   Settings,
+  ShoppingCart,
   Users
 } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
@@ -52,6 +53,7 @@ export const navItems: NavItem[] = [
   { labelKey: 'op.shell.nav.dashboard', icon: LayoutDashboard },
   { labelKey: 'op.shell.nav.booking', icon: CalendarClock },
   { labelKey: 'op.shell.nav.pos', icon: ReceiptText },
+  { labelKey: 'op.shell.nav.shop_orders', icon: ShoppingCart },
   { labelKey: 'op.shell.nav.players', icon: Users },
   { labelKey: 'op.shell.nav.payments', icon: CircleDollarSign },
   { labelKey: 'op.shell.nav.payment_cards', icon: CreditCard },

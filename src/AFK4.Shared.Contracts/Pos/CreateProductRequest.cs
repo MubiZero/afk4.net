@@ -43,4 +43,6 @@ public sealed record CreateProductRequest
     public string IdempotencyKey { get; init; }
 
     public int ReorderThreshold { get; init; }
+
+    public bool AvailableInShell { get; init; }
 }

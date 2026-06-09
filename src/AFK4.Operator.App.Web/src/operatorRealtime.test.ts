@@ -3,6 +3,8 @@ import {
   deviceCommandResultEventName,
   deviceStatusChangedEventName,
   sessionLifecycleChangedEventName,
+  shopOrderCreatedEventName,
+  shopOrderUpdatedEventName,
   type DeviceCommandResultDto,
   type DeviceStatusChangedDto,
   type SessionLifecycleChangedDto,
@@ -92,6 +94,36 @@ describe('operator realtime client', () => {
       state: 'active',
       version: 1
     });
+  });
+});
+
+describe('operator realtime shop events', () => {
+  it('routes shopOrderCreated to the handler', () => {
+    const connection = new FakeSignalRConnection();
+    let received: unknown;
+    createOperatorRealtimeClient({
+      baseUrl: 'http://localhost:5074/',
+      getAccessToken: () => 'access-token',
+      connectionFactory: () => connection,
+      onDeviceStatusChanged: () => {},
+      onShopOrderCreated: (order) => { received = order; }
+    });
+    connection.emit(shopOrderCreatedEventName, { id: 'o1' });
+    expect(received).toEqual({ id: 'o1' });
+  });
+
+  it('routes shopOrderUpdated to the handler', () => {
+    const connection = new FakeSignalRConnection();
+    let received: unknown;
+    createOperatorRealtimeClient({
+      baseUrl: 'http://localhost:5074/',
+      getAccessToken: () => 'access-token',
+      connectionFactory: () => connection,
+      onDeviceStatusChanged: () => {},
+      onShopOrderUpdated: (order) => { received = order; }
+    });
+    connection.emit(shopOrderUpdatedEventName, { id: 'o2', status: 'accepted' });
+    expect(received).toEqual({ id: 'o2', status: 'accepted' });
   });
 });
 
