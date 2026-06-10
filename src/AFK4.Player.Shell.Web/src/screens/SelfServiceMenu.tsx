@@ -5,6 +5,7 @@ import { ExtendScreen } from './ExtendScreen';
 import { TopUpScreen } from './TopUpScreen';
 import { ShopScreen } from './ShopScreen';
 import { LoyaltyScreen } from './LoyaltyScreen';
+import { NewsScreen } from './NewsScreen';
 
 export interface SelfServiceMenuProps {
   authenticated: boolean;
@@ -15,7 +16,7 @@ export interface SelfServiceMenuProps {
   onReloadState: () => void;
 }
 
-type View = 'menu' | 'extend' | 'topup' | 'shop' | 'loyalty';
+type View = 'menu' | 'extend' | 'topup' | 'shop' | 'loyalty' | 'news';
 
 export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branchId, onReloadState }: SelfServiceMenuProps) {
   const [view, setView] = useState<View>('menu');
@@ -44,12 +45,17 @@ export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branc
     return <LoyaltyScreen api={api} onDone={() => { setView('menu'); onReloadState(); }} />;
   }
 
+  if (view === 'news') {
+    return <NewsScreen api={api} onDone={() => { setView('menu'); onReloadState(); }} />;
+  }
+
   return (
     <nav aria-label="self-service">
       <button type="button" onClick={() => setView('extend')} disabled={!sessionId}>Продлить</button>
       <button type="button" onClick={() => setView('topup')}>Пополнить</button>
       <button type="button" onClick={() => setView('shop')} disabled={!sessionId}>Магазин</button>
       <button type="button" onClick={() => setView('loyalty')}>Кэшбэк</button>
+      <button type="button" onClick={() => setView('news')}>Новости</button>
     </nav>
   );
 }
