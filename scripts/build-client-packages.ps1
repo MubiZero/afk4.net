@@ -302,9 +302,12 @@ Get-ChildItem -LiteralPath $agentServicePublishDir -File |
     Where-Object { $_.Name -ne 'AFK4.Agent.Service.exe' } |
     Copy-Item -Destination $agentServiceSupportDir -Force
 
-Get-ChildItem -LiteralPath $setupWizardPublishDir -File |
+# -Recurse (not -File) so the WebAssets\** subfolder ships in the support dir;
+# the agent MSI harvests SetupWizardFiles from here, and the wizard resolves its
+# UI from WebAssets next to the exe. Files-only copy dropped it -> placeholder page.
+Get-ChildItem -LiteralPath $setupWizardPublishDir -Force |
     Where-Object { $_.Name -ne 'AFK4.SetupWizard.exe' } |
-    Copy-Item -Destination $setupWizardSupportDir -Force
+    Copy-Item -Destination $setupWizardSupportDir -Recurse -Force
 
 $updateHelperScripts = @(
     'install-afk4-update-msi.ps1',
