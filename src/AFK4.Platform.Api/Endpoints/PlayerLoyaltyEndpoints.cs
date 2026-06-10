@@ -21,13 +21,16 @@ internal static class PlayerLoyaltyEndpoints
             var settings = await db.OrganizationLoyaltySettings.AsNoTracking()
                 .SingleOrDefaultAsync(s => s.OrganizationId == player.OrganizationId, ct);
 
-            var entries = await db.LedgerEntries.AsNoTracking()
-                .Where(e => e.PlayerAccountId == player.PlayerAccountId && e.EntryType == LedgerEntryTypeNames.Cashback)
+            var cashbackQuery = db.LedgerEntries.AsNoTracking()
+                .Where(e => e.PlayerAccountId == player.PlayerAccountId && e.EntryType == LedgerEntryTypeNames.Cashback);
+
+            var totalMinor = await cashbackQuery.SumAsync(e => (long?)e.AmountMinorUnits, ct) ?? 0;
+
+            var entries = await cashbackQuery
                 .OrderByDescending(e => e.CreatedAtUtc)
                 .Take(20)
                 .ToListAsync(ct);
 
-            var totalMinor = entries.Sum(e => e.AmountMinorUnits);
             var currency = entries.Count > 0 ? entries[0].CurrencyCode : "TJS";
             var recent = entries
                 .Select(e => new CashbackEntryDto(e.AmountMinorUnits, e.CurrencyCode, e.Reason, e.CreatedAtUtc))

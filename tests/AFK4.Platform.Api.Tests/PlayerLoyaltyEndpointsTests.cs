@@ -123,6 +123,61 @@ public sealed class PlayerLoyaltyEndpointsTests
             new AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
     }
 
+    private static async Task SeedManyCashbackAsync(PlatformApiFactory factory, SeededPlayer p, int count, long amountMinor)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+
+        db.OrganizationLoyaltySettings.Add(new OrganizationLoyaltySettingsEntity
+        {
+            OrganizationId = p.OrgId,
+            TopUpEnabled = true,
+            TopUpPercentBasisPoints = 500,
+            ShopEnabled = false,
+            ShopPercentBasisPoints = 0,
+            UpdatedAtUtc = DateTimeOffset.UtcNow
+        });
+
+        for (var i = 0; i < count; i++)
+        {
+            db.LedgerEntries.Add(new LedgerEntryEntity
+            {
+                LedgerEntryId = Guid.NewGuid(),
+                OrganizationId = p.OrgId,
+                BranchId = p.BranchId,
+                PlayerAccountId = p.PlayerId,
+                EntryType = LedgerEntryTypeNames.Cashback,
+                AccountType = "wallet",
+                AmountMinorUnits = amountMinor,
+                CurrencyCode = "TJS",
+                Reason = "topup_cashback",
+                CreatedByStaffUserId = Guid.Empty,
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-i)
+            });
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task GetLoyalty_TotalEarnedSumsAllCashback_RecentCappedAt20()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        await SeedManyCashbackAsync(factory, p, count: 21, amountMinor: 10);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.GetAsync("/api/me/loyalty");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<PlayerLoyaltyDto>();
+        Assert.NotNull(dto);
+        Assert.Equal(210, dto!.TotalEarned.MinorUnits);
+        Assert.Equal("TJS", dto.TotalEarned.CurrencyCode);
+        Assert.Equal(20, dto.Recent.Count);
+    }
+
     [Fact]
     public async Task GetLoyalty_ReturnsRatesEarnedAndRecent()
     {
