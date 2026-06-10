@@ -29,7 +29,7 @@ internal static class LoyaltySettingsEndpoints
                 : new LoyaltySettingsDto(row.TopUpEnabled, row.TopUpPercentBasisPoints, row.ShopEnabled, row.ShopPercentBasisPoints));
         });
 
-        app.MapPut("/api/owner/loyalty-settings", async (
+        app.MapPost("/api/owner/loyalty-settings", async (
             UpdateLoyaltySettingsRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
