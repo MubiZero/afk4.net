@@ -23,6 +23,7 @@ import { BackendPosWorkspace } from './BackendPosWorkspace';
 import { ShopOrdersWorkspace } from './ShopOrdersWorkspace';
 import { LoyaltySettingsWorkspace } from './LoyaltySettingsWorkspace';
 import { NewsWorkspace } from './NewsWorkspace';
+import { ShiftsWorkspace } from './ShiftsWorkspace';
 import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
 import { BackendPaymentsWorkspace } from './BackendPaymentsWorkspace';
 import { ReviewWorkspace } from './ReviewWorkspace';
@@ -374,6 +375,9 @@ function AppInner() {
       {workspace === 'news' && backendContext !== null && (
         <NewsWorkspace backend={backendContext} />
       )}
+      {workspace === 'shifts' && backendContext !== null && (
+        <ShiftsWorkspace backend={backendContext} branchId={backendContext.branchId} />
+      )}
 
       {workspace === 'map' && selectedSeat !== null && (
         <MapSidePanel
@@ -385,7 +389,7 @@ function AppInner() {
           onSeatAction={handleSeatAction}
         />
       )}
-      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'shop_orders' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review' && workspace !== 'loyalty' && workspace !== 'news'
+      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'shop_orders' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review' && workspace !== 'loyalty' && workspace !== 'news' && workspace !== 'shifts'
         && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">

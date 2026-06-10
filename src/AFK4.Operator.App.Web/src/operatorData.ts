@@ -12,7 +12,8 @@ import {
   ScrollText,
   Settings,
   ShoppingCart,
-  Users
+  Users,
+  Wallet
 } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 
@@ -63,7 +64,8 @@ export const navItems: NavItem[] = [
   { labelKey: 'op.shell.nav.settings', icon: Settings },
   { labelKey: 'op.shell.nav.review', icon: ClipboardCheck },
   { labelKey: 'op.loyalty.nav', icon: BadgePercent },
-  { labelKey: 'op.news.nav', icon: Newspaper }
+  { labelKey: 'op.news.nav', icon: Newspaper },
+  { labelKey: 'op.shifts.nav', icon: Wallet }
 ];
 export const seats: SeatSummary[] = [
   {
