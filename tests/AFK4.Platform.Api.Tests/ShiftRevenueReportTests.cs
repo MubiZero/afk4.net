@@ -57,7 +57,7 @@ public sealed class ShiftRevenueReportTests
         var shiftId = Guid.Parse("33333333-3333-4333-8333-333333333333");
         SeedOpenShift(db, shiftId, startingCash: 0);
         SeedPayment(db, shiftId, PaymentMethodNames.Cash, "payment", 5000);
-        SeedPayment(db, shiftId, PaymentMethodNames.Cash, "refund", 1500);
+        SeedPayment(db, shiftId, PaymentMethodNames.Cash, "refund", -1500);
         await db.SaveChangesAsync();
         var service = new EfReportService(db);
 
@@ -95,6 +95,26 @@ public sealed class ShiftRevenueReportTests
         Assert.Equal(14000, row.Cash.Counted!.MinorUnits);
         Assert.Equal(14000, row.Cash.Expected.MinorUnits);
         Assert.Equal(0, row.Cash.Difference!.MinorUnits);
+    }
+
+    [Fact]
+    public async Task GetShiftRevenue_CashReconciliation_SubtractsCashRefund()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.Parse("55555555-5555-4555-8555-555555555555");
+        SeedClosedShift(db, shiftId, startingCash: 10000, countedCash: 13000);
+        SeedPayment(db, shiftId, PaymentMethodNames.Cash, "payment", 4000);
+        SeedPayment(db, shiftId, PaymentMethodNames.Cash, "refund", -1000);
+        await db.SaveChangesAsync();
+        var service = new EfReportService(db);
+
+        var result = await service.GetShiftRevenueAsync(
+            OrgId, BranchId, new ReportSearchQuery(null, null, 10), CancellationToken.None);
+
+        var row = Assert.Single(result.Shifts);
+        Assert.Equal(13000, row.Cash.Expected.MinorUnits);   // 10000 + 4000 − 1000
+        Assert.Equal(0, row.Cash.Difference!.MinorUnits);     // counted 13000 − expected 13000
+        Assert.Equal(3000, row.Inflow.Cash.MinorUnits);       // 4000 − 1000 net
     }
 
     private static void SeedOpenShift(PlatformDbContext db, Guid shiftId, long startingCash) =>

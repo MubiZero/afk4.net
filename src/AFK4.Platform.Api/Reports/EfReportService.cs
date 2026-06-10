@@ -621,8 +621,10 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .Sum(s => s.TotalMinorUnits);
 
         long MethodNet(string method) =>
-            payments.Where(p => p.PaymentMethod == method && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindPayment).Sum(p => p.AmountMinorUnits)
-            - payments.Where(p => p.PaymentMethod == method && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindRefund).Sum(p => p.AmountMinorUnits);
+            payments
+                .Where(p => p.PaymentMethod == method && Cur(p.CurrencyCode)
+                    && (p.PaymentKind == PaymentKindPayment || p.PaymentKind == PaymentKindRefund))
+                .Sum(p => p.AmountMinorUnits);
 
         var cash = MethodNet(PaymentMethodNames.Cash);
         var nonCash = MethodNet(PaymentMethodNames.CardManual);
@@ -638,7 +640,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .Sum(p => p.AmountMinorUnits);
         var posCashRefunds = payments
             .Where(p => p.PaymentMethod == PaymentMethodNames.Cash && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindRefund)
-            .Sum(p => -p.AmountMinorUnits);
+            .Sum(p => p.AmountMinorUnits);
         var billingCashImpact = ledger
             .Where(e => Cur(e.CurrencyCode) &&
                 (e.EntryType == LedgerEntryTypeNames.TopUp ||
