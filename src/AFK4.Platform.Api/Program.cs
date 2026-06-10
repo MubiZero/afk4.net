@@ -252,6 +252,7 @@ builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificat
 builder.Services.AddScoped<IStaffPhonePasswordResetService, EfStaffPhonePasswordResetService>();
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
+builder.Services.Configure<AFK4.Platform.Api.Reports.BusinessDayOptions>(builder.Configuration.GetSection("BusinessDay"));
 builder.Services.AddScoped<IScheduledReportRunner, EfScheduledReportRunner>();
 builder.Services.Configure<OutboxOptions>(builder.Configuration.GetSection(OutboxOptions.ConfigurationSection));
 builder.Services.AddScoped<IBillingOutbox, EfBillingOutbox>();
