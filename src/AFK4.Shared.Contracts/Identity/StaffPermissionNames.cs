@@ -116,4 +116,6 @@ public static class StaffPermissionNames
 
     // Owner-only: configure org-wide loyalty/cashback rates.
     public const string ManageLoyaltySettings = "loyalty.settings.manage";
+
+    public const string ManageNews = "news.manage";
 }

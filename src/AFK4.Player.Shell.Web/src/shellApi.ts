@@ -1,4 +1,4 @@
-import type { ExtendSessionRequest, PackageOptionDto, PlayerLoyaltyDto, PlayerTopUpIntentDto, ShopCatalogItemDto, ShopOrderDto, ShopOrderLineInput, TariffOptionDto } from './apiTypes';
+import type { ExtendSessionRequest, PackageOptionDto, PlayerLoyaltyDto, PlayerNewsItemDto, PlayerTopUpIntentDto, ShopCatalogItemDto, ShopOrderDto, ShopOrderLineInput, TariffOptionDto } from './apiTypes';
 
 export class OfflineError extends Error {
   constructor() { super('offline'); this.name = 'OfflineError'; }
@@ -55,7 +55,8 @@ export function createShellApi(baseUrl: string, fetchImpl: FetchLike = fetch) {
     listShopOrders: () => call<ShopOrderDto[]>('/api/me/shop/orders'),
     cancelShopOrder: (orderId: string) =>
       call<ShopOrderDto>(`/api/me/shop/orders/${orderId}/cancel`, { method: 'POST' }),
-    getLoyalty: () => call<PlayerLoyaltyDto>('/api/me/loyalty')
+    getLoyalty: () => call<PlayerLoyaltyDto>('/api/me/loyalty'),
+    getNews: () => call<PlayerNewsItemDto[]>('/api/me/news')
   };
 }
 

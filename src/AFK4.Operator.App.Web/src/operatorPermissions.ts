@@ -1,7 +1,7 @@
 import type { OperatorAuthSession } from './authClient';
 import type { WorkspaceId } from './operatorTypes';
 
-export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'shop_orders', 'players', 'payments', 'payment_cards', 'logs', 'settings', 'review', 'loyalty'];
+export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'shop_orders', 'players', 'payments', 'payment_cards', 'logs', 'settings', 'review', 'loyalty', 'news'];
 
 export const permissionNames = {
   viewFloorMap: 'floor_map.view',
@@ -51,7 +51,8 @@ export const permissionNames = {
   viewAudit: 'audit.view',
   approveMoneyAction: 'billing.money_action.approve',
   managePaymentGateways: 'payments.gateways.manage',
-  manageLoyaltySettings: 'loyalty.settings.manage'
+  manageLoyaltySettings: 'loyalty.settings.manage',
+  manageNews: 'news.manage'
 } as const;
 
 export const staffRoleOptions = ['cashier_operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant_auditor'] as const;
@@ -102,7 +103,8 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
     permissionNames.viewTariffs
   ],
   review: [permissionNames.approveMoneyAction],
-  loyalty: [permissionNames.manageLoyaltySettings]
+  loyalty: [permissionNames.manageLoyaltySettings],
+  news: [permissionNames.manageNews]
 };
 
 export function hasPermission(session: OperatorAuthSession | null, permission: string) {

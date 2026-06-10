@@ -7,6 +7,7 @@ import {
   CreditCard,
   LayoutDashboard,
   Monitor,
+  Newspaper,
   ReceiptText,
   ScrollText,
   Settings,
@@ -61,7 +62,8 @@ export const navItems: NavItem[] = [
   { labelKey: 'op.shell.nav.logs', icon: ScrollText },
   { labelKey: 'op.shell.nav.settings', icon: Settings },
   { labelKey: 'op.shell.nav.review', icon: ClipboardCheck },
-  { labelKey: 'op.loyalty.nav', icon: BadgePercent }
+  { labelKey: 'op.loyalty.nav', icon: BadgePercent },
+  { labelKey: 'op.news.nav', icon: Newspaper }
 ];
 export const seats: SeatSummary[] = [
   {

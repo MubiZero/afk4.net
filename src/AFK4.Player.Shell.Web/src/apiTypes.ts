@@ -56,3 +56,11 @@ export interface PlayerLoyaltyDto {
   totalEarned: MoneyDto;
   recent: CashbackEntryDto[];
 }
+
+export interface PlayerNewsItemDto {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  publishedAtUtc: string;
+}

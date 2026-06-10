@@ -8,6 +8,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<OrganizationLoyaltySettingsEntity> OrganizationLoyaltySettings => Set<OrganizationLoyaltySettingsEntity>();
 
+    public DbSet<NewsItemEntity> NewsItems => Set<NewsItemEntity>();
+
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
     public DbSet<BranchPaymentGatewayEntity> BranchPaymentGateways => Set<BranchPaymentGatewayEntity>();
@@ -166,6 +168,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.ToTable("organization_loyalty_settings");
             entity.HasKey(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<NewsItemEntity>(entity =>
+        {
+            entity.ToTable("news_items");
+            entity.HasKey(news => news.Id);
+            entity.Property(news => news.Title).HasMaxLength(200).IsRequired();
+            entity.Property(news => news.Body).HasMaxLength(4000).IsRequired();
+            entity.Property(news => news.ImageUrl).HasMaxLength(2048);
+            entity.HasIndex(news => news.OrganizationId);
         });
 
         modelBuilder.Entity<SubscriptionPlanEntity>(entity =>
