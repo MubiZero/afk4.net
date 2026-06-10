@@ -153,6 +153,7 @@ internal static class PlayerSelfServiceEndpoints
         app.MapGet("/api/me/dashboard", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -162,7 +163,7 @@ internal static class PlayerSelfServiceEndpoints
             }
 
             var dashboard = await PlayerDashboardProjector.GetDashboardAsync(
-                dbContext, player.PlayerAccountId, DateTimeOffset.UtcNow, cancellationToken);
+                dbContext, player.PlayerAccountId, timeProvider.GetUtcNow(), cancellationToken);
             return Results.Ok(dashboard);
         }).RequireRateLimiting("player-me");
 
@@ -224,6 +225,7 @@ internal static class PlayerSelfServiceEndpoints
             IBranchPaymentGatewayResolver gatewayResolver,
             ISecretProtector secretProtector,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -256,7 +258,7 @@ internal static class PlayerSelfServiceEndpoints
                 ? "TJS"
                 : request.CurrencyCode.Trim().ToUpperInvariant();
 
-            var now = DateTimeOffset.UtcNow;
+            var now = timeProvider.GetUtcNow();
             var intent = new PaymentIntentEntity
             {
                 PaymentIntentId = Guid.NewGuid(),
@@ -320,6 +322,7 @@ internal static class PlayerSelfServiceEndpoints
         app.MapGet("/api/me/wallet/top-up-intents", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -328,7 +331,7 @@ internal static class PlayerSelfServiceEndpoints
                 return Results.Unauthorized();
             }
 
-            var now = DateTimeOffset.UtcNow;
+            var now = timeProvider.GetUtcNow();
             var expiryCutoff = now.AddHours(-24);
 
             var intents = await dbContext.PaymentIntents
@@ -360,6 +363,7 @@ internal static class PlayerSelfServiceEndpoints
             IPlayerContextAccessor playerContextAccessor,
             IReservationService reservationService,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var player = playerContextAccessor.Current;
@@ -374,7 +378,7 @@ internal static class PlayerSelfServiceEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var now = DateTimeOffset.UtcNow;
+            var now = timeProvider.GetUtcNow();
             if (request.StartsAtUtc >= request.EndsAtUtc)
             {
                 return Results.BadRequest(new { Error = "End time must be after start time." });

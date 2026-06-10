@@ -84,6 +84,7 @@ internal static class WalletEndpoints
             IAuditRecordWriter auditRecordWriter,
             IBillingCommandService billingCommandService,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             if (staffContextAccessor.Current is null)
@@ -148,7 +149,7 @@ internal static class WalletEndpoints
             }
 
             // Expiry guard: pending but >24h old → 409 Conflict.
-            if (intent.State == "pending" && intent.CreatedAtUtc < DateTimeOffset.UtcNow.AddHours(-24))
+            if (intent.State == "pending" && intent.CreatedAtUtc < timeProvider.GetUtcNow().AddHours(-24))
             {
                 return Results.Conflict(new { Error = "Payment intent has expired." });
             }
@@ -177,7 +178,7 @@ internal static class WalletEndpoints
             }
 
             intent.State = "fulfilled";
-            intent.FulfilledAtUtc = DateTimeOffset.UtcNow;
+            intent.FulfilledAtUtc = timeProvider.GetUtcNow();
             // FulfilledByLedgerEntryId left null (v1): TopUpWalletAsync returns WalletSummaryDto,
             // not the created ledger entry id.
             await dbContext.SaveChangesAsync(cancellationToken);

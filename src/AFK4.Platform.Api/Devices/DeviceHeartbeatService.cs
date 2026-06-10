@@ -14,7 +14,8 @@ public sealed class DeviceHeartbeatService(
     IHeartbeatSessionCommandPlanner sessionCommandPlanner,
     IDeviceCommandDispatchService commandDispatchService,
     IOptions<SessionLeaseOptions> leaseOptions,
-    IOptions<HeartbeatOptions> heartbeatOptions) : IDeviceHeartbeatService
+    IOptions<HeartbeatOptions> heartbeatOptions,
+    TimeProvider timeProvider) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
@@ -114,7 +115,7 @@ public sealed class DeviceHeartbeatService(
             .FirstOrDefaultAsync(cancellationToken);
 
         return new DeviceHeartbeatResponse(
-            ServerTimeUtc: DateTimeOffset.UtcNow,
+            ServerTimeUtc: timeProvider.GetUtcNow(),
             HeartbeatIntervalSeconds: HeartbeatIntervalPolicy.Resolve(commands.Count > 0, heartbeatOptions.Value),
             Commands: commands,
             EffectiveGraceMinutes: GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes));

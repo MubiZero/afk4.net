@@ -48,7 +48,8 @@ public sealed class WorkerTests
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
-            new InMemoryCommandResultOutbox());
+            new InMemoryCommandResultOutbox(),
+            TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -89,7 +90,8 @@ public sealed class WorkerTests
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter(),
             graceState,
-            new InMemoryCommandResultOutbox());
+            new InMemoryCommandResultOutbox(),
+            TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
         await graceState.Recorded.WaitAsync(WorkerObservationTimeout);
@@ -131,7 +133,8 @@ public sealed class WorkerTests
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
-            new InMemoryCommandResultOutbox());
+            new InMemoryCommandResultOutbox(),
+            TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -182,7 +185,8 @@ public sealed class WorkerTests
             ]),
             reporter,
             new OfflineGraceState(),
-            new InMemoryCommandResultOutbox());
+            new InMemoryCommandResultOutbox(),
+            TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -234,7 +238,8 @@ public sealed class WorkerTests
             ]),
             new RecordingInstalledAppReporter(calls),
             new OfflineGraceState(),
-            new InMemoryCommandResultOutbox());
+            new InMemoryCommandResultOutbox(),
+            TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
         await heartbeatAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -285,7 +290,8 @@ public sealed class WorkerTests
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
-            commandResultOutbox);
+            commandResultOutbox,
+            TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
         await resultPosted.Task.WaitAsync(WorkerObservationTimeout);
@@ -340,7 +346,8 @@ public sealed class WorkerTests
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
-            commandResultOutbox);
+            commandResultOutbox,
+            TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
         await resultAttempted.Task.WaitAsync(WorkerObservationTimeout);
@@ -382,7 +389,8 @@ public sealed class WorkerTests
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
-            new InMemoryCommandResultOutbox());
+            new InMemoryCommandResultOutbox(),
+            TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
         await recoveredHeartbeat.Task.WaitAsync(WorkerObservationTimeout);

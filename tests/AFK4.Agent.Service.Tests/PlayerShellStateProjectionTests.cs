@@ -77,7 +77,8 @@ public sealed class PlayerShellStateProjectionTests
             new StaticInstalledAppInventoryCollector([]),
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
-            new InMemoryCommandResultOutbox());
+            new InMemoryCommandResultOutbox(),
+            TimeProvider.System);
 
         // Act
         await worker.StartAsync(stopping.Token);

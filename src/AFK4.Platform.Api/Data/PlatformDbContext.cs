@@ -226,6 +226,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();
             entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);
             entity.Property(branch => branch.PreferredLocale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
+            entity.Property(branch => branch.PreferredTimeZone).HasMaxLength(64).HasDefaultValue("Asia/Dushanbe").IsRequired();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.BranchId }).IsUnique();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.Slug }).IsUnique();
         });

@@ -20,6 +20,14 @@ public sealed class BranchEntity
     /// </summary>
     public string PreferredLocale { get; set; } = "ru";
 
+    /// <summary>
+    /// IANA timezone identifier ("Asia/Dushanbe" by default) for this branch's wall-clock — the basis
+    /// for branch-local day boundaries (reports, schedules) and operator-entered times. Today every
+    /// branch is single-region (UTC+5, no DST) so this is just a marker; it makes a future multi-region
+    /// rollout a code change rather than a guess about how existing rows were stored.
+    /// </summary>
+    public string PreferredTimeZone { get; set; } = "Asia/Dushanbe";
+
     // Per-branch default ceiling for an open postpaid tab; null means unbounded.
     public long? PostpaidCreditLimitMinorUnits { get; set; }
 

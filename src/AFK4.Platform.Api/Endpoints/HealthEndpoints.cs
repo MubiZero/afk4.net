@@ -77,9 +77,9 @@ internal static class HealthEndpoints
 {
     public static void MapHealthEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/health", () =>
+        app.MapGet("/api/health", (TimeProvider timeProvider) =>
         {
-            return Results.Ok(new HealthResponse("ok", DateTimeOffset.UtcNow));
+            return Results.Ok(new HealthResponse("ok", timeProvider.GetUtcNow()));
         });
 
     }

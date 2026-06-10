@@ -22,7 +22,8 @@ public sealed class Worker(
     IInstalledAppInventoryCollector installedAppInventoryCollector,
     IInstalledAppReporter installedAppReporter,
     IOfflineGraceState offlineGraceState,
-    ICommandResultOutbox commandResultOutbox) : BackgroundService
+    ICommandResultOutbox commandResultOutbox,
+    TimeProvider timeProvider) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
 
@@ -59,7 +60,7 @@ public sealed class Worker(
                 outcome.Succeeded,
                 leaseStore.Current,
                 outcome.IntervalSeconds,
-                DateTimeOffset.UtcNow,
+                timeProvider.GetUtcNow(),
                 Random.Shared.NextDouble());
             await Task.Delay(delay, stoppingToken);
         }
@@ -74,7 +75,7 @@ public sealed class Worker(
             var request = HeartbeatPayloadFactory.Create(
                 agentOptions,
                 runtimeState.IsLocked,
-                DateTimeOffset.UtcNow,
+                timeProvider.GetUtcNow(),
                 leaseStore);
             using var message = new HttpRequestMessage(HttpMethod.Post, $"/api/devices/{agentOptions.DeviceId}/heartbeat")
             {
@@ -94,7 +95,9 @@ public sealed class Worker(
             {
                 // Stamp the contact on the agent's own clock (spec §8) so offline grace is measured from
                 // when the network actually dropped, robust to absolute-clock drift on the gaming PC.
-                offlineGraceState.RecordSuccessfulContact(DateTimeOffset.UtcNow, heartbeat.EffectiveGraceMinutes);
+                var agentNowUtc = timeProvider.GetUtcNow();
+                offlineGraceState.RecordSuccessfulContact(agentNowUtc, heartbeat.EffectiveGraceMinutes);
+                WarnOnClockDrift(heartbeat.ServerTimeUtc, agentNowUtc);
                 await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
             }
 
@@ -115,6 +118,25 @@ public sealed class Worker(
     }
 
     private readonly record struct HeartbeatOutcome(bool Succeeded, int IntervalSeconds);
+
+    private void WarnOnClockDrift(DateTimeOffset serverTimeUtc, DateTimeOffset agentNowUtc)
+    {
+        var drift = ClockDriftCheck.Drift(serverTimeUtc, agentNowUtc);
+        if (!ClockDriftCheck.IsExcessive(drift, ClockDriftCheck.WarningThreshold))
+        {
+            return;
+        }
+
+        // Lease refresh and the offline grace window both lean on the agent and server clocks agreeing.
+        // We only log it (no behaviour change) — a fix would correct against ServerTimeUtc, but first we
+        // need to know whether real fleets actually drift.
+        logger.LogWarning(
+            "Agent clock differs from server by {DriftSeconds:F0}s (server {ServerTimeUtc:o}, agent {AgentTimeUtc:o}). "
+            + "Lease and offline-grace timing assume a synchronised clock — check NTP on this gaming PC.",
+            drift.TotalSeconds,
+            serverTimeUtc,
+            agentNowUtc);
+    }
 
     private async Task HandleHeartbeatCommandsAsync(
         HttpClient client,
@@ -185,7 +207,7 @@ public sealed class Worker(
             var runtimeState = runtimeStateStore.Current;
             var response = await sessionReconciliationReporter.ReportAsync(
                 runtimeState.IsLocked,
-                observedAtUtc: DateTimeOffset.UtcNow,
+                observedAtUtc: timeProvider.GetUtcNow(),
                 cancellationToken);
             logger.LogInformation(
                 "Session reconciliation returned {Action} for {SessionId}.",
@@ -242,7 +264,7 @@ public sealed class Worker(
         var lease = leaseStore.Current;
         int? remainingSeconds = lease is null
             ? null
-            : Math.Max(0, (int)(lease.ExpiresAtUtc - DateTimeOffset.UtcNow).TotalSeconds);
+            : Math.Max(0, (int)(lease.ExpiresAtUtc - timeProvider.GetUtcNow()).TotalSeconds);
 
         var isGraceMode = string.Equals(runtimeState.State, PlayerShellStateNames.Grace, StringComparison.Ordinal);
         var threshold = agentOptions.ShellWarningThresholdSeconds;
@@ -286,7 +308,7 @@ public sealed class Worker(
         try
         {
             var apps = await installedAppInventoryCollector.CollectAsync(cancellationToken);
-            await installedAppReporter.ReportAsync(apps, DateTimeOffset.UtcNow, cancellationToken);
+            await installedAppReporter.ReportAsync(apps, timeProvider.GetUtcNow(), cancellationToken);
             logger.LogInformation("Installed app inventory reported with {InstalledAppCount} apps.", apps.Count);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
