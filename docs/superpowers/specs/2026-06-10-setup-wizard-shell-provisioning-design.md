@@ -81,9 +81,12 @@ this work; it is no longer the source of truth — code is.
    shell never lands on manager workstations. The wizard stays the single point of
    gaming-PC setup.
 
-4. **Embed the runtime in the master installer** (not download). The demo runs on a VM
-   that may be offline; an embedded runtime makes installation self-sufficient. The
-   master installer is larger, but installs once and works without network.
+4. **Download the runtime (production path), do not embed it.** The master installer
+   carries a *downloadable* .NET Desktop Runtime prerequisite (fetched from Microsoft at
+   install time, skipped if already present), keeping `setup.exe` small. This is the real
+   production experience, so the demo validates exactly that — the demo VM must have
+   network. (An embedded/offline variant can be added later for air-gapped sites, but is
+   out of scope here.)
 
 Rejected alternatives: platform-rollout first install (pipeline does not do first
 install; needs backend + staging rollout); wizard writes shell files/env without an MSI
@@ -136,11 +139,12 @@ a missing shell.
   includes the base runtime) — covers the WPF wizard/shell, the agent service, and the
   operator app.
 - Add a **WiX Burn bundle** (`setup.exe`) per install target:
-  - **Gaming-PC master installer**: chain (1) embedded .NET Desktop Runtime (skipped if a
-    compatible runtime is already present), then (2) the agent MSI. The shell is **not**
-    chained here — the wizard installs it on `gaming_pc`.
-  - **Operator master installer**: chain the embedded runtime + the operator MSI, for the
-    same one-time-runtime benefit on operator workstations.
+  - **Gaming-PC master installer**: chain (1) a downloadable .NET Desktop Runtime
+    prerequisite (fetched from Microsoft, skipped if a compatible runtime is already
+    present), then (2) the agent MSI. The shell is **not** chained here — the wizard
+    installs it on `gaming_pc`.
+  - **Operator master installer**: chain the downloadable runtime prerequisite + the
+    operator MSI, for the same one-time-runtime benefit on operator workstations.
 - The bundled shell MSI (in the wizard payload) is also framework-dependent (~10 MB).
 - Keep the standalone per-component MSIs as build artifacts (recovery + update-pipeline
   source). The master installers wrap them; they are not replaced.
@@ -153,7 +157,8 @@ a missing shell.
   that folder (same mechanism as `WebAssets`) so it ships at
   `…\Setup Wizard\payload\AFK4.Player.Shell.msi`.
 - Switch the `dotnet publish` calls to `--self-contained false`.
-- Build the Burn bundles after the MSIs, embedding the .NET Desktop Runtime installer.
+- Build the Burn bundles after the MSIs, referencing the .NET Desktop Runtime as a
+  downloadable prerequisite package (not embedded).
 - The bundled shell version equals the build version; the update pipeline upgrades it
   afterward.
 
@@ -166,13 +171,13 @@ Update `docs/operations/client-packaging.md` to the new model:
 - Sweep the rest of the runbook for statements that contradict the new model (MSI split,
   manual shell install, owner-code/enrollment) and fix them in the same pass.
 
-## Sequencing (to protect the demo)
+## Sequencing
 
-Land and verify the **functional** half first, on the current self-contained packaging:
-prove the wizard brings up the shell on the VM and the offline/lock symptoms clear. Only
-then do the **packaging** conversion (framework-dependent + Burn bundles), which carries
-its own risk (runtime prerequisite, clean-VM validation). The demo must not be blocked by
-packaging work.
+The demo runs on the **production-like packaging** (framework-dependent + master
+installer with a downloaded runtime) — we are not keeping a self-contained interim build.
+Implementation order is by dependency: build the master installer + framework-dependent
+publish (Part B), then the wizard shell-provisioning (Part A) ships inside it, and the VM
+demo validates both together against the real prod install path.
 
 ## Testing
 
@@ -183,10 +188,10 @@ packaging work.
   screen comes up in the active session; "Старт 60 мин" completes the workstation lock;
   the "офлайн / ждём подтверждение" state clears (confirming same root cause). If it
   persists → separate agent-connectivity bug → pull agent logs.
-- VM verification, packaging: on a **clean** VM with no .NET runtime, the gaming-PC master
-  installer installs the runtime once then the agent; the wizard + shell run
-  framework-dependent; size of the master installer recorded vs the old self-contained
-  MSI.
+- VM verification, packaging (production-like): on a **clean, networked** VM with no .NET
+  runtime, the gaming-PC master installer **downloads** the runtime once then installs the
+  agent; the wizard + shell run framework-dependent; size of the master installer recorded
+  vs the old self-contained MSI. This is the real prod experience the demo signs off on.
 
 ## Out of scope
 
