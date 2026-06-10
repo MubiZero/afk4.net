@@ -13,7 +13,8 @@ public sealed class SetupWizardWebHostBridge(
     IDeviceKeyStore deviceKeyStore,
     ISetupWizardBootstrapWriter bootstrapWriter,
     SetupWizardMachineInfo machineInfo,
-    ISetupWizardCompletionAction completionAction)
+    ISetupWizardCompletionAction completionAction,
+    ISetupWizardShellProvisioner shellProvisioner)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -59,6 +60,7 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:discoverAuth" => await DiscoverAuthenticatedAsync(cancellationToken),
                 "wizard:createSeatAuth" => await CreateSeatAuthenticatedAsync(request.Payload, cancellationToken),
                 "wizard:enrollAuth" => await EnrollAuthenticatedAsync(request.Payload, cancellationToken),
+                "wizard:provisionShell" => FinalizeForRole(DeviceRoleNames.GamingPc),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
             };
 
@@ -123,6 +125,28 @@ public sealed class SetupWizardWebHostBridge(
             IsOnline: null);
     }
 
+    // For gaming_pc: install the bundled Player Shell, then start the agent only on success.
+    // For other roles: just start the agent. Returns the shell outcome for the finish screen.
+    private WizardShellOutcome FinalizeForRole(string role)
+    {
+        if (role != DeviceRoleNames.GamingPc)
+        {
+            completionAction.Complete();
+            return new WizardShellOutcome("skipped", null, null);
+        }
+
+        var result = shellProvisioner.Provision();
+        if (result.Status == ShellProvisionStatus.Failed)
+        {
+            // Do NOT start the agent / mark ready — the finish screen shows an error + retry.
+            return new WizardShellOutcome("failed", result.ExitCode, result.Message);
+        }
+
+        completionAction.Complete();
+        var status = result.Status == ShellProvisionStatus.AlreadyPresent ? "already_present" : "installed";
+        return new WizardShellOutcome(status, result.ExitCode, null);
+    }
+
     private async Task<WizardEnrollResult> EnrollAsync(JsonElement payload, CancellationToken cancellationToken)
     {
         var request = DeserializePayload<WizardEnrollPayload>(payload);
@@ -171,7 +195,7 @@ public sealed class SetupWizardWebHostBridge(
             response.UpdateChannel,
             LeaseSigningPublicKeyPem: string.Empty,
             UpdatePackageSigningPublicKeyPem: string.Empty));
-        completionAction.Complete();
+        var shell = FinalizeForRole(role);
 
         return new WizardEnrollResult(
             response.OrganizationId,
@@ -182,7 +206,8 @@ public sealed class SetupWizardWebHostBridge(
             machineInfo.MachineName,
             response.EnrollmentState,
             response.ApiBaseUrl,
-            response.UpdateChannel);
+            response.UpdateChannel,
+            shell);
     }
 
     private async Task<WizardPhoneSignInResult> PhoneSignInAsync(JsonElement payload, CancellationToken cancellationToken)
@@ -381,7 +406,7 @@ public sealed class SetupWizardWebHostBridge(
             response.UpdateChannel,
             LeaseSigningPublicKeyPem: string.Empty,
             UpdatePackageSigningPublicKeyPem: string.Empty));
-        completionAction.Complete();
+        var shell = FinalizeForRole(role);
 
         return new WizardEnrollResult(
             response.OrganizationId,
@@ -392,7 +417,8 @@ public sealed class SetupWizardWebHostBridge(
             machineInfo.MachineName,
             response.EnrollmentState,
             response.ApiBaseUrl,
-            response.UpdateChannel);
+            response.UpdateChannel,
+            shell);
     }
 
     private static WizardBranch MapBranch(InstallBranchDto branch)
@@ -505,6 +531,7 @@ public sealed class SetupWizardWebHostBridge(
         "wizard:discoverAuth" => "wizard_discover_failed",
         "wizard:createSeatAuth" => "wizard_create_seat_failed",
         "wizard:enrollAuth" => "wizard_enroll_failed",
+        "wizard:provisionShell" => "wizard_shell_provision_failed",
         _ => "wizard_request_failed"
     };
 
@@ -617,5 +644,8 @@ public sealed class SetupWizardWebHostBridge(
         string MachineName,
         string EnrollmentState,
         string ApiBaseUrl,
-        string UpdateChannel);
+        string UpdateChannel,
+        WizardShellOutcome Shell);
+
+    private sealed record WizardShellOutcome(string Status, int? ExitCode, string? Message);
 }

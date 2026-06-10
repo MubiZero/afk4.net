@@ -20,6 +20,14 @@ internal static class PreviewSetupWizard
 
     public static ISetupWizardCompletionAction CreateCompletionAction() => new FakeCompletionAction();
 
+    public static ISetupWizardShellProvisioner CreateShellProvisioner() =>
+        new PreviewShellProvisioner();
+
+    private sealed class PreviewShellProvisioner : ISetupWizardShellProvisioner
+    {
+        public ShellProvisionResult Provision() => ShellProvisionResult.Installed(0);
+    }
+
     private sealed class FakeApiClient : ISetupWizardApiClient
     {
         public Task<InstallDiscoverResponse> DiscoverAsync(string ownerCode, CancellationToken cancellationToken)

@@ -18,7 +18,8 @@ public partial class App : Application
                 Preview.PreviewSetupWizard.CreateDeviceKeyStore(),
                 Preview.PreviewSetupWizard.CreateBootstrapWriter(),
                 previewMachine,
-                Preview.PreviewSetupWizard.CreateCompletionAction());
+                Preview.PreviewSetupWizard.CreateCompletionAction(),
+                Preview.PreviewSetupWizard.CreateShellProvisioner());
             LaunchWebShell(previewBridge, previewMachine, SetupWizardDefaults.PlatformBaseUrl, isPreview: true);
             base.OnStartup(e);
             return;
@@ -41,7 +42,10 @@ public partial class App : Application
             new FileDeviceKeyStore(),
             new EnvironmentBootstrapWriter(machineInfo.MachineName),
             machineInfo,
-            new AgentServiceCompletionAction());
+            new AgentServiceCompletionAction(),
+            new MsiexecPlayerShellProvisioner(
+                new SetupWizardPayloadResolver(AppContext.BaseDirectory),
+                new SystemProcessRunner()));
 
         LaunchWebShell(bridge, machineInfo, SetupWizardDefaults.PlatformBaseUrl, isPreview: false);
         base.OnStartup(e);
