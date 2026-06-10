@@ -1,7 +1,7 @@
 import type { OperatorAuthSession } from './authClient';
 import type { WorkspaceId } from './operatorTypes';
 
-export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'shop_orders', 'players', 'payments', 'payment_cards', 'logs', 'settings', 'review', 'loyalty', 'news'];
+export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'shop_orders', 'players', 'payments', 'payment_cards', 'logs', 'settings', 'review', 'loyalty', 'news', 'shifts'];
 
 export const permissionNames = {
   viewFloorMap: 'floor_map.view',
@@ -104,7 +104,8 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
   ],
   review: [permissionNames.approveMoneyAction],
   loyalty: [permissionNames.manageLoyaltySettings],
-  news: [permissionNames.manageNews]
+  news: [permissionNames.manageNews],
+  shifts: [permissionNames.viewReports]
 };
 
 export function hasPermission(session: OperatorAuthSession | null, permission: string) {

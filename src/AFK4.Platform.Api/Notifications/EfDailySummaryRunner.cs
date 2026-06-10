@@ -7,20 +7,25 @@ using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Notifications;
 
 public sealed class EfDailySummaryRunner(
     PlatformDbContext dbContext,
     IOrganizationOwnerResolver ownerResolver,
-    INotificationService notifications) : IDailySummaryRunner
+    INotificationService notifications,
+    IOptions<BusinessDayOptions> businessDayOptions) : IDailySummaryRunner
 {
     public async Task<int> RunAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
-        // Summarize the UTC day that has fully ended: yesterday relative to `now`.
-        var summaryDate = DateOnly.FromDateTime(now.UtcDateTime).AddDays(-1);
-        var windowStart = new DateTimeOffset(summaryDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-        var windowEnd = windowStart.AddDays(1);
+        // Summarize the business day that has fully ended — "yesterday" in the branch-local zone, not UTC.
+        // In Dushanbe (UTC+5) a UTC boundary would cut the day at 05:00 local and misfile night takings.
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(businessDayOptions.Value.TimeZone);
+        var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
+        var summaryDate = DateOnly.FromDateTime(localNow.DateTime).AddDays(-1);
+        var windowStart = ToZonedInstant(summaryDate.ToDateTime(TimeOnly.MinValue), timeZone);
+        var windowEnd = ToZonedInstant(summaryDate.AddDays(1).ToDateTime(TimeOnly.MinValue), timeZone);
 
         var saleOrgIds = await dbContext.PosSales
             .Where(sale => sale.State == PosSaleStateNames.Paid
@@ -152,6 +157,14 @@ public sealed class EfDailySummaryRunner(
 
         await notifications.SendAsync(request, cancellationToken);
         return true;
+    }
+
+    // Interpret a wall-clock midnight in the given zone as a precise UTC instant (DST-safe: the offset is
+    // resolved at that local moment, so the window endpoints stay correct even across a transition).
+    private static DateTimeOffset ToZonedInstant(DateTime localDateTime, TimeZoneInfo timeZone)
+    {
+        var unspecified = DateTime.SpecifyKind(localDateTime, DateTimeKind.Unspecified);
+        return new DateTimeOffset(unspecified, timeZone.GetUtcOffset(unspecified));
     }
 
     private static string Money(long minorUnits) => (minorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture);

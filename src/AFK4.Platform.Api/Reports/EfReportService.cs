@@ -544,6 +544,154 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             date, currencyCode, moneyEntries, compAudits, closedShifts, actorNames);
     }
 
+    public async Task<ShiftRevenueDto?> GetCurrentShiftRevenueAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken)
+    {
+        var shift = await dbContext.Shifts
+            .AsNoTracking()
+            .Where(s => s.OrganizationId == organizationId && s.BranchId == branchId && s.State == ShiftStateNames.Open)
+            .OrderByDescending(s => s.OpenedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (shift is null)
+        {
+            return null;
+        }
+
+        var data = await LoadShiftRevenueSourcesAsync(organizationId, branchId, new HashSet<Guid> { shift.ShiftId }, cancellationToken);
+        return BuildShiftRevenue(shift, data);
+    }
+
+    public async Task<ShiftRevenueListDto> GetShiftRevenueAsync(
+        Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken)
+    {
+        var limit = NormalizeLimit(query.Limit);
+        var shiftsQuery = dbContext.Shifts
+            .AsNoTracking()
+            .Where(s => s.OrganizationId == organizationId && s.BranchId == branchId);
+
+        if (query.FromUtc is not null)
+        {
+            var fromUtc = query.FromUtc.Value;
+            shiftsQuery = shiftsQuery.Where(s => s.OpenedAtUtc >= fromUtc);
+        }
+
+        if (query.ToUtc is not null)
+        {
+            var toUtc = query.ToUtc.Value;
+            shiftsQuery = shiftsQuery.Where(s => s.OpenedAtUtc <= toUtc);
+        }
+
+        var shifts = await shiftsQuery
+            .OrderByDescending(s => s.OpenedAtUtc)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        var data = await LoadShiftRevenueSourcesAsync(
+            organizationId, branchId, shifts.Select(s => s.ShiftId).ToHashSet(), cancellationToken);
+
+        var rows = shifts.Select(s => BuildShiftRevenue(s, data)).ToList();
+        return new ShiftRevenueListDto(rows, limit);
+    }
+
+    // Batch-loads every money source for the given shift ids in one query each (mirrors GetShiftReportAsync),
+    // avoiding an N+1 when building a shift history.
+    private async Task<ShiftRevenueSources> LoadShiftRevenueSourcesAsync(
+        Guid organizationId, Guid branchId, IReadOnlyCollection<Guid> shiftIds, CancellationToken cancellationToken)
+    {
+        var ledger = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(e => e.OrganizationId == organizationId && e.BranchId == branchId && e.ShiftId != null && shiftIds.Contains(e.ShiftId.Value))
+            .ToListAsync(cancellationToken);
+        var payments = await dbContext.Payments
+            .AsNoTracking()
+            .Where(p => p.OrganizationId == organizationId && p.BranchId == branchId && shiftIds.Contains(p.ShiftId))
+            .ToListAsync(cancellationToken);
+        var sales = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(s => s.OrganizationId == organizationId && s.BranchId == branchId && shiftIds.Contains(s.ShiftId))
+            .ToListAsync(cancellationToken);
+        var cashMovements = await dbContext.CashMovements
+            .AsNoTracking()
+            .Where(m => m.OrganizationId == organizationId && m.BranchId == branchId && shiftIds.Contains(m.ShiftId))
+            .ToListAsync(cancellationToken);
+        return new ShiftRevenueSources(ledger, payments, sales, cashMovements);
+    }
+
+    private sealed record ShiftRevenueSources(
+        IReadOnlyList<LedgerEntryEntity> Ledger,
+        IReadOnlyList<PaymentEntity> Payments,
+        IReadOnlyList<PosSaleEntity> Sales,
+        IReadOnlyList<CashMovementEntity> CashMovements);
+
+    private static ShiftRevenueDto BuildShiftRevenue(ShiftEntity shift, ShiftRevenueSources data)
+    {
+        var currency = shift.CurrencyCode;
+        bool Cur(string code) => IsCurrency(code, currency);
+
+        // Refund payments are stored with a NEGATIVE AmountMinorUnits (see EfPosService.RefundSaleAsync),
+        // so summing payment+refund amounts as-is yields the correct net; do not negate refunds.
+        var ledger = data.Ledger.Where(e => e.ShiftId == shift.ShiftId).ToList();
+        var payments = data.Payments.Where(p => p.ShiftId == shift.ShiftId).ToList();
+        var sales = data.Sales.Where(s => s.ShiftId == shift.ShiftId).ToList();
+        var cashMovements = data.CashMovements.Where(m => m.ShiftId == shift.ShiftId).ToList();
+
+        var earnedTime =
+            -ledger.Where(e => e.EntryType == LedgerEntryTypeNames.GameplayCharge && Cur(e.CurrencyCode))
+                   .Sum(e => e.AmountMinorUnits)
+            + ledger.Where(e => e.EntryType == LedgerEntryTypeNames.PostpaidDebt && Cur(e.CurrencyCode))
+                    .Sum(e => e.AmountMinorUnits);
+        var earnedGoods = sales
+            .Where(s => Cur(s.CurrencyCode) && s.PaidAtUtc != null && s.VoidedAtUtc == null && s.RefundedAtUtc == null)
+            .Sum(s => s.TotalMinorUnits);
+
+        long MethodNet(string method) =>
+            payments
+                .Where(p => p.PaymentMethod == method && Cur(p.CurrencyCode)
+                    && (p.PaymentKind == PaymentKindPayment || p.PaymentKind == PaymentKindRefund))
+                .Sum(p => p.AmountMinorUnits);
+
+        var cash = MethodNet(PaymentMethodNames.Cash);
+        var nonCash = MethodNet(PaymentMethodNames.CardManual);
+        var walletTopUps = ledger
+            .Where(e => e.EntryType == LedgerEntryTypeNames.TopUp && Cur(e.CurrencyCode))
+            .Sum(e => e.AmountMinorUnits);
+
+        var cashMovementTotal = cashMovements
+            .Where(m => Cur(m.CurrencyCode))
+            .Sum(m => m.MovementType == CashMovementTypeNames.CashIn ? m.AmountMinorUnits : -m.AmountMinorUnits);
+        var posCashPayments = payments
+            .Where(p => p.PaymentMethod == PaymentMethodNames.Cash && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindPayment)
+            .Sum(p => p.AmountMinorUnits);
+        var posCashRefunds = payments
+            .Where(p => p.PaymentMethod == PaymentMethodNames.Cash && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindRefund)
+            .Sum(p => p.AmountMinorUnits);
+        var billingCashImpact = ledger
+            .Where(e => Cur(e.CurrencyCode) &&
+                (e.EntryType == LedgerEntryTypeNames.TopUp ||
+                 e.EntryType == LedgerEntryTypeNames.DebtPayment ||
+                 e.EntryType == LedgerEntryTypeNames.ManualCorrection))
+            .Sum(e => e.EntryType == LedgerEntryTypeNames.DebtPayment ? -e.AmountMinorUnits : e.AmountMinorUnits);
+        var expectedCash = shift.StartingCashMinorUnits + cashMovementTotal + posCashPayments + posCashRefunds + billingCashImpact;
+        var isClosed = shift.State == ShiftStateNames.Closed;
+
+        return new ShiftRevenueDto(
+            shift.ShiftId,
+            shift.OrganizationId,
+            shift.BranchId,
+            shift.OpenedByStaffUserId,
+            shift.ClosedByStaffUserId,
+            shift.State,
+            new EarnedBreakdownDto(Money(currency, earnedTime), Money(currency, earnedGoods), Money(currency, earnedTime + earnedGoods)),
+            new InflowBreakdownDto(Money(currency, cash), Money(currency, nonCash), Money(currency, walletTopUps), Money(currency, cash + nonCash)),
+            new CashReconciliationDto(
+                Money(currency, shift.StartingCashMinorUnits),
+                Money(currency, expectedCash),
+                isClosed ? Money(currency, shift.CountedCashMinorUnits) : null,
+                isClosed ? Money(currency, shift.CountedCashMinorUnits - expectedCash) : null),
+            shift.OpenedAtUtc,
+            shift.ClosedAtUtc);
+    }
+
     private static int NormalizeLimit(int? limit)
     {
         return limit is null or <= 0 ? DefaultLimit : Math.Min(limit.Value, MaxLimit);

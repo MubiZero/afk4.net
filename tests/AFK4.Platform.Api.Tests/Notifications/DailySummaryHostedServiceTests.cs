@@ -27,6 +27,7 @@ public sealed class DailySummaryHostedServiceTests
         services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolver>();
         services.AddScoped<INotificationService>(_ => recorder);
         services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
+        services.Configure<AFK4.Platform.Api.Reports.BusinessDayOptions>(_ => { });
         await using var provider = services.BuildServiceProvider();
 
         await using (var scope = provider.CreateAsyncScope())

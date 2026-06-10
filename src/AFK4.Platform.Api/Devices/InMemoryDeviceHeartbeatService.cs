@@ -6,7 +6,8 @@ namespace AFK4.Platform.Api.Devices;
 
 public sealed class InMemoryDeviceHeartbeatService(
     IHubContext<DeviceHub> hubContext,
-    IOptions<HeartbeatOptions> heartbeatOptions) : IDeviceHeartbeatService
+    IOptions<HeartbeatOptions> heartbeatOptions,
+    TimeProvider timeProvider) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
         Guid deviceId,
@@ -28,7 +29,7 @@ public sealed class InMemoryDeviceHeartbeatService(
             .SendAsync(DeviceRealtimeEvents.DeviceStatusChanged, status, cancellationToken);
 
         return new DeviceHeartbeatResponse(
-            ServerTimeUtc: DateTimeOffset.UtcNow,
+            ServerTimeUtc: timeProvider.GetUtcNow(),
             HeartbeatIntervalSeconds: HeartbeatIntervalPolicy.Resolve(hasPendingCommands: false, heartbeatOptions.Value),
             Commands: []);
     }

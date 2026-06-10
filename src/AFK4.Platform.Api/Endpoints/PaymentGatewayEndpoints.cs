@@ -83,6 +83,7 @@ internal static class PaymentGatewayEndpoints
             ISecretProtector secretProtector,
             IBillingCommandService billingCommandService,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             httpRequest.EnableBuffering();
@@ -179,7 +180,7 @@ internal static class PaymentGatewayEndpoints
                         }
 
                         intent.State = "fulfilled";
-                        intent.FulfilledAtUtc = DateTimeOffset.UtcNow;
+                        intent.FulfilledAtUtc = timeProvider.GetUtcNow();
                     }
                     break;
 
@@ -203,7 +204,7 @@ internal static class PaymentGatewayEndpoints
                 DcGateWebhookEventId = Guid.NewGuid(),
                 EventId = payload.EventId,
                 EventType = payload.EventType,
-                ProcessedAtUtc = DateTimeOffset.UtcNow
+                ProcessedAtUtc = timeProvider.GetUtcNow()
             });
             try
             {
@@ -289,6 +290,7 @@ internal static class PaymentGatewayEndpoints
             ISecretProtector secretProtector,
             IOptions<DcGateOptions> dcGateOptions,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(
@@ -369,7 +371,7 @@ internal static class PaymentGatewayEndpoints
                     detail: "dcgate replayed an existing project without returning credentials. Disable and retry.");
             }
 
-            var now = DateTimeOffset.UtcNow;
+            var now = timeProvider.GetUtcNow();
             var row = new BranchPaymentGatewayEntity
             {
                 BranchPaymentGatewayId = gatewayId,
@@ -415,12 +417,12 @@ internal static class PaymentGatewayEndpoints
 
         // Flip pending_telegram -> active once dcgate reports the session attached.
         static async Task<string> ApplyAttachResultAsync(
-            BranchPaymentGatewayEntity row, string state, PlatformDbContext dbContext, CancellationToken ct)
+            BranchPaymentGatewayEntity row, string state, PlatformDbContext dbContext, TimeProvider timeProvider, CancellationToken ct)
         {
             if (state == DcGateTelegramState.Attached && row.Status == BranchPaymentGatewayStatus.PendingTelegram)
             {
                 row.Status = BranchPaymentGatewayStatus.Active;
-                row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                row.UpdatedAtUtc = timeProvider.GetUtcNow();
                 await dbContext.SaveChangesAsync(ct);
             }
             return row.Status;
@@ -432,6 +434,7 @@ internal static class PaymentGatewayEndpoints
             IDcGateAdminClient adminClient,
             ISecretProtector secretProtector,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
@@ -453,7 +456,7 @@ internal static class PaymentGatewayEndpoints
                 }
                 apiId = suppliedId;
                 apiHash = request.ApiHash.Trim();
-                var now = DateTimeOffset.UtcNow;
+                var now = timeProvider.GetUtcNow();
                 if (existing is null)
                 {
                     dbContext.OrganizationTelegramApiCredentials.Add(new OrganizationTelegramApiCredentialEntity
@@ -511,7 +514,7 @@ internal static class PaymentGatewayEndpoints
                 var result = await adminClient.StartTelegramAsync(row.DcgateProjectId, phone, apiId, apiHash, cancellationToken);
                 if (result.State == DcGateTelegramState.Attached)
                 {
-                    await ApplyAttachResultAsync(row, result.State, dbContext, cancellationToken);
+                    await ApplyAttachResultAsync(row, result.State, dbContext, timeProvider, cancellationToken);
                 }
                 return Results.Ok(new TelegramStartResponse(result.LoginAttemptId, result.State));
             }
@@ -526,6 +529,7 @@ internal static class PaymentGatewayEndpoints
             StaffAuthorizationService authorizationService,
             IDcGateAdminClient adminClient,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
@@ -534,7 +538,7 @@ internal static class PaymentGatewayEndpoints
             {
                 var result = await adminClient.VerifyTelegramCodeAsync(
                     row!.DcgateProjectId, request.LoginAttemptId, request.Code, cancellationToken);
-                var status = await ApplyAttachResultAsync(row, result.State, dbContext, cancellationToken);
+                var status = await ApplyAttachResultAsync(row, result.State, dbContext, timeProvider, cancellationToken);
                 return Results.Ok(new TelegramVerifyResponse(result.State, status));
             }
             catch (DcGateAdminException ex)
@@ -548,6 +552,7 @@ internal static class PaymentGatewayEndpoints
             StaffAuthorizationService authorizationService,
             IDcGateAdminClient adminClient,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
@@ -556,7 +561,7 @@ internal static class PaymentGatewayEndpoints
             {
                 var result = await adminClient.VerifyTelegramPasswordAsync(
                     row!.DcgateProjectId, request.LoginAttemptId, request.Password, cancellationToken);
-                var status = await ApplyAttachResultAsync(row, result.State, dbContext, cancellationToken);
+                var status = await ApplyAttachResultAsync(row, result.State, dbContext, timeProvider, cancellationToken);
                 return Results.Ok(new TelegramVerifyResponse(result.State, status));
             }
             catch (DcGateAdminException ex)
@@ -594,6 +599,7 @@ internal static class PaymentGatewayEndpoints
             Guid id,
             StaffAuthorizationService authorizationService,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
@@ -602,7 +608,7 @@ internal static class PaymentGatewayEndpoints
             if (row!.Status != BranchPaymentGatewayStatus.Disabled)
             {
                 row.Status = BranchPaymentGatewayStatus.Disabled;
-                row.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                row.UpdatedAtUtc = timeProvider.GetUtcNow();
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 

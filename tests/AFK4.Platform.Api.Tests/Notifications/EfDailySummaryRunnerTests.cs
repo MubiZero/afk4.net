@@ -2,12 +2,14 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Reports;
 using AFK4.Platform.Api.Tests.Billing;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Tests.Notifications;
 
@@ -87,8 +89,9 @@ public sealed class EfDailySummaryRunnerTests
         Outcome = AuditOutcome.Succeeded, SourceApp = "test", AmountMinorUnits = amount, CreatedAtUtc = createdAtUtc
     };
 
+    // Default BusinessDayOptions → Asia/Dushanbe (UTC+5): "yesterday" is the prior local day.
     private static EfDailySummaryRunner NewRunner(PlatformDbContext db, RecordingNotificationService recorder) =>
-        new(db, new EfOrganizationOwnerResolver(db), recorder);
+        new(db, new EfOrganizationOwnerResolver(db), recorder, Options.Create(new BusinessDayOptions()));
 
     [Fact]
     public async Task RunAsync_OrgWithActivityYesterday_EnqueuesDigestSummaryToOwner()
@@ -123,10 +126,12 @@ public sealed class EfDailySummaryRunnerTests
     {
         await using var db = NewContext();
         await SeedOrgWithOwnerAsync(db);
+        // Business day is Asia/Dushanbe (UTC+5): the window for 2026-06-01 local is
+        // [2026-05-31T19:00Z, 2026-06-01T19:00Z). These probes prove the boundary is LOCAL, not UTC.
         db.PosSales.AddRange(
-            PaidSale(5000, Yesterday),                                            // in window
-            PaidSale(9999, DateTimeOffset.Parse("2026-06-02T01:00:00Z")),         // today — excluded
-            PaidSale(8888, DateTimeOffset.Parse("2026-05-31T23:00:00Z")));        // day before — excluded
+            PaidSale(5000, Yesterday),                                            // Jun 1 17:00 local — in window
+            PaidSale(9999, DateTimeOffset.Parse("2026-06-01T20:00:00Z")),         // Jun 2 01:00 local — today, excluded (still UTC-day Jun 1)
+            PaidSale(8888, DateTimeOffset.Parse("2026-05-31T18:00:00Z")));        // May 31 23:00 local — day before, excluded
         await db.SaveChangesAsync();
         var recorder = new RecordingNotificationService();
 

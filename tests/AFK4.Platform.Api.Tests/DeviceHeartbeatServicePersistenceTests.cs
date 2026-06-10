@@ -361,9 +361,11 @@ public sealed class DeviceHeartbeatServicePersistenceTests
             planner ?? new StaticHeartbeatSessionCommandPlanner(),
             new DeviceCommandDispatchService(
                 hubContext,
-                new EfDeviceCommandStore(dbContext)),
+                new EfDeviceCommandStore(dbContext),
+                TimeProvider.System),
             Microsoft.Extensions.Options.Options.Create(new SessionLeaseOptions { LeaseMinutes = 15 }),
-            Microsoft.Extensions.Options.Options.Create(heartbeatOptions ?? new HeartbeatOptions()));
+            Microsoft.Extensions.Options.Options.Create(heartbeatOptions ?? new HeartbeatOptions()),
+            TimeProvider.System);
     }
 
     private sealed class CapturingHubContext : IHubContext<DeviceHub>

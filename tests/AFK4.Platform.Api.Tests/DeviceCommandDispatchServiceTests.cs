@@ -12,7 +12,7 @@ public sealed class DeviceCommandDispatchServiceTests
         var clients = new CapturingHubClients();
         var hubContext = new CapturingHubContext(clients);
         var commandStore = new InMemoryDeviceCommandStore();
-        var service = new DeviceCommandDispatchService(hubContext, commandStore);
+        var service = new DeviceCommandDispatchService(hubContext, commandStore, TimeProvider.System);
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
         var request = new CreateDeviceCommandRequest(
             Type: "unlock",
@@ -39,7 +39,7 @@ public sealed class DeviceCommandDispatchServiceTests
         var clients = new CapturingHubClients();
         var hubContext = new CapturingHubContext(clients);
         var commandStore = new InMemoryDeviceCommandStore();
-        var service = new DeviceCommandDispatchService(hubContext, commandStore);
+        var service = new DeviceCommandDispatchService(hubContext, commandStore, TimeProvider.System);
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
         var command = new DeviceCommandDto(
             Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
@@ -64,7 +64,7 @@ public sealed class DeviceCommandDispatchServiceTests
         var clients = new CapturingHubClients();
         var hubContext = new CapturingHubContext(clients);
         var commandStore = new InMemoryDeviceCommandStore();
-        var service = new DeviceCommandDispatchService(hubContext, commandStore);
+        var service = new DeviceCommandDispatchService(hubContext, commandStore, TimeProvider.System);
         var deviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f");
         var request = new CreateDeviceCommandRequest(
             Type: "lock",

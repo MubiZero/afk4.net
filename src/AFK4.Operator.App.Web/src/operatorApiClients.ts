@@ -671,6 +671,36 @@ export interface StaffPhoneConfirmedDto {
   phone: string;
 }
 
+export interface ShiftRevenueDto {
+  shiftId: string;
+  organizationId: string;
+  branchId: string;
+  openedByStaffUserId: string;
+  closedByStaffUserId: string | null;
+  state: string;
+  earned: { time: MoneyDto; goods: MoneyDto; total: MoneyDto };
+  inflow: { cash: MoneyDto; nonCash: MoneyDto; walletTopUps: MoneyDto; directTotal: MoneyDto };
+  cash: { starting: MoneyDto; expected: MoneyDto; counted: MoneyDto | null; difference: MoneyDto | null };
+  openedAtUtc: string;
+  closedAtUtc: string | null;
+}
+
+export interface ShiftRevenueListDto {
+  shifts: ShiftRevenueDto[];
+  limit: number;
+}
+
+export function createShiftRevenueClient(api: PlatformApiClient) {
+  return {
+    current(branchId: Guid): Promise<ShiftRevenueDto | null> {
+      return api.getOptional<ShiftRevenueDto>(`/api/branches/${branchId}/shifts/revenue/current`);
+    },
+    history(branchId: Guid, limit = 20): Promise<ShiftRevenueListDto> {
+      return api.get<ShiftRevenueListDto>(`/api/branches/${branchId}/shifts/revenue`, { limit });
+    }
+  };
+}
+
 export function createAccountClient(api: PlatformApiClient) {
   return {
     getMyPhone(): Promise<StaffPhoneStatusDto> {
@@ -696,6 +726,7 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     dashboard: createDashboardClient(api),
     reservations: createReservationClient(api),
     shifts: createShiftClient(api),
+    shiftRevenue: createShiftRevenueClient(api),
     settings: createSettingsClient(api),
     inventory: createInventoryClient(api),
     devices: createDeviceClient(api),
