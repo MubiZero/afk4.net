@@ -1,4 +1,4 @@
-# E2E staging runbook — per-owner Telegram creds + dcgate online top-up
+# E2E staging runbook — shared AFK4 Telegram app + dcgate online top-up
 
 Живой прогон оплаты реальной картой на staging. Owner-кабинет живёт в десктопном
 WPF (Operator.App.Web), которого на staging нет, поэтому e2e гоняется через API/curl.
@@ -13,8 +13,9 @@ GATEWAY   = 93eda272-93b8-40be-931f-40618cc0a5d2   (dcgate project cmq50ockc0000
 PLAYER    = +992900000001 / PIN 112233
 ```
 
-Секреты (api_id / api_hash / телефон Telegram-аккаунта, карта) НЕ хранить в этом файле —
-передаются по месту и используются эфемерно.
+Секреты (телефон Telegram-аккаунта, карта) НЕ хранить в этом файле — передаются по
+месту и используются эфемерно. Общие `api_id`/`api_hash` приложения AFK4 живут в env
+самого dcgate (`TELEGRAM_API_ID` / `TELEGRAM_API_HASH`), afk4 их не передаёт.
 
 ## 0. Owner login → токен
 
@@ -27,14 +28,15 @@ curl.exe -s -X POST "$API/api/auth/staff/sign-in-by-login" \
 
 ## 1. Привязка Telegram-сессии к шлюзу
 
-`api_id`/`api_hash` берутся на my.telegram.org (раздел «API development tools») под тем
-Telegram-аккаунтом, который получает банковские уведомления по карте •1953. Телефон — его же.
+Передаём только телефон Telegram-аккаунта, который получает банковские уведомления по
+карте •1953. Логин в Telegram dcgate выполняет общим приложением AFK4 (`api_id`/`api_hash`
+из своего env) — отдельные ключи на владельца больше не нужны.
 
 ```bash
-# start: первый раз передаём api_id/api_hash (сохранятся encrypted по паре org+phone)
+# start: передаём только телефон
 curl.exe -s -X POST "$API/api/owner/payment-gateways/$GATEWAY/telegram/start" \
   -H "Authorization: Bearer $OWNER_TOKEN" -H "Content-Type: application/json" \
-  --data-binary '{"phone":"+992XXXXXXXXX","apiId":<API_ID>,"apiHash":"<API_HASH>"}'
+  --data-binary '{"phone":"+992XXXXXXXXX"}'
 # → {"loginAttemptId":"...","state":"code_required"}  (или state:"attached" если уже привязан → шаг 2 пропустить)
 ```
 

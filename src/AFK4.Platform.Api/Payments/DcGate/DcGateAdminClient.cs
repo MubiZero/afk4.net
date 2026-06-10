@@ -46,11 +46,11 @@ public sealed class DcGateAdminClient : IDcGateAdminClient
     }
 
     public async Task<DcGateTelegramStartResult> StartTelegramAsync(
-        string dcgateProjectId, string phone, long apiId, string apiHash, CancellationToken cancellationToken)
+        string dcgateProjectId, string phone, CancellationToken cancellationToken)
     {
         using var http = BuildRequest(HttpMethod.Post,
             $"/api/admin/projects/{dcgateProjectId}/telegram-session/start",
-            new { phone, apiId, apiHash });
+            new { phone });
         using var doc = await SendAsync(http, cancellationToken);
         var root = doc.RootElement;
         var loginAttemptId = root.TryGetProperty("loginAttemptId", out var la) ? la.GetString() : null;

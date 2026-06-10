@@ -508,16 +508,10 @@ export interface ProvisionPaymentGatewayRequest extends Record<string, unknown> 
 
 export interface TelegramStartRequest extends Record<string, unknown> {
   phone: string;
-  apiId?: number;
-  apiHash?: string;
 }
 export interface TelegramStartResponse {
   loginAttemptId: string | null;
   state: string;
-}
-export interface OwnerTelegramCredentialsResponse {
-  hasCredentials: boolean;
-  apiId: number | null;
 }
 export interface TelegramVerifyCodeRequest extends Record<string, unknown> {
   loginAttemptId: string;
@@ -565,10 +559,6 @@ export function createPaymentGatewayClient(api: PlatformApiClient) {
     provision(request: ProvisionPaymentGatewayRequest): Promise<OwnerPaymentGatewayDto> {
       return api.post<OwnerPaymentGatewayDto, ProvisionPaymentGatewayRequest>(
         '/api/owner/payment-gateways', request);
-    },
-    telegramCredentials(phone: string): Promise<OwnerTelegramCredentialsResponse> {
-      return api.get<OwnerTelegramCredentialsResponse>(
-        `/api/owner/payment-gateways/telegram-credentials?phone=${encodeURIComponent(phone)}`);
     },
     telegramStart(id: Guid, request: TelegramStartRequest): Promise<TelegramStartResponse> {
       return api.post<TelegramStartResponse, TelegramStartRequest>(

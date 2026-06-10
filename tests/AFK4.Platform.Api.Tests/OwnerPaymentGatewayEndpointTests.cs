@@ -76,14 +76,13 @@ public sealed class OwnerPaymentGatewayEndpointTests
         public DcGateAdminProjectResult CreateResult =
             new("proj_new", "pending_telegram", "4242", "key_live", "whsec_x", false);
 
-        public long LastApiId;
-        public string? LastApiHash;
+        public string? LastPhone;
         public DcGateTelegramStartResult StartResult = new("att", "code_required");
 
         public Task<DcGateAdminProjectResult> CreateProjectAsync(DcGateCreateProjectRequest request, CancellationToken ct)
         { LastCreate = request; return Task.FromResult(CreateResult); }
-        public Task<DcGateTelegramStartResult> StartTelegramAsync(string p, string phone, long apiId, string apiHash, CancellationToken ct)
-        { LastApiId = apiId; LastApiHash = apiHash; return Task.FromResult(StartResult); }
+        public Task<DcGateTelegramStartResult> StartTelegramAsync(string p, string phone, CancellationToken ct)
+        { LastPhone = phone; return Task.FromResult(StartResult); }
         public Task<DcGateTelegramVerifyResult> VerifyTelegramCodeAsync(string p, string a, string c, CancellationToken ct)
             => Task.FromResult(new DcGateTelegramVerifyResult("attached"));
         public Task<DcGateTelegramVerifyResult> VerifyTelegramPasswordAsync(string p, string a, string pw, CancellationToken ct)
@@ -202,7 +201,7 @@ public sealed class OwnerPaymentGatewayEndpointTests
     {
         public Task<DcGateAdminProjectResult> CreateProjectAsync(DcGateCreateProjectRequest r, CancellationToken ct)
             => throw new DcGateAdminException(HttpStatusCode.BadRequest, "card already in use");
-        public Task<DcGateTelegramStartResult> StartTelegramAsync(string p, string phone, long apiId, string apiHash, CancellationToken ct) => throw new NotImplementedException();
+        public Task<DcGateTelegramStartResult> StartTelegramAsync(string p, string phone, CancellationToken ct) => throw new NotImplementedException();
         public Task<DcGateTelegramVerifyResult> VerifyTelegramCodeAsync(string p, string a, string c, CancellationToken ct) => throw new NotImplementedException();
         public Task<DcGateTelegramVerifyResult> VerifyTelegramPasswordAsync(string p, string a, string pw, CancellationToken ct) => throw new NotImplementedException();
         public Task<DcGateProjectStatusResult> GetStatusAsync(string p, CancellationToken ct) => throw new NotImplementedException();
@@ -220,11 +219,12 @@ public sealed class OwnerPaymentGatewayEndpointTests
         var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
 
         var response = await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
-            new TelegramStartRequest("+992900000000", 123, "hash"));
+            new TelegramStartRequest("+992900000000"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<TelegramStartResponse>();
         Assert.Equal("code_required", body!.State);
+        Assert.Equal("+992900000000", fake.LastPhone);
     }
 
     [Fact]
@@ -289,41 +289,6 @@ public sealed class OwnerPaymentGatewayEndpointTests
     }
 
     [Fact]
-    public async Task TelegramStart_stores_supplied_creds_and_reuses_them()
-    {
-        var fake = new FakeAdminClient();
-        await using var factory = FactoryWithAdmin(fake);
-        var client = factory.CreateClient();
-        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
-        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
-
-        await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
-            new TelegramStartRequest("+992900000000", 123, "hash"));
-        Assert.Equal(123, fake.LastApiId);
-        Assert.Equal("hash", fake.LastApiHash);
-
-        fake.LastApiId = 0;
-        await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
-            new TelegramStartRequest("+992900000000"));
-        Assert.Equal(123, fake.LastApiId);   // reused stored creds
-        Assert.Equal("hash", fake.LastApiHash);
-    }
-
-    [Fact]
-    public async Task TelegramStart_without_creds_and_none_saved_returns_400()
-    {
-        var fake = new FakeAdminClient();
-        await using var factory = FactoryWithAdmin(fake);
-        var client = factory.CreateClient();
-        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
-        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
-
-        var response = await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
-            new TelegramStartRequest("+992900000000"));
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
     public async Task TelegramStart_attached_response_marks_gateway_active()
     {
         var fake = new FakeAdminClient { StartResult = new DcGateTelegramStartResult(null, "attached") };
@@ -333,7 +298,7 @@ public sealed class OwnerPaymentGatewayEndpointTests
         var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
 
         var response = await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
-            new TelegramStartRequest("+992900000000", 123, "hash"));
+            new TelegramStartRequest("+992900000000"));
         var body = await response.Content.ReadFromJsonAsync<TelegramStartResponse>();
         Assert.Equal("attached", body!.State);
         Assert.Null(body.LoginAttemptId);
@@ -431,41 +396,4 @@ public sealed class OwnerPaymentGatewayEndpointTests
         Assert.Equal(HttpStatusCode.OK, provisionResponse.StatusCode);
     }
 
-    // ---- Task 5: telegram-credentials lookup ----
-
-    [Fact]
-    public async Task TelegramCredentials_reports_saved_state_without_hash()
-    {
-        var fake = new FakeAdminClient();
-        await using var factory = FactoryWithAdmin(fake);
-        var client = factory.CreateClient();
-        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
-        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
-        // save creds for +992900000000 via the start endpoint
-        await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
-            new TelegramStartRequest("+992900000000", 123, "hash"));
-
-        var none = await owner.GetFromJsonAsync<OwnerTelegramCredentialsResponse>(
-            "/api/owner/payment-gateways/telegram-credentials?phone=%2B992999999999");
-        Assert.False(none!.HasCredentials);
-        Assert.Null(none.ApiId);
-
-        var saved = await owner.GetFromJsonAsync<OwnerTelegramCredentialsResponse>(
-            "/api/owner/payment-gateways/telegram-credentials?phone=%2B992900000000");
-        Assert.True(saved!.HasCredentials);
-        Assert.Equal(123, saved.ApiId);
-    }
-
-    [Fact]
-    public async Task TelegramStart_rejects_non_positive_apiId()
-    {
-        var fake = new FakeAdminClient();
-        await using var factory = FactoryWithAdmin(fake);
-        var client = factory.CreateClient();
-        var (orgId, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
-        var id = await SeedGatewayAsync(factory, orgId, null, "proj_1", "pending_telegram");
-        var response = await owner.PostAsJsonAsync($"/api/owner/payment-gateways/{id}/telegram/start",
-            new TelegramStartRequest("+992900000000", 0, "hash"));
-        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
-    }
 }
