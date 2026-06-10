@@ -544,6 +544,128 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             date, currencyCode, moneyEntries, compAudits, closedShifts, actorNames);
     }
 
+    public async Task<ShiftRevenueDto?> GetCurrentShiftRevenueAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken)
+    {
+        var shift = await dbContext.Shifts
+            .AsNoTracking()
+            .Where(s => s.OrganizationId == organizationId && s.BranchId == branchId && s.State == ShiftStateNames.Open)
+            .OrderByDescending(s => s.OpenedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return shift is null ? null : await BuildShiftRevenueAsync(shift, cancellationToken);
+    }
+
+    public async Task<ShiftRevenueListDto> GetShiftRevenueAsync(
+        Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken)
+    {
+        var limit = NormalizeLimit(query.Limit);
+        var shiftsQuery = dbContext.Shifts
+            .AsNoTracking()
+            .Where(s => s.OrganizationId == organizationId && s.BranchId == branchId);
+
+        if (query.FromUtc is { } fromUtc)
+        {
+            shiftsQuery = shiftsQuery.Where(s => s.OpenedAtUtc >= fromUtc);
+        }
+
+        if (query.ToUtc is { } toUtc)
+        {
+            shiftsQuery = shiftsQuery.Where(s => s.OpenedAtUtc <= toUtc);
+        }
+
+        var shifts = await shiftsQuery
+            .OrderByDescending(s => s.OpenedAtUtc)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        var rows = new List<ShiftRevenueDto>(shifts.Count);
+        foreach (var shift in shifts)
+        {
+            rows.Add(await BuildShiftRevenueAsync(shift, cancellationToken));
+        }
+
+        return new ShiftRevenueListDto(rows, limit);
+    }
+
+    private async Task<ShiftRevenueDto> BuildShiftRevenueAsync(ShiftEntity shift, CancellationToken cancellationToken)
+    {
+        var currency = shift.CurrencyCode;
+
+        var ledger = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(e => e.ShiftId == shift.ShiftId && e.OrganizationId == shift.OrganizationId)
+            .ToListAsync(cancellationToken);
+        var payments = await dbContext.Payments
+            .AsNoTracking()
+            .Where(p => p.ShiftId == shift.ShiftId && p.OrganizationId == shift.OrganizationId)
+            .ToListAsync(cancellationToken);
+        var sales = await dbContext.PosSales
+            .AsNoTracking()
+            .Where(s => s.ShiftId == shift.ShiftId && s.OrganizationId == shift.OrganizationId)
+            .ToListAsync(cancellationToken);
+        var cashMovements = await dbContext.CashMovements
+            .AsNoTracking()
+            .Where(m => m.ShiftId == shift.ShiftId && m.OrganizationId == shift.OrganizationId)
+            .ToListAsync(cancellationToken);
+
+        bool Cur(string code) => IsCurrency(code, currency);
+
+        var earnedTime =
+            -ledger.Where(e => e.EntryType == LedgerEntryTypeNames.GameplayCharge && Cur(e.CurrencyCode))
+                   .Sum(e => e.AmountMinorUnits)
+            + ledger.Where(e => e.EntryType == LedgerEntryTypeNames.PostpaidDebt && Cur(e.CurrencyCode))
+                    .Sum(e => e.AmountMinorUnits);
+        var earnedGoods = sales
+            .Where(s => Cur(s.CurrencyCode) && s.PaidAtUtc != null && s.VoidedAtUtc == null && s.RefundedAtUtc == null)
+            .Sum(s => s.TotalMinorUnits);
+
+        long MethodNet(string method) =>
+            payments.Where(p => p.PaymentMethod == method && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindPayment).Sum(p => p.AmountMinorUnits)
+            - payments.Where(p => p.PaymentMethod == method && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindRefund).Sum(p => p.AmountMinorUnits);
+
+        var cash = MethodNet(PaymentMethodNames.Cash);
+        var nonCash = MethodNet(PaymentMethodNames.CardManual);
+        var walletTopUps = ledger
+            .Where(e => e.EntryType == LedgerEntryTypeNames.TopUp && Cur(e.CurrencyCode))
+            .Sum(e => e.AmountMinorUnits);
+
+        var cashMovementTotal = cashMovements
+            .Where(m => Cur(m.CurrencyCode))
+            .Sum(m => m.MovementType == CashMovementTypeNames.CashIn ? m.AmountMinorUnits : -m.AmountMinorUnits);
+        var posCashPayments = payments
+            .Where(p => p.PaymentMethod == PaymentMethodNames.Cash && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindPayment)
+            .Sum(p => p.AmountMinorUnits);
+        var posCashRefunds = payments
+            .Where(p => p.PaymentMethod == PaymentMethodNames.Cash && Cur(p.CurrencyCode) && p.PaymentKind == PaymentKindRefund)
+            .Sum(p => -p.AmountMinorUnits);
+        var billingCashImpact = ledger
+            .Where(e => Cur(e.CurrencyCode) &&
+                (e.EntryType == LedgerEntryTypeNames.TopUp ||
+                 e.EntryType == LedgerEntryTypeNames.DebtPayment ||
+                 e.EntryType == LedgerEntryTypeNames.ManualCorrection))
+            .Sum(e => e.EntryType == LedgerEntryTypeNames.DebtPayment ? -e.AmountMinorUnits : e.AmountMinorUnits);
+        var expectedCash = shift.StartingCashMinorUnits + cashMovementTotal + posCashPayments + posCashRefunds + billingCashImpact;
+        var isClosed = shift.State == ShiftStateNames.Closed;
+
+        return new ShiftRevenueDto(
+            shift.ShiftId,
+            shift.OrganizationId,
+            shift.BranchId,
+            shift.OpenedByStaffUserId,
+            shift.ClosedByStaffUserId,
+            shift.State,
+            new EarnedBreakdownDto(Money(currency, earnedTime), Money(currency, earnedGoods), Money(currency, earnedTime + earnedGoods)),
+            new InflowBreakdownDto(Money(currency, cash), Money(currency, nonCash), Money(currency, walletTopUps), Money(currency, cash + nonCash)),
+            new CashReconciliationDto(
+                Money(currency, shift.StartingCashMinorUnits),
+                Money(currency, expectedCash),
+                isClosed ? Money(currency, shift.CountedCashMinorUnits) : null,
+                isClosed ? Money(currency, shift.CountedCashMinorUnits - expectedCash) : null),
+            shift.OpenedAtUtc,
+            shift.ClosedAtUtc);
+    }
+
     private static int NormalizeLimit(int? limit)
     {
         return limit is null or <= 0 ? DefaultLimit : Math.Min(limit.Value, MaxLimit);

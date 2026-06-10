@@ -1,4 +1,5 @@
 using AFK4.Shared.Contracts.Reports;
+using AFK4.Shared.Contracts.Shifts;
 
 namespace AFK4.Platform.Api.Reports;
 
@@ -40,4 +41,10 @@ public interface IReportService
         Guid branchId,
         DateOnly date,
         CancellationToken cancellationToken);
+
+    Task<ShiftRevenueListDto> GetShiftRevenueAsync(
+        Guid organizationId, Guid branchId, ReportSearchQuery query, CancellationToken cancellationToken);
+
+    Task<ShiftRevenueDto?> GetCurrentShiftRevenueAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken);
 }
