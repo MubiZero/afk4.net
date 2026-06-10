@@ -240,10 +240,10 @@ Get-ChildItem -LiteralPath $setupWizardWebDist -Force |
     Copy-Item -Destination $setupWizardWebAssets -Recurse -Force
 
 $projects = @(
-    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
-    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false },
-    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false },
-    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }
+    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true },
+    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $true },
+    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $true },
+    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $true }
 )
 
 foreach ($project in $projects) {
@@ -378,59 +378,9 @@ if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Player.Shell.msi*' } | Se
     throw "Agent MSI does not contain the bundled Player Shell MSI (payload\AFK4.Player.Shell.msi)."
 }
 
-# Master installers (WiX Burn bundles): each setup.exe ensures the .NET 10 Desktop
-# Runtime (x64) is present (downloaded from Microsoft if missing) and then installs the
-# component MSI. The components publish framework-dependent, so the runtime is required.
-& $DotnetPath wix extension add -g WixToolset.Netfx.wixext -acceptEula wix7
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to add WiX Netfx extension with exit code $LASTEXITCODE."
-}
-
-& $DotnetPath wix extension add -g WixToolset.Bal.wixext -acceptEula wix7
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to add WiX Bal extension with exit code $LASTEXITCODE."
-}
-
-# In WiX 7.0.0 the WixToolset.Bal.wixext package ships an assembly renamed to
-# WixToolset.BootstrapperApplications.wixext.dll, so the cache lookup by the short id
-# fails ("damaged"). Reference the actual dll by full path instead.
-$balExtensionDll = Get-ChildItem `
-    -Path (Join-Path $env:USERPROFILE '.wix/extensions/WixToolset.Bal.wixext') `
-    -Recurse -Filter '*.wixext.dll' -ErrorAction SilentlyContinue |
-    Select-Object -First 1 -ExpandProperty FullName
-
-if (-not $balExtensionDll) {
-    throw "Could not locate the WiX Bal extension assembly under the WiX extension cache."
-}
-
-$gamingPcSetupPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe"
-$operatorSetupPath = Join-Path $artifactRoot "afk4-operator-setup-$Version-$Channel.exe"
-
-@($gamingPcSetupPath, $operatorSetupPath) |
-    Where-Object { Test-Path -LiteralPath $_ } |
-    ForEach-Object { Remove-Item -LiteralPath $_ -Force }
-
-& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/bootstrappers/gaming-pc/Bundle.wxs') `
-    -ext WixToolset.Netfx.wixext `
-    -ext $balExtensionDll `
-    -d "PackageVersion=$msiVersion" `
-    -d "AgentMsiPath=$agentMsiPath" `
-    -o $gamingPcSetupPath
-
-if ($LASTEXITCODE -ne 0) {
-    throw "WiX build failed for Gaming PC master installer with exit code $LASTEXITCODE."
-}
-
-& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/bootstrappers/operator/Bundle.wxs') `
-    -ext WixToolset.Netfx.wixext `
-    -ext $balExtensionDll `
-    -d "PackageVersion=$msiVersion" `
-    -d "OperatorMsiPath=$operatorMsiPath" `
-    -o $operatorSetupPath
-
-if ($LASTEXITCODE -ne 0) {
-    throw "WiX build failed for Operator master installer with exit code $LASTEXITCODE."
-}
+# Components publish self-contained (each carries its own .NET runtime), so the agent
+# MSI is installed directly — no master-installer / runtime-download step is needed. The
+# agent MSI auto-launches the Setup Wizard on interactive install.
 
 if ($includeLegacyGamingPcPackage) {
     & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
@@ -482,9 +432,6 @@ Write-Host "MSI artifacts:"
 Write-Host $operatorMsiPath
 Write-Host $agentMsiPath
 Write-Host $playerShellMsiPath
-Write-Host "Master installers (setup.exe):"
-Write-Host $gamingPcSetupPath
-Write-Host $operatorSetupPath
 
 if ($includeLegacyGamingPcPackage) {
     Write-Host "Legacy gaming-PC MSI artifact:"

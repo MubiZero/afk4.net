@@ -4,62 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AFK4.NET Setup Wizard</title>
-    <style>
-      :root {
-        color-scheme: light;
-        font-family: "Segoe UI", system-ui, sans-serif;
-        color: #0f172a;
-        background: #eef2f7;
-      }
-
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-      }
-
-      .panel {
-        max-width: 480px;
-        padding: 28px;
-        border: 1px solid #d8e0eb;
-        border-radius: 12px;
-        background: #ffffff;
-        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
-      }
-
-      h1 {
-        margin: 0 0 8px;
-        font-size: 22px;
-        color: #0f172a;
-      }
-
-      p {
-        margin: 0;
-        font-size: 14px;
-        color: #475569;
-        line-height: 1.5;
-      }
-
-      code {
-        padding: 1px 6px;
-        border-radius: 4px;
-        background: #f1f5f9;
-        font-family: "JetBrains Mono", "Consolas", monospace;
-        font-size: 12px;
-      }
-    </style>
+    <script>
+      // No-flash theme init: ставим data-theme до первого кадра, чтобы не мигало
+      // светлым перед монтированием React. Дефолт — dark; явный выбор из localStorage выше.
+      // Ключ зеркалит THEME_STORAGE_KEY из App.tsx.
+      (function () {
+        try {
+          var stored = localStorage.getItem('afk4.setupWizard.theme');
+          document.documentElement.setAttribute(
+            'data-theme',
+            stored === 'light' || stored === 'dark' ? stored : 'dark',
+          );
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-C2xjikLy.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DjqAGrCU.css">
   </head>
   <body>
-    <div class="panel">
-      <h1>AFK4.NET Setup Wizard</h1>
-      <p>
-        Веб-интерфейс мастера ещё не собран. Соберите
-        <code>src/AFK4.SetupWizard.Web</code> командой
-        <code>bun run --filter afk4-setup-wizard-web build</code>
-        или задайте <code>AFK4_SETUP_WIZARD_WEB_DEV_SERVER_URL=http://127.0.0.1:5175</code>
-        и запустите <code>bun run --filter afk4-setup-wizard-web dev</code>.
-      </p>
-    </div>
+    <div id="root"></div>
   </body>
 </html>
