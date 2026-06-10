@@ -64,6 +64,7 @@ public sealed class ShiftRevenueReportTests
         var result = await service.GetCurrentShiftRevenueAsync(OrgId, BranchId, CancellationToken.None);
 
         Assert.Equal(3500, result!.Inflow.Cash.MinorUnits);
+        Assert.Equal(3500, result!.Cash.Expected.MinorUnits);
     }
 
     [Fact]

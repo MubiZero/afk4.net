@@ -552,8 +552,13 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .Where(s => s.OrganizationId == organizationId && s.BranchId == branchId && s.State == ShiftStateNames.Open)
             .OrderByDescending(s => s.OpenedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
+        if (shift is null)
+        {
+            return null;
+        }
 
-        return shift is null ? null : await BuildShiftRevenueAsync(shift, cancellationToken);
+        var data = await LoadShiftRevenueSourcesAsync(organizationId, branchId, new HashSet<Guid> { shift.ShiftId }, cancellationToken);
+        return BuildShiftRevenue(shift, data);
     }
 
     public async Task<ShiftRevenueListDto> GetShiftRevenueAsync(
@@ -564,13 +569,15 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .AsNoTracking()
             .Where(s => s.OrganizationId == organizationId && s.BranchId == branchId);
 
-        if (query.FromUtc is { } fromUtc)
+        if (query.FromUtc is not null)
         {
+            var fromUtc = query.FromUtc.Value;
             shiftsQuery = shiftsQuery.Where(s => s.OpenedAtUtc >= fromUtc);
         }
 
-        if (query.ToUtc is { } toUtc)
+        if (query.ToUtc is not null)
         {
+            var toUtc = query.ToUtc.Value;
             shiftsQuery = shiftsQuery.Where(s => s.OpenedAtUtc <= toUtc);
         }
 
@@ -579,37 +586,54 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-        var rows = new List<ShiftRevenueDto>(shifts.Count);
-        foreach (var shift in shifts)
-        {
-            rows.Add(await BuildShiftRevenueAsync(shift, cancellationToken));
-        }
+        var data = await LoadShiftRevenueSourcesAsync(
+            organizationId, branchId, shifts.Select(s => s.ShiftId).ToHashSet(), cancellationToken);
 
+        var rows = shifts.Select(s => BuildShiftRevenue(s, data)).ToList();
         return new ShiftRevenueListDto(rows, limit);
     }
 
-    private async Task<ShiftRevenueDto> BuildShiftRevenueAsync(ShiftEntity shift, CancellationToken cancellationToken)
+    // Batch-loads every money source for the given shift ids in one query each (mirrors GetShiftReportAsync),
+    // avoiding an N+1 when building a shift history.
+    private async Task<ShiftRevenueSources> LoadShiftRevenueSourcesAsync(
+        Guid organizationId, Guid branchId, IReadOnlyCollection<Guid> shiftIds, CancellationToken cancellationToken)
     {
-        var currency = shift.CurrencyCode;
-
         var ledger = await dbContext.LedgerEntries
             .AsNoTracking()
-            .Where(e => e.ShiftId == shift.ShiftId && e.OrganizationId == shift.OrganizationId)
+            .Where(e => e.OrganizationId == organizationId && e.BranchId == branchId && e.ShiftId != null && shiftIds.Contains(e.ShiftId.Value))
             .ToListAsync(cancellationToken);
         var payments = await dbContext.Payments
             .AsNoTracking()
-            .Where(p => p.ShiftId == shift.ShiftId && p.OrganizationId == shift.OrganizationId)
+            .Where(p => p.OrganizationId == organizationId && p.BranchId == branchId && shiftIds.Contains(p.ShiftId))
             .ToListAsync(cancellationToken);
         var sales = await dbContext.PosSales
             .AsNoTracking()
-            .Where(s => s.ShiftId == shift.ShiftId && s.OrganizationId == shift.OrganizationId)
+            .Where(s => s.OrganizationId == organizationId && s.BranchId == branchId && shiftIds.Contains(s.ShiftId))
             .ToListAsync(cancellationToken);
         var cashMovements = await dbContext.CashMovements
             .AsNoTracking()
-            .Where(m => m.ShiftId == shift.ShiftId && m.OrganizationId == shift.OrganizationId)
+            .Where(m => m.OrganizationId == organizationId && m.BranchId == branchId && shiftIds.Contains(m.ShiftId))
             .ToListAsync(cancellationToken);
+        return new ShiftRevenueSources(ledger, payments, sales, cashMovements);
+    }
 
+    private sealed record ShiftRevenueSources(
+        IReadOnlyList<LedgerEntryEntity> Ledger,
+        IReadOnlyList<PaymentEntity> Payments,
+        IReadOnlyList<PosSaleEntity> Sales,
+        IReadOnlyList<CashMovementEntity> CashMovements);
+
+    private static ShiftRevenueDto BuildShiftRevenue(ShiftEntity shift, ShiftRevenueSources data)
+    {
+        var currency = shift.CurrencyCode;
         bool Cur(string code) => IsCurrency(code, currency);
+
+        // Refund payments are stored with a NEGATIVE AmountMinorUnits (see EfPosService.RefundSaleAsync),
+        // so summing payment+refund amounts as-is yields the correct net; do not negate refunds.
+        var ledger = data.Ledger.Where(e => e.ShiftId == shift.ShiftId).ToList();
+        var payments = data.Payments.Where(p => p.ShiftId == shift.ShiftId).ToList();
+        var sales = data.Sales.Where(s => s.ShiftId == shift.ShiftId).ToList();
+        var cashMovements = data.CashMovements.Where(m => m.ShiftId == shift.ShiftId).ToList();
 
         var earnedTime =
             -ledger.Where(e => e.EntryType == LedgerEntryTypeNames.GameplayCharge && Cur(e.CurrencyCode))
