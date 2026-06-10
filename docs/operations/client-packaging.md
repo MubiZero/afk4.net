@@ -1,11 +1,11 @@
 # Client Packaging Runbook
 
-Status: current Windows client packaging runbook after Slice 3.5 legacy cleanup
-Last updated: 2026-05-26
+Status: current Windows client packaging runbook (master installers + wizard installs Player Shell)
+Last updated: 2026-06-10
 
 ## Purpose
 
-This runbook records the approved MVP packaging direction for AFK4 Windows
+This runbook records the approved packaging direction for AFK4 Windows
 clients and links the operational package flow to the existing update rollout
 system.
 
@@ -19,27 +19,54 @@ Historical implementation plan:
 
 ## Packaging Decision
 
-AFK4 uses WiX-authored MSI packages as the MVP packaging baseline:
+AFK4 ships two **master installers** (`setup.exe`, WiX Burn bundles) for
+operators to run, one per target. Each master installer ensures the shared
+.NET runtime is present, then installs the relevant component MSI:
 
-- Agent onboarding has a single `AFK4 Agent` MSI. It installs the Agent
-  Service, the WPF Setup Wizard, update helper scripts, a Start Menu shortcut,
-  a per-machine first-run pending marker, and a HKLM `RunOnce` entry for the
-  wizard. The MSI also attempts to launch the wizard after an interactive
-  install. The service is registered for automatic startup but is not started
-  by the MSI before owner-code enrollment writes bootstrap configuration; the
-  wizard starts it after successful enrollment. Agent MSI upgrades skip
-  first-run wizard registration for already enrolled machines. It does not
-  carry Player Shell or Operator App payloads.
-- Operator App has its own MSI.
-- Player Shell has its own MSI for `gaming_pc` devices. It installs the Shell
-  and writes the Agent machine environment values needed to report
-  `player-shell` version and supervise the Shell executable.
+- **Gaming-PC master installer** (`afk4-gaming-pc-setup-<version>-<channel>.exe`)
+  ensures the **.NET 10 Desktop Runtime (x64)** is present (downloaded from
+  Microsoft if missing, skipped if already present), then installs the
+  **Agent MSI**.
+- **Operator master installer** (`afk4-operator-setup-<version>-<channel>.exe`)
+  has the same runtime prerequisite, then installs the **Operator App MSI**.
+
+Because the master installer supplies the shared runtime once, the per-component
+MSIs are **framework-dependent** (not self-contained). This is why each
+component MSI is small — a few MB — and why the target needs the .NET Desktop
+Runtime that the master installer provides.
+
+The pinned runtime version, download URL, SHA-512, and size are the single
+source of truth in `installers/bootstrappers/RuntimePrereq.wxi`, shared by both
+bundles via `<?include ?>`. To move to a newer .NET 10 servicing release, bump
+those four values together. Burn verifies the downloaded runtime against the
+pinned SHA-512 before installing it.
+
+The component MSIs that the master installers wrap:
+
+- **Agent MSI.** Installs the Agent Service, the WPF Setup Wizard, update helper
+  scripts, a Start Menu shortcut, a per-machine first-run pending marker, and a
+  HKLM `RunOnce` entry for the wizard. The MSI also attempts to launch the
+  wizard after an interactive install. The service is registered for automatic
+  startup but is not started by the MSI before enrollment writes bootstrap
+  configuration; the wizard starts it after successful enrollment. Agent MSI
+  upgrades skip first-run wizard registration for already enrolled machines.
+  The Agent MSI **carries the Player Shell MSI in the wizard payload** at
+  `…\Setup Wizard\payload\AFK4.Player.Shell.msi`. It does not carry the
+  Operator App payload.
+- **Operator App MSI.**
+- **Player Shell MSI** for `gaming_pc` devices. It installs the Shell and writes
+  the Agent machine environment values needed to report `player-shell` version
+  and supervise the Shell executable. It is delivered inside the Agent MSI's
+  wizard payload (above) rather than handed out separately to operators.
 - Agent, Player Shell, and Operator App component installs schedule an Agent
   Service restart so machine environment values written by MSIs are reloaded.
-- The older coordinated gaming-PC MSI that contains Agent Service and Player
-  Shell is retired from the default package build. It can be produced only with
-  an explicit legacy fallback switch for recovery of old staging devices.
 - MSIX is deferred as a future optional Operator App distribution channel.
+
+The Setup Wizard installs the Player Shell — it is **not** a manual step. During
+enrollment, the operator signs in (phone or login) and selects the device role.
+For a **`gaming_pc`** role the wizard runs `msiexec /qn` on the bundled
+`AFK4.Player.Shell.msi`, then starts the Agent, which supervises the Shell. The
+Player Shell is **not** installed on manager (operator) workstations.
 
 This matches the current runtime model: the Agent is an elevated Windows
 Service, the Shell is supervised by the Agent, and updates are centrally
@@ -57,9 +84,11 @@ The existing update pipeline remains authoritative:
 6. Agents download, verify, install, report status, and recover through their
    configured install, rollback, and restart adapters.
 
-Phase 13 changes the artifact shape from ad hoc published zip outputs toward
-MSI artifacts. It does not change backend rollout authority or Agent signature
-verification.
+The packaging model changes the artifact shape from ad hoc published zip
+outputs toward MSI artifacts (wrapped by the master `setup.exe` installers for
+fresh provisioning). It does not change backend rollout authority or Agent
+signature verification: the standalone component MSIs remain the source the
+update pipeline publishes from.
 
 ## Agent MSI Adapter Shape
 
@@ -109,8 +138,9 @@ Expected WiX version:
 ```
 
 WiX v7 requires explicit OSMF EULA acceptance for build and CI usage. The
-Phase 13 build script passes `-acceptEula wix7` to each `wix build` invocation
-after explicit project approval.
+build script passes `-acceptEula wix7` to each `wix build` invocation after
+explicit project approval. Building the `setup.exe` master installers needs the
+WiX **Netfx** and **Bal** extensions; the build script adds them.
 
 Verify the local package build script parses:
 
@@ -118,7 +148,8 @@ Verify the local package build script parses:
 powershell -NoProfile -Command "[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/build-client-packages.ps1), [ref] `$null, [ref] `$null) | Out-Null"
 ```
 
-Build Windows client package inputs and MSI artifacts:
+Build Windows client package inputs, component MSI artifacts, and the master
+installers:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
@@ -127,10 +158,10 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
 ```
 
 The script writes publish outputs under ignored
-`artifacts/client-packages/publish/` and MSI artifacts under ignored
-`artifacts/client-packages/`.
+`artifacts/client-packages/publish/` and MSI plus `setup.exe` artifacts under
+ignored `artifacts/client-packages/`.
 
-Expected MSI artifact names:
+Expected component MSI artifact names:
 
 ```text
 afk4-operator-app-<version>-<channel>.msi
@@ -138,21 +169,22 @@ afk4-agent-<version>-<channel>.msi
 afk4-player-shell-<version>-<channel>.msi
 ```
 
-`afk4-agent-<version>-<channel>.msi` is the owner-code Setup Wizard
-onboarding artifact. `scripts/publish-client-msi-updates.ps1` now publishes
-role-aware update metadata from the Operator App MSI, Agent MSI, and Player
-Shell MSI. The legacy `afk4-gaming-pc` MSI is not generated by the default
-build and is not used for generated update package metadata.
+Expected master installer (`setup.exe`) names:
 
-For legacy staging recovery only, explicitly opt in to the old coordinated
-Gaming PC package:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
-  -Version 0.1.0-ci `
-  -Channel internal `
-  -IncludeLegacyGamingPcPackage
+```text
+afk4-gaming-pc-setup-<version>-<channel>.exe
+afk4-operator-setup-<version>-<channel>.exe
 ```
+
+The master installers wrap the component MSIs for fresh provisioning; they do
+not replace the standalone MSIs. The component MSIs are still produced as build
+artifacts for recovery and as the source the update pipeline publishes from.
+
+`afk4-agent-<version>-<channel>.msi` is the Setup Wizard onboarding artifact
+(enrollment is via the wizard's phone/login sign-in and role selection, and it
+carries the Player Shell MSI in its wizard payload).
+`scripts/publish-client-msi-updates.ps1` publishes role-aware update metadata
+from the Operator App MSI, Agent MSI, and Player Shell MSI.
 
 For the older one-click staging bootstrapper, explicitly opt in and provide
 the committed staging public keys:
