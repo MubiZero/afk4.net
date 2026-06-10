@@ -240,10 +240,10 @@ Get-ChildItem -LiteralPath $setupWizardWebDist -Force |
     Copy-Item -Destination $setupWizardWebAssets -Recurse -Force
 
 $projects = @(
-    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true },
-    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $true },
-    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $true },
-    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $true }
+    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
+    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false },
+    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false },
+    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }
 )
 
 foreach ($project in $projects) {
@@ -302,6 +302,34 @@ Get-ChildItem -LiteralPath $agentServicePublishDir -File |
     Where-Object { $_.Name -ne 'AFK4.Agent.Service.exe' } |
     Copy-Item -Destination $agentServiceSupportDir -Force
 
+$operatorMsiPath = Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi"
+$agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
+$playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Channel.msi"
+$gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi"
+$legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe"
+
+@($operatorMsiPath, $agentMsiPath, $playerShellMsiPath, $gamingPcMsiPath, $legacySetupArtifactPath) |
+    Where-Object { Test-Path -LiteralPath $_ } |
+    ForEach-Object { Remove-Item -LiteralPath $_ -Force }
+
+# Build the Player Shell MSI first: the agent MSI bundles it into the wizard payload
+# (so the wizard can install the Player Shell on gaming PCs), which means it must exist
+# before the setup-wizard support dir is harvested.
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/player-shell/Package.wxs') `
+    -arch x64 `
+    -d "PackageVersion=$msiVersion" `
+    -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
+    -o $playerShellMsiPath
+
+if ($LASTEXITCODE -ne 0) {
+    throw "WiX build failed for Player Shell MSI with exit code $LASTEXITCODE."
+}
+
+# Bundle the Player Shell MSI into the wizard payload before the support dir is harvested.
+$setupWizardPayloadDir = Join-Path $setupWizardPublishDir 'payload'
+New-Item -ItemType Directory -Force -Path $setupWizardPayloadDir | Out-Null
+Copy-Item -LiteralPath $playerShellMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.Player.Shell.msi') -Force
+
 # -Recurse (not -File) so the WebAssets\** subfolder ships in the support dir;
 # the agent MSI harvests SetupWizardFiles from here, and the wizard resolves its
 # UI from WebAssets next to the exe. Files-only copy dropped it -> placeholder page.
@@ -318,16 +346,6 @@ $updateHelperScripts = @(
 foreach ($helperScript in $updateHelperScripts) {
     Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/$helperScript") -Destination $updateHelperDir -Force
 }
-
-$operatorMsiPath = Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi"
-$agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
-$playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Channel.msi"
-$gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi"
-$legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe"
-
-@($operatorMsiPath, $agentMsiPath, $playerShellMsiPath, $gamingPcMsiPath, $legacySetupArtifactPath) |
-    Where-Object { Test-Path -LiteralPath $_ } |
-    ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
     -arch x64 `
@@ -355,14 +373,10 @@ if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for single Agent MSI with exit code $LASTEXITCODE."
 }
 
-& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/player-shell/Package.wxs') `
-    -arch x64 `
-    -d "PackageVersion=$msiVersion" `
-    -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
-    -o $playerShellMsiPath
-
-if ($LASTEXITCODE -ne 0) {
-    throw "WiX build failed for Player Shell MSI with exit code $LASTEXITCODE."
+$agentFiles = Get-MsiFileNames -MsiPath $agentMsiPath
+if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Player.Shell.msi*' } | Select-Object -First 1))
+{
+    throw "Agent MSI does not contain the bundled Player Shell MSI (payload\AFK4.Player.Shell.msi)."
 }
 
 if ($includeLegacyGamingPcPackage) {
