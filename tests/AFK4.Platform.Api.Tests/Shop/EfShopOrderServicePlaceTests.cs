@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
@@ -61,7 +62,7 @@ public sealed class EfShopOrderServicePlaceTests
     }
 
     private static EfShopOrderService NewService(PlatformDbContext db) =>
-        new(db, TimeProvider.System, new NoopShopOrderNotifier());
+        new(db, TimeProvider.System, new NoopShopOrderNotifier(), new LoyaltyAccrualService(db));
 
     [Fact]
     public async Task Place_DebitsWalletDecrementsStockAndCreatesOrder()

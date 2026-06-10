@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
@@ -24,7 +25,7 @@ public sealed class EfShopOrderServiceTransitionTests
     private static readonly Guid Session = Guid.NewGuid();
 
     private static EfShopOrderService NewService(PlatformDbContext db) =>
-        new(db, TimeProvider.System, new NoopShopOrderNotifier());
+        new(db, TimeProvider.System, new NoopShopOrderNotifier(), new LoyaltyAccrualService(db));
 
     private static async Task<ShopOrderDto> SeedPlacedOrderAsync(PlatformDbContext db)
     {
@@ -78,6 +79,45 @@ public sealed class EfShopOrderServiceTransitionTests
         Assert.True(delivered.Succeeded);
         Assert.Equal(ShopOrderStatusNames.Delivered, delivered.Order!.Status);
         Assert.NotNull(delivered.Order.DeliveredAtUtc);
+    }
+
+    [Fact]
+    public async Task DeliverAsync_AccruesShopCashbackWhenEnabled()
+    {
+        await using var db = NewDb();
+        db.OrganizationLoyaltySettings.Add(new OrganizationLoyaltySettingsEntity
+        {
+            OrganizationId = Org,
+            TopUpEnabled = false,
+            TopUpPercentBasisPoints = 0,
+            ShopEnabled = true,
+            ShopPercentBasisPoints = 300,
+            UpdatedAtUtc = DateTimeOffset.UnixEpoch
+        });
+        var order = await SeedPlacedOrderAsync(db);
+        var service = NewService(db);
+
+        var accepted = await service.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        var delivered = await service.DeliverAsync(Branch, order.Id, Staff, accepted.Order!.Version, CancellationToken.None);
+
+        Assert.True(delivered.Succeeded);
+        var cashback = await db.LedgerEntries.SingleAsync(e => e.EntryType == LedgerEntryTypeNames.Cashback);
+        Assert.Equal(order.Total.MinorUnits * 300 / 10000, cashback.AmountMinorUnits);
+        Assert.Equal(LedgerAccountTypeNames.Wallet, cashback.AccountType);
+    }
+
+    [Fact]
+    public async Task DeliverAsync_AccruesNoCashbackWhenNoOrgSettings()
+    {
+        await using var db = NewDb();
+        var order = await SeedPlacedOrderAsync(db);
+        var service = NewService(db);
+
+        var accepted = await service.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
+        var delivered = await service.DeliverAsync(Branch, order.Id, Staff, accepted.Order!.Version, CancellationToken.None);
+
+        Assert.True(delivered.Succeeded);
+        Assert.Empty(db.LedgerEntries.Where(e => e.EntryType == LedgerEntryTypeNames.Cashback));
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Shifts;
@@ -88,6 +89,59 @@ public sealed class EfBillingCommandServiceTests
         Assert.Equal(5000, result.Response.WalletBalance.MinorUnits);
         Assert.Equal(0, result.Response.DebtBalance.MinorUnits);
         Assert.Single(await db.BillingCommandIdempotency.ToListAsync());
+    }
+
+    [Fact]
+    public async Task TopUpWalletAsync_AccruesCashbackWhenTopUpLoyaltyEnabled()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
+        await SeedLoyaltyAsync(db, topUpEnabled: true, topUpBps: 500);
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "cash top-up", "topup-cb-1");
+
+        var result = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var cashback = await db.LedgerEntries.SingleAsync(e => e.EntryType == LedgerEntryTypeNames.Cashback);
+        Assert.Equal(250, cashback.AmountMinorUnits); // floor(5000 * 500 / 10000)
+        Assert.Equal(LedgerAccountTypeNames.Wallet, cashback.AccountType);
+        Assert.Equal(5250, result.Response!.WalletBalance.MinorUnits); // top-up + cashback
+    }
+
+    [Fact]
+    public async Task TopUpWalletAsync_IdempotentRetryWithLoyaltyEnabledDoesNotDoubleCashback()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
+        await SeedLoyaltyAsync(db, topUpEnabled: true, topUpBps: 500);
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "cash top-up", "topup-idem-cb");
+
+        var first = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var second = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.Equal(2, await db.LedgerEntries.CountAsync()); // top-up + cashback, not 3
+        Assert.Equal(first.Response!.WalletBalance, second.Response!.WalletBalance);
+    }
+
+    [Fact]
+    public async Task TopUpWalletAsync_NoCashbackWhenLoyaltyDisabled()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedOpenShiftAsync(db);
+        var service = CreateService(db);
+        var request = new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "cash top-up", "topup-cb-2");
+
+        var result = await service.TopUpWalletAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.False(await db.LedgerEntries.AnyAsync(e => e.EntryType == LedgerEntryTypeNames.Cashback));
     }
 
     [Fact]
@@ -656,7 +710,25 @@ public sealed class EfBillingCommandServiceTests
 
     private static EfBillingCommandService CreateService(PlatformDbContext db)
     {
-        return new EfBillingCommandService(db, new EfShiftService(db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now));
+        return new EfBillingCommandService(
+            db,
+            new EfShiftService(db, new FixedTimeProvider(Now)),
+            new FixedTimeProvider(Now),
+            new LoyaltyAccrualService(db));
+    }
+
+    private static async Task SeedLoyaltyAsync(PlatformDbContext db, bool topUpEnabled, int topUpBps)
+    {
+        db.OrganizationLoyaltySettings.Add(new OrganizationLoyaltySettingsEntity
+        {
+            OrganizationId = TestIds.OrganizationId,
+            TopUpEnabled = topUpEnabled,
+            TopUpPercentBasisPoints = topUpBps,
+            ShopEnabled = false,
+            ShopPercentBasisPoints = 0,
+            UpdatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedPlayerAsync(

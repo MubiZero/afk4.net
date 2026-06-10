@@ -726,12 +726,11 @@ describe('App', () => {
     fireEvent.click(posButton);
     expect(screen.getByRole('heading', { name: /Продажи/ })).toBeInTheDocument();
 
-    const workspaceButtons = within(screen.getByRole('navigation')).getAllByRole('button');
-    const settingsButton = workspaceButtons.at(-2);
+    const settingsButton = within(screen.getByRole('navigation')).getByTitle('Настройки');
     expect(settingsButton).toBeDefined();
     expect(settingsButton).toBeEnabled();
 
-    fireEvent.click(settingsButton!);
+    fireEvent.click(settingsButton);
     expect(settingsButton).toHaveClass('active');
   });
 
@@ -847,6 +846,15 @@ describe('App', () => {
     expect(screen.getAllByText('Тарифы').length).toBeGreaterThan(0);
     expect(screen.getByText('Готовность клуба')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Пригласить сотрудника/ })).toBeInTheDocument();
+  });
+
+  it('opens the loyalty settings workspace from the rail', async () => {
+    installSessionBridge(createSession({ permissions: ['loyalty.settings.manage'] }));
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByTitle('Лояльность'));
+    expect(await screen.findByRole('heading', { name: /Лояльность \/ кэшбэк/ })).toBeInTheDocument();
   });
 
   it('downloads the Overview sales export without dashboard copy', async () => {
@@ -3273,6 +3281,18 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/audit')) {
     return jsonResponse(createAudit());
+  }
+
+  if (pathname.endsWith('/api/owner/loyalty-settings')) {
+    if (init?.method === 'POST') {
+      return jsonResponse(JSON.parse(String(init.body)));
+    }
+    return jsonResponse({
+      topUpEnabled: false,
+      topUpPercentBasisPoints: 0,
+      shopEnabled: false,
+      shopPercentBasisPoints: 0
+    });
   }
 
   return jsonResponse({ ok: true });

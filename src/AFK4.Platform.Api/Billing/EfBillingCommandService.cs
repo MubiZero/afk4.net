@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,8 @@ namespace AFK4.Platform.Api.Billing;
 public sealed class EfBillingCommandService(
     PlatformDbContext dbContext,
     IOpenShiftResolver openShiftResolver,
-    TimeProvider timeProvider) : IBillingCommandService
+    TimeProvider timeProvider,
+    ILoyaltyAccrualService loyaltyAccrualService) : IBillingCommandService
 {
     private const string PlayerCreateOperation = "player-create";
     private const string WalletTopUpOperation = "wallet-top-up";
@@ -169,6 +171,36 @@ public sealed class EfBillingCommandService(
             shiftId = openShift.ShiftId;
         }
 
+        var topUpEntry = BillingEntryFactory.Create(
+            request.OrganizationId,
+            branchId,
+            playerAccountId,
+            sessionId: null,
+            playerPackageId: null,
+            LedgerEntryTypeNames.TopUp,
+            LedgerAccountTypeNames.Wallet,
+            request.Amount.MinorUnits,
+            quantitySeconds: 0,
+            currencyValidation.CurrencyCode,
+            description: LedgerEntryTypeNames.TopUp,
+            request.Reason.Trim(),
+            reversesLedgerEntryId: null,
+            actorStaffUserId,
+            timeProvider.GetUtcNow(),
+            shiftId);
+
+        var cashbackEntry = await loyaltyAccrualService.BuildCashbackEntryAsync(
+            LoyaltyAccrualSource.TopUp,
+            request.OrganizationId,
+            branchId,
+            playerAccountId,
+            sessionId: null,
+            request.Amount.MinorUnits,
+            currencyValidation.CurrencyCode,
+            reason: "cashback:topup",
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
         return await ExecuteLedgerSummaryCommandAsync(
             request.OrganizationId,
             branchId,
@@ -176,23 +208,8 @@ public sealed class EfBillingCommandService(
             request.IdempotencyKey,
             request,
             PlayerScopedRequest(playerAccountId, request),
-            BillingEntryFactory.Create(
-                request.OrganizationId,
-                branchId,
-                playerAccountId,
-                sessionId: null,
-                playerPackageId: null,
-                LedgerEntryTypeNames.TopUp,
-                LedgerAccountTypeNames.Wallet,
-                request.Amount.MinorUnits,
-                quantitySeconds: 0,
-                currencyValidation.CurrencyCode,
-                description: LedgerEntryTypeNames.TopUp,
-                request.Reason.Trim(),
-                reversesLedgerEntryId: null,
-                actorStaffUserId,
-                timeProvider.GetUtcNow(),
-                shiftId),
+            topUpEntry,
+            cashbackEntry is null ? null : new[] { cashbackEntry },
             cancellationToken);
     }
 
@@ -405,6 +422,7 @@ public sealed class EfBillingCommandService(
                 actorStaffUserId,
                 timeProvider.GetUtcNow(),
                 openShift.ShiftId),
+            additionalEntries: null,
             cancellationToken);
     }
 
@@ -502,6 +520,7 @@ public sealed class EfBillingCommandService(
                 actorStaffUserId,
                 timeProvider.GetUtcNow(),
                 openShift.ShiftId),
+            additionalEntries: null,
             cancellationToken);
     }
 
@@ -513,11 +532,16 @@ public sealed class EfBillingCommandService(
         TRequest request,
         object requestHashInput,
         LedgerEntryEntity entry,
+        IReadOnlyList<LedgerEntryEntity>? additionalEntries,
         CancellationToken cancellationToken)
     {
         return await ExecuteInTransactionAsync(async () =>
         {
             dbContext.LedgerEntries.Add(entry);
+            if (additionalEntries is { Count: > 0 })
+            {
+                dbContext.LedgerEntries.AddRange(additionalEntries);
+            }
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var summary = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, entry.PlayerAccountId, cancellationToken);

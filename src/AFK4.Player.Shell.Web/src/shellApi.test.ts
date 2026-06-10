@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { ApiError, createShellApi, OfflineError } from './shellApi';
+import type { PlayerLoyaltyDto } from './apiTypes';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -70,5 +71,22 @@ describe('shellApi shop methods', () => {
       expect((e as ApiError).status).toBe(409);
       expect((e as ApiError).code).toBe('insufficient_funds');
     }
+  });
+});
+
+describe('shellApi.getLoyalty', () => {
+  it('GETs /api/me/loyalty and returns the dto', async () => {
+    const dto: PlayerLoyaltyDto = {
+      topUpEnabled: true, topUpPercentBasisPoints: 500, shopEnabled: false, shopPercentBasisPoints: 0,
+      totalEarned: { currencyCode: 'TJS', minorUnits: 200 }, recent: []
+    };
+    let calledUrl = '';
+    const api = createShellApi('http://x', async (url) => {
+      calledUrl = url;
+      return new Response(JSON.stringify(dto), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const result = await api.getLoyalty();
+    expect(calledUrl).toBe('http://x/api/me/loyalty');
+    expect(result.topUpPercentBasisPoints).toBe(500);
   });
 });

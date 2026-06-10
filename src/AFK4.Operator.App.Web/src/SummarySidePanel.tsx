@@ -15,7 +15,8 @@ export function SummarySidePanel({ workspace, currencyCode }: { workspace: Works
     payment_cards: t('payments_cards.nav'),
     logs: t('op.summary.titleLogs'),
     settings: t('nav.settings'),
-    review: t('op.summary.titleReview')
+    review: t('op.summary.titleReview'),
+    loyalty: t('op.loyalty.title')
   }[workspace];
 
   return (

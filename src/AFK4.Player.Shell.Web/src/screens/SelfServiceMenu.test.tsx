@@ -8,7 +8,11 @@ function api(): ShellApi {
     listTariffs: async () => [], listPackages: async () => [], createTopUpIntent: async () => ({} as any),
     getTopUpIntents: async () => [], extendSession: async () => ({}),
     listShopCatalog: async () => [{ productId: 'p1', name: 'Cola', sku: 'C', price: { currencyCode: 'TJS', minorUnits: 500 }, stockOnHand: 5 }],
-    listShopOrders: async () => [], placeShopOrder: async () => ({} as any), cancelShopOrder: async () => ({} as any)
+    listShopOrders: async () => [], placeShopOrder: async () => ({} as any), cancelShopOrder: async () => ({} as any),
+    getLoyalty: async () => ({
+      topUpEnabled: true, topUpPercentBasisPoints: 500, shopEnabled: false, shopPercentBasisPoints: 0,
+      totalEarned: { currencyCode: 'TJS', minorUnits: 0 }, recent: []
+    })
   } as unknown as ShellApi;
 }
 
@@ -33,5 +37,14 @@ describe('SelfServiceMenu shop entry', () => {
       sessionId="s1" branchId="b1" onReloadState={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /магазин/i }));
     await waitFor(() => expect(screen.getByText('Cola')).toBeInTheDocument());
+  });
+});
+
+describe('SelfServiceMenu loyalty entry', () => {
+  it('opens loyalty from the menu', async () => {
+    render(<SelfServiceMenu authenticated onSignIn={async () => true} api={api()}
+      sessionId="s1" branchId="b1" onReloadState={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /кэшбэк/i }));
+    await waitFor(() => expect(screen.getByText(/падает прямо в кошелёк|кэшбэк пока недоступен/i)).toBeInTheDocument());
   });
 });
