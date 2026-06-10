@@ -198,6 +198,12 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
   -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem
 ```
 
+To produce only the legacy coordinated Gaming PC package
+(`afk4-gaming-pc-<version>-<channel>.msi`, Agent Service + Player Shell in one
+MSI) for recovering old staging devices — without the full staging bootstrapper —
+opt in with `-IncludeLegacyGamingPcPackage`. This path is retired from the default
+build and is not produced by the master installers.
+
 ## Authenticode Signing
 
 Internal package builds may remain unsigned. Stable production package builds
