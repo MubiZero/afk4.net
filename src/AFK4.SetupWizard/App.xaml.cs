@@ -40,7 +40,9 @@ public partial class App : Application
         var bridge = new SetupWizardWebHostBridge(
             new SetupWizardApiClient(httpClient),
             new FileDeviceKeyStore(),
-            new EnvironmentBootstrapWriter(machineInfo.MachineName),
+            new CompositeBootstrapWriter(
+                new FileBootstrapWriter(machineInfo.MachineName),
+                new EnvironmentBootstrapWriter(machineInfo.MachineName)),
             machineInfo,
             new AgentServiceCompletionAction(),
             new MsiexecPlayerShellProvisioner(

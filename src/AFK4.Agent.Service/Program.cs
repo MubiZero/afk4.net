@@ -1,12 +1,34 @@
 using AFK4.Agent.Service;
 using AFK4.Agent.Service.Enforcement;
+using AFK4.Agent.Service.Logging;
 using AFK4.Agent.Service.Shell;
 using AFK4.Agent.Service.Updates;
 using Microsoft.Extensions.Hosting.WindowsServices;
 
 var builder = Host.CreateApplicationBuilder(args);
 
+// Persistent file log (Information+) for field diagnostics — the service has no visible
+// console and Event Log captures Warning+ only, so shell-launch decisions stay hidden.
+builder.Logging.AddProvider(new FileLoggerProvider(FileLoggerProvider.DefaultLogPath));
+
+// Bootstrap config the Setup Wizard wrote after enrollment. Read from a FILE (authoritative,
+// added last so it overrides env vars): a service launched by the SCM inherits a stale
+// environment block, so machine env vars written by the wizard are not visible until the next
+// reboot — but the file is read fresh on every start. See FileBootstrapWriter.
+var bootstrapConfigPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+    "AFK4",
+    "Agent",
+    "bootstrap.json");
+builder.Configuration.AddJsonFile(bootstrapConfigPath, optional: true, reloadOnChange: false);
+
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection("Agent"));
+
+// A kiosk Agent must stay alive: one background worker faulting (e.g. a transient auth error)
+// must not tear down the whole host and with it the Player Shell supervision.
+builder.Services.Configure<HostOptions>(hostOptions =>
+    hostOptions.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
+
 builder.Services.AddWindowsService(options =>
 {
     options.ServiceName = "AFK4.Agent.Service";
