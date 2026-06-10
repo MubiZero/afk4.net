@@ -1,0 +1,58 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
+     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx">
+  <!--
+    Master installer (Burn bundle) for an AFK4.NET Gaming PC.
+    Ensures the .NET 10 Desktop Runtime (x64) is present (downloaded from Microsoft
+    if missing) and then installs the agent MSI. The Player Shell is NOT chained here;
+    the Setup Wizard provisions it on the gaming PC after enrollment.
+
+    Runtime prerequisite is pinned to an exact version + SHA-256 so the download is
+    verifiable and reproducible. Bump RuntimeVersion/Url/Hash/Size together when moving
+    to a newer .NET 10 servicing release.
+  -->
+  <?define RuntimeVersion = "10.0.9" ?>
+  <?define RuntimeUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe" ?>
+  <?define RuntimeHash = "D4EB932AD12EC61CB5293348021DBAA43FA373BC19ED1876E9DBF8CB38633AD3" ?>
+  <?define RuntimeSize = "59878128" ?>
+
+  <Bundle
+      Name="AFK4.NET Gaming PC"
+      Manufacturer="AFK4.NET"
+      Version="$(var.PackageVersion)"
+      UpgradeCode="{8E2C4A91-7B3D-4F6A-9C1E-2D5A8B0F3471}">
+
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" SuppressOptionsUI="yes" />
+    </BootstrapperApplication>
+
+    <netfx:DotNetCoreSearch
+        Id="DesktopRuntime10"
+        RuntimeType="desktop"
+        Platform="x64"
+        MajorVersion="10"
+        Variable="DesktopRuntime10Version" />
+
+    <Chain>
+      <ExePackage
+          DetectCondition="DesktopRuntime10Version AND DesktopRuntime10Version &gt;= v$(var.RuntimeVersion)"
+          Permanent="yes"
+          Vital="yes"
+          PerMachine="yes"
+          InstallArguments="/install /quiet /norestart"
+          RepairArguments="/repair /quiet /norestart"
+          UninstallArguments="/uninstall /quiet /norestart"
+          bal:PrereqPackage="yes">
+        <ExePackagePayload
+            Name="windowsdesktop-runtime-$(var.RuntimeVersion)-win-x64.exe"
+            DownloadUrl="$(var.RuntimeUrl)"
+            ProductName=".NET Desktop Runtime $(var.RuntimeVersion) (x64)"
+            Description=".NET Desktop Runtime $(var.RuntimeVersion) (x64)"
+            Hash="$(var.RuntimeHash)"
+            Size="$(var.RuntimeSize)" />
+      </ExePackage>
+
+      <MsiPackage SourceFile="$(var.AgentMsiPath)" Vital="yes" />
+    </Chain>
+  </Bundle>
+</Wix>
