@@ -726,12 +726,11 @@ describe('App', () => {
     fireEvent.click(posButton);
     expect(screen.getByRole('heading', { name: /Продажи/ })).toBeInTheDocument();
 
-    const workspaceButtons = within(screen.getByRole('navigation')).getAllByRole('button');
-    const settingsButton = workspaceButtons.at(-2);
+    const settingsButton = within(screen.getByRole('navigation')).getByTitle('Настройки');
     expect(settingsButton).toBeDefined();
     expect(settingsButton).toBeEnabled();
 
-    fireEvent.click(settingsButton!);
+    fireEvent.click(settingsButton);
     expect(settingsButton).toHaveClass('active');
   });
 

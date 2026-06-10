@@ -3,7 +3,7 @@ import type { getOperatorConfig } from './operatorConfig';
 import type { PaymentPartDto } from './operatorApiClients';
 import type { SeatSummary } from './operatorData';
 
-export type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'shop_orders' | 'players' | 'payments' | 'payment_cards' | 'logs' | 'settings' | 'review';
+export type WorkspaceId = 'map' | 'dashboard' | 'booking' | 'pos' | 'shop_orders' | 'players' | 'payments' | 'payment_cards' | 'logs' | 'settings' | 'review' | 'loyalty';
 export type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
 export type AuthStatus = 'checking' | 'signed-out' | 'signed-in';
 export type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';

@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  BadgePercent,
   CalendarClock,
   CircleDollarSign,
   ClipboardCheck,
@@ -59,7 +60,8 @@ export const navItems: NavItem[] = [
   { labelKey: 'op.shell.nav.payment_cards', icon: CreditCard },
   { labelKey: 'op.shell.nav.logs', icon: ScrollText },
   { labelKey: 'op.shell.nav.settings', icon: Settings },
-  { labelKey: 'op.shell.nav.review', icon: ClipboardCheck }
+  { labelKey: 'op.shell.nav.review', icon: ClipboardCheck },
+  { labelKey: 'op.loyalty.nav', icon: BadgePercent }
 ];
 export const seats: SeatSummary[] = [
   {

@@ -21,6 +21,7 @@ import { MapSidePanel } from './MapSidePanel';
 import { SummarySidePanel } from './SummarySidePanel';
 import { BackendPosWorkspace } from './BackendPosWorkspace';
 import { ShopOrdersWorkspace } from './ShopOrdersWorkspace';
+import { LoyaltySettingsWorkspace } from './LoyaltySettingsWorkspace';
 import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
 import { BackendPaymentsWorkspace } from './BackendPaymentsWorkspace';
 import { ReviewWorkspace } from './ReviewWorkspace';
@@ -58,7 +59,8 @@ import {
   realtimeLabel,
   resolveActiveBranchId,
   isUnauthorizedAuthError,
-  clearStoredOperatorSession
+  clearStoredOperatorSession,
+  createAuthenticatedOperatorClients
 } from './operatorHelpers';
 
 
@@ -366,6 +368,11 @@ function AppInner() {
       {workspace === 'logs' && <BackendLogsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'settings' && <BackendSettingsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'review' && <ReviewWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
+      {workspace === 'loyalty' && backendContext !== null && (
+        <LoyaltySettingsWorkspace
+          client={createAuthenticatedOperatorClients(backendContext.config, backendContext.session).loyaltySettings}
+        />
+      )}
 
       {workspace === 'map' && selectedSeat !== null && (
         <MapSidePanel
@@ -377,7 +384,7 @@ function AppInner() {
           onSeatAction={handleSeatAction}
         />
       )}
-      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'shop_orders' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review'
+      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'shop_orders' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review' && workspace !== 'loyalty'
         && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">

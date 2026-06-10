@@ -657,7 +657,8 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     moneyActions: createMoneyActionClient(api),
     paymentGateways: createPaymentGatewayClient(api),
     account: createAccountClient(api),
-    shopOrders: createShopOrderClient(api)
+    shopOrders: createShopOrderClient(api),
+    loyaltySettings: createLoyaltySettingsClient(api)
   };
 }
 
