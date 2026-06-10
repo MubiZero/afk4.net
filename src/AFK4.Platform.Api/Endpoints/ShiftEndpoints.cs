@@ -245,6 +245,60 @@ internal static class ShiftEndpoints
             return Results.Ok(result.Response);
         });
 
+        app.MapGet("/api/branches/{branchId:guid}/shifts/revenue/current", async (
+            Guid branchId,
+            StaffAuthorizationService authorizationService,
+            IReportService reportService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, StaffPermissionNames.ViewReports, cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var result = await reportService.GetCurrentShiftRevenueAsync(
+                authorization.StaffContext!.OrganizationId, branchId, cancellationToken);
+
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        });
+
+        app.MapGet("/api/branches/{branchId:guid}/shifts/revenue", async (
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            StaffAuthorizationService authorizationService,
+            IReportService reportService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, StaffPermissionNames.ViewReports, cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var query = new ReportSearchQuery(fromUtc, toUtc, limit);
+            var result = await reportService.GetShiftRevenueAsync(
+                authorization.StaffContext!.OrganizationId, branchId, query, cancellationToken);
+
+            return Results.Ok(result);
+        });
+
         app.MapPost("/api/shifts/{shiftId:guid}/close", async (
             Guid shiftId,
             CloseShiftRequest request,
