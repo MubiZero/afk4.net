@@ -1,4 +1,4 @@
-# Setup Wizard provisions the Player Shell on gaming PCs
+# Setup Wizard provisions the Player Shell on gaming PCs (+ installer slimming)
 
 Status: design, approved for planning
 Date: 2026-06-10
@@ -18,9 +18,13 @@ standalone `afk4-player-shell` MSI) and, if the file exists, launches the shell 
 active user session (`PlayerShellProcessSupervisor`). No path / no file → the agent
 silently does nothing.
 
+Second, the installers are bloated: every component is published **self-contained
+win-x64**, so each MSI carries its own full copy of the .NET runtime (~40 MB of ~55 MB).
+The agent package is ~58 MB before we add anything.
+
 ### Observed symptoms (staging VM, agent 0.1.37)
 
-Both symptoms share one root cause — no shell on the gaming PC:
+Both functional symptoms share one root cause — no shell on the gaming PC:
 
 1. **No player screen.** Nothing locks the workstation or shows the player login,
    because there is no shell executable for the agent to supervise.
@@ -49,30 +53,49 @@ this work; it is no longer the source of truth — code is.
   `Agent__PlayerShellAutoStartEnabled`.
 - The agent already supervises the shell once those env values exist and the service is
   restarted (`PlayerShellProcessSupervisor`).
-- The update pipeline keeps an already-installed shell current (reports component
-  versions, applies rollouts). It does **not** do first install — it only reports the
-  shell component when `DeviceRole == GamingPc && ShellVersion` is set
-  (`AgentComponentVersionProvider`). Therefore the shell must be installed at
-  provisioning time; the pipeline takes over afterward.
+- The update pipeline keeps an already-installed shell current. It does **not** do first
+  install — it only reports the shell component when
+  `DeviceRole == GamingPc && ShellVersion` is set (`AgentComponentVersionProvider`).
+  Therefore the shell must be installed at provisioning time; the pipeline takes over
+  afterward.
 
-## Decision
+## Decisions
 
-For the `gaming_pc` role, the wizard installs the **bundled Player Shell MSI** during
-finalization, then starts the agent so it supervises the shell. We reuse the existing,
-tested MSI verbatim (it writes exactly the env the agent needs). This works offline of
-any staging rollout — correct for the client demo — and preserves per-component
-separation so the update pipeline keeps working.
+1. **Wizard provisions the shell on `gaming_pc`.** During finalization, for the
+   `gaming_pc` role only, the wizard installs the bundled Player Shell MSI, then starts
+   the agent so it supervises the shell. We reuse the existing, tested MSI verbatim (it
+   writes exactly the env the agent needs). Works offline of any staging rollout —
+   correct for the client demo — and preserves per-component separation so the update
+   pipeline keeps working.
 
-Rejected alternatives:
-- **Platform rollout for first install** — the pipeline does not do first install;
-  would need backend work + a configured staging rollout. Too heavy and fragile for a
-  demo.
-- **Wizard writes shell files/env itself (no MSI)** — duplicates MSI logic (versioning,
-  upgrade, uninstall) and breaks component accounting in the update pipeline.
+2. **Slim the installers: framework-dependent + a one-time shared runtime.** All
+   components (agent, shell, wizard, operator) switch from self-contained to
+   framework-dependent. A master installer (`setup.exe`, a WiX Burn bundle) ensures the
+   **.NET Desktop Runtime** is present once, then installs the component MSIs. Each MSI
+   drops from ~55 MB to ~5–15 MB. Side effect: the bundled shell MSI shrinks to ~10 MB,
+   so bundling it in the wizard is cheap.
+
+3. **Shell delivery = option A (wizard, gaming PC only).** The master installer for a
+   gaming PC installs runtime + agent. The shell is bundled in the wizard and installed
+   by the wizard via `msiexec` **only** when the operator picks the `gaming_pc` role. The
+   shell never lands on manager workstations. The wizard stays the single point of
+   gaming-PC setup.
+
+4. **Embed the runtime in the master installer** (not download). The demo runs on a VM
+   that may be offline; an embedded runtime makes installation self-sufficient. The
+   master installer is larger, but installs once and works without network.
+
+Rejected alternatives: platform-rollout first install (pipeline does not do first
+install; needs backend + staging rollout); wizard writes shell files/env without an MSI
+(duplicates MSI logic, breaks update-pipeline component accounting); `PublishTrimmed`
+(unsafe for WPF wizard/shell); shell installed for every machine by the bootstrapper
+(dead weight on manager workstations).
 
 ## Design
 
-### Finalization flow (gaming_pc role)
+### A. Functional — wizard provisions the shell
+
+Finalization flow for `gaming_pc`:
 
 1. Write bootstrap env (unchanged: `DeviceRole`, server URL, tokens, seat).
 2. **[new]** Install the bundled shell MSI:
@@ -82,71 +105,92 @@ Rejected alternatives:
 3. Start / restart the agent service (existing completion action). The agent reads all
    env at startup and launches the shell in the active user session.
 
-For `manager_workstation`, step 2 is skipped.
+For `manager_workstation`, step 2 is skipped. The wizard runs as its own elevated
+process after the agent install has finished, so `msiexec` will not collide with an
+in-progress install mutex.
 
-The wizard runs as its own elevated process and the agent MSI has already finished by
-the time it runs, so `msiexec` will not collide with an in-progress install mutex.
+New units (small, isolated, testable):
 
-### Components (small, isolated, testable)
-
-- **`PlayerShellProvisioningAction`** — new unit next to `AgentServiceCompletionAction`.
-  - Input: path to the bundled MSI, an injectable process runner.
-  - Runs `msiexec /i <msi> /qn`, maps exit codes:
-    `0` and `3010` (success, reboot pending) → success;
-    `1638` (same/another version already installed) → treated as already provisioned;
-    anything else → failure with the raw exit code surfaced.
-  - Returns a result object (success / already-present / failure + code). No UI, no
-    global state. Unit-tested with a fake runner, mirroring how
-    `AgentServiceCompletionAction` is tested.
+- **`PlayerShellProvisioningAction`** — next to `AgentServiceCompletionAction`. Input:
+  path to the bundled MSI + an injectable process runner. Runs `msiexec /i <msi> /qn`,
+  maps exit codes: `0` and `3010` (reboot pending) → success; `1638` (already installed)
+  → already-provisioned; anything else → failure with the raw code surfaced. Returns a
+  result object; no UI, no global state. Unit-tested with a fake runner, mirroring
+  `AgentServiceCompletionAction`'s tests.
 - **`SetupWizardPayloadResolver`** — locates the bundled MSI relative to the wizard exe,
   mirroring `SetupWizardWebAssetResolver`. Dev/repo: resolve from `artifacts`. Prod:
   `…\Setup Wizard\payload\AFK4.Player.Shell.msi`.
 - **Finalization caller** (`SetupWizardViewModel` / completion path) invokes the
   provisioning action only for `gaming_pc`, then the existing service-start action.
 
-### UX and failure handling
+UX and failure handling: the finish screen shows an explicit provisioning line
+"Установка оболочки игрока…" with its result, rendered inside the existing finish screen
+(no new Stepper step). Success / already-present → continue to "ready". Failure → show
+the code/reason, do **not** mark the PC ready, offer "Повторить". No silent "ready" over
+a missing shell.
 
-Finish screen shows an explicit provisioning line: "Установка оболочки игрока…" with its
-result, rendered inside the existing finish screen (no new Stepper step).
+### B. Packaging — framework-dependent + master installer
 
-- Success / already-present → continue to "ready".
-- Failure (non-accepted msiexec exit code) → show the code/reason, do **not** mark the PC
-  as ready, offer "Повторить". No silent "ready" over a missing shell.
+- Publish all four components framework-dependent (`--self-contained false`). The
+  prerequisite is the **.NET 10 Desktop Runtime** (`Microsoft.WindowsDesktop.App`, which
+  includes the base runtime) — covers the WPF wizard/shell, the agent service, and the
+  operator app.
+- Add a **WiX Burn bundle** (`setup.exe`) per install target:
+  - **Gaming-PC master installer**: chain (1) embedded .NET Desktop Runtime (skipped if a
+    compatible runtime is already present), then (2) the agent MSI. The shell is **not**
+    chained here — the wizard installs it on `gaming_pc`.
+  - **Operator master installer**: chain the embedded runtime + the operator MSI, for the
+    same one-time-runtime benefit on operator workstations.
+- The bundled shell MSI (in the wizard payload) is also framework-dependent (~10 MB).
+- Keep the standalone per-component MSIs as build artifacts (recovery + update-pipeline
+  source). The master installers wrap them; they are not replaced.
 
-### Packaging / build
+### Packaging / build script
 
-- `scripts/build-client-packages.ps1`: build the Player Shell MSI **before** the agent
-  MSI; copy the built `AFK4.Player.Shell-<version>.msi` into the wizard payload folder;
-  the agent MSI harvests that folder (same mechanism as `WebAssets`) so it ships at
+`scripts/build-client-packages.ps1`:
+- Build the Player Shell MSI **before** the agent MSI; copy the built
+  `AFK4.Player.Shell-<version>.msi` into the wizard payload folder; the agent MSI harvests
+  that folder (same mechanism as `WebAssets`) so it ships at
   `…\Setup Wizard\payload\AFK4.Player.Shell.msi`.
-- Consequence: the agent package grows by ~54 MB (≈110 MB total) — the accepted cost of
-  bundling.
+- Switch the `dotnet publish` calls to `--self-contained false`.
+- Build the Burn bundles after the MSIs, embedding the .NET Desktop Runtime installer.
 - The bundled shell version equals the build version; the update pipeline upgrades it
   afterward.
-- Keep the standalone `afk4-player-shell` MSI artifact too (recovery / pipeline source).
 
 ### Runbook update (deliverable)
 
-Update `docs/operations/client-packaging.md` to the wizard-as-single-tool model:
-- The agent/wizard package now carries and installs the Player Shell on `gaming_pc`.
-- Remove / correct the "agent MSI does not carry Player Shell" and "install shell
-  manually" instructions.
-- Sweep the rest of the runbook for statements that contradict the new model
-  (enrollment, owner-code, MSI split) and fix them in the same pass, not piecemeal.
+Update `docs/operations/client-packaging.md` to the new model:
+- One master installer (`setup.exe`) per target; it ensures the .NET runtime once.
+- The wizard installs the Player Shell on `gaming_pc`; it is no longer a manual step.
+- Components are framework-dependent, not self-contained.
+- Sweep the rest of the runbook for statements that contradict the new model (MSI split,
+  manual shell install, owner-code/enrollment) and fix them in the same pass.
+
+## Sequencing (to protect the demo)
+
+Land and verify the **functional** half first, on the current self-contained packaging:
+prove the wizard brings up the shell on the VM and the offline/lock symptoms clear. Only
+then do the **packaging** conversion (framework-dependent + Burn bundles), which carries
+its own risk (runtime prerequisite, clean-VM validation). The demo must not be blocked by
+packaging work.
 
 ## Testing
 
 - Unit: `PlayerShellProvisioningAction` exit-code mapping (0/3010/1638/other), skip for
   manager role, missing-MSI handling.
 - Unit: `SetupWizardPayloadResolver` dev vs prod path resolution.
-- VM verification (staging): provision a `gaming_pc` →
-  - shell installs, player screen comes up in the active session;
-  - "Старт 60 мин" completes the workstation lock;
-  - the "офлайн / ждём подтверждение" state clears — confirming it was the same root
-    cause. If it persists, that is a separate agent-connectivity bug → pull agent logs.
+- VM verification, functional (staging): provision a `gaming_pc` → shell installs, player
+  screen comes up in the active session; "Старт 60 мин" completes the workstation lock;
+  the "офлайн / ждём подтверждение" state clears (confirming same root cause). If it
+  persists → separate agent-connectivity bug → pull agent logs.
+- VM verification, packaging: on a **clean** VM with no .NET runtime, the gaming-PC master
+  installer installs the runtime once then the agent; the wizard + shell run
+  framework-dependent; size of the master installer recorded vs the old self-contained
+  MSI.
 
 ## Out of scope
 
 - Changing the update pipeline to do first installs.
 - Bundling the shell for `manager_workstation`.
 - Any redesign of the wizard's existing screens beyond the finish-screen status line.
+- Trimming (`PublishTrimmed`) of any component.
