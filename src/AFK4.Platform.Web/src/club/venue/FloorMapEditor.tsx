@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { VenueApi } from '@/api/clients/venue';
 import { useFloorMap } from './useFloorMap';
 import { makeClientId, moveByIndex, type EditorSeat, type EditorZone } from './floorMapModel';
 
-type Client = Pick<ClubApiClient, 'getFloorMap' | 'updateFloorMap'>;
+type Client = Pick<VenueApi, 'getFloorMap' | 'updateFloorMap'>;
 
 export function FloorMapEditor({ client, branchId, organizationId, canEdit }: {
   client: Client;

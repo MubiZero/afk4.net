@@ -15,7 +15,7 @@ function setup() {
   const client = { getTariffOptions: mock(async () => [option]), getCatalog: mock(async () => []), getPackageOptions: mock(async () => []) };
   render(
     <I18nProvider><ToastProvider>
-      <MonetizationScreen client={client as never} branchId="b1" organizationId="org" canManageTariffs canManageCatalog canManagePackages />
+      <MonetizationScreen tariffs={client as never} catalog={client as never} packages={client as never} branchId="b1" organizationId="org" canManageTariffs canManageCatalog canManagePackages />
     </ToastProvider></I18nProvider>
   );
 }

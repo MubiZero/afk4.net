@@ -25,7 +25,7 @@ export function TenantsScreen({
   client, selectedTenantId, initialInvite, onOpenTenant, onCloseTenant, onCreateTenant
 }: TenantsScreenProps) {
   const { t } = useI18n();
-  const state = useTenants(client);
+  const state = useTenants(client.tenants);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [planFilter, setPlanFilter] = useState('all');

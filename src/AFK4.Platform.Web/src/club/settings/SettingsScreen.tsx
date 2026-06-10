@@ -5,7 +5,8 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BranchApi } from '@/api/clients/branches';
+import type { StaffApi } from '@/api/clients/staff';
 import { useSettings } from './useSettings';
 import { BranchProfileForm } from './BranchProfileForm';
 import { OperatorsTable } from './OperatorsTable';
@@ -13,14 +14,15 @@ import { OperatorDrawer } from './OperatorDrawer';
 import { CreateOperatorDialog } from './CreateOperatorDialog';
 import type { OperatorRow } from './settingsModel';
 
-export function SettingsScreen({ client, branchId, organizationId, currentStaffUserId }: {
-  client: ClubApiClient;
+export function SettingsScreen({ branches, staff, branchId, organizationId, currentStaffUserId }: {
+  branches: BranchApi;
+  staff: StaffApi;
   branchId: string;
   organizationId: string;
   currentStaffUserId: string;
 }) {
   const { t } = useI18n();
-  const state = useSettings(client, branchId);
+  const state = useSettings({ branches, staff }, branchId);
   const [selected, setSelected] = useState<OperatorRow | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -41,7 +43,7 @@ export function SettingsScreen({ client, branchId, organizationId, currentStaffU
             requireManualDeviceApproval={requireManualDeviceApproval}
             preferredLocale={preferredLocale}
             branchId={branchId}
-            client={client}
+            client={branches}
             onDone={state.retry}
           />
         </TabsContent>
@@ -62,7 +64,7 @@ export function SettingsScreen({ client, branchId, organizationId, currentStaffU
                 operator={selected}
                 branchId={branchId}
                 currentStaffUserId={currentStaffUserId}
-                client={client}
+                client={staff}
                 onDone={() => { setSelected(null); state.retry(); }}
               />
             </>
@@ -74,7 +76,7 @@ export function SettingsScreen({ client, branchId, organizationId, currentStaffU
         open={creating}
         branchId={branchId}
         organizationId={organizationId}
-        client={client}
+        client={staff}
         onOpenChange={setCreating}
         onDone={state.retry}
       />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BranchApi } from '@/api/clients/branches';
+import type { VenueApi } from '@/api/clients/venue';
 import { buildOverview, type OverviewViewModel } from './overviewModel';
 
 export type OverviewState =
@@ -7,7 +8,10 @@ export type OverviewState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; data: OverviewViewModel; retry: () => void };
 
-type Loadable = Pick<ClubApiClient, 'getDashboardSummary' | 'listDevices' | 'listPendingDevices'>;
+type Loadable = {
+  branches: Pick<BranchApi, 'getDashboardSummary'>;
+  venue: Pick<VenueApi, 'listDevices' | 'listPendingDevices'>;
+};
 
 export function useOverview(client: Loadable, branchId: string): OverviewState {
   const [tick, setTick] = useState(0);
@@ -20,7 +24,7 @@ export function useOverview(client: Loadable, branchId: string): OverviewState {
     let cancelled = false;
     setState({ status: 'loading' });
     const c = clientRef.current;
-    Promise.all([c.getDashboardSummary(branchId), c.listDevices(branchId), c.listPendingDevices(branchId)])
+    Promise.all([c.branches.getDashboardSummary(branchId), c.venue.listDevices(branchId), c.venue.listPendingDevices(branchId)])
       .then(([summary, devices, pending]) => {
         if (cancelled) return;
         setState({ status: 'ready', data: buildOverview(summary, devices, pending) });

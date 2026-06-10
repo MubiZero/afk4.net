@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import type { SubscriptionListItem } from '@/api/types';
 
 export type SubscriptionsState =
@@ -7,7 +7,7 @@ export type SubscriptionsState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; data: SubscriptionListItem[]; retry: () => void };
 
-type Loadable = Pick<PlatformApiClient, 'listSubscriptions'>;
+type Loadable = Pick<SubscriptionsApi, 'listSubscriptions'>;
 
 export function useSubscriptions(client: Loadable): SubscriptionsState {
   const [tick, setTick] = useState(0);

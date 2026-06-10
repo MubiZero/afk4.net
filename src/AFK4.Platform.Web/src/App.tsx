@@ -375,9 +375,9 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
   const screenTitle = screenTitleKey ? t(screenTitleKey) : '';
   const roleLabel = t(ROLE_LABEL_KEY[role]);
   const { activeBranchId, select } = useActiveBranch(session.branchIds);
-  const directory = useBranchDirectory(clubClient, session.branchIds);
+  const directory = useBranchDirectory(clubClient.branches, session.branchIds);
   const branches = resolveBranchNames(session.branchIds, directory, t('branches.unnamed'));
-  const overviewState = useOverview(clubClient, activeBranchId);
+  const overviewState = useOverview({ branches: clubClient.branches, venue: clubClient.venue }, activeBranchId);
 
   const handleNavigate = (path: string) => {
     const resolution = resolvePlatformRoute(path, null, '');
@@ -411,7 +411,7 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
         <OverviewScreen state={overviewState} />
       ) : route.kind === 'clubVenue' ? (
         <VenueScreen
-          client={clubClient}
+          client={clubClient.venue}
           branchId={activeBranchId}
           organizationId={session.organizationId}
           canManageLayout={session.permissions.includes('layout.manage')}
@@ -419,7 +419,8 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
       ) : route.kind === 'clubClients' ? (
         session.permissions.includes('players.view') ? (
           <ClientsScreen
-            client={clubClient}
+            client={clubClient.players}
+            packages={clubClient.packages}
             branchId={activeBranchId}
             organizationId={session.organizationId}
             canCreate={session.permissions.includes('players.create')}
@@ -438,7 +439,9 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
       ) : route.kind === 'clubMonetization' ? (
         role === 'owner' ? (
           <MonetizationScreen
-            client={clubClient}
+            tariffs={clubClient.tariffs}
+            catalog={clubClient.catalog}
+            packages={clubClient.packages}
             branchId={activeBranchId}
             organizationId={session.organizationId}
             canManageTariffs={session.permissions.includes('tariffs.manage')}
@@ -451,7 +454,8 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
       ) : route.kind === 'clubSettings' ? (
         role === 'owner' ? (
           <SettingsScreen
-            client={clubClient}
+            branches={clubClient.branches}
+            staff={clubClient.staff}
             branchId={activeBranchId}
             organizationId={session.organizationId}
             currentStaffUserId={session.staffUserId}
@@ -461,19 +465,19 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
         )
       ) : route.kind === 'clubReports' ? (
         session.permissions.includes('reports.view') ? (
-          <ReportsScreen client={clubClient} branchId={activeBranchId} />
+          <ReportsScreen client={clubClient.reports} branchId={activeBranchId} />
         ) : (
           <EmptyState message={t('reports.noAccess')} />
         )
       ) : route.kind === 'clubJournal' ? (
         session.permissions.includes('audit.view') ? (
-          <JournalScreen client={clubClient} branchId={activeBranchId} />
+          <JournalScreen client={clubClient.audit} branchId={activeBranchId} />
         ) : (
           <EmptyState message={t('journal.noAccess')} />
         )
       ) : route.kind === 'clubBranches' ? (
         <BranchesScreen
-          client={clubClient}
+          client={clubClient.branches}
           branchIds={session.branchIds}
           organizationId={session.organizationId}
           onOpenBranch={(id) => { select(id); onNavigate({ kind: 'clubDashboard' }, '/club'); }}
@@ -484,13 +488,13 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
           branches={branches}
           roleLabel={roleLabel}
           onSignOut={onSignOut}
-          client={clubClient}
+          client={clubClient.profile}
         />
       ) : route.kind === 'clubBilling' ? (
-        <BillingScreen client={clubClient} organizationId={session.organizationId} />
+        <BillingScreen client={clubClient.billing} organizationId={session.organizationId} />
       ) : (
         <InstallScreen
-          client={clubClient}
+          client={clubClient.ownerCode}
           canManage={session.permissions.includes('identity.owner_code.manage')}
           branches={session.branchIds.map(id => ({ branchId: id, name: directory[id]?.name ?? t('branches.unnamed'), city: directory[id]?.city }))}
         />
@@ -545,8 +549,8 @@ function PlatformArea({
   onCreatedTenant, onCancelNewTenant, onBackToTenants, onSignOut
 }: PlatformAreaProps) {
   const { t } = useI18n();
-  const metricsState = useTenantMetrics(adminClient);
-  const billingMetricsState = useBillingMetrics(adminClient);
+  const metricsState = useTenantMetrics(adminClient.tenants);
+  const billingMetricsState = useBillingMetrics(adminClient.invoices);
   const screenTitle = t(PLATFORM_SCREEN_TITLE_KEY[route.kind]);
   const roleLabel = t(PLATFORM_ROLE_LABEL_KEY);
 
@@ -586,7 +590,7 @@ function PlatformArea({
         <PlatformProfileScreen session={session} onSignOut={onSignOut} />
       ) : route.kind === 'newTenant' ? (
         <NewTenantScreen
-          client={adminClient}
+          client={adminClient.tenants}
           onCreated={onCreatedTenant}
           onCancel={onCancelNewTenant}
         />

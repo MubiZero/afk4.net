@@ -78,7 +78,7 @@ describe('PlatformApiClient', () => {
       onSessionChanged: () => {}
     });
 
-    await expect(client.listTenants()).rejects.toMatchObject({
+    await expect(client.tenants.listTenants()).rejects.toMatchObject({
       status: 400,
       message: 'Slug too short'
     });
@@ -109,7 +109,7 @@ describe('PlatformApiClient', () => {
       onSessionChanged
     });
 
-    const result = await client.listTenants();
+    const result = await client.tenants.listTenants();
 
     expect(result).toEqual([]);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
@@ -129,7 +129,7 @@ describe('PlatformApiClient', () => {
       onSessionChanged
     });
 
-    await expect(client.listTenants()).rejects.toBeInstanceOf(PlatformApiError);
+    await expect(client.tenants.listTenants()).rejects.toBeInstanceOf(PlatformApiError);
     expect(client.getSession()).toBeNull();
     expect(onSessionChanged).toHaveBeenCalledWith(null);
   });
@@ -159,7 +159,7 @@ describe('PlatformApiClient', () => {
       onSessionChanged: () => {}
     });
 
-    const invites = await client.listOwnerInvites('22222222-2222-2222-2222-222222222222');
+    const invites = await client.ownerInvites.listOwnerInvites('22222222-2222-2222-2222-222222222222');
 
     expect(invites).toHaveLength(1);
     expect(invites[0].codeSuffix).toBe('ka9p');
@@ -177,7 +177,7 @@ describe('PlatformApiClient', () => {
       onSessionChanged: () => {}
     });
 
-    await client.listTenants();
+    await client.tenants.listTenants();
 
     const lastCall = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     const headers = lastCall[1].headers as Record<string, string>;

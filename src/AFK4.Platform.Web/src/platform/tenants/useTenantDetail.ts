@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { TenantsApi } from '@/api/platformClients/tenants';
 import type { TenantDetail } from '@/api/types';
 
 export type TenantDetailState =
@@ -7,7 +7,7 @@ export type TenantDetailState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; data: TenantDetail; apply: (next: TenantDetail) => void; retry: () => void };
 
-type Loadable = Pick<PlatformApiClient, 'getTenant'>;
+type Loadable = Pick<TenantsApi, 'getTenant'>;
 
 export function useTenantDetail(client: Loadable, organizationId: string): TenantDetailState {
   const [tick, setTick] = useState(0);

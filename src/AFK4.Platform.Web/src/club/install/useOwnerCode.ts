@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { OwnerCodeApi } from '@/api/clients/ownerCode';
 import type { OwnerCodeSummary } from '@/api/types';
 
-type Loadable = Pick<ClubApiClient, 'getOwnerCode'>;
+type Loadable = Pick<OwnerCodeApi, 'getOwnerCode'>;
 
 export type OwnerCodeState =
   | { status: 'loading' }

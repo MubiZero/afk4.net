@@ -4,14 +4,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { VenueApi } from '@/api/clients/venue';
 import { useDevices } from './useDevices';
 import { DevicesTable } from './DevicesTable';
 import { DeviceDrawer } from './DeviceDrawer';
 import type { DeviceRow } from './devicesModel';
 import { FloorMapEditor } from './FloorMapEditor';
 
-export function VenueScreen({ client, branchId, organizationId, canManageLayout }: { client: ClubApiClient; branchId: string; organizationId: string; canManageLayout: boolean }) {
+export function VenueScreen({ client, branchId, organizationId, canManageLayout }: { client: VenueApi; branchId: string; organizationId: string; canManageLayout: boolean }) {
   const { t } = useI18n();
   const state = useDevices(client, branchId);
   const [selected, setSelected] = useState<DeviceRow | null>(null);

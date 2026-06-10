@@ -2,7 +2,7 @@ import { describe, it, expect, mock } from 'bun:test';
 import { render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '../../i18n/I18nProvider';
 import { BillingScreen } from './BillingScreen';
-import type { ClubApiClient } from '../../api/clubApi';
+import type { BillingApi } from '../../api/clients/billing';
 import type { Invoice, TenantSubscription } from '../../api/types';
 
 function sub(): TenantSubscription {
@@ -15,18 +15,18 @@ function sub(): TenantSubscription {
   };
 }
 
-function client(invoices: Invoice[]): ClubApiClient {
+function client(invoices: Invoice[]): BillingApi {
   return {
     getSubscription: mock().mockResolvedValue(sub()),
     listInvoices: mock().mockResolvedValue(invoices)
-  } as unknown as ClubApiClient;
+  } as unknown as BillingApi;
 }
 
-function errorClient(): ClubApiClient {
+function errorClient(): BillingApi {
   return {
     getSubscription: mock().mockRejectedValue(new Error('network')),
     listInvoices: mock().mockRejectedValue(new Error('network'))
-  } as unknown as ClubApiClient;
+  } as unknown as BillingApi;
 }
 
 function wrap(ui: React.ReactElement) {

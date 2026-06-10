@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PackagesApi } from '@/api/clients/packages';
 import {
   buildCreatePackageRequest, buildUpdatePackageRequest, type PackageFormValues, type PackageRow
 } from './packagesModel';
 
-type Actions = Pick<ClubApiClient, 'createPackageDefinition' | 'updatePackageDefinition'>;
+type Actions = Pick<PackagesApi, 'createPackageDefinition' | 'updatePackageDefinition'>;
 
 export function PackageFormDialog({ open, mode, branchId, organizationId, client, initial, onOpenChange, onDone }: {
   open: boolean;

@@ -22,7 +22,7 @@ interface TenantDrawerProps {
 
 export function TenantDrawer({ client, organizationId, initialInvite, onChanged }: TenantDrawerProps) {
   const { t, formatDate } = useI18n();
-  const state = useTenantDetail(client, organizationId);
+  const state = useTenantDetail(client.tenants, organizationId);
 
   if (state.status === 'loading') return <LoadingCards count={3} />;
   if (state.status === 'error') {
@@ -49,15 +49,15 @@ export function TenantDrawer({ client, organizationId, initialInvite, onChanged 
         </CardContent>
       </Card>
 
-      <TenantStatusSection client={client} tenant={tenant} onUpdated={handleUpdated} />
-      <TenantSubscriptionSection client={client} organizationId={tenant.organizationId} />
-      <TenantLimitsSection client={client} tenant={tenant} onUpdated={handleUpdated} />
-      <TenantInvoicesSection client={client} organizationId={tenant.organizationId} />
+      <TenantStatusSection client={client.tenants} tenant={tenant} onUpdated={handleUpdated} />
+      <TenantSubscriptionSection client={client.subscriptions} plans={client.plans} organizationId={tenant.organizationId} />
+      <TenantLimitsSection client={client.tenants} tenant={tenant} onUpdated={handleUpdated} />
+      <TenantInvoicesSection client={client.invoices} organizationId={tenant.organizationId} />
 
-      <TenantOwnerInvitesSection client={client} organizationId={tenant.organizationId} branches={tenant.branches} initialInvite={initialInvite} />
-      <TenantSupportNotesSection client={client} organizationId={tenant.organizationId} />
+      <TenantOwnerInvitesSection client={client.ownerInvites} organizationId={tenant.organizationId} branches={tenant.branches} initialInvite={initialInvite} />
+      <TenantSupportNotesSection client={client.supportNotes} organizationId={tenant.organizationId} />
 
-      <TenantHealthSection client={client} organizationId={tenant.organizationId} />
+      <TenantHealthSection client={client.tenants} organizationId={tenant.organizationId} />
     </div>
   );
 }

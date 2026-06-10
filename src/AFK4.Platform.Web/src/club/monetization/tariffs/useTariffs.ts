@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { TariffsApi } from '@/api/clients/tariffs';
 import { toTariffRows, type TariffRow } from './tariffsModel';
 
-type Loadable = Pick<ClubApiClient, 'getTariffOptions'>;
+type Loadable = Pick<TariffsApi, 'getTariffOptions'>;
 
 export type TariffsState =
   | { status: 'loading' }

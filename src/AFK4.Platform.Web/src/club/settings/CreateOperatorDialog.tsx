@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { StaffApi } from '@/api/clients/staff';
 import { ASSIGNABLE_ROLES, roleLabelKey } from './roles';
 
-type Actions = Pick<ClubApiClient, 'createStaffInvite'>;
+type Actions = Pick<StaffApi, 'createStaffInvite'>;
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 

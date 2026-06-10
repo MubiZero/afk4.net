@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
+import type { PackagesApi } from '@/api/clients/packages';
 import { toPackageChoices, toPlayerPackageRows, type PackageChoice, type PlayerPackageRow } from './playerPackagesModel';
 
-type Loadable = Pick<ClubApiClient, 'getPlayerPackages' | 'getPackageOptions'>;
+type Loadable = {
+  players: Pick<PlayersApi, 'getPlayerPackages'>;
+  packages: Pick<PackagesApi, 'getPackageOptions'>;
+};
 
 export type PlayerPackagesState =
   | { status: 'loading' }
@@ -23,8 +27,8 @@ export function usePlayerPackages(client: Loadable, playerAccountId: string, bra
     let cancelled = false;
     setPhase('loading');
     Promise.all([
-      clientRef.current.getPlayerPackages(playerAccountId),
-      clientRef.current.getPackageOptions(branchId)
+      clientRef.current.players.getPlayerPackages(playerAccountId),
+      clientRef.current.packages.getPackageOptions(branchId)
     ])
       .then(([packages, options]) => {
         if (!cancelled) {

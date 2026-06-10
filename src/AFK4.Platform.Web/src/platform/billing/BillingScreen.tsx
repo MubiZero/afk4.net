@@ -14,9 +14,9 @@ export function BillingScreen({ client }: { client: PlatformApiClient }) {
         <TabsTrigger value="invoices">{t('platform.billing.tab.invoices')}</TabsTrigger>
         <TabsTrigger value="plans">{t('platform.billing.tab.plans')}</TabsTrigger>
       </TabsList>
-      <TabsContent value="subscriptions"><SubscriptionsTab client={client} /></TabsContent>
-      <TabsContent value="invoices"><InvoicesTab client={client} /></TabsContent>
-      <TabsContent value="plans"><PlansTab client={client} /></TabsContent>
+      <TabsContent value="subscriptions"><SubscriptionsTab client={client.subscriptions} /></TabsContent>
+      <TabsContent value="invoices"><InvoicesTab client={client.invoices} /></TabsContent>
+      <TabsContent value="plans"><PlansTab client={client.plans} /></TabsContent>
     </Tabs>
   );
 }

@@ -6,10 +6,10 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BranchApi } from '@/api/clients/branches';
 import type { BranchProfileView } from './settingsModel';
 
-type Actions = Pick<ClubApiClient, 'updateBranchProfile' | 'updateBranchSettings'>;
+type Actions = Pick<BranchApi, 'updateBranchProfile' | 'updateBranchSettings'>;
 
 const BRANCH_LOCALES = ['ru', 'en', 'tg'] as const;
 const LOCALE_ENDONYM: Record<string, string> = { ru: 'Русский', en: 'English', tg: 'Тоҷикӣ' };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { ReportsApi } from '@/api/clients/reports';
 import { DateRangeControl } from './DateRangeControl';
 import { ReportTab } from './ReportTab';
 import {
@@ -9,7 +9,7 @@ import {
   buildShiftReport, buildSalesReport, buildGameplayReport, buildCashReport, buildOperatorActionReport
 } from './reportsModel';
 
-type Client = Pick<ClubApiClient,
+type Client = Pick<ReportsApi,
   'getShiftReport' | 'getSalesReport' | 'getGameplayTimeReport' | 'getCashOperationReport' | 'getOperatorActionReport' | 'fetchReportCsv'>;
 
 export function ReportsScreen({ client, branchId }: { client: Client; branchId: string }) {

@@ -6,10 +6,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { VenueApi } from '@/api/clients/venue';
 import type { DeviceRow, SeatOption } from './devicesModel';
 
-type DeviceActions = Pick<ClubApiClient, 'renameDevice' | 'moveDeviceSeat' | 'removeDevice' | 'approveDevice' | 'rejectDevice'>;
+type DeviceActions = Pick<VenueApi, 'renameDevice' | 'moveDeviceSeat' | 'removeDevice' | 'approveDevice' | 'rejectDevice'>;
 const DEFAULT_APPROVE_REASON = 'Подтверждено из веб-консоли';
 
 export function DeviceDrawer({ device, seatOptions, client, onDone }: {

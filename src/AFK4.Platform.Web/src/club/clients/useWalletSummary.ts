@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
 import { toBalanceView, toLedgerRows, type BalanceView, type LedgerRow } from './clientsModel';
 
-type Loadable = Pick<ClubApiClient, 'getWalletSummary'>;
+type Loadable = Pick<PlayersApi, 'getWalletSummary'>;
 
 export type WalletSummaryState =
   | { status: 'loading' }

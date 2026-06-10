@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { minorToMajor } from '../money';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BillingApi } from '@/api/clients/billing';
 import { useBilling } from './useBilling';
 import {
   subscriptionStatusLabelKey,
@@ -14,7 +14,7 @@ import {
   buildInvoiceRows
 } from './billingModel';
 
-export function BillingScreen({ client, organizationId }: { client: ClubApiClient; organizationId: string }) {
+export function BillingScreen({ client, organizationId }: { client: BillingApi; organizationId: string }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const state = useBilling(client, organizationId);
 

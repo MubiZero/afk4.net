@@ -26,7 +26,7 @@ function fakeClient(over: Record<string, unknown> = {}) {
 
 describe('TenantSubscriptionSection', () => {
   it('loads and shows the current plan', async () => {
-    render(<I18nProvider><ToastProvider><TenantSubscriptionSection client={fakeClient()} organizationId="o" /></ToastProvider></I18nProvider>);
+    render(<I18nProvider><ToastProvider><TenantSubscriptionSection client={fakeClient()} plans={fakeClient()} organizationId="o" /></ToastProvider></I18nProvider>);
     await waitFor(() => expect(screen.getByText('Подписка')).toBeInTheDocument());
   });
 });

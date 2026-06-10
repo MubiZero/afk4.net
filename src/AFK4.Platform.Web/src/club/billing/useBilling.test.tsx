@@ -1,7 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useBilling } from './useBilling';
-import type { ClubApiClient } from '../../api/clubApi';
+import type { BillingApi } from '../../api/clients/billing';
 import type { Invoice, TenantSubscription } from '../../api/types';
 
 function makeSubscription(): TenantSubscription {
@@ -14,12 +14,12 @@ function makeSubscription(): TenantSubscription {
   };
 }
 
-function makeClient(over: Partial<ClubApiClient>): ClubApiClient {
+function makeClient(over: Partial<BillingApi>): BillingApi {
   return {
     getSubscription: mock().mockResolvedValue(makeSubscription()),
     listInvoices: mock().mockResolvedValue([] as Invoice[]),
     ...over
-  } as unknown as ClubApiClient;
+  } as unknown as BillingApi;
 }
 
 describe('useBilling', () => {

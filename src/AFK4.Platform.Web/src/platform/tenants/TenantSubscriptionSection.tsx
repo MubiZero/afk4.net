@@ -7,16 +7,17 @@ import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/club/money';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
+import type { PlansApi } from '@/api/platformClients/plans';
 import type { SubscriptionPlan, TenantSubscription } from '@/api/types';
 import { SUBSCRIPTION_STATUS_LABEL } from '@/platform/billing/billingModel';
 
-type Client = Pick<PlatformApiClient, 'getSubscription' | 'updateSubscription' | 'listPlans'>;
+type Client = Pick<SubscriptionsApi, 'getSubscription' | 'updateSubscription'>;
 
 const STATUS_OPTIONS = ['trial', 'active', 'past_due', 'cancelled'] as const;
 const INTERVAL_OPTIONS = ['monthly', 'yearly'] as const;
 
-export function TenantSubscriptionSection({ client, organizationId }: { client: Client; organizationId: string }) {
+export function TenantSubscriptionSection({ client, plans: plansApi, organizationId }: { client: Client; plans: Pick<PlansApi, 'listPlans'>; organizationId: string }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
@@ -32,7 +33,7 @@ export function TenantSubscriptionSection({ client, organizationId }: { client: 
   useEffect(() => {
     let cancelled = false;
     setSub(null); setError(false);
-    Promise.all([client.getSubscription(organizationId), client.listPlans(true)])
+    Promise.all([client.getSubscription(organizationId), plansApi.listPlans(true)])
       .then(([s, p]) => {
         if (cancelled) return;
         setSub(s); setPlans(p);

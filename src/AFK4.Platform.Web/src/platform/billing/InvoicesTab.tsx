@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/club/money';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { InvoiceListItem } from '@/api/types';
 import { useInvoices } from './useInvoices';
 import {
@@ -19,7 +19,7 @@ import {
 
 type Action = { kind: 'markPaid' | 'void'; invoice: InvoiceListItem };
 
-export function InvoicesTab({ client }: { client: PlatformApiClient }) {
+export function InvoicesTab({ client }: { client: InvoicesApi }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useInvoices(client);

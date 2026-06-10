@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
 import { buildPurchasePackageRequest, type PackageChoice } from './playerPackagesModel';
 
-type Actions = Pick<ClubApiClient, 'purchasePackage'>;
+type Actions = Pick<PlayersApi, 'purchasePackage'>;
 
 export function PurchasePackageDialog({ open, client, playerAccountId, organizationId, choices, onOpenChange, onDone }: {
   open: boolean;

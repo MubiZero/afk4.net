@@ -25,7 +25,7 @@ function fakeClient() {
 function setup(client = fakeClient()) {
   render(
     <I18nProvider><ToastProvider>
-      <SettingsScreen client={client as never} branchId="b1" organizationId="org" currentStaffUserId="me" />
+      <SettingsScreen branches={client as never} staff={client as never} branchId="b1" organizationId="org" currentStaffUserId="me" />
     </ToastProvider></I18nProvider>
   );
   return { client };

@@ -3,12 +3,12 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Button } from '@/components/ui/button';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { TariffsApi } from '@/api/clients/tariffs';
 import { useTariffs } from './useTariffs';
 import { TariffFormDialog } from './TariffFormDialog';
 import type { TariffRow } from './tariffsModel';
 
-type Client = Pick<ClubApiClient,
+type Client = Pick<TariffsApi,
   'getTariffOptions' | 'createTariff' | 'createTariffVersion' | 'updateTariff' | 'updateTariffVersion'>;
 
 export function TariffsTab({ client, branchId, organizationId, canManage }: {

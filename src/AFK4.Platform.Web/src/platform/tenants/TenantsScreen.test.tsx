@@ -14,26 +14,30 @@ function summary(over: Partial<TenantSummary>): TenantSummary {
 }
 function client() {
   return {
-    listTenants: mock().mockResolvedValue([summary({ organizationId: 'o1', name: 'Acme' }), summary({ organizationId: 'o2', name: 'Globex', slug: 'globex' })]),
-    getTenant: mock().mockResolvedValue({
-      organizationId: 'o1', slug: 'acme', name: 'Acme', status: 'active', statusReason: null, statusChangedAtUtc: null,
-      planCode: 'starter', subscriptionStatus: 'active',
-      limits: { maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null },
-      branches: [], createdAtUtc: '2026-01-01T00:00:00Z', updatedAtUtc: '2026-01-01T00:00:00Z'
-    }),
-    updateStatus: mock(), updateLimits: mock(),
-    getSubscription: mock().mockResolvedValue({
-      organizationId: 'o1', planCode: 'starter', billingInterval: 'monthly', status: 'active',
-      cancelAtPeriodEnd: false, amountMinorUnits: 1000, currencyCode: 'RUB',
-      currentPeriodStartUtc: '2026-01-01T00:00:00Z', currentPeriodEndUtc: '2026-02-01T00:00:00Z',
-      nextInvoiceUtc: null
-    }),
-    updateSubscription: mock(),
-    listPlans: mock().mockResolvedValue([]),
-    listTenantInvoices: mock().mockResolvedValue([]),
-    generateInvoice: mock(),
-    listOwnerInvites: mock().mockResolvedValue([]), listSupportNotes: mock().mockResolvedValue([]),
-    getHealth: mock().mockResolvedValue({ organizationId: 'o1', status: 'active', branchCount: 0, deviceCount: 0, activeStaffUserCount: 0, latestStaffSignInAtUtc: null, latestMigration: null, recentErrorCount: 0, recentErrors: [] })
+    tenants: {
+      listTenants: mock().mockResolvedValue([summary({ organizationId: 'o1', name: 'Acme' }), summary({ organizationId: 'o2', name: 'Globex', slug: 'globex' })]),
+      getTenant: mock().mockResolvedValue({
+        organizationId: 'o1', slug: 'acme', name: 'Acme', status: 'active', statusReason: null, statusChangedAtUtc: null,
+        planCode: 'starter', subscriptionStatus: 'active',
+        limits: { maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null },
+        branches: [], createdAtUtc: '2026-01-01T00:00:00Z', updatedAtUtc: '2026-01-01T00:00:00Z'
+      }),
+      updateStatus: mock(), updateLimits: mock(),
+      getHealth: mock().mockResolvedValue({ organizationId: 'o1', status: 'active', branchCount: 0, deviceCount: 0, activeStaffUserCount: 0, latestStaffSignInAtUtc: null, latestMigration: null, recentErrorCount: 0, recentErrors: [] })
+    },
+    subscriptions: {
+      getSubscription: mock().mockResolvedValue({
+        organizationId: 'o1', planCode: 'starter', billingInterval: 'monthly', status: 'active',
+        cancelAtPeriodEnd: false, amountMinorUnits: 1000, currencyCode: 'RUB',
+        currentPeriodStartUtc: '2026-01-01T00:00:00Z', currentPeriodEndUtc: '2026-02-01T00:00:00Z',
+        nextInvoiceUtc: null
+      }),
+      updateSubscription: mock()
+    },
+    plans: { listPlans: mock().mockResolvedValue([]) },
+    invoices: { listTenantInvoices: mock().mockResolvedValue([]), generateInvoice: mock() },
+    ownerInvites: { listOwnerInvites: mock().mockResolvedValue([]) },
+    supportNotes: { listSupportNotes: mock().mockResolvedValue([]) }
   } as never;
 }
 

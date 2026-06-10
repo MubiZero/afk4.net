@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { InvoiceListItem } from '@/api/types';
 
 export type InvoicesState =
@@ -7,7 +7,7 @@ export type InvoicesState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; data: InvoiceListItem[]; retry: () => void };
 
-type Loadable = Pick<PlatformApiClient, 'listInvoices'>;
+type Loadable = Pick<InvoicesApi, 'listInvoices'>;
 
 export function useInvoices(client: Loadable): InvoicesState {
   const [tick, setTick] = useState(0);

@@ -5,12 +5,12 @@ import { Input } from '@/components/ui/input';
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { OwnerCodeApi } from '@/api/clients/ownerCode';
 import type { OwnerCodeSummary, OwnerCodeIssued } from '@/api/types';
 import { useOwnerCode } from './useOwnerCode';
 import { toOwnerCodeView } from './installModel';
 
-type Client = Pick<ClubApiClient, 'getOwnerCode' | 'generateOwnerCode' | 'rotateOwnerCode'>;
+type Client = Pick<OwnerCodeApi, 'getOwnerCode' | 'generateOwnerCode' | 'rotateOwnerCode'>;
 
 export function OwnerCodePanel({ client, canManage }: { client: Client; canManage: boolean }) {
   const { t, formatDate } = useI18n();

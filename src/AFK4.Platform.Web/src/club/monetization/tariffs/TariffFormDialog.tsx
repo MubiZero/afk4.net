@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { TariffsApi } from '@/api/clients/tariffs';
 import {
   buildCreateTariffRequest, buildCreateVersionRequest, buildUpdateTariffRequest, buildUpdateVersionRequest,
   type TariffFormValues, type TariffRow
 } from './tariffsModel';
 
-type Actions = Pick<ClubApiClient, 'createTariff' | 'createTariffVersion' | 'updateTariff' | 'updateTariffVersion'>;
+type Actions = Pick<TariffsApi, 'createTariff' | 'createTariffVersion' | 'updateTariff' | 'updateTariffVersion'>;
 
 export function TariffFormDialog({ open, mode, branchId, organizationId, client, initial, onOpenChange, onDone }: {
   open: boolean;

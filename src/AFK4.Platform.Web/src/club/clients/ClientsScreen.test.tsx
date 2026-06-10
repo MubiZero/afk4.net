@@ -32,7 +32,7 @@ function renderScreen(opts: { canCreate?: boolean; canViewBilling?: boolean } = 
   render(
     <I18nProvider><ToastProvider>
       <ClientsScreen
-        client={fakeClient() as never} branchId="b1" organizationId="org"
+        client={fakeClient() as never} packages={fakeClient() as never} branchId="b1" organizationId="org"
         canCreate={opts.canCreate ?? true} canViewBilling={opts.canViewBilling ?? true}
       />
     </ToastProvider></I18nProvider>

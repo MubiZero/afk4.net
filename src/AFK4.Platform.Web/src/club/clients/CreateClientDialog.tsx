@@ -4,10 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
 import { buildCreatePlayerRequest } from './clientsModel';
 
-type Actions = Pick<ClubApiClient, 'createPlayer'>;
+type Actions = Pick<PlayersApi, 'createPlayer'>;
 
 export function CreateClientDialog({ open, branchId, organizationId, client, onOpenChange, onDone }: {
   open: boolean;

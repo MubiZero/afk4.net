@@ -28,7 +28,7 @@ function fakeClient() {
 function renderPanel(canPurchase: boolean) {
   render(
     <I18nProvider><ToastProvider>
-      <PackagesPanel client={fakeClient() as never} playerAccountId="p1" branchId="b1" organizationId="org" canPurchase={canPurchase} />
+      <PackagesPanel client={fakeClient() as never} packages={fakeClient() as never} playerAccountId="p1" branchId="b1" organizationId="org" canPurchase={canPurchase} />
     </ToastProvider></I18nProvider>
   );
 }

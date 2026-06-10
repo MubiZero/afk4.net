@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { AuditApi } from '@/api/clients/audit';
 import type { AuditSearchQuery, AuditRecord } from '@/api/types';
 
-type Loadable = Pick<ClubApiClient, 'searchAudit'>;
+type Loadable = Pick<AuditApi, 'searchAudit'>;
 
 export type AuditState =
   | { status: 'loading' }

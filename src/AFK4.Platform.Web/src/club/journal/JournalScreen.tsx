@@ -3,14 +3,14 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { AuditApi } from '@/api/clients/audit';
 import type { AuditSearchQuery } from '@/api/types';
 import { AuditFilters, type AuditDraft } from './AuditFilters';
 import { useAudit } from './useAudit';
 import { toAuditRows } from './auditModel';
 import { presetRange, type DateRange } from '../reports/reportsModel';
 
-type Client = Pick<ClubApiClient, 'searchAudit'>;
+type Client = Pick<AuditApi, 'searchAudit'>;
 
 const DEFAULT_LIMIT = 100;
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { PlatformBillingMetrics } from '@/api/types';
 
 export type BillingMetricsState =
@@ -7,7 +7,7 @@ export type BillingMetricsState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; data: PlatformBillingMetrics; retry: () => void };
 
-type Loadable = Pick<PlatformApiClient, 'getBillingMetrics'>;
+type Loadable = Pick<InvoicesApi, 'getBillingMetrics'>;
 
 export function useBillingMetrics(client: Loadable): BillingMetricsState {
   const [tick, setTick] = useState(0);

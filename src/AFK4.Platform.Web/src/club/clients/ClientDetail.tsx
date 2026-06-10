@@ -1,17 +1,19 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
+import type { PackagesApi } from '@/api/clients/packages';
 import type { PlayerRow } from './clientsModel';
 import { WalletPanel, type MoneyPerms } from './WalletPanel';
 import { PackagesPanel } from './PackagesPanel';
 
-type Client = Pick<ClubApiClient,
+type Client = Pick<PlayersApi,
   'getWalletSummary' | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'
-  | 'getPlayerPackages' | 'getPackageOptions' | 'purchasePackage'>;
+  | 'getPlayerPackages' | 'purchasePackage'>;
 
-export function ClientDetail({ client, player, branchId, organizationId, canViewBilling, moneyPerms, canPurchase, onMutated }: {
+export function ClientDetail({ client, packages, player, branchId, organizationId, canViewBilling, moneyPerms, canPurchase, onMutated }: {
   client: Client;
+  packages: Pick<PackagesApi, 'getPackageOptions'>;
   player: PlayerRow;
   branchId: string;
   organizationId: string;
@@ -40,7 +42,7 @@ export function ClientDetail({ client, player, branchId, organizationId, canView
             moneyPerms={moneyPerms} onMutated={onMutated}
           />
           <PackagesPanel
-            client={client} playerAccountId={player.playerAccountId} branchId={branchId} organizationId={organizationId}
+            client={client} packages={packages} playerAccountId={player.playerAccountId} branchId={branchId} organizationId={organizationId}
             canPurchase={canPurchase ?? false} onMutated={onMutated}
           />
         </>

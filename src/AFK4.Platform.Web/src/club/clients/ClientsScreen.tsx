@@ -5,20 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
+import type { PackagesApi } from '@/api/clients/packages';
 import { useClientSearch } from './useClientSearch';
 import { CreateClientDialog } from './CreateClientDialog';
 import { ClientDetail } from './ClientDetail';
 import type { PlayerRow } from './clientsModel';
 import type { MoneyPerms } from './WalletPanel';
 
-type Client = Pick<ClubApiClient,
+type Client = Pick<PlayersApi,
   'searchPlayers' | 'getWalletSummary' | 'createPlayer'
   | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'
-  | 'getPlayerPackages' | 'getPackageOptions' | 'purchasePackage'>;
+  | 'getPlayerPackages' | 'purchasePackage'>;
 
-export function ClientsScreen({ client, branchId, organizationId, canCreate, canViewBilling, moneyPerms, canPurchase }: {
+export function ClientsScreen({ client, packages, branchId, organizationId, canCreate, canViewBilling, moneyPerms, canPurchase }: {
   client: Client;
+  packages: Pick<PackagesApi, 'getPackageOptions'>;
   branchId: string;
   organizationId: string;
   canCreate: boolean;
@@ -94,6 +96,7 @@ export function ClientsScreen({ client, branchId, organizationId, canCreate, can
         <ClientDetail
           key={selected.playerAccountId}
           client={client}
+          packages={packages}
           player={selected}
           branchId={branchId}
           organizationId={organizationId}
