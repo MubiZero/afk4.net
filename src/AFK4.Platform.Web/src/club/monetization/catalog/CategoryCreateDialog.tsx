@@ -4,10 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { CatalogApi } from '@/api/clients/catalog';
 import { buildCreateCategoryRequest, type CategoryOption } from './catalogModel';
 
-type Actions = Pick<ClubApiClient, 'createProductCategory'>;
+type Actions = Pick<CatalogApi, 'createProductCategory'>;
 
 export function CategoryCreateDialog({ open, branchId, organizationId, client, onCreated, onOpenChange }: {
   open: boolean;

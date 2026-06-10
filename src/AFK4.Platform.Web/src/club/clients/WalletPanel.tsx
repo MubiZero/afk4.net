@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { MessageKey } from '@/i18n/messages';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
 import { useWalletSummary } from './useWalletSummary';
 import { AmountReasonDialog } from './AmountReasonDialog';
 import { ManualCorrectionDialog } from './ManualCorrectionDialog';
 import { RefundDialog, type RefundTarget } from './RefundDialog';
 
-type Client = Pick<ClubApiClient,
+type Client = Pick<PlayersApi,
   'getWalletSummary' | 'topUpWallet' | 'payDebt' | 'createManualCorrection' | 'refundLedgerEntry'>;
 
 export interface MoneyPerms {

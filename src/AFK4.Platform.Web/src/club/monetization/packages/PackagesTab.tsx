@@ -3,12 +3,12 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Button } from '@/components/ui/button';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PackagesApi } from '@/api/clients/packages';
 import { usePackages } from './usePackages';
 import { PackageFormDialog } from './PackageFormDialog';
 import type { PackageRow } from './packagesModel';
 
-type Client = Pick<ClubApiClient, 'getPackageOptions' | 'createPackageDefinition' | 'updatePackageDefinition'>;
+type Client = Pick<PackagesApi, 'getPackageOptions' | 'createPackageDefinition' | 'updatePackageDefinition'>;
 
 export function PackagesTab({ client, branchId, organizationId, canManage }: {
   client: Client;

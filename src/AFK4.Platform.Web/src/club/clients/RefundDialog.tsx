@@ -4,10 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
 import { buildRefundRequest } from './moneyOpsModel';
 
-type Actions = Pick<ClubApiClient, 'refundLedgerEntry'>;
+type Actions = Pick<PlayersApi, 'refundLedgerEntry'>;
 
 export interface RefundTarget {
   ledgerEntryId: string;

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { VenueApi } from '@/api/clients/venue';
 import { PlatformApiError } from '@/api/platformApi';
 import { buildBulkRequest, toEditorZones, type EditorZone } from './floorMapModel';
 
-type Loadable = Pick<ClubApiClient, 'getFloorMap' | 'updateFloorMap'>;
+type Loadable = Pick<VenueApi, 'getFloorMap' | 'updateFloorMap'>;
 
 export type SaveOutcome = 'ok' | 'conflict' | 'error';
 

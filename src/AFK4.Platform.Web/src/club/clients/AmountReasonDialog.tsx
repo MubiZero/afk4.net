@@ -4,10 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
 import { buildAmountReasonRequest } from './moneyOpsModel';
 
-type Actions = Pick<ClubApiClient, 'topUpWallet' | 'payDebt'>;
+type Actions = Pick<PlayersApi, 'topUpWallet' | 'payDebt'>;
 
 export function AmountReasonDialog({ open, kind, client, playerAccountId, organizationId, currencyCode, onOpenChange, onDone }: {
   open: boolean;

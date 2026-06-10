@@ -21,7 +21,7 @@ function makeClient(fetchImpl: typeof fetch) {
 it('updateStaffRoles PATCHes the roles route with the role names', async () => {
   const fetchImpl = mock().mockResolvedValue(okResponse({ staffUserId: 's1' }));
   const client = makeClient(fetchImpl as unknown as typeof fetch);
-  await client.updateStaffRoles('b1', 's1', { organizationId: 'org1', roleNames: ['branch_manager'] });
+  await client.staff.updateStaffRoles('b1', 's1', { organizationId: 'org1', roleNames: ['branch_manager'] });
   const [url, init] = fetchImpl.mock.calls[0];
   expect(url).toBe('https://api.test/api/branches/b1/staff/s1/roles');
   expect(init.method).toBe('PATCH');
@@ -31,7 +31,7 @@ it('updateStaffRoles PATCHes the roles route with the role names', async () => {
 it('updateStaffState PATCHes the state route', async () => {
   const fetchImpl = mock().mockResolvedValue(okResponse({ staffUserId: 's1' }));
   const client = makeClient(fetchImpl as unknown as typeof fetch);
-  await client.updateStaffState('b1', 's1', { organizationId: 'org1', isActive: false });
+  await client.staff.updateStaffState('b1', 's1', { organizationId: 'org1', isActive: false });
   const [url, init] = fetchImpl.mock.calls[0];
   expect(url).toBe('https://api.test/api/branches/b1/staff/s1/state');
   expect(init.method).toBe('PATCH');
@@ -41,7 +41,7 @@ it('updateStaffState PATCHes the state route', async () => {
 it('resetStaffPassword POSTs the password-reset route', async () => {
   const fetchImpl = mock().mockResolvedValue(okResponse({ staffUserId: 's1' }));
   const client = makeClient(fetchImpl as unknown as typeof fetch);
-  await client.resetStaffPassword('b1', 's1', { organizationId: 'org1', newPassword: 'longenough' });
+  await client.staff.resetStaffPassword('b1', 's1', { organizationId: 'org1', newPassword: 'longenough' });
   const [url, init] = fetchImpl.mock.calls[0];
   expect(url).toBe('https://api.test/api/branches/b1/staff/s1/password-reset');
   expect(init.method).toBe('POST');

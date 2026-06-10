@@ -7,9 +7,9 @@ import { ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { PlatformApiError } from '@/api/platformApi';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { ProfileApi } from '@/api/clients/profile';
 
-type Client = Pick<ClubApiClient, 'getStaffPhone' | 'startPhoneVerification' | 'confirmPhoneVerification'>;
+type Client = Pick<ProfileApi, 'getStaffPhone' | 'startPhoneVerification' | 'confirmPhoneVerification'>;
 type Phase = 'loading' | 'idle' | 'code' | 'verified' | 'error';
 
 // Backend error code → i18n key. t() has no interpolation, so the numeric

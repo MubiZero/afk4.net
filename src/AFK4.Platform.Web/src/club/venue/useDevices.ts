@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { VenueApi } from '@/api/clients/venue';
 import { buildDevices, type DevicesViewModel } from './devicesModel';
 
 export type DevicesState =
@@ -7,7 +7,7 @@ export type DevicesState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; data: DevicesViewModel; retry: () => void };
 
-type Loadable = Pick<ClubApiClient, 'listDevices' | 'listPendingDevices' | 'getFloorMap'>;
+type Loadable = Pick<VenueApi, 'listDevices' | 'listPendingDevices' | 'getFloorMap'>;
 
 export function useDevices(client: Loadable, branchId: string): DevicesState {
   const [tick, setTick] = useState(0);

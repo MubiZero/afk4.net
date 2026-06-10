@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { StaffSession } from '@/auth/staffTokenStore';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { ProfileApi } from '@/api/clients/profile';
 import { groupPermissions } from './profileModel';
 import { PhoneVerificationCard } from './PhoneVerificationCard';
 
@@ -12,7 +12,7 @@ export function ProfileScreen({ session, branches, roleLabel, onSignOut, client 
   branches: { branchId: string; name: string }[];
   roleLabel: string;
   onSignOut: () => void;
-  client: Pick<ClubApiClient, 'getStaffPhone' | 'startPhoneVerification' | 'confirmPhoneVerification'>;
+  client: Pick<ProfileApi, 'getStaffPhone' | 'startPhoneVerification' | 'confirmPhoneVerification'>;
 }) {
   const { t } = useI18n();
   const groups = groupPermissions(session.permissions);

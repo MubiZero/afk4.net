@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BranchApi } from '@/api/clients/branches';
 import { buildBranchRollup, type BranchRollupEntry, type BranchRollupViewModel } from './branchRollupModel';
 
 export type BranchRollupState =
   | { status: 'loading'; retry: () => void }
   | { status: 'ready'; data: BranchRollupViewModel; retry: () => void };
 
-type Loadable = Pick<ClubApiClient, 'getDashboardSummary' | 'getBranchProfile'>;
+type Loadable = Pick<BranchApi, 'getDashboardSummary' | 'getBranchProfile'>;
 
 export function useBranchRollup(client: Loadable, branchIds: readonly string[], unnamedLabel: string): BranchRollupState {
   const [tick, setTick] = useState(0);

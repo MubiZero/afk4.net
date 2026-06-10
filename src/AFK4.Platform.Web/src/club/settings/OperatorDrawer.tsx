@@ -6,11 +6,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { StaffApi } from '@/api/clients/staff';
 import { ASSIGNABLE_ROLES, roleLabelKey } from './roles';
 import type { OperatorRow } from './settingsModel';
 
-type Actions = Pick<ClubApiClient, 'updateStaffProfile' | 'updateStaffRoles' | 'updateStaffState' | 'resetStaffPassword'>;
+type Actions = Pick<StaffApi, 'updateStaffProfile' | 'updateStaffRoles' | 'updateStaffState' | 'resetStaffPassword'>;
 
 export function OperatorDrawer({ operator, branchId, currentStaffUserId, client, onDone }: {
   operator: OperatorRow;

@@ -19,7 +19,7 @@ function fakeClient(over: Partial<Record<'getDashboardSummary' | 'listDevices' |
 
 describe('useOverview', () => {
   it('reaches ready with a view-model', async () => {
-    const { result } = renderHook(() => useOverview(fakeClient(), 'b1'));
+    const { result } = renderHook(() => useOverview({ branches: fakeClient(), venue: fakeClient() }, 'b1'));
     expect(result.current.status).toBe('loading');
     await waitFor(() => expect(result.current.status).toBe('ready'));
     if (result.current.status === 'ready') {
@@ -29,7 +29,7 @@ describe('useOverview', () => {
 
   it('surfaces an error state and supports retry', async () => {
     const failing = fakeClient({ getDashboardSummary: mock().mockRejectedValue(new Error('boom')) });
-    const { result } = renderHook(() => useOverview(failing, 'b1'));
+    const { result } = renderHook(() => useOverview({ branches: failing, venue: failing }, 'b1'));
     await waitFor(() => expect(result.current.status).toBe('error'));
     (failing as { getDashboardSummary: ReturnType<typeof mock> }).getDashboardSummary.mockResolvedValue(okSummary);
     result.current.retry();

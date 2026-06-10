@@ -14,7 +14,7 @@ it('loads profile, settings, and staff into a ready state', async () => {
     getBranchSettings: mock().mockResolvedValue(settings),
     listStaff: mock().mockResolvedValue(staff)
   };
-  const { result } = renderHook(() => useSettings(client as never, 'b1'));
+  const { result } = renderHook(() => useSettings({ branches: client, staff: client } as never, 'b1'));
   expect(result.current.status).toBe('loading');
   await waitFor(() => expect(result.current.status).toBe('ready'));
   if (result.current.status === 'ready') {
@@ -28,6 +28,6 @@ it('surfaces an error state when a call rejects', async () => {
     getBranchSettings: mock().mockResolvedValue(settings),
     listStaff: mock().mockResolvedValue(staff)
   };
-  const { result } = renderHook(() => useSettings(client as never, 'b1'));
+  const { result } = renderHook(() => useSettings({ branches: client, staff: client } as never, 'b1'));
   await waitFor(() => expect(result.current.status).toBe('error'));
 });

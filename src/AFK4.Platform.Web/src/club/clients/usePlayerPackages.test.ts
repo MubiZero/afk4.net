@@ -20,7 +20,7 @@ it('loads player packages and purchase choices', async () => {
     getPlayerPackages: mock(async () => [pkg]),
     getPackageOptions: mock(async () => [option])
   };
-  const { result } = renderHook(() => usePlayerPackages(client as never, 'p1', 'b1'));
+  const { result } = renderHook(() => usePlayerPackages({ players: client, packages: client } as never, 'p1', 'b1'));
   await waitFor(() => expect(result.current.status).toBe('ready'));
   if (result.current.status !== 'ready') throw new Error('not ready');
   expect(result.current.rows.map(r => r.name)).toEqual(['Старт']);
@@ -34,6 +34,6 @@ it('reports an error when a load fails', async () => {
     getPlayerPackages: mock(async () => { throw new Error('boom'); }),
     getPackageOptions: mock(async () => [option])
   };
-  const { result } = renderHook(() => usePlayerPackages(client as never, 'p1', 'b1'));
+  const { result } = renderHook(() => usePlayerPackages({ players: client, packages: client } as never, 'p1', 'b1'));
   await waitFor(() => expect(result.current.status).toBe('error'));
 });

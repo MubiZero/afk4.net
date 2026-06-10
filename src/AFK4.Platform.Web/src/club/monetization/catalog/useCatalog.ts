@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { CatalogApi } from '@/api/clients/catalog';
 import { toProductRows, type ProductRow } from './catalogModel';
 
-type Loadable = Pick<ClubApiClient, 'getCatalog'>;
+type Loadable = Pick<CatalogApi, 'getCatalog'>;
 
 export type CatalogState =
   | { status: 'loading' }

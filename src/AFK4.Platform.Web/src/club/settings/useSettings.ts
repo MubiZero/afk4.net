@@ -1,6 +1,7 @@
 // src/club/settings/useSettings.ts
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BranchApi } from '@/api/clients/branches';
+import type { StaffApi } from '@/api/clients/staff';
 import { buildSettings, type SettingsViewModel } from './settingsModel';
 
 export type SettingsState =
@@ -8,7 +9,10 @@ export type SettingsState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; data: SettingsViewModel; retry: () => void };
 
-type Loadable = Pick<ClubApiClient, 'getBranchProfile' | 'getBranchSettings' | 'listStaff'>;
+type Loadable = {
+  branches: Pick<BranchApi, 'getBranchProfile' | 'getBranchSettings'>;
+  staff: Pick<StaffApi, 'listStaff'>;
+};
 
 export function useSettings(client: Loadable, branchId: string): SettingsState {
   const [tick, setTick] = useState(0);
@@ -21,7 +25,7 @@ export function useSettings(client: Loadable, branchId: string): SettingsState {
     let cancelled = false;
     setState({ status: 'loading' });
     const c = clientRef.current;
-    Promise.all([c.getBranchProfile(branchId), c.getBranchSettings(branchId), c.listStaff(branchId)])
+    Promise.all([c.branches.getBranchProfile(branchId), c.branches.getBranchSettings(branchId), c.staff.listStaff(branchId)])
       .then(([profile, settings, staff]) => {
         if (cancelled) return;
         setState({ status: 'ready', data: buildSettings(profile, settings, staff) });

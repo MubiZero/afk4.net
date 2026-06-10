@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BranchApi } from '@/api/clients/branches';
 
 export type BranchDirectory = Record<string, { name: string; city: string }>;
 
-type Loadable = Pick<ClubApiClient, 'getBranchProfile'>;
+type Loadable = Pick<BranchApi, 'getBranchProfile'>;
 
 export function useBranchDirectory(client: Loadable, branchIds: readonly string[]): BranchDirectory {
   const [directory, setDirectory] = useState<BranchDirectory>({});

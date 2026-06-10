@@ -3,14 +3,16 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Button } from '@/components/ui/button';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
+import type { PackagesApi } from '@/api/clients/packages';
 import { usePlayerPackages } from './usePlayerPackages';
 import { PurchasePackageDialog } from './PurchasePackageDialog';
 
-type Client = Pick<ClubApiClient, 'getPlayerPackages' | 'getPackageOptions' | 'purchasePackage'>;
+type Client = Pick<PlayersApi, 'getPlayerPackages' | 'purchasePackage'>;
 
-export function PackagesPanel({ client, playerAccountId, branchId, organizationId, canPurchase, onMutated }: {
+export function PackagesPanel({ client, packages, playerAccountId, branchId, organizationId, canPurchase, onMutated }: {
   client: Client;
+  packages: Pick<PackagesApi, 'getPackageOptions'>;
   playerAccountId: string;
   branchId: string;
   organizationId: string;
@@ -18,7 +20,7 @@ export function PackagesPanel({ client, playerAccountId, branchId, organizationI
   onMutated?: () => void;
 }) {
   const { t, formatNumber, formatDate } = useI18n();
-  const state = usePlayerPackages(client, playerAccountId, branchId);
+  const state = usePlayerPackages({ players: client, packages }, playerAccountId, branchId);
   const [purchasing, setPurchasing] = useState(false);
 
   if (state.status === 'loading') return <LoadingCards count={1} />;

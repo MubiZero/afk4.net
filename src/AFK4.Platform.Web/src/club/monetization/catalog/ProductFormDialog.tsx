@@ -7,12 +7,12 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { CatalogApi } from '@/api/clients/catalog';
 import {
   buildCreateProductRequest, buildUpdateProductRequest, type CategoryOption, type ProductFormValues, type ProductRow
 } from './catalogModel';
 
-type Actions = Pick<ClubApiClient, 'createProduct' | 'updateProduct'>;
+type Actions = Pick<CatalogApi, 'createProduct' | 'updateProduct'>;
 
 export function ProductFormDialog({ open, mode, branchId, organizationId, client, categories, initial, onOpenChange, onDone }: {
   open: boolean;

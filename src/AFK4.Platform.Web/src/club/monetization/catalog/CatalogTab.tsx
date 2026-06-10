@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { CatalogApi } from '@/api/clients/catalog';
 import { useCatalog } from './useCatalog';
 import { CategoryCreateDialog } from './CategoryCreateDialog';
 import { ProductFormDialog } from './ProductFormDialog';
 import { deriveCategories, type CategoryOption, type ProductRow } from './catalogModel';
 
-type Client = Pick<ClubApiClient, 'getCatalog' | 'createProductCategory' | 'createProduct' | 'updateProduct'>;
+type Client = Pick<CatalogApi, 'getCatalog' | 'createProductCategory' | 'createProduct' | 'updateProduct'>;
 
 export function CatalogTab({ client, branchId, organizationId, canManage }: {
   client: Client;

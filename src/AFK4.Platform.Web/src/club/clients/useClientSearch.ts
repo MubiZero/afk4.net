@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { PlayersApi } from '@/api/clients/players';
 import { toPlayerRows, type PlayerRow } from './clientsModel';
 
-type Loadable = Pick<ClubApiClient, 'searchPlayers'>;
+type Loadable = Pick<PlayersApi, 'searchPlayers'>;
 
 export type ClientSearchState =
   | { status: 'loading' }

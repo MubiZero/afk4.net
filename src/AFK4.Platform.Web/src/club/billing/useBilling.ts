@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClubApiClient } from '../../api/clubApi';
+import type { BillingApi } from '@/api/clients/billing';
 import type { Invoice, TenantSubscription } from '../../api/types';
 
 export type BillingState =
@@ -7,7 +7,7 @@ export type BillingState =
   | { status: 'error'; retry: () => void }
   | { status: 'ready'; subscription: TenantSubscription; invoices: Invoice[]; retry: () => void };
 
-export function useBilling(client: ClubApiClient, organizationId: string): BillingState {
+export function useBilling(client: BillingApi, organizationId: string): BillingState {
   const [tick, setTick] = useState(0);
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
   const [subscription, setSubscription] = useState<TenantSubscription | null>(null);

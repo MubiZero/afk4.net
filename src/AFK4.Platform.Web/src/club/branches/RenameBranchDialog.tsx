@@ -4,9 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BranchApi } from '@/api/clients/branches';
 
-type Actions = Pick<ClubApiClient, 'updateBranchProfile'>;
+type Actions = Pick<BranchApi, 'updateBranchProfile'>;
 
 export function RenameBranchDialog({ open, branchId, organizationId, initialName, initialCity, client, onOpenChange, onDone }: {
   open: boolean;

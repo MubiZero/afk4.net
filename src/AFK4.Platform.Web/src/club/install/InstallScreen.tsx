@@ -2,11 +2,11 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { OwnerCodeApi } from '@/api/clients/ownerCode';
 import { OwnerCodePanel } from './OwnerCodePanel';
 import { getSetupMsiUrl } from './installModel';
 
-type Client = Pick<ClubApiClient, 'getOwnerCode' | 'generateOwnerCode' | 'rotateOwnerCode'>;
+type Client = Pick<OwnerCodeApi, 'getOwnerCode' | 'generateOwnerCode' | 'rotateOwnerCode'>;
 
 export function InstallScreen({ client, canManage, branches }: {
   client: Client;

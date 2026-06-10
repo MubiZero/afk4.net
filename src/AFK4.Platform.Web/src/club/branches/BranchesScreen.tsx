@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingCards, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { ClubApiClient } from '@/api/clubApi';
+import type { BranchApi } from '@/api/clients/branches';
 import { useBranchRollup } from './useBranchRollup';
 import { RenameBranchDialog } from './RenameBranchDialog';
 
-type Client = Pick<ClubApiClient, 'getDashboardSummary' | 'getBranchProfile' | 'updateBranchProfile'>;
+type Client = Pick<BranchApi, 'getDashboardSummary' | 'getBranchProfile' | 'updateBranchProfile'>;
 
 interface RenameTarget { branchId: string; name: string; city: string; }
 
