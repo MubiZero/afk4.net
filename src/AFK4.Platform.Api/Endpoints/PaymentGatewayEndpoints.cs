@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -253,36 +252,6 @@ internal static class PaymentGatewayEndpoints
             return Results.Ok(new OwnerPaymentGatewayListResponse(rows));
         });
 
-        app.MapGet("/api/owner/payment-gateways/telegram-credentials", async (
-            string? phone,
-            StaffAuthorizationService authorizationService,
-            ISecretProtector secretProtector,
-            PlatformDbContext dbContext,
-            CancellationToken cancellationToken) =>
-        {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManagePaymentGateways);
-            if (!authorization.IsAuthenticated) return Results.Unauthorized();
-            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
-
-            var orgId = authorization.StaffContext!.OrganizationId;
-            var normalized = (phone ?? string.Empty).Trim();
-            var existing = await dbContext.OrganizationTelegramApiCredentials.AsNoTracking().SingleOrDefaultAsync(
-                c => c.OrganizationId == orgId && c.PhoneNumber == normalized, cancellationToken);
-            if (existing is null) return Results.Ok(new OwnerTelegramCredentialsResponse(false, null));
-            long apiId;
-            try
-            {
-                apiId = long.Parse(secretProtector.Unprotect(existing.ApiIdEncrypted), System.Globalization.CultureInfo.InvariantCulture);
-            }
-            catch (Exception)
-            {
-                return Results.Problem(statusCode: StatusCodes.Status500InternalServerError,
-                    title: "telegram_api_credentials_unreadable",
-                    detail: "Saved Telegram credentials could not be read. Re-enter them.");
-            }
-            return Results.Ok(new OwnerTelegramCredentialsResponse(true, apiId));
-        });
-
         app.MapPost("/api/owner/payment-gateways", async (
             ProvisionPaymentGatewayRequest request,
             StaffAuthorizationService authorizationService,
@@ -432,86 +401,17 @@ internal static class PaymentGatewayEndpoints
             Guid id, TelegramStartRequest request,
             StaffAuthorizationService authorizationService,
             IDcGateAdminClient adminClient,
-            ISecretProtector secretProtector,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var (row, error) = await ResolveOwnerGatewayAsync(id, authorizationService, dbContext, cancellationToken);
             if (error is not null) return error;
-            var orgId = row!.OrganizationId;
             var phone = (request.Phone ?? string.Empty).Trim();
-
-            long apiId;
-            string apiHash;
-            var existing = await dbContext.OrganizationTelegramApiCredentials.SingleOrDefaultAsync(
-                c => c.OrganizationId == orgId && c.PhoneNumber == phone, cancellationToken);
-
-            if (request.ApiId is long suppliedId && !string.IsNullOrWhiteSpace(request.ApiHash))
-            {
-                if (suppliedId <= 0)
-                {
-                    return Results.ValidationProblem(new Dictionary<string, string[]>
-                    { ["apiId"] = ["api_id must be a positive integer."] });
-                }
-                apiId = suppliedId;
-                apiHash = request.ApiHash.Trim();
-                var now = timeProvider.GetUtcNow();
-                if (existing is null)
-                {
-                    dbContext.OrganizationTelegramApiCredentials.Add(new OrganizationTelegramApiCredentialEntity
-                    {
-                        OrganizationTelegramApiCredentialId = Guid.NewGuid(),
-                        OrganizationId = orgId,
-                        PhoneNumber = phone,
-                        ApiIdEncrypted = secretProtector.Protect(apiId.ToString(CultureInfo.InvariantCulture)),
-                        ApiHashEncrypted = secretProtector.Protect(apiHash),
-                        CreatedAtUtc = now,
-                        UpdatedAtUtc = now
-                    });
-                    try
-                    {
-                        await dbContext.SaveChangesAsync(cancellationToken);
-                    }
-                    catch (Microsoft.EntityFrameworkCore.DbUpdateException)
-                    {
-                        return Results.Problem(statusCode: StatusCodes.Status409Conflict,
-                            title: "telegram_api_credentials_conflict",
-                            detail: "Credentials for this phone are being saved concurrently. Retry.");
-                    }
-                }
-                else
-                {
-                    existing.ApiIdEncrypted = secretProtector.Protect(apiId.ToString(CultureInfo.InvariantCulture));
-                    existing.ApiHashEncrypted = secretProtector.Protect(apiHash);
-                    existing.UpdatedAtUtc = now;
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                }
-            }
-            else if (existing is not null)
-            {
-                try
-                {
-                    apiId = long.Parse(secretProtector.Unprotect(existing.ApiIdEncrypted), CultureInfo.InvariantCulture);
-                    apiHash = secretProtector.Unprotect(existing.ApiHashEncrypted);
-                }
-                catch (Exception)
-                {
-                    return Results.Problem(statusCode: StatusCodes.Status500InternalServerError,
-                        title: "telegram_api_credentials_unreadable",
-                        detail: "Saved Telegram credentials could not be read. Re-enter them.");
-                }
-            }
-            else
-            {
-                return Results.Problem(statusCode: StatusCodes.Status400BadRequest,
-                    title: "telegram_api_credentials_required",
-                    detail: "Enter api_id and api_hash for this Telegram account.");
-            }
 
             try
             {
-                var result = await adminClient.StartTelegramAsync(row.DcgateProjectId, phone, apiId, apiHash, cancellationToken);
+                var result = await adminClient.StartTelegramAsync(row!.DcgateProjectId, phone, cancellationToken);
                 if (result.State == DcGateTelegramState.Attached)
                 {
                     await ApplyAttachResultAsync(row, result.State, dbContext, timeProvider, cancellationToken);

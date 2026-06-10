@@ -18,12 +18,10 @@ public sealed record ProvisionPaymentGatewayRequest(
     Guid? BranchId,
     string CardNumber);
 
-// Phase 2 — telegram attach.
-public sealed record TelegramStartRequest(string Phone, long? ApiId = null, string? ApiHash = null);
+// Phase 2 — telegram attach. The shared AFK4 api_id/api_hash live in dcgate's
+// environment, so the owner supplies only the phone of the bank's Telegram account.
+public sealed record TelegramStartRequest(string Phone);
 public sealed record TelegramStartResponse(string? LoginAttemptId, string State);
-
-// Credentials-lookup: tells the cabinet whether owner has saved Telegram API creds.
-public sealed record OwnerTelegramCredentialsResponse(bool HasCredentials, long? ApiId);
 
 public sealed record TelegramVerifyCodeRequest(string LoginAttemptId, string Code);
 public sealed record TelegramVerifyPasswordRequest(string LoginAttemptId, string Password);

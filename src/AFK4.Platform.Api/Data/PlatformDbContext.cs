@@ -14,9 +14,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchPaymentGatewayEntity> BranchPaymentGateways => Set<BranchPaymentGatewayEntity>();
 
-    public DbSet<OrganizationTelegramApiCredentialEntity> OrganizationTelegramApiCredentials =>
-        Set<OrganizationTelegramApiCredentialEntity>();
-
     public DbSet<StaffUserEntity> StaffUsers => Set<StaffUserEntity>();
 
     public DbSet<StaffRoleAssignmentEntity> StaffRoleAssignments => Set<StaffRoleAssignmentEntity>();
@@ -859,16 +856,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(gateway => gateway.Status).HasMaxLength(32).IsRequired();
             entity.HasIndex(gateway => gateway.DcgateProjectId).IsUnique();
             entity.HasIndex(gateway => new { gateway.OrganizationId, gateway.BranchId });
-        });
-
-        modelBuilder.Entity<OrganizationTelegramApiCredentialEntity>(entity =>
-        {
-            entity.ToTable("organization_telegram_api_credentials");
-            entity.HasKey(c => c.OrganizationTelegramApiCredentialId);
-            entity.Property(c => c.PhoneNumber).HasMaxLength(32).IsRequired();
-            entity.Property(c => c.ApiIdEncrypted).HasMaxLength(1024).IsRequired();
-            entity.Property(c => c.ApiHashEncrypted).HasMaxLength(1024).IsRequired();
-            entity.HasIndex(c => new { c.OrganizationId, c.PhoneNumber }).IsUnique();
         });
 
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>

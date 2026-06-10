@@ -7,12 +7,11 @@ public interface IDcGateAdminClient
         DcGateCreateProjectRequest request,
         CancellationToken cancellationToken);
 
-    // Phase 2 attach proxy.
+    // Phase 2 attach proxy. dcgate drives the MTProto login with the shared AFK4
+    // api_id/api_hash from its own env; afk4 forwards only the phone.
     Task<DcGateTelegramStartResult> StartTelegramAsync(
         string dcgateProjectId,
         string phone,
-        long apiId,
-        string apiHash,
         CancellationToken cancellationToken);
 
     Task<DcGateTelegramVerifyResult> VerifyTelegramCodeAsync(
