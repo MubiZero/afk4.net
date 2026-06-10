@@ -190,6 +190,55 @@ if (-not (Test-Path -LiteralPath $operatorWebDistIndex)) {
     throw "Operator App frontend build did not produce '$operatorWebDistIndex'."
 }
 
+# Player.Shell.Web dist is linked by AFK4.Player.Shell.csproj (Content Include ...\dist\**),
+# so it must exist before publish. Build it here (the script historically built only operator web).
+$playerShellWebRoot = Join-Path $repoRoot 'src/AFK4.Player.Shell.Web'
+$playerShellWebDistIndex = Join-Path $playerShellWebRoot 'dist/index.html'
+Push-Location $playerShellWebRoot
+try {
+    & $BunPath run build
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "bun run build failed for Player Shell frontend with exit code $LASTEXITCODE."
+    }
+}
+finally {
+    Pop-Location
+}
+
+if (-not (Test-Path -LiteralPath $playerShellWebDistIndex)) {
+    throw "Player Shell frontend build did not produce '$playerShellWebDistIndex'."
+}
+
+# SetupWizard.Web dist is NOT linked by the csproj; AFK4.SetupWizard ships WebAssets\** instead.
+# Build it and copy the dist into WebAssets, otherwise the committed placeholder index.html
+# ships and the wizard shows a "Setup Wizard frontend assets were not found" error page.
+$setupWizardWebRoot = Join-Path $repoRoot 'src/AFK4.SetupWizard.Web'
+$setupWizardWebDist = Join-Path $setupWizardWebRoot 'dist'
+$setupWizardWebAssets = Join-Path $repoRoot 'src/AFK4.SetupWizard/WebAssets'
+Push-Location $setupWizardWebRoot
+try {
+    & $BunPath run build
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "bun run build failed for Setup Wizard frontend with exit code $LASTEXITCODE."
+    }
+}
+finally {
+    Pop-Location
+}
+
+if (-not (Test-Path -LiteralPath (Join-Path $setupWizardWebDist 'index.html'))) {
+    throw "Setup Wizard frontend build did not produce an index.html under '$setupWizardWebDist'."
+}
+
+if (Test-Path -LiteralPath $setupWizardWebAssets) {
+    Remove-Item -LiteralPath (Join-Path $setupWizardWebAssets '*') -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $setupWizardWebAssets | Out-Null
+Get-ChildItem -LiteralPath $setupWizardWebDist -Force |
+    Copy-Item -Destination $setupWizardWebAssets -Recurse -Force
+
 $projects = @(
     @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true },
     @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $true },
