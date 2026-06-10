@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-06-04
+Last updated: 2026-06-10
 
 ## Purpose
 
@@ -9,15 +9,25 @@ It is intentionally operational: infrastructure, release gates, security,
 backups, device validation, and pilot readiness. Keep it gate-level; detailed
 run history belongs in the progress snapshot or archive notes.
 
-> **Status note (2026-06-04):** the product/feature side has moved far beyond
+> **Status note (2026-06-10):** the product/feature side has moved far beyond
 > the pilot bar — the full Platform.Web redesign, SP3 admin control plane +
 > SaaS billing, the entire SP4 wave (counter-loop, anti-fraud, offline,
 > customer portal/shell, notifications, localization, realtime), the dcgate
-> payments subsystem, and the Operator App WebView2/React migration are all
-> implemented and merged. What remains for production is mostly the operational
-> gates below (backups ownership, Authenticode/signing custody, production
-> object-store/CDN, physical Windows smoke, secret hygiene) plus the FE
-> forgot/reset-password screen. See
+> payments subsystem, the Operator App WebView2/React migration, the
+> phone/email staff-identity wave, and the FE forgot/reset-password screen are
+> all implemented and merged. Since 2026-06-04 the customer-shell WebView2
+> pivot shipped end to end — login, self-service extend/top-up, plus Unit F
+> (shop, loyalty/cashback, news/banners) — together with multi-tenant dcgate
+> payments (now on a shared AFK4 Telegram app: owners supply phone + OTP only),
+> shift-revenue reporting, branch-timezone-aware business-day rollup, and real
+> PNG PWA icons. What remains for production is mostly the operational gates
+> below (backups ownership, Authenticode/signing custody, production
+> object-store/CDN, physical Windows smoke, secret hygiene) plus, for the
+> payments money-path, an external blocker: the DC bank bot stopped delivering
+> deposit notifications, so the real payment → webhook → wallet-credit step is
+> frozen until the bot recovers (attach + session-sharing are proven live on
+> staging). The customer-shell still needs one on-device (real gaming PC)
+> kiosk/login/QR/offline smoke gate. See
 > `docs/progress/2026-05-12-vertical-slice-progress.md` for the current
 > feature snapshot.
 
