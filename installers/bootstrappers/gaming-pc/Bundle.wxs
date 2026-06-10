@@ -7,14 +7,11 @@
     if missing) and then installs the agent MSI. The Player Shell is NOT chained here;
     the Setup Wizard provisions it on the gaming PC after enrollment.
 
-    Runtime prerequisite is pinned to an exact version + SHA-256 so the download is
-    verifiable and reproducible. Bump RuntimeVersion/Url/Hash/Size together when moving
-    to a newer .NET 10 servicing release.
+    Runtime prerequisite (version/url/hash/size) is pinned in the shared
+    RuntimePrereq.wxi so it stays in sync with the Operator bundle. The hash is the
+    SHA-512 of the payload (Burn verifies downloads with SHA-512).
   -->
-  <?define RuntimeVersion = "10.0.9" ?>
-  <?define RuntimeUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe" ?>
-  <?define RuntimeHash = "D4EB932AD12EC61CB5293348021DBAA43FA373BC19ED1876E9DBF8CB38633AD3" ?>
-  <?define RuntimeSize = "59878128" ?>
+  <?include ..\RuntimePrereq.wxi ?>
 
   <Bundle
       Name="AFK4.NET Gaming PC"
