@@ -549,8 +549,8 @@ function PlatformArea({
   onCreatedTenant, onCancelNewTenant, onBackToTenants, onSignOut
 }: PlatformAreaProps) {
   const { t } = useI18n();
-  const metricsState = useTenantMetrics(adminClient);
-  const billingMetricsState = useBillingMetrics(adminClient);
+  const metricsState = useTenantMetrics(adminClient.tenants);
+  const billingMetricsState = useBillingMetrics(adminClient.invoices);
   const screenTitle = t(PLATFORM_SCREEN_TITLE_KEY[route.kind]);
   const roleLabel = t(PLATFORM_ROLE_LABEL_KEY);
 
@@ -590,7 +590,7 @@ function PlatformArea({
         <PlatformProfileScreen session={session} onSignOut={onSignOut} />
       ) : route.kind === 'newTenant' ? (
         <NewTenantScreen
-          client={adminClient}
+          client={adminClient.tenants}
           onCreated={onCreatedTenant}
           onCancel={onCancelNewTenant}
         />

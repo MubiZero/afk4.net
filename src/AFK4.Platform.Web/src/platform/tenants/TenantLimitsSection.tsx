@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { TenantsApi } from '@/api/platformClients/tenants';
 import type { TenantDetail, TenantLimits } from '@/api/types';
 
-type Updater = Pick<PlatformApiClient, 'updateLimits'>;
+type Updater = Pick<TenantsApi, 'updateLimits'>;
 
 interface Props {
   client: Updater;

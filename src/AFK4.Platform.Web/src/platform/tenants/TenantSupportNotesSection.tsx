@@ -5,10 +5,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { SupportNotesApi } from '@/api/platformClients/supportNotes';
 import type { TenantSupportNote } from '@/api/types';
 
-type Client = Pick<PlatformApiClient, 'listSupportNotes' | 'createSupportNote' | 'updateSupportNote'>;
+type Client = Pick<SupportNotesApi, 'listSupportNotes' | 'createSupportNote' | 'updateSupportNote'>;
 
 export function TenantSupportNotesSection({ client, organizationId }: { client: Client; organizationId: string }) {
   const { t, formatDate } = useI18n();

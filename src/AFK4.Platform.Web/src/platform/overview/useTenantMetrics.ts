@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { TenantsApi } from '@/api/platformClients/tenants';
 import { buildTenantMetrics, type PlatformMetricsViewModel } from './metricsModel';
 
 export type TenantMetricsState =
@@ -7,7 +7,7 @@ export type TenantMetricsState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; data: PlatformMetricsViewModel; retry: () => void };
 
-type Loadable = Pick<PlatformApiClient, 'listTenants'>;
+type Loadable = Pick<TenantsApi, 'listTenants'>;
 
 export function useTenantMetrics(client: Loadable): TenantMetricsState {
   const [tick, setTick] = useState(0);

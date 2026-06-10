@@ -5,10 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { TenantsApi } from '@/api/platformClients/tenants';
 import type { TenantHealth } from '@/api/types';
 
-type Client = Pick<PlatformApiClient, 'getHealth'>;
+type Client = Pick<TenantsApi, 'getHealth'>;
 
 interface Props {
   client: Client;

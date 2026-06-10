@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { TenantsApi } from '@/api/platformClients/tenants';
 import { TenantPlanCode, SubscriptionStatus, type CreateTenantResponse, type TenantLimits } from '@/api/types';
 
-type Client = Pick<PlatformApiClient, 'createTenant'>;
+type Client = Pick<TenantsApi, 'createTenant'>;
 
 export interface NewTenantScreenProps {
   client: Client;

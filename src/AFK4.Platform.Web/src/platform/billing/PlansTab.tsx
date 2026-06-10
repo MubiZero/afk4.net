@@ -7,13 +7,13 @@ import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/club/money';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { PlansApi } from '@/api/platformClients/plans';
 import type { SubscriptionPlan } from '@/api/types';
 import { usePlans } from './usePlans';
 import { PlanFormDialog } from './PlanFormDialog';
 import { emptyPlanForm, planToForm, planFormToCreateRequest, planFormToUpdateRequest, INTERVAL_LABEL, type PlanForm } from './billingModel';
 
-export function PlansTab({ client }: { client: PlatformApiClient }) {
+export function PlansTab({ client }: { client: PlansApi }) {
   const { t, formatCurrency } = useI18n();
   const { toast } = useToast();
   const state = usePlans(client);

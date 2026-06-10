@@ -7,14 +7,14 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/club/money';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import { useSubscriptions } from './useSubscriptions';
 import {
   filterSubscriptions, SUBSCRIPTION_STATUS_VARIANT, SUBSCRIPTION_STATUS_LABEL,
   INTERVAL_LABEL, SUBSCRIPTION_STATUS_FILTERS
 } from './billingModel';
 
-export function SubscriptionsTab({ client }: { client: PlatformApiClient }) {
+export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const state = useSubscriptions(client);
   const [query, setQuery] = useState('');

@@ -9,11 +9,11 @@ import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { PlatformApiClient } from '@/api/platformApi';
+import type { OwnerInvitesApi } from '@/api/platformClients/ownerInvites';
 import type { OwnerInvite, OwnerInviteSummary, TenantBranch } from '@/api/types';
 import { INVITE_STATUS_VARIANT, INVITE_STATUS_LABEL } from './tenantsModel';
 
-type Client = Pick<PlatformApiClient, 'listOwnerInvites' | 'createOwnerInvite' | 'revokeOwnerInvite'>;
+type Client = Pick<OwnerInvitesApi, 'listOwnerInvites' | 'createOwnerInvite' | 'revokeOwnerInvite'>;
 
 interface Props {
   client: Client;

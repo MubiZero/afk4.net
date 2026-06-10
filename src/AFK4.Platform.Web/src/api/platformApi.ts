@@ -1,377 +1,51 @@
-import {
-  clearSession,
-  isAccessTokenExpired,
-  sessionFromSignInResponse,
-  writeSession,
-  type PlatformAdminSession
-} from '../auth/tokenStore';
-import type {
-  CreatePlanRequest,
-  CreateTenantRequest,
-  CreateTenantResponse,
-  Invoice,
-  InvoiceListItem,
-  OwnerInvite,
-  OwnerInviteSummary,
-  PlatformAdminSignInResponse,
-  PlatformBillingMetrics,
-  SubscriptionListItem,
-  SubscriptionPlan,
-  TenantDetail,
-  TenantHealth,
-  TenantSubscription,
-  TenantSummary,
-  TenantSupportNote,
-  UpdatePlanRequest,
-  UpdateSubscriptionRequest,
-  FetchLike
-} from './types';
+import { isAccessTokenExpired, type PlatformAdminSession } from '../auth/tokenStore';
+import { PlatformTransport, type PlatformTransportOptions } from './platformTransport';
+import { TenantsApi } from './platformClients/tenants';
+import { OwnerInvitesApi } from './platformClients/ownerInvites';
+import { SupportNotesApi } from './platformClients/supportNotes';
+import { PlansApi } from './platformClients/plans';
+import { SubscriptionsApi } from './platformClients/subscriptions';
+import { InvoicesApi } from './platformClients/invoices';
 
-export class PlatformApiError extends Error {
-  public readonly status: number;
-  public readonly errorCode: string | null;
-  public readonly remainingAttempts: number | null;
+export { PlatformApiError } from './platformTransport';
 
-  public constructor(
-    status: number,
-    message: string,
-    errorCode: string | null = null,
-    remainingAttempts: number | null = null
-  ) {
-    super(message);
-    this.status = status;
-    this.errorCode = errorCode;
-    this.remainingAttempts = remainingAttempts;
-  }
-}
+export type PlatformApiClientOptions = PlatformTransportOptions;
 
-export interface PlatformApiClientOptions {
-  baseUrl: string;
-  fetchImpl?: FetchLike;
-  session: PlatformAdminSession | null;
-  onSessionChanged: (session: PlatformAdminSession | null) => void;
-}
-
+/**
+ * Aggregates the platform-admin API as domain-scoped sub-clients over one
+ * shared transport. Auth/session lifecycle stays on the facade; data access
+ * goes through `client.tenants`, `client.invoices`, etc.
+ */
 export class PlatformApiClient {
-  private session: PlatformAdminSession | null;
-  private readonly baseUrl: string;
-  private readonly fetchImpl: FetchLike;
-  private readonly onSessionChanged: (session: PlatformAdminSession | null) => void;
-  private inflightRefresh: Promise<PlatformAdminSession | null> | null = null;
+  private readonly transport: PlatformTransport;
+
+  public readonly tenants: TenantsApi;
+  public readonly ownerInvites: OwnerInvitesApi;
+  public readonly supportNotes: SupportNotesApi;
+  public readonly plans: PlansApi;
+  public readonly subscriptions: SubscriptionsApi;
+  public readonly invoices: InvoicesApi;
 
   public constructor(options: PlatformApiClientOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/+$/u, '');
-    this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
-    this.session = options.session;
-    this.onSessionChanged = options.onSessionChanged;
+    this.transport = new PlatformTransport(options);
+    this.tenants = new TenantsApi(this.transport);
+    this.ownerInvites = new OwnerInvitesApi(this.transport);
+    this.supportNotes = new SupportNotesApi(this.transport);
+    this.plans = new PlansApi(this.transport);
+    this.subscriptions = new SubscriptionsApi(this.transport);
+    this.invoices = new InvoicesApi(this.transport);
   }
 
   public getSession(): PlatformAdminSession | null {
-    return this.session;
+    return this.transport.getSession();
   }
 
-  public async signIn(userName: string, password: string): Promise<PlatformAdminSession> {
-    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/sign-in`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userName, password })
-    });
-    if (!response.ok) {
-      throw await PlatformApiClient.toError(response, 'Sign-in failed.');
-    }
-    const body = (await response.json()) as PlatformAdminSignInResponse;
-    const session = sessionFromSignInResponse(body);
-    this.applySession(session);
-    return session;
+  public signIn(userName: string, password: string): Promise<PlatformAdminSession> {
+    return this.transport.signIn(userName, password);
   }
 
-  public async signOut(): Promise<void> {
-    if (this.session === null) {
-      return;
-    }
-    try {
-      await this.fetchImpl(`${this.baseUrl}/api/platform/auth/sign-out`, {
-        method: 'POST',
-        headers: this.buildHeaders(),
-        body: JSON.stringify({ refreshToken: this.session.refreshToken })
-      });
-    } finally {
-      this.applySession(null);
-    }
-  }
-
-  public listTenants(): Promise<TenantSummary[]> {
-    return this.send<TenantSummary[]>('GET', '/api/platform/tenants');
-  }
-
-  public getTenant(organizationId: string): Promise<TenantDetail> {
-    return this.send<TenantDetail>('GET', `/api/platform/tenants/${organizationId}`);
-  }
-
-  public createTenant(request: CreateTenantRequest): Promise<CreateTenantResponse> {
-    return this.send<CreateTenantResponse>('POST', '/api/platform/tenants', request);
-  }
-
-  public updateStatus(
-    organizationId: string,
-    status: string,
-    reason: string
-  ): Promise<TenantDetail> {
-    return this.send<TenantDetail>(
-      'PATCH',
-      `/api/platform/tenants/${organizationId}/status`,
-      { status, reason }
-    );
-  }
-
-  public updateLimits(organizationId: string, limits: CreateTenantRequest['limits']): Promise<TenantDetail> {
-    return this.send<TenantDetail>(
-      'PATCH',
-      `/api/platform/tenants/${organizationId}/limits`,
-      { limits }
-    );
-  }
-
-  public createOwnerInvite(
-    organizationId: string,
-    branchId: string,
-    ownerUserName: string | null,
-    ownerDisplayName: string | null,
-    lifetime: string | null
-  ): Promise<OwnerInvite> {
-    return this.send<OwnerInvite>(
-      'POST',
-      `/api/platform/tenants/${organizationId}/owner-invites`,
-      { branchId, ownerUserName, ownerDisplayName, lifetime }
-    );
-  }
-
-  public listOwnerInvites(organizationId: string): Promise<OwnerInviteSummary[]> {
-    return this.send<OwnerInviteSummary[]>(
-      'GET',
-      `/api/platform/tenants/${organizationId}/owner-invites`
-    );
-  }
-
-  public revokeOwnerInvite(ownerInviteId: string, reason: string): Promise<OwnerInvite> {
-    return this.send<OwnerInvite>(
-      'POST',
-      `/api/platform/owner-invites/${ownerInviteId}/revoke`,
-      { reason }
-    );
-  }
-
-  public listSupportNotes(organizationId: string): Promise<TenantSupportNote[]> {
-    return this.send<TenantSupportNote[]>(
-      'GET',
-      `/api/platform/tenants/${organizationId}/support-notes`
-    );
-  }
-
-  public createSupportNote(organizationId: string, body: string): Promise<TenantSupportNote> {
-    return this.send<TenantSupportNote>(
-      'POST',
-      `/api/platform/tenants/${organizationId}/support-notes`,
-      { body }
-    );
-  }
-
-  public updateSupportNote(
-    organizationId: string,
-    tenantSupportNoteId: string,
-    body: string
-  ): Promise<TenantSupportNote> {
-    return this.send<TenantSupportNote>(
-      'PATCH',
-      `/api/platform/tenants/${organizationId}/support-notes/${tenantSupportNoteId}`,
-      { body }
-    );
-  }
-
-  public getHealth(organizationId: string): Promise<TenantHealth> {
-    return this.send<TenantHealth>('GET', `/api/platform/tenants/${organizationId}/health`);
-  }
-
-  public listPlans(includeInactive = true): Promise<SubscriptionPlan[]> {
-    return this.send<SubscriptionPlan[]>('GET', `/api/platform/plans?includeInactive=${includeInactive ? 'true' : 'false'}`);
-  }
-
-  public createPlan(request: CreatePlanRequest): Promise<SubscriptionPlan> {
-    return this.send<SubscriptionPlan>('POST', '/api/platform/plans', request);
-  }
-
-  public updatePlanCatalog(planCode: string, request: UpdatePlanRequest): Promise<SubscriptionPlan> {
-    return this.send<SubscriptionPlan>('PATCH', `/api/platform/plans/${encodeURIComponent(planCode)}`, request);
-  }
-
-  public getSubscription(organizationId: string): Promise<TenantSubscription> {
-    return this.send<TenantSubscription>('GET', `/api/platform/tenants/${organizationId}/subscription`);
-  }
-
-  public updateSubscription(organizationId: string, request: UpdateSubscriptionRequest): Promise<TenantSubscription> {
-    return this.send<TenantSubscription>('PATCH', `/api/platform/tenants/${organizationId}/subscription`, request);
-  }
-
-  public listTenantInvoices(organizationId: string, status?: string): Promise<Invoice[]> {
-    const query = status !== undefined && status.length > 0 ? `?status=${encodeURIComponent(status)}` : '';
-    return this.send<Invoice[]>('GET', `/api/platform/tenants/${organizationId}/invoices${query}`);
-  }
-
-  public listSubscriptions(status?: string, planCode?: string): Promise<SubscriptionListItem[]> {
-    const params = new URLSearchParams();
-    if (status !== undefined && status.length > 0) params.set('status', status);
-    if (planCode !== undefined && planCode.length > 0) params.set('planCode', planCode);
-    const query = params.toString().length > 0 ? `?${params.toString()}` : '';
-    return this.send<SubscriptionListItem[]>('GET', `/api/platform/subscriptions${query}`);
-  }
-
-  public listInvoices(status?: string): Promise<InvoiceListItem[]> {
-    const query = status !== undefined && status.length > 0 ? `?status=${encodeURIComponent(status)}` : '';
-    return this.send<InvoiceListItem[]>('GET', `/api/platform/invoices${query}`);
-  }
-
-  public getBillingMetrics(): Promise<PlatformBillingMetrics> {
-    return this.send<PlatformBillingMetrics>('GET', '/api/platform/metrics');
-  }
-
-  public generateInvoice(organizationId: string): Promise<Invoice> {
-    return this.sendIdempotent<Invoice>('POST', `/api/platform/tenants/${organizationId}/invoices/generate`, undefined);
-  }
-
-  public markInvoicePaid(invoiceId: string, reference: string | null): Promise<Invoice> {
-    return this.sendIdempotent<Invoice>('POST', `/api/platform/invoices/${invoiceId}/mark-paid`, { reference });
-  }
-
-  public voidInvoice(invoiceId: string, reason: string): Promise<Invoice> {
-    return this.sendIdempotent<Invoice>('POST', `/api/platform/invoices/${invoiceId}/void`, { reason });
-  }
-
-  private async send<T>(method: string, path: string, body?: unknown): Promise<T> {
-    let response = await this.dispatch(method, path, body);
-    if (response.status === 401 && this.session !== null) {
-      const refreshed = await this.refreshTokenOnce();
-      if (refreshed !== null) {
-        response = await this.dispatch(method, path, body);
-      }
-    }
-    if (!response.ok) {
-      throw await PlatformApiClient.toError(response);
-    }
-    if (response.status === 204) {
-      return undefined as unknown as T;
-    }
-    const text = await response.text();
-    return text.length === 0 ? (undefined as unknown as T) : (JSON.parse(text) as T);
-  }
-
-  private async sendIdempotent<T>(method: string, path: string, body: unknown | undefined): Promise<T> {
-    const idempotencyKey = crypto.randomUUID();
-    let response = await this.dispatch(method, path, body, { 'Idempotency-Key': idempotencyKey });
-    if (response.status === 401 && this.session !== null) {
-      const refreshed = await this.refreshTokenOnce();
-      if (refreshed !== null) {
-        response = await this.dispatch(method, path, body, { 'Idempotency-Key': idempotencyKey });
-      }
-    }
-    if (!response.ok) {
-      throw await PlatformApiClient.toError(response);
-    }
-    if (response.status === 204) {
-      return undefined as unknown as T;
-    }
-    const text = await response.text();
-    return text.length === 0 ? (undefined as unknown as T) : (JSON.parse(text) as T);
-  }
-
-  private dispatch(
-    method: string,
-    path: string,
-    body: unknown | undefined,
-    extraHeaders?: Record<string, string>
-  ): Promise<Response> {
-    const headers = this.buildHeaders();
-    if (extraHeaders !== undefined) {
-      for (const [k, v] of Object.entries(extraHeaders)) {
-        headers[k] = v;
-      }
-    }
-    const init: RequestInit = { method, headers };
-    if (body !== undefined) {
-      init.body = JSON.stringify(body);
-    }
-    return this.fetchImpl(`${this.baseUrl}${path}`, init);
-  }
-
-  private buildHeaders(): Record<string, string> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (this.session !== null && this.session.accessToken.length > 0) {
-      headers['Authorization'] = `Bearer ${this.session.accessToken}`;
-    }
-    return headers;
-  }
-
-  private async refreshTokenOnce(): Promise<PlatformAdminSession | null> {
-    if (this.inflightRefresh !== null) {
-      return this.inflightRefresh;
-    }
-    this.inflightRefresh = (async (): Promise<PlatformAdminSession | null> => {
-      if (this.session === null) {
-        return null;
-      }
-      try {
-        const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken: this.session.refreshToken })
-        });
-        if (!response.ok) {
-          this.applySession(null);
-          return null;
-        }
-        const body = (await response.json()) as PlatformAdminSignInResponse;
-        const refreshed = sessionFromSignInResponse(body);
-        this.applySession(refreshed);
-        return refreshed;
-      } finally {
-        this.inflightRefresh = null;
-      }
-    })();
-    return this.inflightRefresh;
-  }
-
-  private applySession(session: PlatformAdminSession | null): void {
-    this.session = session;
-    if (session === null) {
-      clearSession();
-    } else {
-      writeSession(session);
-    }
-    this.onSessionChanged(session);
-  }
-
-  private static async toError(response: Response, fallbackMessage = 'Platform API call failed.'): Promise<PlatformApiError> {
-    let message = fallbackMessage;
-    let code: string | null = null;
-    let remainingAttempts: number | null = null;
-    try {
-      const text = await response.text();
-      if (text.length > 0) {
-        const parsed = JSON.parse(text) as { error?: string; status?: string; remainingAttempts?: number };
-        if (typeof parsed.error === 'string' && parsed.error.length > 0) {
-          message = parsed.error;
-          code = parsed.error;
-        }
-        if (typeof parsed.status === 'string' && parsed.status.length > 0) {
-          message = `${message} (${parsed.status})`;
-        }
-        if (typeof parsed.remainingAttempts === 'number') {
-          remainingAttempts = parsed.remainingAttempts;
-        }
-      }
-    } catch {
-      // Body wasn't JSON or wasn't readable; fall back to status text.
-    }
-    return new PlatformApiError(response.status, message, code, remainingAttempts);
+  public signOut(): Promise<void> {
+    return this.transport.signOut();
   }
 }
 
