@@ -42,6 +42,13 @@ export interface WizardEnrollResult {
   enrollmentState: string;
   apiBaseUrl: string;
   updateChannel: string;
+  shell: WizardShellOutcome;
+}
+
+export interface WizardShellOutcome {
+  status: 'installed' | 'already_present' | 'skipped' | 'failed';
+  exitCode: number | null;
+  message: string | null;
 }
 
 export type WizardRole = 'gaming_pc' | 'manager_workstation';
@@ -137,6 +144,11 @@ export function authenticatedInstallClient(): WizardInstallClient {
     createSeat: (draft) => postHostRequest<WizardSeat>('wizard:createSeatAuth', draft),
     enrollDevice: (draft) => postHostRequest<WizardEnrollResult>('wizard:enrollAuth', draft),
   };
+}
+
+/** Retry installing the Player Shell on a gaming PC after a failed attempt. */
+export function provisionShell(): Promise<WizardShellOutcome> {
+  return postHostRequest<WizardShellOutcome>('wizard:provisionShell');
 }
 
 export function closeWizard(): void {

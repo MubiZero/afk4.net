@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
-import { closeWizard, type WizardEnrollResult, type WizardSeat } from './wizardApi';
+import { closeWizard, provisionShell, type WizardEnrollResult, type WizardSeat, type WizardShellOutcome } from './wizardApi';
 
 interface FinishedScreenProps {
   result: WizardEnrollResult;
@@ -66,6 +67,10 @@ export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScr
           </div>
         </dl>
 
+        {result.role === 'gaming_pc' && (
+          <ShellStatusRow initial={result.shell} />
+        )}
+
         {isPending && (
           <div className="wizard-pending-note" role="status">
             {t('setup.wizard.finished.pendingNote')}
@@ -79,5 +84,47 @@ export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScr
         </div>
       </div>
     </section>
+  );
+}
+
+function ShellStatusRow({ initial }: { initial: WizardShellOutcome }) {
+  const { t } = useI18n();
+  const [outcome, setOutcome] = useState(initial);
+  const [busy, setBusy] = useState(false);
+
+  if (outcome.status === 'installed' || outcome.status === 'already_present') {
+    return (
+      <div className="wizard-shell-status is-ok" role="status">
+        {t('setup.wizard.finished.shell.ok')}
+      </div>
+    );
+  }
+
+  if (outcome.status === 'skipped') {
+    return null;
+  }
+
+  return (
+    <div className="wizard-shell-status is-error" role="alert">
+      <span>
+        {t('setup.wizard.finished.shell.failed')}
+        {outcome.exitCode !== null ? ` (msiexec ${outcome.exitCode})` : ''}
+      </span>
+      <button
+        type="button"
+        className="wizard-secondary"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            setOutcome(await provisionShell());
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? t('setup.wizard.finished.shell.installing') : t('setup.wizard.finished.shell.retry')}
+      </button>
+    </div>
   );
 }
