@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import type { OperatorBackendContext } from './operatorTypes';
 import type { LoyaltySettingsDto } from './operatorApiClients';
 
 interface LoyaltySettingsClient {
@@ -15,8 +17,19 @@ function toBasisPoints(percent: string): number | null {
   return Math.round(value * 100);
 }
 
-export function LoyaltySettingsWorkspace({ client }: { client: LoyaltySettingsClient }) {
+export function LoyaltySettingsWorkspace({
+  backend,
+  client: injectedClient
+}: {
+  backend: OperatorBackendContext | null;
+  client?: LoyaltySettingsClient;
+}) {
   const { t } = useI18n();
+  const memoizedClient = useMemo(
+    () => (backend ? createAuthenticatedOperatorClients(backend.config, backend.session).loyaltySettings : null),
+    [backend?.config, backend?.session]
+  );
+  const client = injectedClient ?? memoizedClient;
   const [topUpEnabled, setTopUpEnabled] = useState(false);
   const [topUpPercent, setTopUpPercent] = useState('0');
   const [shopEnabled, setShopEnabled] = useState(false);
@@ -26,6 +39,9 @@ export function LoyaltySettingsWorkspace({ client }: { client: LoyaltySettingsCl
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (client === null) {
+      return undefined;
+    }
     let active = true;
     client.get().then((settings) => {
       if (!active) {
@@ -43,6 +59,9 @@ export function LoyaltySettingsWorkspace({ client }: { client: LoyaltySettingsCl
   }, [client]);
 
   const save = async () => {
+    if (client === null) {
+      return;
+    }
     setSaved(false);
     const topUpBps = toBasisPoints(topUpPercent);
     const shopBps = toBasisPoints(shopPercent);

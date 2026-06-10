@@ -9,7 +9,7 @@ function client(initial = { topUpEnabled: false, topUpPercentBasisPoints: 0, sho
 }
 
 function renderWorkspace(c: ReturnType<typeof client>) {
-  render(<I18nProvider><LoyaltySettingsWorkspace client={c as never} /></I18nProvider>);
+  render(<I18nProvider><LoyaltySettingsWorkspace backend={null} client={c as never} /></I18nProvider>);
 }
 
 describe('LoyaltySettingsWorkspace', () => {

@@ -848,6 +848,15 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Пригласить сотрудника/ })).toBeInTheDocument();
   });
 
+  it('opens the loyalty settings workspace from the rail', async () => {
+    installSessionBridge(createSession({ permissions: ['loyalty.settings.manage'] }));
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByTitle('Лояльность'));
+    expect(await screen.findByRole('heading', { name: /Лояльность \/ кэшбэк/ })).toBeInTheDocument();
+  });
+
   it('downloads the Overview sales export without dashboard copy', async () => {
     installSessionBridge();
     const createObjectUrl = mock(() => 'blob:dashboard');
@@ -3272,6 +3281,18 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/audit')) {
     return jsonResponse(createAudit());
+  }
+
+  if (pathname.endsWith('/api/owner/loyalty-settings')) {
+    if (init?.method === 'POST') {
+      return jsonResponse(JSON.parse(String(init.body)));
+    }
+    return jsonResponse({
+      topUpEnabled: false,
+      topUpPercentBasisPoints: 0,
+      shopEnabled: false,
+      shopPercentBasisPoints: 0
+    });
   }
 
   return jsonResponse({ ok: true });

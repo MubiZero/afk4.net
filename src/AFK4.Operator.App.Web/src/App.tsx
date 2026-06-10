@@ -59,8 +59,7 @@ import {
   realtimeLabel,
   resolveActiveBranchId,
   isUnauthorizedAuthError,
-  clearStoredOperatorSession,
-  createAuthenticatedOperatorClients
+  clearStoredOperatorSession
 } from './operatorHelpers';
 
 
@@ -369,9 +368,7 @@ function AppInner() {
       {workspace === 'settings' && <BackendSettingsWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'review' && <ReviewWorkspace currencyCode={config.currencyCode} backend={backendContext} />}
       {workspace === 'loyalty' && backendContext !== null && (
-        <LoyaltySettingsWorkspace
-          client={createAuthenticatedOperatorClients(backendContext.config, backendContext.session).loyaltySettings}
-        />
+        <LoyaltySettingsWorkspace backend={backendContext} />
       )}
 
       {workspace === 'map' && selectedSeat !== null && (
