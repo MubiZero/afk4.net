@@ -374,8 +374,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $agentFiles = Get-MsiFileNames -MsiPath $agentMsiPath
-if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Player.Shell.msi*' } | Select-Object -First 1))
-{
+if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Player.Shell.msi*' } | Select-Object -First 1)) {
     throw "Agent MSI does not contain the bundled Player Shell MSI (payload\AFK4.Player.Shell.msi)."
 }
 
