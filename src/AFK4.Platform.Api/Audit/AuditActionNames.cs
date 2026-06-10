@@ -248,4 +248,10 @@ public static class AuditActionNames
     public const string CancelShopOrder = "shop.order.cancel";
 
     public const string UpdateLoyaltySettings = "loyalty.settings.update";
+
+    public const string CreateNews = "news.create";
+
+    public const string UpdateNews = "news.update";
+
+    public const string DeleteNews = "news.delete";
 }
