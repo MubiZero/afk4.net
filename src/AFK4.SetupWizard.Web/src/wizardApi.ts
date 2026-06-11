@@ -1,5 +1,10 @@
 import { postHostRequest, postHostWindowCommand } from './hostBridge';
 
+// Enroll + shell provisioning run msiexec /i synchronously on the host, which can take several
+// minutes on a fresh PC. Give these commands a long timeout so the JS promise doesn't reject (and
+// the user retry, duplicate-enrolling) while the install is still running.
+const ENROLL_TIMEOUT_MS = 300_000;
+
 export interface WizardBranch {
   branchId: string;
   branchSlug: string;
@@ -142,13 +147,14 @@ export function resetPasswordByPhone(
 export function authenticatedInstallClient(): WizardInstallClient {
   return {
     createSeat: (draft) => postHostRequest<WizardSeat>('wizard:createSeatAuth', draft),
-    enrollDevice: (draft) => postHostRequest<WizardEnrollResult>('wizard:enrollAuth', draft),
+    enrollDevice: (draft) =>
+      postHostRequest<WizardEnrollResult>('wizard:enrollAuth', draft, ENROLL_TIMEOUT_MS),
   };
 }
 
 /** Retry installing the Player Shell on a gaming PC after a failed attempt. */
 export function provisionShell(): Promise<WizardShellOutcome> {
-  return postHostRequest<WizardShellOutcome>('wizard:provisionShell');
+  return postHostRequest<WizardShellOutcome>('wizard:provisionShell', undefined, ENROLL_TIMEOUT_MS);
 }
 
 export function closeWizard(): void {

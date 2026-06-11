@@ -112,15 +112,26 @@ public partial class WebViewSetupWindow : Window
 
     private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
-        if (TryHandleWindowMessage(e.WebMessageAsJson))
+        // async void: any escaping exception would crash the wizard mid-enrollment with no
+        // handler, potentially leaving the device half-enrolled. HandleAsync already maps known
+        // failures to structured bridge errors; this guards the unexpected.
+        try
         {
-            return;
-        }
+            if (TryHandleWindowMessage(e.WebMessageAsJson))
+            {
+                return;
+            }
 
-        var responseJson = await hostBridge.HandleAsync(e.WebMessageAsJson, CancellationToken.None);
-        if (responseJson is not null && Browser.CoreWebView2 is not null)
+            var responseJson = await hostBridge.HandleAsync(e.WebMessageAsJson, CancellationToken.None);
+            if (responseJson is not null && Browser.CoreWebView2 is not null)
+            {
+                Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
+            }
+        }
+        catch (Exception exception)
         {
-            Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
+            SetupWizardStartupLog.Write("Unhandled error while processing a host bridge message.", exception);
+            ShowStartupFailure($"Произошла непредвиденная ошибка: {exception.Message}");
         }
     }
 

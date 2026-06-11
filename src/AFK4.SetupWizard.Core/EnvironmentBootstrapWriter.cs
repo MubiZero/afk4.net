@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace AFK4.SetupWizard.Core;
 
 public sealed class EnvironmentBootstrapWriter(
@@ -24,10 +26,50 @@ public sealed class EnvironmentBootstrapWriter(
         {
             Write("Agent__" + key, value);
         }
+
+        // An Explorer session that predates the wizard still carries a stale environment block, so
+        // a freshly-machine-written value isn't visible to processes it launches (e.g. the operator)
+        // until the next sign-in. Broadcasting WM_SETTINGCHANGE("Environment") tells running shells
+        // to re-read the machine env. Only matters for machine-scope writes.
+        if (target == EnvironmentVariableTarget.Machine)
+        {
+            BroadcastEnvironmentChange();
+        }
     }
 
     private void Write(string name, string value)
     {
         Environment.SetEnvironmentVariable(name, value, target);
     }
+
+    private static void BroadcastEnvironmentChange()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        SendMessageTimeout(
+            HwndBroadcast,
+            WmSettingChange,
+            UIntPtr.Zero,
+            "Environment",
+            SmtoAbortIfHung,
+            millisecondsTimeout: 5000,
+            out _);
+    }
+
+    private static readonly IntPtr HwndBroadcast = new(0xffff);
+    private const uint WmSettingChange = 0x001A;
+    private const uint SmtoAbortIfHung = 0x0002;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd,
+        uint msg,
+        UIntPtr wParam,
+        string lParam,
+        uint flags,
+        uint millisecondsTimeout,
+        out UIntPtr result);
 }

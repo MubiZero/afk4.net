@@ -84,6 +84,19 @@ public sealed class SetupWizardWebHostBridge(
                 payload: null,
                 new SetupWizardWebBridgeError(ErrorCodeFor(request.Type), exception.Message));
         }
+        catch (Exception exception)
+        {
+            // General fallback: the enroll path can throw types not mapped above — File I/O under
+            // %ProgramData% (UnauthorizedAccessException/IOException), SetEnvironmentVariable(Machine)
+            // (SecurityException), a corrupt device key (CryptographicException). Return a structured
+            // bridge error so the unknown type does not escape and crash the wizard.
+            SetupWizardStartupLog.Write($"Unhandled host bridge error for '{request.Type}'.", exception);
+            return CreateResponse(
+                request.RequestId,
+                ok: false,
+                payload: null,
+                new SetupWizardWebBridgeError(ErrorCodeFor(request.Type), exception.Message));
+        }
     }
 
     private async Task<WizardDiscoverResult> DiscoverAsync(JsonElement payload, CancellationToken cancellationToken)
@@ -135,15 +148,20 @@ public sealed class SetupWizardWebHostBridge(
             return new WizardShellOutcome("skipped", null, null);
         }
 
+        // msiexec runs synchronously and can take minutes on a fresh PC — log the outcome so a
+        // result that arrives after the JS bridge timeout is not silent.
         var result = shellProvisioner.Provision();
         if (result.Status == ShellProvisionStatus.Failed)
         {
             // Do NOT start the agent / mark ready — the finish screen shows an error + retry.
+            SetupWizardStartupLog.Write(
+                $"Player Shell install failed (exitCode={result.ExitCode}): {result.Message}");
             return new WizardShellOutcome("failed", result.ExitCode, result.Message);
         }
 
         completionAction.Complete();
         var status = result.Status == ShellProvisionStatus.AlreadyPresent ? "already_present" : "installed";
+        SetupWizardStartupLog.Write($"Player Shell install {status} (exitCode={result.ExitCode}).");
         return new WizardShellOutcome(status, result.ExitCode, null);
     }
 
@@ -193,8 +211,8 @@ public sealed class SetupWizardWebHostBridge(
             role,
             response.ApiBaseUrl,
             response.UpdateChannel,
-            LeaseSigningPublicKeyPem: string.Empty,
-            UpdatePackageSigningPublicKeyPem: string.Empty));
+            response.LeaseSigningPublicKeyPem,
+            response.UpdatePackageSigningPublicKeyPem));
         var shell = FinalizeForRole(role);
 
         return new WizardEnrollResult(
@@ -404,8 +422,8 @@ public sealed class SetupWizardWebHostBridge(
             role,
             response.ApiBaseUrl,
             response.UpdateChannel,
-            LeaseSigningPublicKeyPem: string.Empty,
-            UpdatePackageSigningPublicKeyPem: string.Empty));
+            response.LeaseSigningPublicKeyPem,
+            response.UpdatePackageSigningPublicKeyPem));
         var shell = FinalizeForRole(role);
 
         return new WizardEnrollResult(
