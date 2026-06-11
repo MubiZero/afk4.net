@@ -19,7 +19,17 @@ public static class SetupWizardDefaults
     public static readonly Uri PlatformBaseUrl = new(ResolvePlatformBaseUrl(ReadInjectedBaseUrl()));
 
     public static string ResolvePlatformBaseUrl(string? injected)
-        => string.IsNullOrWhiteSpace(injected) ? StagingPlatformBaseUrl : injected.Trim();
+    {
+        var candidate = string.IsNullOrWhiteSpace(injected) ? StagingPlatformBaseUrl : injected.Trim();
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new InvalidOperationException(
+                $"AFK4.PlatformBaseUrl is not a valid absolute http(s) URL: '{candidate}'.");
+        }
+
+        return candidate;
+    }
 
     private static string? ReadInjectedBaseUrl()
         => typeof(SetupWizardDefaults).Assembly

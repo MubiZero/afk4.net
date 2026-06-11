@@ -31,4 +31,15 @@ public sealed class SetupWizardDefaultsTests
         // must fall back to staging — this guards the contract every other SetupWizard test relies on.
         Assert.Equal(new Uri("https://afk4.staging.mubi.dev"), SetupWizardDefaults.PlatformBaseUrl);
     }
+
+    [Theory]
+    [InlineData("https//app.afk4.net")]
+    [InlineData("not a url")]
+    [InlineData("ftp://app.afk4.net")]
+    public void ResolvePlatformBaseUrl_WithInvalidInjectedValue_Throws(string injected)
+    {
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => SetupWizardDefaults.ResolvePlatformBaseUrl(injected));
+        Assert.Contains("AFK4.PlatformBaseUrl", exception.Message, StringComparison.Ordinal);
+    }
 }
