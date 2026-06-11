@@ -30,6 +30,16 @@ public sealed class Worker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var agentOptions = options.Value;
+        if (!agentOptions.IsConfigured)
+        {
+            logger.LogError(
+                "Agent is UNCONFIGURED: bootstrap.json was missing or unreadable and no valid enrollment "
+                + "was found (OrganizationId/BranchId/DeviceId or a non-localhost https PlatformBaseUrl). "
+                + "Entering idle state — no heartbeats, realtime, or network beacons will be sent until the "
+                + "device is re-enrolled.");
+            return;
+        }
+
         try
         {
             await realtimeClient.StartAsync(stoppingToken);

@@ -70,6 +70,13 @@ public sealed class NamedPipePlayerShellStateServer(
                 logger.LogWarning(exception, "Player Shell state pipe access was denied.");
                 await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
             }
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Never let an unexpected fault (e.g. serialization) kill the loop — state delivery would
+                // stop forever and the kiosk UI would freeze. Log it and keep serving on the next loop.
+                logger.LogWarning(exception, "Player Shell state publish loop encountered an unexpected error. Continuing.");
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+            }
         }
     }
 

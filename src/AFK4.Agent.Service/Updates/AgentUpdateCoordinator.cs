@@ -114,6 +114,15 @@ public sealed class AgentUpdateCoordinator(
             catch (Exception exception)
             {
                 failedCount++;
+
+                // A transient download/network fault should retry on the next scheduled check, not be
+                // permanently skipped: clear the attempted mark so the rollout is offered again. The
+                // next-check cadence keeps this from becoming a tight retry storm.
+                if (IsTransientFailure(exception))
+                {
+                    ClearAttempted(instruction.UpdateRolloutId);
+                }
+
                 await ReportStatusAsync(
                     instruction,
                     installedVersion,
@@ -135,6 +144,19 @@ public sealed class AgentUpdateCoordinator(
         {
             return attemptedRolloutIds.Add(rolloutId);
         }
+    }
+
+    private void ClearAttempted(Guid rolloutId)
+    {
+        lock (attemptedRolloutsLock)
+        {
+            attemptedRolloutIds.Remove(rolloutId);
+        }
+    }
+
+    private static bool IsTransientFailure(Exception exception)
+    {
+        return exception is HttpRequestException or IOException or TimeoutException;
     }
 
     private Task ReportStatusAsync(

@@ -49,6 +49,9 @@ builder.Services.AddWindowsService(options =>
 });
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient("platform");
+// Artifact downloads stream large MSIs; the per-request CancellationToken bounds the transfer,
+// so disable the default 100s client timeout to avoid aborting slow but healthy downloads.
+builder.Services.AddHttpClient("updates", client => client.Timeout = Timeout.InfiniteTimeSpan);
 builder.Services.AddSingleton<ISessionLeaseStore, FileSessionLeaseStore>();
 builder.Services.AddSingleton<ICommandResultOutbox, FileCommandResultOutbox>();
 builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();

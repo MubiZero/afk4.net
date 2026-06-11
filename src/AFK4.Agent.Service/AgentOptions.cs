@@ -97,6 +97,18 @@ public sealed class AgentOptions
     public string UpdateRestartArgumentsTemplate { get; init; } = "--component \"{Component}\" --version \"{TargetVersion}\"";
 
     public string UpdatePackageSigningPublicKeyPem { get; init; } = string.Empty;
+
+    /// <summary>
+    /// True when the agent has a usable enrollment: real org/branch/device identifiers and an
+    /// https platform URL that is not the localhost default. When false the workers must stay idle
+    /// rather than beacon to localhost — bootstrap.json was missing or unreadable.
+    /// </summary>
+    public bool IsConfigured =>
+        OrganizationId != Guid.Empty
+        && BranchId != Guid.Empty
+        && DeviceId != Guid.Empty
+        && PlatformBaseUrl.Scheme == Uri.UriSchemeHttps
+        && !PlatformBaseUrl.IsLoopback;
 }
 
 public sealed class AgentLauncherAppOptions

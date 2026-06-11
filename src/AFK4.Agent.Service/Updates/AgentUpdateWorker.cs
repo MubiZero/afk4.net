@@ -10,6 +10,14 @@ public sealed class AgentUpdateWorker(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!options.Value.IsConfigured)
+        {
+            logger.LogError(
+                "Agent is UNCONFIGURED: bootstrap.json was missing or unreadable. Update loop is idle — "
+                + "no update checks will be made until the device is re-enrolled.");
+            return;
+        }
+
         await recoveryService.RecoverAsync(stoppingToken);
         await TryApplyUpdatesAsync(stoppingToken);
 

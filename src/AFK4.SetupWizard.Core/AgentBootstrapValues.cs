@@ -35,7 +35,7 @@ public static class AgentBootstrapValues
                 $"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(helperDirectory, "install-afk4-update-msi.ps1")}\" -PackagePath \"{{PackagePath}}\" -Component \"{{Component}}\" -Version \"{{Version}}\"",
             ["UpdateRollbackExecutablePath"] = powershell,
             ["UpdateRollbackArgumentsTemplate"] =
-                $"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(helperDirectory, "rollback-afk4-update-msi.ps1")}\" -PackagePath \"{{PackagePath}}\" -Component \"{{Component}}\" -Version \"{{Version}}\"",
+                $"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(helperDirectory, "rollback-afk4-update-msi.ps1")}\" -PackagePath \"{{ArtifactPath}}\" -Component \"{{Component}}\" -Version \"{{TargetVersion}}\"",
             ["UpdateRestartExecutablePath"] = powershell,
             ["UpdateRestartArgumentsTemplate"] =
                 $"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(helperDirectory, "restart-afk4-agent-service.ps1")}\"",
