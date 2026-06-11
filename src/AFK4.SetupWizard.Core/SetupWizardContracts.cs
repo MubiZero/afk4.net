@@ -3,15 +3,6 @@ using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard.Core;
 
-public enum SetupWizardStep
-{
-    OwnerCode,
-    BranchSelection,
-    SeatSelection,
-    RoleSelection,
-    Finished
-}
-
 public sealed record SetupWizardMachineInfo(string MachineName);
 
 /// <summary>
