@@ -95,7 +95,9 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("afk4-agent-$Version-$Channel.msi", script, StringComparison.Ordinal);
         Assert.Contains("-arch x64", agentBuild, StringComparison.Ordinal);
         Assert.Contains("-d \"SetupWizardPublishDir=$setupWizardPublishDir\"", agentBuild, StringComparison.Ordinal);
-        Assert.Contains("Write-Host $agentMsiPath", script, StringComparison.Ordinal);
+        // The agent MSI is no longer the deliverable — it is embedded into the client bundle as a
+        // build input (AgentMsiPath) and moved to intermediates\. The bundle .exe is what ships.
+        Assert.Contains("-d \"AgentMsiPath=$agentMsiPath\"", script, StringComparison.Ordinal);
     }
 
     [Fact]

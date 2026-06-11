@@ -839,7 +839,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("WixToolset.Netfx.wixext", script, StringComparison.Ordinal);
 
         // The bundle is built from the single Bundle.wxs and carries the runtime + agent MSI.
+        // Bundle.wxs references $(var.RuntimeVersion), $(var.RuntimeInstallerPath), $(var.AgentMsiPath),
+        // so the build must -d all three or `wix build` fails with an undefined preprocessor variable.
         Assert.Contains("installers/bundle/Bundle.wxs", script, StringComparison.Ordinal);
+        Assert.Contains("RuntimeVersion=$runtimeVersion", script, StringComparison.Ordinal);
         Assert.Contains("RuntimeInstallerPath=", script, StringComparison.Ordinal);
         Assert.Contains("AgentMsiPath=", script, StringComparison.Ordinal);
         Assert.Contains("afk4-client-$Version-$Channel.exe", script, StringComparison.Ordinal);

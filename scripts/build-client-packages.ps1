@@ -486,6 +486,7 @@ if (Test-Path -LiteralPath $clientBundlePath) {
     -ext WixToolset.Netfx.wixext `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
+    -d "RuntimeVersion=$runtimeVersion" `
     -d "RuntimeInstallerPath=$runtimeInstallerPath" `
     -d "AgentMsiPath=$agentMsiPath" `
     -o $clientBundlePath
