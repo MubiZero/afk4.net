@@ -45,7 +45,7 @@ if ([string]::IsNullOrWhiteSpace($platformBaseUrl)) {
 # together when moving to a newer servicing release; recompute the SHA via
 # (Get-FileHash -Algorithm SHA512 -LiteralPath <runtime.exe>).Hash
 $runtimeVersion = '10.0.9'
-$runtimeUrl = 'https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe'
+$runtimeUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/$runtimeVersion/windowsdesktop-runtime-$runtimeVersion-win-x64.exe"
 $runtimeSha512 = '99BC2215D67F8AEA1ECB3DF642423CCABF76E5261B225F0F2D78123D84D58E64923F050A5DC58405C4D5CF074ACBAD32C4A1021A67E94629DCC57206AC4116DE'
 
 function Get-VerifiedRuntimeInstaller {
@@ -555,7 +555,7 @@ foreach ($bundledMsi in @($operatorMsiPath, $playerShellMsiPath)) {
 # intermediates too — the single deliverable in the package folder is the bundle .exe.
 foreach ($artifact in @($agentMsiPath, [System.IO.Path]::ChangeExtension($agentMsiPath, '.wixpdb'))) {
     if (Test-Path -LiteralPath $artifact) {
-        Move-Item -LiteralPath $agentMsiPath -Destination $intermediatesDir -Force
+        Move-Item -LiteralPath $artifact -Destination $intermediatesDir -Force
     }
 }
 

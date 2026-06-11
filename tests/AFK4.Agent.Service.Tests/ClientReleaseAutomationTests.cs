@@ -827,7 +827,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         // Runtime pin lives next to the build-time download/verify.
         Assert.Contains("$runtimeVersion = '10.0.9'", script, StringComparison.Ordinal);
-        Assert.Contains("windowsdesktop-runtime-10.0.9-win-x64.exe", script, StringComparison.Ordinal);
+        // URL is built from $runtimeVersion (single source of truth) — not a hardcoded version,
+        // so bumping the pin can't silently leave the URL on the old runtime.
+        Assert.Contains("windowsdesktop-runtime-$runtimeVersion-win-x64.exe", script, StringComparison.Ordinal);
         Assert.Contains("Get-FileHash -Algorithm SHA512", script, StringComparison.Ordinal);
         Assert.Contains("Runtime installer SHA-512 mismatch", script, StringComparison.Ordinal);
 
@@ -844,7 +846,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         // The bundle is the deliverable; the agent MSI becomes a build input in intermediates\.
         var bundleIndex = script.IndexOf("afk4-client-$Version-$Channel.exe", StringComparison.Ordinal);
-        var agentToIntermediatesIndex = script.IndexOf("Move-Item -LiteralPath $agentMsiPath -Destination $intermediatesDir", StringComparison.Ordinal);
+        var agentToIntermediatesIndex = script.IndexOf("# The agent MSI is now a build input to the bundle", StringComparison.Ordinal);
         Assert.True(agentToIntermediatesIndex > bundleIndex, "Agent MSI must be moved to intermediates only after the bundle that embeds it is built.");
     }
 
