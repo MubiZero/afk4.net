@@ -807,6 +807,20 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void BuildClientPackagesScript_MapsChannelToPlatformBaseUrl()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
+
+        Assert.Contains("$platformBaseUrlByChannel = @{", script, StringComparison.Ordinal);
+        Assert.Contains("'internal' = 'https://afk4.staging.mubi.dev'", script, StringComparison.Ordinal);
+        Assert.Contains("'beta' = 'https://afk4.staging.mubi.dev'", script, StringComparison.Ordinal);
+        Assert.Contains("'stable' = 'https://app.afk4.net'", script, StringComparison.Ordinal);
+        Assert.Contains("$platformBaseUrl = $platformBaseUrlByChannel[$Channel]", script, StringComparison.Ordinal);
+        Assert.Contains("No platform base URL is configured for channel", script, StringComparison.Ordinal);
+        Assert.Contains("-p:AFK4PlatformBaseUrl=\"$platformBaseUrl\"", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ClientPackagesWorkflow_UsesCostControlsForManualReleaseRuns()
     {
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml")));

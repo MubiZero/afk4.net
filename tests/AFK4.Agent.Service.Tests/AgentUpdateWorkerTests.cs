@@ -21,7 +21,16 @@ public sealed class AgentUpdateWorkerTests
             NullLogger<AgentUpdateWorker>.Instance,
             coordinator,
             recovery,
-            Options.Create(new AgentOptions { UpdateCheckIntervalSeconds = 60 }));
+            Options.Create(new AgentOptions
+            {
+                // IsConfigured must hold or AgentUpdateWorker fails fast and never runs the loop.
+                PlatformBaseUrl = new Uri("https://platform.example"),
+                OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+                BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+                DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+                DeviceCredentialSecret = "device-secret",
+                UpdateCheckIntervalSeconds = 60
+            }));
 
         await worker.StartAsync(stopping.Token);
         await updateChecked.Task.WaitAsync(WorkerObservationTimeout);
@@ -41,7 +50,16 @@ public sealed class AgentUpdateWorkerTests
             NullLogger<AgentUpdateWorker>.Instance,
             coordinator,
             new RecordingRecoveryService(),
-            Options.Create(new AgentOptions { UpdateCheckIntervalSeconds = 1 }));
+            Options.Create(new AgentOptions
+            {
+                // IsConfigured must hold or AgentUpdateWorker fails fast and never runs the loop.
+                PlatformBaseUrl = new Uri("https://platform.example"),
+                OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+                BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+                DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+                DeviceCredentialSecret = "device-secret",
+                UpdateCheckIntervalSeconds = 1
+            }));
 
         await worker.StartAsync(stopping.Token);
         await secondAttempt.Task.WaitAsync(WorkerObservationTimeout);

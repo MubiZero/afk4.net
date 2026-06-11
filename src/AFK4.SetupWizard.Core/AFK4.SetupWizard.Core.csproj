@@ -10,4 +10,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- The client build injects the channel's platform origin (scripts/build-client-packages.ps1
+       passes -p:AFK4PlatformBaseUrl). SetupWizardDefaults reads this attribute at runtime; when
+       the property is unset (dev/test builds) no attribute is emitted and the code falls back to
+       staging. -->
+  <ItemGroup Condition="'$(AFK4PlatformBaseUrl)' != ''">
+    <AssemblyMetadata Include="AFK4.PlatformBaseUrl" Value="$(AFK4PlatformBaseUrl)" />
+  </ItemGroup>
+
 </Project>
