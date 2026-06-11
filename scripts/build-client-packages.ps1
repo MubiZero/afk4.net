@@ -386,10 +386,11 @@ $legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Versio
 
 # The Burn bundle needs the Bal (WixStandardBootstrapperApplication) and Netfx
 # (DotNetCoreSearch) extensions. `wix extension add` is idempotent.
-& $DotnetPath wix extension add -g WixToolset.Bal.wixext
-& $DotnetPath wix extension add -g WixToolset.Netfx.wixext
-if ($LASTEXITCODE -ne 0) {
-    throw "Adding WiX extensions failed with exit code $LASTEXITCODE."
+foreach ($wixExtension in @('WixToolset.Bal.wixext', 'WixToolset.Netfx.wixext')) {
+    & $DotnetPath wix extension add -g $wixExtension
+    if ($LASTEXITCODE -ne 0) {
+        throw "Adding WiX extension '$wixExtension' failed with exit code $LASTEXITCODE."
+    }
 }
 
 # Build the Player Shell MSI first: the agent MSI bundles it into the wizard payload
@@ -557,6 +558,12 @@ foreach ($artifact in @($agentMsiPath, [System.IO.Path]::ChangeExtension($agentM
     if (Test-Path -LiteralPath $artifact) {
         Move-Item -LiteralPath $artifact -Destination $intermediatesDir -Force
     }
+}
+
+# Keep only the bundle .exe in the package folder; its .wixpdb is a build artifact.
+$clientBundleWixPdb = [System.IO.Path]::ChangeExtension($clientBundlePath, '.wixpdb')
+if (Test-Path -LiteralPath $clientBundleWixPdb) {
+    Move-Item -LiteralPath $clientBundleWixPdb -Destination $intermediatesDir -Force
 }
 
 Write-Host "Published client package inputs under $publishRoot"
