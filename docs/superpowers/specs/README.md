@@ -4,6 +4,13 @@ The active architecture source of truth is:
 
 - `2026-05-12-afk4-platform-architecture-design.md`
 
+Open epic, approved for planning (not yet started):
+
+- `2026-06-11-productionize-client-installer-design.md` — shared bundled .NET
+  runtime (framework-dependent apps + WiX Burn bundle) to cut the ~160 MB agent
+  MSI, channel-driven prod URL, and code signing (blocked on a cert). Includes a
+  phased implementation outline; pick up in a new session.
+
 All focused design specs for shipped work — the platform-web redesign, the
 2026-06-01 UX-audit feature specs (counter-loop, anti-fraud, offline,
 customer portal/shell, notifications, localization, realtime,
