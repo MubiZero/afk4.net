@@ -109,7 +109,10 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("afk4-player-shell-$Version-$Channel.msi", script, StringComparison.Ordinal);
         Assert.Contains("-arch x64", playerShellBuild, StringComparison.Ordinal);
         Assert.Contains("-d \"PlayerShellPublishDir=$(Join-Path $publishRoot \"player-shell-$Version-$Channel\")\"", playerShellBuild, StringComparison.Ordinal);
-        Assert.Contains("Write-Host $playerShellMsiPath", script, StringComparison.Ordinal);
+        // The player-shell MSI is a bundled input (carried inside the agent MSI payload), not a
+        // standalone deliverable — the build moves it into the intermediates\ subfolder instead of
+        // echoing it as an output (see "move bundled operator/player-shell MSIs into intermediates").
+        Assert.Contains("foreach ($bundledMsi in @($operatorMsiPath, $playerShellMsiPath))", script, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.Json;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
@@ -9,7 +10,31 @@ namespace AFK4.SetupWizard.Core;
 
 public static class SetupWizardDefaults
 {
-    public static readonly Uri PlatformBaseUrl = new("https://afk4.staging.mubi.dev");
+    // The wizard's FIRST discovery/enroll call goes here. After enroll the agent uses the
+    // ApiBaseUrl the platform returns, so only this initial value is build-pinned. The build
+    // injects the channel's platform origin via [AssemblyMetadata("AFK4.PlatformBaseUrl", ...)]
+    // (see AFK4.SetupWizard.Core.csproj); dev/test builds omit it and fall back to staging.
+    private const string StagingPlatformBaseUrl = "https://afk4.staging.mubi.dev";
+
+    public static readonly Uri PlatformBaseUrl = new(ResolvePlatformBaseUrl(ReadInjectedBaseUrl()));
+
+    public static string ResolvePlatformBaseUrl(string? injected)
+    {
+        var candidate = string.IsNullOrWhiteSpace(injected) ? StagingPlatformBaseUrl : injected.Trim();
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new InvalidOperationException(
+                $"AFK4.PlatformBaseUrl is not a valid absolute http(s) URL: '{candidate}'.");
+        }
+
+        return candidate;
+    }
+
+    private static string? ReadInjectedBaseUrl()
+        => typeof(SetupWizardDefaults).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute => attribute.Key == "AFK4.PlatformBaseUrl")?.Value;
 }
 
 public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardApiClient

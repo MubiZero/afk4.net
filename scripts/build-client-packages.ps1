@@ -28,6 +28,19 @@ $ErrorActionPreference = 'Stop'
 $includeLegacyGamingPcPackage = $IncludeLegacyGamingPcPackage.IsPresent -or $BuildLegacyStagingBootstrapper.IsPresent
 $buildLegacyStagingBootstrapper = $BuildLegacyStagingBootstrapper.IsPresent
 
+# The Setup Wizard's first (pre-enroll) discovery/enroll call is build-pinned per channel.
+# internal/beta stay on staging; stable points at the production platform origin. The URL is
+# injected into AFK4.SetupWizard.Core via -p:AFK4PlatformBaseUrl below (see SetupWizardDefaults).
+$platformBaseUrlByChannel = @{
+    'internal' = 'https://afk4.staging.mubi.dev'
+    'beta' = 'https://afk4.staging.mubi.dev'
+    'stable' = 'https://app.afk4.net'
+}
+$platformBaseUrl = $platformBaseUrlByChannel[$Channel]
+if ([string]::IsNullOrWhiteSpace($platformBaseUrl)) {
+    throw "No platform base URL is configured for channel '$Channel'."
+}
+
 function ConvertTo-MsiVersion {
     param(
         [Parameter(Mandatory = $true)]
@@ -284,7 +297,8 @@ foreach ($project in $projects) {
         --self-contained $($project.SelfContained.ToString().ToLowerInvariant()) `
         -o $output `
         -p:NuGetAudit=false `
-        -p:UseSharedCompilation=false
+        -p:UseSharedCompilation=false `
+        -p:AFK4PlatformBaseUrl="$platformBaseUrl"
 
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish failed for '$($project.Name)' with exit code $LASTEXITCODE."
