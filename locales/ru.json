@@ -673,6 +673,7 @@
   "operator.host.loading": "Загрузка рабочего пространства оператора…",
   "operator.host.failedTitle": "Не удалось запустить интерфейс оператора",
   "operator.host.navFailed": "Не удалось загрузить интерфейс оператора: {0}",
+  "operator.host.notConfigured": "Приложение не настроено. Запустите мастер настройки или войдите заново.",
   "customer.nav.dashboard": "Главная",
   "customer.nav.history": "История",
   "customer.nav.reservations": "Брони",

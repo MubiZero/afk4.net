@@ -673,6 +673,7 @@
   "operator.host.loading": "Боркунии фазои кории оператор…",
   "operator.host.failedTitle": "Интерфейси операторро оғоз кардан нашуд",
   "operator.host.navFailed": "Интерфейси операторро бор кардан нашуд: {0}",
+  "operator.host.notConfigured": "Барнома танзим нашудааст — устои танзимотро оғоз кунед ё дубора ворид шавед.",
   "customer.nav.dashboard": "Асосӣ",
   "customer.nav.history": "Таърих",
   "customer.nav.reservations": "Бронҳо",

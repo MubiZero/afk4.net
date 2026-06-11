@@ -100,6 +100,8 @@ public partial class WebViewOperatorWindow : Window
         if (Browser.CoreWebView2 is not null)
         {
             Browser.CoreWebView2.WebMessageReceived -= OnWebMessageReceived;
+            Browser.CoreWebView2.NavigationStarting -= OnNavigationStarting;
+            Browser.CoreWebView2.NewWindowRequested -= OnNewWindowRequested;
         }
 
         base.OnClosed(e);
@@ -109,12 +111,23 @@ public partial class WebViewOperatorWindow : Window
     {
         try
         {
+            // In a packaged/normal run an unprovisioned platform URL still defaults to localhost,
+            // which would silently load a dead UI. Surface a clear "not configured" failure instead.
+            // The dev harness (vite dev server env set) legitimately runs against localhost, so skip
+            // the guard there.
+            if (!IsDevShell && appOptions.PlatformBaseUrl.IsLoopback)
+            {
+                ShowStartupFailure(localization.T("operator.host.notConfigured"));
+                return;
+            }
+
             var launchTarget = assetResolver.Resolve(shellOptions);
             StatusText.Text = localization.T("operator.host.loading");
 
             var userDataFolder = OperatorWebView2UserDataFolder.EnsureExists();
             var webViewEnvironment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
             await Browser.EnsureCoreWebView2Async(webViewEnvironment);
+            HardenWebView(Browser.CoreWebView2);
             Browser.NavigationCompleted += OnNavigationCompleted;
             Browser.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
@@ -137,6 +150,62 @@ public partial class WebViewOperatorWindow : Window
         }
     }
 
+    // The dev harness runs the operator UI from a localhost vite dev server (env-provisioned).
+    // It's the one legitimate localhost scenario and also where DevTools / dev-origin navigation
+    // must stay allowed.
+    private bool IsDevShell => shellOptions.DevServerUrl is not null;
+
+    // Operators interact with the app (not a full kiosk), so this is conservative: lock down the
+    // token-exfil / navigate-away vectors on shared staff PCs without breaking the legit UI.
+    // API calls are fetch/XHR (not navigations), so NavigationStarting never touches them.
+    private void HardenWebView(CoreWebView2 core)
+    {
+        if (!IsDevShell)
+        {
+            core.Settings.AreDevToolsEnabled = false;
+        }
+
+        core.NavigationStarting += OnNavigationStarting;
+        core.NewWindowRequested += OnNewWindowRequested;
+    }
+
+    private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out var target))
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        // Only http(s) navigations are the navigate-away vector. Leave internal schemes
+        // (about:blank, data:, etc.) alone so framework-internal navigation isn't broken.
+        if (target.Scheme != Uri.UriSchemeHttp && target.Scheme != Uri.UriSchemeHttps)
+        {
+            return;
+        }
+
+        if (string.Equals(target.Host, OperatorWebAssetResolver.LocalVirtualHost, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (IsDevShell && shellOptions.DevServerUrl is { } devServer &&
+            string.Equals(target.Host, devServer.Host, StringComparison.OrdinalIgnoreCase) &&
+            target.Port == devServer.Port)
+        {
+            return;
+        }
+
+        // Anything else (navigate-away to an arbitrary site) is blocked.
+        e.Cancel = true;
+    }
+
+    private static void OnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        // No popups / new windows from the operator UI.
+        e.Handled = true;
+    }
+
     private void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         if (e.IsSuccess)
@@ -150,15 +219,58 @@ public partial class WebViewOperatorWindow : Window
 
     private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
-        if (TryHandleWindowMessage(e.WebMessageAsJson))
+        // A throw from this async-void handler escapes into the dispatcher and crashes the host.
+        // Log it and return a structured host:response error so the React side fails gracefully.
+        try
         {
-            return;
-        }
+            if (TryHandleWindowMessage(e.WebMessageAsJson))
+            {
+                return;
+            }
 
-        var responseJson = await hostBridge.HandleAsync(e.WebMessageAsJson, CancellationToken.None);
-        if (responseJson is not null && Browser.CoreWebView2 is not null)
+            var responseJson = await hostBridge.HandleAsync(e.WebMessageAsJson, CancellationToken.None);
+            if (responseJson is not null && Browser.CoreWebView2 is not null)
+            {
+                Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
+            }
+        }
+        catch (Exception exception)
         {
-            Browser.CoreWebView2.PostWebMessageAsJson(responseJson);
+            OperatorStartupLog.Write("Unhandled error in operator host bridge.", exception);
+
+            var errorResponse = TryCreateBridgeErrorResponse(e.WebMessageAsJson, exception);
+            if (errorResponse is not null && Browser.CoreWebView2 is not null)
+            {
+                Browser.CoreWebView2.PostWebMessageAsJson(errorResponse);
+            }
+        }
+    }
+
+    private static string? TryCreateBridgeErrorResponse(string webMessageJson, Exception exception)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(webMessageJson);
+            if (!document.RootElement.TryGetProperty("requestId", out var requestIdProperty) ||
+                requestIdProperty.GetString() is not { Length: > 0 } requestId)
+            {
+                return null;
+            }
+
+            var response = new
+            {
+                type = "host:response",
+                requestId,
+                ok = false,
+                payload = (object?)null,
+                error = new { code = "host_error", message = exception.Message }
+            };
+
+            return JsonSerializer.Serialize(response);
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 

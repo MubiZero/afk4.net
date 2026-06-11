@@ -673,6 +673,7 @@
   "operator.host.loading": "Loading operator workspace...",
   "operator.host.failedTitle": "Operator UI failed to start",
   "operator.host.navFailed": "Operator UI navigation failed: {0}",
+  "operator.host.notConfigured": "App is not configured — run the Setup Wizard or sign in again.",
   "customer.nav.dashboard": "Home",
   "customer.nav.history": "History",
   "customer.nav.reservations": "Bookings",

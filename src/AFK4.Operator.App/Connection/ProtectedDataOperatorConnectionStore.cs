@@ -41,10 +41,21 @@ public sealed class ProtectedDataOperatorConnectionStore : IOperatorConnectionSt
             return null;
         }
 
-        var protectedBytes = await File.ReadAllBytesAsync(path, cancellationToken);
-        var json = ProtectedData.Unprotect(protectedBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
+        // DPAPI Unprotect throws on a corrupt/truncated .bin or one written under a different
+        // user/machine. Self-heal like FileFloorMapCache: delete the poisoned file and degrade
+        // to the sign-in screen rather than crashing the host on every launch.
+        try
+        {
+            var protectedBytes = await File.ReadAllBytesAsync(path, cancellationToken);
+            var json = ProtectedData.Unprotect(protectedBytes, optionalEntropy: null, DataProtectionScope.CurrentUser);
 
-        return JsonSerializer.Deserialize<OperatorConnectionSnapshot>(json, JsonOptions);
+            return JsonSerializer.Deserialize<OperatorConnectionSnapshot>(json, JsonOptions);
+        }
+        catch (Exception exception) when (exception is CryptographicException or IOException or JsonException)
+        {
+            TryDelete(path);
+            return null;
+        }
     }
 
     public Task ClearAsync(CancellationToken cancellationToken)
@@ -55,6 +66,23 @@ public sealed class ProtectedDataOperatorConnectionStore : IOperatorConnectionSt
         }
 
         return Task.CompletedTask;
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private static string GetDefaultPath()

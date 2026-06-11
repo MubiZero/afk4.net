@@ -156,7 +156,12 @@ export function useOperatorRealtime({
         setFloorMap((current) => {
           const nextState = {
             ...current,
-            seats: applyDeviceStatusToSeats(current.seats, status, t)
+            seats: applyDeviceStatusToSeats(current.seats, status, t),
+            // A live device event means the on-screen data is fresh as of now. Advance the staleness
+            // clock so the "offline — stale data" banner doesn't trip 30s after the last HTTP reload
+            // on a floor map that realtime is actively keeping current. cachedAtMs previously only
+            // moved on a full reload, so a live map went "offline" between reloads.
+            cachedAtMs: Date.now()
           };
           floorMapRef.current = nextState;
           return nextState;
