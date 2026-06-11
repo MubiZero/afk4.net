@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
-import { closeWizard, provisionShell, type WizardEnrollResult, type WizardSeat, type WizardShellOutcome } from './wizardApi';
+import { closeWizard, provisionShell, type WizardEnrollResult, type WizardRole, type WizardSeat, type WizardShellOutcome } from './wizardApi';
 
 interface FinishedScreenProps {
   result: WizardEnrollResult;
@@ -67,8 +67,8 @@ export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScr
           </div>
         </dl>
 
-        {result.role === 'gaming_pc' && (
-          <ShellStatusRow initial={result.shell} />
+        {result.shell.status !== 'skipped' && (
+          <ShellStatusRow initial={result.shell} role={result.role} />
         )}
 
         {isPending && (
@@ -87,7 +87,7 @@ export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScr
   );
 }
 
-function ShellStatusRow({ initial }: { initial: WizardShellOutcome }) {
+function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: WizardRole }) {
   const { t } = useI18n();
   const [outcome, setOutcome] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -117,7 +117,7 @@ function ShellStatusRow({ initial }: { initial: WizardShellOutcome }) {
         onClick={async () => {
           setBusy(true);
           try {
-            setOutcome(await provisionShell());
+            setOutcome(await provisionShell(role));
           } finally {
             setBusy(false);
           }

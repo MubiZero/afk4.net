@@ -23,6 +23,17 @@ internal static class PreviewSetupWizard
     public static ISetupWizardShellProvisioner CreateShellProvisioner() =>
         new PreviewShellProvisioner();
 
+    public static ISetupWizardOperatorLauncher CreateOperatorLauncher() =>
+        new FakeOperatorLauncher();
+
+    private sealed class FakeOperatorLauncher : ISetupWizardOperatorLauncher
+    {
+        public void Launch()
+        {
+            // preview must not start the operator app
+        }
+    }
+
     private sealed class PreviewShellProvisioner : ISetupWizardShellProvisioner
     {
         public ShellProvisionResult Provision() => ShellProvisionResult.Installed(0);

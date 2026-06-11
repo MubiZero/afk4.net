@@ -10,7 +10,7 @@ public sealed class SetupWizardPayloadResolverTests
         string? probed = null;
         var resolver = new SetupWizardPayloadResolver(
             path => { probed = path; return true; },
-            () => System.IO.Path.Combine(@"C:\Program Files\AFK4\Setup Wizard", "payload", "AFK4.Player.Shell.msi"));
+            fileName => System.IO.Path.Combine(@"C:\Program Files\AFK4\Setup Wizard", "payload", fileName));
 
         var result = resolver.ResolvePlayerShellMsiPath();
 
@@ -19,9 +19,21 @@ public sealed class SetupWizardPayloadResolverTests
     }
 
     [Fact]
+    public void ResolveOperatorAppMsiPath_UsesPayloadSubfolderNextToBaseDirectory()
+    {
+        var resolver = new SetupWizardPayloadResolver(
+            _ => true,
+            fileName => System.IO.Path.Combine(@"C:\Program Files\AFK4\Setup Wizard", "payload", fileName));
+
+        var result = resolver.ResolveOperatorAppMsiPath();
+
+        Assert.EndsWith(System.IO.Path.Combine("payload", "AFK4.Operator.App.msi"), result);
+    }
+
+    [Fact]
     public void ResolvePlayerShellMsiPath_WhenMissing_ReturnsNull()
     {
-        var resolver = new SetupWizardPayloadResolver(_ => false, () => @"C:\nope\payload\AFK4.Player.Shell.msi");
+        var resolver = new SetupWizardPayloadResolver(_ => false, fileName => @"C:\nope\payload\" + fileName);
 
         Assert.Null(resolver.ResolvePlayerShellMsiPath());
     }

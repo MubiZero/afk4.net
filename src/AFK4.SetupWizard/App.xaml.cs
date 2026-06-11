@@ -24,7 +24,9 @@ public partial class App : Application
                 Preview.PreviewSetupWizard.CreateBootstrapWriter(),
                 previewMachine,
                 Preview.PreviewSetupWizard.CreateCompletionAction(),
-                Preview.PreviewSetupWizard.CreateShellProvisioner());
+                Preview.PreviewSetupWizard.CreateShellProvisioner(),
+                Preview.PreviewSetupWizard.CreateShellProvisioner(),
+                Preview.PreviewSetupWizard.CreateOperatorLauncher());
             LaunchWebShell(previewBridge, previewMachine, SetupWizardDefaults.PlatformBaseUrl, isPreview: true);
             base.OnStartup(e);
             return;
@@ -42,6 +44,8 @@ public partial class App : Application
         {
             BaseAddress = SetupWizardDefaults.PlatformBaseUrl
         };
+        var payloadResolver = new SetupWizardPayloadResolver(AppContext.BaseDirectory);
+        var processRunner = new SystemProcessRunner();
         var bridge = new SetupWizardWebHostBridge(
             new SetupWizardApiClient(httpClient),
             new FileDeviceKeyStore(),
@@ -50,9 +54,9 @@ public partial class App : Application
                 new EnvironmentBootstrapWriter(machineInfo.MachineName)),
             machineInfo,
             new AgentServiceCompletionAction(),
-            new MsiexecPlayerShellProvisioner(
-                new SetupWizardPayloadResolver(AppContext.BaseDirectory),
-                new SystemProcessRunner()));
+            new MsiexecPlayerShellProvisioner(payloadResolver, processRunner),
+            new MsiexecOperatorAppProvisioner(payloadResolver, processRunner),
+            new ExplorerOperatorAppLauncher());
 
         LaunchWebShell(bridge, machineInfo, SetupWizardDefaults.PlatformBaseUrl, isPreview: false);
         base.OnStartup(e);

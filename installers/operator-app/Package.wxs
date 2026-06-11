@@ -34,10 +34,53 @@
       </Directory>
     </StandardDirectory>
 
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="OperatorAppMenuFolder" Name="AFK4.NET" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder" />
+
     <Feature Id="MainFeature" Title="AFK4.NET Operator App" Level="1">
       <ComponentGroupRef Id="OperatorAppFiles" />
       <ComponentRef Id="OperatorAppAgentConfiguration" />
+      <ComponentRef Id="OperatorAppStartMenuShortcut" />
+      <ComponentRef Id="OperatorAppDesktopShortcut" />
     </Feature>
+
+    <!-- Start Menu shortcut so the cashier can launch the operator after the wizard installs it. -->
+    <Component Id="OperatorAppStartMenuShortcut" Directory="OperatorAppMenuFolder" Guid="{5686D743-A622-4B89-8983-29B596BBCBC6}">
+      <Shortcut
+          Id="OperatorAppShortcut"
+          Name="AFK4.NET Operator"
+          Description="AFK4.NET Operator workstation"
+          Target="[OperatorAppFolder]AFK4.Operator.App.exe"
+          WorkingDirectory="OperatorAppFolder" />
+      <RemoveFolder Id="RemoveOperatorAppMenuFolder" Directory="OperatorAppMenuFolder" On="uninstall" />
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\AFK4\OperatorApp"
+          Name="StartMenuShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+    </Component>
+
+    <!-- Desktop shortcut: the operator is a daily-use cashier tool, so a desktop icon is expected. -->
+    <Component Id="OperatorAppDesktopShortcut" Directory="DesktopFolder" Guid="{5D1BFA85-EE72-4427-AEF9-133EEDB21FB6}">
+      <Shortcut
+          Id="OperatorAppDesktopShortcutLink"
+          Name="AFK4.NET Operator"
+          Description="AFK4.NET Operator workstation"
+          Target="[OperatorAppFolder]AFK4.Operator.App.exe"
+          WorkingDirectory="OperatorAppFolder" />
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\AFK4\OperatorApp"
+          Name="DesktopShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+    </Component>
 
     <ComponentGroup Id="OperatorAppFiles" Directory="OperatorAppFolder">
       <Files Include="$(var.OperatorAppPublishDir)\**" />

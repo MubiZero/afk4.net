@@ -345,10 +345,26 @@ if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for Player Shell MSI with exit code $LASTEXITCODE."
 }
 
-# Bundle the Player Shell MSI into the wizard payload before the support dir is harvested.
+# Build the Operator App MSI next: the agent MSI also bundles it into the wizard payload so the
+# wizard can install the Operator App on cashier/manager workstations (role manager_workstation),
+# the same way it installs the Player Shell on gaming PCs. So it must exist before the harvest too.
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
+    -arch x64 `
+    -d "PackageVersion=$msiVersion" `
+    -d "OperatorAppPublishDir=$(Join-Path $publishRoot "operator-app-$Version-$Channel")" `
+    -o $operatorMsiPath
+
+if ($LASTEXITCODE -ne 0) {
+    throw "WiX build failed for Operator App MSI with exit code $LASTEXITCODE."
+}
+
+Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath
+
+# Bundle BOTH role apps into the wizard payload before the support dir is harvested.
 $setupWizardPayloadDir = Join-Path $setupWizardPublishDir 'payload'
 New-Item -ItemType Directory -Force -Path $setupWizardPayloadDir | Out-Null
 Copy-Item -LiteralPath $playerShellMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.Player.Shell.msi') -Force
+Copy-Item -LiteralPath $operatorMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.Operator.App.msi') -Force
 
 # -Recurse (not -File) so the WebAssets\** subfolder ships in the support dir;
 # the agent MSI harvests SetupWizardFiles from here, and the wizard resolves its
@@ -367,18 +383,6 @@ foreach ($helperScript in $updateHelperScripts) {
     Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/$helperScript") -Destination $updateHelperDir -Force
 }
 
-& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
-    -arch x64 `
-    -d "PackageVersion=$msiVersion" `
-    -d "OperatorAppPublishDir=$(Join-Path $publishRoot "operator-app-$Version-$Channel")" `
-    -o $operatorMsiPath
-
-if ($LASTEXITCODE -ne 0) {
-    throw "WiX build failed for Operator App MSI with exit code $LASTEXITCODE."
-}
-
-Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath
-
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/agent/Package.wxs') `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
@@ -396,6 +400,9 @@ if ($LASTEXITCODE -ne 0) {
 $agentFiles = Get-MsiFileNames -MsiPath $agentMsiPath
 if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Player.Shell.msi*' } | Select-Object -First 1)) {
     throw "Agent MSI does not contain the bundled Player Shell MSI (payload\AFK4.Player.Shell.msi)."
+}
+if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Operator.App.msi*' } | Select-Object -First 1)) {
+    throw "Agent MSI does not contain the bundled Operator App MSI (payload\AFK4.Operator.App.msi)."
 }
 
 # Components publish self-contained (each carries its own .NET runtime), so the agent

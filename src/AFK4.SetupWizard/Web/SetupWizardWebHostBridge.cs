@@ -14,7 +14,9 @@ public sealed class SetupWizardWebHostBridge(
     ISetupWizardBootstrapWriter bootstrapWriter,
     SetupWizardMachineInfo machineInfo,
     ISetupWizardCompletionAction completionAction,
-    ISetupWizardShellProvisioner shellProvisioner)
+    ISetupWizardShellProvisioner shellProvisioner,
+    ISetupWizardShellProvisioner operatorProvisioner,
+    ISetupWizardOperatorLauncher operatorLauncher)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -60,7 +62,7 @@ public sealed class SetupWizardWebHostBridge(
                 "wizard:discoverAuth" => await DiscoverAuthenticatedAsync(cancellationToken),
                 "wizard:createSeatAuth" => await CreateSeatAuthenticatedAsync(request.Payload, cancellationToken),
                 "wizard:enrollAuth" => await EnrollAuthenticatedAsync(request.Payload, cancellationToken),
-                "wizard:provisionShell" => FinalizeForRole(DeviceRoleNames.GamingPc),
+                "wizard:provisionShell" => FinalizeForRole(ReadProvisionRole(request.Payload)),
                 _ => throw new InvalidOperationException($"Unsupported host bridge request: {request.Type}.")
             };
 
@@ -140,9 +142,33 @@ public sealed class SetupWizardWebHostBridge(
 
     // For gaming_pc: install the bundled Player Shell, then start the agent only on success.
     // For other roles: just start the agent. Returns the shell outcome for the finish screen.
+    // The finish-screen retry sends the role so it re-runs the right install; default to gaming_pc
+    // for backward compatibility when no role is supplied.
+    private static string ReadProvisionRole(JsonElement payload)
+    {
+        if (payload.ValueKind == JsonValueKind.Object &&
+            payload.TryGetProperty("role", out var role) &&
+            role.ValueKind == JsonValueKind.String &&
+            role.GetString() == DeviceRoleNames.ManagerWorkstation)
+        {
+            return DeviceRoleNames.ManagerWorkstation;
+        }
+
+        return DeviceRoleNames.GamingPc;
+    }
+
     private WizardShellOutcome FinalizeForRole(string role)
     {
-        if (role != DeviceRoleNames.GamingPc)
+        // Each role installs its own bundled app: gaming PCs get the Player Shell, cashier/manager
+        // workstations get the Operator App. Roles with no app just start the agent.
+        var provisioner = role switch
+        {
+            DeviceRoleNames.GamingPc => shellProvisioner,
+            DeviceRoleNames.ManagerWorkstation => operatorProvisioner,
+            _ => null
+        };
+
+        if (provisioner is null)
         {
             completionAction.Complete();
             return new WizardShellOutcome("skipped", null, null);
@@ -150,18 +176,27 @@ public sealed class SetupWizardWebHostBridge(
 
         // msiexec runs synchronously and can take minutes on a fresh PC — log the outcome so a
         // result that arrives after the JS bridge timeout is not silent.
-        var result = shellProvisioner.Provision();
+        var result = provisioner.Provision();
         if (result.Status == ShellProvisionStatus.Failed)
         {
             // Do NOT start the agent / mark ready — the finish screen shows an error + retry.
             SetupWizardStartupLog.Write(
-                $"Player Shell install failed (exitCode={result.ExitCode}): {result.Message}");
+                $"{role} app install failed (exitCode={result.ExitCode}): {result.Message}");
             return new WizardShellOutcome("failed", result.ExitCode, result.Message);
         }
 
         completionAction.Complete();
+
+        // Gaming PCs get their Player Shell launched by the agent service at the lock screen; the
+        // operator app has no such trigger, so start it here so the cashier doesn't have to click
+        // the Start Menu shortcut after enrolling.
+        if (role == DeviceRoleNames.ManagerWorkstation)
+        {
+            operatorLauncher.Launch();
+        }
+
         var status = result.Status == ShellProvisionStatus.AlreadyPresent ? "already_present" : "installed";
-        SetupWizardStartupLog.Write($"Player Shell install {status} (exitCode={result.ExitCode}).");
+        SetupWizardStartupLog.Write($"{role} app install {status} (exitCode={result.ExitCode}).");
         return new WizardShellOutcome(status, result.ExitCode, null);
     }
 

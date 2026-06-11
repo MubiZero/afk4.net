@@ -110,3 +110,13 @@ public interface ISetupWizardCompletionAction
 {
     void Complete();
 }
+
+/// <summary>
+/// Starts the Operator App once it has been installed for a manager/cashier workstation. Gaming PCs
+/// get their Player Shell launched by the agent service at the lock screen; the operator app has no
+/// such trigger, so the wizard launches it directly after a successful install.
+/// </summary>
+public interface ISetupWizardOperatorLauncher
+{
+    void Launch();
+}

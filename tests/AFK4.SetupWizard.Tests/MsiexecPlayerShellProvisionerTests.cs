@@ -20,7 +20,7 @@ public sealed class MsiexecPlayerShellProvisionerTests
     }
 
     private static MsiexecPlayerShellProvisioner Create(IProcessRunner runner) =>
-        new(new SetupWizardPayloadResolver(_ => true, () => MsiPath), runner);
+        new(new SetupWizardPayloadResolver(_ => true, _ => MsiPath), runner);
 
     [Theory]
     [InlineData(0, ShellProvisionStatus.Installed)]
@@ -54,7 +54,7 @@ public sealed class MsiexecPlayerShellProvisionerTests
     {
         var runner = new FakeProcessRunner(0, string.Empty);
         var provisioner = new MsiexecPlayerShellProvisioner(
-            new SetupWizardPayloadResolver(_ => false, () => MsiPath),
+            new SetupWizardPayloadResolver(_ => false, _ => MsiPath),
             runner);
 
         var result = provisioner.Provision();

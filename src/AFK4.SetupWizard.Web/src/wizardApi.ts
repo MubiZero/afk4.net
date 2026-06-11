@@ -152,9 +152,10 @@ export function authenticatedInstallClient(): WizardInstallClient {
   };
 }
 
-/** Retry installing the Player Shell on a gaming PC after a failed attempt. */
-export function provisionShell(): Promise<WizardShellOutcome> {
-  return postHostRequest<WizardShellOutcome>('wizard:provisionShell', undefined, ENROLL_TIMEOUT_MS);
+/** Retry installing the role's app (Player Shell for gaming_pc, Operator App for
+ *  manager_workstation) after a failed attempt. */
+export function provisionShell(role: WizardRole): Promise<WizardShellOutcome> {
+  return postHostRequest<WizardShellOutcome>('wizard:provisionShell', { role }, ENROLL_TIMEOUT_MS);
 }
 
 export function closeWizard(): void {

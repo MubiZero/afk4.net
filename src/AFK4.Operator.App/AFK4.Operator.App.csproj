@@ -22,6 +22,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- Embeds the AFK4.NET logo into the exe so both the desktop and Start Menu shortcuts (which
+         target the exe) and the window/taskbar show the brand icon instead of the generic default. -->
+    <ApplicationIcon>afk4-operator.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>
