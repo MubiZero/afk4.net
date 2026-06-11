@@ -454,11 +454,23 @@ if ($buildLegacyStagingBootstrapper) {
     Copy-Item -LiteralPath (Join-Path $setupPublishDir 'AFK4.GamingPc.Setup.exe') -Destination $setupArtifactPath -Force
 }
 
+# The operator + player-shell MSIs are only inputs now — they ship bundled inside the agent MSI
+# payload, not on their own. Move them (and their .wixpdb) into an intermediates\ subfolder so the
+# deliverable folder presents a single file (the agent MSI) and nobody hands a client the wrong one.
+$intermediatesDir = Join-Path $artifactRoot 'intermediates'
+New-Item -ItemType Directory -Force -Path $intermediatesDir | Out-Null
+foreach ($bundledMsi in @($operatorMsiPath, $playerShellMsiPath)) {
+    foreach ($artifact in @($bundledMsi, [System.IO.Path]::ChangeExtension($bundledMsi, '.wixpdb'))) {
+        if (Test-Path -LiteralPath $artifact) {
+            Move-Item -LiteralPath $artifact -Destination $intermediatesDir -Force
+        }
+    }
+}
+
 Write-Host "Published client package inputs under $publishRoot"
-Write-Host "MSI artifacts:"
-Write-Host $operatorMsiPath
+Write-Host "Deliverable MSI (install this one):"
 Write-Host $agentMsiPath
-Write-Host $playerShellMsiPath
+Write-Host "Bundled inputs moved to: $intermediatesDir"
 
 if ($includeLegacyGamingPcPackage) {
     Write-Host "Legacy gaming-PC MSI artifact:"
