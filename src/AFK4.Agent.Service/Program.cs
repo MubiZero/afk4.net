@@ -20,7 +20,21 @@ var bootstrapConfigPath = Path.Combine(
     "AFK4",
     "Agent",
     "bootstrap.json");
-builder.Configuration.AddJsonFile(bootstrapConfigPath, optional: true, reloadOnChange: false);
+
+// Load into memory via a stream rather than AddJsonFile so an unreadable file (ACL denial,
+// partial write) is swallowed here instead of throwing during host build — a kiosk Agent must
+// not fail to start over a config-read error; it falls back to environment configuration.
+try
+{
+    if (File.Exists(bootstrapConfigPath))
+    {
+        builder.Configuration.AddJsonStream(new MemoryStream(File.ReadAllBytes(bootstrapConfigPath)));
+    }
+}
+catch (Exception bootstrapReadException)
+{
+    Console.Error.WriteLine($"Failed to read bootstrap config '{bootstrapConfigPath}': {bootstrapReadException.Message}");
+}
 
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection("Agent"));
 
