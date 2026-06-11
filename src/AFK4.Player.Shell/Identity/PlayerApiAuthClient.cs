@@ -54,12 +54,29 @@ public sealed class PlayerApiAuthClient(HttpClient http) : IPlayerApiAuthClient
                 return;
             }
 
-            var response = await http.PostAsJsonAsync(
-                "/api/public/player/refresh", new PlayerRefreshRequest(refreshToken), Json, ct);
+            HttpResponseMessage response;
+            try
+            {
+                response = await http.PostAsJsonAsync(
+                    "/api/public/player/refresh", new PlayerRefreshRequest(refreshToken), Json, ct);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+            {
+                // Transient transport failure (DNS/refused/TLS/timeout): keep the tokens and retry
+                // next tick. Signing out here would log the player out on a brief network blip.
+                return;
+            }
+
+            // Only a definitive auth rejection invalidates the session. A 5xx is a server-side
+            // blip — keep the tokens so a momentary platform hiccup doesn't drop the player.
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                SignOut();
+                return;
+            }
 
             if (!response.IsSuccessStatusCode)
             {
-                SignOut();
                 return;
             }
 
