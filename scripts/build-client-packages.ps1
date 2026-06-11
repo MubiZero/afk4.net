@@ -273,10 +273,10 @@ Get-ChildItem -LiteralPath $setupWizardWebDist -Force |
     Copy-Item -Destination $setupWizardWebAssets -Recurse -Force
 
 $projects = @(
-    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true },
-    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $true },
-    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $true },
-    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $true }
+    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
+    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false },
+    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false },
+    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }
 )
 
 foreach ($project in $projects) {
@@ -419,9 +419,10 @@ if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Operator.App.msi*' } | Se
     throw "Agent MSI does not contain the bundled Operator App MSI (payload\AFK4.Operator.App.msi)."
 }
 
-# Components publish self-contained (each carries its own .NET runtime), so the agent
-# MSI is installed directly — no master-installer / runtime-download step is needed. The
-# agent MSI auto-launches the Setup Wizard on interactive install.
+# Components publish framework-dependent (one shared .NET runtime, carried by the Burn
+# bundle — see installers/bundle/Bundle.wxs). The agent MSI is a build input to that bundle;
+# it must be installed on a machine where the Desktop Runtime is already present (the bundle
+# guarantees that ordering). The agent MSI still auto-launches the Setup Wizard on interactive install.
 
 if ($includeLegacyGamingPcPackage) {
     & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `

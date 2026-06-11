@@ -123,7 +123,13 @@ public sealed class UpdateHelperScriptTests
         var operatorAppBuild = script[
             script.IndexOf("installers/operator-app/Package.wxs", StringComparison.Ordinal)..];
 
-        Assert.Contains("@{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true }", script, StringComparison.Ordinal);
+        Assert.Contains("@{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
+        // All four client components must publish framework-dependent so the bundle's shared
+        // runtime is the single .NET copy (see Workstream A). A stray "SelfContained = $true" in
+        // the $projects list would re-bloat the MSI back toward 160 MB.
+        Assert.Contains("@{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
+        Assert.Contains("@{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
+        Assert.Contains("@{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
         Assert.Contains("-arch x64", operatorAppBuild, StringComparison.Ordinal);
         Assert.Contains("-d \"OperatorAppPublishDir=$(Join-Path $publishRoot \"operator-app-$Version-$Channel\")\"", operatorAppBuild, StringComparison.Ordinal);
     }
