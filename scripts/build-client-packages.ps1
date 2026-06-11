@@ -298,7 +298,7 @@ foreach ($project in $projects) {
         -o $output `
         -p:NuGetAudit=false `
         -p:UseSharedCompilation=false `
-        -p:AFK4PlatformBaseUrl=$platformBaseUrl
+        -p:AFK4PlatformBaseUrl="$platformBaseUrl"
 
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish failed for '$($project.Name)' with exit code $LASTEXITCODE."

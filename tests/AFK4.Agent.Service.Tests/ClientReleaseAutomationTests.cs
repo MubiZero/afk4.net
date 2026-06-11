@@ -817,7 +817,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("'stable' = 'https://app.afk4.net'", script, StringComparison.Ordinal);
         Assert.Contains("$platformBaseUrl = $platformBaseUrlByChannel[$Channel]", script, StringComparison.Ordinal);
         Assert.Contains("No platform base URL is configured for channel", script, StringComparison.Ordinal);
-        Assert.Contains("-p:AFK4PlatformBaseUrl=$platformBaseUrl", script, StringComparison.Ordinal);
+        Assert.Contains("-p:AFK4PlatformBaseUrl=\"$platformBaseUrl\"", script, StringComparison.Ordinal);
     }
 
     [Fact]
