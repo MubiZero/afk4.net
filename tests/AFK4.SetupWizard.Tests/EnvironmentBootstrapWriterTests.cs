@@ -30,7 +30,7 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
         "AFK4_OPERATOR_BRANCH_ID"
     ];
 
-    [Fact]
+    [WindowsOnlyFact]
     public void Write_StoresAgentBootstrapEnvironmentValues()
     {
         Clear();
