@@ -41,6 +41,44 @@ if ([string]::IsNullOrWhiteSpace($platformBaseUrl)) {
     throw "No platform base URL is configured for channel '$Channel'."
 }
 
+# Pinned .NET 10 Desktop Runtime (x64) carried inside the Burn bundle. Bump version+url+sha
+# together when moving to a newer servicing release; recompute the SHA via
+# (Get-FileHash -Algorithm SHA512 -LiteralPath <runtime.exe>).Hash
+$runtimeVersion = '10.0.9'
+$runtimeUrl = 'https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.9/windowsdesktop-runtime-10.0.9-win-x64.exe'
+$runtimeSha512 = '99BC2215D67F8AEA1ECB3DF642423CCABF76E5261B225F0F2D78123D84D58E64923F050A5DC58405C4D5CF074ACBAD32C4A1021A67E94629DCC57206AC4116DE'
+
+function Get-VerifiedRuntimeInstaller {
+    param(
+        [Parameter(Mandatory = $true)] [string] $CacheDir,
+        [Parameter(Mandatory = $true)] [string] $Version,
+        [Parameter(Mandatory = $true)] [string] $Url,
+        [Parameter(Mandatory = $true)] [string] $ExpectedSha512
+    )
+
+    New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
+    $target = Join-Path $CacheDir "windowsdesktop-runtime-$Version-win-x64.exe"
+
+    if (Test-Path -LiteralPath $target) {
+        $existingHash = (Get-FileHash -Algorithm SHA512 -LiteralPath $target).Hash
+        if ($existingHash -eq $ExpectedSha512) {
+            return $target
+        }
+        Remove-Item -LiteralPath $target -Force
+    }
+
+    Write-Host "Downloading .NET Desktop Runtime $Version for the bundle payload..."
+    Invoke-WebRequest -Uri $Url -OutFile $target
+
+    $actualHash = (Get-FileHash -Algorithm SHA512 -LiteralPath $target).Hash
+    if ($actualHash -ne $ExpectedSha512) {
+        Remove-Item -LiteralPath $target -Force
+        throw "Runtime installer SHA-512 mismatch: expected $ExpectedSha512 but downloaded $actualHash."
+    }
+
+    return $target
+}
+
 function ConvertTo-MsiVersion {
     param(
         [Parameter(Mandatory = $true)]
@@ -346,6 +384,14 @@ $legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Versio
     Where-Object { Test-Path -LiteralPath $_ } |
     ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
+# The Burn bundle needs the Bal (WixStandardBootstrapperApplication) and Netfx
+# (DotNetCoreSearch) extensions. `wix extension add` is idempotent.
+& $DotnetPath wix extension add -g WixToolset.Bal.wixext
+& $DotnetPath wix extension add -g WixToolset.Netfx.wixext
+if ($LASTEXITCODE -ne 0) {
+    throw "Adding WiX extensions failed with exit code $LASTEXITCODE."
+}
+
 # Build the Player Shell MSI first: the agent MSI bundles it into the wizard payload
 # (so the wizard can install the Player Shell on gaming PCs), which means it must exist
 # before the setup-wizard support dir is harvested.
@@ -424,6 +470,29 @@ if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Operator.App.msi*' } | Se
 # it must be installed on a machine where the Desktop Runtime is already present (the bundle
 # guarantees that ordering). The agent MSI still auto-launches the Setup Wizard on interactive install.
 
+# Carry the runtime and chain the agent MSI into a single master installer .exe.
+$runtimeCacheDir = Join-Path $artifactRoot 'runtime-cache'
+$runtimeInstallerPath = Get-VerifiedRuntimeInstaller `
+    -CacheDir $runtimeCacheDir -Version $runtimeVersion -Url $runtimeUrl -ExpectedSha512 $runtimeSha512
+
+$clientBundlePath = Join-Path $artifactRoot "afk4-client-$Version-$Channel.exe"
+if (Test-Path -LiteralPath $clientBundlePath) {
+    Remove-Item -LiteralPath $clientBundlePath -Force
+}
+
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/bundle/Bundle.wxs') `
+    -ext WixToolset.Bal.wixext `
+    -ext WixToolset.Netfx.wixext `
+    -arch x64 `
+    -d "PackageVersion=$msiVersion" `
+    -d "RuntimeInstallerPath=$runtimeInstallerPath" `
+    -d "AgentMsiPath=$agentMsiPath" `
+    -o $clientBundlePath
+
+if ($LASTEXITCODE -ne 0) {
+    throw "WiX build failed for the client master installer (Burn bundle) with exit code $LASTEXITCODE."
+}
+
 if ($includeLegacyGamingPcPackage) {
     & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
         -arch x64 `
@@ -482,10 +551,18 @@ foreach ($bundledMsi in @($operatorMsiPath, $playerShellMsiPath)) {
     }
 }
 
+# The agent MSI is now a build input to the bundle (the bundle embeds it), so move it to
+# intermediates too — the single deliverable in the package folder is the bundle .exe.
+foreach ($artifact in @($agentMsiPath, [System.IO.Path]::ChangeExtension($agentMsiPath, '.wixpdb'))) {
+    if (Test-Path -LiteralPath $artifact) {
+        Move-Item -LiteralPath $agentMsiPath -Destination $intermediatesDir -Force
+    }
+}
+
 Write-Host "Published client package inputs under $publishRoot"
-Write-Host "Deliverable MSI (install this one):"
-Write-Host $agentMsiPath
-Write-Host "Bundled inputs moved to: $intermediatesDir"
+Write-Host "Deliverable master installer (install this one):"
+Write-Host $clientBundlePath
+Write-Host "Bundled inputs (agent/operator/player-shell MSIs) moved to: $intermediatesDir"
 
 if ($includeLegacyGamingPcPackage) {
     Write-Host "Legacy gaming-PC MSI artifact:"

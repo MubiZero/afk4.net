@@ -821,6 +821,34 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void BuildClientPackagesScript_CarriesRuntimeInBundleExeAndMovesAgentMsiToIntermediates()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
+
+        // Runtime pin lives next to the build-time download/verify.
+        Assert.Contains("$runtimeVersion = '10.0.9'", script, StringComparison.Ordinal);
+        Assert.Contains("windowsdesktop-runtime-10.0.9-win-x64.exe", script, StringComparison.Ordinal);
+        Assert.Contains("Get-FileHash -Algorithm SHA512", script, StringComparison.Ordinal);
+        Assert.Contains("Runtime installer SHA-512 mismatch", script, StringComparison.Ordinal);
+
+        // The WiX Bal/Netfx extensions are required for the bundle.
+        Assert.Contains("wix extension add", script, StringComparison.Ordinal);
+        Assert.Contains("WixToolset.Bal.wixext", script, StringComparison.Ordinal);
+        Assert.Contains("WixToolset.Netfx.wixext", script, StringComparison.Ordinal);
+
+        // The bundle is built from the single Bundle.wxs and carries the runtime + agent MSI.
+        Assert.Contains("installers/bundle/Bundle.wxs", script, StringComparison.Ordinal);
+        Assert.Contains("RuntimeInstallerPath=", script, StringComparison.Ordinal);
+        Assert.Contains("AgentMsiPath=", script, StringComparison.Ordinal);
+        Assert.Contains("afk4-client-$Version-$Channel.exe", script, StringComparison.Ordinal);
+
+        // The bundle is the deliverable; the agent MSI becomes a build input in intermediates\.
+        var bundleIndex = script.IndexOf("afk4-client-$Version-$Channel.exe", StringComparison.Ordinal);
+        var agentToIntermediatesIndex = script.IndexOf("Move-Item -LiteralPath $agentMsiPath -Destination $intermediatesDir", StringComparison.Ordinal);
+        Assert.True(agentToIntermediatesIndex > bundleIndex, "Agent MSI must be moved to intermediates only after the bundle that embeds it is built.");
+    }
+
+    [Fact]
     public void ClientPackagesWorkflow_UsesCostControlsForManualReleaseRuns()
     {
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml")));
