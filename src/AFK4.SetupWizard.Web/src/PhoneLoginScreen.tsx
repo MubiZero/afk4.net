@@ -11,12 +11,9 @@ import {
 } from './wizardApi';
 import { isHostBridgeUnavailableError } from './hostBridge';
 
-type Mode = 'phone' | 'email';
-
 interface PhoneLoginScreenProps {
   onDiscovered(response: WizardDiscoverResponse): void;
   onForgotPassword(): void;
-  initialMode?: Mode;
   initialIdentity?: string;
 }
 
@@ -25,21 +22,64 @@ type RequestState =
   | { kind: 'loading' }
   | { kind: 'error'; message: string };
 
-// E.164-ish: 9–15 digits after stripping +, spaces and dashes.
+// Strip phone punctuation and the leading + so the digits can be sent to the backend.
 function normalizePhone(value: string): string {
   return value.replace(/[\s\-()]/g, '').replace(/^\+/, '');
 }
 
-export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, initialIdentity }: PhoneLoginScreenProps) {
+// Tajikistan numbers are country code 992 + 9 local digits. The wizard ships only to TJ clubs, so we
+// pin +992 and only ever keep the 9 local digits — a country code typed by the user is dropped.
+function localPhoneDigits(value: string): string {
+  const digits = value.replace(/\D/g, '');
+  // A leading "+" followed by only a partial/whole country code and nothing else is the prefix being
+  // formed or deleted (e.g. backspacing "+992" down to "+99"). There are no local digits yet, so
+  // don't resurrect the country-code digits as local ones — that was the "+992 99" bug.
+  if (value.trimStart().startsWith('+') && digits.length <= 3 && '992'.startsWith(digits)) {
+    return '';
+  }
+  return (digits.startsWith('992') ? digits.slice(3) : digits).slice(0, 9);
+}
+
+// Mask the local part as "93 738 00 70" (2-3-2-2) behind a fixed +992 prefix. With no local digits
+// the field is empty (not a bare "+992"), so the prefix can never get stuck mid-deletion.
+function formatPhone(value: string): string {
+  const local = localPhoneDigits(value);
+  const groups = [local.slice(0, 2), local.slice(2, 5), local.slice(5, 7), local.slice(7, 9)].filter(Boolean);
+  return groups.length > 0 ? `+992 ${groups.join(' ')}` : '';
+}
+
+// One field accepts a phone, a login, or an email. We only mask as a phone while the value has no
+// letters and no '@' — the moment a letter appears it's a login/email and masking stops, so a login
+// is never mangled (and the user is never scolded for typing one).
+function isPhoneInput(value: string): boolean {
+  return /\d/.test(value) && !/[a-zA-Z@]/.test(value);
+}
+
+type IdentityKind = 'empty' | 'phone' | 'email' | 'login';
+
+function classifyIdentity(value: string): IdentityKind {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return 'empty';
+  if (trimmed.includes('@')) return 'email';
+  if (/[a-zA-Z]/.test(trimmed)) return 'login';
+  if (/\d/.test(trimmed)) return 'phone';
+  return 'login';
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function maskIdentity(raw: string): string {
+  return isPhoneInput(raw) ? formatPhone(raw) : raw;
+}
+
+export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdentity }: PhoneLoginScreenProps) {
   const { t } = useI18n();
-  const [mode, setMode] = useState<Mode>(initialMode ?? 'phone');
-  const [phone, setPhone] = useState(initialMode === 'phone' ? (initialIdentity ?? '') : '');
-  const [login, setLogin] = useState(initialMode === 'email' ? (initialIdentity ?? '') : '');
+  const [identity, setIdentity] = useState(() => maskIdentity(initialIdentity ?? ''));
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Подсказки и «Забыли пароль?» показываем только после первого взаимодействия/неудачи —
+  // это пути восстановления, а не постоянные элементы, которые грузят экран.
   const [touched, setTouched] = useState(false);
-  // «Забыли пароль?» показываем только после первой неудачной попытки входа —
-  // это путь восстановления, а не постоянный элемент, который грузит экран.
   const [authFailed, setAuthFailed] = useState(false);
   const [request, setRequest] = useState<RequestState>({ kind: 'idle' });
   const [showSlowSkeleton, setShowSlowSkeleton] = useState(false);
@@ -54,22 +94,15 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, 
     return () => clearTimeout(timer);
   }, [request.kind]);
 
-  const normalizedPhone = normalizePhone(phone);
-  const phoneValid = /^[0-9]{9,15}$/.test(normalizedPhone);
-  const showPhoneHint = touched && phone.length > 0 && !phoneValid;
-  const canSubmit = mode === 'phone'
-    ? phoneValid && password.length > 0 && request.kind !== 'loading'
-    : login.trim().length > 0 && password.length > 0 && request.kind !== 'loading';
+  const kind = classifyIdentity(identity);
+  // Ругаем только когда уверены в категории: незавершённый телефон или кривая почта.
+  // Логин не валидируем вообще — у него нет «правильного формата».
+  const showPhoneHint = kind === 'phone' && touched && localPhoneDigits(identity).length !== 9;
+  const showEmailHint = kind === 'email' && touched && !EMAIL_RE.test(identity.trim());
+  const canSubmit = identity.trim().length > 0 && password.length > 0 && request.kind !== 'loading';
 
   function clearError() {
     if (request.kind === 'error') setRequest({ kind: 'idle' });
-  }
-
-  function switchMode(next: Mode) {
-    setMode(next);
-    setTouched(false);
-    setAuthFailed(false);
-    clearError();
   }
 
   const finishWithDiscovery = useCallback(async () => {
@@ -85,17 +118,21 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, 
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setTouched(true);
-      if (!canSubmit) {
+      if (identity.trim().length === 0 || password.length === 0 || request.kind === 'loading') {
         return;
       }
+      const category = classifyIdentity(identity);
+      // Не дёргаем сеть на заведомо неверной почте/незавершённом номере — показываем подсказку.
+      if (category === 'email' && !EMAIL_RE.test(identity.trim())) return;
+      if (category === 'phone' && localPhoneDigits(identity).length !== 9) return;
       setRequest({ kind: 'loading' });
       try {
-        if (mode === 'phone') {
-          await signInByPhone(normalizedPhone, password);
+        if (category === 'phone') {
+          await signInByPhone(normalizePhone(identity), password);
           await finishWithDiscovery();
           return;
         }
-        const result = await signInByLogin(login.trim(), password);
+        const result = await signInByLogin(identity.trim(), password);
         if (result.requiresClubChoice) {
           setClubChoices(result.clubs);
           setRequest({ kind: 'idle' });
@@ -108,14 +145,14 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, 
         setRequest({ kind: 'error', message });
       }
     },
-    [canSubmit, finishWithDiscovery, login, mode, normalizedPhone, password, t],
+    [finishWithDiscovery, identity, password, request.kind, t],
   );
 
   const chooseClub = useCallback(
     async (organizationId: string) => {
       setRequest({ kind: 'loading' });
       try {
-        await signInToClub(organizationId, login.trim(), password);
+        await signInToClub(organizationId, identity.trim(), password);
         await finishWithDiscovery();
       } catch (error) {
         const { message, reason } = describeError(error, t);
@@ -124,7 +161,7 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, 
         setRequest({ kind: 'error', message });
       }
     },
-    [finishWithDiscovery, login, password, t],
+    [finishWithDiscovery, identity, password, t],
   );
 
   if (clubChoices !== null) {
@@ -164,6 +201,12 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, 
     );
   }
 
+  const identityHint = showEmailHint
+    ? t('setup.wizard.phoneLogin.hint.email')
+    : showPhoneHint
+      ? t('setup.wizard.phoneLogin.hint.phone')
+      : null;
+
   return (
     <section className="wizard-screen is-narrow is-static">
       <div className="wizard-screen-head">
@@ -175,41 +218,24 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, 
       </div>
 
       <form className="wizard-form" onSubmit={submit} noValidate>
-        {mode === 'phone' ? (
-          <label className="wizard-field">
-            <span className="wizard-field-label">{t('setup.wizard.phoneLogin.field.phone')}</span>
-            <input
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              autoFocus
-              spellCheck={false}
-              value={phone}
-              onChange={(event) => { setPhone(event.target.value); clearError(); }}
-              onBlur={() => setTouched(true)}
-              placeholder="+992 93 738 00-70"
-              aria-invalid={showPhoneHint}
-              aria-describedby={showPhoneHint ? 'phone-hint' : undefined}
-            />
-            {showPhoneHint && (
-              <span id="phone-hint" className="wizard-field-hint">
-                {t('setup.wizard.phoneLogin.error.invalidPhone')}
-              </span>
-            )}
-          </label>
-        ) : (
-          <label className="wizard-field">
-            <span className="wizard-field-label">{t('setup.wizard.phoneLogin.field.login')}</span>
-            <input
-              type="text"
-              autoComplete="username"
-              autoFocus
-              spellCheck={false}
-              value={login}
-              onChange={(event) => { setLogin(event.target.value); clearError(); }}
-            />
-          </label>
-        )}
+        <label className="wizard-field">
+          <span className="wizard-field-label">{t('setup.wizard.phoneLogin.field.phone')}</span>
+          <input
+            type="text"
+            autoComplete="username"
+            autoFocus
+            spellCheck={false}
+            value={identity}
+            onChange={(event) => { setIdentity(maskIdentity(event.target.value)); clearError(); }}
+            onBlur={() => setTouched(true)}
+            placeholder="+992 93 738 00 70"
+            aria-invalid={identityHint !== null}
+            aria-describedby={identityHint !== null ? 'identity-hint' : undefined}
+          />
+          {identityHint !== null && (
+            <span id="identity-hint" className="wizard-field-hint">{identityHint}</span>
+          )}
+        </label>
 
         <div className="wizard-field">
           <div className="wizard-field-label wizard-label-with-action">
@@ -269,18 +295,6 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialMode, 
           )}
         </button>
       </form>
-
-      <div className="wizard-alt-actions">
-        {mode === 'phone' ? (
-          <button type="button" className="wizard-link-action" onClick={() => switchMode('email')}>
-            {t('setup.wizard.phoneLogin.action.useEmail')}
-          </button>
-        ) : (
-          <button type="button" className="wizard-link-action" onClick={() => switchMode('phone')}>
-            {t('setup.wizard.phoneLogin.action.usePhone')}
-          </button>
-        )}
-      </div>
     </section>
   );
 }
