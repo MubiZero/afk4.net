@@ -111,10 +111,19 @@ function Get-MsiFileNames {
         $view.Execute()
         while ($record = $view.Fetch()) {
             $fileNames += $record.StringData(1)
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($record)
         }
     }
     finally {
         $view.Close()
+        # Release the WindowsInstaller COM handles deterministically. Otherwise the RCW keeps the
+        # MSI file open until GC happens to run, which later blocks Move-Item of the agent MSI into
+        # intermediates ("the process cannot access the file because it is being used by another process").
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($view)
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($database)
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($installer)
+        [GC]::Collect()
+        [GC]::WaitForPendingFinalizers()
     }
 
     return $fileNames
@@ -384,10 +393,11 @@ $legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Versio
     Where-Object { Test-Path -LiteralPath $_ } |
     ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
-# The Burn bundle needs the Bal (WixStandardBootstrapperApplication) and Netfx
-# (DotNetCoreSearch) extensions. `wix extension add` is idempotent.
-foreach ($wixExtension in @('WixToolset.Bal.wixext', 'WixToolset.Netfx.wixext')) {
-    & $DotnetPath wix extension add -g $wixExtension
+# The Burn bundle needs the BootstrapperApplications (WixStandardBootstrapperApplication;
+# the v7 rename of the old Bal extension) and Netfx (DotNetCoreSearch) extensions.
+# `wix extension add` is idempotent.
+foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixToolset.Netfx.wixext')) {
+    & $DotnetPath wix extension add -acceptEula wix7 -g $wixExtension
     if ($LASTEXITCODE -ne 0) {
         throw "Adding WiX extension '$wixExtension' failed with exit code $LASTEXITCODE."
     }
@@ -482,7 +492,7 @@ if (Test-Path -LiteralPath $clientBundlePath) {
 }
 
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/bundle/Bundle.wxs') `
-    -ext WixToolset.Bal.wixext `
+    -ext WixToolset.BootstrapperApplications.wixext `
     -ext WixToolset.Netfx.wixext `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `

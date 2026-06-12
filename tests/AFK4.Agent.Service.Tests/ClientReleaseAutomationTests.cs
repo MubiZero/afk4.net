@@ -833,9 +833,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("Get-FileHash -Algorithm SHA512", script, StringComparison.Ordinal);
         Assert.Contains("Runtime installer SHA-512 mismatch", script, StringComparison.Ordinal);
 
-        // The WiX Bal/Netfx extensions are required for the bundle.
-        Assert.Contains("wix extension add", script, StringComparison.Ordinal);
-        Assert.Contains("WixToolset.Bal.wixext", script, StringComparison.Ordinal);
+        // The WiX BootstrapperApplications (the v7 rename of Bal) + Netfx extensions are required
+        // for the bundle, and `wix extension add` must accept the v7 OSMF EULA non-interactively.
+        Assert.Contains("wix extension add -acceptEula wix7", script, StringComparison.Ordinal);
+        Assert.Contains("WixToolset.BootstrapperApplications.wixext", script, StringComparison.Ordinal);
         Assert.Contains("WixToolset.Netfx.wixext", script, StringComparison.Ordinal);
 
         // The bundle is built from the single Bundle.wxs and carries the runtime + agent MSI.

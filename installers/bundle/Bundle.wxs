@@ -34,21 +34,25 @@
         Variable="DesktopRuntime10Version" />
 
     <Chain>
+      <!--
+        The runtime is embedded because the Bundle itself is Compressed="yes" (all payloads
+        default to compressed/embedded). Compressed must NOT also sit on the ExePackage when an
+        ExePackagePayload child is present (WIX0372), and ProductName/Description on the payload
+        require a Hash/cert (WIX0037) — both are dropped: the runtime's own installer identifies
+        itself, and it runs /quiet anyway.
+      -->
       <ExePackage
           DetectCondition="DesktopRuntime10Version AND DesktopRuntime10Version &gt;= v$(var.RuntimeVersion)"
           Permanent="yes"
           Vital="yes"
           PerMachine="yes"
-          Compressed="yes"
           InstallArguments="/install /quiet /norestart"
           RepairArguments="/repair /quiet /norestart"
           UninstallArguments="/uninstall /quiet /norestart"
           bal:PrereqPackage="yes">
         <ExePackagePayload
             Name="windowsdesktop-runtime-$(var.RuntimeVersion)-win-x64.exe"
-            SourceFile="$(var.RuntimeInstallerPath)"
-            ProductName=".NET Desktop Runtime $(var.RuntimeVersion) (x64)"
-            Description=".NET Desktop Runtime $(var.RuntimeVersion) (x64)" />
+            SourceFile="$(var.RuntimeInstallerPath)" />
       </ExePackage>
 
       <MsiPackage SourceFile="$(var.AgentMsiPath)" Vital="yes" />
