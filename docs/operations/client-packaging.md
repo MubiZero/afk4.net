@@ -199,24 +199,6 @@ carries the Player Shell MSI in its wizard payload).
 `scripts/publish-client-msi-updates.ps1` publishes role-aware update metadata
 from the Operator App MSI, Agent MSI, and Player Shell MSI.
 
-For the older one-click staging bootstrapper, explicitly opt in and provide
-the committed staging public keys:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
-  -Version 0.1.0-ci `
-  -Channel internal `
-  -BuildLegacyStagingBootstrapper `
-  -StagingLeasePublicKeyPath .\deploy\coolify\staging-session-signing-public.pem `
-  -StagingUpdateSigningPublicKeyPath .\deploy\coolify\staging-update-signing-public.pem
-```
-
-To produce only the legacy coordinated Gaming PC package
-(`afk4-gaming-pc-<version>-<channel>.msi`, Agent Service + Player Shell in one
-MSI) for recovering old staging devices — without the full staging bootstrapper —
-opt in with `-IncludeLegacyGamingPcPackage`. This path is retired from the default
-build and is not produced by the master installers.
-
 ## Authenticode Signing
 
 Internal package builds may remain unsigned. Stable production package builds
