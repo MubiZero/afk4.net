@@ -491,6 +491,35 @@ if (Test-Path -LiteralPath $clientBundlePath) {
     Remove-Item -LiteralPath $clientBundlePath -Force
 }
 
+# Build the native BAFunctions DLL (auto-start install + auto-close) that plugs into WixStdBA.
+# Native + statically-linked CRT, so it loads on a freshly-imaged box with no .NET/VC++ runtime.
+$baFunctionsProj = Join-Path $repoRoot 'installers/bundle/bafunctions/AFK4.BAFunctions.vcxproj'
+$vsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+if (-not (Test-Path -LiteralPath $vsWhere)) {
+    throw "vswhere.exe not found; install Visual Studio with the 'Desktop development with C++' workload to build the BAFunctions DLL."
+}
+$msbuild = & $vsWhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+if (-not $msbuild) {
+    throw "MSBuild not found via vswhere; install the 'Desktop development with C++' workload."
+}
+& $msbuild $baFunctionsProj -restore -p:Configuration=Release -p:Platform=x64 -v:minimal -nologo
+if ($LASTEXITCODE -ne 0) {
+    throw "MSBuild failed to build the BAFunctions DLL with exit code $LASTEXITCODE."
+}
+$baFunctionsPath = Join-Path $repoRoot 'installers/bundle/bafunctions/x64/Release/AFK4.BAFunctions.dll'
+if (-not (Test-Path -LiteralPath $baFunctionsPath)) {
+    throw "BAFunctions DLL was not produced at $baFunctionsPath."
+}
+
+# Brand assets: the bundle .exe icon and the bootstrapper window logo (committed under brand/dist).
+$brandIconPath = Join-Path $repoRoot 'brand/dist/afk4.ico'
+$brandLogoPath = Join-Path $repoRoot 'brand/dist/icon-64.png'
+foreach ($brandAsset in @($brandIconPath, $brandLogoPath)) {
+    if (-not (Test-Path -LiteralPath $brandAsset)) {
+        throw "Brand asset missing: $brandAsset (regenerate with scripts/build-brand-assets.mjs)."
+    }
+}
+
 & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/bundle/Bundle.wxs') `
     -ext WixToolset.BootstrapperApplications.wixext `
     -ext WixToolset.Netfx.wixext `
@@ -499,6 +528,9 @@ if (Test-Path -LiteralPath $clientBundlePath) {
     -d "RuntimeVersion=$runtimeVersion" `
     -d "RuntimeInstallerPath=$runtimeInstallerPath" `
     -d "AgentMsiPath=$agentMsiPath" `
+    -d "BAFunctionsPath=$baFunctionsPath" `
+    -d "BrandIconPath=$brandIconPath" `
+    -d "BrandLogoPath=$brandLogoPath" `
     -o $clientBundlePath
 
 if ($LASTEXITCODE -ne 0) {

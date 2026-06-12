@@ -855,6 +855,44 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void BuildClientPackagesScript_BrandsBundleAndBuildsBAFunctionsForZeroClickInstall()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
+
+        // The native BAFunctions DLL (auto-start install + auto-close) must be built before the
+        // bundle and located via vswhere/MSBuild so it works wherever the C++ toolset is installed.
+        Assert.Contains("AFK4.BAFunctions.vcxproj", script, StringComparison.Ordinal);
+        Assert.Contains("vswhere.exe", script, StringComparison.Ordinal);
+        Assert.Contains("-restore -p:Configuration=Release -p:Platform=x64", script, StringComparison.Ordinal);
+
+        // Bundle.wxs references $(var.BAFunctionsPath)/$(var.BrandIconPath)/$(var.BrandLogoPath),
+        // so the build must -d all three or `wix build` fails with an undefined preprocessor variable.
+        Assert.Contains("BAFunctionsPath=", script, StringComparison.Ordinal);
+        Assert.Contains("BrandIconPath=", script, StringComparison.Ordinal);
+        Assert.Contains("BrandLogoPath=", script, StringComparison.Ordinal);
+
+        // The DLL is built before the bundle consumes it as a payload.
+        var msbuildIndex = script.IndexOf("AFK4.BAFunctions.vcxproj", StringComparison.Ordinal);
+        var bundleConsumesIndex = script.IndexOf("BAFunctionsPath=$baFunctionsPath", StringComparison.Ordinal);
+        Assert.True(msbuildIndex >= 0 && bundleConsumesIndex > msbuildIndex, "BAFunctions DLL must be built before the bundle that embeds it as a payload.");
+    }
+
+    [Fact]
+    public void BundleWxs_BrandsTheInstallerAndLoadsBAFunctions()
+    {
+        var bundle = NormalizeLineEndings(File.ReadAllText(ScriptPath("installers/bundle/Bundle.wxs")));
+
+        // Brand the .exe icon and the bootstrapper window logo.
+        Assert.Contains("IconSourceFile=\"$(var.BrandIconPath)\"", bundle, StringComparison.Ordinal);
+        Assert.Contains("LogoFile=\"$(var.BrandLogoPath)\"", bundle, StringComparison.Ordinal);
+
+        // The BAFunctions DLL is loaded as a BootstrapperApplication payload that drives the
+        // zero-click experience (skip Install button, auto-close on success).
+        Assert.Contains("SourceFile=\"$(var.BAFunctionsPath)\"", bundle, StringComparison.Ordinal);
+        Assert.Contains("bal:BAFunctions=\"yes\"", bundle, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ClientPackagesWorkflow_UsesCostControlsForManualReleaseRuns()
     {
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml")));

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--
+    AFK4.NET BAFunctions: a small native WixStdBA add-on DLL (auto-start install,
+    auto-close on success). Native + statically-linked CRT (/MT) because it runs
+    on freshly-imaged machines that have no .NET and no VC++ runtime yet.
+
+    Headers/libs come from the WiX NuGet packages below; the BAFunctions SDK
+    headers + dispatcher under wixsdk/ are vendored from WiX v7.0.0 (see README).
+  -->
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{A1C4F7E2-3B9D-4E61-9A28-7F0C5D6B82E4}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>AFK4BAFunctions</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <!-- Pinned to the installed VS 2026 toolset; override with -p:PlatformToolset if VS changes. -->
+    <PlatformToolset Condition="'$(PlatformToolset)'=='' or '$(PlatformToolset)'=='v100'">v145</PlatformToolset>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <PropertyGroup>
+    <TargetName>AFK4.BAFunctions</TargetName>
+    <LinkIncremental>false</LinkIncremental>
+    <!-- Accept the WiX v7 OSMF EULA non-interactively for the NuGet build targets. -->
+    <AcceptEula>wix7</AcceptEula>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ConformanceMode>false</ConformanceMode>
+      <SDLCheck>false</SDLCheck>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)wixsdk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <ModuleDefinitionFile>AFK4.BAFunctions.def</ModuleDefinitionFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>comctl32.lib;gdiplus.lib;msimg32.lib;shlwapi.lib;wininet.lib;crypt32.lib;wintrust.lib;msi.lib;version.lib;rpcrt4.lib;ole32.lib;oleaut32.lib;shell32.lib;user32.lib;advapi32.lib;gdi32.lib;cabinet.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <ItemGroup>
+    <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="AfkBaFunctions.cpp" />
+    <ClCompile Include="wixsdk\BalBaseBAFunctionsProc.cpp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClInclude Include="precomp.h" />
+    <ClInclude Include="wixsdk\BAFunctions.h" />
+    <ClInclude Include="wixsdk\IBAFunctions.h" />
+    <ClInclude Include="wixsdk\BalBaseBAFunctions.h" />
+    <ClInclude Include="wixsdk\BalBaseBAFunctionsProc.h" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="AFK4.BAFunctions.def" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.BootstrapperApplicationApi" Version="7.0.0" />
+    <PackageReference Include="WixToolset.DUtil" Version="7.0.0" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

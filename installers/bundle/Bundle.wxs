@@ -20,10 +20,19 @@
       Manufacturer="AFK4.NET"
       Version="$(var.PackageVersion)"
       Compressed="yes"
+      IconSourceFile="$(var.BrandIconPath)"
       UpgradeCode="{8E2C4A91-7B3D-4F6A-9C1E-2D5A8B0F3471}">
 
+    <!--
+      LogoFile brands the bootstrapper window with the AFK4 mark. The AFK4.BAFunctions
+      payload (bal:BAFunctions) plugs into WixStdBA to auto-start the install and
+      auto-close on success, so the only prompt the user sees is Windows' UAC. It's a
+      tiny native, statically-linked DLL (no .NET/VC++ runtime needed) — see
+      installers/bundle/bafunctions/.
+    -->
     <BootstrapperApplication>
-      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" SuppressOptionsUI="yes" />
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" SuppressOptionsUI="yes" LogoFile="$(var.BrandLogoPath)" />
+      <Payload Id="AfkBAFunctions" SourceFile="$(var.BAFunctionsPath)" bal:BAFunctions="yes" />
     </BootstrapperApplication>
 
     <netfx:DotNetCoreSearch
