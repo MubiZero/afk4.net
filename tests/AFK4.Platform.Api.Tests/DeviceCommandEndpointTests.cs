@@ -544,8 +544,11 @@ public sealed class DeviceCommandEndpointTests
             Code = code,
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            CreatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z"),
-            ExpiresAtUtc = DateTimeOffset.Parse("2026-06-12T01:00:00Z")
+            // The enrollment service validates expiry against the real wall clock
+            // (TimeProvider is not faked in these tests), so this must be relative to now —
+            // a fixed literal becomes a time bomb that "expires" once that date passes.
+            CreatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-5),
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1)
         });
         await dbContext.SaveChangesAsync();
 

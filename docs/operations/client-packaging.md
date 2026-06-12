@@ -1,7 +1,7 @@
 # Client Packaging Runbook
 
-Status: current Windows client packaging runbook (master installers + wizard installs Player Shell)
-Last updated: 2026-06-10
+Status: single client master installer (Burn bundle) carrying the shared runtime; wizard installs role apps
+Last updated: 2026-06-11
 
 ## Purpose
 
@@ -19,29 +19,41 @@ Historical implementation plan:
 
 ## Packaging Decision
 
-AFK4 ships two **master installers** (`setup.exe`, WiX Burn bundles) for
-operators to run, one per target. Each master installer ensures the shared
-.NET runtime is present, then installs the relevant component MSI:
+AFK4 ships **one master installer** — `afk4-client-<version>-<channel>.exe`, a
+WiX Burn bundle — that operators run to provision any Windows client machine.
 
-- **Gaming-PC master installer** (`afk4-gaming-pc-setup-<version>-<channel>.exe`)
-  ensures the **.NET 10 Desktop Runtime (x64)** is present (downloaded from
-  Microsoft if missing, skipped if already present), then installs the
-  **Agent MSI**.
-- **Operator master installer** (`afk4-operator-setup-<version>-<channel>.exe`)
-  has the same runtime prerequisite, then installs the **Operator App MSI**.
+The bundle works as follows:
 
-Because the master installer supplies the shared runtime once, the per-component
-MSIs are **framework-dependent** (not self-contained). This is why each
-component MSI is small — a few MB — and why the target needs the .NET Desktop
-Runtime that the master installer provides.
+1. **Carries** the **.NET 10 Desktop Runtime (x64)** as a compressed payload
+   embedded directly inside the bundle. A `DotNetCoreSearch` detect skips the
+   runtime install if an acceptable version is already present; otherwise it
+   installs from the embedded payload synchronously as a vital prerequisite —
+   **no internet access required at install time**.
+2. Then installs the **Agent MSI**.
 
-The pinned runtime version, download URL, SHA-512, and size are the single
-source of truth in `installers/bootstrappers/RuntimePrereq.wxi`, shared by both
-bundles via `<?include ?>`. To move to a newer .NET 10 servicing release, bump
-those four values together. Burn verifies the downloaded runtime against the
-pinned SHA-512 before installing it.
+Because the bundle supplies the shared runtime before any MSI runs, the
+per-component MSIs are **framework-dependent** (not self-contained). This is
+why each component MSI is small — a few MB — and why the target needs the
+.NET Desktop Runtime that the bundle provides.
 
-The component MSIs that the master installers wrap:
+The pinned runtime version, download URL (used at **build** time to fetch and
+embed the runtime), and SHA-512 are the single source of truth in
+`scripts/build-client-packages.ps1`. The build script downloads and
+SHA-512-verifies the runtime payload once, then embeds it into the bundle.
+To move to a newer .NET 10 servicing release, bump the version, URL, and
+SHA-512 together in that script.
+
+> **Why carry instead of download?** An earlier design (reverted in commit
+> `20a7a31`) had the bundle download the .NET runtime from Microsoft at install
+> time if missing. On freshly-imaged machines the downloaded runtime was not
+> reliably registered before the framework-dependent Agent Service started,
+> producing an sc-1053 failure. Carrying the runtime inside the bundle ensures
+> it is installed synchronously as a vital prerequisite before the Agent MSI
+> and its service run — eliminating that race on fresh VMs.
+
+The component MSIs are build inputs (written to `artifacts/client-packages/intermediates/`);
+the single deliverable handed to operators is the bundle `.exe`. The component MSIs are
+also still produced as standalone artifacts for update-pipeline publishing and recovery.
 
 - **Agent MSI.** Installs the Agent Service, the WPF Setup Wizard, update helper
   scripts, a Start Menu shortcut, a per-machine first-run pending marker, and a
@@ -52,7 +64,7 @@ The component MSIs that the master installers wrap:
   upgrades skip first-run wizard registration for already enrolled machines.
   The Agent MSI **carries the Player Shell MSI in the wizard payload** at
   `…\Setup Wizard\payload\AFK4.Player.Shell.msi`. It does not carry the
-  Operator App payload.
+  Operator App payload. It is the MSI the bundle installs.
 - **Operator App MSI.**
 - **Player Shell MSI** for `gaming_pc` devices. It installs the Shell and writes
   the Agent machine environment values needed to report `player-shell` version
@@ -85,8 +97,8 @@ The existing update pipeline remains authoritative:
    configured install, rollback, and restart adapters.
 
 The packaging model changes the artifact shape from ad hoc published zip
-outputs toward MSI artifacts (wrapped by the master `setup.exe` installers for
-fresh provisioning). It does not change backend rollout authority or Agent
+outputs toward MSI artifacts (delivered to operators via the single Burn bundle
+for fresh provisioning). It does not change backend rollout authority or Agent
 signature verification: the standalone component MSIs remain the source the
 update pipeline publishes from.
 
@@ -139,8 +151,8 @@ Expected WiX version:
 
 WiX v7 requires explicit OSMF EULA acceptance for build and CI usage. The
 build script passes `-acceptEula wix7` to each `wix build` invocation after
-explicit project approval. Building the `setup.exe` master installers needs the
-WiX **Netfx** and **Bal** extensions; the build script adds them.
+explicit project approval. Building the Burn bundle needs the WiX **Netfx** and **Bal** extensions;
+the build script adds them.
 
 Verify the local package build script parses:
 
@@ -149,7 +161,7 @@ powershell -NoProfile -Command "[System.Management.Automation.Language.Parser]::
 ```
 
 Build Windows client package inputs, component MSI artifacts, and the master
-installers:
+installer bundle:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
@@ -158,10 +170,11 @@ powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 `
 ```
 
 The script writes publish outputs under ignored
-`artifacts/client-packages/publish/` and MSI plus `setup.exe` artifacts under
-ignored `artifacts/client-packages/`.
+`artifacts/client-packages/publish/`, component MSIs (build inputs) under
+ignored `artifacts/client-packages/intermediates/`, and the single deliverable
+bundle under ignored `artifacts/client-packages/`.
 
-Expected component MSI artifact names:
+Expected component MSI artifact names (build inputs, in `intermediates/`):
 
 ```text
 afk4-operator-app-<version>-<channel>.msi
@@ -169,16 +182,16 @@ afk4-agent-<version>-<channel>.msi
 afk4-player-shell-<version>-<channel>.msi
 ```
 
-Expected master installer (`setup.exe`) names:
+Expected master installer (deliverable, in `artifacts/client-packages/`):
 
 ```text
-afk4-gaming-pc-setup-<version>-<channel>.exe
-afk4-operator-setup-<version>-<channel>.exe
+afk4-client-<version>-<channel>.exe
 ```
 
-The master installers wrap the component MSIs for fresh provisioning; they do
-not replace the standalone MSIs. The component MSIs are still produced as build
-artifacts for recovery and as the source the update pipeline publishes from.
+The bundle wraps the Agent MSI for fresh provisioning and carries the .NET 10
+Desktop Runtime embedded inside it. The component MSIs are still produced as
+standalone build inputs for recovery and as the source the update pipeline
+publishes from.
 
 `afk4-agent-<version>-<channel>.msi` is the Setup Wizard onboarding artifact
 (enrollment is via the wizard's phone/login sign-in and role selection, and it

@@ -1,0 +1,74 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
+     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx">
+  <!--
+    AFK4.NET client master installer (Burn bundle), one per channel:
+    afk4-client-<version>-<channel>.exe.
+
+    Chains the .NET 10 Desktop Runtime (x64) CARRIED INSIDE the bundle (Compressed="yes",
+    SourceFile, NO DownloadUrl) as a vital prerequisite, then the agent MSI. Carrying the
+    runtime — rather than downloading it — is the deliberate difference from the reverted
+    download bundle (commit 20a7a31): the runtime is extracted and installed synchronously
+    before the MSI runs, so a freshly-imaged machine never starts the framework-dependent
+    agent service against a missing/unregistered runtime (the old sc-1053 failure).
+
+    The pinned runtime version/URL/SHA-512 live in scripts/build-client-packages.ps1, which
+    downloads + verifies the runtime at build time and passes its path via RuntimeInstallerPath.
+  -->
+  <Bundle
+      Name="AFK4.NET"
+      Manufacturer="AFK4.NET"
+      Version="$(var.PackageVersion)"
+      Compressed="yes"
+      IconSourceFile="$(var.BrandIconPath)"
+      UpgradeCode="{8E2C4A91-7B3D-4F6A-9C1E-2D5A8B0F3471}">
+
+    <!--
+      LogoFile brands the bootstrapper window with the AFK4 mark. The AFK4.BAFunctions
+      payload (bal:BAFunctions) plugs into WixStdBA to auto-start the install and
+      auto-close on success, so the only prompt the user sees is Windows' UAC. It's a
+      tiny native, statically-linked DLL (no .NET/VC++ runtime needed) — see
+      installers/bundle/bafunctions/.
+    -->
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" SuppressOptionsUI="yes" LogoFile="$(var.BrandLogoPath)" />
+      <Payload Id="AfkBAFunctions" SourceFile="$(var.BAFunctionsPath)" bal:BAFunctions="yes" />
+    </BootstrapperApplication>
+
+    <netfx:DotNetCoreSearch
+        Id="DesktopRuntime10"
+        RuntimeType="desktop"
+        Platform="x64"
+        MajorVersion="10"
+        Variable="DesktopRuntime10Version" />
+
+    <Chain>
+      <!--
+        The runtime is embedded because the Bundle itself is Compressed="yes" (all payloads
+        default to compressed/embedded). Compressed must NOT also sit on the ExePackage when an
+        ExePackagePayload child is present (WIX0372), and ProductName/Description on the payload
+        require a Hash/cert (WIX0037) — both are dropped: the runtime's own installer identifies
+        itself, and it runs /quiet anyway.
+      -->
+      <ExePackage
+          DetectCondition="DesktopRuntime10Version AND DesktopRuntime10Version &gt;= v$(var.RuntimeVersion)"
+          Permanent="yes"
+          Vital="yes"
+          PerMachine="yes"
+          InstallArguments="/install /quiet /norestart"
+          RepairArguments="/repair /quiet /norestart"
+          UninstallArguments="/uninstall /quiet /norestart"
+          bal:PrereqPackage="yes">
+        <ExePackagePayload
+            Name="windowsdesktop-runtime-$(var.RuntimeVersion)-win-x64.exe"
+            SourceFile="$(var.RuntimeInstallerPath)" />
+      </ExePackage>
+
+      <!-- LAUNCHWIZARD=1 makes the agent MSI auto-launch the Setup Wizard even though Burn
+           runs it at UILevel=none; see the LaunchSetupWizard condition in installers/agent/Package.wxs. -->
+      <MsiPackage SourceFile="$(var.AgentMsiPath)" Vital="yes">
+        <MsiProperty Name="LAUNCHWIZARD" Value="1" />
+      </MsiPackage>
+    </Chain>
+  </Bundle>
+</Wix>

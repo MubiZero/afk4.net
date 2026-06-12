@@ -41,6 +41,44 @@ if ([string]::IsNullOrWhiteSpace($platformBaseUrl)) {
     throw "No platform base URL is configured for channel '$Channel'."
 }
 
+# Pinned .NET 10 Desktop Runtime (x64) carried inside the Burn bundle. Bump version+url+sha
+# together when moving to a newer servicing release; recompute the SHA via
+# (Get-FileHash -Algorithm SHA512 -LiteralPath <runtime.exe>).Hash
+$runtimeVersion = '10.0.9'
+$runtimeUrl = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/$runtimeVersion/windowsdesktop-runtime-$runtimeVersion-win-x64.exe"
+$runtimeSha512 = '99BC2215D67F8AEA1ECB3DF642423CCABF76E5261B225F0F2D78123D84D58E64923F050A5DC58405C4D5CF074ACBAD32C4A1021A67E94629DCC57206AC4116DE'
+
+function Get-VerifiedRuntimeInstaller {
+    param(
+        [Parameter(Mandatory = $true)] [string] $CacheDir,
+        [Parameter(Mandatory = $true)] [string] $Version,
+        [Parameter(Mandatory = $true)] [string] $Url,
+        [Parameter(Mandatory = $true)] [string] $ExpectedSha512
+    )
+
+    New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
+    $target = Join-Path $CacheDir "windowsdesktop-runtime-$Version-win-x64.exe"
+
+    if (Test-Path -LiteralPath $target) {
+        $existingHash = (Get-FileHash -Algorithm SHA512 -LiteralPath $target).Hash
+        if ($existingHash -eq $ExpectedSha512) {
+            return $target
+        }
+        Remove-Item -LiteralPath $target -Force
+    }
+
+    Write-Host "Downloading .NET Desktop Runtime $Version for the bundle payload..."
+    Invoke-WebRequest -Uri $Url -OutFile $target
+
+    $actualHash = (Get-FileHash -Algorithm SHA512 -LiteralPath $target).Hash
+    if ($actualHash -ne $ExpectedSha512) {
+        Remove-Item -LiteralPath $target -Force
+        throw "Runtime installer SHA-512 mismatch: expected $ExpectedSha512 but downloaded $actualHash."
+    }
+
+    return $target
+}
+
 function ConvertTo-MsiVersion {
     param(
         [Parameter(Mandatory = $true)]
@@ -73,10 +111,19 @@ function Get-MsiFileNames {
         $view.Execute()
         while ($record = $view.Fetch()) {
             $fileNames += $record.StringData(1)
+            [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($record)
         }
     }
     finally {
         $view.Close()
+        # Release the WindowsInstaller COM handles deterministically. Otherwise the RCW keeps the
+        # MSI file open until GC happens to run, which later blocks Move-Item of the agent MSI into
+        # intermediates ("the process cannot access the file because it is being used by another process").
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($view)
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($database)
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($installer)
+        [GC]::Collect()
+        [GC]::WaitForPendingFinalizers()
     }
 
     return $fileNames
@@ -273,10 +320,10 @@ Get-ChildItem -LiteralPath $setupWizardWebDist -Force |
     Copy-Item -Destination $setupWizardWebAssets -Recurse -Force
 
 $projects = @(
-    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true },
-    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $true },
-    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $true },
-    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $true }
+    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
+    @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false },
+    @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false },
+    @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }
 )
 
 foreach ($project in $projects) {
@@ -345,6 +392,16 @@ $legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Versio
 @($operatorMsiPath, $agentMsiPath, $playerShellMsiPath, $gamingPcMsiPath, $legacySetupArtifactPath) |
     Where-Object { Test-Path -LiteralPath $_ } |
     ForEach-Object { Remove-Item -LiteralPath $_ -Force }
+
+# The Burn bundle needs the BootstrapperApplications (WixStandardBootstrapperApplication;
+# the v7 rename of the old Bal extension) and Netfx (DotNetCoreSearch) extensions.
+# `wix extension add` is idempotent.
+foreach ($wixExtension in @('WixToolset.BootstrapperApplications.wixext', 'WixToolset.Netfx.wixext')) {
+    & $DotnetPath wix extension add -acceptEula wix7 -g $wixExtension
+    if ($LASTEXITCODE -ne 0) {
+        throw "Adding WiX extension '$wixExtension' failed with exit code $LASTEXITCODE."
+    }
+}
 
 # Build the Player Shell MSI first: the agent MSI bundles it into the wizard payload
 # (so the wizard can install the Player Shell on gaming PCs), which means it must exist
@@ -419,9 +476,66 @@ if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Operator.App.msi*' } | Se
     throw "Agent MSI does not contain the bundled Operator App MSI (payload\AFK4.Operator.App.msi)."
 }
 
-# Components publish self-contained (each carries its own .NET runtime), so the agent
-# MSI is installed directly — no master-installer / runtime-download step is needed. The
-# agent MSI auto-launches the Setup Wizard on interactive install.
+# Components publish framework-dependent (one shared .NET runtime, carried by the Burn
+# bundle — see installers/bundle/Bundle.wxs). The agent MSI is a build input to that bundle;
+# it must be installed on a machine where the Desktop Runtime is already present (the bundle
+# guarantees that ordering). The agent MSI still auto-launches the Setup Wizard on interactive install.
+
+# Carry the runtime and chain the agent MSI into a single master installer .exe.
+$runtimeCacheDir = Join-Path $artifactRoot 'runtime-cache'
+$runtimeInstallerPath = Get-VerifiedRuntimeInstaller `
+    -CacheDir $runtimeCacheDir -Version $runtimeVersion -Url $runtimeUrl -ExpectedSha512 $runtimeSha512
+
+$clientBundlePath = Join-Path $artifactRoot "afk4-client-$Version-$Channel.exe"
+if (Test-Path -LiteralPath $clientBundlePath) {
+    Remove-Item -LiteralPath $clientBundlePath -Force
+}
+
+# Build the native BAFunctions DLL (auto-start install + auto-close) that plugs into WixStdBA.
+# Native + statically-linked CRT, so it loads on a freshly-imaged box with no .NET/VC++ runtime.
+$baFunctionsProj = Join-Path $repoRoot 'installers/bundle/bafunctions/AFK4.BAFunctions.vcxproj'
+$vsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+if (-not (Test-Path -LiteralPath $vsWhere)) {
+    throw "vswhere.exe not found; install Visual Studio with the 'Desktop development with C++' workload to build the BAFunctions DLL."
+}
+$msbuild = & $vsWhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+if (-not $msbuild) {
+    throw "MSBuild not found via vswhere; install the 'Desktop development with C++' workload."
+}
+& $msbuild $baFunctionsProj -restore -p:Configuration=Release -p:Platform=x64 -v:minimal -nologo
+if ($LASTEXITCODE -ne 0) {
+    throw "MSBuild failed to build the BAFunctions DLL with exit code $LASTEXITCODE."
+}
+$baFunctionsPath = Join-Path $repoRoot 'installers/bundle/bafunctions/x64/Release/AFK4.BAFunctions.dll'
+if (-not (Test-Path -LiteralPath $baFunctionsPath)) {
+    throw "BAFunctions DLL was not produced at $baFunctionsPath."
+}
+
+# Brand assets: the bundle .exe icon and the bootstrapper window logo (committed under brand/dist).
+$brandIconPath = Join-Path $repoRoot 'brand/dist/afk4.ico'
+$brandLogoPath = Join-Path $repoRoot 'brand/dist/icon-64.png'
+foreach ($brandAsset in @($brandIconPath, $brandLogoPath)) {
+    if (-not (Test-Path -LiteralPath $brandAsset)) {
+        throw "Brand asset missing: $brandAsset (regenerate with scripts/build-brand-assets.mjs)."
+    }
+}
+
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/bundle/Bundle.wxs') `
+    -ext WixToolset.BootstrapperApplications.wixext `
+    -ext WixToolset.Netfx.wixext `
+    -arch x64 `
+    -d "PackageVersion=$msiVersion" `
+    -d "RuntimeVersion=$runtimeVersion" `
+    -d "RuntimeInstallerPath=$runtimeInstallerPath" `
+    -d "AgentMsiPath=$agentMsiPath" `
+    -d "BAFunctionsPath=$baFunctionsPath" `
+    -d "BrandIconPath=$brandIconPath" `
+    -d "BrandLogoPath=$brandLogoPath" `
+    -o $clientBundlePath
+
+if ($LASTEXITCODE -ne 0) {
+    throw "WiX build failed for the client master installer (Burn bundle) with exit code $LASTEXITCODE."
+}
 
 if ($includeLegacyGamingPcPackage) {
     & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
@@ -481,10 +595,24 @@ foreach ($bundledMsi in @($operatorMsiPath, $playerShellMsiPath)) {
     }
 }
 
+# The agent MSI is now a build input to the bundle (the bundle embeds it), so move it to
+# intermediates too — the single deliverable in the package folder is the bundle .exe.
+foreach ($artifact in @($agentMsiPath, [System.IO.Path]::ChangeExtension($agentMsiPath, '.wixpdb'))) {
+    if (Test-Path -LiteralPath $artifact) {
+        Move-Item -LiteralPath $artifact -Destination $intermediatesDir -Force
+    }
+}
+
+# Keep only the bundle .exe in the package folder; its .wixpdb is a build artifact.
+$clientBundleWixPdb = [System.IO.Path]::ChangeExtension($clientBundlePath, '.wixpdb')
+if (Test-Path -LiteralPath $clientBundleWixPdb) {
+    Move-Item -LiteralPath $clientBundleWixPdb -Destination $intermediatesDir -Force
+}
+
 Write-Host "Published client package inputs under $publishRoot"
-Write-Host "Deliverable MSI (install this one):"
-Write-Host $agentMsiPath
-Write-Host "Bundled inputs moved to: $intermediatesDir"
+Write-Host "Deliverable master installer (install this one):"
+Write-Host $clientBundlePath
+Write-Host "Bundled inputs (agent/operator/player-shell MSIs) moved to: $intermediatesDir"
 
 if ($includeLegacyGamingPcPackage) {
     Write-Host "Legacy gaming-PC MSI artifact:"

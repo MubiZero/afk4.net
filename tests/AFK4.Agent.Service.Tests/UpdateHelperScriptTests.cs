@@ -95,7 +95,9 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("afk4-agent-$Version-$Channel.msi", script, StringComparison.Ordinal);
         Assert.Contains("-arch x64", agentBuild, StringComparison.Ordinal);
         Assert.Contains("-d \"SetupWizardPublishDir=$setupWizardPublishDir\"", agentBuild, StringComparison.Ordinal);
-        Assert.Contains("Write-Host $agentMsiPath", script, StringComparison.Ordinal);
+        // The agent MSI is no longer the deliverable — it is embedded into the client bundle as a
+        // build input (AgentMsiPath) and moved to intermediates\. The bundle .exe is what ships.
+        Assert.Contains("-d \"AgentMsiPath=$agentMsiPath\"", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -123,7 +125,13 @@ public sealed class UpdateHelperScriptTests
         var operatorAppBuild = script[
             script.IndexOf("installers/operator-app/Package.wxs", StringComparison.Ordinal)..];
 
-        Assert.Contains("@{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $true }", script, StringComparison.Ordinal);
+        Assert.Contains("@{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
+        // All four client components must publish framework-dependent so the bundle's shared
+        // runtime is the single .NET copy (see Workstream A). A stray "SelfContained = $true" in
+        // the $projects list would re-bloat the MSI back toward 160 MB.
+        Assert.Contains("@{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
+        Assert.Contains("@{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
+        Assert.Contains("@{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
         Assert.Contains("-arch x64", operatorAppBuild, StringComparison.Ordinal);
         Assert.Contains("-d \"OperatorAppPublishDir=$(Join-Path $publishRoot \"operator-app-$Version-$Channel\")\"", operatorAppBuild, StringComparison.Ordinal);
     }
@@ -178,7 +186,7 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("Id=\"SetupWizardRegistration\"", package, StringComparison.Ordinal);
         Assert.Contains("Condition=\"NOT WIX_UPGRADE_DETECTED\"", package, StringComparison.Ordinal);
         Assert.Contains(
-            "Condition=\"NOT Installed AND NOT WIX_UPGRADE_DETECTED AND UILevel &gt;= 3\"",
+            "Condition=\"NOT Installed AND NOT WIX_UPGRADE_DETECTED AND (UILevel &gt;= 3 OR LAUNCHWIZARD = &quot;1&quot;)\"",
             package,
             StringComparison.Ordinal);
         Assert.Contains("Start=\"auto\"", package, StringComparison.Ordinal);

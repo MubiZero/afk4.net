@@ -1,0 +1,4 @@
+# MSBuild C++ output / NuGet restore — never commit build artifacts.
+x64/
+obj/
+*.user

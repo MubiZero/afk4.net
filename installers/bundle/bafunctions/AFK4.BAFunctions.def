@@ -1,0 +1,4 @@
+; AFK4.NET BAFunctions - exports consumed by WixStdBA.
+EXPORTS
+    BAFunctionsCreate
+    BAFunctionsDestroy

@@ -821,6 +821,78 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
+    public void BuildClientPackagesScript_CarriesRuntimeInBundleExeAndMovesAgentMsiToIntermediates()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
+
+        // Runtime pin lives next to the build-time download/verify.
+        Assert.Contains("$runtimeVersion = '10.0.9'", script, StringComparison.Ordinal);
+        // URL is built from $runtimeVersion (single source of truth) — not a hardcoded version,
+        // so bumping the pin can't silently leave the URL on the old runtime.
+        Assert.Contains("windowsdesktop-runtime-$runtimeVersion-win-x64.exe", script, StringComparison.Ordinal);
+        Assert.Contains("Get-FileHash -Algorithm SHA512", script, StringComparison.Ordinal);
+        Assert.Contains("Runtime installer SHA-512 mismatch", script, StringComparison.Ordinal);
+
+        // The WiX BootstrapperApplications (the v7 rename of Bal) + Netfx extensions are required
+        // for the bundle, and `wix extension add` must accept the v7 OSMF EULA non-interactively.
+        Assert.Contains("wix extension add -acceptEula wix7", script, StringComparison.Ordinal);
+        Assert.Contains("WixToolset.BootstrapperApplications.wixext", script, StringComparison.Ordinal);
+        Assert.Contains("WixToolset.Netfx.wixext", script, StringComparison.Ordinal);
+
+        // The bundle is built from the single Bundle.wxs and carries the runtime + agent MSI.
+        // Bundle.wxs references $(var.RuntimeVersion), $(var.RuntimeInstallerPath), $(var.AgentMsiPath),
+        // so the build must -d all three or `wix build` fails with an undefined preprocessor variable.
+        Assert.Contains("installers/bundle/Bundle.wxs", script, StringComparison.Ordinal);
+        Assert.Contains("RuntimeVersion=$runtimeVersion", script, StringComparison.Ordinal);
+        Assert.Contains("RuntimeInstallerPath=", script, StringComparison.Ordinal);
+        Assert.Contains("AgentMsiPath=", script, StringComparison.Ordinal);
+        Assert.Contains("afk4-client-$Version-$Channel.exe", script, StringComparison.Ordinal);
+
+        // The bundle is the deliverable; the agent MSI becomes a build input in intermediates\.
+        var bundleIndex = script.IndexOf("afk4-client-$Version-$Channel.exe", StringComparison.Ordinal);
+        var agentToIntermediatesIndex = script.IndexOf("# The agent MSI is now a build input to the bundle", StringComparison.Ordinal);
+        Assert.True(agentToIntermediatesIndex > bundleIndex, "Agent MSI must be moved to intermediates only after the bundle that embeds it is built.");
+    }
+
+    [Fact]
+    public void BuildClientPackagesScript_BrandsBundleAndBuildsBAFunctionsForZeroClickInstall()
+    {
+        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
+
+        // The native BAFunctions DLL (auto-start install + auto-close) must be built before the
+        // bundle and located via vswhere/MSBuild so it works wherever the C++ toolset is installed.
+        Assert.Contains("AFK4.BAFunctions.vcxproj", script, StringComparison.Ordinal);
+        Assert.Contains("vswhere.exe", script, StringComparison.Ordinal);
+        Assert.Contains("-restore -p:Configuration=Release -p:Platform=x64", script, StringComparison.Ordinal);
+
+        // Bundle.wxs references $(var.BAFunctionsPath)/$(var.BrandIconPath)/$(var.BrandLogoPath),
+        // so the build must -d all three or `wix build` fails with an undefined preprocessor variable.
+        Assert.Contains("BAFunctionsPath=", script, StringComparison.Ordinal);
+        Assert.Contains("BrandIconPath=", script, StringComparison.Ordinal);
+        Assert.Contains("BrandLogoPath=", script, StringComparison.Ordinal);
+
+        // The DLL is built before the bundle consumes it as a payload.
+        var msbuildIndex = script.IndexOf("AFK4.BAFunctions.vcxproj", StringComparison.Ordinal);
+        var bundleConsumesIndex = script.IndexOf("BAFunctionsPath=$baFunctionsPath", StringComparison.Ordinal);
+        Assert.True(msbuildIndex >= 0 && bundleConsumesIndex > msbuildIndex, "BAFunctions DLL must be built before the bundle that embeds it as a payload.");
+    }
+
+    [Fact]
+    public void BundleWxs_BrandsTheInstallerAndLoadsBAFunctions()
+    {
+        var bundle = NormalizeLineEndings(File.ReadAllText(ScriptPath("installers/bundle/Bundle.wxs")));
+
+        // Brand the .exe icon and the bootstrapper window logo.
+        Assert.Contains("IconSourceFile=\"$(var.BrandIconPath)\"", bundle, StringComparison.Ordinal);
+        Assert.Contains("LogoFile=\"$(var.BrandLogoPath)\"", bundle, StringComparison.Ordinal);
+
+        // The BAFunctions DLL is loaded as a BootstrapperApplication payload that drives the
+        // zero-click experience (skip Install button, auto-close on success).
+        Assert.Contains("SourceFile=\"$(var.BAFunctionsPath)\"", bundle, StringComparison.Ordinal);
+        Assert.Contains("bal:BAFunctions=\"yes\"", bundle, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ClientPackagesWorkflow_UsesCostControlsForManualReleaseRuns()
     {
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/client-packages.yml")));
