@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { HostBridgeRequestError } from './hostBridge';
 
@@ -8,7 +8,14 @@ const resetPasswordByEmail = mock(async () => {});
 const forgotPasswordByPhone = mock(async () => {});
 const resetPasswordByPhone = mock(async () => {});
 
+// bun's mock.module registrations are global for the whole run and survive mock.restore(). Snapshot
+// the real module BEFORE mocking and keep the full surface in the override, so sibling files keep
+// the real signIn/load/etc.; afterAll restores everything (otherwise the reset stubs leak into
+// authClient.test.ts, whose bridge-behaviour assertions then see a no-op and fail by run order).
+const realAuthClient = { ...(await import('./authClient')) };
+
 mock.module('./authClient', () => ({
+  ...realAuthClient,
   forgotPasswordByEmail,
   resetPasswordByEmail,
   forgotPasswordByPhone,
@@ -16,6 +23,10 @@ mock.module('./authClient', () => ({
 }));
 
 const { ForgotPassword } = await import('./ForgotPassword');
+
+afterAll(() => {
+  mock.module('./authClient', () => realAuthClient);
+});
 
 function renderScreen() {
   return render(
