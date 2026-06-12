@@ -246,7 +246,6 @@ export function App() {
           <PhoneLoginScreen
             onDiscovered={handlePhoneDiscovered}
             onForgotPassword={goToForgotPassword}
-            initialMode={state.signInPrefill?.channel}
             initialIdentity={state.signInPrefill?.identity}
           />
         )}
