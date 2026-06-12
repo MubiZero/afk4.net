@@ -107,6 +107,13 @@
       <Files Include="$(var.UpdateHelperDir)\*.ps1" />
     </ComponentGroup>
 
+    <!--
+      Set by the Burn bundle (Bundle.wxs) so the wizard still auto-launches when the agent MSI is
+      chained: Burn runs embedded MSIs at UILevel=none (2), so the UILevel>=3 gate alone would skip
+      the launch. A bare `msiexec /qn` (headless mass-deploy) sets neither and stays silent.
+    -->
+    <Property Id="LAUNCHWIZARD" Secure="yes" />
+
     <CustomAction
         Id="LaunchSetupWizard"
         FileRef="SetupWizardExe"
@@ -116,7 +123,7 @@
         Impersonate="yes" />
 
     <InstallExecuteSequence>
-      <Custom Action="LaunchSetupWizard" After="InstallFinalize" Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED AND UILevel &gt;= 3" />
+      <Custom Action="LaunchSetupWizard" After="InstallFinalize" Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED AND (UILevel &gt;= 3 OR LAUNCHWIZARD = &quot;1&quot;)" />
     </InstallExecuteSequence>
   </Package>
 </Wix>

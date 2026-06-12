@@ -186,7 +186,7 @@ public sealed class UpdateHelperScriptTests
         Assert.Contains("Id=\"SetupWizardRegistration\"", package, StringComparison.Ordinal);
         Assert.Contains("Condition=\"NOT WIX_UPGRADE_DETECTED\"", package, StringComparison.Ordinal);
         Assert.Contains(
-            "Condition=\"NOT Installed AND NOT WIX_UPGRADE_DETECTED AND UILevel &gt;= 3\"",
+            "Condition=\"NOT Installed AND NOT WIX_UPGRADE_DETECTED AND (UILevel &gt;= 3 OR LAUNCHWIZARD = &quot;1&quot;)\"",
             package,
             StringComparison.Ordinal);
         Assert.Contains("Start=\"auto\"", package, StringComparison.Ordinal);

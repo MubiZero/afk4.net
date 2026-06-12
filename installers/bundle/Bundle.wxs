@@ -55,7 +55,11 @@
             SourceFile="$(var.RuntimeInstallerPath)" />
       </ExePackage>
 
-      <MsiPackage SourceFile="$(var.AgentMsiPath)" Vital="yes" />
+      <!-- LAUNCHWIZARD=1 makes the agent MSI auto-launch the Setup Wizard even though Burn
+           runs it at UILevel=none; see the LaunchSetupWizard condition in installers/agent/Package.wxs. -->
+      <MsiPackage SourceFile="$(var.AgentMsiPath)" Vital="yes">
+        <MsiProperty Name="LAUNCHWIZARD" Value="1" />
+      </MsiPackage>
     </Chain>
   </Bundle>
 </Wix>
