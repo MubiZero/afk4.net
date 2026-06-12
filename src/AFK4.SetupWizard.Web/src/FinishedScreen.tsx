@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { useI18n } from '@afk4/i18n';
+import { useI18n, type MessageKey } from '@afk4/i18n';
 import { closeWizard, provisionShell, type WizardEnrollResult, type WizardRole, type WizardSeat, type WizardShellOutcome } from './wizardApi';
 
 interface FinishedScreenProps {
@@ -9,12 +9,22 @@ interface FinishedScreenProps {
   selectedSeat: WizardSeat | null;
 }
 
+// Known update channels → shared i18n labels (reused from the Operator helper catalog).
+const CHANNEL_LABEL_KEYS: Record<string, MessageKey> = {
+  stable: 'op.helper.update.channel.stable',
+  beta: 'op.helper.update.channel.beta',
+  internal: 'op.helper.update.channel.internal',
+};
+
 export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScreenProps) {
   const { t } = useI18n();
   const isPending = result.enrollmentState.toLowerCase() === 'pending';
   const roleLabel = result.role === 'gaming_pc'
     ? t('setup.wizard.role.gamingPc.title')
     : t('setup.wizard.role.managerWorkstation.title');
+  // Локализуем канал обновлений; неизвестный slug показываем как есть, а не прячем за generic.
+  const channelLabel = CHANNEL_LABEL_KEYS[result.updateChannel.toLowerCase()];
+  const channelText = channelLabel ? t(channelLabel) : result.updateChannel;
 
   return (
     <section className="wizard-screen">
@@ -63,7 +73,7 @@ export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScr
           </div>
           <div>
             <dt>{t('setup.wizard.finished.summary.channel')}</dt>
-            <dd>{result.updateChannel}</dd>
+            <dd>{channelText}</dd>
           </div>
         </dl>
 

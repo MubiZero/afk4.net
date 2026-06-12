@@ -104,10 +104,37 @@ public partial class WebViewSetupWindow : Window
         if (e.IsSuccess)
         {
             StartupOverlay.Visibility = Visibility.Collapsed;
+            // Сообщаем вебу стартовое состояние окна, чтобы кнопка maximize/restore сразу
+            // показала верную иконку (на случай запуска в развёрнутом виде).
+            PostWindowState();
             return;
         }
 
         ShowStartupFailure($"Не удалось загрузить веб-интерфейс: {e.WebErrorStatus}.");
+    }
+
+    // Веб не угадывает состояние окна, а получает его отсюда: при любом изменении (кнопка,
+    // двойной клик по титлбару, Win+↑, snap) шлём текущее состояние, чтобы иконка/подсказка
+    // кнопки развернуть/восстановить всегда совпадали с реальностью.
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        PostWindowState();
+    }
+
+    private void PostWindowState()
+    {
+        if (Browser.CoreWebView2 is null)
+        {
+            return;
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            type = "window:state",
+            maximized = WindowState == WindowState.Maximized,
+        });
+        Browser.CoreWebView2.PostWebMessageAsJson(payload);
     }
 
     private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)

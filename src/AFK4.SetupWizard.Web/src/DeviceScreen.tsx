@@ -17,6 +17,7 @@ interface DeviceScreenProps {
   role: WizardRole;
   defaultDisplayName: string;
   onEnrolled(result: WizardEnrollResult, selectedSeat: WizardSeat | null): void;
+  onBusyChange?(installing: boolean): void;
   onBack(): void;
 }
 
@@ -33,6 +34,7 @@ export function DeviceScreen({
   role,
   defaultDisplayName,
   onEnrolled,
+  onBusyChange,
   onBack,
 }: DeviceScreenProps) {
   const { t } = useI18n();
@@ -55,6 +57,14 @@ export function DeviceScreen({
       newSeatInputRef.current?.focus();
     }
   }, [createOpen]);
+
+  // Сообщаем наверх, что идёт установка (enroll → msiexec на хосте), чтобы титлбар мог
+  // защитить кнопку закрытия. На размонтировании снимаем флаг.
+  const installing = request.kind === 'enrolling';
+  useEffect(() => {
+    onBusyChange?.(installing);
+    return () => onBusyChange?.(false);
+  }, [installing, onBusyChange]);
 
   const openCreateForm = useCallback(() => {
     setCreateOpen(true);
@@ -221,13 +231,13 @@ export function DeviceScreen({
     : 'setup.wizard.device.manager.subtitle';
 
   return (
-    <section className={`wizard-screen ${requiresSeat ? 'is-wide' : 'is-narrow'}`}>
+    <section className={`wizard-screen is-framed ${requiresSeat ? 'is-wide' : 'is-narrow'}`}>
       <div className="wizard-screen-head">
-        <span className="wizard-eyebrow">
-          {t('setup.wizard.common.step')} 4
-          <span className="wizard-eyebrow-context">{ownerName} · {branch.branchName}</span>
-        </span>
-        <h1>{t(titleKey)}</h1>
+        <span className="wizard-screen-context">{ownerName} · {branch.branchName}</span>
+        <div className="wizard-screen-title-row">
+          <span className="wizard-screen-step" aria-hidden>4</span>
+          <h1>{t(titleKey)}</h1>
+        </div>
         <p>{t(subtitleKey)}</p>
       </div>
 
@@ -404,9 +414,15 @@ export function DeviceScreen({
                           ? t('setup.wizard.device.seats.label.free')
                           : t('setup.wizard.device.seats.label.occupied');
                         // Правило 34: если есть deviceName/онлайн-статус — покажи их,
-                        // не оставляй пользователя с generic «занято».
+                        // не оставляй пользователя с generic «занято». Онлайн/оффлайн ещё и
+                        // подсвечивается точкой-статусом на карточке (см. .is-online/.is-offline).
+                        const onlineLabel = seat.isOnline === true
+                          ? t('devices.status.online')
+                          : seat.isOnline === false
+                            ? t('devices.status.offline')
+                            : null;
                         const occupiedDetail = !isFree && seat.deviceName
-                          ? `${seat.deviceName}${seat.isOnline === true ? ' · онлайн' : seat.isOnline === false ? ' · оффлайн' : ''}`
+                          ? `${seat.deviceName}${onlineLabel ? ` · ${onlineLabel}` : ''}`
                           : null;
                         const tooltip = isFree
                           ? `${seat.pcName} · ${statusLabel}`
@@ -420,6 +436,8 @@ export function DeviceScreen({
                             className={[
                               'wizard-seat-card',
                               isFree ? 'is-free' : 'is-occupied',
+                              !isFree && seat.isOnline === true ? 'is-online' : '',
+                              !isFree && seat.isOnline === false ? 'is-offline' : '',
                               pendingSeatIds.has(seat.seatId) ? 'is-pending' : '',
                             ]
                               .filter(Boolean)

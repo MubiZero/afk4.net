@@ -58,6 +58,11 @@ function renderScreen(props: Partial<Parameters<typeof PhoneLoginScreen>[0]> = {
   return { onDiscovered, onForgotPassword };
 }
 
+// The wizard opens in phone mode; the login/email field is behind "sign in with login or email".
+function switchToCredentials() {
+  fireEvent.click(screen.getByRole('button', { name: /вход по логину или почте/i }));
+}
+
 describe('PhoneLoginScreen', () => {
   beforeEach(() => {
     signInByPhone.mockClear();
@@ -67,23 +72,26 @@ describe('PhoneLoginScreen', () => {
     discoverAuthenticated.mockClear();
   });
 
-  it('routes a phone-shaped identity to phone sign-in, then discovers branches', async () => {
+  it('signs in by phone in the default mode, then discovers branches', async () => {
     const { onDiscovered } = renderScreen();
-    fireEvent.change(screen.getByLabelText(/телефон, логин или email/i), {
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), {
       target: { value: '+992 93 738-00-70' },
     });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
     await waitFor(() => expect(signInByPhone).toHaveBeenCalledTimes(1));
+    // The fixed +992 prefix + 9 local digits are sent as the full dialable number.
+    expect(signInByPhone).toHaveBeenCalledWith('992937380070', 'Passw0rd!');
     expect(signInByLogin).not.toHaveBeenCalled();
     expect(discoverAuthenticated).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(onDiscovered).toHaveBeenCalledTimes(1));
   });
 
-  it('routes a login/email identity to login sign-in, then discovers branches', async () => {
+  it('signs in by login/email after switching to the credentials mode', async () => {
     const { onDiscovered } = renderScreen();
-    fireEvent.change(screen.getByLabelText(/телефон, логин или email/i), { target: { value: 'owner@club.tj' } });
+    switchToCredentials();
+    fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'owner@club.tj' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
@@ -102,7 +110,8 @@ describe('PhoneLoginScreen', () => {
       ],
     }));
     const { onDiscovered } = renderScreen();
-    fireEvent.change(screen.getByLabelText(/телефон, логин или email/i), { target: { value: 'owner@club.tj' } });
+    switchToCredentials();
+    fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'owner@club.tj' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
@@ -111,43 +120,35 @@ describe('PhoneLoginScreen', () => {
     await waitFor(() => expect(onDiscovered).toHaveBeenCalledTimes(1));
   });
 
-  it('auto-prefixes +992 and masks the local digits as the user types a phone', () => {
+  it('masks the local digits as the user types; +992 is a fixed affix, not in the value', () => {
     renderScreen();
-    const field = screen.getByLabelText(/телефон, логин или email/i) as HTMLInputElement;
+    const field = screen.getByLabelText(/номер телефона/i) as HTMLInputElement;
     fireEvent.change(field, { target: { value: '937380070' } });
-    expect(field.value).toBe('+992 93 738 00 70');
+    // The editable value holds ONLY the masked local part — the +992 prefix lives outside the input.
+    expect(field.value).toBe('93 738 00 70');
+    expect(screen.getByText('+992')).toBeTruthy();
   });
 
-  it('drops a typed country code instead of doubling it', () => {
+  it('drops a pasted country code, keeping only the 9 local digits', () => {
     renderScreen();
-    const field = screen.getByLabelText(/телефон, логин или email/i) as HTMLInputElement;
+    const field = screen.getByLabelText(/номер телефона/i) as HTMLInputElement;
     fireEvent.change(field, { target: { value: '+992 93 738 00 70' } });
-    expect(field.value).toBe('+992 93 738 00 70');
+    expect(field.value).toBe('93 738 00 70');
   });
 
-  it('clears instead of resurrecting digits when backspacing through the +992 prefix', () => {
+  it('shortens cleanly when local digits are deleted', () => {
     renderScreen();
-    const field = screen.getByLabelText(/телефон, логин или email/i) as HTMLInputElement;
-    fireEvent.change(field, { target: { value: '9' } });
-    expect(field.value).toBe('+992 9');
-    // Backspacing the last local digit leaves "+992 "; it must collapse to empty, not survive as a
-    // bare prefix that the next backspace would re-read as local digits ("+992 99" bug).
-    fireEvent.change(field, { target: { value: '+992 ' } });
-    expect(field.value).toBe('');
-  });
-
-  it('never expands a lone or half-deleted +992 prefix into fake local digits', () => {
-    renderScreen();
-    const field = screen.getByLabelText(/телефон, логин или email/i) as HTMLInputElement;
-    fireEvent.change(field, { target: { value: '+992' } });
-    expect(field.value).toBe('');
-    fireEvent.change(field, { target: { value: '+99' } });
+    const field = screen.getByLabelText(/номер телефона/i) as HTMLInputElement;
+    fireEvent.change(field, { target: { value: '937' } });
+    expect(field.value).toBe('93 7');
+    fireEvent.change(field, { target: { value: '' } });
     expect(field.value).toBe('');
   });
 
   it('rejects a malformed email on submit without calling the backend', async () => {
     renderScreen();
-    fireEvent.change(screen.getByLabelText(/телефон, логин или email/i), { target: { value: 'owner@club' } });
+    switchToCredentials();
+    fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'owner@club' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
 
@@ -157,35 +158,28 @@ describe('PhoneLoginScreen', () => {
 
   it('never scolds a login: no hint, and it routes to login sign-in', async () => {
     renderScreen();
-    const field = screen.getByLabelText(/телефон, логин или email/i);
+    switchToCredentials();
+    const field = screen.getByLabelText(/логин или email/i);
     fireEvent.change(field, { target: { value: 'ivan' } });
     fireEvent.blur(field);
 
     expect(screen.queryByText(/проверьте адрес/i)).toBeNull();
-    expect(screen.queryByText(/введите номер/i)).toBeNull();
 
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });
     fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
     await waitFor(() => expect(signInByLogin).toHaveBeenCalledWith('ivan', 'Passw0rd!'));
   });
 
-  it('reveals "forgot password" only after a failed sign-in, then routes to it', async () => {
-    signInByPhone.mockImplementationOnce(async () => {
-      throw new Error('bad credentials');
-    });
+  it('shows "forgot password" up front and routes to it', () => {
     const { onForgotPassword } = renderScreen();
-
-    // Hidden until the user actually gets the password wrong — keeps the resting screen clean.
-    expect(screen.queryByRole('button', { name: /забыли пароль/i })).toBeNull();
-
-    fireEvent.change(screen.getByLabelText(/телефон, логин или email/i), {
-      target: { value: '+992 93 738-00-70' },
-    });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'wrong' } });
-    fireEvent.click(screen.getByRole('button', { name: /войти$/i }));
-
-    const forgot = await screen.findByRole('button', { name: /забыли пароль/i });
+    // Recovery is always offered now — no need to fail a sign-in first.
+    const forgot = screen.getByRole('button', { name: /забыли пароль/i });
     fireEvent.click(forgot);
     expect(onForgotPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens in credentials mode when prefilled with an email (from a reset round-trip)', () => {
+    renderScreen({ initialIdentity: 'owner@club.tj' });
+    expect((screen.getByLabelText(/логин или email/i) as HTMLInputElement).value).toBe('owner@club.tj');
   });
 });

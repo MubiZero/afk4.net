@@ -17,70 +17,54 @@ interface PhoneLoginScreenProps {
   initialIdentity?: string;
 }
 
+// 'phone' — основной вход по номеру (телефон-first). 'credentials' — запасной по логину/email,
+// открывается кнопкой «Вход по логину или почте». Поле одно, но режим меняет и маску, и роутинг.
+type Mode = 'phone' | 'credentials';
+
 type RequestState =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'error'; message: string };
 
-// Strip phone punctuation and the leading + so the digits can be sent to the backend.
-function normalizePhone(value: string): string {
-  return value.replace(/[\s\-()]/g, '').replace(/^\+/, '');
-}
-
-// Tajikistan numbers are country code 992 + 9 local digits. The wizard ships only to TJ clubs, so we
-// pin +992 and only ever keep the 9 local digits — a country code typed by the user is dropped.
+// Tajikistan numbers are country code 992 + 9 local digits. The wizard ships only to TJ clubs, so the
+// +992 prefix is fixed (shown as a non-editable affix in the field) and the input holds ONLY the 9
+// local digits — a country code typed/pasted by the user is dropped.
 function localPhoneDigits(value: string): string {
   const digits = value.replace(/\D/g, '');
-  // A leading "+" followed by only a partial/whole country code and nothing else is the prefix being
-  // formed or deleted (e.g. backspacing "+992" down to "+99"). There are no local digits yet, so
-  // don't resurrect the country-code digits as local ones — that was the "+992 99" bug.
-  if (value.trimStart().startsWith('+') && digits.length <= 3 && '992'.startsWith(digits)) {
-    return '';
-  }
   return (digits.startsWith('992') ? digits.slice(3) : digits).slice(0, 9);
 }
 
-// Mask the local part as "93 738 00 70" (2-3-2-2) behind a fixed +992 prefix. With no local digits
-// the field is empty (not a bare "+992"), so the prefix can never get stuck mid-deletion.
-function formatPhone(value: string): string {
+// Mask the local part as "93 738 00 70" (2-3-2-2). The +992 prefix lives outside the input, so the
+// field value is the local part only (empty when nothing is typed).
+function formatLocal(value: string): string {
   const local = localPhoneDigits(value);
   const groups = [local.slice(0, 2), local.slice(2, 5), local.slice(5, 7), local.slice(7, 9)].filter(Boolean);
-  return groups.length > 0 ? `+992 ${groups.join(' ')}` : '';
+  return groups.join(' ');
 }
 
-// One field accepts a phone, a login, or an email. We only mask as a phone while the value has no
-// letters and no '@' — the moment a letter appears it's a login/email and masking stops, so a login
-// is never mangled (and the user is never scolded for typing one).
-function isPhoneInput(value: string): boolean {
-  return /\d/.test(value) && !/[a-zA-Z@]/.test(value);
-}
-
-type IdentityKind = 'empty' | 'phone' | 'email' | 'login';
-
-function classifyIdentity(value: string): IdentityKind {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return 'empty';
-  if (trimmed.includes('@')) return 'email';
-  if (/[a-zA-Z]/.test(trimmed)) return 'login';
-  if (/\d/.test(trimmed)) return 'phone';
-  return 'login';
+// Full dialable digits sent to the backend: fixed 992 country code + the 9 local digits.
+function fullPhoneDigits(value: string): string {
+  return `992${localPhoneDigits(value)}`;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function maskIdentity(raw: string): string {
-  return isPhoneInput(raw) ? formatPhone(raw) : raw;
+// Did the operator land here from "forgot password" with an email/login? Then open in credentials
+// mode so the prefilled value isn't mangled by the phone mask.
+function initialModeFor(identity: string | undefined): Mode {
+  if (!identity) return 'phone';
+  return /[a-zA-Z@]/.test(identity) ? 'credentials' : 'phone';
 }
 
 export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdentity }: PhoneLoginScreenProps) {
   const { t } = useI18n();
-  const [identity, setIdentity] = useState(() => maskIdentity(initialIdentity ?? ''));
+  const [mode, setMode] = useState<Mode>(() => initialModeFor(initialIdentity));
+  const [identity, setIdentity] = useState(() =>
+    initialModeFor(initialIdentity) === 'phone' ? formatLocal(initialIdentity ?? '') : (initialIdentity ?? ''),
+  );
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  // Подсказки и «Забыли пароль?» показываем только после первого взаимодействия/неудачи —
-  // это пути восстановления, а не постоянные элементы, которые грузят экран.
   const [touched, setTouched] = useState(false);
-  const [authFailed, setAuthFailed] = useState(false);
   const [request, setRequest] = useState<RequestState>({ kind: 'idle' });
   const [showSlowSkeleton, setShowSlowSkeleton] = useState(false);
   const [clubChoices, setClubChoices] = useState<WizardClubChoice[] | null>(null);
@@ -94,16 +78,30 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
     return () => clearTimeout(timer);
   }, [request.kind]);
 
-  const kind = classifyIdentity(identity);
+  const trimmed = identity.trim();
+  const phoneComplete = localPhoneDigits(identity).length === 9;
+  const emailLike = trimmed.includes('@');
   // Ругаем только когда уверены в категории: незавершённый телефон или кривая почта.
-  // Логин не валидируем вообще — у него нет «правильного формата».
-  const showPhoneHint = kind === 'phone' && touched && localPhoneDigits(identity).length !== 9;
-  const showEmailHint = kind === 'email' && touched && !EMAIL_RE.test(identity.trim());
-  const canSubmit = identity.trim().length > 0 && password.length > 0 && request.kind !== 'loading';
+  // Логин не валидируем — у него нет «правильного формата».
+  const showPhoneHint = mode === 'phone' && touched && trimmed.length > 0 && !phoneComplete;
+  const showEmailHint = mode === 'credentials' && emailLike && touched && !EMAIL_RE.test(trimmed);
+  const identityReady = mode === 'phone' ? phoneComplete : trimmed.length > 0;
+  const canSubmit = identityReady && password.length > 0 && request.kind !== 'loading';
 
   function clearError() {
     if (request.kind === 'error') setRequest({ kind: 'idle' });
   }
+
+  const switchMode = useCallback((next: Mode) => {
+    // Меняем маску/роутинг — старое значение не переносим, иначе телефон-маска «протекает»
+    // в поле логина и наоборот. Поле очищаем, ошибки и подсказки сбрасываем.
+    setMode(next);
+    setIdentity('');
+    setPassword('');
+    setTouched(false);
+    setRequest({ kind: 'idle' });
+    setClubChoices(null);
+  }, []);
 
   const finishWithDiscovery = useCallback(async () => {
     const response = await discoverAuthenticated();
@@ -118,21 +116,19 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setTouched(true);
-      if (identity.trim().length === 0 || password.length === 0 || request.kind === 'loading') {
+      if (!identityReady || password.length === 0 || request.kind === 'loading') {
         return;
       }
-      const category = classifyIdentity(identity);
-      // Не дёргаем сеть на заведомо неверной почте/незавершённом номере — показываем подсказку.
-      if (category === 'email' && !EMAIL_RE.test(identity.trim())) return;
-      if (category === 'phone' && localPhoneDigits(identity).length !== 9) return;
+      // Не дёргаем сеть на заведомо неверной почте — показываем подсказку.
+      if (mode === 'credentials' && emailLike && !EMAIL_RE.test(trimmed)) return;
       setRequest({ kind: 'loading' });
       try {
-        if (category === 'phone') {
-          await signInByPhone(normalizePhone(identity), password);
+        if (mode === 'phone') {
+          await signInByPhone(fullPhoneDigits(identity), password);
           await finishWithDiscovery();
           return;
         }
-        const result = await signInByLogin(identity.trim(), password);
+        const result = await signInByLogin(trimmed, password);
         if (result.requiresClubChoice) {
           setClubChoices(result.clubs);
           setRequest({ kind: 'idle' });
@@ -140,28 +136,24 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
         }
         await finishWithDiscovery();
       } catch (error) {
-        const { message, reason } = describeError(error, t);
-        if (reason === 'auth') setAuthFailed(true);
-        setRequest({ kind: 'error', message });
+        setRequest({ kind: 'error', message: describeError(error, t) });
       }
     },
-    [finishWithDiscovery, identity, password, request.kind, t],
+    [emailLike, finishWithDiscovery, identity, identityReady, mode, password, request.kind, t, trimmed],
   );
 
   const chooseClub = useCallback(
     async (organizationId: string) => {
       setRequest({ kind: 'loading' });
       try {
-        await signInToClub(organizationId, identity.trim(), password);
+        await signInToClub(organizationId, trimmed, password);
         await finishWithDiscovery();
       } catch (error) {
-        const { message, reason } = describeError(error, t);
-        if (reason === 'auth') setAuthFailed(true);
         setClubChoices(null);
-        setRequest({ kind: 'error', message });
+        setRequest({ kind: 'error', message: describeError(error, t) });
       }
     },
-    [finishWithDiscovery, identity, password, t],
+    [finishWithDiscovery, password, t, trimmed],
   );
 
   if (clubChoices !== null) {
@@ -209,29 +201,45 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
 
   return (
     <section className="wizard-screen is-narrow is-static">
-      <div className="wizard-screen-head">
-        <span className="wizard-eyebrow">
-          {t('setup.wizard.common.step')} 1
-          <span className="wizard-eyebrow-context">{t('setup.wizard.phoneLogin.subtitle')}</span>
-        </span>
-        <h1>{t('setup.wizard.phoneLogin.title')}</h1>
+      <div className="wizard-screen-head is-centered">
+        <div className="wizard-screen-title-row">
+          <span className="wizard-screen-step" aria-hidden>1</span>
+          <h1>{t('setup.wizard.phoneLogin.title')}</h1>
+        </div>
+        <p>{t('setup.wizard.phoneLogin.subtitle')}</p>
       </div>
 
       <form className="wizard-form" onSubmit={submit} noValidate>
         <label className="wizard-field">
-          <span className="wizard-field-label">{t('setup.wizard.phoneLogin.field.phone')}</span>
-          <input
-            type="text"
-            autoComplete="username"
-            autoFocus
-            spellCheck={false}
-            value={identity}
-            onChange={(event) => { setIdentity(maskIdentity(event.target.value)); clearError(); }}
-            onBlur={() => setTouched(true)}
-            placeholder="+992 93 738 00 70"
-            aria-invalid={identityHint !== null}
-            aria-describedby={identityHint !== null ? 'identity-hint' : undefined}
-          />
+          <span className="wizard-field-label">
+            {mode === 'phone'
+              ? t('setup.wizard.phoneLogin.field.phone')
+              : t('setup.wizard.phoneLogin.field.credentials')}
+          </span>
+          <div className={mode === 'phone' ? 'wizard-phone-field' : undefined}>
+            {mode === 'phone' && (
+              <span className="wizard-phone-prefix" aria-hidden>+992</span>
+            )}
+            <input
+              // key forces a fresh input on mode switch — clears autofill/IME state cleanly.
+              key={mode}
+              className={mode === 'phone' ? 'wizard-phone-input' : undefined}
+              type={mode === 'phone' ? 'tel' : 'text'}
+              inputMode={mode === 'phone' ? 'tel' : undefined}
+              autoComplete="username"
+              autoFocus
+              spellCheck={false}
+              value={identity}
+              onChange={(event) => {
+                setIdentity(mode === 'phone' ? formatLocal(event.target.value) : event.target.value);
+                clearError();
+              }}
+              onBlur={() => setTouched(true)}
+              placeholder={mode === 'phone' ? '93 738 00 70' : 'name@example.com'}
+              aria-invalid={identityHint !== null}
+              aria-describedby={identityHint !== null ? 'identity-hint' : undefined}
+            />
+          </div>
           {identityHint !== null && (
             <span id="identity-hint" className="wizard-field-hint">{identityHint}</span>
           )}
@@ -240,11 +248,9 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
         <div className="wizard-field">
           <div className="wizard-field-label wizard-label-with-action">
             <label htmlFor="wizard-password-input">{t('setup.wizard.phoneLogin.field.password')}</label>
-            {authFailed && (
-              <button type="button" className="wizard-link-inline" onClick={onForgotPassword}>
-                {t('setup.wizard.phoneLogin.action.forgotPassword')}
-              </button>
-            )}
+            <button type="button" className="wizard-link-inline" onClick={onForgotPassword}>
+              {t('setup.wizard.phoneLogin.action.forgotPassword')}
+            </button>
           </div>
           <div className="wizard-password">
             <input
@@ -294,19 +300,28 @@ export function PhoneLoginScreen({ onDiscovered, onForgotPassword, initialIdenti
             </>
           )}
         </button>
+
+        {/* Запасной способ входа — тихая текстовая ссылка под «Войти», как «Забыли пароль?».
+            Без иконки и без веса secondary-кнопки: это второстепенный путь, а не вторая CTA. */}
+        <button
+          type="button"
+          className="wizard-link-inline wizard-mode-switch"
+          onClick={() => switchMode(mode === 'phone' ? 'credentials' : 'phone')}
+          disabled={request.kind === 'loading'}
+        >
+          {mode === 'phone'
+            ? t('setup.wizard.phoneLogin.action.useCredentials')
+            : t('setup.wizard.phoneLogin.action.usePhone')}
+        </button>
       </form>
     </section>
   );
 }
 
-function describeError(
-  error: unknown,
-  t: (key: MessageKey) => string,
-): { message: string; reason: 'auth' | 'other' } {
+function describeError(error: unknown, t: (key: MessageKey) => string): string {
   if (isHostBridgeUnavailableError(error)) {
-    return { message: t('setup.wizard.phoneLogin.error.bridgeMissing'), reason: 'other' };
+    return t('setup.wizard.phoneLogin.error.bridgeMissing');
   }
   // Backend returns 401 with no detail (no user enumeration) → one combined, honest message.
-  // reason 'auth' surfaces the "forgot password?" recovery link.
-  return { message: t('setup.wizard.phoneLogin.error.signInFailed'), reason: 'auth' };
+  return t('setup.wizard.phoneLogin.error.signInFailed');
 }

@@ -109,6 +109,8 @@
   --duration-modal: 320ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* Лёгкий «пружинный» возврат для тактильной отдачи контролов (press → отпускание). */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.7, 1);
 
   --text-xs: 11px;
   --text-sm: 13px;
@@ -197,6 +199,30 @@ textarea,
   }
 }
 
+/* Направленная смена экрана: новый экран въезжает со стороны движения (вперёд — справа,
+   назад — слева) с лёгким fade. Премиум-ощущение даёт движение, а не эффекты. */
+@keyframes wizard-screen-forward {
+  from {
+    opacity: 0;
+    transform: translate3d(30px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes wizard-screen-back {
+  from {
+    opacity: 0;
+    transform: translate3d(-30px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes wizard-skeleton-pulse {
   0%,
   100% {
@@ -251,9 +277,13 @@ textarea,
   /* Симметричные боковые колонки + auto в центре → степпер центрируется
      относительно окна независимо от ширины бренда/контролов. */
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
+  /* stretch + фикс. высота без вертикального паддинга → контролы окна могут занять всю высоту
+     титлбара и встать вплотную к верхне-правому углу (нативный вид, правило Фиттса). Контент
+     бренда/степпера/тогглов центрируется по вертикали своими контейнерами. */
+  align-items: stretch;
   gap: 28px;
-  padding: 10px 4px 10px 18px;
+  height: 52px;
+  padding: 0 0 0 18px;
   background: var(--surface-canvas);
   border-bottom: 1px solid var(--border-soft);
 }
@@ -280,20 +310,23 @@ textarea,
   margin: 0 2px;
 }
 
+/* Контролы окна — нативный вид: квадратные, без скруглений и зазоров, во всю высоту титлбара,
+   вплотную к верхне-правому углу. */
 .wizard-window-controls {
   display: flex;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
+  align-self: stretch;
+  gap: 0;
 }
 
 .wizard-window-control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 36px;
+  width: 46px;
+  height: 100%;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background: transparent;
   color: var(--text-tertiary);
   cursor: default;
@@ -306,76 +339,75 @@ textarea,
   color: var(--text-primary);
 }
 
+/* Press-фидбэк — чуть светлее hover (контролы окна не «прыгают» масштабом, как кнопки в контенте). */
+.wizard-window-control:active {
+  background: var(--surface-hover);
+}
+
 .wizard-window-control:focus-visible {
   outline: 0;
   background: var(--surface-sunken);
-  box-shadow: var(--focus-ring);
+  /* inset-кольцо: у заподлицо-кнопки без радиуса внешнее кольцо обрезалось бы об соседей. */
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-.wizard-window-control.is-close:hover {
+/* Закрытие: красный hover/press. «Взведённое» состояние (is-armed) — когда во время установки
+   первый клик просит подтверждения: кнопка краснеет заранее, второй клик прерывает. */
+.wizard-window-control.is-close:hover,
+.wizard-window-control.is-close.is-armed {
   background: var(--danger);
   color: #ffffff;
 }
 
-/* Тема-слайдер: pill с sun/moon. Активная половина выделена thumb'ом,
-   неактивная — приглушённый текст, чтобы было видно «направление переключения». */
-.wizard-theme-slider {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 2px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-pill);
-  background: var(--surface-sunken);
+.wizard-window-control.is-close:active {
+  background: var(--danger);
+  filter: brightness(0.88);
+  color: #ffffff;
 }
 
-.wizard-theme-slider-option {
-  position: relative;
-  z-index: 2;
+/* Кнопки тулбара (язык, тема): компактные pill'ы, показывают ТЕКУЩЕЕ состояние
+   (код языка / иконку текущей темы), а действие по клику описывает tooltip. */
+.wizard-toolbtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 24px;
-  border: 0;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: default;
-  transition: color var(--duration-fast) var(--ease-out);
-}
-
-.wizard-theme-slider-option:hover {
+  background: var(--surface-sunken);
   color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    transform 200ms var(--ease-spring);
 }
 
-.wizard-theme-slider-option[aria-pressed="true"] {
-  color: var(--accent);
+.wizard-toolbtn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-default);
+  color: var(--text-primary);
 }
 
-.wizard-theme-slider-option:focus-visible {
+.wizard-toolbtn:active {
+  transform: scale(0.94);
+}
+
+.wizard-toolbtn:focus-visible {
   outline: 0;
+  border-color: var(--accent);
   box-shadow: var(--focus-ring);
 }
 
-.wizard-theme-slider-thumb {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  width: 28px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-elevated);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
-  transition: left var(--duration-medium) var(--ease-out);
-}
-
-.wizard-theme-slider-thumb.is-light {
-  left: 2px;
-}
-
-.wizard-theme-slider-thumb.is-dark {
-  left: 30px;
+.wizard-toolbtn svg {
+  width: 15px;
+  height: 15px;
 }
 
 .wizard-brand {
@@ -429,6 +461,7 @@ textarea,
 }
 
 .wizard-stepper-item {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -464,16 +497,37 @@ textarea,
   box-shadow: var(--focus-ring);
 }
 
+/* Подпись шага — тултип при наведении/фокусе, не в потоке. Так степпер остаётся компактным
+   (только кружки) и не наезжает на контролы титлбара на узких окнах; текст по-прежнему в DOM,
+   поэтому скринридер читает список шагов целиком. */
 .wizard-stepper-label {
-  margin-left: 4px;
-  color: var(--text-tertiary);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 40;
+  padding: 4px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--text-primary);
   font-size: var(--text-xs);
   font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-2px);
+  transition: opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    visibility var(--duration-fast) var(--ease-out);
 }
 
-.wizard-stepper-item.done .wizard-stepper-label,
-.wizard-stepper-item.active .wizard-stepper-label {
-  color: var(--text-primary);
+.wizard-stepper-item:hover .wizard-stepper-label,
+.wizard-stepper-item:focus-within .wizard-stepper-label {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 .wizard-stepper-separator {
@@ -486,26 +540,6 @@ textarea,
 
 .wizard-stepper-item.done + .wizard-stepper-separator {
   background: var(--accent);
-}
-
-@media (max-width: 880px) {
-  .wizard-stepper-label {
-    display: none;
-  }
-
-  .wizard-stepper-item.active .wizard-stepper-label {
-    display: inline-block;
-    max-width: 120px;
-    margin-left: 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    vertical-align: middle;
-  }
-
-  .wizard-stepper-separator {
-    width: 16px;
-  }
 }
 
 .wizard-body {
@@ -529,8 +563,12 @@ textarea,
   padding: 40px 44px 28px;
   background: var(--surface-elevated);
   box-shadow: var(--shadow-elevated);
-  animation: wizard-soft-enter 200ms var(--ease-out);
+  animation: wizard-screen-forward 320ms var(--ease-out);
   overflow-y: auto;
+}
+
+.wizard-body[data-nav-dir="back"] .wizard-screen {
+  animation: wizard-screen-back 320ms var(--ease-out);
 }
 
 .wizard-screen::-webkit-scrollbar {
@@ -566,10 +604,82 @@ textarea,
   max-width: 960px;
 }
 
+/* Каркасный экран для длинных списков: шапка и блок кнопок закреплены (flex: 0 0 auto),
+   прокручивается ТОЛЬКО середина (.wizard-scroll). Так контент не подтекает под липкие
+   элементы — они вообще вне области прокрутки. */
+.wizard-screen.is-framed {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow: hidden;
+}
+
+.wizard-screen.is-framed > .wizard-screen-head,
+.wizard-screen.is-framed > .wizard-actions {
+  flex: 0 0 auto;
+}
+
+.wizard-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Полоса прокрутки в правом жёлобе, контент по правому краю остаётся выровнен с шапкой. */
+  margin-right: -8px;
+  padding-right: 8px;
+}
+
+.wizard-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wizard-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: var(--radius-pill);
+}
+
+.wizard-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+}
+
+/* Экран устройства: кнопки лежат внутри формы, поэтому каркас идёт на уровень формы —
+   закреплены шапка, поле имени и кнопки, прокручивается только блок мест (.wizard-seats-section). */
+.wizard-screen.is-framed > .wizard-form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wizard-screen.is-framed > .wizard-form > .wizard-field,
+.wizard-screen.is-framed > .wizard-form > .wizard-alert,
+.wizard-screen.is-framed > .wizard-form > .wizard-actions {
+  flex: 0 0 auto;
+}
+
+.wizard-screen.is-framed .wizard-seats-section {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-right: -8px;
+  padding-right: 8px;
+}
+
+.wizard-screen.is-framed .wizard-seats-section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wizard-screen.is-framed .wizard-seats-section::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: var(--radius-pill);
+}
+
+.wizard-screen.is-framed .wizard-seats-section:hover::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+}
+
 .wizard-screen-head {
   display: grid;
   gap: 10px;
-  max-width: 60ch;
 }
 
 .wizard-eyebrow {
@@ -615,9 +725,52 @@ textarea,
 
 .wizard-screen-head p {
   margin: 0;
+  max-width: 60ch;
   color: var(--text-secondary);
   font-size: var(--text-md);
   line-height: 1.5;
+}
+
+/* Экран входа: заголовок над подзаголовком, по центру карточки. */
+.wizard-screen-head.is-centered {
+  justify-items: center;
+  max-width: none;
+  text-align: center;
+}
+
+/* Заголовок экрана с номером шага слева. Номер — тем же визуальным языком, что и кружок
+   степпера вверху (акцентная окантовка, цифра), чтобы связать экран с прогрессом. */
+.wizard-screen-title-row {
+  display: flex;
+  align-items: center;
+  /* Зазор между разделителем-линией и заголовком; симметричный отступ слева задаёт сам номер. */
+  gap: 14px;
+}
+
+.wizard-screen-head.is-centered .wizard-screen-title-row {
+  justify-content: center;
+}
+
+/* Номер шага отделён от заголовка тонкой вертикальной линией (канон «номер │ заголовок»):
+   padding-right + border-right дают симметричный воздух вокруг разделителя. */
+.wizard-screen-step {
+  flex: 0 0 auto;
+  padding-right: 14px;
+  border-right: 1px solid var(--border-default);
+  color: var(--accent);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+/* Контекстная строка над заголовком (владелец · филиал) — спокойная, без акцентного капса. */
+.wizard-screen-context {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .wizard-form {
@@ -628,6 +781,18 @@ textarea,
 /* Поля — тесная пара (gap 16); кнопку чуть отделяем, чтобы не прилипала к полям. */
 .wizard-form > .wizard-primary {
   margin-top: 8px;
+}
+
+/* Запасной вход — тихая ссылка по центру под «Войти», без разделителя и без веса кнопки. */
+.wizard-mode-switch {
+  justify-self: center;
+  margin-top: 4px;
+}
+
+.wizard-link-inline:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
 /* Узкие карточки: поля и кнопка занимают всю ширину контента, ряд симметричен.
@@ -774,7 +939,8 @@ textarea,
   color: var(--text-secondary);
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  /* Капс-микролейбл просит более широкий трекинг, иначе буквы «слипаются» (был 0.02em). */
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -977,6 +1143,30 @@ textarea,
   border-radius: var(--radius-xs);
 }
 
+/* Поле телефона: фиксированный префикс +992 как часть поля (не редактируется), пользователь
+   вводит только локальные 9 цифр после него. Префикс приглушён — видно, где «зашитая» часть. */
+.wizard-phone-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.wizard-phone-prefix {
+  position: absolute;
+  left: 12px;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.wizard-field .wizard-phone-input {
+  /* Освобождаем место слева под «+992 », чтобы вводимые цифры не наезжали на префикс. */
+  width: 100%;
+  padding-left: 58px;
+}
+
 .wizard-password {
   position: relative;
   display: flex;
@@ -1072,7 +1262,7 @@ textarea,
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out),
+    transform 200ms var(--ease-spring),
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
@@ -1100,9 +1290,11 @@ textarea,
   box-shadow: var(--focus-ring);
 }
 
+/* Disabled = «временно неактивна», не «сломана». Заливка border-default с текстом surface
+   давала ~1.5:1 — надпись пропадала. Тихая sunken-заливка + 38%-текст читаются как inactive. */
 .wizard-primary:disabled {
-  background: var(--border-default);
-  color: var(--surface-elevated);
+  background: var(--surface-sunken);
+  color: var(--text-quaternary);
   cursor: not-allowed;
 }
 
@@ -1162,7 +1354,7 @@ textarea,
   cursor: pointer;
   transition: border-color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out),
+    transform 200ms var(--ease-spring),
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
@@ -1461,7 +1653,7 @@ textarea,
   cursor: default;
   transition: border-color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out),
+    transform 200ms var(--ease-spring),
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
@@ -1517,6 +1709,17 @@ textarea,
 
 .wizard-seat-card:disabled::before {
   box-shadow: none;
+}
+
+/* Занятое место несёт статус занявшего устройства (правило 34): янтарная точка — устройство
+   онлайн (место реально используется сейчас), серая — оффлайн (занято, но ПК выключен).
+   Имя устройства и статус доступны в подсказке/aria. */
+.wizard-seat-card.is-online::before {
+  background: var(--warning);
+}
+
+.wizard-seat-card.is-offline::before {
+  background: var(--border-strong);
 }
 
 .wizard-seat-card.is-pending {

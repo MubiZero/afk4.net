@@ -18,15 +18,17 @@ export function BranchSelectionScreen({
   const { t } = useI18n();
 
   return (
-    <section className="wizard-screen">
+    <section className="wizard-screen is-framed">
       <div className="wizard-screen-head">
-        <span className="wizard-eyebrow">
-          {t('setup.wizard.common.step')} 2 · {ownerName}
-        </span>
-        <h1>{t('setup.wizard.branch.title')}</h1>
+        <span className="wizard-screen-context">{ownerName}</span>
+        <div className="wizard-screen-title-row">
+          <span className="wizard-screen-step" aria-hidden>2</span>
+          <h1>{t('setup.wizard.branch.title')}</h1>
+        </div>
         <p>{t('setup.wizard.branch.subtitle')}</p>
       </div>
 
+      <div className="wizard-scroll">
       {branches.length === 0 ? (
         <div className="wizard-empty">
           <strong>{t('setup.wizard.branch.empty.title')}</strong>
@@ -66,6 +68,7 @@ export function BranchSelectionScreen({
           })}
         </div>
       )}
+      </div>
 
       <div className="wizard-actions">
         <button type="button" className="wizard-secondary" onClick={onBack}>

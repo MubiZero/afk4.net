@@ -141,7 +141,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
     <section className="wizard-screen is-narrow is-static">
       <div className="wizard-screen-head">
         <h1>{t('auth.forgot.title')}</h1>
-        <p>{t('auth.forgot.subtitle')}</p>
+        <p>{step === 'verify' ? t('auth.forgot.verify.subtitle') : t('auth.forgot.subtitle')}</p>
       </div>
 
       {step === 'verify' ? (
@@ -223,7 +223,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
               inputMode="tel"
               autoComplete="tel"
               spellCheck={false}
-              placeholder="+992 93 738 00-70"
+              placeholder="+992 93 738 00 70"
               disabled={isBusy}
               autoFocus
               aria-invalid={showPhoneHint}
