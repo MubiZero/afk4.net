@@ -461,11 +461,6 @@ artifacts/client-packages/afk4-player-shell-0.1.0-ci-internal.msi
 artifacts/client-packages/afk4-operator-app-0.1.0-ci-internal.msi
 ```
 
-The legacy `afk4-gaming-pc` MSI is not part of the default build. If old
-staging-device recovery requires it, rebuild with
-`-IncludeLegacyGamingPcPackage` and do not use that output as current Slice 3.4
-pass evidence.
-
 ## Enroll With Setup Wizard
 
 Run the Agent MSI from an elevated PowerShell prompt or by double-clicking it

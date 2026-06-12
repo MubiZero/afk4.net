@@ -67,22 +67,6 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
-    public void ClientPackageBuildScript_BuildsLegacyGamingPcMsiOnlyWhenRequested()
-    {
-        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
-        var script = File.ReadAllText(scriptPath);
-        var legacyMsiConditionIndex = script.IndexOf("if ($includeLegacyGamingPcPackage)", StringComparison.Ordinal);
-        var legacyMsiBuildIndex = script.IndexOf("installers/gaming-pc/Package.wxs", StringComparison.Ordinal);
-        var gamingPcBuild = script[
-            legacyMsiBuildIndex..];
-
-        Assert.Contains("IncludeLegacyGamingPcPackage", script, StringComparison.Ordinal);
-        Assert.Contains("BuildLegacyStagingBootstrapper", script, StringComparison.Ordinal);
-        Assert.True(legacyMsiBuildIndex > legacyMsiConditionIndex, "The coordinated gaming-PC MSI must not be built by default.");
-        Assert.Contains("-arch x64", gamingPcBuild, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void ClientPackageBuildScript_BuildsSingleAgentMsiWithSetupWizard()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
@@ -158,7 +142,6 @@ public sealed class UpdateHelperScriptTests
     [Theory]
     [InlineData("installers/operator-app/Package.wxs")]
     [InlineData("installers/player-shell/Package.wxs")]
-    [InlineData("installers/gaming-pc/Package.wxs")]
     [InlineData("installers/agent/Package.wxs")]
     public void WixPackages_DoNotUseUnsupportedFilesExcludeAttribute(string packagePath)
     {

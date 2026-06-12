@@ -13,20 +13,10 @@ param(
 
     [string] $BunPath = 'bun',
 
-    [switch] $SkipOperatorWebRestore,
-
-    [switch] $IncludeLegacyGamingPcPackage,
-
-    [switch] $BuildLegacyStagingBootstrapper,
-
-    [string] $StagingLeasePublicKeyPath = '',
-
-    [string] $StagingUpdateSigningPublicKeyPath = ''
+    [switch] $SkipOperatorWebRestore
 )
 
 $ErrorActionPreference = 'Stop'
-$includeLegacyGamingPcPackage = $IncludeLegacyGamingPcPackage.IsPresent -or $BuildLegacyStagingBootstrapper.IsPresent
-$buildLegacyStagingBootstrapper = $BuildLegacyStagingBootstrapper.IsPresent
 
 # The Setup Wizard's first (pre-enroll) discovery/enroll call is build-pinned per channel.
 # internal/beta stay on staging; stable points at the production platform origin. The URL is
@@ -155,38 +145,6 @@ if (-not (Test-Path -LiteralPath $DotnetPath)) {
 
 if (-not (Get-Command $BunPath -ErrorAction SilentlyContinue)) {
     throw "bun executable was not found on PATH (looked for '$BunPath')."
-}
-
-if (-not $buildLegacyStagingBootstrapper -and
-    (-not [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath) -or
-        -not [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath))) {
-    throw "Staging lease/update signing public key paths are only used when BuildLegacyStagingBootstrapper is set."
-}
-
-if ($buildLegacyStagingBootstrapper -and [string]::IsNullOrWhiteSpace($StagingLeasePublicKeyPath)) {
-    throw "StagingLeasePublicKeyPath is required when BuildLegacyStagingBootstrapper is set."
-}
-
-if ($buildLegacyStagingBootstrapper -and [string]::IsNullOrWhiteSpace($StagingUpdateSigningPublicKeyPath)) {
-    throw "StagingUpdateSigningPublicKeyPath is required when BuildLegacyStagingBootstrapper is set."
-}
-
-if ($buildLegacyStagingBootstrapper -and -not (Test-Path -LiteralPath $StagingLeasePublicKeyPath)) {
-    throw "Staging lease public key file was not found at '$StagingLeasePublicKeyPath'."
-}
-
-if ($buildLegacyStagingBootstrapper -and -not (Test-Path -LiteralPath $StagingUpdateSigningPublicKeyPath)) {
-    throw "Staging update signing public key file was not found at '$StagingUpdateSigningPublicKeyPath'."
-}
-
-$resolvedStagingLeasePublicKeyPath = ''
-if ($buildLegacyStagingBootstrapper) {
-    $resolvedStagingLeasePublicKeyPath = (Resolve-Path -LiteralPath $StagingLeasePublicKeyPath).Path
-}
-
-$resolvedStagingUpdateSigningPublicKeyPath = ''
-if ($buildLegacyStagingBootstrapper) {
-    $resolvedStagingUpdateSigningPublicKeyPath = (Resolve-Path -LiteralPath $StagingUpdateSigningPublicKeyPath).Path
 }
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -386,10 +344,8 @@ Get-ChildItem -LiteralPath $agentServicePublishDir -File |
 $operatorMsiPath = Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi"
 $agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
 $playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Channel.msi"
-$gamingPcMsiPath = Join-Path $artifactRoot "afk4-gaming-pc-$Version-$Channel.msi"
-$legacySetupArtifactPath = Join-Path $artifactRoot "afk4-gaming-pc-setup-$Version-$Channel.exe"
 
-@($operatorMsiPath, $agentMsiPath, $playerShellMsiPath, $gamingPcMsiPath, $legacySetupArtifactPath) |
+@($operatorMsiPath, $agentMsiPath, $playerShellMsiPath) |
     Where-Object { Test-Path -LiteralPath $_ } |
     ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
@@ -537,51 +493,6 @@ if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for the client master installer (Burn bundle) with exit code $LASTEXITCODE."
 }
 
-if ($includeLegacyGamingPcPackage) {
-    & $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/gaming-pc/Package.wxs') `
-        -arch x64 `
-        -d "PackageVersion=$msiVersion" `
-        -d "AgentServicePublishDir=$agentServicePublishDir" `
-        -d "AgentServiceSupportDir=$agentServiceSupportDir" `
-        -d "PlayerShellPublishDir=$(Join-Path $publishRoot "player-shell-$Version-$Channel")" `
-        -d "UpdateHelperDir=$updateHelperDir" `
-        -o $gamingPcMsiPath
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "WiX build failed for legacy gaming-PC MSI with exit code $LASTEXITCODE."
-    }
-}
-
-if ($buildLegacyStagingBootstrapper) {
-    $setupPublishDir = Join-Path $publishRoot "gaming-pc-setup-$Version-$Channel"
-    $setupArtifactPath = $legacySetupArtifactPath
-
-    if (Test-Path -LiteralPath $setupPublishDir) {
-        Remove-Item -LiteralPath $setupPublishDir -Recurse -Force
-    }
-
-    & $DotnetPath publish (Join-Path $repoRoot 'src/AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj') `
-        -c $Configuration `
-        -r $Runtime `
-        --self-contained true `
-        -o $setupPublishDir `
-        -p:GamingPcMsiPath="$gamingPcMsiPath" `
-        -p:StagingLeasePublicKeyPath="$resolvedStagingLeasePublicKeyPath" `
-        -p:StagingUpdateSigningPublicKeyPath="$resolvedStagingUpdateSigningPublicKeyPath" `
-        -p:PublishSingleFile=true `
-        -p:SelfContained=true `
-        -p:IncludeNativeLibrariesForSelfExtract=true `
-        -p:PublishTrimmed=false `
-        -p:NuGetAudit=false `
-        -p:UseSharedCompilation=false
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet publish failed for Gaming PC setup bootstrapper with exit code $LASTEXITCODE."
-    }
-
-    Copy-Item -LiteralPath (Join-Path $setupPublishDir 'AFK4.GamingPc.Setup.exe') -Destination $setupArtifactPath -Force
-}
-
 # The operator + player-shell MSIs are only inputs now — they ship bundled inside the agent MSI
 # payload, not on their own. Move them (and their .wixpdb) into an intermediates\ subfolder so the
 # deliverable folder presents a single file (the agent MSI) and nobody hands a client the wrong one.
@@ -613,13 +524,3 @@ Write-Host "Published client package inputs under $publishRoot"
 Write-Host "Deliverable master installer (install this one):"
 Write-Host $clientBundlePath
 Write-Host "Bundled inputs (agent/operator/player-shell MSIs) moved to: $intermediatesDir"
-
-if ($includeLegacyGamingPcPackage) {
-    Write-Host "Legacy gaming-PC MSI artifact:"
-    Write-Host $gamingPcMsiPath
-}
-
-if ($buildLegacyStagingBootstrapper) {
-    Write-Host "Legacy setup artifact:"
-    Write-Host $legacySetupArtifactPath
-}

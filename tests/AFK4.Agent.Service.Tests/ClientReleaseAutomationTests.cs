@@ -72,60 +72,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
-    public void PublishStagingBootstrapperScript_ParsesRequiredParameters()
-    {
-        var ast = ParseScript("scripts/publish-staging-bootstrapper.ps1", out var errors);
-
-        Assert.Empty(errors);
-        AssertParameter(ast, "Version");
-        AssertParameter(ast, "Channel");
-        AssertParameter(ast, "PackageDirectory");
-        AssertParameter(ast, "OutputDirectory");
-        AssertParameter(ast, "S3Endpoint");
-        AssertParameter(ast, "S3Bucket");
-        AssertParameter(ast, "S3KeyPrefix");
-        AssertParameter(ast, "S3PublicBaseUri");
-        AssertParameter(ast, "S3AccessKeyEnvVar");
-        AssertParameter(ast, "S3SecretKeyEnvVar");
-        AssertParameter(ast, "S3Region");
-        AssertParameter(ast, "PlatformBaseUrl");
-        AssertParameter(ast, "OrganizationId");
-        AssertParameter(ast, "BranchId");
-        AssertParameter(ast, "SmokeSeatId");
-        AssertParameter(ast, "LeaseSigningPublicKeyPath");
-        AssertParameter(ast, "UpdateSigningPublicKeyPath");
-    }
-
-    [Fact]
-    public void PublishStagingBootstrapper_BuildsS3ObjectUrisFromSlashDelimitedSegments()
-    {
-        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/publish-staging-bootstrapper.ps1")));
-
-        Assert.Contains("$pathSegments = @($Bucket) + ($ObjectKey -split '/')", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("$Bucket, ($ObjectKey -split '/')", script, StringComparison.Ordinal);
-        Assert.Contains("Join-S3Key -Segments @($S3KeyPrefix, $Channel, $Version, $bootstrapFileName)", script, StringComparison.Ordinal);
-        Assert.Contains("Join-S3Key -Segments @($S3KeyPrefix, $Channel, 'latest.json')", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void PublishStagingBootstrapper_WritesAgentConfigurationBeforeMsiInstall()
-    {
-        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/publish-staging-bootstrapper.ps1")));
-
-        var configFunctionIndex = script.IndexOf("function Write-AgentMachineConfiguration", StringComparison.Ordinal);
-        var credentialConfigIndex = script.IndexOf("Set-MachineEnvironmentVariable -Name 'Agent__DeviceCredentialSecret'", StringComparison.Ordinal);
-        var firstConfigCallIndex = script.IndexOf("Write-AgentMachineConfiguration\nStop-Service AFK4.Agent.Service", StringComparison.Ordinal);
-        var msiInstallIndex = script.IndexOf("$msiProcess = Start-Process", StringComparison.Ordinal);
-        var postInstallConfigCallIndex = script.LastIndexOf("Write-AgentMachineConfiguration\nStart-Service AFK4.Agent.Service", StringComparison.Ordinal);
-
-        Assert.True(configFunctionIndex >= 0, "The staging bootstrapper should define a reusable Agent machine configuration writer.");
-        Assert.True(credentialConfigIndex > configFunctionIndex, "The configuration writer should persist the enrolled device credential secret.");
-        Assert.True(firstConfigCallIndex > credentialConfigIndex, "The bootstrapper should call the configuration writer before installing the MSI.");
-        Assert.True(msiInstallIndex > firstConfigCallIndex, "Machine configuration must be present before Windows Installer starts AFK4.Agent.Service.");
-        Assert.True(postInstallConfigCallIndex > msiInstallIndex, "The bootstrapper should rewrite configuration after MSI install before the final service start.");
-    }
-
-    [Fact]
     public void RegisterUpdatePackageRequestsScript_ParsesRequiredParameters()
     {
         var ast = ParseScript("scripts/register-update-package-requests.ps1", out var errors);
@@ -771,42 +717,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
-    public void BuildClientPackagesScript_KeepsLegacyGamingPcArtifactsBehindExplicitSwitches()
-    {
-        var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
-
-        var legacyMsiSwitchIndex = script.IndexOf("IncludeLegacyGamingPcPackage", StringComparison.Ordinal);
-        var legacyBootstrapperSwitchIndex = script.IndexOf("BuildLegacyStagingBootstrapper", StringComparison.Ordinal);
-        var legacyMsiConditionIndex = script.IndexOf("if ($includeLegacyGamingPcPackage)", StringComparison.Ordinal);
-        var legacyMsiBuildIndex = script.IndexOf("installers/gaming-pc/Package.wxs", StringComparison.Ordinal);
-        var legacyBootstrapperConditionIndex = script.IndexOf("if ($buildLegacyStagingBootstrapper)", StringComparison.Ordinal);
-        var legacyBootstrapperBuildIndex = script.IndexOf("AFK4.GamingPc.Setup/AFK4.GamingPc.Setup.csproj", StringComparison.Ordinal);
-
-        Assert.True(legacyMsiSwitchIndex >= 0, "The legacy gaming-PC MSI should require an explicit switch.");
-        Assert.True(legacyBootstrapperSwitchIndex >= 0, "The legacy staging bootstrapper should require an explicit switch.");
-        Assert.True(legacyMsiBuildIndex > legacyMsiConditionIndex, "The legacy gaming-PC MSI build must stay behind IncludeLegacyGamingPcPackage.");
-        Assert.True(legacyBootstrapperBuildIndex > legacyBootstrapperConditionIndex, "The legacy staging bootstrapper build must stay behind BuildLegacyStagingBootstrapper.");
-        Assert.Contains("StagingLeasePublicKeyPath", script, StringComparison.Ordinal);
-        Assert.Contains("StagingUpdateSigningPublicKeyPath", script, StringComparison.Ordinal);
-        Assert.Contains("Staging lease/update signing public key paths are only used when BuildLegacyStagingBootstrapper is set.", script, StringComparison.Ordinal);
-        Assert.Contains("StagingLeasePublicKeyPath is required when BuildLegacyStagingBootstrapper is set.", script, StringComparison.Ordinal);
-        Assert.Contains("GamingPcMsiPath=", script, StringComparison.Ordinal);
-        Assert.Contains("$resolvedStagingLeasePublicKeyPath", script, StringComparison.Ordinal);
-        Assert.Contains("$resolvedStagingUpdateSigningPublicKeyPath", script, StringComparison.Ordinal);
-        Assert.Contains("Resolve-Path -LiteralPath $StagingLeasePublicKeyPath", script, StringComparison.Ordinal);
-        Assert.Contains("Resolve-Path -LiteralPath $StagingUpdateSigningPublicKeyPath", script, StringComparison.Ordinal);
-        Assert.Contains("StagingLeasePublicKeyPath=", script, StringComparison.Ordinal);
-        Assert.Contains("StagingUpdateSigningPublicKeyPath=", script, StringComparison.Ordinal);
-        Assert.Contains("PublishSingleFile=true", script, StringComparison.Ordinal);
-        Assert.Contains("SelfContained=true", script, StringComparison.Ordinal);
-        Assert.Contains("afk4-gaming-pc-setup-$Version-$Channel.exe", script, StringComparison.Ordinal);
-        Assert.Contains("agent-service", script, StringComparison.Ordinal);
-        Assert.Contains("player-shell", script, StringComparison.Ordinal);
-        Assert.Contains("Legacy gaming-PC MSI artifact:", script, StringComparison.Ordinal);
-        Assert.Contains("Legacy setup artifact:", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void BuildClientPackagesScript_MapsChannelToPlatformBaseUrl()
     {
         var script = NormalizeLineEndings(File.ReadAllText(ScriptPath("scripts/build-client-packages.ps1")));
@@ -1232,7 +1142,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     public void SignClientPackages_WithCertificateStoreSource_InvokesSigntoolWithStoreArguments()
     {
         Directory.CreateDirectory(tempRoot);
-        var packagePath = Path.Combine(tempRoot, "afk4-gaming-pc-1.2.3-internal.msi");
+        var packagePath = Path.Combine(tempRoot, "afk4-agent-1.2.3-internal.msi");
         File.WriteAllText(packagePath, "msi");
         var capturedArgumentsPath = Path.Combine(tempRoot, "signtool-store-args.txt");
         var fakeSigntoolPath = CreateFakeSigntoolThatRecordsArguments(capturedArgumentsPath, exitCode: 0);

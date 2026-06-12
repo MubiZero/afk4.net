@@ -144,7 +144,7 @@ Minimum bar:
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
    The current clean-machine path is the single `AFK4 Agent` MSI plus owner-code
    Setup Wizard. The older one-click Gaming PC setup executable and coordinated
-   `afk4-gaming-pc` MSI are explicit recovery fallbacks only. Windows 11 VM
+   `afk4-gaming-pc` MSI have since been retired and removed from the codebase. Windows 11 VM
    smoke reached internal Agent `0.1.29`: VM2 applied the rollout, rebooted,
    kept `AFK4.Agent.Service` running, and did not reopen Setup Wizard. This is
    enough to proceed with pilot Operator App testing and continued development.
@@ -202,9 +202,9 @@ Minimum bar:
    and update metadata publishing now uses separate Operator App, Agent, and
    Player Shell MSI artifacts. The corrected single Agent MSI path now has
    Windows 11 VM evidence through internal Agent version `0.1.29`; the legacy
-   coordinated `afk4-gaming-pc` MSI is retired from the default flow and
-   remains only as an explicit staging fallback. Slice 3.5 removed that legacy
-   MSI/bootstrapper from the default package-smoke and publishing flow. The
+   coordinated `afk4-gaming-pc` MSI and `AFK4.GamingPc.Setup` bootstrapper have
+   since been removed from the codebase entirely (they were already gone from the
+   default package-smoke and publishing flow). The
    package-smoke follow-up now creates a staging branch rollout for
    `operator-app` while keeping the Agent Service rollout device-targeted, so
    clean manager-workstation smoke no longer depends on manually installing the
