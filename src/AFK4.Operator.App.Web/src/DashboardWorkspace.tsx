@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { minorToMajor } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
+import { useDeferredFlag } from './useDeferredFlag';
 import type { DashboardPeriod, Feedback, LoadStatus, OperatorBackendContext, WorkspaceId } from './operatorTypes';
 import {
   addDays,
@@ -158,6 +159,7 @@ export function DashboardWorkspace({
   const [dashboardSummary, setDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
   const [dashboardLoadStatus, setDashboardLoadStatus] = useState<LoadStatus>('loading');
   const [dashboardLoadError, setDashboardLoadError] = useState<string | null>(null);
+  const showDashboardSkeleton = useDeferredFlag(dashboardLoadStatus === 'loading' && dashboardSummary === null);
 
   const presetRanges = {
     today: { from: todayInput, to: todayInput, label: t('op.dashboard.range.today'), metricLabel: t('op.dashboard.metric.today') },
@@ -347,6 +349,14 @@ export function DashboardWorkspace({
         </div>
       </section>
 
+      {showDashboardSkeleton ? (
+        <section className="dashboard-layout" role="status" aria-label={dashboardStatusText}>
+          <div className="skeleton-block dashboard-skeleton-now" aria-hidden="true" />
+          <div className="skeleton-block dashboard-skeleton-queue" aria-hidden="true" />
+          <div className="skeleton-block dashboard-skeleton-control" aria-hidden="true" />
+          <div className="skeleton-block dashboard-skeleton-pulse" aria-hidden="true" />
+        </section>
+      ) : (
       <section className="dashboard-layout">
         <article className="dashboard-now-panel">
           <header className="dashboard-panel-title">
@@ -425,6 +435,7 @@ export function DashboardWorkspace({
           </div>
         </section>
       </section>
+      )}
     </main>
   );
 }

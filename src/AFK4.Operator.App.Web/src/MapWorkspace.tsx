@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { LockKeyhole, MonitorCheck, Power, ShieldAlert, TimerReset, UnlockKeyhole, Wifi, Wrench } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
+import { useDeferredFlag } from './useDeferredFlag';
 import { offlineBannerText, type OperatorFloorMapState } from './floorMapState';
 import type { Feedback, MapFilterId, MapViewMode, PcControlActionId, PcControlActionResult } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
@@ -91,6 +92,8 @@ export function MapWorkspace({
     [activeFilter, floorMap.seats]
   );
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
+  const isLoadingSeats = floorMap.seats.length === 0 && (floorMap.loadStatus === 'loading' || floorMap.loadStatus === 'idle');
+  const showSeatSkeleton = useDeferredFlag(isLoadingSeats);
   const offlineBanner = offlineBannerText(floorMap, t);
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
   const selectedHasSession = selectedSeat !== null && (Boolean(selectedSeat.activeSessionId) || selectedSeat.hasActiveSession === true);
@@ -250,10 +253,14 @@ export function MapWorkspace({
       <FeedbackNotice feedback={feedback} />
 
       <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label={t('op.map.seatsLabel')}>
-        {floorMap.seats.length === 0 && (floorMap.loadStatus === 'loading' || floorMap.loadStatus === 'idle') ? (
-          <div className="map-empty-state">
-            <strong>{t('op.map.loading')}</strong>
-          </div>
+        {isLoadingSeats ? (
+          showSeatSkeleton ? (
+            <div className="seat-grid" role="status" aria-label={t('op.map.loading')}>
+              {Array.from({ length: 10 }).map((_, index) => (
+                <div key={index} className="skeleton-block seat-skeleton" aria-hidden="true" />
+              ))}
+            </div>
+          ) : null
         ) : visibleSeats.length === 0 ? (
           <div className="map-empty-state">
             <strong>{t('op.map.emptyTitle')}</strong>
