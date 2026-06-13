@@ -901,7 +901,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(invite => invite.ExpiresAtUtc);
         });
 
-
         modelBuilder.Entity<TenantSupportNoteEntity>(entity =>
         {
             entity.ToTable("tenant_support_notes");
