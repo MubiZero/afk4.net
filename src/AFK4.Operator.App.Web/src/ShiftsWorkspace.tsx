@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { MoneyDto, ShiftRevenueDto } from './operatorApiClients';
 
@@ -33,23 +34,35 @@ export function ShiftsWorkspace({
   const [current, setCurrent] = useState<ShiftRevenueDto | null>(null);
   const [history, setHistory] = useState<ShiftRevenueDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (client === null) return undefined;
     let active = true;
     setLoading(true);
+    setLoadError(null);
     Promise.all([client.current(branchId), client.history(branchId, 20)])
       .then(([cur, hist]) => {
         if (!active) return;
         setCurrent(cur);
         setHistory(hist.shifts.filter((s) => s.state === 'closed'));
       })
+      .catch((error) => { if (active) setLoadError(projectOperatorError(error, t).detail); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [client, branchId]);
 
   if (loading) {
-    return <main className="workspace-screen shifts-screen"><p>{t('op.shifts.loading')}</p></main>;
+    return <main className="workspace-screen shifts-screen"><p className="workspace-loading">{t('op.shifts.loading')}</p></main>;
+  }
+
+  if (loadError) {
+    return (
+      <main className="workspace-screen shifts-screen">
+        <section className="screen-head"><h1>{t('op.shifts.title')}</h1></section>
+        <p className="workspace-error" role="alert">{loadError}</p>
+      </main>
+    );
   }
 
   return (

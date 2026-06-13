@@ -49,4 +49,19 @@ describe('ShiftsWorkspace', () => {
 
     await waitFor(() => screen.getByText(/нет открытых смен/i));
   });
+
+  it('surfaces an error instead of masking a failed load as empty', async () => {
+    const failing = {
+      current: async () => { throw new Error('network'); },
+      history: async () => ({ shifts: [], limit: 20 })
+    };
+    render(
+      <I18nProvider>
+        <ShiftsWorkspace backend={null} branchId="b1" client={failing as never} />
+      </I18nProvider>
+    );
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/нет открытых смен/i)).toBeNull();
+  });
 });
