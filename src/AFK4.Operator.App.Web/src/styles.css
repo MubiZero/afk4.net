@@ -1055,7 +1055,7 @@ button {
   border-radius: 7px;
   padding: 10px;
   background: var(--surface-elevated);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36);
+  box-shadow: var(--shadow-elevated);
 }
 
 .pc-control-panel header {
@@ -1709,7 +1709,7 @@ button {
   border-left: 3px solid rgba(var(--accent-rgb), 0.85);
   border-radius: 6px;
   background: var(--surface-elevated);
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-card);
   transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
@@ -6366,7 +6366,7 @@ button {
   border-radius: 12px;
   padding: 20px;
   width: min(440px, calc(100vw - 32px));
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-elevated);
 }
 .account-panel-head {
   display: flex;

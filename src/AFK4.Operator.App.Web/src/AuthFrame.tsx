@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { WindowControls, WindowResizeHandles, handleWindowDragStart, handleWindowTitleDoubleClick } from './WindowChrome';
 import { TitlebarControls } from './TitlebarControls';
+import { BrandLogo } from './BrandLogo';
 
 // Shared chrome for the signed-out screens (sign-in, forgot password). Keeps the native titlebar —
 // brand, language + theme toggles, window controls, drag region and resize handles — identical
@@ -15,7 +16,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
       <WindowResizeHandles />
       <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
-          <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
+          <BrandLogo className="brand-logo" />
           <span>{t('op.auth.operator')}</span>
         </div>
         <div className="auth-titlebar-controls">
