@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { LoyaltySettingsDto } from './operatorApiClients';
 
@@ -35,6 +36,7 @@ export function LoyaltySettingsWorkspace({
   const [shopEnabled, setShopEnabled] = useState(false);
   const [shopPercent, setShopPercent] = useState('0');
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -43,16 +45,22 @@ export function LoyaltySettingsWorkspace({
       return undefined;
     }
     let active = true;
-    client.get().then((settings) => {
-      if (!active) {
-        return;
-      }
-      setTopUpEnabled(settings.topUpEnabled);
-      setTopUpPercent(String(settings.topUpPercentBasisPoints / 100));
-      setShopEnabled(settings.shopEnabled);
-      setShopPercent(String(settings.shopPercentBasisPoints / 100));
-      setReady(true);
-    });
+    client.get()
+      .then((settings) => {
+        if (!active) {
+          return;
+        }
+        setTopUpEnabled(settings.topUpEnabled);
+        setTopUpPercent(String(settings.topUpPercentBasisPoints / 100));
+        setShopEnabled(settings.shopEnabled);
+        setShopPercent(String(settings.shopPercentBasisPoints / 100));
+        setReady(true);
+      })
+      .catch((cause) => {
+        if (active) {
+          setLoadError(projectOperatorError(cause, t).detail);
+        }
+      });
     return () => {
       active = false;
     };
@@ -79,13 +87,24 @@ export function LoyaltySettingsWorkspace({
     setSaved(true);
   };
 
+  if (loadError) {
+    return (
+      <main className="workspace-screen loyalty-settings-screen">
+        <section className="screen-head">
+          <h1>{t('op.loyalty.title')}</h1>
+        </section>
+        <p className="workspace-error" role="alert">{loadError}</p>
+      </main>
+    );
+  }
+
   if (!ready) {
     return (
       <main className="workspace-screen loyalty-settings-screen">
         <section className="screen-head">
           <h1>{t('op.loyalty.title')}</h1>
         </section>
-        <p>…</p>
+        <p className="workspace-loading">{t('op.loyalty.loading')}</p>
       </main>
     );
   }

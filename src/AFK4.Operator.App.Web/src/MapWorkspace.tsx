@@ -250,7 +250,11 @@ export function MapWorkspace({
       <FeedbackNotice feedback={feedback} />
 
       <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label={t('op.map.seatsLabel')}>
-        {visibleSeats.length === 0 ? (
+        {floorMap.seats.length === 0 && (floorMap.loadStatus === 'loading' || floorMap.loadStatus === 'idle') ? (
+          <div className="map-empty-state">
+            <strong>{t('op.map.loading')}</strong>
+          </div>
+        ) : visibleSeats.length === 0 ? (
           <div className="map-empty-state">
             <strong>{t('op.map.emptyTitle')}</strong>
             <span>{t('op.map.emptyHint')}</span>

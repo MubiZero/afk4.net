@@ -29,6 +29,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   const [gateways, setGateways] = useState<OwnerPaymentGatewayDto[]>([]);
   const [statuses, setStatuses] = useState<Record<string, OwnerGatewayStatusResponse>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   // provision form
@@ -69,6 +70,8 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
         if (!disposed) { setGateways(result.gateways); setLoadError(null); }
       } catch (error) {
         if (!disposed) setLoadError(projectOperatorError(error, t).detail);
+      } finally {
+        if (!disposed) setLoading(false);
       }
     })();
     return () => { disposed = true; };
@@ -204,7 +207,8 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
       </section>
 
       <section className="payment-cards-list">
-        {gateways.length === 0 && <p className="payment-cards-empty">{t('payments_cards.empty')}</p>}
+        {loading && <p className="workspace-loading">{t('payments_cards.loading')}</p>}
+        {!loading && gateways.length === 0 && <p className="payment-cards-empty">{t('payments_cards.empty')}</p>}
         {gateways.map((g) => (
           <article key={g.branchPaymentGatewayId} className="payment-card-row" data-status={g.status}>
             <span className="payment-card-pan">•••• {g.cardLast4}</span>

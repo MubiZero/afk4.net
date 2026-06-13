@@ -61,4 +61,11 @@ describe('ShopOrdersWorkspace', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: /принять|accept/i })).toBeNull());
     expect(screen.getByRole('button', { name: /выдать|deliver/i })).toBeInTheDocument();
   });
+
+  it('surfaces an error instead of silently showing an empty queue', async () => {
+    listQueue.mockImplementationOnce(() => Promise.reject(new Error('network')));
+    render(<I18nProvider><ShopOrdersWorkspace backend={backend as never} /></I18nProvider>);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/активных заказов нет/i)).toBeNull();
+  });
 });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
 import { createOperatorRealtimeClient } from './operatorRealtime';
+import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { ShopOrderDto } from './operatorApiClients';
 
@@ -34,6 +35,8 @@ function applyAction(orders: ShopOrderDto[], updated: ShopOrderDto): ShopOrderDt
 export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
   const [orders, setOrders] = useState<ShopOrderDto[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const clients = useMemo(
     () => (backend ? createAuthenticatedOperatorClients(backend.config, backend.session) : null),
@@ -45,11 +48,14 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
 
     if (backend === null || clients === null) {
       setOrders([]);
+      setStatus('ready');
       return undefined;
     }
 
     const branchId = backend.branchId;
 
+    setStatus('loading');
+    setLoadError(null);
     clients.shopOrders.listQueue(branchId)
       .then((queue) => {
         if (disposed) {
@@ -57,13 +63,16 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
         }
 
         setOrders(sortByPlacedAt(queue.filter((order) => isOpenStatus(order.status))));
+        setStatus('ready');
       })
-      .catch(() => {
+      .catch((error) => {
         if (disposed) {
           return;
         }
 
         setOrders([]);
+        setLoadError(projectOperatorError(error, t).detail);
+        setStatus('error');
       });
 
     const realtime = createOperatorRealtimeClient({
@@ -103,7 +112,11 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
         <h1>{t('op.shopOrders.title')}</h1>
       </section>
 
-      {orders.length === 0 ? (
+      {status === 'loading' ? (
+        <p className="workspace-loading">{t('op.shopOrders.loading')}</p>
+      ) : status === 'error' ? (
+        <p className="workspace-error" role="alert">{loadError ?? t('op.shopOrders.error')}</p>
+      ) : orders.length === 0 ? (
         <p className="shop-orders-empty">{t('op.shopOrders.empty')}</p>
       ) : (
         <ul className="shop-orders-list">

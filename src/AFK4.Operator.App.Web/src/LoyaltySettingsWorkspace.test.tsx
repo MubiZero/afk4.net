@@ -38,4 +38,10 @@ describe('LoyaltySettingsWorkspace', () => {
     await waitFor(() => screen.getByText(/процент должен быть от 0 до 100/i));
     expect(c.saved).toEqual([]);
   });
+
+  it('shows an error instead of loading forever when settings fail to load', async () => {
+    const failing = { get: async () => { throw new Error('network'); }, update: async (req: unknown) => req };
+    render(<I18nProvider><LoyaltySettingsWorkspace backend={null} client={failing as never} /></I18nProvider>);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
 });
