@@ -885,6 +885,64 @@ button {
   font-weight: 700;
 }
 
+/* Skeleton placeholders — mirror the final layout so content swaps in without a shift. The pulse is
+   killed by the global prefers-reduced-motion rule, leaving a static block. */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    background-color: var(--surface-sunken);
+  }
+
+  50% {
+    background-color: var(--border-soft);
+  }
+}
+
+.skeleton-block {
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.seat-skeleton {
+  min-height: 88px;
+  border-radius: 6px;
+}
+
+.seat-skeleton:nth-child(2n) {
+  animation-delay: 0.12s;
+}
+
+.seat-skeleton:nth-child(3n) {
+  animation-delay: 0.24s;
+}
+
+.dashboard-skeleton-now {
+  grid-area: now;
+}
+
+.dashboard-skeleton-queue {
+  grid-area: queue;
+  animation-delay: 0.12s;
+}
+
+.dashboard-skeleton-control {
+  grid-area: control;
+  animation-delay: 0.24s;
+}
+
+.dashboard-skeleton-pulse {
+  grid-area: pulse;
+  animation-delay: 0.36s;
+}
+
+.dashboard-skeleton-now,
+.dashboard-skeleton-queue,
+.dashboard-skeleton-control,
+.dashboard-skeleton-pulse {
+  border-radius: 7px;
+}
+
 .map-toolbar,
 .screen-head {
   display: grid;
