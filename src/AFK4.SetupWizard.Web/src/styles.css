@@ -600,10 +600,6 @@ textarea,
   max-width: 720px;
 }
 
-.wizard-screen.is-wide {
-  max-width: 960px;
-}
-
 /* Каркасный экран для длинных списков: шапка и блок кнопок закреплены (flex: 0 0 auto),
    прокручивается ТОЛЬКО середина (.wizard-scroll). Так контент не подтекает под липкие
    элементы — они вообще вне области прокрутки. */
@@ -642,7 +638,7 @@ textarea,
 }
 
 /* Экран устройства: кнопки лежат внутри формы, поэтому каркас идёт на уровень формы —
-   закреплены шапка, поле имени и кнопки, прокручивается только блок мест (.wizard-seats-section). */
+   шапка, поле имени и кнопки выстроены колонкой, форма тянется на всю высоту экрана. */
 .wizard-screen.is-framed > .wizard-form {
   flex: 1 1 auto;
   min-height: 0;
@@ -654,27 +650,6 @@ textarea,
 .wizard-screen.is-framed > .wizard-form > .wizard-alert,
 .wizard-screen.is-framed > .wizard-form > .wizard-actions {
   flex: 0 0 auto;
-}
-
-.wizard-screen.is-framed .wizard-seats-section {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  margin-right: -8px;
-  padding-right: 8px;
-}
-
-.wizard-screen.is-framed .wizard-seats-section::-webkit-scrollbar {
-  width: 8px;
-}
-
-.wizard-screen.is-framed .wizard-seats-section::-webkit-scrollbar-thumb {
-  background: var(--border-soft);
-  border-radius: var(--radius-pill);
-}
-
-.wizard-screen.is-framed .wizard-seats-section:hover::-webkit-scrollbar-thumb {
-  background: var(--border-default);
 }
 
 .wizard-screen-head {
@@ -793,140 +768,6 @@ textarea,
   color: var(--text-quaternary);
   cursor: not-allowed;
   text-decoration: none;
-}
-
-/* Узкие карточки: поля и кнопка занимают всю ширину контента, ряд симметричен.
-   Широкая карточка устройства держит поле имени узким (420), чтобы строка не растягивалась. */
-.wizard-screen.is-wide .wizard-form > .wizard-field {
-  max-width: 420px;
-}
-
-.wizard-seats-section {
-  display: grid;
-  gap: 12px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-soft);
-}
-
-.wizard-seats-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.wizard-seats-head h2 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: var(--text-md);
-  font-weight: 800;
-  letter-spacing: -0.005em;
-}
-
-.wizard-seats-counter {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  font-weight: 700;
-}
-
-.wizard-seats-counter strong {
-  color: var(--accent);
-  font-size: var(--text-base);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.wizard-seats-list {
-  display: grid;
-  gap: 4px;
-}
-
-.wizard-device-seats-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-}
-
-.wizard-device-seats-toolbar input {
-  height: 36px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 0 10px;
-  background: var(--surface-muted);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  outline: 0;
-  transition: border-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
-}
-
-.wizard-device-seats-toolbar input:focus-visible {
-  border-color: var(--accent);
-  background: var(--surface-elevated);
-  box-shadow: var(--focus-ring);
-}
-
-.wizard-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-pill);
-  padding: 4px 10px;
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  cursor: default;
-  user-select: none;
-  white-space: nowrap;
-}
-
-.wizard-toggle input {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-}
-
-.wizard-toggle .wizard-toggle-track {
-  position: relative;
-  display: inline-block;
-  width: 28px;
-  height: 16px;
-  border-radius: var(--radius-pill);
-  background: var(--border-default);
-  transition: background var(--duration-fast) var(--ease-out);
-}
-
-.wizard-toggle .wizard-toggle-track::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--surface-elevated);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
-  transition: transform var(--duration-fast) var(--ease-out);
-}
-
-.wizard-toggle:has(input:checked) .wizard-toggle-track {
-  background: var(--accent);
-}
-
-.wizard-toggle:has(input:checked) .wizard-toggle-track::after {
-  transform: translateX(12px);
-}
-
-.wizard-toggle:has(input:focus-visible) {
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring);
 }
 
 .wizard-field {
@@ -1581,181 +1422,6 @@ textarea,
   color: var(--text-secondary);
 }
 
-.wizard-zone-group {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.wizard-zone-group:last-child {
-  margin-bottom: 0;
-}
-
-.wizard-zone-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 10px;
-}
-
-.wizard-zone-head strong {
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* Счётчик стоит вплотную к названию зоны, отделён тонкой чёрточкой —
-   «MAIN HALL — 15 из 15 свободно» читается одним блоком, а не разрывается через весь экран. */
-.wizard-zone-counter {
-  position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding-left: 11px;
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  font-weight: 700;
-}
-
-.wizard-zone-counter::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1px;
-  height: 10px;
-  background: var(--border-default);
-}
-
-.wizard-zone-counter strong {
-  color: var(--accent);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.wizard-seat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-  gap: 6px;
-}
-
-.wizard-seat-card {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 38px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  background: var(--surface-elevated);
-  color: var(--text-primary);
-  text-align: center;
-  cursor: default;
-  transition: border-color var(--duration-fast) var(--ease-out),
-    background var(--duration-fast) var(--ease-out),
-    transform 200ms var(--ease-spring),
-    box-shadow var(--duration-fast) var(--ease-out);
-}
-
-/* На тёмной теме место #1e1e1e на карточке #1e1e1e сливалось «серым по серому».
-   Делаем фон чуть светлее фона карточки (depth-via-lightening) + контрастнее бордер. */
-[data-theme="dark"] .wizard-seat-card {
-  border-color: var(--border-default);
-  background: #262626;
-}
-
-.wizard-seat-card::before {
-  content: "";
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--border-default);
-  transition: background var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
-}
-
-.wizard-seat-card.is-free::before {
-  background: var(--accent);
-  box-shadow: 0 0 0 2px rgba(11, 158, 116, 0.18);
-}
-
-.wizard-seat-card:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--surface-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-card);
-}
-
-.wizard-seat-card:focus-visible {
-  outline: 0;
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring);
-}
-
-.wizard-seat-card[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.wizard-seat-card:disabled {
-  background: var(--surface-sunken);
-  color: var(--text-quaternary);
-  border-style: dashed;
-}
-
-.wizard-seat-card:disabled::before {
-  box-shadow: none;
-}
-
-/* Занятое место несёт статус занявшего устройства (правило 34): янтарная точка — устройство
-   онлайн (место реально используется сейчас), серая — оффлайн (занято, но ПК выключен).
-   Имя устройства и статус доступны в подсказке/aria. */
-.wizard-seat-card.is-online::before {
-  background: var(--warning);
-}
-
-.wizard-seat-card.is-offline::before {
-  background: var(--border-strong);
-}
-
-.wizard-seat-card.is-pending {
-  border-style: dashed;
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--text-secondary);
-  animation: wizard-pending-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes wizard-pending-pulse {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
-}
-
-.wizard-seat-card strong {
-  display: block;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
 .wizard-empty {
   display: grid;
   justify-items: start;
@@ -1775,39 +1441,6 @@ textarea,
 .wizard-empty-cta {
   margin-top: 8px;
   min-height: 36px;
-  padding: 0 14px;
-  font-size: var(--text-sm);
-}
-
-.wizard-create-seat {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--accent-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-muted);
-  animation: wizard-soft-enter 160ms var(--ease-out);
-}
-
-.wizard-create-seat .wizard-field input {
-  height: 38px;
-  font-size: var(--text-sm);
-}
-
-.wizard-create-seat .wizard-field-label {
-  font-size: var(--text-xs);
-}
-
-.wizard-create-seat-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.wizard-create-seat-submit {
-  min-height: 38px;
   padding: 0 14px;
   font-size: var(--text-sm);
 }
@@ -1836,35 +1469,6 @@ textarea,
 
 .wizard-link-action:focus-visible {
   outline: 0;
-  box-shadow: var(--focus-ring);
-}
-
-/* Тихая «крестик»-кнопка для закрытия inline-форм. */
-.wizard-icon-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: default;
-  transition: background var(--duration-fast) var(--ease-out),
-    border-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
-}
-
-.wizard-icon-ghost:hover {
-  background: var(--surface-sunken);
-  border-color: var(--border-default);
-  color: var(--text-primary);
-}
-
-.wizard-icon-ghost:focus-visible {
-  outline: 0;
-  border-color: var(--accent);
   box-shadow: var(--focus-ring);
 }
 
