@@ -102,15 +102,9 @@ function ShellStatusRow({ initial, role }: { initial: WizardShellOutcome; role: 
   const [outcome, setOutcome] = useState(initial);
   const [busy, setBusy] = useState(false);
 
-  if (outcome.status === 'installed' || outcome.status === 'already_present') {
-    return (
-      <div className="wizard-shell-status is-ok" role="status">
-        {t('setup.wizard.finished.shell.ok')}
-      </div>
-    );
-  }
-
-  if (outcome.status === 'skipped') {
+  // Успех (или уже было установлено) не показываем — зелёная плашка только шумит.
+  // Показываем строку лишь когда установка оболочки сорвалась: это actionable (есть «Повторить»).
+  if (outcome.status === 'installed' || outcome.status === 'already_present' || outcome.status === 'skipped') {
     return null;
   }
 

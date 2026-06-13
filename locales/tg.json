@@ -863,7 +863,6 @@
   "setup.wizard.finished.summary.name": "Ном",
   "setup.wizard.finished.summary.channel": "Шабакаи навсозиҳо",
   "setup.wizard.finished.shell.installing": "Оболочкаи бозингар насб шуда истодааст…",
-  "setup.wizard.finished.shell.ok": "Оболочкаи бозингар насб шуд.",
   "setup.wizard.finished.shell.failed": "Насби оболочкаи бозингар ҳосил нашуд.",
   "setup.wizard.finished.shell.retry": "Аз нав насб кардан",
   "setup.wizard.finished.pendingNote": "То замоне ки дастгоҳ тасдиқ нашавад, он ба алоқа намебарояд. Онро дар панел тасдиқ кунед, сипас ин дастгоҳро аз нав оғоз кунед.",
