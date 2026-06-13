@@ -31,6 +31,7 @@ import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { BackendSettingsWorkspace } from './BackendSettingsWorkspace';
 import { ForgotPassword } from './ForgotPassword';
 import { WindowControls, WindowResizeHandles, handleWindowDragStart, handleWindowTitleDoubleClick } from './WindowChrome';
+import { TitlebarControls } from './TitlebarControls';
 import { SignInScreen } from './SignInScreen';
 import { BlockedTenantScreen } from './BlockedTenantScreen';
 import { useShellData } from './useShellData';
@@ -295,6 +296,7 @@ function AppInner() {
           </button>
         </div>
         <button type="button" className="sign-out-button" onClick={handleSignOut}>{t('shell.signOut')}</button>
+        <TitlebarControls />
         <WindowControls />
       </header>
 
