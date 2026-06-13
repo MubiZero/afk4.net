@@ -8,8 +8,14 @@
 // WebView origin (operator.afk4.local) instead of staging — so it stays inert when running inside
 // the host.
 
+import { createMockSession, devMockFetch } from './devMockBackend';
+
 const ORG = '0169044b-2f74-46a7-8e52-7656a39a8f8c';
 const BRANCH = 'f77b708c-1dc9-4cb3-9c19-21797f7035fc';
+
+// UI-preview mode (default): serve a fake session + mock platform data so the console renders
+// without a backend. Append `?live` to the dev URL to instead proxy sign-in to the staging API.
+const PREVIEW_MOCK = !location.search.includes('live');
 
 interface DevBridgeMessage {
   type?: string;
@@ -78,6 +84,14 @@ export function installDevHostBridge(): void {
   }
 
   async function handle(type: string, payload: DevBridgeMessage['payload']): Promise<unknown> {
+    if (PREVIEW_MOCK && type.indexOf('auth:') === 0) {
+      // Preview: start on the sign-in screen (loadToken → null); any credentials sign in to the
+      // mock session; forgot/reset flows just acknowledge.
+      if (type === 'auth:loadToken') return null;
+      if (type === 'auth:signOut') return { signedOut: true };
+      if (type === 'auth:signIn' || type === 'auth:refresh') return createMockSession();
+      return { ok: true };
+    }
     if (type === 'auth:loadToken') {
       return null;
     }
@@ -147,4 +161,20 @@ export function installDevHostBridge(): void {
       }
     }
   };
+
+  // Preview mode: intercept platform API calls and serve mock data. Non-API requests (Vite assets,
+  // HMR) pass through to the real fetch untouched.
+  if (PREVIEW_MOCK) {
+    const realFetch = globalThis.fetch.bind(globalThis);
+    const mockedFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      let pathname = '';
+      try {
+        pathname = new URL(String(input), location.origin).pathname;
+      } catch {
+        pathname = String(input);
+      }
+      return pathname.includes('/api/') ? devMockFetch(input, init) : realFetch(input, init);
+    };
+    globalThis.fetch = mockedFetch as typeof globalThis.fetch;
+  }
 }

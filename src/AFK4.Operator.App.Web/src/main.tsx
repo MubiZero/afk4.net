@@ -2,13 +2,16 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@afk4/i18n';
 import { App } from './App';
+import { OperatorThemeProvider } from './operatorTheme';
 import './styles.css';
 
 function render(): void {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <I18nProvider>
-        <App />
+        <OperatorThemeProvider>
+          <App />
+        </OperatorThemeProvider>
       </I18nProvider>
     </StrictMode>
   );

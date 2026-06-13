@@ -192,8 +192,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
-    expect(screen.getByText('Защищённое хранилище Windows')).toBeInTheDocument();
-    expect(screen.queryByText('Windows Protected Data')).not.toBeInTheDocument();
+    expect(screen.getByText('Войдите, чтобы открыть смену и управлять залом.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'cashier' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));

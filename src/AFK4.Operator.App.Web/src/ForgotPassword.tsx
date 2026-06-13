@@ -3,6 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { forgotPasswordByEmail, forgotPasswordByPhone, resetPasswordByEmail, resetPasswordByPhone } from './authClient';
 import { HostBridgeRequestError } from './hostBridge';
+import { AuthFrame } from './AuthFrame';
 
 type Channel = 'email' | 'phone';
 type Step = 'request' | 'verify' | 'done';
@@ -66,77 +67,74 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
   }
 
   return (
-    <div className="operator-shell auth-shell">
-      <main className="auth-workspace">
-        <section className="auth-panel">
-          <header>
-            <span>AFK4.NET {t('op.auth.operator')}</span>
-            <h1>{t('auth.forgot.title')}</h1>
-            <p>{t('auth.forgot.subtitle')}</p>
-          </header>
+    <AuthFrame>
+      <section className="auth-panel">
+        <header>
+          <h1>{t('auth.forgot.title')}</h1>
+          <p>{t('auth.forgot.subtitle')}</p>
+        </header>
 
-          <div className="auth-channel-toggle" role="tablist" aria-label={t('auth.forgot.subtitle')}>
-            <button type="button" className={channel === 'email' ? 'primary' : ''} aria-pressed={channel === 'email'} onClick={() => selectChannel('email')}>
-              {t('auth.forgot.channel.email')}
+        <div className="auth-channel-toggle" role="tablist" aria-label={t('auth.forgot.subtitle')}>
+          <button type="button" className={channel === 'email' ? 'primary' : ''} aria-pressed={channel === 'email'} onClick={() => selectChannel('email')}>
+            {t('auth.forgot.channel.email')}
+          </button>
+          <button type="button" className={channel === 'phone' ? 'primary' : ''} aria-pressed={channel === 'phone'} onClick={() => selectChannel('phone')}>
+            {t('auth.forgot.channel.phone')}
+          </button>
+        </div>
+
+        {step === 'done' ? (
+          <section className="auth-confirm">
+            <p>{t('auth.forgot.phone.done')}</p>
+            <button type="button" className="auth-primary" onClick={onBackToSignIn}>{t('auth.forgot.phone.toSignIn')}</button>
+          </section>
+        ) : step === 'verify' ? (
+          <form className="auth-form" onSubmit={submitReset}>
+            <p className="auth-hint">{channel === 'email' ? t('auth.forgot.email.sent') : t('auth.forgot.phone.sent')}</p>
+            <label className="auth-field">
+              <span className="auth-field-label">{channel === 'email' ? t('auth.reset.field.token') : t('auth.forgot.phone.codeField')}</span>
+              <input value={code} onChange={(e) => setCode(e.currentTarget.value)} inputMode="numeric" autoComplete="one-time-code" disabled={isBusy} />
+            </label>
+            <label className="auth-field">
+              <span className="auth-field-label">{t('auth.forgot.phone.newPassword')}</span>
+              <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.currentTarget.value)} autoComplete="new-password" disabled={isBusy} />
+            </label>
+            <button type="submit" className="auth-primary" disabled={isBusy}>
+              {isBusy ? t('auth.forgot.phone.resetting') : t('auth.forgot.phone.reset')}
             </button>
-            <button type="button" className={channel === 'phone' ? 'primary' : ''} aria-pressed={channel === 'phone'} onClick={() => selectChannel('phone')}>
-              {t('auth.forgot.channel.phone')}
+          </form>
+        ) : channel === 'email' ? (
+          <form className="auth-form" onSubmit={submitRequest}>
+            <label className="auth-field">
+              <span className="auth-field-label">{t('auth.forgot.email.field')}</span>
+              <input value={emailLogin} onChange={(e) => setEmailLogin(e.currentTarget.value)} autoComplete="username" disabled={isBusy} autoFocus />
+            </label>
+            <button type="submit" className="auth-primary" disabled={isBusy}>
+              {isBusy ? t('auth.forgot.email.submitting') : t('auth.forgot.email.submit')}
             </button>
+          </form>
+        ) : (
+          <form className="auth-form" onSubmit={submitRequest}>
+            <label className="auth-field">
+              <span className="auth-field-label">{t('auth.forgot.phone.field')}</span>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.currentTarget.value)} inputMode="tel" autoComplete="tel" disabled={isBusy} />
+            </label>
+            <button type="submit" className="auth-primary" disabled={isBusy}>
+              {isBusy ? t('auth.forgot.phone.submitting') : t('auth.forgot.phone.submit')}
+            </button>
+          </form>
+        )}
+
+        {error && (
+          <div className="auth-error" role="alert">
+            <AlertTriangle size={16} aria-hidden />
+            <span>{error}</span>
           </div>
+        )}
 
-          {step === 'done' ? (
-            <section className="auth-confirm">
-              <p>{t('auth.forgot.phone.done')}</p>
-              <button type="button" className="primary-wide" onClick={onBackToSignIn}>{t('auth.forgot.phone.toSignIn')}</button>
-            </section>
-          ) : step === 'verify' ? (
-            <form className="auth-form" onSubmit={submitReset}>
-              <p className="auth-hint">{channel === 'email' ? t('auth.forgot.email.sent') : t('auth.forgot.phone.sent')}</p>
-              <label>
-                {channel === 'email' ? t('auth.reset.field.token') : t('auth.forgot.phone.codeField')}
-                <input value={code} onChange={(e) => setCode(e.currentTarget.value)} inputMode="numeric" autoComplete="one-time-code" disabled={isBusy} />
-              </label>
-              <label>
-                {t('auth.forgot.phone.newPassword')}
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.currentTarget.value)} autoComplete="new-password" disabled={isBusy} />
-              </label>
-              <button type="submit" className="primary-wide" disabled={isBusy}>
-                {isBusy ? t('auth.forgot.phone.resetting') : t('auth.forgot.phone.reset')}
-              </button>
-            </form>
-          ) : channel === 'email' ? (
-            <form className="auth-form" onSubmit={submitRequest}>
-              <label>
-                {t('auth.forgot.email.field')}
-                <input value={emailLogin} onChange={(e) => setEmailLogin(e.currentTarget.value)} autoComplete="username" disabled={isBusy} autoFocus />
-              </label>
-              <button type="submit" className="primary-wide" disabled={isBusy}>
-                {isBusy ? t('auth.forgot.email.submitting') : t('auth.forgot.email.submit')}
-              </button>
-            </form>
-          ) : (
-            <form className="auth-form" onSubmit={submitRequest}>
-              <label>
-                {t('auth.forgot.phone.field')}
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.currentTarget.value)} inputMode="tel" autoComplete="tel" disabled={isBusy} />
-              </label>
-              <button type="submit" className="primary-wide" disabled={isBusy}>
-                {isBusy ? t('auth.forgot.phone.submitting') : t('auth.forgot.phone.submit')}
-              </button>
-            </form>
-          )}
-
-          {error && (
-            <div className="auth-error" role="alert">
-              <AlertTriangle size={16} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <button type="button" className="auth-link" onClick={onBackToSignIn}>{t('auth.forgot.back')}</button>
-        </section>
-      </main>
-    </div>
+        <button type="button" className="auth-link" onClick={onBackToSignIn}>{t('auth.forgot.back')}</button>
+      </section>
+    </AuthFrame>
   );
 }
 

@@ -31,6 +31,8 @@ import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { BackendSettingsWorkspace } from './BackendSettingsWorkspace';
 import { ForgotPassword } from './ForgotPassword';
 import { WindowControls, WindowResizeHandles, handleWindowDragStart, handleWindowTitleDoubleClick } from './WindowChrome';
+import { TitlebarControls } from './TitlebarControls';
+import { BrandLogo } from './BrandLogo';
 import { SignInScreen } from './SignInScreen';
 import { BlockedTenantScreen } from './BlockedTenantScreen';
 import { useShellData } from './useShellData';
@@ -281,7 +283,7 @@ function AppInner() {
       <WindowResizeHandles />
       <header className="top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
-          <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
+          <BrandLogo className="brand-logo" />
           <span>{t('op.auth.operator')}</span>
         </div>
         <label className="command-search">
@@ -295,6 +297,7 @@ function AppInner() {
           </button>
         </div>
         <button type="button" className="sign-out-button" onClick={handleSignOut}>{t('shell.signOut')}</button>
+        <TitlebarControls />
         <WindowControls />
       </header>
 

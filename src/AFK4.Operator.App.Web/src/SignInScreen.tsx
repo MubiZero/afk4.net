@@ -1,11 +1,11 @@
-import { AlertTriangle, Wifi } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { type OperatorSignInRequest } from './authClient';
 import { getOperatorConfig } from './operatorConfig';
 import type { AuthStatus } from './operatorTypes';
-import { projectAuthHostError, shellModeLabel, isGuid } from './operatorHelpers';
-import { WindowControls, WindowResizeHandles, handleWindowDragStart, handleWindowTitleDoubleClick } from './WindowChrome';
+import { projectAuthHostError, isGuid } from './operatorHelpers';
+import { AuthFrame } from './AuthFrame';
 
 export function SignInScreen({
   config,
@@ -23,6 +23,7 @@ export function SignInScreen({
   const { t } = useI18n();
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(hostError);
   const isChecking = authStatus === 'checking';
@@ -67,81 +68,74 @@ export function SignInScreen({
   };
 
   return (
-    <div className="operator-shell auth-shell">
-      <WindowResizeHandles />
-      <header className="top-command auth-top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
-        <div className="brand-block">
-          <img className="brand-logo" src="/afk4-logo-horizontal.svg" alt="AFK4.NET" />
-          <span>{t('op.auth.operator')}</span>
-        </div>
-        <div className="top-status">
-          <span><Wifi size={14} />{isChecking ? t('op.shell.checkingAuth') : t('op.shell.secureAuth')}</span>
-          <span>{config.platformBaseUrl}</span>
-          <span>{shellModeLabel(config.shellMode, t)}</span>
-        </div>
-        <WindowControls />
-      </header>
+    <AuthFrame>
+      <section className="auth-panel">
+        <header>
+          <h1>{t('op.shell.signInTitle')}</h1>
+          <p>{t('op.auth.signInSubtitle')}</p>
+        </header>
 
-      <main className="auth-workspace">
-        <section className="auth-panel">
-          <header>
-            <span>{t('op.shell.appName')}</span>
-            <h1>{t('op.shell.signInTitle')}</h1>
-            <p>{t('op.shell.storageNote')}</p>
-          </header>
+        <form className="auth-form" onSubmit={submit} noValidate>
+          <label className="auth-field">
+            <span className="auth-field-label">{t('auth.field.login')}</span>
+            <input
+              value={userName}
+              onChange={(event) => setUserName(event.currentTarget.value)}
+              autoComplete="username"
+              spellCheck={false}
+              autoFocus
+            />
+          </label>
 
-          <form className="auth-form" onSubmit={submit}>
-            <label>
-              {t('auth.field.login')}
+          <div className="auth-field">
+            <div className="auth-field-label auth-label-with-action">
+              <label htmlFor="operator-password">{t('auth.field.password')}</label>
+              <button type="button" className="auth-link-inline" onClick={onForgotPassword}>
+                {t('auth.forgot.link')}
+              </button>
+            </div>
+            <div className="auth-password">
               <input
-                value={userName}
-                onChange={(event) => setUserName(event.currentTarget.value)}
-                autoComplete="username"
-                autoFocus
-              />
-            </label>
-            <label>
-              {t('auth.field.password')}
-              <input
-                type="password"
+                id="operator-password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(event) => setPassword(event.currentTarget.value)}
                 autoComplete="current-password"
               />
-            </label>
-
-            <button type="submit" className="primary-wide" disabled={isBusy || isChecking}>
-              {isBusy ? t('auth.action.signingIn') : t('auth.action.signIn')}
-            </button>
-          </form>
-
-          <button type="button" className="auth-link" onClick={onForgotPassword}>
-            {t('auth.forgot.link')}
-          </button>
+              <button
+                type="button"
+                className="auth-password-toggle"
+                aria-pressed={showPassword}
+                aria-label={showPassword ? t('op.auth.hidePassword') : t('op.auth.showPassword')}
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                {showPassword ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+              </button>
+            </div>
+          </div>
 
           {error && (
             <div className="auth-error" role="alert">
-              <AlertTriangle size={16} />
+              <AlertTriangle size={16} aria-hidden />
               <span>{error}</span>
             </div>
           )}
-        </section>
 
-        <aside className="auth-context-panel">
-          <section>
-            <span>{t('op.shell.platform')}</span>
-            <strong>{config.platformBaseUrl}</strong>
-          </section>
-          <section>
-            <span>{t('op.shell.currency')}</span>
-            <strong>{config.currencyCode}</strong>
-          </section>
-          <section>
-            <span>{t('op.shell.storage')}</span>
-            <strong>{t('op.shell.secureStorage')}</strong>
-          </section>
-        </aside>
-      </main>
-    </div>
+          <button type="submit" className="auth-primary" disabled={isBusy || isChecking}>
+            {isBusy ? (
+              <>
+                <Loader2 className="auth-spinner" size={18} aria-hidden />
+                <span>{t('auth.action.signingIn')}</span>
+              </>
+            ) : (
+              <>
+                <span>{t('auth.action.signIn')}</span>
+                <ArrowRight size={18} aria-hidden />
+              </>
+            )}
+          </button>
+        </form>
+      </section>
+    </AuthFrame>
   );
 }
