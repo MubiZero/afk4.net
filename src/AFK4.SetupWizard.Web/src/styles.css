@@ -1055,8 +1055,9 @@ textarea,
 .wizard-alt-actions {
   display: flex;
   justify-content: center;
-  margin-top: 8px;
-  padding-top: 16px;
+  /* Подтягиваем к кнопке: гасим часть 32px grid-gap экрана, чтобы вторичное
+     действие не висело в пустоте после того, как убрали разделитель. */
+  margin-top: -16px;
 }
 
 .wizard-alert {
