@@ -848,7 +848,6 @@
   "setup.wizard.device.manager.title": "Staff workstation",
   "setup.wizard.device.manager.subtitle": "Set the name under which this PC will appear in the club dashboard.",
   "setup.wizard.device.field.name": "Computer name",
-  "setup.wizard.device.field.nameHint": "3 to 32 characters. This is how the device appears in the admin panel.",
   "setup.wizard.device.action.enroll": "Enroll",
   "setup.wizard.device.action.enrolling": "Enrolling…",
   "setup.wizard.device.error.bridgeMissing": "Cannot reach the local agent. Restart Setup Wizard.",

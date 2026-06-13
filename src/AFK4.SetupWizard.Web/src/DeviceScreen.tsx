@@ -133,11 +133,7 @@ export function DeviceScreen({
             onChange={(event) => setDisplayName(event.target.value)}
             placeholder={defaultDisplayName}
             aria-invalid={trimmedDisplayName.length > 0 && !displayNameValid}
-            aria-describedby="display-name-hint"
           />
-          <span id="display-name-hint" className="wizard-field-hint">
-            {t('setup.wizard.device.field.nameHint')}
-          </span>
         </label>
 
         {request.kind === 'error' && (

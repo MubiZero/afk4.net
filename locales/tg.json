@@ -848,7 +848,6 @@
   "setup.wizard.device.manager.title": "Ҷойи кории корманд",
   "setup.wizard.device.manager.subtitle": "Номеро таъин кунед, ки ПК бо он дар панели клуб намоиш дода шавад.",
   "setup.wizard.device.field.name": "Номи ПК",
-  "setup.wizard.device.field.nameHint": "Аз 3 то 32 аломат. Дастгоҳ дар панели идора ҳамин тавр намоиш дода мешавад.",
   "setup.wizard.device.action.enroll": "Ба қайд гирифтан",
   "setup.wizard.device.action.enrolling": "Ба қайд мегирем…",
   "setup.wizard.device.error.bridgeMissing": "Бо агенти маҳаллӣ алоқа барқарор намешавад. Setup Wizard-ро аз нав оғоз кунед.",

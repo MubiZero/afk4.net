@@ -848,7 +848,6 @@
   "setup.wizard.device.manager.title": "Рабочее место сотрудника",
   "setup.wizard.device.manager.subtitle": "Задайте имя, под которым ПК появится в панели клуба.",
   "setup.wizard.device.field.name": "Имя ПК",
-  "setup.wizard.device.field.nameHint": "От 3 до 32 символов. Так это устройство будет видно в админке.",
   "setup.wizard.device.action.enroll": "Зарегистрировать",
   "setup.wizard.device.action.enrolling": "Регистрируем…",
   "setup.wizard.device.error.bridgeMissing": "Не удаётся связаться с локальным агентом. Перезапустите Setup Wizard.",
