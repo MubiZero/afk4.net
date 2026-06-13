@@ -2,15 +2,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { OwnerCodeApi } from '@/api/clients/ownerCode';
-import { OwnerCodePanel } from './OwnerCodePanel';
 import { getSetupMsiUrl } from './installModel';
 
-type Client = Pick<OwnerCodeApi, 'getOwnerCode' | 'generateOwnerCode' | 'rotateOwnerCode'>;
-
-export function InstallScreen({ client, canManage, branches }: {
-  client: Client;
-  canManage: boolean;
+export function InstallScreen({ branches }: {
   branches: { branchId: string; name: string; city?: string }[];
 }) {
   const { t } = useI18n();
@@ -27,8 +21,6 @@ export function InstallScreen({ client, canManage, branches }: {
           <a href={msiUrl} download>{t('install.download')}</a>
         </Button>
       </div>
-
-      <OwnerCodePanel client={client} canManage={canManage} />
 
       <Card>
         <CardHeader><CardTitle>{t('install.wizard.title')}</CardTitle></CardHeader>

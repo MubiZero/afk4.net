@@ -40,19 +40,6 @@ export interface AcceptOwnerInviteRequest {
   password: string;
 }
 
-export interface OwnerCodeSummary {
-  codeSuffix: string;
-  expiresAtUtc: string;
-  lastUsedAtUtc: string | null;
-  failedAttemptCount: number;
-}
-
-export interface OwnerCodeIssued {
-  ownerCode: string;
-  codeSuffix: string;
-  expiresAtUtc: string;
-}
-
 export interface BranchProfile {
   organizationId: string;
   branchId: string;

@@ -3,7 +3,6 @@ import { AuditApi } from './clients/audit';
 import { BillingApi } from './clients/billing';
 import { BranchApi } from './clients/branches';
 import { CatalogApi } from './clients/catalog';
-import { OwnerCodeApi } from './clients/ownerCode';
 import { PackagesApi } from './clients/packages';
 import { PlayersApi } from './clients/players';
 import { ProfileApi } from './clients/profile';
@@ -23,7 +22,6 @@ export type ClubApiClientOptions = ApiTransportOptions;
 export class ClubApiClient {
   private readonly transport: ApiTransport;
 
-  public readonly ownerCode: OwnerCodeApi;
   public readonly profile: ProfileApi;
   public readonly branches: BranchApi;
   public readonly billing: BillingApi;
@@ -38,7 +36,6 @@ export class ClubApiClient {
 
   public constructor(options: ClubApiClientOptions) {
     this.transport = new ApiTransport(options);
-    this.ownerCode = new OwnerCodeApi(this.transport);
     this.profile = new ProfileApi(this.transport);
     this.branches = new BranchApi(this.transport);
     this.billing = new BillingApi(this.transport);

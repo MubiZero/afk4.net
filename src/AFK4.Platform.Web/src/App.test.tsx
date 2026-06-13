@@ -61,7 +61,6 @@ function buildStaffSignInResponse() {
       'devices.seat_assignment.assign',
       'devices.credentials.revoke',
       'identity.branch_staff.manage',
-      'identity.owner_code.manage',
       'branches.settings.manage'
     ]
   };
@@ -91,16 +90,6 @@ function buildClubFetchMock() {
     }
     if (url.pathname === '/api/auth/staff/sign-in-by-login' && method === 'POST') {
       return jsonResponse(200, buildStaffSignInResponse());
-    }
-    if (url.pathname === '/api/staff/me/owner-code' && method === 'GET') {
-      return new Response(null, { status: 204 });
-    }
-    if (url.pathname === '/api/staff/me/owner-code/generate' && method === 'POST') {
-      return jsonResponse(200, {
-        ownerCode: '12345678',
-        codeSuffix: '5678',
-        expiresAtUtc: '2030-01-01T00:00:00Z'
-      });
     }
     if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/profile') {
       return jsonResponse(200, {
@@ -430,23 +419,4 @@ describe('Platform Web routing', () => {
     expect(screen.getAllByText('Выручка сегодня').length).toBeGreaterThan(0);
   });
 
-  it('generates and reveals an owner code from /club/install', async () => {
-    window.history.replaceState(null, '', '/club/install');
-    writeStaffSession(buildStaffSession());
-    const fetchMock = buildClubFetchMock();
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-    renderWithProviders(<App apiBaseUrl="http://localhost" />);
-
-    expect(screen.getByRole('heading', { name: 'Установка на ПК' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText('Код владельца')).toHaveTextContent('Код не сгенерирован'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Сгенерировать код' }));
-
-    await waitFor(() => expect(screen.getByLabelText('Код владельца')).toHaveTextContent('12345678'));
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost/api/staff/me/owner-code/generate',
-      expect.objectContaining({ method: 'POST' })
-    );
-  });
 });

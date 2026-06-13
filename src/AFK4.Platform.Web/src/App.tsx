@@ -494,8 +494,6 @@ function ClubArea({ clubClient, route, session, onNavigate, onSignOut }: ClubAre
         <BillingScreen client={clubClient.billing} organizationId={session.organizationId} />
       ) : (
         <InstallScreen
-          client={clubClient.ownerCode}
-          canManage={session.permissions.includes('identity.owner_code.manage')}
           branches={session.branchIds.map(id => ({ branchId: id, name: directory[id]?.name ?? t('branches.unnamed'), city: directory[id]?.city }))}
         />
       )}
