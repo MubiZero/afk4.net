@@ -1060,6 +1060,8 @@ textarea,
 
 .wizard-field input,
 .wizard-field select {
+  width: 100%;
+  box-sizing: border-box;
   height: 44px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -1176,6 +1178,12 @@ textarea,
 .wizard-password input {
   width: 100%;
   padding-right: 44px;
+}
+
+/* Hide the built-in Edge/WebView2 password reveal icon — we render our own toggle. */
+.wizard-password input::-ms-reveal,
+.wizard-password input::-ms-clear {
+  display: none;
 }
 
 .wizard-password-toggle {
@@ -1477,10 +1485,10 @@ textarea,
   align-items: center;
   gap: 10px;
   min-height: 64px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   padding: 12px 44px 12px 16px;
-  background: transparent;
+  background: var(--surface-muted);
   color: var(--text-secondary);
   cursor: pointer;
   text-align: left;
