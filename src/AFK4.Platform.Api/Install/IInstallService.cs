@@ -4,18 +4,6 @@ namespace AFK4.Platform.Api.Install;
 
 public interface IInstallService
 {
-    Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverAsync(
-        InstallDiscoverRequest request,
-        CancellationToken cancellationToken);
-
-    Task<InstallOperationResult<InstallEnrollResponse>> EnrollAsync(
-        InstallEnrollRequest request,
-        CancellationToken cancellationToken);
-
-    Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatAsync(
-        InstallCreateSeatRequest request,
-        CancellationToken cancellationToken);
-
     Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverForStaffAsync(
         Guid organizationId,
         IReadOnlySet<Guid> branchIds,
@@ -40,7 +28,6 @@ public sealed record InstallOperationResult<T>(
     string? Error,
     Guid? OrganizationId = null,
     Guid? BranchId = null,
-    Guid? OwnerCodeId = null,
     Guid? StaffUserId = null)
 {
     public bool Succeeded => Status == InstallOperationStatus.Succeeded;
@@ -49,23 +36,21 @@ public sealed record InstallOperationResult<T>(
         T value,
         Guid organizationId,
         Guid? branchId,
-        Guid? ownerCodeId,
         Guid? staffUserId = null) =>
-        new(InstallOperationStatus.Succeeded, value, null, organizationId, branchId, ownerCodeId, staffUserId);
+        new(InstallOperationStatus.Succeeded, value, null, organizationId, branchId, staffUserId);
 
     public static InstallOperationResult<T> BadRequest(
         string error,
-        Guid? ownerCodeId = null,
         Guid? organizationId = null,
         Guid? branchId = null,
         Guid? staffUserId = null) =>
-        new(InstallOperationStatus.BadRequest, default, error, organizationId, branchId, ownerCodeId, staffUserId);
+        new(InstallOperationStatus.BadRequest, default, error, organizationId, branchId, staffUserId);
 
-    public static InstallOperationResult<T> NotFound(string error, Guid? ownerCodeId = null) =>
-        new(InstallOperationStatus.NotFound, default, error, OwnerCodeId: ownerCodeId);
+    public static InstallOperationResult<T> NotFound(string error) =>
+        new(InstallOperationStatus.NotFound, default, error);
 
-    public static InstallOperationResult<T> Conflict(string error, Guid organizationId, Guid branchId, Guid? ownerCodeId) =>
-        new(InstallOperationStatus.Conflict, default, error, organizationId, branchId, ownerCodeId);
+    public static InstallOperationResult<T> Conflict(string error, Guid organizationId, Guid branchId) =>
+        new(InstallOperationStatus.Conflict, default, error, organizationId, branchId);
 }
 
 public enum InstallOperationStatus

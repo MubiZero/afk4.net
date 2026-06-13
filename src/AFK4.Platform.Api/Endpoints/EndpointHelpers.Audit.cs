@@ -155,30 +155,6 @@ internal static partial class EndpointHelpers
             : Results.Json(new { Error = blockedReason }, statusCode: StatusCodes.Status422UnprocessableEntity);
     }
 
-    public static async Task WriteInstallAuditAsync(
-        IAuditRecordWriter auditRecordWriter,
-        Guid organizationId,
-        Guid? branchId,
-        string action,
-        string targetType,
-        string? targetId,
-        string outcome,
-        object details,
-        CancellationToken cancellationToken)
-    {
-        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-            organizationId,
-            branchId,
-            null,
-            action,
-            targetType,
-            targetId,
-            outcome,
-            "PlatformApi",
-            JsonSerializer.Serialize(details)),
-            cancellationToken);
-    }
-
     public static async Task WriteOwnerCodeAuditAsync(
         IAuditRecordWriter auditRecordWriter,
         Guid? organizationId,

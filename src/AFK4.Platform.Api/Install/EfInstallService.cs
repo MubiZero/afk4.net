@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
-using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
@@ -14,110 +13,16 @@ namespace AFK4.Platform.Api.Install;
 
 public sealed class EfInstallService(
     PlatformDbContext dbContext,
-    IOwnerCodeService ownerCodeService,
     IFloorMapReadService floorMapReadService,
     IOptions<InstallOptions> options,
     IOptions<SessionLeaseOptions> sessionLeaseOptions,
     TimeProvider timeProvider) : IInstallService
 {
-    private const int MaxResolvedOwnerCodeFailures = 5;
     private const int MaxMachineNameLength = 128;
     private const int MinDisplayNameLength = 3;
     private const int MaxDisplayNameLength = 32;
     private const int MaxDevicePublicKeyLength = 4096;
     private const int MaxSeatNameLength = 80;
-
-    public async Task<InstallOperationResult<InstallDiscoverResponse>> DiscoverAsync(
-        InstallDiscoverRequest request,
-        CancellationToken cancellationToken)
-    {
-        var lookup = await ownerCodeService.LookupActiveAsync(request.OwnerCode, cancellationToken);
-        if (!lookup.Succeeded)
-        {
-            return InstallOperationResult<InstallDiscoverResponse>.BadRequest(
-                lookup.Error ?? "Owner code is invalid.",
-                lookup.OwnerCodeId);
-        }
-
-        var staffUser = await dbContext.StaffUsers
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                candidate =>
-                    candidate.StaffUserId == lookup.StaffUserId &&
-                    candidate.OrganizationId == lookup.OrganizationId &&
-                    candidate.IsActive,
-                cancellationToken);
-        if (staffUser is null)
-        {
-            return InstallOperationResult<InstallDiscoverResponse>.BadRequest(
-                "Owner code staff user was not found.",
-                lookup.OwnerCodeId);
-        }
-
-        var organization = await dbContext.Organizations
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == lookup.OrganizationId, cancellationToken);
-        if (organization is null || organization.Status != TenantStatusNames.Active)
-        {
-            return InstallOperationResult<InstallDiscoverResponse>.BadRequest(
-                "Tenant is not active.",
-                lookup.OwnerCodeId,
-                lookup.OrganizationId);
-        }
-
-        var branches = await dbContext.Branches
-            .AsNoTracking()
-            .Where(branch => branch.OrganizationId == lookup.OrganizationId)
-            .OrderBy(branch => branch.Name)
-            .ToListAsync(cancellationToken);
-
-        var branchDtos = new List<InstallBranchDto>(branches.Count);
-        foreach (var branch in branches)
-        {
-            branchDtos.Add(await BuildBranchDtoAsync(branch, cancellationToken));
-        }
-
-        var response = new InstallDiscoverResponse(staffUser.DisplayName, branchDtos);
-        return InstallOperationResult<InstallDiscoverResponse>.Success(
-            response,
-            lookup.OrganizationId!.Value,
-            null,
-            lookup.OwnerCodeId!.Value);
-    }
-
-    public async Task<InstallOperationResult<InstallEnrollResponse>> EnrollAsync(
-        InstallEnrollRequest request,
-        CancellationToken cancellationToken)
-    {
-        var lookup = await ownerCodeService.LookupActiveAsync(request.OwnerCode, cancellationToken);
-        if (!lookup.Succeeded)
-        {
-            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                lookup.Error ?? "Owner code is invalid.",
-                lookup.OwnerCodeId);
-        }
-
-        var organizationId = lookup.OrganizationId!.Value;
-        var ownerCodeId = lookup.OwnerCodeId!.Value;
-
-        var result = await EnrollResolvedAsync(
-            organizationId,
-            enrolledViaOwnerCodeId: ownerCodeId,
-            request.BranchId,
-            request.SeatId,
-            request.Role,
-            request.DisplayName,
-            request.MachineName,
-            request.DevicePublicKey,
-            cancellationToken);
-
-        if (!result.Succeeded)
-        {
-            await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
-        }
-
-        return result;
-    }
 
     public async Task<InstallOperationResult<InstallEnrollResponse>> EnrollForStaffAsync(
         Guid organizationId,
@@ -126,7 +31,6 @@ public sealed class EfInstallService(
     {
         return await EnrollResolvedAsync(
             organizationId,
-            enrolledViaOwnerCodeId: null,
             request.BranchId,
             request.SeatId,
             request.Role,
@@ -138,7 +42,6 @@ public sealed class EfInstallService(
 
     private async Task<InstallOperationResult<InstallEnrollResponse>> EnrollResolvedAsync(
         Guid organizationId,
-        Guid? enrolledViaOwnerCodeId,
         Guid branchId,
         Guid? requestedSeatId,
         string requestedRole,
@@ -152,9 +55,7 @@ public sealed class EfInstallService(
             .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
         if (organization is null || organization.Status != TenantStatusNames.Active)
         {
-            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                "Tenant is not active.",
-                enrolledViaOwnerCodeId);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest("Tenant is not active.");
         }
 
         var branch = await dbContext.Branches
@@ -163,17 +64,13 @@ public sealed class EfInstallService(
                 cancellationToken);
         if (branch is null)
         {
-            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                "Branch was not found.",
-                enrolledViaOwnerCodeId);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest("Branch was not found.");
         }
 
         var normalizedRole = requestedRole.Trim();
         if (!IsValidDeviceRole(normalizedRole))
         {
-            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                "Device role is invalid.",
-                enrolledViaOwnerCodeId);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest("Device role is invalid.");
         }
 
         var requiresSeatAssignment = normalizedRole == DeviceRoleNames.GamingPc;
@@ -181,61 +78,51 @@ public sealed class EfInstallService(
         var machineName = requestedMachineName.Trim();
         if (machineName.Length == 0)
         {
-            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                "Machine name is required.",
-                enrolledViaOwnerCodeId);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest("Machine name is required.");
         }
 
         if (machineName.Length > MaxMachineNameLength)
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                $"Machine name must be {MaxMachineNameLength} characters or fewer.",
-                enrolledViaOwnerCodeId);
+                $"Machine name must be {MaxMachineNameLength} characters or fewer.");
         }
 
         var providedDisplayName = (requestedDisplayName ?? string.Empty).Trim();
         if (providedDisplayName.Length > 0 && providedDisplayName.Length < MinDisplayNameLength)
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                $"Display name must be at least {MinDisplayNameLength} characters.",
-                enrolledViaOwnerCodeId);
+                $"Display name must be at least {MinDisplayNameLength} characters.");
         }
 
         var displayName = providedDisplayName.Length == 0 ? machineName : providedDisplayName;
         if (displayName.Length > MaxDisplayNameLength)
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                $"Display name must be {MaxDisplayNameLength} characters or fewer.",
-                enrolledViaOwnerCodeId);
+                $"Display name must be {MaxDisplayNameLength} characters or fewer.");
         }
 
         var devicePublicKey = requestedDevicePublicKey.Trim();
         if (devicePublicKey.Length == 0)
         {
-            return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                "Device public key is required.",
-                enrolledViaOwnerCodeId);
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest("Device public key is required.");
         }
 
         if (devicePublicKey.Length > MaxDevicePublicKeyLength)
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                $"Device public key must be {MaxDevicePublicKeyLength} characters or fewer.",
-                enrolledViaOwnerCodeId);
+                $"Device public key must be {MaxDevicePublicKeyLength} characters or fewer.");
         }
 
         if (requiresSeatAssignment && (requestedSeatId is null || requestedSeatId == Guid.Empty))
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                "Seat is required for gaming PC enrollment.",
-                enrolledViaOwnerCodeId);
+                "Seat is required for gaming PC enrollment.");
         }
 
         if (!requiresSeatAssignment && requestedSeatId is not null && requestedSeatId != Guid.Empty)
         {
             return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                "Manager workstation enrollment must not target a seat.",
-                enrolledViaOwnerCodeId);
+                "Manager workstation enrollment must not target a seat.");
         }
 
         SeatEntity? seat = null;
@@ -253,8 +140,7 @@ public sealed class EfInstallService(
             if (seat is null)
             {
                 return InstallOperationResult<InstallEnrollResponse>.BadRequest(
-                    "Seat was not found in this branch.",
-                    enrolledViaOwnerCodeId);
+                    "Seat was not found in this branch.");
             }
 
             var hasActiveAssignment = await dbContext.DeviceSeatAssignments
@@ -270,8 +156,7 @@ public sealed class EfInstallService(
                 return InstallOperationResult<InstallEnrollResponse>.Conflict(
                     "Seat already has an active device assignment.",
                     organizationId,
-                    branchId,
-                    enrolledViaOwnerCodeId);
+                    branchId);
             }
         }
 
@@ -292,7 +177,6 @@ public sealed class EfInstallService(
             DevicePublicKey = devicePublicKey,
             Role = normalizedRole,
             EnrollmentState = enrollmentState,
-            EnrolledViaOwnerCodeId = enrolledViaOwnerCodeId,
             AgentVersion = string.Empty,
             ShellVersion = string.Empty,
             EnrolledAtUtc = now
@@ -341,41 +225,7 @@ public sealed class EfInstallService(
         return InstallOperationResult<InstallEnrollResponse>.Success(
             response,
             organizationId,
-            branchId,
-            enrolledViaOwnerCodeId);
-    }
-
-    public async Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatAsync(
-        InstallCreateSeatRequest request,
-        CancellationToken cancellationToken)
-    {
-        var lookup = await ownerCodeService.LookupActiveAsync(request.OwnerCode, cancellationToken);
-        if (!lookup.Succeeded)
-        {
-            return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
-                lookup.Error ?? "Owner code is invalid.",
-                lookup.OwnerCodeId);
-        }
-
-        var organizationId = lookup.OrganizationId!.Value;
-        var ownerCodeId = lookup.OwnerCodeId!.Value;
-        var staffUserId = lookup.StaffUserId!.Value;
-
-        var result = await CreateSeatResolvedAsync(
-            organizationId,
-            request.BranchId,
-            request.ZoneId,
-            request.Name,
-            ownerCodeId: ownerCodeId,
-            staffUserId: staffUserId,
-            cancellationToken);
-
-        if (!result.Succeeded)
-        {
-            await RecordResolvedOwnerCodeFailureAsync(ownerCodeId, cancellationToken);
-        }
-
-        return result;
+            branchId);
     }
 
     public async Task<InstallOperationResult<InstallCreateSeatResponse>> CreateSeatForStaffAsync(
@@ -389,7 +239,6 @@ public sealed class EfInstallService(
             request.BranchId,
             request.ZoneId,
             request.Name,
-            ownerCodeId: null,
             staffUserId: staffUserId,
             cancellationToken);
     }
@@ -399,7 +248,6 @@ public sealed class EfInstallService(
         Guid branchId,
         Guid zoneId,
         string name,
-        Guid? ownerCodeId,
         Guid? staffUserId,
         CancellationToken cancellationToken)
     {
@@ -410,7 +258,6 @@ public sealed class EfInstallService(
         {
             return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
                 "Tenant is not active.",
-                ownerCodeId,
                 organizationId,
                 staffUserId: staffUserId);
         }
@@ -422,7 +269,6 @@ public sealed class EfInstallService(
         {
             return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
                 "Branch was not found.",
-                ownerCodeId,
                 organizationId,
                 staffUserId: staffUserId);
         }
@@ -437,7 +283,6 @@ public sealed class EfInstallService(
         {
             return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
                 "Zone was not found for this branch.",
-                ownerCodeId,
                 organizationId,
                 branchId,
                 staffUserId);
@@ -448,7 +293,6 @@ public sealed class EfInstallService(
         {
             return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
                 "Seat name is required.",
-                ownerCodeId,
                 organizationId,
                 branchId,
                 staffUserId);
@@ -458,7 +302,6 @@ public sealed class EfInstallService(
         {
             return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
                 $"Seat name must be {MaxSeatNameLength} characters or fewer.",
-                ownerCodeId,
                 organizationId,
                 branchId,
                 staffUserId);
@@ -485,7 +328,6 @@ public sealed class EfInstallService(
                 existingResponse,
                 organizationId,
                 branchId,
-                ownerCodeId,
                 staffUserId);
         }
 
@@ -521,7 +363,6 @@ public sealed class EfInstallService(
             response,
             organizationId,
             branchId,
-            ownerCodeId,
             staffUserId);
     }
 
@@ -558,8 +399,7 @@ public sealed class EfInstallService(
         return InstallOperationResult<InstallDiscoverResponse>.Success(
             response,
             organizationId,
-            branchId: null,
-            ownerCodeId: null);
+            branchId: null);
     }
 
     private async Task<InstallBranchDto> BuildBranchDtoAsync(BranchEntity branch, CancellationToken cancellationToken)
@@ -582,25 +422,6 @@ public sealed class EfInstallService(
             branch.Name,
             floorMap,
             freeSeatIds);
-    }
-
-    private async Task RecordResolvedOwnerCodeFailureAsync(Guid ownerCodeId, CancellationToken cancellationToken)
-    {
-        var ownerCode = await dbContext.OwnerCodes
-            .SingleOrDefaultAsync(candidate => candidate.OwnerCodeId == ownerCodeId, cancellationToken);
-        if (ownerCode is null || ownerCode.RevokedAtUtc is not null)
-        {
-            return;
-        }
-
-        ownerCode.FailedAttemptCount++;
-        if (ownerCode.FailedAttemptCount >= MaxResolvedOwnerCodeFailures)
-        {
-            ownerCode.RevokedAtUtc = timeProvider.GetUtcNow();
-            ownerCode.RevokedReason = "brute_force_detected";
-        }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static bool IsValidDeviceRole(string role) =>
