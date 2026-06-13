@@ -170,7 +170,7 @@ public sealed class EfPlatformTenantService(
             ZoneId = Guid.NewGuid(),
             OrganizationId = organization.OrganizationId,
             BranchId = branch.BranchId,
-            Name = "Main Hall",
+            Name = "Общий зал",
             SortOrder = 1,
             CreatedAtUtc = now
         };

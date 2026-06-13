@@ -859,7 +859,7 @@
   "setup.wizard.finished.ok.body": "This device is already accepting commands from the platform. You can close the setup wizard.",
   "setup.wizard.finished.summary.branch": "Branch",
   "setup.wizard.finished.summary.role": "Role",
-  "setup.wizard.finished.summary.seat": "Seat",
+  "setup.wizard.finished.summary.seat": "Hall",
   "setup.wizard.finished.summary.name": "Name",
   "setup.wizard.finished.summary.channel": "Update channel",
   "setup.wizard.finished.shell.installing": "Installing the player shell…",

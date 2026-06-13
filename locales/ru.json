@@ -859,7 +859,7 @@
   "setup.wizard.finished.ok.body": "Устройство уже принимает команды от платформы. Можно закрывать мастер настройки.",
   "setup.wizard.finished.summary.branch": "Филиал",
   "setup.wizard.finished.summary.role": "Роль",
-  "setup.wizard.finished.summary.seat": "Место",
+  "setup.wizard.finished.summary.seat": "Зал",
   "setup.wizard.finished.summary.name": "Имя",
   "setup.wizard.finished.summary.channel": "Канал обновлений",
   "setup.wizard.finished.shell.installing": "Устанавливаем оболочку игрока…",

@@ -64,7 +64,7 @@ export function FinishedScreen({ result, branchName, selectedSeat }: FinishedScr
           {selectedSeat && (
             <div>
               <dt>{t('setup.wizard.finished.summary.seat')}</dt>
-              <dd>{selectedSeat.pcName} · {selectedSeat.zoneName}</dd>
+              <dd>{selectedSeat.zoneName}</dd>
             </div>
           )}
           <div>

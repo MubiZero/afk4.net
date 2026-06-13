@@ -60,7 +60,7 @@ internal static class PreviewSetupWizard
                 DeviceId: Guid.NewGuid(),
                 CredentialId: Guid.NewGuid(),
                 CredentialSecret: "preview-secret",
-                EnrollmentState: DeviceEnrollmentStateNames.Pending,
+                EnrollmentState: DeviceEnrollmentStateNames.Approved,
                 ApiBaseUrl: "https://preview.local",
                 UpdateChannel: "stable",
                 EnrolledAtUtc: DateTimeOffset.UnixEpoch));
@@ -121,7 +121,7 @@ internal static class PreviewSetupWizard
         private static InstallBranchDto BuildBranch()
         {
             var mainHall = Enumerable.Range(1, 22)
-                .Select(i => MakeSeat($"PC-{i:D2}", i, MainHallZoneId, "Main Hall", isOccupied: i % 3 == 0))
+                .Select(i => MakeSeat($"PC-{i:D2}", i, MainHallZoneId, "Общий зал", isOccupied: i % 3 == 0))
                 .ToList();
             var vip = Enumerable.Range(1, 6)
                 .Select(i => MakeSeat($"VIP-{i:D2}", i, VipZoneId, "VIP", isOccupied: i % 2 == 0))
@@ -132,7 +132,7 @@ internal static class PreviewSetupWizard
             {
                 Zones =
                 [
-                    new FloorMapZoneDto(MainHallZoneId, "Main Hall", 1),
+                    new FloorMapZoneDto(MainHallZoneId, "Общий зал", 1),
                     new FloorMapZoneDto(VipZoneId, "VIP", 2),
                 ],
             };
