@@ -377,10 +377,6 @@ it('includes the profile + install keys', () => {
     'profile.field.staffId', 'profile.field.role', 'profile.branches.title', 'profile.branches.empty',
     'profile.permissions.title', 'profile.permissions.empty', 'profile.editUnavailable',
     'install.title', 'install.subtitle', 'install.download',
-    'install.ownerCode.title', 'install.ownerCode.noAccess', 'install.ownerCode.none',
-    'install.ownerCode.validUntil', 'install.ownerCode.lastUsed', 'install.ownerCode.failed',
-    'install.ownerCode.generate', 'install.ownerCode.rotate', 'install.ownerCode.reason',
-    'install.ownerCode.generated', 'install.ownerCode.rotated', 'install.ownerCode.error',
     'install.wizard.title', 'install.wizard.step1', 'install.wizard.step2',
     'install.wizard.step3', 'install.wizard.step4',
     'install.branches.title', 'install.branches.empty'

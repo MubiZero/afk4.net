@@ -15,7 +15,6 @@ using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
@@ -187,11 +186,6 @@ builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
 builder.Services.Configure<PlatformTenantOptions>(
     builder.Configuration.GetSection(PlatformTenantOptions.ConfigurationSection));
 builder.Services.AddSingleton<IOwnerInviteCodeGenerator, RandomOwnerInviteCodeGenerator>();
-builder.Services.Configure<OwnerCodeOptions>(
-    builder.Configuration.GetSection(OwnerCodeOptions.SectionName));
-builder.Services.AddSingleton<IOwnerCodeGenerator, RandomOwnerCodeGenerator>();
-builder.Services.AddSingleton<IOwnerCodeHasher, Sha256OwnerCodeHasher>();
-builder.Services.AddScoped<IOwnerCodeService, OwnerCodeService>();
 builder.Services.Configure<InstallOptions>(
     builder.Configuration.GetSection(InstallOptions.SectionName));
 builder.Services.AddScoped<IInstallService, EfInstallService>();
@@ -429,7 +423,6 @@ app.MapShopOrderEndpoints();
 app.MapWalletEndpoints();
 app.MapStaffOnboardingEndpoints();
 app.MapReportScheduleEndpoints();
-app.MapOwnerCodeEndpoints();
 app.MapPlatformTenantEndpoints();
 app.MapPlatformBillingEndpoints();
 app.MapStaffEndpoints();

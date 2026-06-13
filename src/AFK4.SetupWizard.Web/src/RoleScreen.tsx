@@ -24,11 +24,11 @@ export function RoleScreen({
   return (
     <section className="wizard-screen is-narrow">
       <div className="wizard-screen-head">
-        <span className="wizard-eyebrow">
-          {t('setup.wizard.common.step')} 3
-          <span className="wizard-eyebrow-context">{ownerName} · {branchName}</span>
-        </span>
-        <h1>{t('setup.wizard.role.title')}</h1>
+        <span className="wizard-screen-context">{ownerName} · {branchName}</span>
+        <div className="wizard-screen-title-row">
+          <span className="wizard-screen-step" aria-hidden>3</span>
+          <h1>{t('setup.wizard.role.title')}</h1>
+        </div>
         <p>{t('setup.wizard.role.subtitle')}</p>
       </div>
 

@@ -86,7 +86,6 @@ public sealed class EfDeviceEnrollmentService(
             DisplayName = request.MachineName,
             Role = DeviceRoleNames.GamingPc,
             EnrollmentState = DeviceEnrollmentStateNames.Approved,
-            EnrolledViaOwnerCodeId = null,
             AgentVersion = request.AgentVersion,
             ShellVersion = request.ShellVersion,
             EnrolledAtUtc = now

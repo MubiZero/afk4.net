@@ -42,47 +42,6 @@ public sealed class SetupWizardApiClient(HttpClient httpClient) : ISetupWizardAp
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient httpClient = httpClient;
 
-    public async Task<InstallDiscoverResponse> DiscoverAsync(string ownerCode, CancellationToken cancellationToken)
-    {
-        using var response = await httpClient.PostAsJsonAsync(
-            "api/install/discover",
-            new InstallDiscoverRequest(ownerCode),
-            JsonOptions,
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-        return await ReadRequiredAsync<InstallDiscoverResponse>(response, cancellationToken);
-    }
-
-    public async Task<InstallCreateSeatResponse> CreateSeatAsync(
-        string ownerCode,
-        Guid branchId,
-        Guid zoneId,
-        string name,
-        CancellationToken cancellationToken)
-    {
-        using var response = await httpClient.PostAsJsonAsync(
-            "api/install/seats",
-            new InstallCreateSeatRequest(ownerCode, branchId, zoneId, name),
-            JsonOptions,
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-        return await ReadRequiredAsync<InstallCreateSeatResponse>(response, cancellationToken);
-    }
-
-    public async Task<InstallEnrollResponse> EnrollAsync(InstallEnrollRequest request, CancellationToken cancellationToken)
-    {
-        using var response = await httpClient.PostAsJsonAsync(
-            "api/install/enroll",
-            request,
-            JsonOptions,
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-        return await ReadRequiredAsync<InstallEnrollResponse>(response, cancellationToken);
-    }
-
     public async Task<StaffSignInResponse> SignInByPhoneAsync(
         string phoneNumber,
         string password,

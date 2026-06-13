@@ -15,7 +15,6 @@ using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;
@@ -153,53 +152,6 @@ internal static partial class EndpointHelpers
         return requiresApproval
             ? Results.Conflict(new { Error = blockedReason, RequiresApproval = true })
             : Results.Json(new { Error = blockedReason }, statusCode: StatusCodes.Status422UnprocessableEntity);
-    }
-
-    public static async Task WriteInstallAuditAsync(
-        IAuditRecordWriter auditRecordWriter,
-        Guid organizationId,
-        Guid? branchId,
-        string action,
-        string targetType,
-        string? targetId,
-        string outcome,
-        object details,
-        CancellationToken cancellationToken)
-    {
-        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-            organizationId,
-            branchId,
-            null,
-            action,
-            targetType,
-            targetId,
-            outcome,
-            "PlatformApi",
-            JsonSerializer.Serialize(details)),
-            cancellationToken);
-    }
-
-    public static async Task WriteOwnerCodeAuditAsync(
-        IAuditRecordWriter auditRecordWriter,
-        Guid? organizationId,
-        Guid? actorStaffUserId,
-        string action,
-        string? targetId,
-        string outcome,
-        object details,
-        CancellationToken cancellationToken)
-    {
-        await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-            organizationId ?? Guid.Empty,
-            null,
-            actorStaffUserId,
-            action,
-            "OwnerCode",
-            targetId,
-            outcome,
-            "PlatformApi",
-            JsonSerializer.Serialize(details)),
-            cancellationToken);
     }
 
     public static async Task WriteAuditAsync(

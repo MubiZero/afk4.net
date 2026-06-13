@@ -20,8 +20,6 @@ public sealed class DeviceEntity
 
     public string EnrollmentState { get; set; } = DeviceEnrollmentStateNames.Approved;
 
-    public Guid? EnrolledViaOwnerCodeId { get; set; }
-
     public string AgentVersion { get; set; } = string.Empty;
 
     public string ShellVersion { get; set; } = string.Empty;

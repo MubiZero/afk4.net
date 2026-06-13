@@ -209,10 +209,6 @@ public static class AuditActionNames
 
     public const string ResolveOperatorConnection = "tenancy.operator_connection.resolve";
 
-    public const string GenerateOwnerCode = "install.owner_code.generated";
-
-    public const string RotateOwnerCode = "install.owner_code.rotated";
-
     public const string InstallDiscoverInvoked = "install.discover.invoked";
 
     public const string InstallEnrollSucceeded = "install.enroll.succeeded";
