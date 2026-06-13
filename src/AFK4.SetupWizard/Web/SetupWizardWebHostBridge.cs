@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.SetupWizard.Core;
 using AFK4.Shared.Contracts.FloorMap;
-using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard.Web;
@@ -49,9 +48,6 @@ public sealed class SetupWizardWebHostBridge(
         {
             object payload = request.Type switch
             {
-                "wizard:discover" => await DiscoverAsync(request.Payload, cancellationToken),
-                "wizard:createSeat" => await CreateSeatAsync(request.Payload, cancellationToken),
-                "wizard:enroll" => await EnrollAsync(request.Payload, cancellationToken),
                 "wizard:phoneSignIn" => await PhoneSignInAsync(request.Payload, cancellationToken),
                 "wizard:signInByLogin" => await LoginSignInAsync(request.Payload, cancellationToken),
                 "wizard:signInToClub" => await ClubSignInAsync(request.Payload, cancellationToken),
@@ -99,45 +95,6 @@ public sealed class SetupWizardWebHostBridge(
                 payload: null,
                 new SetupWizardWebBridgeError(ErrorCodeFor(request.Type), exception.Message));
         }
-    }
-
-    private async Task<WizardDiscoverResult> DiscoverAsync(JsonElement payload, CancellationToken cancellationToken)
-    {
-        var request = DeserializePayload<WizardDiscoverPayload>(payload);
-        var normalized = ValidateOwnerCode(request.OwnerCode);
-
-        var response = await apiClient.DiscoverAsync(normalized, cancellationToken);
-        var branches = response.Branches
-            .OrderBy(branch => branch.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(MapBranch)
-            .ToArray();
-
-        return new WizardDiscoverResult(response.OwnerDisplayName, branches);
-    }
-
-    private async Task<WizardSeat> CreateSeatAsync(JsonElement payload, CancellationToken cancellationToken)
-    {
-        var request = DeserializePayload<WizardCreateSeatPayload>(payload);
-        var ownerCode = ValidateOwnerCode(request.OwnerCode);
-        var branchId = ParseGuid(request.BranchId, nameof(request.BranchId));
-        var zoneId = ParseGuid(request.ZoneId, nameof(request.ZoneId));
-        var name = (request.Name ?? string.Empty).Trim();
-        if (name.Length == 0)
-        {
-            throw new InvalidOperationException("Seat name is required.");
-        }
-
-        var created = await apiClient.CreateSeatAsync(ownerCode, branchId, zoneId, name, cancellationToken);
-        return new WizardSeat(
-            created.SeatId,
-            created.Name,
-            created.ZoneId,
-            ZoneName: request.ZoneName ?? string.Empty,
-            created.SortOrder,
-            Status: "Free",
-            DeviceId: null,
-            DeviceName: null,
-            IsOnline: null);
     }
 
     // For gaming_pc: install the bundled Player Shell, then start the agent only on success.
@@ -198,69 +155,6 @@ public sealed class SetupWizardWebHostBridge(
         var status = result.Status == ShellProvisionStatus.AlreadyPresent ? "already_present" : "installed";
         SetupWizardStartupLog.Write($"{role} app install {status} (exitCode={result.ExitCode}).");
         return new WizardShellOutcome(status, result.ExitCode, null);
-    }
-
-    private async Task<WizardEnrollResult> EnrollAsync(JsonElement payload, CancellationToken cancellationToken)
-    {
-        var request = DeserializePayload<WizardEnrollPayload>(payload);
-        var ownerCode = ValidateOwnerCode(request.OwnerCode);
-        var branchId = ParseGuid(request.BranchId, nameof(request.BranchId));
-        var role = (request.Role ?? string.Empty).Trim();
-        if (role is not (DeviceRoleNames.GamingPc or DeviceRoleNames.ManagerWorkstation))
-        {
-            throw new InvalidOperationException("Role must be GamingPc or ManagerWorkstation.");
-        }
-
-        Guid? seatId = null;
-        if (role == DeviceRoleNames.GamingPc)
-        {
-            if (string.IsNullOrWhiteSpace(request.SeatId))
-            {
-                throw new InvalidOperationException("Seat is required for a gaming PC.");
-            }
-            seatId = ParseGuid(request.SeatId, nameof(request.SeatId));
-        }
-
-        var displayName = string.IsNullOrWhiteSpace(request.DisplayName)
-            ? machineInfo.MachineName
-            : request.DisplayName.Trim();
-
-        var publicKey = await deviceKeyStore.GetOrCreatePublicKeyPemAsync(cancellationToken);
-        var response = await apiClient.EnrollAsync(
-            new InstallEnrollRequest(
-                ownerCode,
-                branchId,
-                seatId,
-                role,
-                displayName,
-                machineInfo.MachineName,
-                publicKey),
-            cancellationToken);
-
-        bootstrapWriter.Write(new SetupWizardBootstrapConfig(
-            response.OrganizationId,
-            response.BranchId,
-            response.DeviceId,
-            response.CredentialId,
-            response.CredentialSecret,
-            role,
-            response.ApiBaseUrl,
-            response.UpdateChannel,
-            response.LeaseSigningPublicKeyPem,
-            response.UpdatePackageSigningPublicKeyPem));
-        var shell = FinalizeForRole(role);
-
-        return new WizardEnrollResult(
-            response.OrganizationId,
-            response.BranchId,
-            response.DeviceId,
-            role,
-            displayName,
-            machineInfo.MachineName,
-            response.EnrollmentState,
-            response.ApiBaseUrl,
-            response.UpdateChannel,
-            shell);
     }
 
     private async Task<WizardPhoneSignInResult> PhoneSignInAsync(JsonElement payload, CancellationToken cancellationToken)
@@ -513,41 +407,6 @@ public sealed class SetupWizardWebHostBridge(
     private static int ZoneSortOrder(IDictionary<Guid, FloorMapZoneDto> lookup, Guid zoneId) =>
         lookup.TryGetValue(zoneId, out var zone) ? zone.SortOrder : int.MaxValue;
 
-    private static string ValidateOwnerCode(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new InvalidOperationException("Owner code is required.");
-        }
-
-        var digits = new char[value.Length];
-        var digitCount = 0;
-        foreach (var character in value)
-        {
-            if (character is >= '0' and <= '9')
-            {
-                digits[digitCount] = character;
-                digitCount++;
-                continue;
-            }
-
-            if (char.IsWhiteSpace(character) || character == '-')
-            {
-                continue;
-            }
-
-            throw new InvalidOperationException("Owner code must contain only digits, spaces, or dashes.");
-        }
-
-        var normalized = new string(digits, 0, digitCount);
-        if (normalized.Length != 8)
-        {
-            throw new InvalidOperationException("Owner code must be exactly 8 digits.");
-        }
-
-        return normalized;
-    }
-
     private static Guid ParseGuid(string? value, string fieldName)
     {
         if (!Guid.TryParse(value, out var parsed) || parsed == Guid.Empty)
@@ -571,9 +430,6 @@ public sealed class SetupWizardWebHostBridge(
 
     private static string ErrorCodeFor(string? requestType) => requestType switch
     {
-        "wizard:discover" => "wizard_discover_failed",
-        "wizard:createSeat" => "wizard_create_seat_failed",
-        "wizard:enroll" => "wizard_enroll_failed",
         "wizard:phoneSignIn" => "wizard_phone_sign_in_failed",
         "wizard:signInByLogin" => "wizard_sign_in_failed",
         "wizard:signInToClub" => "wizard_sign_in_failed",
@@ -613,22 +469,6 @@ public sealed class SetupWizardWebHostBridge(
         SetupWizardWebBridgeError? Error);
 
     private sealed record SetupWizardWebBridgeError(string Code, string Message, int? RemainingAttempts = null);
-
-    private sealed record WizardDiscoverPayload(string? OwnerCode);
-
-    private sealed record WizardCreateSeatPayload(
-        string? OwnerCode,
-        string? BranchId,
-        string? ZoneId,
-        string? ZoneName,
-        string? Name);
-
-    private sealed record WizardEnrollPayload(
-        string? OwnerCode,
-        string? BranchId,
-        string? SeatId,
-        string? Role,
-        string? DisplayName);
 
     private sealed record WizardPhoneSignInPayload(string? Phone, string? Password);
 

@@ -27,17 +27,6 @@ public sealed record SetupWizardBootstrapConfig(
 
 public interface ISetupWizardApiClient
 {
-    Task<InstallDiscoverResponse> DiscoverAsync(string ownerCode, CancellationToken cancellationToken);
-
-    Task<InstallCreateSeatResponse> CreateSeatAsync(
-        string ownerCode,
-        Guid branchId,
-        Guid zoneId,
-        string name,
-        CancellationToken cancellationToken);
-
-    Task<InstallEnrollResponse> EnrollAsync(InstallEnrollRequest request, CancellationToken cancellationToken);
-
     Task<StaffSignInResponse> SignInByPhoneAsync(
         string phoneNumber,
         string password,

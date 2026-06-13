@@ -41,30 +41,6 @@ internal static class PreviewSetupWizard
 
     private sealed class FakeApiClient : ISetupWizardApiClient
     {
-        public Task<InstallDiscoverResponse> DiscoverAsync(string ownerCode, CancellationToken cancellationToken)
-            => Task.FromResult(new InstallDiscoverResponse("Preview Owner", [BuildBranch()]));
-
-        public Task<InstallCreateSeatResponse> CreateSeatAsync(
-            string ownerCode,
-            Guid branchId,
-            Guid zoneId,
-            string name,
-            CancellationToken cancellationToken)
-            => Task.FromResult(new InstallCreateSeatResponse(
-                OrgId, branchId, zoneId, Guid.NewGuid(), name, SortOrder: 99));
-
-        public Task<InstallEnrollResponse> EnrollAsync(InstallEnrollRequest request, CancellationToken cancellationToken)
-            => Task.FromResult(new InstallEnrollResponse(
-                OrgId,
-                request.BranchId,
-                DeviceId: Guid.NewGuid(),
-                CredentialId: Guid.NewGuid(),
-                CredentialSecret: "preview-secret",
-                EnrollmentState: DeviceEnrollmentStateNames.Approved,
-                ApiBaseUrl: "https://preview.local",
-                UpdateChannel: "stable",
-                EnrolledAtUtc: DateTimeOffset.UnixEpoch));
-
         public Task<StaffSignInResponse> SignInByPhoneAsync(string phoneNumber, string password, CancellationToken cancellationToken)
             => Task.FromResult(PreviewSignIn("Preview Staff"));
 
@@ -103,15 +79,21 @@ internal static class PreviewSetupWizard
 
         public Task<InstallCreateSeatResponse> CreateSeatAuthenticatedAsync(
             string accessToken, Guid branchId, Guid zoneId, string name, CancellationToken cancellationToken)
-            => CreateSeatAsync(ownerCode: string.Empty, branchId, zoneId, name, cancellationToken);
+            => Task.FromResult(new InstallCreateSeatResponse(
+                OrgId, branchId, zoneId, Guid.NewGuid(), name, SortOrder: 99));
 
         public Task<InstallEnrollResponse> EnrollAuthenticatedAsync(
             string accessToken, AuthenticatedInstallEnrollRequest request, CancellationToken cancellationToken)
-            => EnrollAsync(
-                new InstallEnrollRequest(
-                    string.Empty, request.BranchId, request.SeatId, request.Role,
-                    request.DisplayName, request.MachineName, request.DevicePublicKey),
-                cancellationToken);
+            => Task.FromResult(new InstallEnrollResponse(
+                OrgId,
+                request.BranchId,
+                DeviceId: Guid.NewGuid(),
+                CredentialId: Guid.NewGuid(),
+                CredentialSecret: "preview-secret",
+                EnrollmentState: DeviceEnrollmentStateNames.Approved,
+                ApiBaseUrl: "https://preview.local",
+                UpdateChannel: "stable",
+                EnrolledAtUtc: DateTimeOffset.UnixEpoch));
 
         private static readonly Guid OrgId = new("00000000-0000-0000-0000-0000000000aa");
         private static readonly Guid BranchId = new("00000000-0000-0000-0000-0000000000bb");
