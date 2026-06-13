@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -14,7 +14,6 @@ using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Identity.OwnerCodes;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;

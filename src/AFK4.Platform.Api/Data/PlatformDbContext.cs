@@ -112,8 +112,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<OwnerInviteEntity> OwnerInvites => Set<OwnerInviteEntity>();
 
-    public DbSet<OwnerCodeEntity> OwnerCodes => Set<OwnerCodeEntity>();
-
     public DbSet<TenantSupportNoteEntity> TenantSupportNotes => Set<TenantSupportNoteEntity>();
 
     public DbSet<PlatformIdempotencyRecordEntity> PlatformIdempotencyRecords => Set<PlatformIdempotencyRecordEntity>();
@@ -331,7 +329,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(device => device.ShellVersion).HasMaxLength(64).IsRequired();
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId });
             entity.HasIndex(device => new { device.OrganizationId, device.BranchId, device.EnrollmentState });
-            entity.HasIndex(device => device.EnrolledViaOwnerCodeId);
         });
 
         modelBuilder.Entity<DeviceSeatAssignmentEntity>(entity =>
@@ -904,21 +901,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(invite => invite.ExpiresAtUtc);
         });
 
-        modelBuilder.Entity<OwnerCodeEntity>(entity =>
-        {
-            entity.ToTable("owner_codes");
-            entity.HasKey(code => code.OwnerCodeId);
-            entity.Property(code => code.CodeHash).HasMaxLength(64).IsRequired();
-            entity.Property(code => code.CodeSuffix).HasMaxLength(4).IsRequired();
-            entity.Property(code => code.RevokedReason).HasMaxLength(512);
-            entity.HasIndex(code => code.CodeHash)
-                .IsUnique()
-                .HasFilter("\"RevokedAtUtc\" IS NULL");
-            entity.HasIndex(code => code.StaffUserId)
-                .IsUnique()
-                .HasFilter("\"RevokedAtUtc\" IS NULL");
-            entity.HasIndex(code => code.ExpiresAtUtc);
-        });
 
         modelBuilder.Entity<TenantSupportNoteEntity>(entity =>
         {

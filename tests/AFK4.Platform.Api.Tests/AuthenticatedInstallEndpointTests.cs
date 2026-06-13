@@ -62,7 +62,6 @@ public sealed class AuthenticatedInstallEndpointTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var device = await db.Devices.SingleAsync(d => d.DeviceId == body!.DeviceId);
-        Assert.Null(device.EnrolledViaOwnerCodeId);
         Assert.True(await db.DeviceSeatAssignments.AnyAsync(a => a.DeviceId == body!.DeviceId));
     }
 

@@ -61,7 +61,6 @@ public static class PermissionCatalog
                 StaffPermissionNames.ManageBranchStaff,
                 StaffPermissionNames.ManageRoles,
                 StaffPermissionNames.ViewAudit,
-                StaffPermissionNames.ManageOwnerCode,
                 StaffPermissionNames.ManageBranchSettings,
                 StaffPermissionNames.ManagePaymentGateways,
                 StaffPermissionNames.ManageLoyaltySettings,
