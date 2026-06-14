@@ -6,6 +6,7 @@ it('formats minor units with the localized currency sign, not the ISO code', () 
   expect(formatMinorUnits(1200, 'TJS')).toBe('12 с.');
   expect(formatMinorUnits(5400, 'TJS')).toBe('54 с.');
   expect(formatMinorUnits(2250, 'TJS')).toBe('22,5 с.');
+  expect(formatMinorUnits(0, 'TJS')).toBe('0 с.');
 });
 
 it('uses the sign for other currencies and falls back to the code when unknown', () => {
