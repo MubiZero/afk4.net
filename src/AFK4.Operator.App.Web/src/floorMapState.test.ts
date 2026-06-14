@@ -72,7 +72,7 @@ describe('floor-map state', () => {
 
     expect(state.seats[0]).toMatchObject({
       tone: 'active',
-      remaining: '≈ 22.50 TJS',
+      remaining: '≈ 22,5 с.',
       billing: 'Открытый счёт',
       accruedCostMinorUnits: 2250,
       currencyCode: 'TJS'

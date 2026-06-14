@@ -1,4 +1,5 @@
 import { minorToMajor } from '@afk4/money';
+import { formatMinorUnits } from './currencyFormat';
 import { type MessageKey } from '@afk4/i18n';
 import type { FloorMapCacheEntry } from './floorMapCache';
 import type { FloorMapDto, SeatStatusDto } from './operatorApiClients';
@@ -192,8 +193,9 @@ function accruedCostText(minorUnits: number | null, currencyCode: string | null,
     return t('op.floor.remaining.playing');
   }
 
-  const amount = minorToMajor(minorUnits).toFixed(2);
-  return currencyCode ? `≈ ${amount} ${currencyCode}` : `≈ ${amount}`;
+  return currencyCode
+    ? `≈ ${formatMinorUnits(minorUnits, currencyCode)}`
+    : `≈ ${minorToMajor(minorUnits).toFixed(2)}`;
 }
 
 function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedDto, t: TFn): SeatSummary {
