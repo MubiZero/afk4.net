@@ -1,27 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import { createAuthenticatedOperatorClients, formatMoney } from './operatorHelpers';
 import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
-import type { MoneyDto, ShiftRevenueDto } from './operatorApiClients';
+import type { ShiftRevenueDto } from './operatorApiClients';
 
 interface ShiftRevenueClient {
   current(branchId: string): Promise<ShiftRevenueDto | null>;
   history(branchId: string, limit?: number): Promise<{ shifts: ShiftRevenueDto[]; limit: number }>;
 }
 
-function formatMoney(m: MoneyDto): string {
-  const major = (m.minorUnits / 100).toFixed(m.minorUnits % 100 === 0 ? 0 : 2);
-  return major.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
-
 export function ShiftsWorkspace({
   backend,
   branchId,
+  currencyCode,
   client: injectedClient
 }: {
   backend: OperatorBackendContext | null;
   branchId: string;
+  currencyCode: string;
   client?: ShiftRevenueClient;
 }) {
   const { t } = useI18n();
@@ -72,18 +69,18 @@ export function ShiftsWorkspace({
       {current ? (
         <section className="op-shifts-current">
           <h2>{t('op.shifts.current')}</h2>
-          <div>{t('op.shifts.earned')}: {formatMoney(current.earned.total)}</div>
-          <div>{t('op.shifts.time')}: {formatMoney(current.earned.time)}</div>
-          <div>{t('op.shifts.goods')}: {formatMoney(current.earned.goods)}</div>
+          <div>{t('op.shifts.earned')}: {formatMoney(current.earned.total, currencyCode)}</div>
+          <div>{t('op.shifts.time')}: {formatMoney(current.earned.time, currencyCode)}</div>
+          <div>{t('op.shifts.goods')}: {formatMoney(current.earned.goods, currencyCode)}</div>
           <div>
-            {t('op.shifts.inflow')}: {t('op.shifts.cash')} {formatMoney(current.inflow.cash)}{' '}
-            · {t('op.shifts.nonCash')} {formatMoney(current.inflow.nonCash)}
+            {t('op.shifts.inflow')}: {t('op.shifts.cash')} {formatMoney(current.inflow.cash, currencyCode)}{' '}
+            · {t('op.shifts.nonCash')} {formatMoney(current.inflow.nonCash, currencyCode)}
           </div>
-          <div>{t('op.shifts.walletTopUps')}: {formatMoney(current.inflow.walletTopUps)}</div>
+          <div>{t('op.shifts.walletTopUps')}: {formatMoney(current.inflow.walletTopUps, currencyCode)}</div>
           <div>
-            {t('op.shifts.cashExpected')}: {formatMoney(current.cash.expected)}
+            {t('op.shifts.cashExpected')}: {formatMoney(current.cash.expected, currencyCode)}
             {current.cash.difference
-              ? ` · ${t('op.shifts.cashDiff')}: ${formatMoney(current.cash.difference)}`
+              ? ` · ${t('op.shifts.cashDiff')}: ${formatMoney(current.cash.difference, currencyCode)}`
               : ''}
           </div>
         </section>
@@ -99,8 +96,8 @@ export function ShiftsWorkspace({
           <ul>
             {history.map((s) => (
               <li key={s.shiftId}>
-                {new Date(s.openedAtUtc).toLocaleDateString('ru-RU')} · {t('op.shifts.earned')} {formatMoney(s.earned.total)}
-                {s.cash.difference ? ` · ${t('op.shifts.cashDiff')} ${formatMoney(s.cash.difference)}` : ''}
+                {new Date(s.openedAtUtc).toLocaleDateString('ru-RU')} · {t('op.shifts.earned')} {formatMoney(s.earned.total, currencyCode)}
+                {s.cash.difference ? ` · ${t('op.shifts.cashDiff')} ${formatMoney(s.cash.difference, currencyCode)}` : ''}
               </li>
             ))}
           </ul>

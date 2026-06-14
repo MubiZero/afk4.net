@@ -31,11 +31,11 @@ describe('ShiftsWorkspace', () => {
   it('renders earned and inflow breakdown for the current shift', async () => {
     render(
       <I18nProvider>
-        <ShiftsWorkspace backend={null} branchId="b1" client={client(shift()) as never} />
+        <ShiftsWorkspace backend={null} branchId="b1" currencyCode="TJS" client={client(shift()) as never} />
       </I18nProvider>
     );
 
-    await waitFor(() => screen.getByText(/4\s?250/)); // earned total 425000 minor → 4 250
+    await waitFor(() => screen.getByText(/4\s?250/)); // earned total 425000 minor → 4 250 с.
     expect(screen.getByText(/3\s?100/)).toBeTruthy(); // earned time
     expect(screen.getByText(/1\s?150/)).toBeTruthy(); // earned goods
   });
@@ -43,7 +43,7 @@ describe('ShiftsWorkspace', () => {
   it('shows an empty state when no shift is open', async () => {
     render(
       <I18nProvider>
-        <ShiftsWorkspace backend={null} branchId="b1" client={client(null) as never} />
+        <ShiftsWorkspace backend={null} branchId="b1" currencyCode="TJS" client={client(null) as never} />
       </I18nProvider>
     );
 
@@ -57,7 +57,7 @@ describe('ShiftsWorkspace', () => {
     };
     render(
       <I18nProvider>
-        <ShiftsWorkspace backend={null} branchId="b1" client={failing as never} />
+        <ShiftsWorkspace backend={null} branchId="b1" currencyCode="TJS" client={failing as never} />
       </I18nProvider>
     );
 

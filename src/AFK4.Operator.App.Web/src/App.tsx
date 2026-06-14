@@ -417,7 +417,7 @@ function AppInner() {
         <NewsWorkspace backend={backendContext} />
       )}
       {workspace === 'shifts' && backendContext !== null && (
-        <ShiftsWorkspace backend={backendContext} branchId={backendContext.branchId} />
+        <ShiftsWorkspace backend={backendContext} branchId={backendContext.branchId} currencyCode={config.currencyCode} />
       )}
       </WorkspaceErrorBoundary>
       </div>
