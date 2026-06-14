@@ -4,6 +4,7 @@ import { useI18n, type MessageKey } from '@afk4/i18n';
 import { forgotPasswordByEmail, forgotPasswordByPhone, resetPasswordByEmail, resetPasswordByPhone } from './authClient';
 import { HostBridgeRequestError } from './hostBridge';
 import { AuthFrame } from './AuthFrame';
+import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
 
 type Channel = 'email' | 'phone';
 type Step = 'request' | 'verify' | 'done';
@@ -31,9 +32,16 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
 
   async function submitRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const recipient = channel === 'email' ? emailLogin.trim() : phone.trim();
-    if (!recipient) { setError(t('auth.error.required')); return; }
-    setIsBusy(true); setError(null);
+    setError(null);
+    let recipient: string;
+    if (channel === 'email') {
+      recipient = emailLogin.trim();
+      if (!recipient) { setError(t('auth.error.required')); return; }
+    } else {
+      if (localPhoneDigits(phone).length !== 9) { setError(t('op.auth.hint.phone')); return; }
+      recipient = fullPhoneDigits(phone);
+    }
+    setIsBusy(true);
     try {
       if (channel === 'email') {
         await forgotPasswordByEmail(recipient);
@@ -56,7 +64,7 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
       if (channel === 'email') {
         await resetPasswordByEmail(emailLogin.trim(), code.trim(), newPassword);
       } else {
-        await resetPasswordByPhone(phone.trim(), code.trim(), newPassword);
+        await resetPasswordByPhone(fullPhoneDigits(phone), code.trim(), newPassword);
       }
       setStep('done');
     } catch (cause) {
@@ -69,7 +77,8 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
   return (
     <AuthFrame>
       <section className="auth-panel">
-        <header>
+        <header className="auth-panel-head">
+          <img className="auth-brand-mark" src="/favicon.svg" alt="" aria-hidden />
           <h1>{t('auth.forgot.title')}</h1>
           <p>{t('auth.forgot.subtitle')}</p>
         </header>
@@ -117,7 +126,20 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
           <form className="auth-form" onSubmit={submitRequest}>
             <label className="auth-field">
               <span className="auth-field-label">{t('auth.forgot.phone.field')}</span>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.currentTarget.value)} inputMode="tel" autoComplete="tel" disabled={isBusy} />
+              <div className="auth-phone-field">
+                <span className="auth-phone-prefix" aria-hidden>+992</span>
+                <input
+                  className="auth-phone-input"
+                  type="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(formatLocal(e.currentTarget.value))}
+                  placeholder="93 738 00 70"
+                  autoComplete="tel"
+                  disabled={isBusy}
+                  autoFocus
+                />
+              </div>
             </label>
             <button type="submit" className="auth-primary" disabled={isBusy}>
               {isBusy ? t('auth.forgot.phone.submitting') : t('auth.forgot.phone.submit')}

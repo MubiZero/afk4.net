@@ -199,27 +199,39 @@ button {
 }
 
 .brand-block {
-  display: grid;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: max-content;
   line-height: 1;
 }
 
 .brand-block .brand-logo {
   display: block;
-  height: 22px;
+  height: 34px;
   width: auto;
 }
 
-.brand-block strong {
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 800;
+/* «Оператор» сидит справа от лого как ярлык секции, отделён тонкой вертикальной чертой,
+   чтобы не сливаться с wordmark «AFK4.NET» в самом логотипе. */
+.brand-block span {
+  position: relative;
+  padding-left: 12px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
-.brand-block span {
-  margin-top: 2px;
-  color: var(--text-tertiary);
-  font-size: 10px;
+.brand-block span::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: var(--border-strong);
 }
 
 .command-search {
@@ -400,6 +412,20 @@ button {
   gap: 8px;
 }
 
+/* Логин-экран: знак-логотип над заголовком, всё по центру — даёт брендовый якорь
+   и убирает ощущение пустоты у одинокой формы. */
+.auth-panel-head {
+  justify-items: center;
+  text-align: center;
+}
+
+.auth-brand-mark {
+  display: block;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 6px;
+}
+
 .auth-panel h1 {
   margin: 0;
   color: var(--text-primary);
@@ -484,6 +510,50 @@ button {
   opacity: 0.7;
 }
 
+/* Поле телефона: фиксированный префикс +992 как часть поля (не редактируется), пользователь
+   вводит только локальные 9 цифр после него. Префикс приглушён — видно «зашитую» часть. */
+.auth-phone-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-phone-prefix {
+  position: absolute;
+  left: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.auth-form .auth-phone-input {
+  /* Освобождаем место слева под «+992 », чтобы цифры не наезжали на префикс. */
+  padding-left: 58px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Подсказка под полем (неполный номер / кривая почта) — зарезервированная высота,
+   чтобы появление подсказки не дёргало форму по вертикали. */
+.auth-field-hint {
+  min-height: 15px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.auth-field input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.auth-field input[aria-invalid="true"] + .auth-field-hint,
+.auth-field .auth-phone-field:has(input[aria-invalid="true"]) + .auth-field-hint {
+  color: var(--danger-text);
+}
+
 .auth-password {
   position: relative;
   display: flex;
@@ -541,6 +611,17 @@ button {
   outline: 2px solid var(--accent-hover);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+.auth-mode-switch {
+  justify-self: center;
+  margin-top: 2px;
+}
+
+.auth-mode-switch:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
 .auth-primary {

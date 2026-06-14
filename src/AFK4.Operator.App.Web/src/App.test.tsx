@@ -193,7 +193,8 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
     expect(screen.getByText('Войдите, чтобы открыть смену и управлять залом.')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'cashier' } });
+    // Phone-first by default: the primary field is the phone number (local part after +992).
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '937380070' } });
     fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
@@ -205,6 +206,30 @@ describe('App', () => {
     );
     expect(sessionishKeys).toEqual([]);
     expect(sessionStorage.length).toBe(0);
+  });
+
+  it('signs in by login or email after switching off the phone-first mode', async () => {
+    window.__AFK4_OPERATOR_CONFIG__ = {
+      runtime: 'browser-dev',
+      shellMode: 'vite-dev',
+      platformBaseUrl: 'http://localhost:5074/',
+      currencyCode: 'TJS',
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2'
+    };
+    installSessionBridge(null);
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    // The fallback path (login/email) lives behind a quiet switch, not on the default screen.
+    expect(screen.queryByLabelText(/логин или email/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Вход по логину или почте' }));
+    fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'cashier' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
   });
 
   it('opens the forgot-password screen from the sign-in link', async () => {

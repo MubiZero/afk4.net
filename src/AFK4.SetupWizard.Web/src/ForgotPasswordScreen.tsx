@@ -8,6 +8,7 @@ import {
   resetPasswordByPhone,
 } from './wizardApi';
 import { HostBridgeRequestError, isHostBridgeUnavailableError } from './hostBridge';
+import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
 
 export type ResetChannel = 'email' | 'phone';
 
@@ -24,11 +25,6 @@ type Step = 'request' | 'verify' | 'done';
 
 const MIN_PASSWORD_LENGTH = 8;
 
-// E.164-ish: 9–15 digits after stripping +, spaces and dashes — mirrors PhoneLoginScreen.
-function normalizePhone(value: string): string {
-  return value.replace(/[\s\-()]/g, '').replace(/^\+/, '');
-}
-
 // Both channels follow the same shape: request a 6-digit code, then enter it with a new password.
 // Email mails the code; SMS texts it — the verify step is identical from there on.
 export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
@@ -43,11 +39,13 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
 
-  const identity = channel === 'email' ? emailLogin.trim() : phone.trim();
-  const phoneValid = /^[0-9]{9,15}$/.test(normalizePhone(phone));
+  // For phone we send the full E.164 digits (992 + 9 local), mirroring the sign-in screen; the field
+  // itself holds only the masked local part. For email it's the typed login/email as-is.
+  const identity = channel === 'email' ? emailLogin.trim() : fullPhoneDigits(phone);
+  const phoneComplete = localPhoneDigits(phone).length === 9;
   // Don't accuse the user while they're still typing — only after they leave the field (rule #41).
-  const showPhoneHint = channel === 'phone' && phoneTouched && phone.length > 0 && !phoneValid;
-  const canRequest = (channel === 'phone' ? phoneValid : emailLogin.trim().length > 0) && !isBusy;
+  const showPhoneHint = channel === 'phone' && phoneTouched && phone.length > 0 && !phoneComplete;
+  const canRequest = (channel === 'phone' ? phoneComplete : emailLogin.trim().length > 0) && !isBusy;
   const canReset = code.trim().length > 0 && newPassword.length >= MIN_PASSWORD_LENGTH && !isBusy;
 
   function selectChannel(next: ResetChannel) {
@@ -73,7 +71,10 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
       setError(null);
       return;
     }
-    onBack(identity ? { channel, identity } : undefined);
+    // Only hand an identity back if the user actually typed one — `identity` for an empty phone
+    // would still be "992" (the bare country code), which isn't a real prefill.
+    const hasInput = channel === 'email' ? emailLogin.trim().length > 0 : localPhoneDigits(phone).length > 0;
+    onBack(hasInput ? { channel, identity } : undefined);
   }
 
   async function submitRequest(event: FormEvent<HTMLFormElement>) {
@@ -104,7 +105,7 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
       if (channel === 'email') {
         await resetPasswordByEmail(emailLogin.trim(), code.trim(), newPassword);
       } else {
-        await resetPasswordByPhone(phone.trim(), code.trim(), newPassword);
+        await resetPasswordByPhone(fullPhoneDigits(phone), code.trim(), newPassword);
       }
       setStep('done');
     } catch (cause) {
@@ -215,20 +216,24 @@ export function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
         <form className="wizard-form" onSubmit={submitRequest} noValidate>
           <label className="wizard-field">
             <span className="wizard-field-label">{t('auth.forgot.phone.field')}</span>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(event) => { setPhone(event.target.value); clearError(); }}
-              onBlur={() => setPhoneTouched(true)}
-              inputMode="tel"
-              autoComplete="tel"
-              spellCheck={false}
-              placeholder="+992 93 738 00 70"
-              disabled={isBusy}
-              autoFocus
-              aria-invalid={showPhoneHint}
-              aria-describedby={showPhoneHint ? 'reset-phone-hint' : undefined}
-            />
+            <div className="wizard-phone-field">
+              <span className="wizard-phone-prefix" aria-hidden>+992</span>
+              <input
+                className="wizard-phone-input"
+                type="tel"
+                value={phone}
+                onChange={(event) => { setPhone(formatLocal(event.target.value)); clearError(); }}
+                onBlur={() => setPhoneTouched(true)}
+                inputMode="tel"
+                autoComplete="tel"
+                spellCheck={false}
+                placeholder="93 738 00 70"
+                disabled={isBusy}
+                autoFocus
+                aria-invalid={showPhoneHint}
+                aria-describedby={showPhoneHint ? 'reset-phone-hint' : undefined}
+              />
+            </div>
             {showPhoneHint && (
               <span id="reset-phone-hint" className="wizard-field-hint">
                 {t('auth.forgot.phone.error.invalidPhone')}

@@ -136,7 +136,9 @@ public sealed class PasswordHashingStaffCredentialService(
     }
 
     // Resolves an active staff user in the org by username first, then by email
-    // (case-insensitive). Username wins on the pathological collision. Similar to
+    // (case-insensitive), then by verified phone. Username/email win on the pathological
+    // collision; the phone branch only fires when the input parses as an international number,
+    // so a normal login never accidentally matches a phone. Similar to
     // EfStaffPasswordResetService.ResolveStaffAsync, but org-scoped and IsActive-filtered.
     private async Task<StaffUserEntity?> ResolveOrgUserAsync(
         Guid organizationId, string loginOrEmail, CancellationToken cancellationToken)
@@ -154,11 +156,32 @@ public sealed class PasswordHashingStaffCredentialService(
         }
 
         var loweredEmail = loginOrEmail.Trim().ToLowerInvariant();
-        return await dbContext.StaffUsers.FirstOrDefaultAsync(
+        var byEmail = await dbContext.StaffUsers.FirstOrDefaultAsync(
             candidate =>
                 candidate.OrganizationId == organizationId &&
                 candidate.Email != null &&
                 candidate.Email.ToLower() == loweredEmail &&
+                candidate.IsActive,
+            cancellationToken);
+        if (byEmail is not null)
+        {
+            return byEmail;
+        }
+
+        // Phone-first sign-in (Operator/Wizard send the full E.164 digits as the login). Match only
+        // a verified phone so an unconfirmed number can't be used to sign in — parity with the
+        // dedicated SignInByPhoneAsync path.
+        var normalizedPhone = PhoneNumberNormalizer.Normalize(loginOrEmail);
+        if (normalizedPhone is null)
+        {
+            return null;
+        }
+
+        return await dbContext.StaffUsers.FirstOrDefaultAsync(
+            candidate =>
+                candidate.OrganizationId == organizationId &&
+                candidate.NormalizedPhone == normalizedPhone &&
+                candidate.PhoneVerifiedAtUtc != null &&
                 candidate.IsActive,
             cancellationToken);
     }
