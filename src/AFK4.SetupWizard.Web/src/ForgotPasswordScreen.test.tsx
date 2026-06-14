@@ -44,11 +44,11 @@ describe('ForgotPasswordScreen', () => {
   it('runs the SMS reset inline: request code, then set a new password', async () => {
     renderScreen();
     // Phone channel is the default for the wizard.
-    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '+992937380070' } });
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '992937380070' } });
     fireEvent.click(screen.getByRole('button', { name: /получить код/i }));
 
     await waitFor(() => expect(forgotPasswordByPhone).toHaveBeenCalledTimes(1));
-    expect(forgotPasswordByPhone).toHaveBeenCalledWith('+992937380070');
+    expect(forgotPasswordByPhone).toHaveBeenCalledWith('992937380070');
 
     // Step 2: code + new password appear after the code is sent.
     fireEvent.change(await screen.findByLabelText(/код из sms/i), { target: { value: '123456' } });
@@ -56,7 +56,7 @@ describe('ForgotPasswordScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /сменить пароль/i }));
 
     await waitFor(() => expect(resetPasswordByPhone).toHaveBeenCalledTimes(1));
-    expect(resetPasswordByPhone).toHaveBeenCalledWith('+992937380070', '123456', 'Passw0rd!New');
+    expect(resetPasswordByPhone).toHaveBeenCalledWith('992937380070', '123456', 'Passw0rd!New');
     expect(await screen.findByText(/пароль изменён/i)).toBeTruthy();
   });
 
@@ -65,7 +65,7 @@ describe('ForgotPasswordScreen', () => {
       throw new HostBridgeRequestError('bad code', 'invalid_code', 2);
     });
     renderScreen();
-    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '+992937380070' } });
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '992937380070' } });
     fireEvent.click(screen.getByRole('button', { name: /получить код/i }));
 
     fireEvent.change(await screen.findByLabelText(/код из sms/i), { target: { value: '000000' } });
@@ -81,7 +81,7 @@ describe('ForgotPasswordScreen', () => {
     renderScreen();
     fireEvent.click(screen.getByRole('button', { name: /сбросить по email/i }));
     fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'owner@club.tj' } });
-    fireEvent.click(screen.getByRole('button', { name: /отправить код/i }));
+    fireEvent.click(screen.getByRole('button', { name: /получить код/i }));
 
     await waitFor(() => expect(forgotPasswordByEmail).toHaveBeenCalledWith('owner@club.tj'));
 
@@ -101,20 +101,20 @@ describe('ForgotPasswordScreen', () => {
 
   it('hands the typed phone back to sign-in when cancelling from the request step', () => {
     const { onBack } = renderScreen();
-    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '+992937380070' } });
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '992937380070' } });
     fireEvent.click(screen.getByRole('button', { name: /вернуться ко входу/i }));
-    expect(onBack).toHaveBeenCalledWith({ channel: 'phone', identity: '+992937380070' });
+    expect(onBack).toHaveBeenCalledWith({ channel: 'phone', identity: '992937380070' });
   });
 
   it('hands the identity back to sign-in from the success screen', async () => {
     const { onBack } = renderScreen();
-    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '+992937380070' } });
+    fireEvent.change(screen.getByLabelText(/номер телефона/i), { target: { value: '992937380070' } });
     fireEvent.click(screen.getByRole('button', { name: /получить код/i }));
     fireEvent.change(await screen.findByLabelText(/код из sms/i), { target: { value: '123456' } });
     fireEvent.change(screen.getByLabelText(/новый пароль/i), { target: { value: 'Passw0rd!New' } });
     fireEvent.click(screen.getByRole('button', { name: /сменить пароль/i }));
 
     fireEvent.click(await screen.findByRole('button', { name: /перейти ко входу/i }));
-    expect(onBack).toHaveBeenCalledWith({ channel: 'phone', identity: '+992937380070' });
+    expect(onBack).toHaveBeenCalledWith({ channel: 'phone', identity: '992937380070' });
   });
 });
