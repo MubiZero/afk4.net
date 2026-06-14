@@ -85,6 +85,7 @@
         "@afk4/formatting": "workspace:*",
         "@afk4/i18n": "workspace:*",
         "@afk4/money": "workspace:*",
+        "@afk4/tokens": "workspace:*",
         "@microsoft/signalr": "^10.0.0",
         "lucide-react": "^1.16.0",
         "react": "^19.2.6",

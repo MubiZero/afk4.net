@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@afk4/i18n';
 import { App } from './App';
 import { OperatorThemeProvider } from './operatorTheme';
+import '@afk4/tokens/tokens.css';
 import './styles.css';
 
 function render(): void {

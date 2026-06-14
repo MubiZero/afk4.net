@@ -1,10 +1,27 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>AFK4.NET Operator</title>
+    <script>
+      // No-flash theme init: set data-theme before the first frame so the dark dashboard
+      // doesn't flash an unstyled/wrong-theme frame before React mounts. Default dark
+      // (cyber-club night context); explicit choice from localStorage wins. Key mirrors
+      // STORAGE_KEY in operatorTheme.tsx.
+      (function () {
+        try {
+          var stored = localStorage.getItem('afk4.operator.theme');
+          document.documentElement.setAttribute(
+            'data-theme',
+            stored === 'light' || stored === 'dark' ? stored : 'dark',
+          );
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
