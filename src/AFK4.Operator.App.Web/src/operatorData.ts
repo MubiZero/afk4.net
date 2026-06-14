@@ -1,21 +1,14 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  BadgePercent,
   CalendarClock,
-  CircleDollarSign,
-  ClipboardCheck,
-  CreditCard,
   LayoutDashboard,
   Monitor,
-  Newspaper,
   ReceiptText,
-  ScrollText,
   Settings,
-  ShoppingCart,
-  Users,
-  Wallet
+  Users
 } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
+import type { WorkspaceId } from './operatorTypes';
 
 export type SeatTone = 'ready' | 'active' | 'pending' | 'warning' | 'blocking' | 'offline' | 'service';
 
@@ -46,26 +39,58 @@ export interface SeatSummary {
 }
 
 export interface NavItem {
+  id: WorkspaceId;
   labelKey: MessageKey;
-  icon: LucideIcon;
-  active?: boolean;
 }
 
-export const navItems: NavItem[] = [
-  { labelKey: 'op.shell.nav.map', icon: Monitor, active: true },
-  { labelKey: 'op.shell.nav.dashboard', icon: LayoutDashboard },
-  { labelKey: 'op.shell.nav.booking', icon: CalendarClock },
-  { labelKey: 'op.shell.nav.pos', icon: ReceiptText },
-  { labelKey: 'op.shell.nav.shop_orders', icon: ShoppingCart },
-  { labelKey: 'op.shell.nav.players', icon: Users },
-  { labelKey: 'op.shell.nav.payments', icon: CircleDollarSign },
-  { labelKey: 'op.shell.nav.payment_cards', icon: CreditCard },
-  { labelKey: 'op.shell.nav.logs', icon: ScrollText },
-  { labelKey: 'op.shell.nav.settings', icon: Settings },
-  { labelKey: 'op.shell.nav.review', icon: ClipboardCheck },
-  { labelKey: 'op.loyalty.nav', icon: BadgePercent },
-  { labelKey: 'op.news.nav', icon: Newspaper },
-  { labelKey: 'op.shifts.nav', icon: Wallet }
+export interface NavSection {
+  // Стабильный ключ раздела (для подсветки/aria); для одиночных совпадает с workspace id.
+  key: string;
+  labelKey: MessageKey;
+  icon: LucideIcon;
+  items: NavItem[];
+}
+
+// Рельс собран в разделы по смыслу и частоте. Часто используемые экраны (зал, брони, клиенты)
+// остаются отдельными кнопками — без лишнего клика. Родственные «бэк-офисные» экраны слиты в
+// разделы с вкладками: Касса (продажи/деньги), Отчёты, Управление (вся конфигурация клуба).
+// Это сжимает рельс с 14 кнопок до 6. Права по-прежнему скрывают/глушат отдельные вкладки.
+export const navSections: NavSection[] = [
+  { key: 'map', labelKey: 'op.shell.nav.map', icon: Monitor, items: [{ id: 'map', labelKey: 'op.shell.nav.map' }] },
+  { key: 'booking', labelKey: 'op.shell.nav.booking', icon: CalendarClock, items: [{ id: 'booking', labelKey: 'op.shell.nav.booking' }] },
+  { key: 'players', labelKey: 'op.shell.nav.players', icon: Users, items: [{ id: 'players', labelKey: 'op.shell.nav.players' }] },
+  {
+    key: 'cashier',
+    labelKey: 'op.shell.navGroup.cashier',
+    icon: ReceiptText,
+    items: [
+      { id: 'pos', labelKey: 'op.shell.nav.pos' },
+      { id: 'shop_orders', labelKey: 'op.shell.nav.shop_orders' },
+      { id: 'payments', labelKey: 'op.shell.nav.payments' },
+      { id: 'review', labelKey: 'op.shell.nav.review' }
+    ]
+  },
+  {
+    key: 'reports',
+    labelKey: 'op.shell.navGroup.reports',
+    icon: LayoutDashboard,
+    items: [
+      { id: 'dashboard', labelKey: 'op.shell.nav.dashboard' },
+      { id: 'shifts', labelKey: 'op.shifts.nav' }
+    ]
+  },
+  {
+    key: 'admin',
+    labelKey: 'op.shell.navGroup.management',
+    icon: Settings,
+    items: [
+      { id: 'settings', labelKey: 'op.shell.nav.settings' },
+      { id: 'payment_cards', labelKey: 'op.shell.nav.payment_cards' },
+      { id: 'loyalty', labelKey: 'op.loyalty.nav' },
+      { id: 'news', labelKey: 'op.news.nav' },
+      { id: 'logs', labelKey: 'op.shell.nav.logs' }
+    ]
+  }
 ];
 export const seats: SeatSummary[] = [
   {

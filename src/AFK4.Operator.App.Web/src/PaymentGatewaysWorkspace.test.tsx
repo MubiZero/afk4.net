@@ -80,6 +80,14 @@ describe('PaymentGatewaysWorkspace', () => {
     expect(listMock).toHaveBeenCalled();
   });
 
+  it('renders the empty state instead of crashing when the list omits gateways', async () => {
+    // The dev mock backend answers unknown routes with a bare [], so result.gateways is undefined.
+    // The workspace must fall back to an empty list, not blow up on gateways.length.
+    listMock.mockResolvedValueOnce({} as Awaited<ReturnType<typeof listMock>>);
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    expect(await screen.findByText(/нет подключённых карт/i)).toBeInTheDocument();
+  });
+
   it('shows the live telegram session badge for a listed gateway', async () => {
     render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
     await screen.findByText(/4242/);
