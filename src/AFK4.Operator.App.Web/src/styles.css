@@ -549,6 +549,13 @@ button {
   border-color: var(--danger);
 }
 
+/* В фокусе невалидное поле должно светиться красным целиком: иначе зелёное focus-кольцо
+   накладывается на красную рамку и цвета «двоятся». Красный ring перебивает зелёный. */
+.auth-field input[aria-invalid="true"]:focus-visible {
+  border-color: var(--danger);
+  box-shadow: var(--focus-ring-danger);
+}
+
 .auth-field input[aria-invalid="true"] + .auth-field-hint,
 .auth-field .auth-phone-field:has(input[aria-invalid="true"]) + .auth-field-hint {
   color: var(--danger-text);
