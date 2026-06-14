@@ -167,12 +167,12 @@ text: xs 11 / sm 13 / base 14 / md 16 / lg 20 / xl 26 / 2xl 32 (px)
 2. Из `styles.css` каждого приложения удаляются локальные блоки токенов (`:root` цвета,
    `[data-theme=...]`, локальные radius/duration/ease/text/focus). Остаются только app-правила
    и app-локальные алиасы.
-3. Анти-флэш: в `index.html` каждого фронта —
-   - статический дефолт на `<html>`: Operator `data-theme="dark"`, Wizard `data-theme="light"`
-     (корректная тема даже без JS, без кадра «нет цвета»);
-   - inline-скрипт в `<head>` синхронно перезаписывает `data-theme` из localStorage
-     (ключи `afk4.operator.theme` / `afk4.setupWizard.theme`) до загрузки бандла —
-     убирает текущую вспышку «не той темы» (тема сейчас применяется в useEffect).
+3. Анти-флэш: оба фронта дефолтят в **тёмную** тему (киберклуб/ночь — правило контекста).
+   - **Wizard** уже имеет inline-скрипт в `index.html` (дефолт `dark`, ключ
+     `afk4.setupWizard.theme`) — оставляем как есть.
+   - **Operator** сейчас НЕ ставит `data-theme` до монтирования (только useEffect) → после
+     удаления цветов из bare `:root` будет кадр «нет цвета». Добавляем такой же inline-скрипт
+     (дефолт `dark`, ключ `afk4.operator.theme`), зеркалящий `operatorTheme.tsx`.
 4. Зависимость `"@afk4/tokens": "workspace:*"` в `package.json` обоих фронтов.
    Корневые `workspaces` уже включают `packages/*` — пакет подхватится автоматически.
 
