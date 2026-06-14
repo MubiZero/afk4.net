@@ -1,11 +1,19 @@
 import { AlertTriangle, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { type OperatorSignInRequest } from './authClient';
 import { getOperatorConfig } from './operatorConfig';
 import type { AuthStatus } from './operatorTypes';
 import { projectAuthHostError, isGuid } from './operatorHelpers';
 import { AuthFrame } from './AuthFrame';
+import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
+
+// 'phone' — основной вход по номеру (телефон-first). 'credentials' — запасной по логину/email,
+// открывается ссылкой «Вход по логину или почте». Поле одно, режим меняет маску и то, что
+// уходит на бэк как userName (Operator привязан к одному клубу — org-scoped, без выбора клуба).
+type Mode = 'phone' | 'credentials';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SignInScreen({
   config,
@@ -21,9 +29,11 @@ export function SignInScreen({
   onForgotPassword: () => void;
 }) {
   const { t } = useI18n();
-  const [userName, setUserName] = useState('');
+  const [mode, setMode] = useState<Mode>('phone');
+  const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [touched, setTouched] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(hostError);
   const isChecking = authStatus === 'checking';
@@ -32,8 +42,31 @@ export function SignInScreen({
     setError(hostError);
   }, [hostError]);
 
+  const trimmed = identity.trim();
+  const phoneComplete = localPhoneDigits(identity).length === 9;
+  const emailLike = trimmed.includes('@');
+  // Подсказку показываем только когда уверены в категории: незавершённый телефон или кривая почта.
+  // Логин не валидируем — у него нет «правильного формата».
+  const showPhoneHint = mode === 'phone' && touched && trimmed.length > 0 && !phoneComplete;
+  const showEmailHint = mode === 'credentials' && emailLike && touched && !EMAIL_RE.test(trimmed);
+  const identityHint = showEmailHint
+    ? t('op.auth.hint.email')
+    : showPhoneHint
+      ? t('op.auth.hint.phone')
+      : null;
+
+  const switchMode = useCallback((next: Mode) => {
+    // Меняем маску/роутинг — старое значение не переносим, иначе телефон-маска «протекает»
+    // в поле логина и наоборот. Поле очищаем, ошибки и подсказки сбрасываем.
+    setMode(next);
+    setIdentity('');
+    setTouched(false);
+    setError(null);
+  }, []);
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setTouched(true);
     setError(null);
 
     const organizationId = config.organizationId?.trim() ?? '';
@@ -42,9 +75,21 @@ export function SignInScreen({
       return;
     }
 
-    if (!userName.trim()) {
-      setError(t('auth.error.required'));
-      return;
+    let userName: string;
+    if (mode === 'phone') {
+      if (!phoneComplete) {
+        return; // подсказка под полем уже сообщает, что номер неполный — сеть не дёргаем
+      }
+      userName = fullPhoneDigits(identity);
+    } else {
+      if (!trimmed) {
+        setError(t('auth.error.required'));
+        return;
+      }
+      if (emailLike && !EMAIL_RE.test(trimmed)) {
+        return; // кривая почта — показываем подсказку, не дёргаем сеть
+      }
+      userName = trimmed;
     }
 
     if (!password) {
@@ -54,11 +99,7 @@ export function SignInScreen({
 
     setIsBusy(true);
     try {
-      await onSignIn({
-        organizationId: organizationId.trim(),
-        userName: userName.trim(),
-        password
-      });
+      await onSignIn({ organizationId, userName, password });
       setPassword('');
     } catch (nextError) {
       setError(projectAuthHostError(nextError, config, t));
@@ -70,21 +111,41 @@ export function SignInScreen({
   return (
     <AuthFrame>
       <section className="auth-panel">
-        <header>
+        <header className="auth-panel-head">
+          <img className="auth-brand-mark" src="/favicon.svg" alt="" aria-hidden />
           <h1>{t('op.shell.signInTitle')}</h1>
           <p>{t('op.auth.signInSubtitle')}</p>
         </header>
 
         <form className="auth-form" onSubmit={submit} noValidate>
           <label className="auth-field">
-            <span className="auth-field-label">{t('auth.field.login')}</span>
-            <input
-              value={userName}
-              onChange={(event) => setUserName(event.currentTarget.value)}
-              autoComplete="username"
-              spellCheck={false}
-              autoFocus
-            />
+            <span className="auth-field-label">
+              {mode === 'phone' ? t('op.auth.field.phone') : t('op.auth.field.credentials')}
+            </span>
+            <div className={mode === 'phone' ? 'auth-phone-field' : undefined}>
+              {mode === 'phone' && <span className="auth-phone-prefix" aria-hidden>+992</span>}
+              <input
+                // key пересоздаёт инпут на смене режима — чисто сбрасывает autofill/IME-состояние.
+                key={mode}
+                className={mode === 'phone' ? 'auth-phone-input' : undefined}
+                type={mode === 'phone' ? 'tel' : 'text'}
+                inputMode={mode === 'phone' ? 'tel' : undefined}
+                value={identity}
+                onChange={(event) =>
+                  setIdentity(mode === 'phone' ? formatLocal(event.currentTarget.value) : event.currentTarget.value)
+                }
+                onBlur={() => setTouched(true)}
+                placeholder={mode === 'phone' ? '93 738 00 70' : 'name@example.com'}
+                autoComplete="username"
+                spellCheck={false}
+                autoFocus
+                aria-invalid={identityHint !== null}
+                aria-describedby={identityHint !== null ? 'operator-identity-hint' : undefined}
+              />
+            </div>
+            {identityHint !== null && (
+              <span id="operator-identity-hint" className="auth-field-hint">{identityHint}</span>
+            )}
           </label>
 
           <div className="auth-field">
@@ -133,6 +194,17 @@ export function SignInScreen({
                 <ArrowRight size={18} aria-hidden />
               </>
             )}
+          </button>
+
+          {/* Запасной способ входа — тихая текстовая ссылка под «Войти», как «Забыли пароль?».
+              Это второстепенный путь, а не вторая CTA, поэтому без иконки и веса secondary-кнопки. */}
+          <button
+            type="button"
+            className="auth-link-inline auth-mode-switch"
+            onClick={() => switchMode(mode === 'phone' ? 'credentials' : 'phone')}
+            disabled={isBusy}
+          >
+            {mode === 'phone' ? t('op.auth.useCredentials') : t('op.auth.usePhone')}
           </button>
         </form>
       </section>

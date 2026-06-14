@@ -48,7 +48,7 @@ describe('ForgotPassword (operator)', () => {
   it('runs the email reset inline: request a code then set a new password', async () => {
     renderScreen();
     fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'owner@demo.test' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Отправить код' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Получить код' }));
     await waitFor(() => expect(forgotPasswordByEmail).toHaveBeenCalledWith('owner@demo.test'));
 
     fireEvent.change(await screen.findByLabelText('Код из письма'), { target: { value: '123456' } });
@@ -64,7 +64,7 @@ describe('ForgotPassword (operator)', () => {
     });
     renderScreen();
     fireEvent.click(screen.getByRole('button', { name: 'По SMS' }));
-    fireEvent.change(screen.getByLabelText('Номер телефона'), { target: { value: '+992937380070' } });
+    fireEvent.change(screen.getByLabelText(/Номер телефона/i), { target: { value: '+992937380070' } });
     fireEvent.click(screen.getByRole('button', { name: 'Получить код' }));
     fireEvent.change(await screen.findByLabelText('Код из SMS'), { target: { value: '000000' } });
     fireEvent.change(screen.getByLabelText('Новый пароль'), { target: { value: 'Passw0rd!New' } });

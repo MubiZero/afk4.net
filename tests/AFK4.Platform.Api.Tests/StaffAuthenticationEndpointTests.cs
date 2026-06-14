@@ -510,4 +510,72 @@ public sealed class StaffAuthenticationEndpointTests
         });
         await dbContext.SaveChangesAsync();
     }
+
+    [Fact]
+    public async Task PostStaffSignIn_WithVerifiedPhoneAsUserName_ReturnsAccessToken()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        await SeedPhoneUserInOrgAAsync(factory, "992937380070", verified: true, password: "Passw0rd!");
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "992937380070", "Passw0rd!"));
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal(TestIds.OrganizationId, body!.OrganizationId);
+        Assert.False(string.IsNullOrWhiteSpace(body.AccessToken));
+    }
+
+    [Fact]
+    public async Task PostStaffSignIn_WithUnverifiedPhone_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        await SeedPhoneUserInOrgAAsync(factory, "992937380071", verified: false, password: "Passw0rd!");
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/staff/sign-in",
+            new StaffSignInRequest(TestIds.OrganizationId, "992937380071", "Passw0rd!"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // Adds a phone staff user to org A whose UserName is NOT the phone, so a phone login must
+    // resolve via the phone branch (not username/email). `verified` toggles PhoneVerifiedAtUtc.
+    private static async Task SeedPhoneUserInOrgAAsync(
+        PlatformApiFactory factory, string normalizedPhone, bool verified, string password)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var hasher = new PasswordHasher<StaffUserEntity>();
+        var user = new StaffUserEntity
+        {
+            StaffUserId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            UserName = "phone-staff",
+            NormalizedUserName = "PHONE-STAFF",
+            DisplayName = "Phone Staff",
+            IsActive = true,
+            Phone = "+" + normalizedPhone,
+            NormalizedPhone = normalizedPhone,
+            PhoneVerifiedAtUtc = verified ? DateTimeOffset.Parse("2026-06-01T00:00:00Z") : null,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-05-12T00:00:00Z")
+        };
+        user.PasswordHash = hasher.HashPassword(user, password);
+        dbContext.StaffUsers.Add(user);
+        dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
+        {
+            StaffRoleAssignmentId = Guid.NewGuid(),
+            StaffUserId = user.StaffUserId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            RoleName = StaffRoleNames.Owner
+        });
+        await dbContext.SaveChangesAsync();
+    }
 }
