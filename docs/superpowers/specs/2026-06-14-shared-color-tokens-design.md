@@ -182,9 +182,8 @@ text: xs 11 / sm 13 / base 14 / md 16 / lg 20 / xl 26 / 2xl 32 (px)
 packages/tokens/
   package.json        # name @afk4/tokens, exports "./tokens.css"
   tokens.css          # единственный источник
-  tokens.test.ts      # guard-тесты (bun test)
+  tokens.test.ts      # guard-тесты (bun test; pure node:fs, без happy-dom — bunfig не нужен)
   tsconfig.json
-  bunfig.toml
 ```
 
 ## Тесты (guard)
