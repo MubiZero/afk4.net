@@ -41,22 +41,22 @@ function paymentOperationPlaceholder(
   t: ReturnType<typeof useI18n>['t']
 ): PaymentOperationItem {
   if (hasSearchMiss) {
-    return ['—', t('op.payments.ph.noMatch.title'), t('op.payments.ph.noMatch.hint'), t('op.payments.ph.noMatch.source'), `0 ${currencyCode}`, 'session', null];
+    return ['—', t('op.payments.ph.noMatch.title'), t('op.payments.ph.noMatch.hint'), t('op.payments.ph.noMatch.source'), formatMoney(null, currencyCode), 'session', null];
   }
 
   if (loadStatus === 'loading') {
-    return ['—', t('op.payments.ph.loading.title'), t('op.payments.ph.loading.hint'), t('op.payments.ph.loading.source'), `0 ${currencyCode}`, 'session', null];
+    return ['—', t('op.payments.ph.loading.title'), t('op.payments.ph.loading.hint'), t('op.payments.ph.loading.source'), formatMoney(null, currencyCode), 'session', null];
   }
 
   if (loadStatus === 'failed') {
-    return ['—', t('op.payments.ph.failed.title'), loadError ?? t('op.payments.ph.failed.hint'), t('op.payments.ph.loading.source'), `0 ${currencyCode}`, 'refund', null];
+    return ['—', t('op.payments.ph.failed.title'), loadError ?? t('op.payments.ph.failed.hint'), t('op.payments.ph.loading.source'), formatMoney(null, currencyCode), 'refund', null];
   }
 
   if (loadStatus === 'backend') {
-    return ['—', t('op.payments.ph.empty.title'), t('op.payments.ph.empty.hint'), t('op.payments.ph.loading.source'), `0 ${currencyCode}`, 'session', null];
+    return ['—', t('op.payments.ph.empty.title'), t('op.payments.ph.empty.hint'), t('op.payments.ph.loading.source'), formatMoney(null, currencyCode), 'session', null];
   }
 
-  return ['—', t('op.payments.ph.local.title'), t('op.payments.ph.local.hint'), t('op.payments.ph.local.source'), `0 ${currencyCode}`, 'session', null];
+  return ['—', t('op.payments.ph.local.title'), t('op.payments.ph.local.hint'), t('op.payments.ph.local.source'), formatMoney(null, currencyCode), 'session', null];
 }
 
 function buildShiftReconciliationExportJson(report: ReportResultDto, currentShift: ShiftDto | null, currencyCode: string, notIndicated: string, t: ReturnType<typeof useI18n>['t']): string {
@@ -226,10 +226,10 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
     && currentShiftState === 'open'
     && hasPermission(backend.session, permissionNames.manageShiftCash);
   const methods = [
-    [t('op.payments.methods.cash'), cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`, t('op.payments.methods.cashShare'), t('op.payments.methods.cashOps', { count: cashRows.length })],
-    [t('op.payments.methods.card'), netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`, t('op.payments.methods.cardShare'), t('op.payments.methods.receipts', { count: salesRows.length })],
-    [t('op.payments.methods.refunds'), refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`, t('op.payments.methods.refundsShare'), t('op.payments.methods.byReport')],
-    [t('op.payments.methods.difference'), difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`, t('op.payments.methods.differenceShare'), t('op.payments.methods.byReconcile')]
+    [t('op.payments.methods.cash'), formatMoney(cashIn, currencyCode), t('op.payments.methods.cashShare'), t('op.payments.methods.cashOps', { count: cashRows.length })],
+    [t('op.payments.methods.card'), formatMoney(netSales, currencyCode), t('op.payments.methods.cardShare'), t('op.payments.methods.receipts', { count: salesRows.length })],
+    [t('op.payments.methods.refunds'), formatMoney(refunds, currencyCode), t('op.payments.methods.refundsShare'), t('op.payments.methods.byReport')],
+    [t('op.payments.methods.difference'), formatMoney(difference, currencyCode), t('op.payments.methods.differenceShare'), t('op.payments.methods.byReconcile')]
   ];
 
   const openShiftActionKey = t('op.payments.reconcile.openShiftBtn');
@@ -350,11 +350,11 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
       </section>
 
       <section className="state-strip payments-state-strip" aria-label={t('op.payments.stripLabel')}>
-        <StateFlag label={t('op.payments.strip.revenue')} value={grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`} />
-        <StateFlag label={t('op.payments.strip.cash')} value={cashIn ? formatMinorUnits(cashIn.minorUnits, cashIn.currencyCode) : `0 ${currencyCode}`} />
-        <StateFlag label={t('op.payments.strip.refunds')} value={refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`} critical={(refunds?.minorUnits ?? 0) > 0} />
+        <StateFlag label={t('op.payments.strip.revenue')} value={formatMoney(grossSales, currencyCode)} />
+        <StateFlag label={t('op.payments.strip.cash')} value={formatMoney(cashIn, currencyCode)} />
+        <StateFlag label={t('op.payments.strip.refunds')} value={formatMoney(refunds, currencyCode)} critical={(refunds?.minorUnits ?? 0) > 0} />
         <StateFlag label={t('op.payments.strip.shift')} value={shiftStateLabel(readString(currentShift, 'state', 'нет смены'), t)} critical={currentShift === null} />
-        <StateFlag label={t('op.payments.strip.reconcile')} value={difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`} critical={(difference?.minorUnits ?? 0) !== 0} />
+        <StateFlag label={t('op.payments.strip.reconcile')} value={formatMoney(difference, currencyCode)} critical={(difference?.minorUnits ?? 0) !== 0} />
       </section>
 
       <section className="payments-layout">
@@ -398,7 +398,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
           </header>
           <div className="payments-total-card">
             <span>{t('op.payments.summary.selectedAt', { time: selectedOperation[0] })}</span>
-            <strong>{netSales ? formatMinorUnits(netSales.minorUnits, netSales.currencyCode) : `0 ${currencyCode}`}</strong>
+            <strong>{formatMoney(netSales, currencyCode)}</strong>
             <em>{selectedOperation[1]} · {selectedOperation[2]} · {selectedOperation[4]}</em>
           </div>
           <div className="payments-operation-detail" aria-label={t('op.payments.summary.detailLabel')}>
@@ -410,7 +410,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
           <div className="payments-metric-grid">
             <div><span>{t('op.payments.summary.metricReceipts')}</span><strong>{salesRows.length}</strong></div>
             <div><span>{t('op.payments.summary.metricCash')}</span><strong>{cashRows.length}</strong></div>
-            <div><span>{t('op.payments.summary.metricRefunds')}</span><strong>{refunds ? formatMinorUnits(refunds.minorUnits, refunds.currencyCode) : `0 ${currencyCode}`}</strong></div>
+            <div><span>{t('op.payments.summary.metricRefunds')}</span><strong>{formatMoney(refunds, currencyCode)}</strong></div>
             <div><span>{t('op.payments.summary.metricShifts')}</span><strong>{shiftRows.length}</strong></div>
           </div>
         </section>
@@ -426,9 +426,9 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
             <button type="button" disabled={!canOpenShift} onClick={() => runReportAction(openShiftActionKey)}>{t('op.payments.reconcile.openShiftBtn')}</button>
           </div>
           <div className="payments-reconcile-list">
-            <div><span>{t('op.payments.reconcile.expected')}</span><strong>{expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`}</strong></div>
+            <div><span>{t('op.payments.reconcile.expected')}</span><strong>{formatMoney(expectedCash, currencyCode)}</strong></div>
             <div><span>{t('op.payments.reconcile.counted')}</span><strong>{countedCash ? formatMinorUnits(countedCash.minorUnits, countedCash.currencyCode) : t('op.payments.reconcile.notClosed')}</strong></div>
-            <div className={(difference?.minorUnits ?? 0) !== 0 ? 'attention' : undefined}><span>{t('op.payments.reconcile.difference')}</span><strong>{difference ? formatMinorUnits(difference.minorUnits, difference.currencyCode) : `0 ${currencyCode}`}</strong></div>
+            <div className={(difference?.minorUnits ?? 0) !== 0 ? 'attention' : undefined}><span>{t('op.payments.reconcile.difference')}</span><strong>{formatMoney(difference, currencyCode)}</strong></div>
           </div>
           <div className="payments-close-form">
             <label>{t('op.payments.reconcile.countedCashLabel')}<input inputMode="decimal" value={closeCountedCash} disabled={!canCloseShift} onChange={(event) => setCloseCountedCash(event.currentTarget.value)} /></label>
@@ -451,7 +451,7 @@ export function BackendPaymentsWorkspace({ currencyCode, backend }: { currencyCo
               detail={t('op.payments.reconcile.confirmDetail', {
                 counted: closeCountedCash || '0',
                 currency: currencyCode,
-                expected: expectedCash ? formatMinorUnits(expectedCash.minorUnits, expectedCash.currencyCode) : `0 ${currencyCode}`
+                expected: formatMoney(expectedCash, currencyCode)
               })}
               impact={t('op.payments.reconcile.confirmImpact')}
               confirmLabel={t('op.payments.reconcile.confirmBtn')}

@@ -627,7 +627,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
               <article className="client-history-row">
                 <span>—</span>
                 <strong>{t('op.players.history.empty')}</strong>
-                <b>0 {currencyCode}</b>
+                <b>{formatMoney(null, currencyCode)}</b>
               </article>
             )}
           </div>

@@ -729,8 +729,8 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
       </section>
 
       <section className="state-strip pos-state-strip" aria-label={t('op.pos.strip.salesSummaryLabel')}>
-        <StateFlag label={t('op.pos.strip.sales')} value={`${salesRows.length} · ${grossSales ? formatMinorUnits(grossSales.minorUnits, grossSales.currencyCode) : `0 ${currencyCode}`}`} />
-        <StateFlag label={t('op.pos.strip.refunds')} value={refundsTotal ? formatMinorUnits(refundsTotal.minorUnits, refundsTotal.currencyCode) : `0 ${currencyCode}`} critical={(refundsTotal?.minorUnits ?? 0) > 0} />
+        <StateFlag label={t('op.pos.strip.sales')} value={`${salesRows.length} · ${formatMoney(grossSales, currencyCode)}`} />
+        <StateFlag label={t('op.pos.strip.refunds')} value={formatMoney(refundsTotal, currencyCode)} critical={(refundsTotal?.minorUnits ?? 0) > 0} />
         <StateFlag label={t('op.pos.strip.products')} value={t('op.pos.strip.positions', { count: catalog.length })} />
         <StateFlag label={t('op.pos.strip.stock')} value={t('op.pos.strip.stockLow', { count: lowStockCount })} critical={lowStockCount > 0} />
         <StateFlag label={t('op.pos.strip.shift')} value={shiftStateLabel(shiftState, t)} critical={!shiftId} />
@@ -949,7 +949,7 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
                 <span>—</span>
                 <strong>{t('op.pos.receipts.emptyLabel')}</strong>
                 <em>{t('op.pos.receipts.emptyPlatform')}</em>
-                <b>0 {currencyCode}</b>
+                <b>{formatMoney(null, currencyCode)}</b>
               </article>
             )}
           </div>
