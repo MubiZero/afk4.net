@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CalendarClock, CircleDollarSign, ReceiptText, Search, TimerReset, UserRoundPlus } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import { currencySymbol } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
 import type { PackageOptionDto, PlayerPackageDto, WalletSummaryDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -363,14 +364,14 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     {
       id: 'topUp',
       label: t('op.players.actions.topUpBtn'),
-      detail: `${walletTopUpAmount || '0'} ${currencyCode}`,
+      detail: `${walletTopUpAmount || '0'} ${currencySymbol(currencyCode)}`,
       Icon: CircleDollarSign,
       disabled: !canTopUpWallet
     },
     {
       id: 'writeOffDebt',
       label: t('op.players.actions.writeOffDebtBtn'),
-      detail: debtPaymentAmount ? `${debtPaymentAmount} ${currencyCode}` : t('op.players.actions.writeOffDebtNone'),
+      detail: debtPaymentAmount ? `${debtPaymentAmount} ${currencySymbol(currencyCode)}` : t('op.players.actions.writeOffDebtNone'),
       Icon: ReceiptText,
       disabled: !canPayDebt
     },

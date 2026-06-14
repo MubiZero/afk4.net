@@ -1,4 +1,5 @@
 import { useI18n } from '@afk4/i18n';
+import { currencySymbol } from '@afk4/money';
 import type { WorkspaceId } from './operatorTypes';
 
 export function SummarySidePanel({ workspace, currencyCode }: { workspace: WorkspaceId; currencyCode: string }) {
@@ -31,7 +32,7 @@ export function SummarySidePanel({ workspace, currencyCode }: { workspace: Works
         <span className="state-chip state-active">{t('op.summary.stateActive')}</span>
       </header>
       <section className="context-section">
-        <div className="detail-row"><span>{t('reports.sum.revenue')}</span><strong>4 820 {currencyCode}</strong></div>
+        <div className="detail-row"><span>{t('reports.sum.revenue')}</span><strong>4 820 {currencySymbol(currencyCode)}</strong></div>
         <div className="detail-row"><span>{t('op.summary.inProgress')}</span><strong>{t('op.summary.actionsCount')}</strong></div>
         <div className="detail-row"><span>{t('reports.col.source')}</span><strong>{t('op.summary.localData')}</strong></div>
       </section>

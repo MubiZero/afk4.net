@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { createAuthenticatedOperatorClients } from './operatorHelpers';
+import { createAuthenticatedOperatorClients, formatMinorUnits } from './operatorHelpers';
 import { createOperatorRealtimeClient } from './operatorRealtime';
 import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
@@ -132,7 +132,7 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
               </div>
               <div className="shop-order-meta">
                 <span>{t('op.shopOrders.seat')} {order.seatId}</span>
-                <span>{(order.total.minorUnits / 100).toFixed(2)} {order.total.currencyCode}</span>
+                <span>{formatMinorUnits(order.total.minorUnits, order.total.currencyCode)}</span>
               </div>
               <div className="shop-order-actions">
                 {order.status === 'placed' && (
