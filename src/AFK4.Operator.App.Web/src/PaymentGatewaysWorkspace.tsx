@@ -55,7 +55,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   const reload = useCallback(async () => {
     try {
       const result = await clients.list();
-      setGateways(result.gateways);
+      setGateways(result.gateways ?? []);
       setLoadError(null);
     } catch (error) {
       setLoadError(projectOperatorError(error, t).detail);
@@ -67,7 +67,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
     void (async () => {
       try {
         const result = await clients.list();
-        if (!disposed) { setGateways(result.gateways); setLoadError(null); }
+        if (!disposed) { setGateways(result.gateways ?? []); setLoadError(null); }
       } catch (error) {
         if (!disposed) setLoadError(projectOperatorError(error, t).detail);
       } finally {

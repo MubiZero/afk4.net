@@ -775,10 +775,13 @@ button {
 }
 
 .workspace-rail {
-  display: grid;
-  align-content: start;
-  gap: 5px;
-  padding: 10px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  min-height: 0;
+  padding: 8px 7px 10px;
+  overflow-y: auto;
   border-right: 1px solid var(--border-soft);
   background: var(--surface-elevated);
 }
@@ -788,7 +791,7 @@ button {
   place-items: center;
   gap: 4px;
   width: 60px;
-  height: 54px;
+  height: 46px;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -802,6 +805,16 @@ button {
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.workspace-rail button:not(.active):not(.locked):hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.workspace-rail button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .workspace-rail button.active {
@@ -819,6 +832,83 @@ button {
 .workspace-rail button.locked:focus-visible {
   background: var(--surface-muted);
   color: var(--text-tertiary);
+}
+
+/* Колонка контента (грид-ребёнок 2-й колонки оболочки). Держит опциональную полоску вкладок
+   сверху и активный экран под ней; экран тянется на остаток высоты. Высоту вкладок экраны
+   учитывают через --shell-tabstrip в своих calc(100vh - …), поэтому контент не уезжает вниз. */
+.workspace-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-content > .floor-workspace,
+.workspace-content > .workspace-screen,
+.workspace-content > .workspace-crash {
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-crash {
+  display: grid;
+  place-content: center;
+  padding: 24px;
+  background: var(--surface-canvas);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Вкладки внутри слитых разделов (Касса / Отчёты / Управление). Тихая полоска с подчёркиванием
+   активной — это под-навигация раздела, а не вторая CTA, поэтому без фона-пилюль и веса кнопок. */
+.workspace-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 40px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-elevated);
+}
+
+.workspace-tabs button {
+  position: relative;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.workspace-tabs button:hover:not(.active) {
+  color: var(--text-secondary);
+}
+
+.workspace-tabs button.active {
+  color: var(--text-primary);
+}
+
+.workspace-tabs button.active::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+.workspace-tabs button:focus-visible {
+  outline: none;
+  border-radius: 5px;
+  box-shadow: var(--focus-ring);
 }
 
 .floor-workspace {
@@ -1623,7 +1713,7 @@ button {
 
 .map-board {
   position: relative;
-  height: calc(100vh - 46px - 26px - 20px - 30px - 38px - 38px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 30px - 38px - 38px);
   min-height: 360px;
   overflow: hidden;
   border: 1px solid var(--border-soft);
@@ -2295,7 +2385,7 @@ button {
 .smart-grid {
   display: grid;
   gap: 10px;
-  height: calc(100vh - 46px - 26px - 20px - 35px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 35px);
   min-height: 626px;
   overflow: hidden;
 }
@@ -2307,7 +2397,7 @@ button {
 .dashboard-layout {
   grid-template-columns: minmax(380px, 0.95fr) minmax(420px, 1.05fr);
   grid-template-rows: minmax(0, 1fr);
-  height: calc(100vh - 46px - 26px - 20px - 43px - 76px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 43px - 76px);
   min-height: 0;
 }
 
@@ -2365,7 +2455,7 @@ button {
     "now now now control"
     "queue queue queue pulse";
   gap: 10px;
-  height: calc(100vh - 46px - 26px - 20px - 42px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 42px);
   min-height: 0;
   overflow: hidden;
 }
@@ -2836,7 +2926,7 @@ button {
     "timeline timeline selected selected"
     "requests requests create create";
   gap: 10px;
-  height: calc(100vh - 46px - 26px - 20px - 42px - 28px - 8px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 42px - 28px - 8px);
   min-height: 0;
   overflow: hidden;
 }
@@ -3205,7 +3295,7 @@ button {
     "catalog catalog cart payment"
     "receipts receipts quick quick";
   gap: 10px;
-  height: calc(100vh - 46px - 26px - 20px - 43px - 36px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 43px - 36px);
   min-height: 0;
   overflow: hidden;
 }
@@ -3907,7 +3997,7 @@ button {
     "list list profile actions"
     "segments segments history history";
   gap: 10px;
-  height: calc(100vh - 46px - 26px - 20px - 43px - 36px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 43px - 36px);
   min-height: 0;
   overflow: hidden;
 }
@@ -4425,7 +4515,7 @@ button {
     "ledger ledger summary reconcile"
     "methods methods cash export";
   gap: 10px;
-  height: calc(100vh - 46px - 26px - 20px - 43px - 36px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 43px - 36px);
   min-height: 0;
   overflow: hidden;
 }
@@ -4968,7 +5058,7 @@ button {
     "events events detail filters"
     "audit audit sources export";
   gap: 10px;
-  height: calc(100vh - 46px - 26px - 20px - 43px - 36px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 43px - 36px);
   min-height: 0;
   overflow: hidden;
 }
@@ -5365,7 +5455,7 @@ button {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
-  height: calc(100vh - 46px - 26px);
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px));
 }
 
 .settings-head {

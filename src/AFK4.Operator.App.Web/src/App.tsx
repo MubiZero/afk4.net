@@ -5,13 +5,13 @@ import {
   Search,
   Wifi
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { I18nProvider, useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
 import { ConnectionResolutionScreen } from './ConnectionResolutionScreen';
 import { getOperatorConfig } from './operatorConfig';
-import { navItems } from './operatorData';
+import { navSections, type NavSection } from './operatorData';
 import { PaymentGatewaysWorkspace } from './PaymentGatewaysWorkspace';
 import { AccountPanel } from './AccountPanel';
 import { BackendBookingWorkspace } from './BackendBookingWorkspace';
@@ -35,6 +35,7 @@ import { TitlebarControls } from './TitlebarControls';
 import { BrandLogo } from './BrandLogo';
 import { SignInScreen } from './SignInScreen';
 import { BlockedTenantScreen } from './BlockedTenantScreen';
+import { WorkspaceErrorBoundary } from './WorkspaceErrorBoundary';
 import { useShellData } from './useShellData';
 import { useOperatorRealtime } from './useOperatorRealtime';
 import { useOperatorConnection } from './useOperatorConnection';
@@ -45,7 +46,6 @@ import type {
   OperatorBackendContext
 } from './operatorTypes';
 import {
-  workspaceIds,
   permissionNames,
   hasPermission,
   canOpenWorkspace,
@@ -245,6 +245,18 @@ function AppInner() {
     }
   };
 
+  // Клик по кнопке раздела в рельсе. Если мы уже внутри раздела — ничего не делаем (вкладки сами
+  // переключают экраны). Иначе открываем первую доступную вкладку; если прав нет ни на одну —
+  // прогоняем через handleWorkspaceNavigation, чтобы сработал refresh-прав + понятный feedback.
+  const handleSectionNavigation = (section: NavSection) => {
+    if (section.items.some((item) => item.id === workspace)) {
+      return;
+    }
+    const allowedItem = section.items.find((item) => canOpenWorkspace(authSession, item.id));
+    const target = allowedItem ?? section.items[0];
+    void handleWorkspaceNavigation(target.id, t(target.labelKey), allowedItem != null);
+  };
+
   if (blockedResolution !== null) {
     return (
       <BlockedTenantScreen
@@ -278,8 +290,12 @@ function AppInner() {
     );
   }
 
+  const activeSection = navSections.find((section) => section.items.some((item) => item.id === workspace)) ?? navSections[0];
+  const activeVisibleItems = activeSection.items.filter((item) => canOpenWorkspace(authSession, item.id));
+  const showWorkspaceTabs = activeVisibleItems.length > 1;
+
   return (
-    <div className="operator-shell">
+    <div className="operator-shell" style={{ '--shell-tabstrip': showWorkspaceTabs ? '41px' : '0px' } as CSSProperties}>
       <WindowResizeHandles />
       <header className="top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
@@ -310,27 +326,49 @@ function AppInner() {
       )}
 
       <nav className="workspace-rail" aria-label={t('op.shell.workspaces')}>
-        {navItems.map((item, index) => {
-          const Icon = item.icon;
-          const id = workspaceIds[index];
-          const isAllowed = canOpenWorkspace(authSession, id);
-          const label = t(item.labelKey);
+        {navSections.map((section) => {
+          const Icon = section.icon;
+          const isAllowed = section.items.some((item) => canOpenWorkspace(authSession, item.id));
+          const label = t(section.labelKey);
           return (
             <button
-              key={id}
+              key={section.key}
               type="button"
-              className={[workspace === id ? 'active' : '', !isAllowed ? 'locked' : ''].filter(Boolean).join(' ')}
+              className={[section.key === activeSection.key ? 'active' : '', !isAllowed ? 'locked' : ''].filter(Boolean).join(' ')}
               aria-disabled={!isAllowed}
               title={label}
-              onClick={() => void handleWorkspaceNavigation(id, label, isAllowed)}
+              onClick={() => handleSectionNavigation(section)}
             >
-              <Icon size={22} />
+              <Icon size={20} />
               <span>{label}</span>
             </button>
           );
         })}
       </nav>
 
+      <div className="workspace-content">
+        {showWorkspaceTabs && (
+          <div className="workspace-tabs" role="tablist" aria-label={t(activeSection.labelKey)}>
+            {activeVisibleItems.map((item) => {
+              const tabLabel = t(item.labelKey);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={workspace === item.id}
+                  className={workspace === item.id ? 'active' : undefined}
+                  title={tabLabel}
+                  onClick={() => setWorkspace(item.id)}
+                >
+                  {tabLabel}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+      <WorkspaceErrorBoundary key={workspace} message={t('op.shell.workspaceError')}>
       {workspace === 'map' && (
         <MapWorkspace
           floorMap={displayedFloorMap}
@@ -381,6 +419,8 @@ function AppInner() {
       {workspace === 'shifts' && backendContext !== null && (
         <ShiftsWorkspace backend={backendContext} branchId={backendContext.branchId} />
       )}
+      </WorkspaceErrorBoundary>
+      </div>
 
       {workspace === 'map' && selectedSeat !== null && (
         <MapSidePanel
