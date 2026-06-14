@@ -200,7 +200,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(screen.getAllByText(/Депозит/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/USD/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\$/).length).toBeGreaterThan(0);
   });
 
   it('signs in through the native bridge before showing operator workspaces', async () => {
@@ -1214,7 +1214,7 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
     fireEvent.click(screen.getByRole('button', { name: /Пополнить депозит/ }));
 
-    expect(await screen.findByText('Пополнить депозит: 12 TJS')).toBeInTheDocument();
+    expect(await screen.findByText('Пополнить депозит: 12 с.')).toBeInTheDocument();
     const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
       init?.method === 'POST');
@@ -1306,7 +1306,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
     expect((await screen.findAllByText(/\u041f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0430 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0430/)).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: /25 TJS/ }));
+    fireEvent.click(screen.getByRole('button', { name: /25 с\./ }));
     expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
     expect(await screen.findByRole('alertdialog', { name: 'Подтвердите возврат' })).toBeInTheDocument();

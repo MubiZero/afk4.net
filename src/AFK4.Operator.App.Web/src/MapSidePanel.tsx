@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowRightLeft, Banknote, CircleDollarSign, Clock3, Plus, ReceiptText, Square, TimerReset, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import { currencySymbol } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
 import {
   buildCheckoutPayments,
@@ -578,7 +579,7 @@ export function MapSidePanel({
         </div>
         <div className="detail-row">
           <span>{t('op.map.colBilling')}</span>
-          <strong>{activeBilling} · {currencyCode}</strong>
+          <strong>{activeBilling} · {currencySymbol(currencyCode)}</strong>
         </div>
       </section>
 

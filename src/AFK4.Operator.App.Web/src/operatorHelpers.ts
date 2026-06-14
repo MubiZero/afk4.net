@@ -1,5 +1,6 @@
 import { minorToMajor, majorToMinor } from '@afk4/money';
-import { formatNumber as formatLocaleNumber, formatDateParts } from '@afk4/formatting';
+import { formatDateParts } from '@afk4/formatting';
+import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
@@ -832,15 +833,7 @@ export function readRecord(value: unknown, name: string): Record<string, unknown
   return isRecord(nextValue) ? nextValue : null;
 }
 
-export function formatMinorUnits(minorUnits: number, currencyCode: string): string {
-  const majorUnits = minorToMajor(minorUnits);
-  const formatted = formatLocaleNumber(majorUnits, 'ru-RU', {
-    maximumFractionDigits: Number.isInteger(majorUnits) ? 0 : 2,
-    minimumFractionDigits: 0
-  });
-
-  return `${formatted} ${currencyCode}`;
-}
+export { formatMinorUnits } from './currencyFormat';
 
 export function formatMoney(value: unknown, fallbackCurrencyCode: string): string {
   if (isRecord(value)) {
