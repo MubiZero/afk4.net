@@ -30,7 +30,7 @@ it('runs the email reset inline: request a code then set a new password', async 
   const client = fakeClient();
   renderScreen(client);
   fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'owner@demo.test' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Отправить код' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Получить код' }));
   await waitFor(() => expect(client.forgotPasswordByEmail).toHaveBeenCalledWith('owner@demo.test'));
 
   fireEvent.change(await screen.findByLabelText('Код из письма'), { target: { value: '123456' } });
