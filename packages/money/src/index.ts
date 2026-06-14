@@ -9,3 +9,17 @@ export function majorToMinor(major: number): number {
   // are stored as 1.00499999… in IEEE-754 — round up as a human expects.
   return Math.round((major + Number.EPSILON) * 100);
 }
+
+/** Short, human-facing currency signs shown in the UI instead of raw ISO codes
+ * (which read as technical jargon). Falls back to the ISO code for currencies
+ * not listed here. */
+export const currencySymbols: Record<string, string> = {
+  TJS: 'с.',
+  USD: '$',
+  EUR: '€',
+  RUB: '₽'
+};
+
+export function currencySymbol(currencyCode: string): string {
+  return currencySymbols[currencyCode.toUpperCase()] ?? currencyCode;
+}
