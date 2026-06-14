@@ -13,7 +13,7 @@ export function majorToMinor(major: number): number {
 /** Short, human-facing currency signs shown in the UI instead of raw ISO codes
  * (which read as technical jargon). Falls back to the ISO code for currencies
  * not listed here. */
-export const currencySymbols: Record<string, string> = {
+export const currencySymbols: Readonly<Record<string, string>> = {
   TJS: 'с.',
   USD: '$',
   EUR: '€',
