@@ -2345,7 +2345,6 @@
   "op.shell.myAccount": "Мой аккаунт",
   "op.shell.workspaces": "Рабочие места",
   "op.shell.workspaceError": "Не удалось открыть этот раздел. Откройте другой или обновите приложение.",
-  "op.shell.signals": "ПК без связи: {offline} · требуют внимания: {problems}",
   "op.shell.nav.map": "Карта",
   "op.shell.nav.dashboard": "Дашборд",
   "op.shell.nav.booking": "Брони",

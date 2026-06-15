@@ -6872,7 +6872,8 @@ button {
 /* Сворачиваемая контекст-зона (правая колонка shell) */
 .context-zone {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 26px minmax(0, 1fr);
+  column-gap: 4px;
   min-width: 0;
   min-height: 0;
 }

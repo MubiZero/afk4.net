@@ -2122,7 +2122,6 @@
   "op.shell.myAccount": "My account",
   "op.shell.workspaces": "Workspaces",
   "op.shell.workspaceError": "This section failed to open. Try another one or reload the app.",
-  "op.shell.signals": "PCs offline: {offline} · need attention: {problems}",
   "op.shell.nav.map": "Map",
   "op.shell.nav.dashboard": "Dashboard",
   "op.shell.nav.booking": "Bookings",
