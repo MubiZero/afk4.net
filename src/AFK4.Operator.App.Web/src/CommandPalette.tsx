@@ -1,0 +1,122 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from '@afk4/i18n';
+import { navSections } from './operatorData';
+import { canOpenWorkspace } from './operatorPermissions';
+import type { WorkspaceId } from './operatorTypes';
+import type { OperatorAuthSession } from './authClient';
+
+interface NavTarget {
+  id: WorkspaceId;
+  label: string;
+}
+
+export function CommandPalette({ session, onNavigate, onClose }: {
+  session: OperatorAuthSession | null;
+  onNavigate: (id: WorkspaceId) => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Плоский список разрешённых экранов с уже локализованными подписями — фильтруем по подстроке.
+  const allowed = useMemo<NavTarget[]>(() => {
+    return navSections
+      .flatMap((section) => section.items)
+      .filter((item) => canOpenWorkspace(session, item.id))
+      .map((item) => ({ id: item.id, label: t(item.labelKey) }));
+  }, [session, t]);
+
+  const filtered = useMemo<NavTarget[]>(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return allowed;
+    return allowed.filter((target) => target.label.toLowerCase().includes(needle));
+  }, [allowed, query]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    // Держим активную строку в пределах текущего отфильтрованного списка.
+    setActiveIndex((index) => Math.min(index, Math.max(0, filtered.length - 1)));
+  }, [filtered.length]);
+
+  const optionId = (index: number) => `command-palette-option-${index}`;
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((index) => Math.min(index + 1, Math.max(0, filtered.length - 1)));
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex((index) => Math.max(index - 1, 0));
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const target = filtered[activeIndex];
+      if (target) {
+        onNavigate(target.id);
+        onClose();
+      }
+    }
+  }
+
+  return (
+    <div className="command-palette-overlay" onClick={onClose}>
+      <div
+        className="command-palette"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={handleKeyDown}
+      >
+        <input
+          ref={inputRef}
+          className="command-palette-input"
+          type="text"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          aria-label={t('op.command.palette.label')}
+          placeholder={t('op.command.palette.placeholder')}
+          aria-activedescendant={filtered.length ? optionId(activeIndex) : undefined}
+        />
+        <div className="command-palette-group">
+          <p className="command-palette-heading">{t('op.command.palette.navHeading')}</p>
+          {filtered.length === 0 ? (
+            <p className="command-palette-empty">{t('op.command.palette.empty')}</p>
+          ) : (
+            <ul className="command-palette-list" role="listbox">
+              {filtered.map((target, index) => (
+                <li
+                  key={target.id}
+                  id={optionId(index)}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  className={index === activeIndex ? 'command-palette-option is-active' : 'command-palette-option'}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => {
+                    onNavigate(target.id);
+                    onClose();
+                  }}
+                >
+                  {target.label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <p className="command-palette-soon">{t('op.command.palette.entitySoon')}</p>
+      </div>
+    </div>
+  );
+}
