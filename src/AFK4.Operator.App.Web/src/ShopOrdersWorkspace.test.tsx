@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
+import { ToastProvider } from './operatorToast';
 
 // bun's mock.module is not hoisted above static imports, so register it before
 // importing the component under test.
@@ -54,7 +55,7 @@ describe('ShopOrdersWorkspace', () => {
   });
 
   it('lists open orders and accepts one', async () => {
-    render(<I18nProvider><ShopOrdersWorkspace backend={backend as never} /></I18nProvider>);
+    render(<I18nProvider><ToastProvider><ShopOrdersWorkspace backend={backend as never} /></ToastProvider></I18nProvider>);
     expect(await screen.findByText('Alex')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /принять|accept/i }));
     await waitFor(() => expect(accept).toHaveBeenCalledWith('b1', 'o1', 1));
@@ -62,10 +63,24 @@ describe('ShopOrdersWorkspace', () => {
     expect(screen.getByRole('button', { name: /выдать|deliver/i })).toBeInTheDocument();
   });
 
+  it('confirms an accepted order with a toast', async () => {
+    render(
+      <I18nProvider>
+        <ToastProvider>
+          <ShopOrdersWorkspace backend={backend as never} />
+        </ToastProvider>
+      </I18nProvider>
+    );
+    const acceptButton = await screen.findByRole('button', { name: /принять|accept/i });
+    fireEvent.click(acceptButton);
+    await waitFor(() => expect(accept).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Заказ принят')).toBeInTheDocument());
+  });
+
   it('surfaces an error instead of silently showing an empty queue', async () => {
     listQueue.mockImplementationOnce(() => Promise.reject(new Error('network')));
-    render(<I18nProvider><ShopOrdersWorkspace backend={backend as never} /></I18nProvider>);
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    render(<I18nProvider><ToastProvider><ShopOrdersWorkspace backend={backend as never} /></ToastProvider></I18nProvider>);
+    expect(await screen.findByText(/ошибка|error|network/i)).toBeInTheDocument();
     expect(screen.queryByText(/активных заказов нет/i)).toBeNull();
   });
 });
