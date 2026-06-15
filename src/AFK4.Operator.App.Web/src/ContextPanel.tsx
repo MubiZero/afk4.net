@@ -2,6 +2,9 @@ import type { ReactNode } from 'react';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 
+// Shell-уровневая обёртка правой зоны: тонкая колонка-ручка с кнопкой сворота + слот контента.
+// Сам контент (напр. MapSidePanel) приносит свою `.context-panel` — здесь её НЕ дублируем, иначе
+// получилась бы панель-в-панели. Ширину колонки и персист свёрнутости держит App.
 export function ContextPanel({ collapsed, onToggle, title, children }: {
   collapsed: boolean;
   onToggle: () => void;
@@ -12,10 +15,10 @@ export function ContextPanel({ collapsed, onToggle, title, children }: {
 
   if (collapsed) {
     return (
-      <aside className="context-panel context-panel-collapsed">
+      <aside className="context-zone context-zone-collapsed">
         <button
           type="button"
-          className="context-panel-toggle"
+          className="context-zone-toggle"
           aria-label={t('op.context.expand')}
           onClick={onToggle}
         >
@@ -26,19 +29,21 @@ export function ContextPanel({ collapsed, onToggle, title, children }: {
   }
 
   return (
-    <aside className="context-panel">
-      <header className="context-head">
-        {title ? <h2>{title}</h2> : null}
+    <aside className="context-zone">
+      <div className="context-zone-handle">
         <button
           type="button"
-          className="context-panel-toggle"
+          className="context-zone-toggle"
           aria-label={t('op.context.collapse')}
           onClick={onToggle}
         >
           <PanelRightClose size={18} />
         </button>
-      </header>
-      {children}
+      </div>
+      <div className="context-zone-body">
+        {title ? <h2 className="context-zone-title">{title}</h2> : null}
+        {children}
+      </div>
     </aside>
   );
 }

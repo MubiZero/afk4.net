@@ -16,7 +16,7 @@ export function QuickActionsMenu({
 }: {
   session: OperatorAuthSession | null;
   onSelect: (action: QuickAction) => void;
-}): JSX.Element | null {
+}) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -70,7 +70,7 @@ export function QuickActionsMenu({
     itemRefs.current[next]?.focus();
   };
 
-  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, index: number) => {
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLElement>, index: number) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       close(true);

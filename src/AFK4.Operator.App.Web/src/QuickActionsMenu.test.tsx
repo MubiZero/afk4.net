@@ -2,11 +2,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { QuickActionsMenu } from './QuickActionsMenu';
+import type { QuickAction } from './operatorCommands';
 import type { OperatorAuthSession } from './authClient';
 
 const sessionWith = (perms: string[]) => ({ permissions: perms } as unknown as OperatorAuthSession);
 
-const renderMenu = (perms: string[], onSelect = mock(() => {})) => {
+const renderMenu = (perms: string[], onSelect = mock((_action: QuickAction) => {})) => {
   render(
     <I18nProvider>
       <QuickActionsMenu session={sessionWith(perms)} onSelect={onSelect} />
@@ -52,7 +53,7 @@ describe('QuickActionsMenu', () => {
     fireEvent.click(screen.getByLabelText('Быстрое меню'));
     fireEvent.click(screen.getByText('Продажа товара'));
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect.mock.calls[0][0].id).toBe('sell_product');
+    expect(onSelect.mock.calls[0]?.[0]?.id).toBe('sell_product');
   });
 
   it('closes the menu on Escape', () => {

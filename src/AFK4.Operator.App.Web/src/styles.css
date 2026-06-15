@@ -105,9 +105,10 @@ button {
   height: 100vh;
   min-width: 960px;
   min-height: 600px;
-  grid-template-columns: 74px minmax(0, 1fr) minmax(260px, 292px);
+  grid-template-columns: 74px minmax(0, 1fr) var(--shell-context-col, minmax(260px, 292px));
   grid-template-rows: 46px minmax(0, 1fr) 26px;
   background: var(--surface-canvas);
+  --shell-context-strip: 36px;
 }
 
 .window-resize-handles {
@@ -249,17 +250,29 @@ button {
   color: var(--text-tertiary);
 }
 
-.command-search input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 13px;
+.command-search {
+  cursor: text;
+  font: inherit;
+  text-align: left;
 }
 
-.command-search input::placeholder {
+.command-search:hover {
+  border-color: var(--accent-hover);
+}
+
+.command-search:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.command-search span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-tertiary);
+  font-size: 13px;
 }
 
 .top-status {
@@ -6661,4 +6674,266 @@ button {
 .empty-state-action:focus-visible {
   outline: 2px solid var(--accent-hover);
   outline-offset: 2px;
+}
+
+/* ───────────────────────── Shell command layer (Этап 0 каркас) ───────────────────────── */
+
+/* «+ Быстрое меню» */
+.quick-actions {
+  position: relative;
+}
+
+.quick-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-muted);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quick-actions-trigger:hover {
+  border-color: var(--accent-hover);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.quick-actions-trigger:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.quick-actions-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  display: grid;
+  gap: 8px;
+  min-width: 268px;
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: var(--surface-elevated);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+}
+
+.quick-actions-group {
+  display: grid;
+  gap: 2px;
+}
+
+.quick-actions-group-header {
+  padding: 4px 8px 2px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.quick-actions-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quick-actions-item:hover,
+.quick-actions-item:focus-visible {
+  background: var(--surface-hover);
+}
+
+.quick-actions-item:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: -2px;
+}
+
+.quick-actions-item kbd {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+/* ⌘K командная палитра */
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.command-palette {
+  display: grid;
+  gap: 10px;
+  width: min(560px, 92vw);
+  max-height: 64vh;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.command-palette-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.command-palette-input:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 1px;
+}
+
+.command-palette-group {
+  display: grid;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.command-palette-heading {
+  margin: 0;
+  padding: 2px 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.command-palette-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.command-palette-option {
+  padding: 9px 10px;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.command-palette-option.is-active,
+.command-palette-option:hover {
+  background: var(--surface-hover);
+}
+
+.command-palette-empty {
+  margin: 0;
+  padding: 9px 10px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.command-palette-soon {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* Сворачиваемая контекст-зона (правая колонка shell) */
+.context-zone {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+
+.context-zone-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  padding-top: 12px;
+}
+
+.context-zone-handle {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+}
+
+.context-zone-body {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  min-height: 0;
+}
+
+.context-zone-title {
+  margin: 10px 10px 0 0;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.context-zone-toggle {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.context-zone-toggle:hover {
+  border-color: var(--accent-hover);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.context-zone-toggle:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+/* Строка тревог в статус-баре */
+.shell-alerts {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.shell-alerts.danger {
+  color: var(--danger-strong);
+  font-weight: 700;
 }
