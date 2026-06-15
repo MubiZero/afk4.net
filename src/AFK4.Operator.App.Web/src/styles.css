@@ -1738,13 +1738,70 @@ button {
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  grid-auto-rows: 88px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-auto-rows: 116px;
   align-content: start;
-  gap: 10px;
+  gap: 12px;
   height: 100%;
   overflow-y: auto;
   padding: 30px 46px 28px;
+}
+
+/* Группировка «Сетки» по залам: заголовок зоны + сетка мест под ним. */
+.seat-zones {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  height: 100%;
+  overflow-y: auto;
+  padding: 22px 46px 28px;
+}
+
+.zone-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.zone-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zone-group-head span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.zone-group-head strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.zone-group-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
+}
+
+/* Внутри группы сеткой владеет .seat-zones — свой скролл/паддинг не нужен. */
+.zone-group .seat-grid {
+  height: auto;
+  padding: 0;
+  overflow: visible;
 }
 
 .map-empty-state {
@@ -1863,8 +1920,8 @@ button {
   display: grid;
   grid-template-rows: auto auto 1fr;
   min-width: 0;
-  min-height: 88px;
-  padding: 8px 9px 8px 12px;
+  min-height: 116px;
+  padding: 11px 12px 11px 14px;
   border: 1px solid var(--border-default);
   border-left: 3px solid rgba(var(--accent-rgb), 0.85);
   border-radius: 6px;
@@ -1958,7 +2015,7 @@ button {
 .seat-head strong {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;

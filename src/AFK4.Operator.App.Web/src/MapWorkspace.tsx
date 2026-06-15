@@ -46,6 +46,21 @@ export function MapWorkspace({
     () => floorMap.seats.filter((seat) => matchesMapFilter(seat, activeFilter)),
     [activeFilter, floorMap.seats]
   );
+  // Группируем места по залам в порядке появления (сорт уже задан floorMapState).
+  const zoneGroups = useMemo(() => {
+    const groups: { zone: string; seats: SeatSummary[] }[] = [];
+    const indexByZone = new Map<string, number>();
+    for (const seat of visibleSeats) {
+      const at = indexByZone.get(seat.zone);
+      if (at === undefined) {
+        indexByZone.set(seat.zone, groups.length);
+        groups.push({ zone: seat.zone, seats: [seat] });
+      } else {
+        groups[at].seats.push(seat);
+      }
+    }
+    return groups;
+  }, [visibleSeats]);
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
   const isLoadingSeats = floorMap.seats.length === 0 && (floorMap.loadStatus === 'loading' || floorMap.loadStatus === 'idle');
   const showSeatSkeleton = useDeferredFlag(isLoadingSeats);
@@ -219,14 +234,24 @@ export function MapWorkspace({
         ) : visibleSeats.length === 0 ? (
           <EmptyState title={t('op.map.emptyTitle')} description={t('op.map.emptyHint')} className="map-empty-state" />
         ) : viewMode === 'grid' ? (
-          <div className="seat-grid">
-            {visibleSeats.map((seat) => (
-              <SeatTile
-                key={seat.id}
-                seat={seat}
-                selected={seat.id === selectedSeatId}
-                onSelect={() => onSelectSeat(seat.id)}
-              />
+          <div className="seat-zones">
+            {zoneGroups.map((group) => (
+              <section className="zone-group" key={group.zone}>
+                <header className="zone-group-head">
+                  <span>{zoneLabel(group.zone, t)}</span>
+                  <strong>{group.seats.length}</strong>
+                </header>
+                <div className="seat-grid">
+                  {group.seats.map((seat) => (
+                    <SeatTile
+                      key={seat.id}
+                      seat={seat}
+                      selected={seat.id === selectedSeatId}
+                      onSelect={() => onSelectSeat(seat.id)}
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         ) : (
