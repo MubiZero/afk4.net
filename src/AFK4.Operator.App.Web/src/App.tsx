@@ -1,11 +1,10 @@
 import {
   CircleDollarSign,
   LockKeyhole,
-  MonitorCheck,
   Search,
   Wifi
 } from 'lucide-react';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { I18nProvider, useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { loadOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorAuthSession, type OperatorSignInRequest } from './authClient';
@@ -18,7 +17,10 @@ import { BackendBookingWorkspace } from './BackendBookingWorkspace';
 import { DashboardWorkspace } from './DashboardWorkspace';
 import { MapWorkspace } from './MapWorkspace';
 import { MapSidePanel } from './MapSidePanel';
-import { SummarySidePanel } from './SummarySidePanel';
+import { ContextPanel } from './ContextPanel';
+import { QuickActionsMenu } from './QuickActionsMenu';
+import { CommandPalette } from './CommandPalette';
+import { ShellAlerts } from './ShellAlerts';
 import { BackendPosWorkspace } from './BackendPosWorkspace';
 import { ShopOrdersWorkspace } from './ShopOrdersWorkspace';
 import { LoyaltySettingsWorkspace } from './LoyaltySettingsWorkspace';
@@ -40,7 +42,9 @@ import { useShellData } from './useShellData';
 import { useOperatorRealtime } from './useOperatorRealtime';
 import { useOperatorConnection } from './useOperatorConnection';
 import { useFloorMap } from './useFloorMap';
-import { ToastProvider } from './operatorToast';
+import { ToastProvider, useToast } from './operatorToast';
+import { createCommandRegistry } from './operatorCommands';
+import { useHotkeys } from './useHotkeys';
 import type {
   WorkspaceId,
   AuthStatus,
@@ -97,6 +101,29 @@ function AppInner() {
   const [authView, setAuthView] = useState<'signIn' | 'forgot'>('signIn');
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [contextCollapsed, setContextCollapsed] = useState(
+    () => localStorage.getItem('afk4.operator.contextCollapsed') === '1'
+  );
+  const toast = useToast();
+  const commandRegistry = useMemo(() => createCommandRegistry(), []);
+  // ⌘K / Ctrl+K открывают палитру даже из поля ввода (allowInInputs). Биндинги мемоизированы —
+  // useHotkeys пересоздаёт слушатель только при смене массива.
+  const paletteHotkeys = useMemo(
+    () => [
+      { key: 'k', ctrl: true, allowInInputs: true, onTrigger: () => setPaletteOpen(true) },
+      { key: 'k', meta: true, allowInInputs: true, onTrigger: () => setPaletteOpen(true) }
+    ],
+    []
+  );
+  useHotkeys(paletteHotkeys);
+  const toggleContextCollapsed = () => {
+    setContextCollapsed((collapsed) => {
+      const next = !collapsed;
+      localStorage.setItem('afk4.operator.contextCollapsed', next ? '1' : '0');
+      return next;
+    });
+  };
   // Bumped by the realtime hook to make the shell KPIs reconcile event-driven instead of polled.
   const [shellReconcileSignal, setShellReconcileSignal] = useState(0);
   const activeBranchId = authSession === null ? null : resolveActiveBranchId(authSession, config.branchId);
@@ -296,19 +323,42 @@ function AppInner() {
   const activeSection = navSections.find((section) => section.items.some((item) => item.id === workspace)) ?? navSections[0];
   const activeVisibleItems = activeSection.items.filter((item) => canOpenWorkspace(authSession, item.id));
   const showWorkspaceTabs = activeVisibleItems.length > 1;
+  const hasContextContent = workspace === 'map' && selectedSeat !== null;
+  const contextCol = hasContextContent
+    ? (contextCollapsed ? 'var(--shell-context-strip)' : 'minmax(260px, 292px)')
+    : '0px';
 
   return (
-    <div className="operator-shell" style={{ '--shell-tabstrip': showWorkspaceTabs ? '41px' : '0px' } as CSSProperties}>
+    <div
+      className="operator-shell"
+      style={{
+        '--shell-tabstrip': showWorkspaceTabs ? '41px' : '0px',
+        '--shell-context-col': contextCol
+      } as CSSProperties}
+    >
       <WindowResizeHandles />
       <header className="top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
         <div className="brand-block">
           <BrandLogo className="brand-logo" />
           <span>{t('op.auth.operator')}</span>
         </div>
-        <label className="command-search">
+        <QuickActionsMenu
+          session={authSession}
+          onSelect={(action) => {
+            if (!commandRegistry.dispatch(action.id)) {
+              toast.info(t('op.command.deferred', { stage: t(action.stageKey) }));
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="command-search"
+          aria-label={t('op.shell.searchLabel')}
+          onClick={() => setPaletteOpen(true)}
+        >
           <Search size={16} />
-          <input placeholder={t('op.shell.searchPlaceholder')} aria-label={t('op.shell.searchLabel')} />
-        </label>
+          <span>{t('op.shell.searchPlaceholder')}</span>
+        </button>
         <div className="top-status">
           <span>{shellShiftText}</span>
           <button type="button" className="top-account" aria-label={t('op.shell.myAccount')} onClick={() => setAccountPanelOpen(true)}>
@@ -325,6 +375,17 @@ function AppInner() {
           backend={backendContext}
           displayName={operatorDisplayNameLabel(authSession.displayName, t)}
           onClose={() => setAccountPanelOpen(false)}
+        />
+      )}
+
+      {paletteOpen && (
+        <CommandPalette
+          session={authSession}
+          onNavigate={(id) => {
+            setWorkspace(id);
+            setPaletteOpen(false);
+          }}
+          onClose={() => setPaletteOpen(false)}
         />
       )}
 
@@ -426,21 +487,21 @@ function AppInner() {
       </div>
 
       {workspace === 'map' && selectedSeat !== null && (
-        <MapSidePanel
-          seat={selectedSeat}
-          seats={displayedFloorMap.seats}
-          currencyCode={config.currencyCode}
-          backend={backendContext}
-          actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
-          onSeatAction={handleSeatAction}
-        />
+        <ContextPanel collapsed={contextCollapsed} onToggle={toggleContextCollapsed}>
+          <MapSidePanel
+            seat={selectedSeat}
+            seats={displayedFloorMap.seats}
+            currencyCode={config.currencyCode}
+            backend={backendContext}
+            actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
+            onSeatAction={handleSeatAction}
+          />
+        </ContextPanel>
       )}
-      {workspace !== 'map' && workspace !== 'dashboard' && workspace !== 'booking' && workspace !== 'pos' && workspace !== 'shop_orders' && workspace !== 'players' && workspace !== 'payments' && workspace !== 'logs' && workspace !== 'settings' && workspace !== 'review' && workspace !== 'loyalty' && workspace !== 'news' && workspace !== 'shifts'
-        && <SummarySidePanel workspace={workspace} currencyCode={config.currencyCode} />}
 
       <footer className="signals-strip">
         <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError, t)} · {dataSourceLabel(floorMap.source, t)}</span>
-        <span><MonitorCheck size={14} />{t('op.shell.signals', { offline: countByTone(displayedFloorMap.seats, 'offline'), problems: countProblems(displayedFloorMap.seats) })}</span>
+        <ShellAlerts problems={countProblems(displayedFloorMap.seats)} offline={countByTone(displayedFloorMap.seats, 'offline')} />
         <span><CircleDollarSign size={14} />{shellPosText}</span>
         {workspaceFeedback && (
           <span className="rail-feedback"><LockKeyhole size={14} />{workspaceFeedback}</span>
