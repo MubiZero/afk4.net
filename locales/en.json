@@ -2159,6 +2159,9 @@
   "op.shopOrders.cancel": "Cancel",
   "op.shopOrders.status.placed": "New",
   "op.shopOrders.status.accepted": "In progress",
+  "op.shopOrders.toast.accept": "Order accepted",
+  "op.shopOrders.toast.deliver": "Order delivered",
+  "op.shopOrders.toast.cancel": "Order cancelled",
   "op.loyalty.title": "Loyalty / cashback",
   "op.loyalty.topUpEnabled": "Cashback on top-ups",
   "op.loyalty.topUpPercent": "Top-up percent (%)",
@@ -2526,5 +2529,7 @@
   "op.checkout.error.short": "Short by {amount}",
   "op.checkout.error.over": "Over by {amount}",
   "op.shell.queuedCommand": "Command «{action}» queued — it will be sent once the connection is restored.",
-  "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server"
+  "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server",
+  "op.toast.close": "Close",
+  "op.toast.region": "Notifications"
 }

@@ -25,7 +25,7 @@ import {
   requireBackend,
   toDateInputValue,
 } from './operatorHelpers';
-import { FeedbackNotice } from './operatorPrimitives';
+import { FeedbackNotice, Skeleton } from './operatorPrimitives';
 import type { OperatorDashboardSummaryDto } from './operatorApiClients';
 
 function useAnimatedNumber(value: number, duration = 360) {
@@ -351,10 +351,10 @@ export function DashboardWorkspace({
 
       {showDashboardSkeleton ? (
         <section className="dashboard-layout" role="status" aria-label={dashboardStatusText}>
-          <div className="skeleton-block dashboard-skeleton-now" aria-hidden="true" />
-          <div className="skeleton-block dashboard-skeleton-queue" aria-hidden="true" />
-          <div className="skeleton-block dashboard-skeleton-control" aria-hidden="true" />
-          <div className="skeleton-block dashboard-skeleton-pulse" aria-hidden="true" />
+          <Skeleton className="dashboard-skeleton-now" />
+          <Skeleton className="dashboard-skeleton-queue" />
+          <Skeleton className="dashboard-skeleton-control" />
+          <Skeleton className="dashboard-skeleton-pulse" />
         </section>
       ) : (
       <section className="dashboard-layout">

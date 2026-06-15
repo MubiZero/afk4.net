@@ -19,7 +19,7 @@ import {
   zoneClass,
   zoneLabel
 } from './operatorHelpers';
-import { FeedbackNotice } from './operatorPrimitives';
+import { EmptyState, FeedbackNotice, Skeleton } from './operatorPrimitives';
 
 function SeatTile({
   seat,
@@ -257,15 +257,12 @@ export function MapWorkspace({
           showSeatSkeleton ? (
             <div className="seat-grid" role="status" aria-label={t('op.map.loading')}>
               {Array.from({ length: 10 }).map((_, index) => (
-                <div key={index} className="skeleton-block seat-skeleton" aria-hidden="true" />
+                <Skeleton key={index} className="seat-skeleton" />
               ))}
             </div>
           ) : null
         ) : visibleSeats.length === 0 ? (
-          <div className="map-empty-state">
-            <strong>{t('op.map.emptyTitle')}</strong>
-            <span>{t('op.map.emptyHint')}</span>
-          </div>
+          <EmptyState title={t('op.map.emptyTitle')} description={t('op.map.emptyHint')} className="map-empty-state" />
         ) : viewMode === 'grid' ? (
           <div className="seat-grid">
             {visibleSeats.map((seat) => (

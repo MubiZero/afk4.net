@@ -40,6 +40,7 @@ import { useShellData } from './useShellData';
 import { useOperatorRealtime } from './useOperatorRealtime';
 import { useOperatorConnection } from './useOperatorConnection';
 import { useFloorMap } from './useFloorMap';
+import { ToastProvider } from './operatorToast';
 import type {
   WorkspaceId,
   AuthStatus,
@@ -70,7 +71,9 @@ import {
 export function App() {
   return (
     <I18nProvider>
-      <AppInner />
+      <ToastProvider>
+        <AppInner />
+      </ToastProvider>
     </I18nProvider>
   );
 }

@@ -2284,6 +2284,9 @@ export const messages = {
     "op.shopOrders.cancel": "Отменить",
     "op.shopOrders.status.placed": "Новый",
     "op.shopOrders.status.accepted": "Готовится",
+    "op.shopOrders.toast.accept": "Заказ принят",
+    "op.shopOrders.toast.deliver": "Заказ выдан",
+    "op.shopOrders.toast.cancel": "Заказ отменён",
     "op.loyalty.title": "Лояльность / кэшбэк",
     "op.loyalty.topUpEnabled": "Кэшбэк с пополнений",
     "op.loyalty.topUpPercent": "Процент с пополнений (%)",
@@ -2428,7 +2431,9 @@ export const messages = {
     "op.checkout.error.short": "Не хватает {amount}",
     "op.checkout.error.over": "Превышение на {amount}",
     "op.shell.queuedCommand": "Команда «{action}» поставлена в очередь — будет отправлена после восстановления связи.",
-    "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере"
+    "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере",
+    "op.toast.close": "Закрыть",
+    "op.toast.region": "Уведомления"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -4510,6 +4515,9 @@ export const messages = {
     "op.shopOrders.cancel": "Cancel",
     "op.shopOrders.status.placed": "New",
     "op.shopOrders.status.accepted": "In progress",
+    "op.shopOrders.toast.accept": "Order accepted",
+    "op.shopOrders.toast.deliver": "Order delivered",
+    "op.shopOrders.toast.cancel": "Order cancelled",
     "op.loyalty.title": "Loyalty / cashback",
     "op.loyalty.topUpEnabled": "Cashback on top-ups",
     "op.loyalty.topUpPercent": "Top-up percent (%)",
@@ -4855,7 +4863,9 @@ export const messages = {
     "op.checkout.error.short": "Short by {amount}",
     "op.checkout.error.over": "Over by {amount}",
     "op.shell.queuedCommand": "Command «{action}» queued — it will be sent once the connection is restored.",
-    "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server"
+    "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server",
+    "op.toast.close": "Close",
+    "op.toast.region": "Notifications"
   },
   tg: {
     "auth.club.title": "Воридшавӣ ба клуб",
@@ -6937,6 +6947,9 @@ export const messages = {
     "op.shopOrders.cancel": "Бекор кардан",
     "op.shopOrders.status.placed": "Нав",
     "op.shopOrders.status.accepted": "Дар ҳоли омодашавӣ",
+    "op.shopOrders.toast.accept": "Фармоиш қабул шуд",
+    "op.shopOrders.toast.deliver": "Фармоиш супорида шуд",
+    "op.shopOrders.toast.cancel": "Фармоиш бекор карда шуд",
     "op.loyalty.title": "Вафодорӣ / кэшбэк",
     "op.loyalty.topUpEnabled": "Кэшбэк аз пуркунӣ",
     "op.loyalty.topUpPercent": "Фоиз аз пуркунӣ (%)",
@@ -7282,7 +7295,9 @@ export const messages = {
     "op.checkout.error.short": "{amount} намерасад",
     "op.checkout.error.over": "Зиёдатӣ {amount}",
     "op.shell.queuedCommand": "Фармони «{action}» ба навбат гузошта шуд — пас аз барқарории алоқа фиристода мешавад.",
-    "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт"
+    "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт",
+    "op.toast.close": "Пӯшидан",
+    "op.toast.region": "Огоҳиномаҳо"
   },
 } as const;
 

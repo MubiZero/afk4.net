@@ -5,6 +5,8 @@ import { createOperatorRealtimeClient } from './operatorRealtime';
 import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { ShopOrderDto } from './operatorApiClients';
+import { EmptyState } from './operatorPrimitives';
+import { useToast } from './operatorToast';
 
 const isOpenStatus = (status: string) => status === 'placed' || status === 'accepted';
 
@@ -34,6 +36,7 @@ function applyAction(orders: ShopOrderDto[], updated: ShopOrderDto): ShopOrderDt
 
 export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
+  const toast = useToast();
   const [orders, setOrders] = useState<ShopOrderDto[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -101,8 +104,11 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
     try {
       const updated = await clients.shopOrders[verb](backend.branchId, order.id, order.version);
       setOrders((current) => applyAction(current, { ...order, ...updated }));
-    } catch {
-      // A 409 means another operator already acted; realtime reconciles the queue.
+      toast.success(t(`op.shopOrders.toast.${verb}`));
+    } catch (error) {
+      // Surface the failure like sibling workspaces do. A 409 means another operator already
+      // acted; realtime still reconciles the queue — the toast just tells the operator why.
+      toast.error(projectOperatorError(error, t).detail);
     }
   };
 
@@ -117,7 +123,7 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
       ) : status === 'error' ? (
         <p className="workspace-error" role="alert">{loadError ?? t('op.shopOrders.error')}</p>
       ) : orders.length === 0 ? (
-        <p className="shop-orders-empty">{t('op.shopOrders.empty')}</p>
+        <EmptyState title={t('op.shopOrders.empty')} className="shop-orders-empty" />
       ) : (
         <ul className="shop-orders-list">
           {orders.map((order) => (

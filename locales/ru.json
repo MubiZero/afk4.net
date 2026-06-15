@@ -2382,6 +2382,9 @@
   "op.shopOrders.cancel": "Отменить",
   "op.shopOrders.status.placed": "Новый",
   "op.shopOrders.status.accepted": "Готовится",
+  "op.shopOrders.toast.accept": "Заказ принят",
+  "op.shopOrders.toast.deliver": "Заказ выдан",
+  "op.shopOrders.toast.cancel": "Заказ отменён",
   "op.loyalty.title": "Лояльность / кэшбэк",
   "op.loyalty.topUpEnabled": "Кэшбэк с пополнений",
   "op.loyalty.topUpPercent": "Процент с пополнений (%)",
@@ -2526,5 +2529,7 @@
   "op.checkout.error.short": "Не хватает {amount}",
   "op.checkout.error.over": "Превышение на {amount}",
   "op.shell.queuedCommand": "Команда «{action}» поставлена в очередь — будет отправлена после восстановления связи.",
-  "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере"
+  "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере",
+  "op.toast.close": "Закрыть",
+  "op.toast.region": "Уведомления"
 }

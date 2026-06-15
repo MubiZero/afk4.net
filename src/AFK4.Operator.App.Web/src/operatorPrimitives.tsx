@@ -65,3 +65,50 @@ export function StateFlag({ label, value, critical }: { label: string; value: st
     </section>
   );
 }
+
+export function Skeleton({
+  variant = 'block',
+  lines = 1,
+  className
+}: {
+  variant?: 'block' | 'text' | 'circle';
+  lines?: number; // only applies to variant="text"; ignored for block/circle
+  className?: string;
+}) {
+  if (variant === 'text') {
+    return (
+      <div className={`skeleton-text-group${className ? ` ${className}` : ''}`} aria-hidden="true">
+        {Array.from({ length: lines }).map((_, index) => (
+          <div key={index} className="skeleton-block skeleton-text" />
+        ))}
+      </div>
+    );
+  }
+  const shape = variant === 'circle' ? ' skeleton-circle' : '';
+  return <div className={`skeleton-block${shape}${className ? ` ${className}` : ''}`} aria-hidden="true" />;
+}
+
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  className
+}: {
+  icon?: ReactNode;
+  title: string;
+  description?: string;
+  action?: { label: string; onClick: () => void };
+  className?: string;
+}) {
+  return (
+    <div className={`empty-state${className ? ` ${className}` : ''}`}>
+      {icon ? <div className="empty-state-icon" aria-hidden="true">{icon}</div> : null}
+      <strong>{title}</strong>
+      {description ? <span>{description}</span> : null}
+      {action ? (
+        <button type="button" className="empty-state-action" onClick={action.onClick}>{action.label}</button>
+      ) : null}
+    </div>
+  );
+}
