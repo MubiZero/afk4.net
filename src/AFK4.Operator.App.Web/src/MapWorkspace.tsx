@@ -33,8 +33,10 @@ export function MapWorkspace({
   session,
   actionsEnabled,
   selectedSeatId,
+  activeFilter,
   offlineActionAudit,
   onSelectSeat,
+  onFilterChange,
   onPcControlAction,
   onSeatAction
 }: {
@@ -43,14 +45,15 @@ export function MapWorkspace({
   session: OperatorAuthSession | null;
   actionsEnabled: boolean;
   selectedSeatId: string;
+  activeFilter: MapFilterId;
   offlineActionAudit: string[];
   onSelectSeat: (seatId: string) => void;
+  onFilterChange: (filter: MapFilterId) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
 }) {
   const { t } = useI18n();
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
-  const [activeFilter, setActiveFilter] = useState<MapFilterId>('all');
   const [viewMode, setViewMode] = useState<MapViewMode>('grid');
   const [isPcControlOpen, setIsPcControlOpen] = useState(false);
   const [seatMenu, setSeatMenu] = useState<{ seat: SeatSummary; x: number; y: number } | null>(null);
@@ -264,7 +267,7 @@ export function MapWorkspace({
               key={option.id}
               type="button"
               className={activeFilter === option.id ? 'active' : undefined}
-              onClick={() => setActiveFilter(option.id)}
+              onClick={() => onFilterChange(option.id)}
             >
               {option.label}
               <strong>{countByMapFilter(floorMap.seats, option.id)}</strong>

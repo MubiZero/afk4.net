@@ -13,6 +13,7 @@ import { hasPermission, permissionNames } from './operatorPermissions';
 import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState, SessionLifecycleChangedDto } from './operatorRealtime';
 import type { SeatSummary, SeatTone } from './operatorData';
 import type {
+  AlertSource,
   Feedback,
   FeedbackState,
   LoadStatus,
@@ -176,6 +177,17 @@ export function countProblems(nextSeats: SeatSummary[]): number {
   return nextSeats.filter((seat) => problemTones.has(seat.tone)).length;
 }
 
+// Жёсткие критические состояния зала для строки тревог — только то, по чему есть реальные
+// данные (#37): нет связи, сбой (снят шелл / упала сессия), обслуживание. Пустые не показываем.
+// Клик по счётчику ведёт на карту, отфильтрованную точно на эти места.
+export function criticalAlertSources(nextSeats: SeatSummary[], t: TFunc): AlertSource[] {
+  return ([
+    { id: 'offline', tone: 'danger', filterId: 'offline', label: t('op.alerts.critical.offline'), count: countByTone(nextSeats, 'offline') },
+    { id: 'blocking', tone: 'danger', filterId: 'blocking', label: t('op.alerts.critical.blocking'), count: countByTone(nextSeats, 'blocking') },
+    { id: 'service', tone: 'warning', filterId: 'service', label: t('op.alerts.critical.service'), count: countByTone(nextSeats, 'service') }
+  ] as const).filter((source) => source.count > 0).map((source) => ({ ...source }));
+}
+
 export function isPendingSeatCommand(seat: SeatSummary): boolean {
   return seat.tone === 'pending' || seat.command.toLowerCase().includes('pending');
 }
@@ -195,6 +207,15 @@ export function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): bool
 
   if (filterId === 'attention') {
     return problemTones.has(seat.tone);
+  }
+
+  // Точечные тон-фильтры — их ставит строка критсостояний (в ряду фильтров их нет, чтобы не плодить кнопки).
+  if (filterId === 'blocking') {
+    return seat.tone === 'blocking';
+  }
+
+  if (filterId === 'service') {
+    return seat.tone === 'service';
   }
 
   return seat.tone === 'offline' || seat.isDeviceOnline === false;

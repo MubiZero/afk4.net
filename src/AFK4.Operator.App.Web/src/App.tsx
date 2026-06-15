@@ -48,6 +48,7 @@ import { useHotkeys } from './useHotkeys';
 import type {
   WorkspaceId,
   AuthStatus,
+  MapFilterId,
   OperatorBackendContext
 } from './operatorTypes';
 import {
@@ -59,6 +60,7 @@ import {
 import {
   countByTone,
   countProblems,
+  criticalAlertSources,
   operatorDisplayNameLabel,
   dataSourceLabel,
   shellShiftLabel,
@@ -95,6 +97,7 @@ function AppInner() {
     handleChangeConnection
   } = useOperatorConnection(baseConfig);
   const [workspace, setWorkspace] = useState<WorkspaceId>('map');
+  const [mapFilter, setMapFilter] = useState<MapFilterId>('all');
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [authSession, setAuthSession] = useState<OperatorAuthSession | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -440,8 +443,10 @@ function AppInner() {
           session={authSession}
           actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
           selectedSeatId={selectedSeat?.id ?? ''}
+          activeFilter={mapFilter}
           offlineActionAudit={offlineActionAudit}
           onSelectSeat={setSelectedSeatId}
+          onFilterChange={setMapFilter}
           onPcControlAction={handlePcControlAction}
           onSeatAction={handleSeatAction}
         />
@@ -504,7 +509,15 @@ function AppInner() {
 
       <footer className="signals-strip">
         <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError, t)} · {dataSourceLabel(floorMap.source, t)}</span>
-        <ShellAlerts problems={countProblems(displayedFloorMap.seats)} offline={countByTone(displayedFloorMap.seats, 'offline')} />
+        <ShellAlerts
+          problems={countProblems(displayedFloorMap.seats)}
+          offline={countByTone(displayedFloorMap.seats, 'offline')}
+          sources={criticalAlertSources(displayedFloorMap.seats, t)}
+          onSelectSource={(filterId) => {
+            setMapFilter(filterId);
+            setWorkspace('map');
+          }}
+        />
         <span><CircleDollarSign size={14} />{shellPosText}</span>
         {workspaceFeedback && (
           <span className="rail-feedback"><LockKeyhole size={14} />{workspaceFeedback}</span>
