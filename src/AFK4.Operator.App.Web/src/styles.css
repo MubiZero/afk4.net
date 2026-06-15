@@ -1917,14 +1917,18 @@ button {
 
 .seat-tile {
   --accent-rgb: 44, 197, 146;
-  display: grid;
-  grid-template-rows: auto auto 1fr;
+  /* Статусный цвет плитки (левый кант + точка). Отдельно от --accent-rgb, который держит
+     интеракционный акцент (hover/focus/selected) — он всегда фирменный зелёный. */
+  --seat-color: var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  min-height: 116px;
-  padding: 11px 12px 11px 14px;
+  min-height: 118px;
+  padding: 11px 13px 12px 14px;
   border: 1px solid var(--border-default);
-  border-left: 3px solid rgba(var(--accent-rgb), 0.85);
-  border-radius: 6px;
+  border-left: 3px solid var(--seat-color);
+  border-radius: 8px;
   background: var(--surface-elevated);
   box-shadow: var(--shadow-card);
   transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
@@ -1937,8 +1941,8 @@ button {
   box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.7), 0 0 22px rgba(var(--accent-rgb), 0.18);
 }
 
-.seat-tile.state-pending:not(.selected),
-.seat-tile.state-warning:not(.selected),
+/* Пульсирует только blocking — провалившаяся команда, реальное «действуй сейчас». Остальное
+   (pending/warning) выделяется цветом канта и точкой, без постоянного мельтешения. */
 .seat-tile.state-blocking:not(.selected) {
   animation: attention-pulse 2100ms ease-in-out infinite;
 }
@@ -1956,42 +1960,16 @@ button {
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.78), 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
-.zone-a {
-  --accent-rgb: 34, 197, 94;
-}
-
-.zone-b {
-  --accent-rgb: 34, 197, 94;
-}
-
-.zone-c {
-  --accent-rgb: 34, 197, 94;
-}
-
-.zone-vip {
-  --accent-rgb: 34, 197, 94;
-}
-
-.zone-bootcamp {
-  --accent-rgb: 34, 197, 94;
-}
-
-.state-offline,
-.state-service {
-  --accent-rgb: 100, 116, 139;
-}
-
-.state-warning {
-  --accent-rgb: 245, 158, 11;
-}
-
-.state-blocking {
-  --accent-rgb: 239, 68, 68;
-}
-
-.state-pending {
-  --accent-rgb: 245, 158, 11;
-}
+/* Статусная палитра канта/точки плитки. Принцип: цвет = «посмотри сюда».
+   Свободно — зелёное (можно продать, зовёт). Занято-и-исправно — нейтральное (фон смены,
+   не отвлекает). Ожидание — янтарь, проблема — красный, вне игры (офлайн/обслуживание) — серое. */
+.seat-tile.state-ready { --seat-color: var(--accent); }
+.seat-tile.state-active { --seat-color: var(--border-strong); }
+.seat-tile.state-pending,
+.seat-tile.state-warning { --seat-color: var(--warning); }
+.seat-tile.state-blocking { --seat-color: var(--danger); }
+.seat-tile.state-offline,
+.seat-tile.state-service { --seat-color: #64748b; }
 
 .seat-head,
 .seat-main,
@@ -2030,7 +2008,7 @@ button {
 }
 
 .seat-main {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .seat-main span,
@@ -2091,7 +2069,64 @@ button {
 /* Громкий акцент только на Внимание/Проблема; спокойные тоны (active/ready/pending) — тихие. */
 .seat-tile--alert {
   border-left-width: 4px;
-  background: color-mix(in srgb, rgb(var(--accent-rgb)) 7%, var(--surface-elevated));
+}
+
+/* Тонировка фона проблемных плиток — по готовым soft-bg токенам, не самодельным смешением.
+   :not(.selected) уступает выделению/наведению приоритет, чтобы клик по плитке был виден. */
+.seat-tile.state-blocking:not(.selected) {
+  background: var(--danger-soft-bg);
+  border-color: var(--danger-soft-border);
+}
+
+.seat-tile.state-warning:not(.selected) {
+  background: var(--warning-soft-bg);
+  border-color: var(--warning-soft-border);
+}
+
+/* Вне игры (офлайн/обслуживание) — приглушаем, место «не в строю». */
+.seat-tile.state-offline,
+.seat-tile.state-service {
+  opacity: 0.92;
+}
+
+/* Шапка плитки: статус-точка + имя ПК. Точка дублирует статус канта на уровне текста
+   (помогает и при дальтонизме, и делает цвет читаемым крупнее тонкого канта). */
+.seat-id {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.seat-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--seat-color);
+}
+
+/* Тело плитки тянется на всю высоту: «кто» сверху, ведущая метрика (таймбар) прижата вниз. */
+.seat-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Проблемное/ожидающее место — строка состояния по центру свободного пространства. */
+.seat-body--status {
+  justify-content: center;
+}
+
+/* Свободное место — крупный «＋» по центру всей плитки: явное приглашение посадить гостя. */
+.seat-invite {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Постоплата / открытый счёт: набегающая сумма наверху, со стрелкой роста. */
@@ -2140,7 +2175,8 @@ button {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: rgb(var(--accent-rgb));
+  /* Здоровый остаток — зелёный, независимо от статусного цвета канта. */
+  background: var(--accent);
   transition: width 200ms ease;
 }
 
@@ -2148,14 +2184,17 @@ button {
   background: var(--warning);
 }
 
-/* Свободное место зовёт действием. */
+/* Свободное место зовёт действием — крупный мягкий «＋» в фирменном зелёном. */
 .seat-free {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  color: var(--accent);
-  font-size: 26px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 30px;
   font-weight: 300;
   line-height: 1;
 }

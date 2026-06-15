@@ -39,7 +39,10 @@ export function SeatTile({
       tabIndex={0}
     >
       <header className="seat-head">
-        <strong>{seat.name}</strong>
+        <span className="seat-id">
+          <span className="seat-dot" aria-hidden="true" />
+          <strong>{seat.name}</strong>
+        </span>
         {lead.kind === 'postpaid' ? (
           <span className="seat-amount" aria-label={t('op.map.seatRising')}>
             {lead.amount}
@@ -50,27 +53,32 @@ export function SeatTile({
         )}
       </header>
 
-      {lead.kind !== 'free' && (
-        <div className="seat-main">
-          <strong className="seat-player">{seat.player}</strong>
-          {billing !== null && <span className="seat-billing">{billing}</span>}
+      {lead.kind === 'free' ? (
+        // Свободное место — приглашение посадить гостя: крупный «＋» в центре плитки.
+        <div className="seat-invite">
+          <span className="seat-free" aria-label={t('op.map.seatFree')}>+</span>
+        </div>
+      ) : hasSession ? (
+        <div className="seat-body">
+          <div className="seat-main">
+            <strong className="seat-player">{seat.player}</strong>
+            {billing !== null && <span className="seat-billing">{billing}</span>}
+          </div>
+          {lead.kind === 'prepaid' && (
+            <div className="seat-time">
+              <strong>{lead.remaining}</strong>
+              <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
+                <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
+              </span>
+            </div>
+          )}
+        </div>
+      ) : (
+        // Проблемное / ожидающее место без сессии — ведём человеческой строкой состояния.
+        <div className="seat-body seat-body--status">
+          <strong className="seat-status-line">{lead.remaining}</strong>
         </div>
       )}
-
-      <footer>
-        {lead.kind === 'free' ? (
-          <span className="seat-free" aria-label={t('op.map.seatFree')}>+</span>
-        ) : lead.kind === 'prepaid' ? (
-          <div className="seat-time">
-            <strong>{lead.remaining}</strong>
-            <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
-              <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
-            </span>
-          </div>
-        ) : lead.kind === 'plain' ? (
-          <strong className="seat-status-line">{lead.remaining}</strong>
-        ) : null}
-      </footer>
     </article>
   );
 }
