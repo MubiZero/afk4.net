@@ -137,6 +137,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.RefundLedgerEntry,
                 StaffPermissionNames.ManualLedgerCorrection,
                 StaffPermissionNames.PayDebt,
+                StaffPermissionNames.ApproveMoneyAction,
                 StaffPermissionNames.ViewTariffs,
                 StaffPermissionNames.ViewPackages,
                 StaffPermissionNames.PurchasePackage,
@@ -153,9 +154,7 @@ public static class PermissionCatalog
                 StaffPermissionNames.VoidPosSale,
                 StaffPermissionNames.ViewInventory,
                 StaffPermissionNames.ViewReceipt,
-                StaffPermissionNames.ViewUpdateStatus,
-                StaffPermissionNames.ViewDiagnostics,
-                StaffPermissionNames.ViewAudit
+                StaffPermissionNames.ViewUpdateStatus
             },
             [StaffRoleNames.CashierOperator] = new HashSet<string>
             {

@@ -62,15 +62,12 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
   dashboard: [permissionNames.viewReports],
   booking: [permissionNames.viewReservations],
   pos: [
-    permissionNames.viewInventory,
     permissionNames.createPosSale,
     permissionNames.payPosSale,
     permissionNames.refundPosSale,
-    permissionNames.voidPosSale,
-    permissionNames.viewShift,
-    permissionNames.viewReports
+    permissionNames.voidPosSale
   ],
-  shop_orders: [permissionNames.viewInventory, permissionNames.createPosSale],
+  shop_orders: [permissionNames.createPosSale],
   players: [
     permissionNames.viewPlayers,
     permissionNames.createPlayerAccount,
@@ -88,19 +85,14 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
     permissionNames.manageLayout,
     permissionNames.createDeviceEnrollmentCode,
     permissionNames.assignDeviceSeat,
-    permissionNames.viewDeviceDetail,
     permissionNames.rotateDeviceCredential,
     permissionNames.revokeDeviceCredential,
-    permissionNames.viewInventory,
     permissionNames.manageInventoryStock,
     permissionNames.managePosCatalog,
     permissionNames.managePackages,
-    permissionNames.viewDiagnostics,
-    permissionNames.viewUpdateStatus,
     permissionNames.manageUpdatePackages,
     permissionNames.manageUpdateRollouts,
-    permissionNames.manageTariffs,
-    permissionNames.viewTariffs
+    permissionNames.manageTariffs
   ],
   review: [permissionNames.approveMoneyAction],
   loyalty: [permissionNames.manageLoyaltySettings],

@@ -762,7 +762,7 @@ describe('App', () => {
         'shifts.view',
         'shifts.open',
         'receipts.view',
-        'devices.detail.view'
+        'identity.branch_staff.manage'
       ]
     }));
 
