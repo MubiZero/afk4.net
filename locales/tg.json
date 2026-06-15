@@ -1030,6 +1030,8 @@
   "op.map.feedbackQueue": "Навбат",
   "op.map.loadError": "Бор кардани харита муяссар нашуд.",
   "op.map.seatsLabel": "ПК-ҳои толор",
+  "op.map.seatFree": "Озод — меҳмонро шинонед",
+  "op.map.seatRising": "Ҳисоб меафзояд",
   "op.map.emptyTitle": "Дар филтри интихобшуда ПК нест",
   "op.map.emptyHint": "Филтрро иваз кунед ё харитаи платформаро санҷед.",
   "op.map.tableLabel": "Ҷадвали ПК",

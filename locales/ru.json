@@ -1030,6 +1030,8 @@
   "op.map.feedbackQueue": "Очередь",
   "op.map.loadError": "Не удалось загрузить карту.",
   "op.map.seatsLabel": "ПК зала",
+  "op.map.seatFree": "Свободно — посадить гостя",
+  "op.map.seatRising": "Счёт растёт",
   "op.map.emptyTitle": "Нет ПК в выбранном фильтре",
   "op.map.emptyHint": "Смените фильтр или проверьте карту платформы.",
   "op.map.tableLabel": "Таблица ПК",
