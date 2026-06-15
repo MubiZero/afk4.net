@@ -92,8 +92,6 @@ export function QuickActionsMenu({
     close(true);
   };
 
-  itemRefs.current = [];
-
   return (
     <div className="quick-actions">
       <button
@@ -115,7 +113,10 @@ export function QuickActionsMenu({
           role="menu"
           className="quick-actions-menu"
           onKeyDown={(event) => {
-            if (event.key === 'Escape') {
+            // Esc и Tab закрывают меню и возвращают фокус на триггер «+» — Tab не запирается внутри
+            // (с триггера фокус идёт дальше по табстопам как обычно). Обработка на контейнере, т.к.
+            // события от пунктов (tabIndex=-1) всплывают сюда.
+            if (event.key === 'Escape' || event.key === 'Tab') {
               event.preventDefault();
               close(true);
             }
@@ -141,6 +142,7 @@ export function QuickActionsMenu({
                       }}
                       type="button"
                       role="menuitem"
+                      tabIndex={-1}
                       className="quick-actions-item"
                       onClick={() => select(action)}
                       onKeyDown={(event) => {

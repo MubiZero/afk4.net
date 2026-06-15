@@ -63,6 +63,21 @@ describe('QuickActionsMenu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
+  it('returns focus to the trigger after Escape', () => {
+    renderMenu(managerPerms);
+    const trigger = screen.getByLabelText('Быстрое меню');
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('closes the menu on Tab without trapping focus', () => {
+    renderMenu(managerPerms);
+    fireEvent.click(screen.getByLabelText('Быстрое меню'));
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Tab' });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
   it('hides the trigger for a session with no permissions', () => {
     renderMenu([]);
     expect(screen.queryByLabelText('Быстрое меню')).toBeNull();

@@ -6,7 +6,7 @@ export function ContextPanel({ collapsed, onToggle, title, children }: {
   collapsed: boolean;
   onToggle: () => void;
   title?: string;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   const { t } = useI18n();
 

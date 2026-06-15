@@ -44,6 +44,7 @@ export function CommandPalette({ session, onNavigate, onClose }: {
   }, [filtered.length]);
 
   const optionId = (index: number) => `command-palette-option-${index}`;
+  const listboxId = 'command-palette-listbox';
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Escape') {
@@ -84,6 +85,9 @@ export function CommandPalette({ session, onNavigate, onClose }: {
           ref={inputRef}
           className="command-palette-input"
           type="text"
+          role="combobox"
+          aria-expanded={filtered.length > 0}
+          aria-controls={filtered.length ? listboxId : undefined}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           aria-label={t('op.command.palette.label')}
@@ -95,7 +99,7 @@ export function CommandPalette({ session, onNavigate, onClose }: {
           {filtered.length === 0 ? (
             <p className="command-palette-empty">{t('op.command.palette.empty')}</p>
           ) : (
-            <ul className="command-palette-list" role="listbox">
+            <ul id={listboxId} className="command-palette-list" role="listbox">
               {filtered.map((target, index) => (
                 <li
                   key={target.id}
