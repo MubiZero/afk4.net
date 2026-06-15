@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { LockKeyhole, MonitorCheck, Power, ShieldAlert, TimerReset, UnlockKeyhole, Wifi, Wrench } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { useDeferredFlag } from './useDeferredFlag';
 import { offlineBannerText, type OperatorFloorMapState } from './floorMapState';
-import type { Feedback, MapFilterId, MapViewMode, PcControlActionId, PcControlActionResult } from './operatorTypes';
+import type { OperatorAuthSession } from './authClient';
+import type { Feedback, MapFilterId, MapViewMode, PcControlActionId, PcControlActionResult, SeatActionRequest, SeatActionResult } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
 import {
   billingLabel,
@@ -12,34 +14,53 @@ import {
   countByMapFilter,
   deviceStatusLabel,
   emptyFeedback,
+  guestBillingSelection,
   mapFilterOptions,
   matchesMapFilter,
+  projectOperatorFacingError,
   toneLabel,
   zoneLabel
 } from './operatorHelpers';
+import { hasPermission, permissionNames } from './operatorPermissions';
+import { buildSeatMenu, type SeatMenuItem } from './seatMenu';
 import { EmptyState, FeedbackNotice, Skeleton } from './operatorPrimitives';
+import { SeatContextMenu } from './SeatContextMenu';
 import { SeatTile } from './SeatTile';
 
 export function MapWorkspace({
   floorMap,
   canUsePcControl,
+  session,
+  actionsEnabled,
   selectedSeatId,
   offlineActionAudit,
   onSelectSeat,
-  onPcControlAction
+  onPcControlAction,
+  onSeatAction
 }: {
   floorMap: OperatorFloorMapState;
   canUsePcControl: boolean;
+  session: OperatorAuthSession | null;
+  actionsEnabled: boolean;
   selectedSeatId: string;
   offlineActionAudit: string[];
   onSelectSeat: (seatId: string) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
+  onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
 }) {
   const { t } = useI18n();
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [activeFilter, setActiveFilter] = useState<MapFilterId>('all');
   const [viewMode, setViewMode] = useState<MapViewMode>('grid');
   const [isPcControlOpen, setIsPcControlOpen] = useState(false);
+  const [seatMenu, setSeatMenu] = useState<{ seat: SeatSummary; x: number; y: number } | null>(null);
+  const seatMenuCaps = useMemo(() => ({
+    actionsEnabled,
+    canStart: hasPermission(session, permissionNames.startSession),
+    canExtend: hasPermission(session, permissionNames.extendSession),
+    canStatus: hasPermission(session, permissionNames.viewDiagnostics) && hasPermission(session, permissionNames.viewDeviceDetail),
+    canLockUnlock: hasPermission(session, permissionNames.dispatchDeviceCommand)
+  }), [actionsEnabled, session]);
   const pcControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const pcControlPanelRef = useRef<HTMLElement | null>(null);
   const visibleSeats = useMemo(
@@ -68,23 +89,67 @@ export function MapWorkspace({
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
   const selectedHasSession = selectedSeat !== null && (Boolean(selectedSeat.activeSessionId) || selectedSeat.hasActiveSession === true);
 
-  const runPcControlAction = async (action: PcControlActionId, label: string) => {
-    if (selectedSeat === null) {
+  const runPcControlAction = async (action: PcControlActionId, label: string, seat: SeatSummary | null = selectedSeat) => {
+    if (seat === null) {
       setFeedback({ label, state: 'failed', detail: t('op.map.selectPcDetail') });
       return;
     }
 
     setFeedback({ label, state: 'pending' });
     try {
-      const result = await onPcControlAction(selectedSeat, action);
+      const result = await onPcControlAction(seat, action);
       setFeedback({ label, state: 'confirmed', detail: result.detail });
     } catch (error) {
       setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
+  const runSeatAction = async (label: string, request: SeatActionRequest) => {
+    setFeedback({ label, state: 'pending' });
+    try {
+      const result = await onSeatAction(request);
+      setFeedback({ label, state: 'confirmed', detail: result.detail });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorFacingError(error, t) });
+    }
+  };
+
   const explainUnavailablePcControl = (label: string, detail: string) => {
     setFeedback({ label, state: 'failed', detail });
+  };
+
+  // Правый клик: выбираем место (раскрывает карточку справа) и открываем меню у курсора.
+  // Клавиатурный вызов (Menu/Shift+F10) даёт coords 0 — тогда якоримся к самому элементу.
+  const openSeatMenu = (seat: SeatSummary, event: ReactMouseEvent) => {
+    event.preventDefault();
+    onSelectSeat(seat.id);
+    const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    setSeatMenu({
+      seat,
+      x: fromKeyboard ? rect.left + 12 : event.clientX,
+      y: fromKeyboard ? rect.top + 12 : event.clientY
+    });
+  };
+
+  const onSeatMenuSelect = (item: SeatMenuItem) => {
+    const seat = seatMenu?.seat ?? null;
+    setSeatMenu(null);
+    if (seat === null) {
+      return;
+    }
+
+    const label = t(item.feedbackKey);
+    const run = item.run;
+    if (run.kind === 'start-guest') {
+      void runSeatAction(label, { type: 'start', seat, billing: guestBillingSelection, durationMode: 'fixed' });
+    } else if (run.kind === 'extend') {
+      void runSeatAction(label, { type: 'extend', seat, minutes: run.minutes, billing: guestBillingSelection });
+    } else if (run.kind === 'pc') {
+      void runPcControlAction(run.action, label, seat);
+    } else {
+      explainUnavailablePcControl(label, t(run.detailKey));
+    }
   };
 
   useEffect(() => {
@@ -248,6 +313,7 @@ export function MapWorkspace({
                       seat={seat}
                       selected={seat.id === selectedSeatId}
                       onSelect={() => onSelectSeat(seat.id)}
+                      onContextMenu={(event) => openSeatMenu(seat, event)}
                     />
                   ))}
                 </div>
@@ -270,7 +336,11 @@ export function MapWorkspace({
               </thead>
               <tbody>
                 {visibleSeats.map((seat) => (
-                  <tr key={seat.id} className={`state-${seat.tone}${seat.id === selectedSeatId ? ' selected' : ''}`}>
+                  <tr
+                    key={seat.id}
+                    className={`state-${seat.tone}${seat.id === selectedSeatId ? ' selected' : ''}`}
+                    onContextMenu={(event) => openSeatMenu(seat, event)}
+                  >
                     <td>
                       <button type="button" onClick={() => onSelectSeat(seat.id)}>{seat.name}</button>
                       <span>{zoneLabel(seat.zone, t)}</span>
@@ -288,6 +358,17 @@ export function MapWorkspace({
           </div>
         )}
       </section>
+
+      {seatMenu !== null && (
+        <SeatContextMenu
+          seat={seatMenu.seat}
+          sections={buildSeatMenu(seatMenu.seat, seatMenuCaps)}
+          x={seatMenu.x}
+          y={seatMenu.y}
+          onClose={() => setSeatMenu(null)}
+          onSelect={onSeatMenuSelect}
+        />
+      )}
     </main>
   );
 }

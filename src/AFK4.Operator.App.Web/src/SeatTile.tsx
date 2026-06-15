@@ -1,5 +1,5 @@
 import { Hourglass, OctagonAlert, Plus, TrendingUp, TriangleAlert, WifiOff, Wrench } from 'lucide-react';
-import type { ComponentType } from 'react';
+import type { ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
 import { formatDurationCompact } from './floorMapState';
@@ -19,11 +19,13 @@ const PROBLEM_ICON: Partial<Record<SeatTone, ComponentType<{ size?: number; 'ari
 export function SeatTile({
   seat,
   selected,
-  onSelect
+  onSelect,
+  onContextMenu
 }: {
   seat: SeatSummary;
   selected?: boolean;
   onSelect: () => void;
+  onContextMenu?: (event: ReactMouseEvent) => void;
 }) {
   const { t } = useI18n();
   const lead = seatTileLead(seat);
@@ -38,6 +40,7 @@ export function SeatTile({
       aria-label={`${seat.name} ${seat.stateLabel}`}
       aria-pressed={selected}
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();

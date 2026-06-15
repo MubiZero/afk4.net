@@ -19,7 +19,8 @@ import type {
   MapFilterId,
   OperatorBackendContext,
   OperatorConfig,
-  SessionBillingModeId
+  SessionBillingModeId,
+  SessionBillingSelection
 } from './operatorTypes';
 import type { MessageKey } from '@afk4/i18n';
 
@@ -116,6 +117,17 @@ export function feedbackText(feedback: Feedback, t: TFunc) {
 
 export const defaultSessionDurationMinutes = 60;
 export const defaultTariffRuleVersionId = 'manual-v1';
+
+// Незабилленный гость по дефолтному правилу — самый частый старт и единственный режим,
+// который можно посадить «в один тап» без выбора игрока/тарифа. Панель и контекст-меню
+// должны брать его отсюда, чтобы быстрый старт и старт из панели не разъехались.
+export const guestBillingSelection: SessionBillingSelection = {
+  mode: 'guest',
+  tariffRuleVersionId: defaultTariffRuleVersionId,
+  playerAccountId: null,
+  tariffVersionId: null,
+  playerPackageId: null
+};
 // Dashboard KPIs are now event-driven: a sessionLifecycleChanged push (or a reconnect) reconciles
 // them immediately, so this poll is only a slow safety net that corrects drift / covers a realtime
 // outage, not the primary refresh path.

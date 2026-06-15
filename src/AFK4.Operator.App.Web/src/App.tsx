@@ -437,10 +437,13 @@ function AppInner() {
         <MapWorkspace
           floorMap={displayedFloorMap}
           canUsePcControl={canUsePcControl}
+          session={authSession}
+          actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
           selectedSeatId={selectedSeat?.id ?? ''}
           offlineActionAudit={offlineActionAudit}
           onSelectSeat={setSelectedSeatId}
           onPcControlAction={handlePcControlAction}
+          onSeatAction={handleSeatAction}
         />
       )}
       {workspace === 'dashboard' && (

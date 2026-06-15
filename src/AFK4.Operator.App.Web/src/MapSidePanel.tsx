@@ -41,6 +41,7 @@ import {
   createAuthenticatedOperatorClients,
   defaultTariffRuleVersionId,
   deviceStatusLabel,
+  guestBillingSelection,
   emptyFeedback,
   feedbackText,
   formatMinorUnits,
@@ -297,13 +298,7 @@ export function MapSidePanel({
     canTransferPermission ||
     canEndPermission;
   const billingSelection: SessionBillingSelection = billingMode === 'guest'
-    ? {
-        mode: 'guest',
-        tariffRuleVersionId: defaultTariffRuleVersionId,
-        playerAccountId: null,
-        tariffVersionId: null,
-        playerPackageId: null
-      }
+    ? guestBillingSelection
     : billingMode === 'package'
       ? {
           mode: 'package',
