@@ -35,6 +35,13 @@ const { cleanup } = await import('@testing-library/react');
   __afk4RealOperatorHelpers?: typeof import('../operatorHelpers');
 }).__afk4RealOperatorHelpers = { ...(await import('../operatorHelpers')) };
 
+// NB: App.test.tsx (the only broad integration suite) depends on the REAL authClient/
+// operatorApiClients/operatorHelpers AND its own operatorRealtime mock. In one bun process the
+// above sibling mock.module registrations leak across files non-deterministically (bun keeps them
+// for the whole run and order is not fixed), so App's data layer intermittently sees stubs and the
+// branch heading never renders. The snapshot/restore dance above only helps for one file order.
+// The robust fix lives in package.json "test": App.test runs in its OWN bun invocation, isolated
+// from sibling mocks. Keep that split — re-merging App.test into the shared run reintroduces the flake.
 afterEach(() => {
   cleanup();
   // Isolate persisted web storage between tests: the i18n provider seeds locale from localStorage,
