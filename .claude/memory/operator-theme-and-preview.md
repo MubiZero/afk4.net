@@ -1,0 +1,26 @@
+---
+name: operator-theme-and-preview
+description: "Operator.App.Web has a full light/dark token system + theme toggle, and a dev UI-preview mock mode (console renders without a backend)"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: e5cd6774-e550-4246-a3dd-14b13592d826
+---
+
+Operator.App.Web (`src/AFK4.Operator.App.Web`) got two big additions (2026-06-13), **MERGED to main via PR #78** (merge `5e31f89`; commits `d5f33b0` epic + `f73cfa4` light-logo/shadow polish):
+
+**1. Light/dark theme system.** `styles.css` was fully migrated off ~813 hardcoded hex onto ~50 semantic tokens. `:root` holds the DARK set (shipping default — no `[data-theme]` attribute still renders dark, so dark is byte-stable); `[data-theme="light"]` overrides. Tokens: `--surface-*` (canvas/elevated/card/sunken/hover/muted/accent-soft), `--border-*` (soft/default/strong/accent), `--text-*` (primary/bright/strong/secondary/tertiary/quaternary/on-accent), `--accent*`, semantic `--danger/--warning/--success` (+ -text/-soft-bg/-soft-border), `--shadow-*`, `--radius-*`. Operator accent stays **blue** (`#1f6feb`), NOT the brand emerald. Legacy aliases `--panel`/`--line` kept (older screens reference them). To re-tune the light palette, edit the `[data-theme="light"]` block (~40 lines) — no re-migration needed. This also closed the audit's "two design dialects" + hardcoded-hex findings.
+
+Theme state lives in `operatorTheme.tsx` (`OperatorThemeProvider` + `useOperatorTheme`, wired in `main.tsx`), persists `afk4.operator.theme`, default dark. Toggle (Sun/Moon) + language cycle (RU/EN/TJ) are in `TitlebarControls.tsx`, shown in both the auth titlebar (`AuthFrame.tsx`) and the console top bar (`App.tsx`).
+
+**2. Dev UI-preview mock mode.** `devMockBackend.ts` (createMockSession with all perms via `Object.values(permissionNames)` + `devMockFetch` fixtures: floor-map w/ varied seat states, dashboard summary w/ donuts, shift, pos, reservations). Wired into `devHostBridge.ts`: plain-browser `bun run dev` now **defaults to mock** — sign in with ANY credentials → full console on fake data; append **`?live`** to the URL to use the old staging-proxy sign-in instead. Lets you review every console screen (incl. light/dark) without a backend. Fixtures mirror the test shapes; unmapped endpoints return `[]`/204 so secondary screens show themed empty states.
+
+Verified live (preview): Map + Dashboard clean in BOTH themes; dark unchanged. Build green, operator suite 209 pass (3 Clients money-form tests are **pre-existing flaky** under full-suite load — pass in isolation; BackendPlayersWorkspace has act() timing warnings).
+
+**Follow-ups (all merged to main):**
+- PR #79 `e3b9d0c` — closed the UI-audit's missing-state gap on 5 workspaces: ShopOrders (was silent error-swallow), Shifts (failed load masked as "no shift"), Loyalty (hung on "…" forever), Map + PaymentGateways (showed empty during first load). Shared `.workspace-loading`/`.workspace-error` classes (tokenized) + `op.*`/`payments_cards` loading/error keys (ru/en/tg) + 3 regression tests asserting errors now surface as `role="alert"`.
+- PR #80 `6b26cdd` — skeleton loading states for the floor map + dashboard (`useDeferredFlag` 180ms anti-flash; tokenized `skeleton-pulse`; reuses the real `.seat-grid`/`.dashboard-layout` grids so no layout shift). Suite 212/212.
+
+With these, the operator UI-audit backlog (states, two design dialects, light theme, logo, shadows, skeletons) is **fully closed**.
+
+Open polish: brand logo (`/afk4-logo-horizontal.svg`) is faint in light theme (asset drawn for dark) — needs a light variant or an always-dark titlebar; workspace box-shadows still inline dark `rgba(0,0,0,…)` (fine on light, not tokenized). See [[setup-wizard-preview-launch]] for the wizard's mirror token system (it was the reference; wizard is light-default + `[data-theme=dark]`, operator is the inverse).

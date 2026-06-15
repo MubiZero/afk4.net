@@ -28,10 +28,14 @@ secrets/
 Secrets/
 
 # Local agent/editor settings (ignore everything except the versioned project memory)
-.claude/*
-!.claude/memory/
-# Same for nested .claude folders inside subprojects
+/.claude/*
+!/.claude/memory/
+!/.claude/memory/**
+# Same for nested .claude folders inside subprojects (but keep the root project memory above)
 **/.claude/
+!/.claude/
+!/.claude/memory/
+!/.claude/memory/**
 
 # One-off command-output dumps
 diffstat.txt
