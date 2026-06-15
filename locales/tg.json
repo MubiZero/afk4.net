@@ -1130,6 +1130,7 @@
   "op.map.panel.sessionUnavailable": "Сессияи оператори платформа дастрас нест.",
   "op.map.panel.confirmationLabel": "Тасдиқ",
   "op.map.panel.diagnostics": "Ташхиси компютер",
+  "op.map.panel.actionsHead": "Амалҳо",
   "op.map.panel.accrued": "Ҷамъшуда",
   "op.map.panel.connection": "Алоқа",
   "op.map.panel.lock": "Қулф",

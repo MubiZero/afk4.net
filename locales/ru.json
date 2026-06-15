@@ -1130,6 +1130,7 @@
   "op.map.panel.sessionUnavailable": "Сессия оператора платформы недоступна.",
   "op.map.panel.confirmationLabel": "Подтверждение",
   "op.map.panel.diagnostics": "Диагностика ПК",
+  "op.map.panel.actionsHead": "Действия",
   "op.map.panel.accrued": "Набежало",
   "op.map.panel.connection": "Связь",
   "op.map.panel.lock": "Блокировка",

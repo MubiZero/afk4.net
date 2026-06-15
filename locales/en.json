@@ -1130,6 +1130,7 @@
   "op.map.panel.sessionUnavailable": "Platform operator session unavailable.",
   "op.map.panel.confirmationLabel": "Confirmation",
   "op.map.panel.diagnostics": "PC diagnostics",
+  "op.map.panel.actionsHead": "Actions",
   "op.map.panel.accrued": "Accrued",
   "op.map.panel.connection": "Connection",
   "op.map.panel.lock": "Lock",
