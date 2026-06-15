@@ -19,6 +19,7 @@ public sealed class MoneyActionEndpointTests
     private static readonly Guid Supervisor = Guid.Parse("d1d1d1d1-d1d1-4d1d-8d1d-d1d1d1d1d1d1");
     private static readonly Guid Manager = Guid.Parse("e2e2e2e2-e2e2-4e2e-8e2e-e2e2e2e2e2e2");
     private static readonly Guid Owner = Guid.Parse("f3f3f3f3-f3f3-4f3f-8f3f-f3f3f3f3f3f3");
+    private static readonly Guid Cashier = Guid.Parse("c4c4c4c4-c4c4-4c4c-8c4c-c4c4c4c4c4c4");
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-06-02T10:00:00Z");
 
     [Fact]
@@ -211,10 +212,10 @@ public sealed class MoneyActionEndpointTests
             requestId = (await submit.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>())!.MoneyActionRequestId!.Value;
         }
 
-        // Supervisor lacks ApproveMoneyAction.
-        using var supervisorClient = factory.CreateClient();
-        await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
-        var approve = await supervisorClient.PostAsJsonAsync(
+        // Cashier lacks ApproveMoneyAction.
+        using var cashierClient = factory.CreateClient();
+        await AuthorizeAsAsync(factory, cashierClient, Cashier, "cashier@afk4.test", StaffRoleNames.CashierOperator);
+        var approve = await cashierClient.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
             new MoneyActionDecisionRequest(null));
 
