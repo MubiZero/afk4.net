@@ -2506,7 +2506,7 @@
   "op.floor.remaining.pcOffline": "PC offline",
   "op.floor.remaining.playing": "playing now",
   "op.floor.remaining.pending": "Pending",
-  "op.floor.remaining.noHeartbeat": "No heartbeat",
+  "op.floor.remaining.noHeartbeat": "No connection",
   "op.floor.remaining.closed": "Closed",
   "op.floor.remaining.action": "Action needed",
   "op.floor.duration.sec": "{count} s left",

@@ -32,11 +32,28 @@ function renderTile(s: SeatSummary) {
 }
 
 describe('SeatTile', () => {
-  it('renders a "+" affordance for a free seat', () => {
-    const { container } = renderTile(seat({ tone: 'ready', hasActiveSession: false }));
+  it('renders a "+" affordance for a free seat, without a player line or billing', () => {
+    const { container } = renderTile(seat({ tone: 'ready', hasActiveSession: false, player: 'Гость' }));
     const free = container.querySelector('.seat-free');
     expect(free).not.toBeNull();
     expect(free?.textContent).toContain('+');
+    // A free seat invites with "+", it does not show a meaningless "Гость" / billing line.
+    expect(container.querySelector('.seat-main')).toBeNull();
+    expect(container.querySelector('.seat-billing')).toBeNull();
+    expect(container.textContent).not.toContain('Гость');
+  });
+
+  it('shows the billing mode (human label) for an active session and never the agent/shell version', () => {
+    const { container } = renderTile(
+      seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800, remaining: '30 мин', billing: 'Wallet', app: 'Agent 0.4 · Shell 0.4' })
+    );
+    const billing = container.querySelector('.seat-billing');
+    expect(billing).not.toBeNull();
+    expect(billing?.textContent?.trim().length).toBeGreaterThan(0);
+    // Technical version data must not leak onto the tile (it lives in the side panel).
+    expect(container.textContent).not.toContain('Agent');
+    expect(container.textContent).not.toContain('Shell');
+    expect(container.textContent).not.toContain('0.4');
   });
 
   it('leads with the rising amount up top for an open tab', () => {

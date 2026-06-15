@@ -2506,7 +2506,7 @@
   "op.floor.remaining.pcOffline": "ПК офлайн",
   "op.floor.remaining.playing": "играет сейчас",
   "op.floor.remaining.pending": "Ожидает",
-  "op.floor.remaining.noHeartbeat": "Нет heartbeat",
+  "op.floor.remaining.noHeartbeat": "Нет связи с ПК",
   "op.floor.remaining.closed": "Закрыт",
   "op.floor.remaining.action": "Нужно действие",
   "op.floor.duration.sec": "осталось {count} с",

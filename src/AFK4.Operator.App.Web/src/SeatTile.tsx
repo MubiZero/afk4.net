@@ -1,7 +1,7 @@
 import { TrendingUp } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
-import { appVersionLabel, commandLabel, zoneClass, zoneLabel } from './operatorHelpers';
+import { billingLabel } from './operatorHelpers';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 
 export function SeatTile({
@@ -15,7 +15,11 @@ export function SeatTile({
 }) {
   const { t } = useI18n();
   const lead = seatTileLead(seat);
-  const className = ['seat-tile', zoneClass(seat.zone), `state-${seat.tone}`,
+  const hasSession = lead.kind === 'prepaid' || lead.kind === 'postpaid';
+  // Режим оплаты показываем только когда он что-то значит — на активной сессии. На технику
+  // (версии Agent/Shell, «команду» вроде No route) на плитке не место: это в правой панели.
+  const billing = hasSession ? billingLabel(seat.billing, t) : null;
+  const className = ['seat-tile', `state-${seat.tone}`,
     isAttentionTone(seat.tone) ? 'seat-tile--alert' : '',
     selected ? 'selected' : ''].filter(Boolean).join(' ');
 
@@ -35,10 +39,7 @@ export function SeatTile({
       tabIndex={0}
     >
       <header className="seat-head">
-        <div>
-          <strong>{seat.name}</strong>
-          <span>{zoneLabel(seat.zone, t)}</span>
-        </div>
+        <strong>{seat.name}</strong>
         {lead.kind === 'postpaid' ? (
           <span className="seat-amount" aria-label={t('op.map.seatRising')}>
             {lead.amount}
@@ -49,10 +50,12 @@ export function SeatTile({
         )}
       </header>
 
-      <div className="seat-main">
-        <span>{seat.player}</span>
-        <span>{appVersionLabel(seat.app, t)}</span>
-      </div>
+      {lead.kind !== 'free' && (
+        <div className="seat-main">
+          <strong className="seat-player">{seat.player}</strong>
+          {billing !== null && <span className="seat-billing">{billing}</span>}
+        </div>
+      )}
 
       <footer>
         {lead.kind === 'free' ? (
@@ -64,14 +67,9 @@ export function SeatTile({
               <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
             </span>
           </div>
-        ) : lead.kind === 'postpaid' ? (
-          <span className="seat-foot-note">{commandLabel(seat.command, t)}</span>
-        ) : (
-          <>
-            <strong>{lead.remaining}</strong>
-            <span>{commandLabel(seat.command, t)}</span>
-          </>
-        )}
+        ) : lead.kind === 'plain' ? (
+          <strong className="seat-status-line">{lead.remaining}</strong>
+        ) : null}
       </footer>
     </article>
   );

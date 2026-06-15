@@ -2506,7 +2506,7 @@
   "op.floor.remaining.pcOffline": "ПК офлайн",
   "op.floor.remaining.playing": "ҳозир бозӣ мекунад",
   "op.floor.remaining.pending": "Дар интизор",
-  "op.floor.remaining.noHeartbeat": "Heartbeat нест",
+  "op.floor.remaining.noHeartbeat": "Алоқа бо ПК нест",
   "op.floor.remaining.closed": "Баста",
   "op.floor.remaining.action": "Амал лозим",
   "op.floor.duration.sec": "{count} с боқӣ монд",

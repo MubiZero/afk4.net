@@ -2160,10 +2160,28 @@ button {
   line-height: 1;
 }
 
-.seat-foot-note {
+/* Имя игрока (или «Гость»/«Нет игрока») — главная строка под названием ПК. */
+.seat-player {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Режим оплаты сессии — человеческий ярлык, не технический. */
+.seat-billing {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+/* Человеческая строка состояния для проблемных мест (Нет связи / Нужно действие / Закрыт). */
+.seat-status-line {
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 13px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
