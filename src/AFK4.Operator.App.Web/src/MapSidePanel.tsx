@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, Banknote, CircleDollarSign, Lock, MonitorCheck, Plus, ReceiptText, Square, TimerReset, Unlock, Wifi, WifiOff, X } from 'lucide-react';
+import { ArrowRightLeft, Banknote, CircleDollarSign, Lock, MonitorCheck, Plus, ReceiptText, TimerReset, Unlock, Wifi, WifiOff, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { currencySymbol } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
@@ -56,6 +56,7 @@ import {
   zoneLabel
 } from './operatorHelpers';
 import { CriticalActionConfirmation, FeedbackNotice } from './operatorPrimitives';
+import { PanelModal } from './PanelModal';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact } from './floorMapState';
 
@@ -76,13 +77,15 @@ function CheckoutDialog({
   backend,
   disabled,
   onCancel,
-  onConfirm
+  onConfirm,
+  onEndWithoutPayment
 }: {
   seat: SeatSummary;
   backend: OperatorBackendContext;
   disabled: boolean;
   onCancel: () => void;
   onConfirm: (payments: PaymentPartDto[]) => void;
+  onEndWithoutPayment: () => void;
 }) {
   const { t } = useI18n();
   const [quote, setQuote] = useState<SessionCheckoutQuoteResponse | null>(null);
@@ -109,7 +112,7 @@ function CheckoutDialog({
         }
 
         setQuote(result);
-        setDrafts(initialCheckoutDrafts(result.grandTotal.minorUnits));
+        setDrafts(initialCheckoutDrafts(result.grandTotal?.minorUnits ?? 0));
         setStatus('ready');
       })
       .catch((fetchError) => {
@@ -126,8 +129,9 @@ function CheckoutDialog({
     };
   }, [seat.activeSessionId, backend.config.platformBaseUrl, backend.session.accessToken]);
 
-  const currencyCode = quote?.grandTotal.currencyCode ?? '';
-  const grandTotal = quote?.grandTotal.minorUnits ?? 0;
+  // Защищаемся от неполной котировки: карточка вне error-boundary, любой бросок здесь гасит весь экран.
+  const currencyCode = quote?.grandTotal?.currencyCode ?? '';
+  const grandTotal = quote?.grandTotal?.minorUnits ?? 0;
   const walletBalance = quote?.walletBalance?.minorUnits ?? null;
   const validation = validateCheckoutPayments(drafts, grandTotal, walletBalance, t);
   const canConfirm = status === 'ready' && !disabled && validation.canSubmit;
@@ -157,12 +161,13 @@ function CheckoutDialog({
   };
 
   return (
-    <section className="critical-confirmation warning checkout-dialog" role="alertdialog" aria-label={t('op.map.panel.checkoutLabel')}>
-      <div>
-        <strong>{t('op.map.panel.checkoutLabel')}</strong>
-        <span>{seat.name} · {seat.player}</span>
-        <em>{t('op.map.panel.checkoutSubtitle')}</em>
-      </div>
+    <PanelModal
+      title={t('op.map.panel.checkoutLabel')}
+      subtitle={`${seat.name} · ${seat.player}`}
+      onClose={onCancel}
+      tone="warning"
+    >
+      <p className="checkout-subtitle">{t('op.map.panel.checkoutSubtitle')}</p>
 
       {status === 'loading' && <p className="checkout-loading">{t('op.map.panel.checkoutLoading')}</p>}
       {status === 'failed' && <p className="checkout-error">{error ?? t('op.map.panel.checkoutFailed')}</p>}
@@ -170,9 +175,9 @@ function CheckoutDialog({
       {status === 'ready' && quote && (
         <>
           <dl className="checkout-breakdown">
-            <div><dt>{t('op.map.panel.billableTime')}</dt><dd>{formatBilledDuration(quote.billableSeconds, t)}</dd></div>
-            <div><dt>{t('op.map.panel.billableTimeCharge')}</dt><dd>{formatMinorUnits(quote.timeCharge.minorUnits, currencyCode)}</dd></div>
-            <div><dt>{t('op.map.panel.billableSnacks')}</dt><dd>{formatMinorUnits(quote.posTotal.minorUnits, currencyCode)}</dd></div>
+            <div><dt>{t('op.map.panel.billableTime')}</dt><dd>{formatBilledDuration(quote.billableSeconds ?? 0, t)}</dd></div>
+            <div><dt>{t('op.map.panel.billableTimeCharge')}</dt><dd>{formatMinorUnits(quote.timeCharge?.minorUnits ?? 0, currencyCode)}</dd></div>
+            <div><dt>{t('op.map.panel.billableSnacks')}</dt><dd>{formatMinorUnits(quote.posTotal?.minorUnits ?? 0, currencyCode)}</dd></div>
             <div className="checkout-breakdown-total"><dt>{t('op.map.panel.billableTotal')}</dt><dd>{formatMinorUnits(grandTotal, currencyCode)}</dd></div>
           </dl>
 
@@ -226,6 +231,10 @@ function CheckoutDialog({
         </>
       )}
 
+      <button type="button" className="checkout-end-plain" onClick={onEndWithoutPayment} disabled={disabled}>
+        {t('op.map.panel.endWithoutPay')}
+      </button>
+
       <div className="critical-confirmation-actions">
         <button type="button" onClick={onCancel} disabled={disabled}>{t('common.cancel')}</button>
         <button
@@ -237,7 +246,7 @@ function CheckoutDialog({
           {t('op.map.panel.confirmPayment')}
         </button>
       </div>
-    </section>
+    </PanelModal>
   );
 }
 
@@ -292,6 +301,7 @@ export function MapSidePanel({
   const [billingStatus, setBillingStatus] = useState<LoadStatus>('fixture');
   const [billingError, setBillingError] = useState<string | null>(null);
   const [criticalAction, setCriticalAction] = useState<'end-session' | 'checkout' | null>(null);
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
   const transferCandidates = floorSeats.filter((candidate) =>
     candidate.id !== seat.id &&
     candidate.tone === 'ready' &&
@@ -426,6 +436,7 @@ export function MapSidePanel({
 
   useEffect(() => {
     setCriticalAction(null);
+    setStartDialogOpen(false);
   }, [seat.id, seat.activeSessionId]);
 
   useEffect(() => {
@@ -500,6 +511,7 @@ export function MapSidePanel({
 
   const runSeatAction = async (label: string, request: SeatActionRequest) => {
     setCriticalAction(null);
+    setStartDialogOpen(false);
     setFeedback({ label, state: 'pending' });
 
     try {
@@ -547,28 +559,27 @@ export function MapSidePanel({
               <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}><Plus size={14} />{t('op.map.panel.extend15Action')}</button>
               <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}><TimerReset size={14} />{t('op.map.panel.extend30Action')}</button>
             </div>
-            {backend !== null && (
-              <button type="button" className="cta-primary" disabled={!canEndSession || isBusy} onClick={() => setCriticalAction('checkout')}>
-                <ReceiptText size={16} />{t('op.map.panel.checkoutLabel')}
-              </button>
-            )}
-            <div className="action-row-secondary">
-              <button type="button" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}><ArrowRightLeft size={14} />{t('op.map.panel.transferAction')}</button>
-              <button type="button" className="danger" disabled={!canEndSession || isBusy} onClick={() => setCriticalAction('end-session')}><Square size={14} />{t('op.map.panel.stopAction')}</button>
+            {/* Одна кнопка «Завершить»: онлайн ведёт в расчёт (с опцией «без оплаты»),
+                офлайн — в простое подтверждение завершения. Отдельный «Стоп» убран. */}
+            <button type="button" className="cta-primary" disabled={!canEndSession || isBusy} onClick={() => setCriticalAction(backend !== null ? 'checkout' : 'end-session')}>
+              <ReceiptText size={16} />{t('op.map.panel.finishLabel')}
+            </button>
+            <div className="transfer-row">
+              <span className="transfer-row-label"><ArrowRightLeft size={13} aria-hidden="true" />{t('op.map.panel.transferTo')}</span>
+              <div className="transfer-row-controls">
+                <select aria-label={t('op.map.panel.transferTo')} value={targetSeatId} disabled={!actionsEnabled || !canTransferPermission || hasPendingSessionCommand || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
+                  {transferCandidates.length === 0 && <option value="">{t('op.map.panel.noFreePc')}</option>}
+                  {transferCandidates.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                  ))}
+                </select>
+                <button type="button" className="transfer-go" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}>{t('op.map.panel.transferAction')}</button>
+              </div>
             </div>
-            <label className="context-transfer-target">
-              <span>{t('op.map.panel.transferTo')}</span>
-              <select value={targetSeatId} disabled={!actionsEnabled || !canTransferPermission || hasPendingSessionCommand || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
-                {transferCandidates.length === 0 && <option value="">{t('op.map.panel.noFreePc')}</option>}
-                {transferCandidates.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                ))}
-              </select>
-            </label>
           </>
         ) : (
-          <button type="button" className="cta-primary start-action" disabled={!canStartSession || isBusy} onClick={() => runSeatAction(effectiveDurationMode === 'open' ? t('op.map.panel.startOpenAction') : t('op.map.panel.startFixed'), { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode })}>
-            <Plus size={16} />{effectiveDurationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startFixed')}
+          <button type="button" className="cta-primary start-action" disabled={!actionsEnabled || !canStartPermission || isBusy || seat.tone !== 'ready'} onClick={() => setStartDialogOpen(true)}>
+            <Plus size={16} />{t('op.map.seatInvite')}
           </button>
         )}
       </section>
@@ -591,6 +602,7 @@ export function MapSidePanel({
           disabled={isBusy}
           onCancel={() => setCriticalAction(null)}
           onConfirm={(payments) => void runSeatAction(t('op.map.panel.paymentAction'), { type: 'checkout', seat, payments })}
+          onEndWithoutPayment={() => void runSeatAction(t('op.map.panel.stopAction'), { type: 'end', seat })}
         />
       )}
       <FeedbackNotice feedback={feedback} />
@@ -658,11 +670,13 @@ export function MapSidePanel({
         )}
       </section>
 
-      <section className="context-section billing-selection-panel" aria-label={t('op.map.panel.billingSetup')}>
-        <div className="context-section-head">
-          <CircleDollarSign size={13} aria-hidden="true" />
-          <span>{t('op.map.panel.billingSession')} · {currencySymbol(currencyCode)}</span>
-        </div>
+      {startDialogOpen && (
+      <PanelModal
+        title={t('op.map.panel.startSessionTitle')}
+        subtitle={`${seat.name} · ${currencySymbol(currencyCode)}`}
+        onClose={() => setStartDialogOpen(false)}
+      >
+        <div className="billing-selection-panel start-dialog-body">
         <div className="billing-panel-head">
           <strong>{billingModeLabel(billingMode, t)}</strong>
           <em>{billingLoadText}</em>
@@ -780,7 +794,20 @@ export function MapSidePanel({
             </div>
           </>
         )}
-      </section>
+        <div className="critical-confirmation-actions">
+          <button type="button" onClick={() => setStartDialogOpen(false)} disabled={isBusy}>{t('common.cancel')}</button>
+          <button
+            type="button"
+            className="cta-primary"
+            disabled={!canStartSession || isBusy}
+            onClick={() => void runSeatAction(effectiveDurationMode === 'open' ? t('op.map.panel.startOpenAction') : t('op.map.panel.startFixed'), { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode })}
+          >
+            <Plus size={16} />{effectiveDurationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startFixed')}
+          </button>
+        </div>
+        </div>
+      </PanelModal>
+      )}
     </aside>
   );
 }

@@ -2432,14 +2432,14 @@ button {
 .context-panel {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   margin: 10px 10px 10px 0;
-  padding: 12px;
+  padding: 16px 14px;
   border: 1px solid var(--border-soft);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface-elevated);
 }
 
@@ -2541,8 +2541,8 @@ button {
 
 .context-section {
   display: grid;
-  gap: 8px;
-  padding-top: 10px;
+  gap: 10px;
+  padding-top: 14px;
   border-top: 1px solid var(--border-soft);
 }
 
@@ -2730,7 +2730,7 @@ button {
 
 .panel-actions {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .quick-extend {
@@ -2821,6 +2821,205 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+/* Перенос — один аккуратный контрол: метка + (выбор места ⋮ кнопка) единым блоком. */
+.transfer-row {
+  display: grid;
+  gap: 6px;
+}
+
+.transfer-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.transfer-row-controls {
+  display: flex;
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--surface-card);
+  overflow: hidden;
+}
+
+.transfer-row-controls select {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  border: none;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transfer-row-controls .transfer-go {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-left: 1px solid var(--border-default);
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.transfer-row-controls .transfer-go:hover:not(:disabled),
+.transfer-row-controls .transfer-go:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  outline: none;
+}
+
+.transfer-row-controls .transfer-go:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.transfer-row-controls .transfer-go:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+/* Центрированное модальное окно (старт сессии, расчёт) — поверх всего, с полной шириной формы. */
+.panel-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  animation: panel-modal-fade 120ms ease-out;
+}
+
+.panel-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  max-height: min(86vh, 760px);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden;
+  animation: panel-modal-pop 140ms ease-out;
+}
+
+.panel-modal.warning {
+  border-top: 3px solid var(--warning);
+}
+
+.panel-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.panel-modal-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.panel-modal-title strong {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.panel-modal-title span {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-modal-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.panel-modal-close:hover,
+.panel-modal-close:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  outline: none;
+}
+
+.panel-modal-body {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  overflow-y: auto;
+}
+
+.start-dialog-body {
+  display: grid;
+  gap: 12px;
+}
+
+@keyframes panel-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes panel-modal-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-modal-backdrop,
+  .panel-modal {
+    animation: none;
+  }
+}
+
+/* «Завершить без оплаты» в диалоге расчёта — тихая запасная дорожка, не конкурент кнопке оплаты. */
+.checkout-end-plain {
+  align-self: flex-start;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.checkout-end-plain:hover:not(:disabled),
+.checkout-end-plain:focus-visible {
+  color: var(--danger-text);
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
