@@ -104,7 +104,9 @@ export const seats: SeatSummary[] = [
     billing: 'Wallet',
     device: 'Online · unlocked · Agent 0.4',
     command: 'Сессия подтверждена',
-    app: 'Rust'
+    app: 'Rust',
+    hasActiveSession: true,
+    remainingSeconds: 2580
   },
   {
     id: 'pc-02',
@@ -139,11 +141,13 @@ export const seats: SeatSummary[] = [
     tone: 'warning',
     stateLabel: 'Долг',
     player: 'Said R.',
-    remaining: '12 мин',
+    remaining: '7 мин',
     billing: 'Постоплата',
     device: 'Online · unlocked',
     command: 'Payment check',
-    app: 'Valorant'
+    app: 'Valorant',
+    hasActiveSession: true,
+    remainingSeconds: 420
   },
   {
     id: 'pc-05',
@@ -169,7 +173,9 @@ export const seats: SeatSummary[] = [
     billing: 'Package',
     device: 'Online · unlocked · Agent 0.4',
     command: 'Сессия подтверждена',
-    app: 'Dota 2'
+    app: 'Dota 2',
+    hasActiveSession: true,
+    remainingSeconds: 4320
   },
   {
     id: 'pc-07',
@@ -195,7 +201,9 @@ export const seats: SeatSummary[] = [
     billing: 'Wallet',
     device: 'Online · unlocked',
     command: 'Сессия подтверждена',
-    app: 'CS2'
+    app: 'CS2',
+    hasActiveSession: true,
+    remainingSeconds: 1080
   },
   {
     id: 'pc-09',
@@ -217,11 +225,15 @@ export const seats: SeatSummary[] = [
     tone: 'active',
     stateLabel: 'В сессии',
     player: 'Yusuf A.',
-    remaining: '54 мин',
-    billing: 'Wallet',
+    remaining: '≈ 54 с.',
+    billing: 'Открытый счёт',
     device: 'Online · unlocked · Shell 0.4',
     command: 'Сессия подтверждена',
-    app: 'Fortnite'
+    app: 'Fortnite',
+    hasActiveSession: true,
+    remainingSeconds: null,
+    accruedCostMinorUnits: 5400,
+    currencyCode: 'TJS'
   },
   {
     id: 'pc-11',
