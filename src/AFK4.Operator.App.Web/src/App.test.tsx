@@ -98,7 +98,7 @@ describe('App', () => {
       'Команды для выбранного ПК: статус, блокировка, питание и сервисный доступ'
     );
     expect(screen.getByRole('button', { name: /Завершить и принять оплату/ })).toBeInTheDocument();
-    expect(screen.getAllByText('Сессия подтверждена').length).toBeGreaterThan(0);
+    expect(screen.getByText('Диагностика ПК')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
     expect(screen.getByText(/Оператор смены/)).toBeInTheDocument();

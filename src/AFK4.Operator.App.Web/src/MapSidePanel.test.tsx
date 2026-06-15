@@ -29,7 +29,20 @@ describe('MapSidePanel diagnostics (A3)', () => {
     getByText('Зал-1-ПК-07'); // device name, not a mashed string
     getByText('Онлайн'); // connection
     getByText('заблокирован'); // lock state
-    getByText('Агент 0.4 · Оболочка 0.4'); // software versions — previously hidden from the panel
+  });
+
+  it('reveals software versions only when the seat needs troubleshooting', () => {
+    // Healthy active seat keeps the panel lean — no version noise.
+    const { queryByText, rerender } = renderPanel(seat({}));
+    expect(queryByText('Агент 0.4 · Оболочка 0.4')).toBeNull();
+    // A seat in an attention state surfaces the versions for the operator diagnosing it.
+    rerender(
+      <I18nProvider>
+        <MapSidePanel seat={seat({ tone: 'offline', isDeviceOnline: false })} seats={[]} currencyCode="TJS" backend={null} actionsEnabled={false} onSeatAction={async () => ({})} />
+      </I18nProvider>
+    );
+    queryByText('Агент 0.4 · Оболочка 0.4');
+    expect(queryByText('Агент 0.4 · Оболочка 0.4')).not.toBeNull();
   });
 
   it('does not present a fabricated session billing mode as if it were real', () => {
@@ -43,11 +56,11 @@ describe('MapSidePanel diagnostics (A3)', () => {
     expect(container.textContent).not.toContain('AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE');
   });
 
-  it('flags a lost-connection PC with the alert tone', () => {
+  it('flags a lost-connection PC with the danger status pill', () => {
     const { container } = renderPanel(seat({ isDeviceOnline: false }));
-    const alert = container.querySelector('.detail-value-alert');
-    expect(alert).not.toBeNull();
-    expect(alert?.textContent).toContain('Нет связи');
+    const pill = container.querySelector('.status-pill.bad');
+    expect(pill).not.toBeNull();
+    expect(pill?.textContent).toContain('Нет связи');
   });
 
   it('shows the real running total for an open tab in the host currency', () => {

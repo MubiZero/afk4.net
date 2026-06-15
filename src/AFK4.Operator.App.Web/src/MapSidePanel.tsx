@@ -56,7 +56,8 @@ import {
   zoneLabel
 } from './operatorHelpers';
 import { CriticalActionConfirmation, FeedbackNotice } from './operatorPrimitives';
-import { seatTileLead } from './seatTilePresentation';
+import { isAttentionTone, seatTileLead } from './seatTilePresentation';
+import { formatDurationCompact } from './floorMapState';
 
 const checkoutMethodIcons: Record<CheckoutMethod, ReactNode> = {
   cash: <Banknote size={14} />,
@@ -307,6 +308,9 @@ export function MapSidePanel({
   const hasPendingSessionCommand = hasStoredSession && isPendingSeatCommand(seat);
   const hasActionableSession = hasStoredSession && !hasPendingSessionCommand;
   const hasActiveSession = hasStoredSession || seat.hasActiveSession === true || seat.tone === 'active';
+  // Технические детали ПК (команда, версии) показываем только когда они actionable —
+  // место требует внимания или команда в полёте; для здоровой сессии это шум.
+  const showPcDetail = isAttentionTone(seat.tone) || hasPendingSessionCommand;
   const isBusy = feedback.state === 'pending';
   const canStartPermission = hasPermission(session, permissionNames.startSession);
   const canExtendPermission = hasPermission(session, permissionNames.extendSession);
@@ -360,6 +364,10 @@ export function MapSidePanel({
       : feedback.state === 'idle'
         ? t('op.map.panel.confirmStatusWaiting')
         : feedbackText(feedback, t);
+  // Строку подтверждения показываем только когда есть что сообщить: нет бэка / прав / биллинга,
+  // команда в полёте или результат действия. Здоровое «ожидает команды» — это шум, прячем.
+  const isHealthyIdle = actionsEnabled && hasAnySessionActionPermission && billingReady
+    && !hasPendingSessionCommand && feedback.state === 'idle';
   const billingLoadText = billingStatus === 'backend'
     ? t('op.map.panel.billingLoadData')
     : billingStatus === 'loading'
@@ -517,14 +525,17 @@ export function MapSidePanel({
         <h2 className="seat-hero-name">{seat.name}</h2>
         <div className="seat-hero-metric">
           {heroLabel && <span className="seat-hero-label">{heroLabel}</span>}
-          <strong className={`seat-hero-value${lead.kind === 'postpaid' ? ' is-money' : ''}`}>{seat.remaining}</strong>
+          <strong className={`seat-hero-value${lead.kind === 'postpaid' ? ' is-money' : ''}`}>
+            {lead.kind === 'prepaid' && seat.remainingSeconds != null
+              ? formatDurationCompact(seat.remainingSeconds, t)
+              : seat.remaining}
+          </strong>
         </div>
         {lead.kind === 'prepaid' && (
           <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
             <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
           </span>
         )}
-        {hasActiveSession && <div className="seat-hero-sub">{seat.player}</div>}
       </header>
 
       {/* Действия: главная CTA доминирует, быстрые продления сегментом, перенос/стоп тише. */}
@@ -601,12 +612,20 @@ export function MapSidePanel({
           <MonitorCheck size={13} aria-hidden="true" />
           <span>{t('op.map.panel.diagnostics')}</span>
         </div>
-        <div className="detail-row">
-          <span>{t('op.map.colDevice')}</span>
-          <strong>{hasDevice ? (seat.deviceName ?? t('op.map.panel.deviceUnnamed')) : t('op.helper.deviceStatus.unassigned')}</strong>
-        </div>
-        {hasDevice && (
+        {!hasDevice ? (
+          <div className="detail-row">
+            <span>{t('op.map.colDevice')}</span>
+            <strong>{t('op.helper.deviceStatus.unassigned')}</strong>
+          </div>
+        ) : (
           <>
+            {/* Имя устройства показываем, только если оно отличается от имени места (иначе дубль героя). */}
+            {seat.deviceName && seat.deviceName !== seat.name && (
+              <div className="detail-row">
+                <span>{t('op.map.colDevice')}</span>
+                <strong>{seat.deviceName}</strong>
+              </div>
+            )}
             <div className="pc-health">
               <span className={`status-pill ${seat.isDeviceOnline === true ? 'ok' : seat.isDeviceOnline === false ? 'bad' : 'neutral'}`}>
                 {seat.isDeviceOnline === false ? <WifiOff size={12} aria-hidden="true" /> : <Wifi size={12} aria-hidden="true" />}
@@ -617,20 +636,26 @@ export function MapSidePanel({
                 {lockLabel}
               </span>
             </div>
-            <div className="detail-row">
-              <span>{t('op.map.panel.versions')}</span>
-              <strong>{appVersionsLabel(seat.app, t)}</strong>
-            </div>
+            {showPcDetail && (
+              <div className="detail-row">
+                <span>{t('op.map.panel.versions')}</span>
+                <strong>{appVersionsLabel(seat.app, t)}</strong>
+              </div>
+            )}
           </>
         )}
-        <div className="detail-row">
-          <span>{t('op.map.colCommand')}</span>
-          <strong>{commandLabel(seat.command, t)}</strong>
-        </div>
-        <div className="detail-row">
-          <span>{t('op.map.panel.confirmationLabel')}</span>
-          <strong>{confirmationText}</strong>
-        </div>
+        {showPcDetail && (
+          <div className="detail-row">
+            <span>{t('op.map.colCommand')}</span>
+            <strong>{commandLabel(seat.command, t)}</strong>
+          </div>
+        )}
+        {!isHealthyIdle && (
+          <div className="detail-row">
+            <span>{t('op.map.panel.confirmationLabel')}</span>
+            <strong>{confirmationText}</strong>
+          </div>
+        )}
       </section>
 
       <section className="context-section billing-selection-panel" aria-label={t('op.map.panel.billingSetup')}>
