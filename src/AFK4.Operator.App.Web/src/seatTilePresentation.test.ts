@@ -5,7 +5,7 @@ import {
   SEAT_TIME_LOW_SECONDS,
   isAttentionTone,
   seatTileLead
-} from './seatTile';
+} from './seatTilePresentation';
 
 function seat(overrides: Partial<SeatSummary>): SeatSummary {
   return {

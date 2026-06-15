@@ -7,7 +7,6 @@ import { offlineBannerText, type OperatorFloorMapState } from './floorMapState';
 import type { Feedback, MapFilterId, MapViewMode, PcControlActionId, PcControlActionResult } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
 import {
-  appVersionLabel,
   billingLabel,
   commandLabel,
   countByMapFilter,
@@ -16,54 +15,10 @@ import {
   mapFilterOptions,
   matchesMapFilter,
   toneLabel,
-  zoneClass,
   zoneLabel
 } from './operatorHelpers';
 import { EmptyState, FeedbackNotice, Skeleton } from './operatorPrimitives';
-
-function SeatTile({
-  seat,
-  selected,
-  onSelect
-}: {
-  seat: SeatSummary;
-  selected?: boolean;
-  onSelect: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <article
-      className={`seat-tile ${zoneClass(seat.zone)} state-${seat.tone}${selected ? ' selected' : ''}`}
-      aria-label={`${seat.name} ${seat.stateLabel}`}
-      aria-pressed={selected}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-    >
-      <header className="seat-head">
-        <div>
-          <strong>{seat.name}</strong>
-          <span>{zoneLabel(seat.zone, t)}</span>
-        </div>
-        <span className="state-chip">{seat.stateLabel}</span>
-      </header>
-      <div className="seat-main">
-        <span>{seat.player}</span>
-        <span>{appVersionLabel(seat.app, t)}</span>
-      </div>
-      <footer>
-        <strong>{seat.remaining}</strong>
-        <span>{commandLabel(seat.command, t)}</span>
-      </footer>
-    </article>
-  );
-}
+import { SeatTile } from './SeatTile';
 
 export function MapWorkspace({
   floorMap,

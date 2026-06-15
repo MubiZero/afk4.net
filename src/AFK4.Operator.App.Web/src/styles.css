@@ -2030,6 +2030,87 @@ button {
   color: var(--text-strong);
 }
 
+/* --- Этап 1 · A1: язык плиток --- */
+/* Громкий акцент только на Внимание/Проблема; спокойные тоны (active/ready/pending) — тихие. */
+.seat-tile--alert {
+  border-left-width: 4px;
+  background: color-mix(in srgb, rgb(var(--accent-rgb)) 7%, var(--surface-elevated));
+}
+
+/* Постоплата / открытый счёт: набегающая сумма наверху, со стрелкой роста. */
+.seat-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 96px;
+  overflow: hidden;
+  color: var(--warning-text);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.seat-amount svg {
+  flex: none;
+}
+
+/* Предоплата: остаток времени + убывающая полоса. */
+.seat-time {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.seat-time strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seat-timebar {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.seat-timebar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgb(var(--accent-rgb));
+  transition: width 200ms ease;
+}
+
+.seat-timebar--low i {
+  background: var(--warning);
+}
+
+/* Свободное место зовёт действием. */
+.seat-free {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  color: var(--accent);
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.seat-foot-note {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .context-panel {
   display: grid;
   align-content: start;
