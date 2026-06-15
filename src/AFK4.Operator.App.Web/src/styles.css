@@ -2048,7 +2048,7 @@ button {
 
 .seat-tile.state-active .state-chip,
 .seat-tile.state-ready .state-chip {
-  color: var(--accent-on-soft);
+  color: var(--accent-text);
 }
 
 .seat-tile.state-pending .state-chip,
@@ -2104,6 +2104,12 @@ button {
   height: 8px;
   border-radius: 50%;
   background: var(--seat-color);
+}
+
+/* Активная сессия — живое состояние: зелёная точка, хотя кант остаётся нейтральным
+   (яркий зелёный кант приберегаем для «свободно»). */
+.seat-tile.state-active .seat-dot {
+  background: var(--accent);
 }
 
 /* Тело плитки тянется на всю высоту: «кто» сверху, ведущая метрика (таймбар) прижата вниз. */
@@ -2195,7 +2201,7 @@ button {
 
 /* Открытый счёт: честный ярлык состояния оплаты под суммой из шапки. */
 .seat-open-tab {
-  color: var(--text-secondary);
+  color: var(--accent-text);
   font-size: 12px;
   font-weight: 600;
 }

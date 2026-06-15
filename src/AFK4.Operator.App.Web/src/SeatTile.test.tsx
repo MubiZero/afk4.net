@@ -36,7 +36,8 @@ describe('SeatTile', () => {
     const { container } = renderTile(seat({ tone: 'ready', hasActiveSession: false, player: 'Гость' }));
     const free = container.querySelector('.seat-free');
     expect(free).not.toBeNull();
-    expect(free?.textContent).toContain('+');
+    // The "+" is a geometrically-centred icon, not a glyph.
+    expect(free?.querySelector('svg')).not.toBeNull();
     // A free seat invites with "+", it does not show a meaningless "Гость" / billing line.
     expect(container.querySelector('.seat-main')).toBeNull();
     expect(container.querySelector('.seat-billing')).toBeNull();

@@ -1,4 +1,4 @@
-import { Hourglass, OctagonAlert, TrendingUp, TriangleAlert, WifiOff, Wrench } from 'lucide-react';
+import { Hourglass, OctagonAlert, Plus, TrendingUp, TriangleAlert, WifiOff, Wrench } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
@@ -65,7 +65,7 @@ export function SeatTile({
       {lead.kind === 'free' ? (
         // Свободное место — приглашение: крупный «＋» по центру + подпись-аффорданс.
         <div className="seat-invite">
-          <span className="seat-free" aria-hidden="true">+</span>
+          <span className="seat-free" aria-hidden="true"><Plus size={22} strokeWidth={2.25} /></span>
           <span className="seat-invite-label">{t('op.map.seatInvite')}</span>
         </div>
       ) : lead.kind === 'prepaid' ? (
