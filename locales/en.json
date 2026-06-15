@@ -1031,6 +1031,7 @@
   "op.map.loadError": "Failed to load the map.",
   "op.map.seatsLabel": "Floor PCs",
   "op.map.seatFree": "Free — seat a guest",
+  "op.map.seatInvite": "Seat a guest",
   "op.map.seatRising": "Bill rising",
   "op.map.emptyTitle": "No PCs match the selected filter",
   "op.map.emptyHint": "Change the filter or check the platform map.",

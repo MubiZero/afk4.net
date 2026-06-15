@@ -2116,17 +2116,38 @@ button {
   min-width: 0;
 }
 
-/* Проблемное/ожидающее место — строка состояния по центру свободного пространства. */
-.seat-body--status {
+/* Ведущая метрика (время-герой / «счёт растёт») по центру свободного пространства тела. */
+.seat-body--metric {
   justify-content: center;
 }
 
-/* Свободное место — крупный «＋» по центру всей плитки: явное приглашение посадить гостя. */
+/* Проблемное/ожидающее место — иконка типа проблемы + строка состояния, по центру. */
+.seat-body--status {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.seat-body--status svg {
+  flex: none;
+  color: var(--seat-color);
+}
+
+/* Свободное место — крупный «＋» и подпись-аффорданс по центру всей плитки. */
 .seat-invite {
   display: flex;
   flex: 1;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 7px;
+}
+
+.seat-invite-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 /* Постоплата / открытый счёт: набегающая сумма наверху, со стрелкой роста. */
@@ -2146,26 +2167,32 @@ button {
   flex: none;
 }
 
-/* Предоплата: остаток времени + убывающая полоса. */
-.seat-time {
-  display: grid;
-  gap: 4px;
-  width: 100%;
-  min-width: 0;
-}
-
-.seat-time strong {
+/* Предоплата: остаток времени — крупный герой плитки. */
+.seat-clock {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Открытый счёт: честная подпись «счёт растёт» под суммой из шапки. */
+.seat-rising {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--warning-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .seat-timebar {
   display: block;
-  height: 3px;
+  width: 100%;
+  height: 5px;
   border-radius: 999px;
   background: var(--surface-sunken);
   overflow: hidden;

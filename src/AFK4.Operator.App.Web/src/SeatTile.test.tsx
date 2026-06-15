@@ -43,13 +43,17 @@ describe('SeatTile', () => {
     expect(container.textContent).not.toContain('Гость');
   });
 
-  it('shows the billing mode (human label) for an active session and never the agent/shell version', () => {
+  it('leads an active prepaid session with the remaining time and no placeholder data', () => {
     const { container } = renderTile(
       seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800, remaining: '30 мин', billing: 'Wallet', app: 'Agent 0.4 · Shell 0.4' })
     );
-    const billing = container.querySelector('.seat-billing');
-    expect(billing).not.toBeNull();
-    expect(billing?.textContent?.trim().length).toBeGreaterThan(0);
+    // The remaining time is the hero — it's the one real per-seat datum we have.
+    const clock = container.querySelector('.seat-clock');
+    expect(clock?.textContent).toContain('30 мин');
+    // Billing mode is hardcoded server-side ('Wallet'), so it must NOT pose as real data on the tile;
+    // the real player/tariff arrive with the B1 floor-map DTO extension.
+    expect(container.querySelector('.seat-billing')).toBeNull();
+    expect(container.textContent).not.toContain('Кошелёк');
     // Technical version data must not leak onto the tile (it lives in the side panel).
     expect(container.textContent).not.toContain('Agent');
     expect(container.textContent).not.toContain('Shell');

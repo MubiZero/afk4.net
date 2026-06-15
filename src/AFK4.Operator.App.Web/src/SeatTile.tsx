@@ -1,8 +1,19 @@
-import { TrendingUp } from 'lucide-react';
+import { Hourglass, OctagonAlert, TrendingUp, TriangleAlert, WifiOff, Wrench } from 'lucide-react';
+import type { ComponentType } from 'react';
 import { useI18n } from '@afk4/i18n';
-import type { SeatSummary } from './operatorData';
-import { billingLabel } from './operatorHelpers';
+import type { SeatSummary, SeatTone } from './operatorData';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
+
+// Иконка типа проблемы для мест без сессии — настоящий сигнификатор «что не так», по тону.
+// Имя игрока/тариф/режим оплаты floor-map ещё не отдаёт (придёт в B1), поэтому плитку наполняем
+// тем, что реально знаем: остаток времени-герой, статус и тип проблемы — без заглушек.
+const PROBLEM_ICON: Partial<Record<SeatTone, ComponentType<{ size?: number; 'aria-hidden'?: boolean }>>> = {
+  pending: Hourglass,
+  warning: TriangleAlert,
+  blocking: OctagonAlert,
+  offline: WifiOff,
+  service: Wrench
+};
 
 export function SeatTile({
   seat,
@@ -15,13 +26,10 @@ export function SeatTile({
 }) {
   const { t } = useI18n();
   const lead = seatTileLead(seat);
-  const hasSession = lead.kind === 'prepaid' || lead.kind === 'postpaid';
-  // Режим оплаты показываем только когда он что-то значит — на активной сессии. На технику
-  // (версии Agent/Shell, «команду» вроде No route) на плитке не место: это в правой панели.
-  const billing = hasSession ? billingLabel(seat.billing, t) : null;
   const className = ['seat-tile', `state-${seat.tone}`,
     isAttentionTone(seat.tone) ? 'seat-tile--alert' : '',
     selected ? 'selected' : ''].filter(Boolean).join(' ');
+  const ProblemIcon = lead.kind === 'plain' ? PROBLEM_ICON[seat.tone] : undefined;
 
   return (
     <article
@@ -54,28 +62,31 @@ export function SeatTile({
       </header>
 
       {lead.kind === 'free' ? (
-        // Свободное место — приглашение посадить гостя: крупный «＋» в центре плитки.
+        // Свободное место — приглашение: крупный «＋» по центру + подпись-аффорданс.
         <div className="seat-invite">
-          <span className="seat-free" aria-label={t('op.map.seatFree')}>+</span>
+          <span className="seat-free" aria-hidden="true">+</span>
+          <span className="seat-invite-label">{t('op.map.seatInvite')}</span>
         </div>
-      ) : hasSession ? (
-        <div className="seat-body">
-          <div className="seat-main">
-            <strong className="seat-player">{seat.player}</strong>
-            {billing !== null && <span className="seat-billing">{billing}</span>}
-          </div>
-          {lead.kind === 'prepaid' && (
-            <div className="seat-time">
-              <strong>{lead.remaining}</strong>
-              <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
-                <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
-              </span>
-            </div>
-          )}
+      ) : lead.kind === 'prepaid' ? (
+        // Предоплата: остаток времени — герой плитки, под ним убывающая полоса.
+        <div className="seat-body seat-body--metric">
+          <strong className="seat-clock">{lead.remaining}</strong>
+          <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
+            <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
+          </span>
+        </div>
+      ) : lead.kind === 'postpaid' ? (
+        // Открытый счёт: сумма наверху (в шапке), в теле — честная подпись «счёт растёт».
+        <div className="seat-body seat-body--metric">
+          <span className="seat-rising">
+            <TrendingUp size={13} aria-hidden="true" />
+            {t('op.map.seatRising')}
+          </span>
         </div>
       ) : (
-        // Проблемное / ожидающее место без сессии — ведём человеческой строкой состояния.
+        // Проблемное / ожидающее место: иконка типа проблемы + человеческая строка состояния.
         <div className="seat-body seat-body--status">
+          {ProblemIcon && <ProblemIcon size={18} aria-hidden={true} />}
           <strong className="seat-status-line">{lead.remaining}</strong>
         </div>
       )}
