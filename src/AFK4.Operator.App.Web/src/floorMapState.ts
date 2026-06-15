@@ -448,6 +448,22 @@ function formatDuration(seconds: number, t: TFn): string {
     : t('op.floor.duration.hourMin', { hours, minutes: String(minutes).padStart(2, '0') });
 }
 
+// Компактная длительность без слова «осталось» — для плитки, где время идёт «героем», а сам
+// предлог «осталось» вынесен в отдельную мелкую подпись (иначе строка не влезает и режется).
+export function formatDurationCompact(seconds: number, t: TFn): string {
+  if (seconds < 60) {
+    return t('op.floor.duration.secShort', { count: seconds });
+  }
+
+  const totalMinutes = Math.ceil(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return hours === 0
+    ? t('op.floor.duration.minShort', { count: minutes })
+    : t('op.floor.duration.hourMinShort', { hours, minutes: String(minutes).padStart(2, '0') });
+}
+
 function normalizeState(value: string): string {
   return value.trim().toLowerCase();
 }

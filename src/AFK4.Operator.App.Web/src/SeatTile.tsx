@@ -2,6 +2,7 @@ import { Hourglass, OctagonAlert, TrendingUp, TriangleAlert, WifiOff, Wrench } f
 import type { ComponentType } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
+import { formatDurationCompact } from './floorMapState';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 
 // Иконка типа проблемы для мест без сессии — настоящий сигнификатор «что не так», по тону.
@@ -68,20 +69,23 @@ export function SeatTile({
           <span className="seat-invite-label">{t('op.map.seatInvite')}</span>
         </div>
       ) : lead.kind === 'prepaid' ? (
-        // Предоплата: остаток времени — герой плитки, под ним убывающая полоса.
+        // Предоплата: время-герой (компактное, без слова «осталось» — оно мелкой подписью),
+        // под ним убывающая полоса.
         <div className="seat-body seat-body--metric">
-          <strong className="seat-clock">{lead.remaining}</strong>
+          <div className="seat-clock-wrap">
+            <span className="seat-clock-label">{t('op.map.seatLeft')}</span>
+            <strong className="seat-clock">
+              {seat.remainingSeconds != null ? formatDurationCompact(seat.remainingSeconds, t) : lead.remaining}
+            </strong>
+          </div>
           <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
             <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
           </span>
         </div>
       ) : lead.kind === 'postpaid' ? (
-        // Открытый счёт: сумма наверху (в шапке), в теле — честная подпись «счёт растёт».
+        // Открытый счёт: сумма наверху (в шапке), в теле — честный ярлык состояния оплаты.
         <div className="seat-body seat-body--metric">
-          <span className="seat-rising">
-            <TrendingUp size={13} aria-hidden="true" />
-            {t('op.map.seatRising')}
-          </span>
+          <span className="seat-open-tab">{t('op.map.seatOpenTab')}</span>
         </div>
       ) : (
         // Проблемное / ожидающее место: иконка типа проблемы + человеческая строка состояния.

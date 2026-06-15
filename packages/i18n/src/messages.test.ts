@@ -50,6 +50,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.command.stage.cashier',
     'op.dashboard.pcs',
     'op.dashboard.signalsShort',
+    'op.floor.duration.secShort',
     'op.floor.remaining.pcOffline',
     'op.floor.state.offline',
     'op.helper.appVer.agent',
