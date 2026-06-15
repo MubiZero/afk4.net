@@ -34,13 +34,12 @@ import type {
 import type { SeatSummary } from './operatorData';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
-  billingLabel,
+  appVersionsLabel,
   billingModeLabel,
   billingModeOptions,
   commandLabel,
   createAuthenticatedOperatorClients,
   defaultTariffRuleVersionId,
-  deviceStatusLabel,
   guestBillingSelection,
   emptyFeedback,
   feedbackText,
@@ -258,7 +257,17 @@ export function MapSidePanel({
   const { t } = useI18n();
   const session = backend?.session ?? null;
   const status = mapSeatStatus(seat, t);
-  const activeBilling = billingLabel(seat.billing, t);
+  const hasDevice = Boolean(seat.deviceId) || Boolean(seat.deviceName);
+  const connectionLabel = seat.isDeviceOnline === true
+    ? t('op.helper.deviceStatus.online')
+    : seat.isDeviceOnline === false
+      ? t('op.helper.deviceStatus.offline')
+      : t('op.map.panel.unknown');
+  const lockLabel = seat.isDeviceLocked === true
+    ? t('op.helper.deviceStatus.locked')
+    : seat.isDeviceLocked === false
+      ? t('op.helper.deviceStatus.unlocked')
+      : t('op.helper.deviceStatus.lockUnknown');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
   const [durationMode, setDurationMode] = useState<SessionStartDurationMode>('fixed');
@@ -541,7 +550,7 @@ export function MapSidePanel({
       {criticalAction === 'end-session' && (
         <CriticalActionConfirmation
           title={t('op.map.panel.stopConfirmTitle')}
-          detail={`${seat.name} · ${seat.remaining} · ${activeBilling}`}
+          detail={`${seat.name} · ${seat.remaining}`}
           impact={t('op.map.panel.stopConfirmImpact')}
           confirmLabel={t('op.map.panel.stopConfirmBtn')}
           disabled={isBusy}
@@ -572,17 +581,38 @@ export function MapSidePanel({
           <span>{t('op.map.colPlayer')}</span>
           <strong>{seat.player}</strong>
         </div>
-        <div className="detail-row">
-          <span>{t('op.map.colBilling')}</span>
-          <strong>{activeBilling} · {currencySymbol(currencyCode)}</strong>
-        </div>
+        {seat.remainingSeconds == null && seat.accruedCostMinorUnits != null && (
+          // Открытый счёт: набежавшая сумма — настоящие деньги, которые уже на руках (#34).
+          <div className="detail-row">
+            <span>{t('op.map.panel.accrued')}</span>
+            <strong>{formatMinorUnits(seat.accruedCostMinorUnits, currencyCode)}</strong>
+          </div>
+        )}
       </section>
 
-      <section className="context-section">
+      {/* Диагностика ПК — конкретика, которая уже на руках (#34): имя машины, связь, блокировка,
+          версии Agent/Shell — структурными полями, а не одной склеенной строкой. */}
+      <section className="context-section" aria-label={t('op.map.panel.diagnostics')}>
         <div className="detail-row">
           <span>{t('op.map.colDevice')}</span>
-          <strong>{deviceStatusLabel(seat.device, t)}</strong>
+          <strong>{hasDevice ? (seat.deviceName ?? t('op.map.panel.deviceUnnamed')) : t('op.helper.deviceStatus.unassigned')}</strong>
         </div>
+        {hasDevice && (
+          <>
+            <div className="detail-row">
+              <span>{t('op.map.panel.connection')}</span>
+              <strong className={seat.isDeviceOnline === false ? 'detail-value-alert' : undefined}>{connectionLabel}</strong>
+            </div>
+            <div className="detail-row">
+              <span>{t('op.map.panel.lock')}</span>
+              <strong>{lockLabel}</strong>
+            </div>
+            <div className="detail-row">
+              <span>{t('op.map.panel.versions')}</span>
+              <strong>{appVersionsLabel(seat.app, t)}</strong>
+            </div>
+          </>
+        )}
         <div className="detail-row">
           <span>{t('op.map.colCommand')}</span>
           <strong>{commandLabel(seat.command, t)}</strong>
@@ -595,7 +625,7 @@ export function MapSidePanel({
 
       <section className="context-section billing-selection-panel" aria-label={t('op.map.panel.billingSetup')}>
         <div className="billing-panel-head">
-          <span>{t('op.map.panel.billingSession')}</span>
+          <span>{t('op.map.panel.billingSession')} · {currencySymbol(currencyCode)}</span>
           <strong>{billingModeLabel(billingMode, t)}</strong>
           <em>{billingLoadText}</em>
         </div>

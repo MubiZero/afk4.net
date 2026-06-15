@@ -485,6 +485,18 @@ export function commandLabel(command: string, t: TFunc) {
   return command;
 }
 
+// Локализует только слова Agent/Shell в строке версий («Agent 0.4 · Shell 0.4»); номера версий
+// оставляет как есть. Если версий нет (фолбэк-строка 'Shell') — честный прочерк, а не «Оболочка».
+export function appVersionsLabel(app: string, t: TFunc): string {
+  if (!app || app.trim() === 'Shell') {
+    return '—';
+  }
+
+  return app
+    .replaceAll('Agent', t('op.helper.appVer.agent'))
+    .replaceAll('Shell', t('op.helper.appVer.shell'));
+}
+
 export function deviceStatusLabel(device: string, t: TFunc) {
   return device
     .replace('Device unassigned', t('op.helper.deviceStatus.unassigned'))

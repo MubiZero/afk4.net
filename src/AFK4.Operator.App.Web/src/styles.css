@@ -2573,6 +2573,11 @@ button {
   white-space: nowrap;
 }
 
+/* Связь «нет сигнала» — единственная диагностическая строка, которую красим: это actionable-проблема. */
+.detail-row strong.detail-value-alert {
+  color: var(--danger-text);
+}
+
 .action-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
