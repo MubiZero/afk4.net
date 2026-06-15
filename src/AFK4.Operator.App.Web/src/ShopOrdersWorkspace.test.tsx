@@ -77,6 +77,13 @@ describe('ShopOrdersWorkspace', () => {
     await waitFor(() => expect(screen.getByText('Заказ принят')).toBeInTheDocument());
   });
 
+  it('shows an error toast when an order action fails', async () => {
+    accept.mockImplementationOnce(() => Promise.reject(new Error('network')));
+    render(<I18nProvider><ToastProvider><ShopOrdersWorkspace backend={backend as never} /></ToastProvider></I18nProvider>);
+    fireEvent.click(await screen.findByRole('button', { name: /принять|accept/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+  });
+
   it('surfaces an error instead of silently showing an empty queue', async () => {
     listQueue.mockImplementationOnce(() => Promise.reject(new Error('network')));
     render(<I18nProvider><ToastProvider><ShopOrdersWorkspace backend={backend as never} /></ToastProvider></I18nProvider>);

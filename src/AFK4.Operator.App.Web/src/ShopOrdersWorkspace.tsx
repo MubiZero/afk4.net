@@ -105,8 +105,10 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
       const updated = await clients.shopOrders[verb](backend.branchId, order.id, order.version);
       setOrders((current) => applyAction(current, { ...order, ...updated }));
       toast.success(t(`op.shopOrders.toast.${verb}`));
-    } catch {
-      // A 409 means another operator already acted; realtime reconciles the queue.
+    } catch (error) {
+      // Surface the failure like sibling workspaces do. A 409 means another operator already
+      // acted; realtime still reconciles the queue — the toast just tells the operator why.
+      toast.error(projectOperatorError(error, t).detail);
     }
   };
 

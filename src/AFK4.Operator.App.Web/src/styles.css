@@ -6619,6 +6619,11 @@ button {
   border-radius: var(--radius-sm, 6px);
 }
 .toast-close:hover { color: var(--text-primary, #f4f6fb); }
+.toast-close:focus-visible,
+.toast-action:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }
@@ -6650,6 +6655,10 @@ button {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-default);
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   cursor: pointer;
+}
+.empty-state-action:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
 }
