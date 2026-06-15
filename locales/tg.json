@@ -2526,5 +2526,7 @@
   "op.checkout.error.short": "{amount} намерасад",
   "op.checkout.error.over": "Зиёдатӣ {amount}",
   "op.shell.queuedCommand": "Фармони «{action}» ба навбат гузошта шуд — пас аз барқарории алоқа фиристода мешавад.",
-  "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт"
+  "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт",
+  "op.toast.close": "Пӯшидан",
+  "op.toast.region": "Огоҳиномаҳо"
 }

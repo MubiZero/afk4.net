@@ -6558,3 +6558,69 @@ button {
   color: var(--accent);
 }
 .payment-card-session-last { font-variant-numeric: tabular-nums; }
+
+/* Toast — non-blocking ephemeral notices. Motion is CSS-only so the global
+   prefers-reduced-motion rule neutralizes it automatically. */
+.toast-viewport {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  max-width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-elevated, #1d2330);
+  color: var(--text-primary, #f4f6fb);
+  border-left: 3px solid var(--border-default, #3a4256);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: toast-in var(--duration-medium, 200ms) var(--ease-out, ease);
+}
+
+.toast-success { border-left-color: var(--success, #36b37e); }
+.toast-error { border-left-color: var(--danger, #e5484d); }
+.toast-info { border-left-color: var(--accent, #4c8dff); }
+
+.toast-icon { flex: none; }
+.toast-success .toast-icon { color: var(--success, #36b37e); }
+.toast-error .toast-icon { color: var(--danger, #e5484d); }
+.toast-info .toast-icon { color: var(--accent, #4c8dff); }
+
+.toast-message { flex: 1 1 auto; font-size: var(--text-base, 14px); line-height: 1.35; }
+
+.toast-action {
+  flex: none;
+  background: transparent;
+  border: none;
+  color: var(--accent, #4c8dff);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.toast-close {
+  flex: none;
+  display: inline-flex;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #aab3c5);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--radius-sm, 6px);
+}
+.toast-close:hover { color: var(--text-primary, #f4f6fb); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

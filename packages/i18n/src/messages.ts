@@ -2428,7 +2428,9 @@ export const messages = {
     "op.checkout.error.short": "Не хватает {amount}",
     "op.checkout.error.over": "Превышение на {amount}",
     "op.shell.queuedCommand": "Команда «{action}» поставлена в очередь — будет отправлена после восстановления связи.",
-    "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере"
+    "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере",
+    "op.toast.close": "Закрыть",
+    "op.toast.region": "Уведомления"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -4855,7 +4857,9 @@ export const messages = {
     "op.checkout.error.short": "Short by {amount}",
     "op.checkout.error.over": "Over by {amount}",
     "op.shell.queuedCommand": "Command «{action}» queued — it will be sent once the connection is restored.",
-    "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server"
+    "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server",
+    "op.toast.close": "Close",
+    "op.toast.region": "Notifications"
   },
   tg: {
     "auth.club.title": "Воридшавӣ ба клуб",
@@ -7282,7 +7286,9 @@ export const messages = {
     "op.checkout.error.short": "{amount} намерасад",
     "op.checkout.error.over": "Зиёдатӣ {amount}",
     "op.shell.queuedCommand": "Фармони «{action}» ба навбат гузошта шуд — пас аз барқарории алоқа фиристода мешавад.",
-    "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт"
+    "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт",
+    "op.toast.close": "Пӯшидан",
+    "op.toast.region": "Огоҳиномаҳо"
   },
 } as const;
 

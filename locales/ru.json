@@ -2526,5 +2526,7 @@
   "op.checkout.error.short": "Не хватает {amount}",
   "op.checkout.error.over": "Превышение на {amount}",
   "op.shell.queuedCommand": "Команда «{action}» поставлена в очередь — будет отправлена после восстановления связи.",
-  "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере"
+  "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере",
+  "op.toast.close": "Закрыть",
+  "op.toast.region": "Уведомления"
 }
