@@ -1147,6 +1147,26 @@ button {
   stroke-width: 4;
   stroke-linecap: round;
 }
+.floor-plan-wall-hit {
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+.floor-plan-wall-preview {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-dasharray: 6 4;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.floor-plan-wall-node {
+  fill: var(--accent);
+  pointer-events: none;
+}
+.floor-plan-viewport--wall {
+  cursor: crosshair;
+}
 .floor-plan-zone-label {
   position: absolute;
   font-size: 11px;

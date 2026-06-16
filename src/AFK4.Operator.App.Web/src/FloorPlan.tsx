@@ -20,7 +20,10 @@ export function FloorPlan({
   onSeatContextMenu,
   mode = 'view',
   onSeatMove,
-  selectedZoneId
+  selectedZoneId,
+  tool = 'select',
+  onAddWall,
+  onDeleteWall
 }: {
   model: PlanModel;
   selectedSeatId: string;
@@ -29,6 +32,9 @@ export function FloorPlan({
   mode?: 'view' | 'edit';
   onSeatMove?: (seatId: string, posX: number, posY: number) => void;
   selectedZoneId?: string;
+  tool?: 'select' | 'wall';
+  onAddWall?: (x1: number, y1: number, x2: number, y2: number) => void;
+  onDeleteWall?: (index: number) => void;
 }) {
   const { t } = useI18n();
   const [scale, setScale] = useState(1);
@@ -37,6 +43,11 @@ export function FloorPlan({
 
   // Edit-mode state: which seat is currently being dragged (null = no drag).
   const [draggingSeatId, setDraggingSeatId] = useState<string | null>(null);
+
+  // Wall tool: the first clicked node (start of the segment being drawn) and the live cursor node
+  // (for the preview line). Both in absolute grid-node coordinates.
+  const [pendingNode, setPendingNode] = useState<{ x: number; y: number } | null>(null);
+  const [cursorNode, setCursorNode] = useState<{ x: number; y: number } | null>(null);
 
   // We need scale/originX/originY inside the window pointer listeners. Keep refs to avoid
   // stale closures — the effect re-runs only when draggingSeatId changes (the listener lifetime).
@@ -141,9 +152,39 @@ export function FloorPlan({
     };
   }, [draggingSeatId, cell]);
 
+  // Leaving the wall tool abandons any half-drawn segment.
+  useEffect(() => {
+    if (tool !== 'wall') {
+      setPendingNode(null);
+      setCursorNode(null);
+    }
+  }, [tool]);
+
+  // Pointer → nearest grid NODE (cell corner) in absolute coordinates. Mirrors the seat-drag math
+  // (pan-agnostic) so the two tools snap consistently; pxToCell rounds, so it lands on the closest node.
+  const nodeFromEvent = (clientX: number, clientY: number): { x: number; y: number } => {
+    const rect = viewportRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 };
+    const canvasX = (clientX - rect.left) / scale;
+    const canvasY = (clientY - rect.top) / scale;
+    return { x: pxToCell(canvasX - CANVAS_PADDING, cell) + originX, y: pxToCell(canvasY - CANVAS_PADDING, cell) + originY };
+  };
+
   // Pan only when the drag starts on empty canvas (not on a seat marker — those handle their own click).
   // Capture the pointer so a fast drag that leaves the viewport keeps delivering move/up events here.
   const onPointerDown = (event: ReactPointerEvent) => {
+    // Wall tool: click-click on grid nodes to draw a segment (deletion is handled on the wall hit lines).
+    if (mode === 'edit' && tool === 'wall') {
+      const node = nodeFromEvent(event.clientX, event.clientY);
+      if (pendingNode === null) {
+        setPendingNode(node);
+      } else {
+        if (node.x !== pendingNode.x || node.y !== pendingNode.y) {
+          onAddWall?.(pendingNode.x, pendingNode.y, node.x, node.y);
+        }
+        setPendingNode(null);
+      }
+      return;
+    }
     if ((event.target as HTMLElement).closest('.plan-seat')) {
       return;
     }
@@ -151,6 +192,10 @@ export function FloorPlan({
     setDrag({ startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y });
   };
   const onPointerMove = (event: ReactPointerEvent) => {
+    if (mode === 'edit' && tool === 'wall') {
+      setCursorNode(nodeFromEvent(event.clientX, event.clientY));
+      return;
+    }
     if (drag === null) {
       return;
     }
@@ -172,7 +217,7 @@ export function FloorPlan({
       </div>
       <div
         ref={viewportRef}
-        className="floor-plan-viewport"
+        className={mode === 'edit' && tool === 'wall' ? 'floor-plan-viewport floor-plan-viewport--wall' : 'floor-plan-viewport'}
         role="application"
         aria-label={t('op.map.plan.canvasLabel')}
         onPointerDown={onPointerDown}
@@ -205,6 +250,18 @@ export function FloorPlan({
             {model.walls.map((wall) => (
               <line key={wall.id} className="floor-plan-wall" x1={px(wall.x1)} y1={py(wall.y1)} x2={px(wall.x2)} y2={py(wall.y2)} />
             ))}
+            {mode === 'edit' && tool === 'wall' && model.walls.map((wall, index) => (
+              <line
+                key={`hit-${wall.id}`}
+                className="floor-plan-wall-hit"
+                x1={px(wall.x1)} y1={py(wall.y1)} x2={px(wall.x2)} y2={py(wall.y2)}
+                onPointerDown={(event) => { event.stopPropagation(); onDeleteWall?.(index); }}
+              />
+            ))}
+            {pendingNode && cursorNode && (
+              <line className="floor-plan-wall-preview" x1={px(pendingNode.x)} y1={py(pendingNode.y)} x2={px(cursorNode.x)} y2={py(cursorNode.y)} />
+            )}
+            {pendingNode && <circle className="floor-plan-wall-node" cx={px(pendingNode.x)} cy={py(pendingNode.y)} r={5} />}
           </svg>
           {model.zones.map((zone) => (
             <span
