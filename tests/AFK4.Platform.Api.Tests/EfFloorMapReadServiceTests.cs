@@ -712,6 +712,79 @@ public sealed class EfFloorMapReadServiceTests
         Assert.Equal(startedAt, guest.SessionStartedAtUtc);
     }
 
+    [Fact]
+    public async Task GetFloorMapAsync_ProjectsSeatGeometryZoneGeometryAndWalls()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var zoneId = Guid.NewGuid();
+        var seatId = Guid.NewGuid();
+        var now = DateTimeOffset.Parse("2026-06-16T00:00:00Z");
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.Branches.Add(new BranchEntity
+            {
+                BranchId = TestIds.BranchId,
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Branch",
+                CreatedAtUtc = now
+            });
+            db.Zones.Add(new ZoneEntity
+            {
+                ZoneId = zoneId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                Name = "VIP",
+                SortOrder = 1,
+                GeoX = 1, GeoY = 2, GeoWidth = 4, GeoHeight = 3,
+                Color = "#22c55e", ZoneType = "lounge",
+                CreatedAtUtc = now
+            });
+            db.Seats.Add(new SeatEntity
+            {
+                SeatId = seatId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                ZoneId = zoneId,
+                Name = "PC-1",
+                SortOrder = 1,
+                PosX = 3, PosY = 5, Rotation = 90, SeatType = "console",
+                CreatedAtUtc = now
+            });
+            db.Walls.Add(new WallEntity
+            {
+                WallId = Guid.NewGuid(),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                X1 = 0, Y1 = 0, X2 = 10, Y2 = 0,
+                CreatedAtUtc = now
+            });
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            var service = new EfFloorMapReadService(db);
+            var result = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
+
+            Assert.NotNull(result);
+            var seat = Assert.Single(result!.FloorMap.Seats);
+            Assert.Equal(3, seat.PosX);
+            Assert.Equal(5, seat.PosY);
+            Assert.Equal(90, seat.Rotation);
+            Assert.Equal("console", seat.SeatType);
+
+            var zone = Assert.Single(result.FloorMap.Zones);
+            Assert.Equal(4, zone.GeoWidth);
+            Assert.Equal("lounge", zone.ZoneType);
+
+            var wall = Assert.Single(result.FloorMap.Walls);
+            Assert.Equal(10, wall.X2);
+        }
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow()
