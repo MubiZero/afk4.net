@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
+import type { RenderResult } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
 import { MapSidePanel } from './MapSidePanel';
@@ -18,31 +19,36 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
 function renderPanel(s: SeatSummary) {
   return render(
     <I18nProvider>
-      <MapSidePanel seat={s} seats={[s]} currencyCode="TJS" backend={null} actionsEnabled={false} canUsePcControl={false} onSeatAction={async () => ({})} onPcControlAction={async () => ({ detail: '' })} />
+      <MapSidePanel seat={s} seats={[s]} currencyCode="TJS" backend={null} actionsEnabled={false} canUsePcControl={true} onSeatAction={async () => ({})} onPcControlAction={async () => ({ detail: '' })} />
     </I18nProvider>
   );
 }
 
+// Блок «Статус ПК» спрятан, пока не нажали «Статус» — раскрываем его для проверок содержимого.
+async function revealStatus(utils: RenderResult) {
+  fireEvent.click(utils.getByRole('button', { name: /^Статус$/ }));
+  await utils.findByText('Статус ПК');
+}
+
 describe('MapSidePanel diagnostics (A3)', () => {
-  it('surfaces the real device specifics on hand as distinct fields', () => {
-    const { getByText } = renderPanel(seat({}));
-    getByText('Зал-1-ПК-07'); // device name, not a mashed string
-    getByText('Онлайн'); // connection
-    getByText('заблокирован'); // lock state
+  it('surfaces the real device specifics on hand once status is requested', async () => {
+    const utils = renderPanel(seat({}));
+    await revealStatus(utils);
+    utils.getByText('Зал-1-ПК-07'); // device name, not a mashed string
+    utils.getByText('Онлайн'); // connection
+    utils.getByText('заблокирован'); // lock state
   });
 
-  it('reveals software versions only when the seat needs troubleshooting', () => {
-    // Healthy active seat keeps the panel lean — no version noise.
-    const { queryByText, rerender } = renderPanel(seat({}));
-    expect(queryByText('Агент 0.4 · Оболочка 0.4')).toBeNull();
+  it('reveals software versions only when the seat needs troubleshooting', async () => {
+    // Healthy active seat keeps the panel lean — no version noise even when status is open.
+    const healthy = renderPanel(seat({}));
+    await revealStatus(healthy);
+    expect(healthy.queryByText('Агент 0.4 · Оболочка 0.4')).toBeNull();
+    cleanup();
     // A seat in an attention state surfaces the versions for the operator diagnosing it.
-    rerender(
-      <I18nProvider>
-        <MapSidePanel seat={seat({ tone: 'offline', isDeviceOnline: false })} seats={[]} currencyCode="TJS" backend={null} actionsEnabled={false} canUsePcControl={false} onSeatAction={async () => ({})} onPcControlAction={async () => ({ detail: '' })} />
-      </I18nProvider>
-    );
-    queryByText('Агент 0.4 · Оболочка 0.4');
-    expect(queryByText('Агент 0.4 · Оболочка 0.4')).not.toBeNull();
+    const attention = renderPanel(seat({ tone: 'offline', isDeviceOnline: false }));
+    await revealStatus(attention);
+    expect(attention.queryByText('Агент 0.4 · Оболочка 0.4')).not.toBeNull();
   });
 
   it('does not present a fabricated session billing mode as if it were real', () => {
@@ -56,11 +62,18 @@ describe('MapSidePanel diagnostics (A3)', () => {
     expect(container.textContent).not.toContain('AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE');
   });
 
-  it('flags a lost-connection PC with the danger status pill', () => {
-    const { container } = renderPanel(seat({ isDeviceOnline: false }));
-    const pill = container.querySelector('.status-pill.bad');
+  it('flags a lost-connection PC with the danger status pill once status is open', async () => {
+    const utils = renderPanel(seat({ isDeviceOnline: false }));
+    await revealStatus(utils);
+    const pill = utils.container.querySelector('.status-pill.bad');
     expect(pill).not.toBeNull();
     expect(pill?.textContent).toContain('Нет связи');
+  });
+
+  it('keeps the PC status hidden until the operator presses «Статус»', () => {
+    const { queryByText } = renderPanel(seat({}));
+    expect(queryByText('Статус ПК')).toBeNull();
+    expect(queryByText('Онлайн')).toBeNull();
   });
 
   it('shows the real running total for an open tab in the host currency', () => {
@@ -68,10 +81,9 @@ describe('MapSidePanel diagnostics (A3)', () => {
     getByText('Набежало');
   });
 
-  it('shows a plain "unassigned" line and no PC fields when there is no device', () => {
-    const { getByText, queryByText } = renderPanel(seat({ deviceId: null, deviceName: null }));
-    getByText('Устройство не назначено');
-    expect(queryByText('Связь')).toBeNull();
-    expect(queryByText('Версии ПО')).toBeNull();
+  it('offers no PC control or status for a seat without a device', () => {
+    const { queryByText, queryByRole } = renderPanel(seat({ deviceId: null, deviceName: null }));
+    expect(queryByText('Управление ПК')).toBeNull();
+    expect(queryByRole('button', { name: /^Статус$/ })).toBeNull();
   });
 });

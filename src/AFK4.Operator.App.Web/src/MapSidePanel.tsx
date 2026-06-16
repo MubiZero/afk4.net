@@ -328,9 +328,10 @@ export function MapSidePanel({
       ? t('op.helper.deviceStatus.unlocked')
       : t('op.helper.deviceStatus.lockUnknown');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
-  // Отдельный отклик для команд ПК (статус/блокировка): у «статуса» результат — это сам отчёт
-  // (версии, состояние), его надо ПОКАЗАТЬ текстом, а не гасить галочкой как у действий сессии.
+  // Отклик команд ПК (спиннер→галочка на кнопке) + флаг «показывать блок статуса ПК».
+  // Блок статуса спрятан, пока оператор не нажмёт «Статус» — тогда опрашиваем ПК и раскрываем.
   const [pcFeedback, setPcFeedback] = useState<Feedback>(emptyFeedback);
+  const [pcStatusShown, setPcStatusShown] = useState(false);
   const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
   const [durationMode, setDurationMode] = useState<SessionStartDurationMode>('fixed');
   const [playerSearch, setPlayerSearch] = useState('');
@@ -480,6 +481,7 @@ export function MapSidePanel({
     setCriticalAction(null);
     setStartDialogOpen(false);
     setPcFeedback(emptyFeedback);
+    setPcStatusShown(false);
   }, [seat.id, seat.activeSessionId]);
 
   // Успех показываем галочкой и сами гасим — оператору не нужно его закрывать.
@@ -595,11 +597,17 @@ export function MapSidePanel({
   };
 
   const pcBusy = pcFeedback.state === 'pending';
+  // «Статус» не вываливает сырой отчёт текстом — он опрашивает ПК и РАСКРЫВАЕТ блок «Статус ПК»
+  // (пилюли связь/блокировка). Ошибку показываем текстом — её надо прочитать (#34). Успех —
+  // галочка на кнопке + раскрытый блок, без непонятной строки.
   const runPcControl = async (label: string, action: PcControlActionId) => {
     setPcFeedback({ label, state: 'pending' });
     try {
-      const result = await onPcControlAction(seat, action);
-      setPcFeedback({ label, state: 'confirmed', detail: result.detail });
+      await onPcControlAction(seat, action);
+      setPcFeedback({ label, state: 'confirmed' });
+      if (action === 'status') {
+        setPcStatusShown(true);
+      }
     } catch (error) {
       setPcFeedback({ label, state: 'failed', detail: projectOperatorFacingError(error, t) });
     }
@@ -707,6 +715,15 @@ export function MapSidePanel({
       )}
       <ActionFeedback feedback={feedback} />
 
+      {/* Готовность к действиям (нет прав / биллинг не готов / команда в полёте) — это про
+          ДЕЙСТВИЯ, не про статус ПК, поэтому показываем здесь и всегда, не пряча за «Статус». */}
+      {!isHealthyIdle && (
+        <div className="detail-row panel-readiness">
+          <span>{t('op.map.panel.confirmationLabel')}</span>
+          <strong>{confirmationText}</strong>
+        </div>
+      )}
+
       {hasActiveSession && seat.remainingSeconds == null && seat.accruedCostMinorUnits != null && (
         // Открытый счёт: набежавшая сумма — настоящие деньги, которые уже на руках (#34).
         <section className="context-section">
@@ -717,7 +734,9 @@ export function MapSidePanel({
         </section>
       )}
 
-      {/* Статус ПК — конкретика, которая уже на руках (#34): связь/блокировка пилюлями. */}
+      {/* Статус ПК спрятан, пока не нажали «Статус» в «Управление ПК» — тогда раскрываем
+          связь/блокировку пилюлями (конкретика на руках, #34), без сырого текста-отчёта. */}
+      {pcStatusShown && (
       <section className="context-section">
         <div className="context-section-head">
           <MonitorCheck size={13} aria-hidden="true" />
@@ -761,13 +780,8 @@ export function MapSidePanel({
             <strong>{commandLabel(seat.command, t)}</strong>
           </div>
         )}
-        {!isHealthyIdle && (
-          <div className="detail-row">
-            <span>{t('op.map.panel.confirmationLabel')}</span>
-            <strong>{confirmationText}</strong>
-          </div>
-        )}
       </section>
+      )}
 
       {/* Управление ПК живёт рядом со «Статусом ПК» — видишь состояние машины и тут же ей
           командуешь. Отдельной кнопки в тулбаре больше нет: команды относятся к выбранному
@@ -794,8 +808,8 @@ export function MapSidePanel({
               {pcGlyph(t('op.map.actionUnlock'), <Unlock size={14} />)}<span>{t('op.map.actionUnlockBtn')}</span>
             </button>
           </div>
-          {(pcFeedback.state === 'confirmed' || pcFeedback.state === 'failed') && pcFeedback.detail && (
-            <p className={`pc-control-result ${pcFeedback.state}`} role="status">{pcFeedback.detail}</p>
+          {pcFeedback.state === 'failed' && pcFeedback.detail && (
+            <p className="pc-control-result failed" role="alert">{pcFeedback.detail}</p>
           )}
         </section>
       )}
