@@ -171,6 +171,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'roles.technician',
     'setup.wizard.finished.summary.branch',
     'setup.wizard.stepper.branch',
+    // VR and Симулятор are international loanwords used unchanged in Tajik.
+    'op.map.plan.edit.seatType.vr',
+    'op.map.plan.edit.seatType.sim',
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {
