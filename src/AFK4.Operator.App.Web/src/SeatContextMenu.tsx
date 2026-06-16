@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Ban, BellRing, LockKeyhole, MonitorCheck, Plus, Power, TimerReset, UnlockKeyhole, Wifi } from 'lucide-react';
+import { Ban, BellRing, LockKeyhole, Plus, Power, TimerReset, UnlockKeyhole, Wifi } from 'lucide-react';
 import type { ComponentType, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
@@ -12,7 +12,6 @@ const ITEM_ICON: Record<string, IconType> = {
   'start-guest': Plus,
   'extend-15': Plus,
   'extend-30': TimerReset,
-  'pc-status': MonitorCheck,
   'pc-lock': LockKeyhole,
   'pc-unlock': UnlockKeyhole,
   'soon-reboot': TimerReset,

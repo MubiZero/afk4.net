@@ -58,7 +58,6 @@ export function MapWorkspace({
     actionsEnabled,
     canStart: hasPermission(session, permissionNames.startSession),
     canExtend: hasPermission(session, permissionNames.extendSession),
-    canStatus: hasPermission(session, permissionNames.viewDiagnostics) && hasPermission(session, permissionNames.viewDeviceDetail),
     canLockUnlock: hasPermission(session, permissionNames.dispatchDeviceCommand)
   }), [actionsEnabled, session]);
   const visibleSeats = useMemo(

@@ -17,7 +17,6 @@ export interface SeatMenuCaps {
   actionsEnabled: boolean;
   canStart: boolean;
   canExtend: boolean;
-  canStatus: boolean;
   canLockUnlock: boolean;
 }
 
@@ -82,17 +81,8 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
     });
   }
 
+  // Статус ПК больше не пункт меню — он живёт единым блоком внизу карточки места.
   const pc: SeatMenuItem[] = [];
-  if (hasDevice && caps.canStatus) {
-    pc.push({
-      id: 'pc-status',
-      labelKey: 'op.map.actionStatusBtn',
-      feedbackKey: 'op.map.actionStatus',
-      run: { kind: 'pc', action: 'status' },
-      disabled: false,
-      soon: false
-    });
-  }
   if (hasDevice && caps.canLockUnlock) {
     pc.push({
       id: 'pc-lock',

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { cleanup, fireEvent, render } from '@testing-library/react';
-import type { RenderResult } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
 import { MapSidePanel } from './MapSidePanel';
@@ -24,30 +23,21 @@ function renderPanel(s: SeatSummary) {
   );
 }
 
-// Статус ПК раскрывается под кнопкой «Статус» — пилюля блокировки появляется только тогда.
-async function revealStatus(utils: RenderResult) {
-  fireEvent.click(utils.getByRole('button', { name: /^Статус$/ }));
-  await utils.findByText(/блокирован/);
-}
-
 describe('MapSidePanel diagnostics (A3)', () => {
-  it('surfaces the real device specifics on hand once status is requested', async () => {
+  it('surfaces the real device specifics on hand in the always-on status block', () => {
     const utils = renderPanel(seat({}));
-    await revealStatus(utils);
     utils.getByText('Зал-1-ПК-07'); // device name, not a mashed string
     utils.getByText('Онлайн'); // connection
     utils.getByText('заблокирован'); // lock state
   });
 
-  it('reveals software versions only when the seat needs troubleshooting', async () => {
-    // Healthy active seat keeps the panel lean — no version noise even when status is open.
+  it('reveals software versions only when the seat needs troubleshooting', () => {
+    // Healthy active seat keeps the status block lean — no version noise.
     const healthy = renderPanel(seat({}));
-    await revealStatus(healthy);
     expect(healthy.queryByText('Агент 0.4 · Оболочка 0.4')).toBeNull();
     cleanup();
     // A seat in an attention state surfaces the versions for the operator diagnosing it.
     const attention = renderPanel(seat({ tone: 'offline', isDeviceOnline: false }));
-    await revealStatus(attention);
     expect(attention.queryByText('Агент 0.4 · Оболочка 0.4')).not.toBeNull();
   });
 
@@ -62,25 +52,18 @@ describe('MapSidePanel diagnostics (A3)', () => {
     expect(container.textContent).not.toContain('AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE');
   });
 
-  it('flags a lost-connection PC with the danger status pill once status is open', async () => {
+  it('flags a lost-connection PC with the danger status pill', () => {
     const utils = renderPanel(seat({ isDeviceOnline: false }));
-    await revealStatus(utils);
     const pill = utils.container.querySelector('.status-pill.bad');
     expect(pill).not.toBeNull();
     expect(pill?.textContent).toContain('Нет связи');
   });
 
-  it('keeps the PC status hidden until the operator presses «Статус»', () => {
-    const { queryByText } = renderPanel(seat({}));
-    expect(queryByText('Онлайн')).toBeNull();
-    expect(queryByText(/^(за|раз)блокирован$/)).toBeNull();
-  });
-
-  it('toggles the PC status closed on a second «Статус» press', async () => {
+  it('shows the unified status block under the controls, without a «Статус» button', () => {
     const utils = renderPanel(seat({}));
-    await revealStatus(utils);
-    fireEvent.click(utils.getByRole('button', { name: /^Статус$/ }));
-    expect(utils.queryByText('Онлайн')).toBeNull();
+    // Статус — единый блок внизу, не действие: отдельной кнопки «Статус» больше нет.
+    expect(utils.queryByRole('button', { name: /^Статус$/ })).toBeNull();
+    utils.getByText('Статус ПК');
   });
 
   it('shows the real running total for an open tab in the host currency', () => {
@@ -88,9 +71,9 @@ describe('MapSidePanel diagnostics (A3)', () => {
     getByText('Набежало');
   });
 
-  it('offers no PC control or status for a seat without a device', () => {
-    const { queryByText, queryByRole } = renderPanel(seat({ deviceId: null, deviceName: null }));
+  it('offers no PC control or status block for a seat without a device', () => {
+    const { queryByText } = renderPanel(seat({ deviceId: null, deviceName: null }));
     expect(queryByText('Управление ПК')).toBeNull();
-    expect(queryByRole('button', { name: /^Статус$/ })).toBeNull();
+    expect(queryByText('Статус ПК')).toBeNull();
   });
 });

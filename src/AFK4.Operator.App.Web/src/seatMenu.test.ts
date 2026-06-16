@@ -24,14 +24,12 @@ const allCaps: SeatMenuCaps = {
   actionsEnabled: true,
   canStart: true,
   canExtend: true,
-  canStatus: true,
   canLockUnlock: true
 };
 const noCaps: SeatMenuCaps = {
   actionsEnabled: false,
   canStart: false,
   canExtend: false,
-  canStatus: false,
   canLockUnlock: false
 };
 
@@ -74,7 +72,7 @@ describe('buildSeatMenu', () => {
   });
 
   it('hides PC actions a role cannot perform, and the device-less seat has none', () => {
-    const noPc = buildSeatMenu(seat({ tone: 'ready' }), { ...allCaps, canStatus: false, canLockUnlock: false });
+    const noPc = buildSeatMenu(seat({ tone: 'ready' }), { ...allCaps, canLockUnlock: false });
     expect(ids(noPc).some((id) => id.startsWith('pc-'))).toBe(false);
     const noDevice = buildSeatMenu(seat({ tone: 'ready', deviceId: null }), allCaps);
     expect(ids(noDevice).some((id) => id.startsWith('pc-'))).toBe(false);

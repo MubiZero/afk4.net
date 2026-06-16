@@ -15,7 +15,7 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
   };
 }
 
-const caps = { actionsEnabled: true, canStart: true, canExtend: true, canStatus: true, canLockUnlock: true };
+const caps = { actionsEnabled: true, canStart: true, canExtend: true, canLockUnlock: true };
 
 function renderMenu(onSelect: (item: SeatMenuItem) => void, onClose: () => void) {
   const s = seat({});
