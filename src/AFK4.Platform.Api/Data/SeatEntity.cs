@@ -14,5 +14,14 @@ public sealed class SeatEntity
 
     public int SortOrder { get; set; }
 
+    // Floor-plan layout (null until the branch is arranged in the «План» editor; grid view ignores these).
+    public int? PosX { get; set; }
+
+    public int? PosY { get; set; }
+
+    public int Rotation { get; set; }
+
+    public string SeatType { get; set; } = "pc";
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

@@ -12,5 +12,18 @@ public sealed class ZoneEntity
 
     public int SortOrder { get; set; }
 
+    // Floor-plan rectangle in grid cells (null until arranged).
+    public int? GeoX { get; set; }
+
+    public int? GeoY { get; set; }
+
+    public int? GeoWidth { get; set; }
+
+    public int? GeoHeight { get; set; }
+
+    public string? Color { get; set; }
+
+    public string? ZoneType { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

@@ -56,8 +56,12 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
         var existingSeats = await dbContext.Seats
             .Where(seat => seat.OrganizationId == organizationId && seat.BranchId == branchId)
             .ToListAsync(cancellationToken);
+        var existingWallsForEtag = await dbContext.Walls
+            .AsNoTracking()
+            .Where(wall => wall.OrganizationId == organizationId && wall.BranchId == branchId)
+            .ToListAsync(cancellationToken);
 
-        var currentEtag = FloorMapEtag.Compute(existingZones, existingSeats);
+        var currentEtag = FloorMapEtag.Compute(existingZones, existingSeats, existingWallsForEtag);
         if (!EtagMatches(ifMatch, currentEtag))
         {
             return new FloorMapBulkUpdateResult(
@@ -124,6 +128,12 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
                 zone = existingZonesById[zoneId];
                 zone.Name = zoneRequest.Name.Trim();
                 zone.SortOrder = zoneRequest.SortOrder;
+                zone.GeoX = zoneRequest.GeoX;
+                zone.GeoY = zoneRequest.GeoY;
+                zone.GeoWidth = zoneRequest.GeoWidth;
+                zone.GeoHeight = zoneRequest.GeoHeight;
+                zone.Color = zoneRequest.Color;
+                zone.ZoneType = zoneRequest.ZoneType;
             }
             else
             {
@@ -134,6 +144,12 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
                     BranchId = branchId,
                     Name = zoneRequest.Name.Trim(),
                     SortOrder = zoneRequest.SortOrder,
+                    GeoX = zoneRequest.GeoX,
+                    GeoY = zoneRequest.GeoY,
+                    GeoWidth = zoneRequest.GeoWidth,
+                    GeoHeight = zoneRequest.GeoHeight,
+                    Color = zoneRequest.Color,
+                    ZoneType = zoneRequest.ZoneType,
                     CreatedAtUtc = now
                 };
                 dbContext.Zones.Add(zone);
@@ -163,6 +179,10 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
                 seat.ZoneId = targetZoneId;
                 seat.Name = seatRequest.Name.Trim();
                 seat.SortOrder = seatRequest.SortOrder;
+                seat.PosX = seatRequest.PosX;
+                seat.PosY = seatRequest.PosY;
+                seat.Rotation = seatRequest.Rotation;
+                seat.SeatType = seatRequest.SeatType;
                 keptSeatIds.Add(seatId);
             }
             else
@@ -175,6 +195,10 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
                     ZoneId = targetZoneId,
                     Name = seatRequest.Name.Trim(),
                     SortOrder = seatRequest.SortOrder,
+                    PosX = seatRequest.PosX,
+                    PosY = seatRequest.PosY,
+                    Rotation = seatRequest.Rotation,
+                    SeatType = seatRequest.SeatType,
                     CreatedAtUtc = now
                 };
                 dbContext.Seats.Add(seat);
@@ -228,6 +252,30 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
             dbContext.Zones.RemoveRange(zonesToRemove);
         }
 
+        var existingWalls = await dbContext.Walls
+            .Where(wall => wall.OrganizationId == organizationId && wall.BranchId == branchId)
+            .ToListAsync(cancellationToken);
+        if (existingWalls.Count > 0)
+        {
+            dbContext.Walls.RemoveRange(existingWalls);
+        }
+
+        var requestedWalls = request.Walls ?? [];
+        foreach (var wallRequest in requestedWalls)
+        {
+            dbContext.Walls.Add(new WallEntity
+            {
+                WallId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                X1 = wallRequest.X1,
+                Y1 = wallRequest.Y1,
+                X2 = wallRequest.X2,
+                Y2 = wallRequest.Y2,
+                CreatedAtUtc = now
+            });
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var freshZones = await dbContext.Zones
@@ -238,7 +286,11 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
             .AsNoTracking()
             .Where(seat => seat.OrganizationId == organizationId && seat.BranchId == branchId)
             .ToListAsync(cancellationToken);
-        var freshEtag = FloorMapEtag.Compute(freshZones, freshSeats);
+        var freshWalls = await dbContext.Walls
+            .AsNoTracking()
+            .Where(wall => wall.OrganizationId == organizationId && wall.BranchId == branchId)
+            .ToListAsync(cancellationToken);
+        var freshEtag = FloorMapEtag.Compute(freshZones, freshSeats, freshWalls);
 
         var response = new FloorMapBulkUpdateResponse(freshEtag, zoneAssignments, seatAssignments);
         return new FloorMapBulkUpdateResult(FloorMapBulkUpdateStatus.Success, null, response, freshEtag);
