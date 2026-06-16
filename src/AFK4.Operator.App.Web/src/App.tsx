@@ -130,7 +130,8 @@ function AppInner() {
     setFloorMap,
     offlineActionAudit,
     handleSeatAction,
-    handlePcControlAction
+    handlePcControlAction,
+    handleSaveLayout
   } = useFloorMap({
     config,
     t,
@@ -442,6 +443,7 @@ function AppInner() {
           onFilterChange={setMapFilter}
           onPcControlAction={handlePcControlAction}
           onSeatAction={handleSeatAction}
+          onSaveLayout={handleSaveLayout}
         />
       )}
       {workspace === 'dashboard' && (

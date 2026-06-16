@@ -8404,3 +8404,51 @@ button {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border-strong));
 }
+
+/* «План» editor: action bar on top, then palette · canvas · inspector. */
+.floor-plan-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.floor-plan-editor-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.floor-plan-editor-body {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 220px;
+  gap: 12px;
+  min-height: 0;
+}
+
+.floor-plan-editor-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.map-edit-layout {
+  padding: 7px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.map-edit-layout:hover {
+  background: var(--surface-hover);
+}
+
+.map-empty-plan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}

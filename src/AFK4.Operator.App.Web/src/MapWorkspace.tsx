@@ -23,7 +23,9 @@ import { EmptyState, FeedbackNotice, Skeleton } from './operatorPrimitives';
 import { SeatContextMenu } from './SeatContextMenu';
 import { SeatTile } from './SeatTile';
 import { FloorPlan } from './FloorPlan';
+import { FloorPlanEditor } from './FloorPlanEditor';
 import { toPlanModel } from './floorPlanState';
+import type { FloorMapBulkUpdateRequest } from './api/clients/floorMap';
 
 export function MapWorkspace({
   floorMap,
@@ -35,7 +37,8 @@ export function MapWorkspace({
   onSelectSeat,
   onFilterChange,
   onPcControlAction,
-  onSeatAction
+  onSeatAction,
+  onSaveLayout
 }: {
   floorMap: OperatorFloorMapState;
   session: OperatorAuthSession | null;
@@ -47,10 +50,17 @@ export function MapWorkspace({
   onFilterChange: (filter: MapFilterId) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
+  onSaveLayout: (request: FloorMapBulkUpdateRequest) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [viewMode, setViewMode] = useState<MapViewMode>('grid');
+  const [editing, setEditing] = useState(false);
+  // Editing requires the layout.manage right AND a real ETag — without the concurrency token (offline
+  // mirror / fixtures) the save would be rejected, so we don't offer the entry point.
+  const canEditLayout = hasPermission(session, permissionNames.manageLayout)
+    && floorMap.source === 'backend'
+    && floorMap.etag !== null;
   const [seatMenu, setSeatMenu] = useState<{ seat: SeatSummary; x: number; y: number } | null>(null);
   const seatMenuCaps = useMemo(() => ({
     actionsEnabled,
@@ -181,6 +191,9 @@ export function MapWorkspace({
           <button type="button" className={viewMode === 'grid' ? 'active' : undefined} onClick={() => setViewMode('grid')}>{t('op.map.viewGrid')}</button>
           <button type="button" className={viewMode === 'plan' ? 'active' : undefined} onClick={() => setViewMode('plan')}>{t('op.map.viewPlan')}</button>
         </div>
+        {viewMode === 'plan' && canEditLayout && !editing && !planModel.isEmpty && (
+          <button type="button" className="map-edit-layout" onClick={() => setEditing(true)}>{t('op.map.plan.edit.enter')}</button>
+        )}
       </section>
       {floorMap.loadStatus === 'failed' && (
         <FeedbackNotice feedback={{ label: t('op.map.feedbackMap'), state: 'failed', detail: floorMap.error ?? t('op.map.loadError') }} />
@@ -208,8 +221,20 @@ export function MapWorkspace({
             </div>
           ) : null
         ) : viewMode === 'plan' ? (
-          planModel.isEmpty ? (
-            <EmptyState title={t('op.map.plan.emptyTitle')} description={t('op.map.plan.emptyHint')} className="map-empty-state" />
+          editing ? (
+            <FloorPlanEditor
+              floorMap={floorMap}
+              organizationId={session?.organizationId ?? ''}
+              onSave={onSaveLayout}
+              onExit={() => setEditing(false)}
+            />
+          ) : planModel.isEmpty ? (
+            <div className="map-empty-plan">
+              <EmptyState title={t('op.map.plan.emptyTitle')} description={t('op.map.plan.emptyHint')} className="map-empty-state" />
+              {canEditLayout && (
+                <button type="button" className="map-edit-layout" onClick={() => setEditing(true)}>{t('op.map.plan.edit.arrange')}</button>
+              )}
+            </div>
           ) : (
             <>
               <FloorPlan
