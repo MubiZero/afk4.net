@@ -231,9 +231,11 @@ export function MapWorkspace({
           ) : planModel.isEmpty ? (
             <div className="map-empty-plan">
               <EmptyState title={t('op.map.plan.emptyTitle')} description={t('op.map.plan.emptyHint')} className="map-empty-state" />
-              {canEditLayout && (
+              {canEditLayout ? (
                 <button type="button" className="map-edit-layout" onClick={() => setEditing(true)}>{t('op.map.plan.edit.arrange')}</button>
-              )}
+              ) : !hasPermission(session, permissionNames.manageLayout) ? (
+                <p className="map-empty-plan-hint">{t('op.map.plan.edit.noManagePermission')}</p>
+              ) : null}
             </div>
           ) : (
             <>

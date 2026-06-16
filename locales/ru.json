@@ -1065,7 +1065,6 @@
   "op.map.plan.edit.confirmDiscardBody": "Несохранённая расстановка будет потеряна.",
   "op.map.plan.edit.confirmDiscardYes": "Отменить",
   "op.map.plan.edit.confirmKeep": "Продолжить правку",
-  "op.map.plan.edit.saved": "Расстановка сохранена",
   "op.map.plan.edit.saveFailed": "Не удалось сохранить расстановку",
   "op.map.plan.edit.conflict": "Раскладка изменилась с другого устройства. Обновите и повторите.",
   "op.map.plan.edit.noManagePermission": "Расстановку меняет менеджер зала.",

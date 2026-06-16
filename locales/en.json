@@ -1065,7 +1065,6 @@
   "op.map.plan.edit.confirmDiscardBody": "Unsaved layout will be lost.",
   "op.map.plan.edit.confirmDiscardYes": "Discard",
   "op.map.plan.edit.confirmKeep": "Keep editing",
-  "op.map.plan.edit.saved": "Layout saved",
   "op.map.plan.edit.saveFailed": "Could not save layout",
   "op.map.plan.edit.conflict": "Layout changed elsewhere. Refresh and retry.",
   "op.map.plan.edit.noManagePermission": "Only a branch manager can arrange the plan.",

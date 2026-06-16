@@ -72,10 +72,11 @@ describe('MapWorkspace layout editing', () => {
     expect(getByText('Разметить план')).not.toBeNull();
   });
 
-  it('hides the arrange entry point without layout.manage', () => {
+  it('hides the arrange entry point without layout.manage and explains who can arrange', () => {
     const { getByText, queryByText } = renderWorkspace({ floorMap: backendEmptyPlan(), session: session(['floor_map.view']) });
     fireEvent.click(getByText('План'));
     expect(getByText('Зал ещё не размечен')).not.toBeNull();
     expect(queryByText('Разметить план')).toBeNull();
+    expect(getByText('Расстановку меняет менеджер зала.')).not.toBeNull();
   });
 });

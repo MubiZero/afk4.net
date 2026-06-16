@@ -8452,3 +8452,9 @@ button {
   align-items: center;
   gap: 12px;
 }
+
+.map-empty-plan-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
