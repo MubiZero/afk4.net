@@ -197,6 +197,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     playerDisplayName,
     tariffName,
     sessionStartedAtUtc,
+    // Floor-plan geometry: null pos = not placed yet; 0° = no rotation; 'pc' = default host type.
     posX: dto.posX ?? null,
     posY: dto.posY ?? null,
     rotation: dto.rotation ?? 0,

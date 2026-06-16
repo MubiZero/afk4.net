@@ -240,6 +240,9 @@ describe('floor-map state', () => {
     }, t);
 
     expect(state.zones).toHaveLength(2);
+    // A zone without geometry passes through unchanged (the «План» canvas drops it later).
+    expect(state.zones[1]).toMatchObject({ zoneId: '55555555-5555-5555-5555-555555555555', name: 'Без геометрии' });
+    expect(state.zones[1].geoX).toBeUndefined();
     expect(state.walls).toHaveLength(1);
     expect(state.walls[0]).toMatchObject({ x1: 0, y1: 0, x2: 4, y2: 0 });
     expect(state.seats[0]).toMatchObject({ posX: 1, posY: 2, rotation: 90, seatType: 'console' });
