@@ -2308,7 +2308,7 @@
   "op.helper.tone.ready": "Free",
   "op.helper.tone.active": "In session",
   "op.helper.tone.pending": "Waiting",
-  "op.helper.tone.blocking": "Action needed",
+  "op.helper.tone.blocking": "Attention",
   "op.helper.tone.offline": "No link",
 
   "op.helper.billing.deposit": "Deposit",

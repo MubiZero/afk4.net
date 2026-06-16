@@ -130,7 +130,7 @@ describe('floor-map state', () => {
 
     expect(nextSeats[0]).toMatchObject({
       tone: 'blocking',
-      stateLabel: 'Нужно действие',
+      stateLabel: 'Внимание',
       remaining: 'осталось 15 мин',
       command: 'No route'
     });

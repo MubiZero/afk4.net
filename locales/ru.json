@@ -2148,7 +2148,7 @@
   "op.helper.tone.ready": "Свободно",
   "op.helper.tone.active": "В сессии",
   "op.helper.tone.pending": "Ожидание",
-  "op.helper.tone.blocking": "Нужно действие",
+  "op.helper.tone.blocking": "Внимание",
   "op.helper.tone.offline": "Нет связи",
 
   "op.helper.billing.deposit": "Депозит",
