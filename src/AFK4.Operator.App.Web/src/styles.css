@@ -1077,6 +1077,80 @@ button {
   border-radius: 2px 2px 0 0;
 }
 
+/* ===== Floor plan: canvas ===== */
+.floor-plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.floor-plan-toolbar {
+  display: flex;
+  gap: 4px;
+  align-self: flex-end;
+  margin-bottom: 8px;
+}
+.floor-plan-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.floor-plan-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-canvas);
+  touch-action: none;
+}
+.floor-plan-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.floor-plan-underlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.floor-plan-seats {
+  position: absolute;
+}
+.floor-plan-grid line {
+  stroke: color-mix(in srgb, var(--border-strong) 60%, transparent);
+  stroke-width: 1;
+}
+.floor-plan-zone {
+  fill: color-mix(in srgb, var(--accent) 8%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke-width: 1.5;
+  rx: 8;
+}
+.floor-plan-wall {
+  stroke: var(--text-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.floor-plan-zone-label {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
 .workspace-tabs button:focus-visible {
   outline: none;
   border-radius: 5px;
