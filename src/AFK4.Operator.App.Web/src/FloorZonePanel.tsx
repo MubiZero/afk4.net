@@ -21,8 +21,7 @@ export function FloorZonePanel({
 
   return (
     <div className="floor-zone-panel">
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <h3 className="floor-palette-title">{(t as any)('op.map.plan.edit.zonesPanelTitle')}</h3>
+      <h3 className="floor-palette-title">{t('op.map.plan.edit.zonesPanelTitle')}</h3>
       <ul className="floor-palette-list">
         {zones.map((zone) => (
           <li key={zone.id}>
@@ -36,9 +35,8 @@ export function FloorZonePanel({
           </li>
         ))}
       </ul>
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <button type="button" className="floor-zone-add" onClick={onAddZone}>
-        <Plus size={14} aria-hidden="true" /> {(t as any)('op.map.plan.edit.addZone')}
+        <Plus size={14} aria-hidden="true" /> {t('op.map.plan.edit.addZone')}
       </button>
     </div>
   );
