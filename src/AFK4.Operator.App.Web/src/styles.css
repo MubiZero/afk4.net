@@ -1077,6 +1077,79 @@ button {
   border-radius: 2px 2px 0 0;
 }
 
+/* ===== Floor plan: canvas ===== */
+.floor-plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.floor-plan-toolbar {
+  display: flex;
+  gap: 4px;
+  align-self: flex-end;
+  margin-bottom: 8px;
+}
+.floor-plan-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.floor-plan-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-canvas);
+  touch-action: none;
+}
+.floor-plan-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.floor-plan-underlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.floor-plan-seats {
+  position: absolute;
+}
+.floor-plan-grid line {
+  stroke: color-mix(in srgb, var(--border-strong) 60%, transparent);
+  stroke-width: 1;
+}
+.floor-plan-zone {
+  fill: color-mix(in srgb, var(--accent) 8%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke-width: 1.5;
+}
+.floor-plan-wall {
+  stroke: var(--text-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.floor-plan-zone-label {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
 .workspace-tabs button:focus-visible {
   outline: none;
   border-radius: 5px;
@@ -2224,96 +2297,16 @@ button {
   font-weight: 600;
 }
 
-.seat-table-wrap {
-  height: 100%;
-  overflow: auto;
-  padding: 10px;
+.map-board.plan-mode {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.seat-table {
-  width: 100%;
-  min-width: 780px;
-  border-collapse: separate;
-  border-spacing: 0 6px;
-}
-
-.seat-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 0 8px 5px;
-  background: var(--surface-canvas);
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 600;
-  text-align: left;
-  text-transform: uppercase;
-}
-
-.seat-table td {
-  max-width: 170px;
-  overflow: hidden;
-  border-top: 1px solid var(--border-default);
-  border-bottom: 1px solid var(--border-default);
-  padding: 8px;
-  background: var(--surface-elevated);
-  color: var(--text-strong);
+.floor-plan-unplaced {
+  margin: 8px 0 0;
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.seat-table td:first-child {
-  border-left: 3px solid rgba(var(--accent-rgb), 0.85);
-  border-radius: 6px 0 0 6px;
-}
-
-.seat-table td:last-child {
-  border-right: 1px solid var(--border-default);
-  border-radius: 0 6px 6px 0;
-}
-
-.seat-table tr {
-  --accent-rgb: 44, 197, 146;
-}
-
-.seat-table tr.selected td {
-  border-color: var(--accent-hover);
-  background: var(--surface-hover);
-}
-
-.seat-table td strong,
-.seat-table td span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.seat-table td strong {
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.seat-table td span {
-  margin-top: 2px;
-  color: var(--text-tertiary);
-  font-size: 10px;
-}
-
-.seat-table button {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.seat-table button:hover,
-.seat-table button:focus-visible {
-  color: var(--accent-text);
-  outline: none;
+  color: var(--text-secondary);
 }
 
 .seat-tile {
@@ -8228,4 +8221,53 @@ button {
 .shell-alert-chip.warning strong {
   background: var(--warning);
   color: #2a1c00;
+}
+
+/* ===== Floor plan: seat markers ===== */
+.plan-seat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 48px;
+  height: 48px;
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--seat-color, var(--accent)) 60%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--seat-color, var(--accent)) 16%, var(--surface-canvas));
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.plan-seat.state-ready { --seat-color: var(--accent); }
+.plan-seat.state-active { --seat-color: var(--text-tertiary); }
+.plan-seat.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
+.plan-seat.state-blocking { --seat-color: color-mix(in srgb, var(--danger) 68%, var(--danger-strong)); }
+.plan-seat.state-offline { --seat-color: #64748b; }
+.plan-seat:hover,
+.plan-seat:focus-visible {
+  outline: 2px solid var(--seat-color, var(--accent));
+  outline-offset: 1px;
+}
+.plan-seat.selected {
+  /* Selection ring tracks the status tone (matches .seat-tile.selected) so a selected
+     blocking/offline seat keeps its colour signal instead of going generic accent. */
+  outline: 2px solid var(--seat-color, var(--accent));
+  outline-offset: 2px;
+}
+.plan-seat-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--seat-color, var(--accent));
+}
+.plan-seat-name {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -9,16 +9,12 @@ import type { OperatorAuthSession } from './authClient';
 import type { Feedback, MapFilterId, MapViewMode, PcControlActionId, PcControlActionResult, SeatActionRequest, SeatActionResult } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
 import {
-  billingLabel,
-  commandLabel,
   countByMapFilter,
-  deviceStatusLabel,
   emptyFeedback,
   guestBillingSelection,
   mapFilterOptions,
   matchesMapFilter,
   projectOperatorFacingError,
-  toneLabel,
   zoneLabel
 } from './operatorHelpers';
 import { hasPermission, permissionNames } from './operatorPermissions';
@@ -26,6 +22,8 @@ import { buildSeatMenu, type SeatMenuItem } from './seatMenu';
 import { EmptyState, FeedbackNotice, Skeleton } from './operatorPrimitives';
 import { SeatContextMenu } from './SeatContextMenu';
 import { SeatTile } from './SeatTile';
+import { FloorPlan } from './FloorPlan';
+import { toPlanModel } from './floorPlanState';
 
 export function MapWorkspace({
   floorMap,
@@ -80,6 +78,7 @@ export function MapWorkspace({
     return groups;
   }, [visibleSeats]);
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
+  const planModel = useMemo(() => toPlanModel(floorMap), [floorMap]);
   const isLoadingSeats = floorMap.seats.length === 0 && (floorMap.loadStatus === 'loading' || floorMap.loadStatus === 'idle');
   const showSeatSkeleton = useDeferredFlag(isLoadingSeats);
   const offlineBanner = offlineBannerText(floorMap, t);
@@ -180,7 +179,7 @@ export function MapWorkspace({
         </div>
         <div className="filter-row map-view-switch" aria-label={t('op.map.viewLabel')}>
           <button type="button" className={viewMode === 'grid' ? 'active' : undefined} onClick={() => setViewMode('grid')}>{t('op.map.viewGrid')}</button>
-          <button type="button" className={viewMode === 'table' ? 'active' : undefined} onClick={() => setViewMode('table')}>{t('op.map.viewTable')}</button>
+          <button type="button" className={viewMode === 'plan' ? 'active' : undefined} onClick={() => setViewMode('plan')}>{t('op.map.viewPlan')}</button>
         </div>
       </section>
       {floorMap.loadStatus === 'failed' && (
@@ -199,7 +198,7 @@ export function MapWorkspace({
       ))}
       <FeedbackNotice feedback={feedback} />
 
-      <section className={`map-board ${viewMode === 'table' ? 'table-mode' : ''}`} aria-label={t('op.map.seatsLabel')}>
+      <section className={`map-board ${viewMode === 'plan' ? 'plan-mode' : ''}`} aria-label={t('op.map.seatsLabel')}>
         {isLoadingSeats ? (
           showSeatSkeleton ? (
             <div className="seat-grid" role="status" aria-label={t('op.map.loading')}>
@@ -208,9 +207,30 @@ export function MapWorkspace({
               ))}
             </div>
           ) : null
+        ) : viewMode === 'plan' ? (
+          planModel.isEmpty ? (
+            <EmptyState title={t('op.map.plan.emptyTitle')} description={t('op.map.plan.emptyHint')} className="map-empty-state" />
+          ) : (
+            <>
+              <FloorPlan
+                model={planModel}
+                selectedSeatId={selectedSeatId}
+                onSelectSeat={onSelectSeat}
+                onSeatContextMenu={(seatId, event) => {
+                  const seat = floorMap.seats.find((candidate) => candidate.id === seatId);
+                  if (seat) {
+                    openSeatMenu(seat, event);
+                  }
+                }}
+              />
+              {planModel.unplacedSeats.length > 0 && (
+                <p className="floor-plan-unplaced">{t('op.map.plan.unplacedNote', { count: planModel.unplacedSeats.length })}</p>
+              )}
+            </>
+          )
         ) : visibleSeats.length === 0 ? (
           <EmptyState title={t('op.map.emptyTitle')} description={t('op.map.emptyHint')} className="map-empty-state" />
-        ) : viewMode === 'grid' ? (
+        ) : (
           <div className="seat-zones">
             {zoneGroups.map((group) => (
               <section className="zone-group" key={group.zone}>
@@ -231,42 +251,6 @@ export function MapWorkspace({
                 </div>
               </section>
             ))}
-          </div>
-        ) : (
-          <div className="seat-table-wrap">
-            <table className="seat-table" aria-label={t('op.map.tableLabel')}>
-              <thead>
-                <tr>
-                  <th>{t('op.map.colPc')}</th>
-                  <th>{t('op.map.colState')}</th>
-                  <th>{t('op.map.colPlayer')}</th>
-                  <th>{t('op.map.colRemaining')}</th>
-                  <th>{t('op.map.colDevice')}</th>
-                  <th>{t('op.map.colCommand')}</th>
-                  <th>{t('op.map.colBilling')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleSeats.map((seat) => (
-                  <tr
-                    key={seat.id}
-                    className={`state-${seat.tone}${seat.id === selectedSeatId ? ' selected' : ''}`}
-                    onContextMenu={(event) => openSeatMenu(seat, event)}
-                  >
-                    <td>
-                      <button type="button" onClick={() => onSelectSeat(seat.id)}>{seat.name}</button>
-                      <span>{zoneLabel(seat.zone, t)}</span>
-                    </td>
-                    <td><strong>{toneLabel(seat.tone, t)}</strong></td>
-                    <td>{seat.player}</td>
-                    <td>{seat.remaining}</td>
-                    <td>{deviceStatusLabel(seat.device, t)}</td>
-                    <td>{commandLabel(seat.command, t)}</td>
-                    <td>{billingLabel(seat.billing, t)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         )}
       </section>

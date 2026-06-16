@@ -11,7 +11,7 @@ export type Feedback = { label: string; state: FeedbackState; detail?: string };
 export type CriticalConfirmationTone = 'warning' | 'danger';
 export type LoadStatus = 'fixture' | 'loading' | 'backend' | 'failed';
 export type MapFilterId = 'all' | 'ready' | 'active' | 'attention' | 'offline' | 'blocking' | 'service';
-export type MapViewMode = 'grid' | 'table';
+export type MapViewMode = 'grid' | 'plan';
 // Счётчик критического состояния зала для строки тревог: метка + число + куда фильтровать карту.
 export interface AlertSource {
   id: string;

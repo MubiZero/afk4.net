@@ -748,7 +748,7 @@ export function MapSidePanel({
         // а не плейсхолдеры. Каждую строку показываем только когда бэкенд её знает (#34).
         <section className="context-section">
           {seat.playerDisplayName && (
-            <div className="detail-row"><span>{t('op.map.colPlayer')}</span><strong>{seat.playerDisplayName}</strong></div>
+            <div className="detail-row"><span>{t('op.map.panel.playerLabel')}</span><strong>{seat.playerDisplayName}</strong></div>
           )}
           {seat.tariffName && (
             <div className="detail-row"><span>{t('op.map.panel.tariffLabel')}</span><strong>{seat.tariffName}</strong></div>
@@ -806,7 +806,7 @@ export function MapSidePanel({
             </div>
             {seat.deviceName && seat.deviceName !== seat.name && (
               <div className="detail-row">
-                <span>{t('op.map.colDevice')}</span>
+                <span>{t('op.map.panel.deviceLabel')}</span>
                 <strong>{seat.deviceName}</strong>
               </div>
             )}
@@ -817,7 +817,7 @@ export function MapSidePanel({
               <strong>{appVersionsLabel(seat.app, t)}</strong>
             </div>
             <div className="detail-row">
-              <span>{t('op.map.colCommand')}</span>
+              <span>{t('op.map.panel.commandLabel')}</span>
               <strong>{commandLabel(seat.command, t)}</strong>
             </div>
           </div>
@@ -880,7 +880,7 @@ export function MapSidePanel({
         {billingMode !== 'guest' && (
           <>
             <label className="context-transfer-target billing-input-row">
-              <span>{t('op.map.colPlayer')}</span>
+              <span>{t('op.map.panel.playerLabel')}</span>
               <input
                 aria-label={t('op.map.panel.playerInput')}
                 value={playerSearch}

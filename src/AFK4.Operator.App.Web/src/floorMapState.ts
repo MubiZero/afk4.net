@@ -3,7 +3,7 @@ import { formatNumber as formatLocaleNumber } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { type MessageKey } from '@afk4/i18n';
 import type { FloorMapCacheEntry } from './floorMapCache';
-import type { FloorMapDto, SeatStatusDto } from './operatorApiClients';
+import type { FloorMapDto, FloorMapZoneDto, FloorMapWallDto, SeatStatusDto } from './operatorApiClients';
 import { seats as fixtureSeats, type SeatSummary, type SeatTone } from './operatorData';
 import type { DeviceStatusChangedDto } from './operatorRealtime';
 
@@ -16,6 +16,9 @@ export interface OperatorFloorMapState {
   branchId?: string;
   branchName: string;
   seats: SeatSummary[];
+  // Static layout geometry for the «План» view (B2). Realtime seat updates never touch these.
+  zones: FloorMapZoneDto[];
+  walls: FloorMapWallDto[];
   source: FloorMapSource;
   loadStatus: FloorMapLoadStatus;
   error: string | null;
@@ -30,6 +33,8 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
   return {
     branchName: fixtureBranchName,
     seats: fixtureSeats,
+    zones: [],
+    walls: [],
     source: 'fixture',
     loadStatus: 'idle',
     error: null,
@@ -43,6 +48,8 @@ export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, loadedAtMs 
     branchId: floorMap.branchId,
     branchName: floorMap.branchName,
     seats: mapFloorMapSeats(floorMap.seats, t, loadedAtMs),
+    zones: floorMap.zones ?? [],
+    walls: floorMap.walls ?? [],
     source: 'backend',
     loadStatus: 'ready',
     error: null,
@@ -62,6 +69,8 @@ export function hydrateFloorMapStateFromCache(
     branchId,
     branchName: entry.floorMap.branchName,
     seats: mapFloorMapSeats(entry.floorMap.seats, t, entry.cachedAtMs),
+    zones: entry.floorMap.zones ?? [],
+    walls: entry.floorMap.walls ?? [],
     source: 'backend',
     loadStatus: 'ready',
     error: null,
@@ -187,7 +196,12 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     sortOrder: dto.sortOrder,
     playerDisplayName,
     tariffName,
-    sessionStartedAtUtc
+    sessionStartedAtUtc,
+    // Floor-plan geometry: null pos = not placed yet; 0° = no rotation; 'pc' = default host type.
+    posX: dto.posX ?? null,
+    posY: dto.posY ?? null,
+    rotation: dto.rotation ?? 0,
+    seatType: dto.seatType ?? 'pc'
   };
 }
 
