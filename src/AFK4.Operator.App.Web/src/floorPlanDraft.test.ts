@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createDraft, placeSeat, moveSeat, removeSeatFromPlan, rotateSeat, setSeatType, toBulkUpdateRequest } from './floorPlanDraft';
+import { createDraft, placeSeat, moveSeat, removeSeatFromPlan, rotateSeat, setSeatType, toBulkUpdateRequest, addZone, setZoneGeometry, renameZone, setZoneColor, removeZone, setSeatZone, zoneSeatCount } from './floorPlanDraft';
 import type { OperatorFloorMapState } from './floorMapState';
 
 function state(): OperatorFloorMapState {
@@ -53,5 +53,80 @@ describe('floorPlanDraft', () => {
     const draft = createDraft(state());
     expect(draft.isDirty).toBe(false);
     expect(moveSeat(draft, 's1', 9, 9).isDirty).toBe(true);
+  });
+});
+
+function stateWith(): OperatorFloorMapState {
+  return {
+    branchName: 'B', source: 'backend', loadStatus: 'ready', loadedAtMs: 0,
+    error: null, isStale: false, etag: 'v1',
+    seats: [
+      { id: 'seat-1', zoneId: 'zone-1', name: 'PC-1', sortOrder: 0, tone: 'free', stateLabel: 'free', seatType: 'pc', rotation: 0, posX: 0, posY: 0 },
+      { id: 'seat-2', zoneId: 'zone-1', name: 'PC-2', sortOrder: 1, tone: 'free', stateLabel: 'free', seatType: 'pc', rotation: 0, posX: null, posY: null }
+    ] as unknown as OperatorFloorMapState['seats'],
+    zones: [
+      { zoneId: 'zone-1', name: 'Зал', sortOrder: 0, geoX: 0, geoY: 0, geoWidth: 4, geoHeight: 3, color: null, zoneType: null }
+    ] as OperatorFloorMapState['zones'],
+    walls: [{ wallId: 'w1', x1: 0, y1: 0, x2: 5, y2: 0 }] as OperatorFloorMapState['walls']
+  } as unknown as OperatorFloorMapState;
+}
+
+describe('zone editing', () => {
+  it('createDraft mirrors zoneId into serverId for existing zones', () => {
+    const draft = createDraft(stateWith());
+    expect(draft.zones[0].zoneId).toBe('zone-1');
+    expect(draft.zones[0].serverId).toBe('zone-1');
+  });
+
+  it('addZone appends a new zone with serverId null and next sortOrder, dirty', () => {
+    const draft = addZone(createDraft(stateWith()), 'new-zone-0', 'Новая зона', 0, 3, 4, 3);
+    const added = draft.zones.find((z) => z.zoneId === 'new-zone-0');
+    expect(added).toBeTruthy();
+    expect(added?.serverId).toBeNull();
+    expect(added?.sortOrder).toBe(1);
+    expect(added?.geoWidth).toBe(4);
+    expect(draft.isDirty).toBe(true);
+  });
+
+  it('setZoneGeometry patches only given fields', () => {
+    const draft = setZoneGeometry(createDraft(stateWith()), 'zone-1', { geoWidth: 9 });
+    expect(draft.zones[0].geoWidth).toBe(9);
+    expect(draft.zones[0].geoX).toBe(0);
+    expect(draft.isDirty).toBe(true);
+  });
+
+  it('renameZone and setZoneColor update the zone', () => {
+    let draft = renameZone(createDraft(stateWith()), 'zone-1', 'VIP');
+    draft = setZoneColor(draft, 'zone-1', '#3b82f6');
+    expect(draft.zones[0].name).toBe('VIP');
+    expect(draft.zones[0].color).toBe('#3b82f6');
+  });
+
+  it('zoneSeatCount counts placed AND unplaced seats of a zone', () => {
+    expect(zoneSeatCount(createDraft(stateWith()), 'zone-1')).toBe(2);
+  });
+
+  it('setSeatZone repoints a seat; removeZone drops an empty zone', () => {
+    let draft = addZone(createDraft(stateWith()), 'new-zone-0', 'Новая зона', 0, 3, 4, 3);
+    draft = setSeatZone(draft, 'seat-1', 'new-zone-0');
+    draft = setSeatZone(draft, 'seat-2', 'new-zone-0');
+    expect(zoneSeatCount(draft, 'zone-1')).toBe(0);
+    draft = removeZone(draft, 'zone-1');
+    expect(draft.zones.find((z) => z.zoneId === 'zone-1')).toBeUndefined();
+  });
+
+  it('toBulkUpdateRequest emits serverId as zoneId (null for new zones) and clientId as the ref key', () => {
+    let draft = addZone(createDraft(stateWith()), 'new-zone-0', 'Новая зона', 0, 3, 4, 3);
+    draft = setSeatZone(draft, 'seat-1', 'new-zone-0');
+    const req = toBulkUpdateRequest(draft, 'org-1');
+
+    const existing = req.zones.find((z) => z.clientId === 'zone-1');
+    expect(existing?.zoneId).toBe('zone-1');
+
+    const created = req.zones.find((z) => z.clientId === 'new-zone-0');
+    expect(created?.zoneId).toBeNull();
+
+    const moved = req.seats.find((s) => s.clientId === 'seat-1');
+    expect(moved?.zoneClientId).toBe('new-zone-0');
   });
 });
