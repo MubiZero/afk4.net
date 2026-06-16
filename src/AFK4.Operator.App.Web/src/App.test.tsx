@@ -93,10 +93,8 @@ describe('App', () => {
     expect(screen.getByRole('navigation', { name: 'Рабочие места' })).toBeInTheDocument();
     expect(screen.getByLabelText('ПК зала')).toBeInTheDocument();
     expect(screen.getAllByText('Сессии').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /Управление ПК/ })).toHaveAttribute(
-      'title',
-      'Команды для выбранного ПК: статус, блокировка, питание и сервисный доступ'
-    );
+    // «Управление ПК» теперь секция в карточке выбранного места (не отдельная кнопка в тулбаре).
+    expect(screen.getByText('Управление ПК')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Завершить сессию/ })).toBeInTheDocument();
     expect(screen.getByText('Статус ПК')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
@@ -121,7 +119,7 @@ describe('App', () => {
     expect(bridge.requests).toContain('window:resize');
   });
 
-  it('opens selected PC control and runs backend device status/lock actions', async () => {
+  it('runs backend device status/lock from the side-panel PC controls', async () => {
     installSessionBridge();
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
@@ -141,30 +139,23 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: /Управление ПК/ }));
 
-    expect(screen.getByRole('region', { name: 'Управление выбранным ПК' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Перезагрузить/ })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /Админ-режим/ })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: /Перезагрузить/ }));
-    expect(screen.getByRole('status')).toHaveTextContent('Нужен Agent-контракт reboot');
-
+    // PC controls live in the selected seat's card (no toolbar button, no popover).
+    expect(screen.getByText('Управление ПК')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Статус$/ }));
 
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/api/devices/11111111-1111-1111-1111-111111111111'))).toBe(true));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/diagnostics'))).toBe(true));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Агент 0.4'));
+    // The status report (versions/state) is shown as text — it IS the payload of "request status".
+    await waitFor(() => expect(screen.getByText(/Агент 0\.4/)).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: /Блокировать/ }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).endsWith('/api/devices/11111111-1111-1111-1111-111111111111/commands') &&
       init?.method === 'POST' &&
       String(init.body).includes('"type":"lock"'))).toBe(true));
-
-    fireEvent.pointerDown(document.body);
-    expect(screen.queryByRole('region', { name: 'Управление выбранным ПК' })).not.toBeInTheDocument();
   });
 
   it('filters the floor map and switches to table view', async () => {

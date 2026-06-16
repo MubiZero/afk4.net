@@ -436,7 +436,6 @@ function AppInner() {
       {workspace === 'map' && (
         <MapWorkspace
           floorMap={displayedFloorMap}
-          canUsePcControl={canUsePcControl}
           session={authSession}
           actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
           selectedSeatId={selectedSeat?.id ?? ''}
@@ -499,7 +498,9 @@ function AppInner() {
             currencyCode={config.currencyCode}
             backend={backendContext}
             actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
+            canUsePcControl={canUsePcControl}
             onSeatAction={handleSeatAction}
+            onPcControlAction={handlePcControlAction}
           />
         </ContextPanel>
       )}

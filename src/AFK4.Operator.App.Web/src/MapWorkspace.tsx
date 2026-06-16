@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { LockKeyhole, MonitorCheck, Power, ShieldAlert, TimerReset, UnlockKeyhole, Wifi, WifiOff, Wrench } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { useDeferredFlag } from './useDeferredFlag';
@@ -29,7 +29,6 @@ import { SeatTile } from './SeatTile';
 
 export function MapWorkspace({
   floorMap,
-  canUsePcControl,
   session,
   actionsEnabled,
   selectedSeatId,
@@ -41,7 +40,6 @@ export function MapWorkspace({
   onSeatAction
 }: {
   floorMap: OperatorFloorMapState;
-  canUsePcControl: boolean;
   session: OperatorAuthSession | null;
   actionsEnabled: boolean;
   selectedSeatId: string;
@@ -55,7 +53,6 @@ export function MapWorkspace({
   const { t } = useI18n();
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [viewMode, setViewMode] = useState<MapViewMode>('grid');
-  const [isPcControlOpen, setIsPcControlOpen] = useState(false);
   const [seatMenu, setSeatMenu] = useState<{ seat: SeatSummary; x: number; y: number } | null>(null);
   const seatMenuCaps = useMemo(() => ({
     actionsEnabled,
@@ -64,8 +61,6 @@ export function MapWorkspace({
     canStatus: hasPermission(session, permissionNames.viewDiagnostics) && hasPermission(session, permissionNames.viewDeviceDetail),
     canLockUnlock: hasPermission(session, permissionNames.dispatchDeviceCommand)
   }), [actionsEnabled, session]);
-  const pcControlButtonRef = useRef<HTMLButtonElement | null>(null);
-  const pcControlPanelRef = useRef<HTMLElement | null>(null);
   const visibleSeats = useMemo(
     () => floorMap.seats.filter((seat) => matchesMapFilter(seat, activeFilter)),
     [activeFilter, floorMap.seats]
@@ -90,7 +85,6 @@ export function MapWorkspace({
   const showSeatSkeleton = useDeferredFlag(isLoadingSeats);
   const offlineBanner = offlineBannerText(floorMap, t);
   const selectedSeatVisible = visibleSeats.some((seat) => seat.id === selectedSeatId);
-  const selectedHasSession = selectedSeat !== null && (Boolean(selectedSeat.activeSessionId) || selectedSeat.hasActiveSession === true);
 
   const runPcControlAction = async (action: PcControlActionId, label: string, seat: SeatSummary | null = selectedSeat) => {
     if (seat === null) {
@@ -156,33 +150,6 @@ export function MapWorkspace({
   };
 
   useEffect(() => {
-    if (!isPcControlOpen) {
-      return undefined;
-    }
-
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (target !== null && (pcControlPanelRef.current?.contains(target) || pcControlButtonRef.current?.contains(target))) {
-        return;
-      }
-
-      setIsPcControlOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsPcControlOpen(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', closeOnOutsidePointer, true);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePointer, true);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isPcControlOpen]);
-
-  useEffect(() => {
     if (visibleSeats.length === 0 || selectedSeatVisible) {
       return;
     }
@@ -196,68 +163,7 @@ export function MapWorkspace({
         <div className="map-toolbar-title">
           <h1>{floorMap.branchName}</h1>
         </div>
-        <div className="screen-actions">
-          <button
-            ref={pcControlButtonRef}
-            type="button"
-            className="map-tool-action"
-            aria-expanded={isPcControlOpen}
-            disabled={!canUsePcControl || selectedSeat === null}
-            onClick={() => setIsPcControlOpen((current) => !current)}
-            title={t('op.map.pcControlTitle')}
-          >
-            <Wrench size={14} />{t('op.map.pcControlLabel')}
-          </button>
-        </div>
       </section>
-
-      {isPcControlOpen && selectedSeat !== null && (
-        <section ref={pcControlPanelRef} className="pc-control-panel" aria-label={t('op.map.pcControlPanelLabel')}>
-          <header>
-            <div>
-              <span>{t('op.map.selectedPc')}</span>
-              <strong>{selectedSeat.name}</strong>
-            </div>
-            <b className={`state-chip state-${selectedSeat.tone}`}>{toneLabel(selectedSeat.tone, t)}</b>
-          </header>
-          <div className="pc-control-summary">
-            <span>{deviceStatusLabel(selectedSeat.device, t)}</span>
-            <span>{commandLabel(selectedSeat.command, t)}</span>
-          </div>
-          <span className="pc-control-section-title">{t('op.map.availableNow')}</span>
-          <div className="pc-control-actions">
-            <button type="button" disabled={feedback.state === 'pending'} onClick={() => runPcControlAction('status', t('op.map.actionStatus'))}>
-              <MonitorCheck size={14} /><span>{t('op.map.actionStatusBtn')}</span>
-            </button>
-            <button type="button" disabled={feedback.state === 'pending' || !selectedSeat.deviceId} onClick={() => runPcControlAction('lock', t('op.map.actionLock'))}>
-              <LockKeyhole size={14} /><span>{t('op.map.actionLockBtn')}</span>
-            </button>
-            <button
-              type="button"
-              disabled={feedback.state === 'pending' || !selectedSeat.deviceId || !selectedHasSession}
-              onClick={() => runPcControlAction('unlock', t('op.map.actionUnlock'))}
-              title={selectedHasSession ? t('op.map.unlockActiveTitle') : t('op.map.unlockNoSessionTitle')}
-            >
-              <UnlockKeyhole size={14} /><span>{t('op.map.actionUnlockBtn')}</span>
-            </button>
-          </div>
-          <span className="pc-control-section-title">{t('op.map.nextLayer')}</span>
-          <div className="pc-control-actions future">
-            <button type="button" onClick={() => explainUnavailablePcControl(t('op.map.actionReboot'), t('op.map.rebootDetail'))}>
-              <TimerReset size={14} /><span><strong>{t('op.map.rebootBtn')}</strong><em>{t('op.map.rebootHint')}</em></span>
-            </button>
-            <button type="button" onClick={() => explainUnavailablePcControl(t('op.map.actionShutdown'), t('op.map.shutdownDetail'))}>
-              <Power size={14} /><span><strong>{t('op.map.shutdownBtn')}</strong><em>{t('op.map.shutdownHint')}</em></span>
-            </button>
-            <button type="button" onClick={() => explainUnavailablePcControl(t('op.map.actionWake'), t('op.map.wakeDetail'))}>
-              <Wifi size={14} /><span><strong>{t('op.map.wakeBtn')}</strong><em>{t('op.map.wakeHint')}</em></span>
-            </button>
-            <button type="button" onClick={() => explainUnavailablePcControl(t('op.map.actionAdmin'), t('op.map.adminDetail'))}>
-              <ShieldAlert size={14} /><span><strong>{t('op.map.actionAdmin')}</strong><em>{t('op.map.adminHint')}</em></span>
-            </button>
-          </div>
-        </section>
-      )}
 
       <section className="map-controls-row" aria-label={t('op.map.filtersAndViewLabel')}>
         <div className="filter-row map-filter-row" aria-label={t('op.map.filterLabel')}>

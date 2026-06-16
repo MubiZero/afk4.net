@@ -18,7 +18,7 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
 function renderPanel(s: SeatSummary) {
   return render(
     <I18nProvider>
-      <MapSidePanel seat={s} seats={[s]} currencyCode="TJS" backend={null} actionsEnabled={false} onSeatAction={async () => ({})} />
+      <MapSidePanel seat={s} seats={[s]} currencyCode="TJS" backend={null} actionsEnabled={false} canUsePcControl={false} onSeatAction={async () => ({})} onPcControlAction={async () => ({ detail: '' })} />
     </I18nProvider>
   );
 }
@@ -38,7 +38,7 @@ describe('MapSidePanel diagnostics (A3)', () => {
     // A seat in an attention state surfaces the versions for the operator diagnosing it.
     rerender(
       <I18nProvider>
-        <MapSidePanel seat={seat({ tone: 'offline', isDeviceOnline: false })} seats={[]} currencyCode="TJS" backend={null} actionsEnabled={false} onSeatAction={async () => ({})} />
+        <MapSidePanel seat={seat({ tone: 'offline', isDeviceOnline: false })} seats={[]} currencyCode="TJS" backend={null} actionsEnabled={false} canUsePcControl={false} onSeatAction={async () => ({})} onPcControlAction={async () => ({ detail: '' })} />
       </I18nProvider>
     );
     queryByText('Агент 0.4 · Оболочка 0.4');

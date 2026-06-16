@@ -1218,86 +1218,6 @@ button {
   outline-offset: 2px;
 }
 
-.map-tool-action {
-  border-color: var(--border-accent);
-  background: var(--surface-muted);
-  color: var(--accent-bright);
-  font-weight: 600;
-}
-
-.map-tool-action:hover,
-.map-tool-action:focus-visible {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-}
-
-.pc-control-panel {
-  position: absolute;
-  top: 46px;
-  right: 10px;
-  z-index: 8;
-  display: grid;
-  width: min(410px, calc(100% - 20px));
-  gap: 10px;
-  border: 1px solid var(--border-accent);
-  border-radius: 7px;
-  padding: 10px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-elevated);
-}
-
-.pc-control-panel header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
-.pc-control-panel header div {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.pc-control-panel header span {
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.pc-control-panel header strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pc-control-summary {
-  display: grid;
-  gap: 4px;
-  border-top: 1px solid var(--border-soft);
-  padding-top: 8px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.pc-control-summary span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pc-control-section-title {
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
 .pc-control-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1320,51 +1240,37 @@ button {
   text-overflow: ellipsis;
 }
 
-.pc-control-actions.future button {
-  justify-content: start;
-  min-height: 44px;
-  border-color: var(--border-default);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  text-align: left;
-  white-space: normal;
-}
-
-.pc-control-actions.future button:hover,
-.pc-control-actions.future button:focus-visible {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  color: var(--text-strong);
-}
-
-.pc-control-actions.future button span {
-  display: grid;
-  gap: 2px;
-}
-
-.pc-control-actions.future button strong {
-  overflow: hidden;
-  color: inherit;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pc-control-actions.future button em {
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .pc-control-actions button:disabled {
   border-color: var(--border-default);
   background: var(--surface-card);
   color: var(--text-quaternary);
   opacity: 0.78;
+}
+
+/* PC-команды в боковой панели: вертикальный столбик, иконка+подпись слева. */
+.panel-pc-actions {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.panel-pc-actions button {
+  justify-content: flex-start;
+  gap: 7px;
+  min-height: 34px;
+}
+
+/* Результат «Статус ПК» — отчёт читается текстом (#34). */
+.pc-control-result {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.pc-control-result.failed {
+  color: var(--danger-text);
 }
 
 /* Контекст-меню места по правому клику — якорь у курсора. */

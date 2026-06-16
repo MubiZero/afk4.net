@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, Banknote, Check, CircleDollarSign, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TimerReset, TriangleAlert, Unlock, Wifi, WifiOff, X } from 'lucide-react';
+import { ArrowRightLeft, Banknote, Check, CircleDollarSign, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TimerReset, TriangleAlert, Unlock, Wifi, WifiOff, Wrench, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { currencySymbol } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
@@ -25,6 +25,8 @@ import type {
   Feedback,
   LoadStatus,
   OperatorBackendContext,
+  PcControlActionId,
+  PcControlActionResult,
   SeatActionRequest,
   SeatActionResult,
   SessionBillingModeId,
@@ -289,14 +291,18 @@ export function MapSidePanel({
   currencyCode,
   backend,
   actionsEnabled,
-  onSeatAction
+  canUsePcControl,
+  onSeatAction,
+  onPcControlAction
 }: {
   seat: SeatSummary;
   seats: SeatSummary[];
   currencyCode: string;
   backend: OperatorBackendContext | null;
   actionsEnabled: boolean;
+  canUsePcControl: boolean;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
+  onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
 }) {
   const { t } = useI18n();
   const session = backend?.session ?? null;
@@ -322,6 +328,9 @@ export function MapSidePanel({
       ? t('op.helper.deviceStatus.unlocked')
       : t('op.helper.deviceStatus.lockUnknown');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  // Отдельный отклик для команд ПК (статус/блокировка): у «статуса» результат — это сам отчёт
+  // (версии, состояние), его надо ПОКАЗАТЬ текстом, а не гасить галочкой как у действий сессии.
+  const [pcFeedback, setPcFeedback] = useState<Feedback>(emptyFeedback);
   const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
   const [durationMode, setDurationMode] = useState<SessionStartDurationMode>('fixed');
   const [playerSearch, setPlayerSearch] = useState('');
@@ -470,6 +479,7 @@ export function MapSidePanel({
   useEffect(() => {
     setCriticalAction(null);
     setStartDialogOpen(false);
+    setPcFeedback(emptyFeedback);
   }, [seat.id, seat.activeSessionId]);
 
   // Успех показываем галочкой и сами гасим — оператору не нужно его закрывать.
@@ -579,6 +589,29 @@ export function MapSidePanel({
       return <Loader2 size={14} className="spin" aria-hidden="true" />;
     }
     if (feedback.state === 'confirmed') {
+      return <Check size={14} aria-hidden="true" />;
+    }
+    return fallback;
+  };
+
+  const pcBusy = pcFeedback.state === 'pending';
+  const runPcControl = async (label: string, action: PcControlActionId) => {
+    setPcFeedback({ label, state: 'pending' });
+    try {
+      const result = await onPcControlAction(seat, action);
+      setPcFeedback({ label, state: 'confirmed', detail: result.detail });
+    } catch (error) {
+      setPcFeedback({ label, state: 'failed', detail: projectOperatorFacingError(error, t) });
+    }
+  };
+  const pcGlyph = (label: string, fallback: ReactNode): ReactNode => {
+    if (pcFeedback.label !== label) {
+      return fallback;
+    }
+    if (pcFeedback.state === 'pending') {
+      return <Loader2 size={14} className="spin" aria-hidden="true" />;
+    }
+    if (pcFeedback.state === 'confirmed') {
       return <Check size={14} aria-hidden="true" />;
     }
     return fallback;
@@ -736,6 +769,37 @@ export function MapSidePanel({
           </div>
         )}
       </section>
+
+      {/* Управление ПК живёт рядом со «Статусом ПК» — видишь состояние машины и тут же ей
+          командуешь. Отдельной кнопки в тулбаре больше нет: команды относятся к выбранному
+          месту, поэтому их место — в его карточке. «Статус» показывает отчёт текстом ниже. */}
+      {canUsePcControl && hasDevice && (
+        <section className="context-section">
+          <div className="context-section-head">
+            <Wrench size={13} aria-hidden="true" />
+            <span>{t('op.map.pcControlLabel')}</span>
+          </div>
+          <div className="pc-control-actions panel-pc-actions">
+            <button type="button" disabled={pcBusy} onClick={() => void runPcControl(t('op.map.actionStatus'), 'status')}>
+              {pcGlyph(t('op.map.actionStatus'), <MonitorCheck size={14} />)}<span>{t('op.map.actionStatusBtn')}</span>
+            </button>
+            <button type="button" disabled={pcBusy || !seat.deviceId} onClick={() => void runPcControl(t('op.map.actionLock'), 'lock')}>
+              {pcGlyph(t('op.map.actionLock'), <Lock size={14} />)}<span>{t('op.map.actionLockBtn')}</span>
+            </button>
+            <button
+              type="button"
+              disabled={pcBusy || !seat.deviceId || !hasActiveSession}
+              title={hasActiveSession ? t('op.map.unlockActiveTitle') : t('op.map.unlockNoSessionTitle')}
+              onClick={() => void runPcControl(t('op.map.actionUnlock'), 'unlock')}
+            >
+              {pcGlyph(t('op.map.actionUnlock'), <Unlock size={14} />)}<span>{t('op.map.actionUnlockBtn')}</span>
+            </button>
+          </div>
+          {(pcFeedback.state === 'confirmed' || pcFeedback.state === 'failed') && pcFeedback.detail && (
+            <p className={`pc-control-result ${pcFeedback.state}`} role="status">{pcFeedback.detail}</p>
+          )}
+        </section>
+      )}
 
       {startDialogOpen && (
       <PanelModal
