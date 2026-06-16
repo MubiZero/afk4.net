@@ -63,7 +63,6 @@ import {
   dataSourceLabel,
   shellShiftLabel,
   shellPosLabel,
-  shellModeLabel,
   projectAuthHostError,
   realtimeLabel,
   resolveActiveBranchId,
@@ -357,7 +356,7 @@ function AppInner() {
         <div className="top-status">
           <span>{shellShiftText}</span>
           <button type="button" className="top-account" aria-label={t('op.shell.myAccount')} onClick={() => setAccountPanelOpen(true)}>
-            {operatorDisplayNameLabel(authSession.displayName, t)} · {shellModeLabel(config.shellMode, t)}
+            {operatorDisplayNameLabel(authSession.displayName, t)}
           </button>
         </div>
         <TitlebarControls />
