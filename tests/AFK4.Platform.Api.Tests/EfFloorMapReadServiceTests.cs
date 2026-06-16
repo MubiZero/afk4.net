@@ -565,6 +565,153 @@ public sealed class EfFloorMapReadServiceTests
         Assert.Equal("Active", seat.State);
     }
 
+    [Fact]
+    public async Task GetFloorMapAsync_SurfacesPlayerNameTariffAndStartForBilledSession_NullForGuest()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var zoneId = Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
+        var billedSeatId = Guid.Parse("e5edae8b-a833-4d92-ad8c-5864376d0414");
+        var guestSeatId = Guid.Parse("ad63d1ef-8477-476b-a21c-06916dd5ad76");
+        var tariffId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+        var tariffVersionId = Guid.Parse("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+        var playerAccountId = Guid.Parse("22222222-2222-4222-8222-222222222222");
+        var startedAt = DateTimeOffset.Parse("2026-05-11T23:20:00Z");
+        var now = DateTimeOffset.Parse("2026-05-12T00:00:00Z");
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            db.Organizations.Add(new OrganizationEntity
+            {
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Demo Org",
+                CreatedAtUtc = now
+            });
+            db.Branches.Add(new BranchEntity
+            {
+                BranchId = TestIds.BranchId,
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Downtown Branch",
+                CreatedAtUtc = now
+            });
+            db.Zones.Add(new ZoneEntity
+            {
+                ZoneId = zoneId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                Name = "Main Hall",
+                SortOrder = 1,
+                CreatedAtUtc = now
+            });
+            db.Seats.AddRange(
+                new SeatEntity
+                {
+                    SeatId = billedSeatId,
+                    OrganizationId = TestIds.OrganizationId,
+                    BranchId = TestIds.BranchId,
+                    ZoneId = zoneId,
+                    Name = "PC-001",
+                    SortOrder = 10,
+                    CreatedAtUtc = now
+                },
+                new SeatEntity
+                {
+                    SeatId = guestSeatId,
+                    OrganizationId = TestIds.OrganizationId,
+                    BranchId = TestIds.BranchId,
+                    ZoneId = zoneId,
+                    Name = "PC-002",
+                    SortOrder = 20,
+                    CreatedAtUtc = now
+                });
+            db.PlayerAccounts.Add(new PlayerAccountEntity
+            {
+                PlayerAccountId = playerAccountId,
+                OrganizationId = TestIds.OrganizationId,
+                HomeBranchId = TestIds.BranchId,
+                DisplayName = "Иван Петров",
+                IsActive = true,
+                CreatedAtUtc = now.AddDays(-30)
+            });
+            db.Tariffs.Add(new TariffEntity
+            {
+                TariffId = tariffId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                Name = "VIP час",
+                IsActive = true,
+                CreatedAtUtc = now
+            });
+            db.TariffVersions.Add(new TariffVersionEntity
+            {
+                TariffVersionId = tariffVersionId,
+                TariffId = tariffId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                VersionNumber = 1,
+                CurrencyCode = "TJS",
+                PricePerMinuteMinorUnits = 50,
+                MinimumBillableMinutes = 30,
+                RoundingIncrementMinutes = 15,
+                EffectiveFromUtc = now.AddDays(-1),
+                CreatedAtUtc = now
+            });
+            db.Sessions.AddRange(
+                new SessionEntity
+                {
+                    SessionId = Guid.Parse("dddddddd-dddd-4ddd-8ddd-dddddddddddd"),
+                    OrganizationId = TestIds.OrganizationId,
+                    BranchId = TestIds.BranchId,
+                    SeatId = billedSeatId,
+                    DeviceId = Guid.NewGuid(),
+                    CreatedByStaffUserId = Guid.NewGuid(),
+                    PlayerKind = "account",
+                    PlayerAccountId = playerAccountId,
+                    TariffRuleVersionId = tariffVersionId.ToString("D"),
+                    State = SessionStateNames.Active,
+                    RequestedAtUtc = startedAt,
+                    StartedAtUtc = startedAt,
+                    EndsAtUtc = null,
+                    UpdatedAtUtc = startedAt
+                },
+                new SessionEntity
+                {
+                    SessionId = Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+                    OrganizationId = TestIds.OrganizationId,
+                    BranchId = TestIds.BranchId,
+                    SeatId = guestSeatId,
+                    DeviceId = Guid.NewGuid(),
+                    CreatedByStaffUserId = Guid.NewGuid(),
+                    PlayerKind = "guest",
+                    PlayerAccountId = null,
+                    TariffRuleVersionId = "guest",
+                    State = SessionStateNames.Active,
+                    RequestedAtUtc = startedAt,
+                    StartedAtUtc = startedAt,
+                    EndsAtUtc = null,
+                    UpdatedAtUtc = startedAt
+                });
+            await db.SaveChangesAsync();
+        }
+
+        await using var readDb = new PlatformDbContext(options);
+        var service = new EfFloorMapReadService(readDb, new FixedTimeProvider(now));
+
+        var result = await service.GetFloorMapAsync(TestIds.BranchId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        var billed = result.FloorMap.Seats.Single(seat => seat.SeatId == billedSeatId);
+        Assert.Equal("Иван Петров", billed.PlayerDisplayName);
+        Assert.Equal("VIP час", billed.TariffName);
+        Assert.Equal(startedAt, billed.SessionStartedAtUtc);
+
+        var guest = result.FloorMap.Seats.Single(seat => seat.SeatId == guestSeatId);
+        Assert.Null(guest.PlayerDisplayName);
+        Assert.Null(guest.TariffName);
+        Assert.Equal(startedAt, guest.SessionStartedAtUtc);
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow()

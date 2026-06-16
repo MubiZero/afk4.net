@@ -79,22 +79,42 @@ public sealed class EfFloorMapReadService(
             .GroupBy(session => session.SeatId)
             .ToDictionary(group => group.Key, group => group.OrderByDescending(session => session.UpdatedAtUtc).First());
 
-        // Open tabs accrue live cost; load the tariff versions they bill against.
-        var openTabTariffVersionIds = sessionsBySeat.Values
-            .Where(session => session.EndsAtUtc is null)
+        // Tariff versions back two things: live accrued cost (open tabs only) and the tariff
+        // name shown for any billed session, so load versions for every active session that
+        // carries a real tariff GUID (guests/packages carry a non-GUID marker instead).
+        var tariffVersionIds = sessionsBySeat.Values
             .Select(session => Guid.TryParse(session.TariffRuleVersionId, out var id) ? (Guid?)id : null)
             .Where(id => id is not null)
             .Select(id => id!.Value)
             .ToHashSet();
-        var tariffVersionsById = openTabTariffVersionIds.Count == 0
+        var tariffVersionsById = tariffVersionIds.Count == 0
             ? new Dictionary<Guid, TariffVersionEntity>()
             : await dbContext.TariffVersions
                 .AsNoTracking()
-                .Where(version => version.BranchId == branchId && openTabTariffVersionIds.Contains(version.TariffVersionId))
+                .Where(version => version.BranchId == branchId && tariffVersionIds.Contains(version.TariffVersionId))
                 .ToDictionaryAsync(version => version.TariffVersionId, cancellationToken);
 
+        var tariffIds = tariffVersionsById.Values.Select(version => version.TariffId).ToHashSet();
+        var tariffsById = tariffIds.Count == 0
+            ? new Dictionary<Guid, TariffEntity>()
+            : await dbContext.Tariffs
+                .AsNoTracking()
+                .Where(tariff => tariff.BranchId == branchId && tariffIds.Contains(tariff.TariffId))
+                .ToDictionaryAsync(tariff => tariff.TariffId, cancellationToken);
+
+        var playerAccountIds = sessionsBySeat.Values
+            .Where(session => session.PlayerAccountId is not null)
+            .Select(session => session.PlayerAccountId!.Value)
+            .ToHashSet();
+        var playerAccountsById = playerAccountIds.Count == 0
+            ? new Dictionary<Guid, PlayerAccountEntity>()
+            : await dbContext.PlayerAccounts
+                .AsNoTracking()
+                .Where(account => playerAccountIds.Contains(account.PlayerAccountId))
+                .ToDictionaryAsync(account => account.PlayerAccountId, cancellationToken);
+
         var seatStatuses = seats
-            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, now))
+            .Select(seat => CreateSeatStatus(seat, zonesById, assignmentsBySeat, devices, sessionsBySeat, tariffVersionsById, tariffsById, playerAccountsById, now))
             .OrderBy(seat => zonesById.TryGetValue(seat.ZoneId, out var zone) ? zone.SortOrder : int.MaxValue)
             .ThenBy(seat => seat.SortOrder)
             .ThenBy(seat => seat.SeatName, StringComparer.OrdinalIgnoreCase)
@@ -126,6 +146,8 @@ public sealed class EfFloorMapReadService(
         IReadOnlyDictionary<Guid, DeviceEntity> devices,
         IReadOnlyDictionary<Guid, SessionEntity> sessionsBySeat,
         IReadOnlyDictionary<Guid, TariffVersionEntity> tariffVersionsById,
+        IReadOnlyDictionary<Guid, TariffEntity> tariffsById,
+        IReadOnlyDictionary<Guid, PlayerAccountEntity> playerAccountsById,
         DateTimeOffset now)
     {
         zones.TryGetValue(seat.ZoneId, out var zone);
@@ -158,7 +180,40 @@ public sealed class EfFloorMapReadService(
             RemainingSeconds: GetRemainingSeconds(activeSession, now),
             AccruedCostMinorUnits: accruedCostMinorUnits,
             CurrencyCode: currencyCode,
-            SessionVersion: activeSession?.Version);
+            SessionVersion: activeSession?.Version,
+            PlayerDisplayName: GetPlayerDisplayName(activeSession, playerAccountsById),
+            TariffName: GetTariffName(activeSession, tariffVersionsById, tariffsById),
+            SessionStartedAtUtc: activeSession?.StartedAtUtc);
+    }
+
+    private static string? GetPlayerDisplayName(
+        SessionEntity? activeSession,
+        IReadOnlyDictionary<Guid, PlayerAccountEntity> playerAccountsById)
+    {
+        if (activeSession?.PlayerAccountId is not Guid playerAccountId ||
+            !playerAccountsById.TryGetValue(playerAccountId, out var account))
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(account.DisplayName) ? null : account.DisplayName;
+    }
+
+    private static string? GetTariffName(
+        SessionEntity? activeSession,
+        IReadOnlyDictionary<Guid, TariffVersionEntity> tariffVersionsById,
+        IReadOnlyDictionary<Guid, TariffEntity> tariffsById)
+    {
+        // Guests/packages carry a non-GUID marker ("guest", "package:…") and have no named tariff.
+        if (activeSession is null ||
+            !Guid.TryParse(activeSession.TariffRuleVersionId, out var tariffVersionId) ||
+            !tariffVersionsById.TryGetValue(tariffVersionId, out var version) ||
+            !tariffsById.TryGetValue(version.TariffId, out var tariff))
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(tariff.Name) ? null : tariff.Name;
     }
 
     private static (long? AccruedCostMinorUnits, string? CurrencyCode) GetAccruedCost(
