@@ -112,8 +112,17 @@ export function zoneSeatCount(draft: PlanDraft, zoneClientId: string): number {
   return draft.seats.filter((s) => s.zoneId === zoneClientId).length;
 }
 
+// Walls are anonymous segments (no server id) — the backend wipes + recreates them all on save,
+// so we just append/drop. Removal is by index, matching planModelFromDraft's `draft-wall-${index}` ids.
+export function addWall(draft: PlanDraft, x1: number, y1: number, x2: number, y2: number): PlanDraft {
+  return { ...draft, isDirty: true, walls: [...draft.walls, { x1, y1, x2, y2 }] };
+}
+export function removeWall(draft: PlanDraft, index: number): PlanDraft {
+  return { ...draft, isDirty: true, walls: draft.walls.filter((_, i) => i !== index) };
+}
+
 // Serialize the ENTIRE layout. clientId == existing id so the server maps 1:1 and deletes nothing.
-// Unplaced seats go in with null coords (still owned); walls are edited in B2-3c, not here.
+// Unplaced seats go in with null coords (still owned); walls are echoed as a full set (full-replace).
 export function toBulkUpdateRequest(draft: PlanDraft, organizationId: string): FloorMapBulkUpdateRequest {
   const zones: FloorMapBulkZoneRequest[] = draft.zones.map((zone) => ({
     zoneId: zone.serverId, clientId: zone.zoneId, name: zone.name, sortOrder: zone.sortOrder,
