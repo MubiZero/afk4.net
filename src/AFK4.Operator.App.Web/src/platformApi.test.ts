@@ -127,7 +127,7 @@ describe('PlatformApiClient', () => {
 });
 
 describe('PlatformApiClient layout save support', () => {
-  function clientWith(fetchImpl: typeof fetch) {
+  function clientWith(fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) {
     return new PlatformApiClient({ baseUrl: 'https://api.test/', getAccessToken: () => 'tok', fetchImpl });
   }
 

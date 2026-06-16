@@ -47,7 +47,9 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
   };
 }
 
-export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, etag: string | null, loadedAtMs = Date.now()): OperatorFloorMapState {
+// etag defaults to null: tests that don't exercise concurrency may omit it; the real loader
+// (loadBackendFloorMapState) always passes the ETag captured from the GET response.
+export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, etag: string | null = null, loadedAtMs = Date.now()): OperatorFloorMapState {
   return {
     branchId: floorMap.branchId,
     branchName: floorMap.branchName,
