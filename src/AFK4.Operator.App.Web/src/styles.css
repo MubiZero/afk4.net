@@ -8537,6 +8537,21 @@ button {
   gap: 8px;
 }
 
+.floor-plan-editor-bar button.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-canvas));
+  color: var(--text-primary);
+}
+
+.floor-plan-editor-hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .floor-plan-editor-body {
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr) 220px;

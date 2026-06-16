@@ -72,6 +72,16 @@ describe('FloorPlanEditor', () => {
     expect(getByText('Сначала перенесите места из этой зоны.')).not.toBeNull();
   });
 
+  it('toggles wall mode, showing and hiding the drawing hint', () => {
+    const { getByRole, getByText, queryByText } = renderEditor(async () => {});
+
+    fireEvent.click(getByRole('button', { name: 'Стены' }));
+    expect(getByText('Кликайте по узлам сетки, чтобы провести стену. Клик по стене — удалить.')).not.toBeNull();
+
+    fireEvent.click(getByRole('button', { name: 'Стены' }));
+    expect(queryByText('Кликайте по узлам сетки, чтобы провести стену. Клик по стене — удалить.')).toBeNull();
+  });
+
   it('serializes new zones into the save request', async () => {
     let submitted: FloorMapBulkUpdateRequest | null = null;
     const { getByRole } = renderEditor(async (req) => { submitted = req; });

@@ -1083,6 +1083,8 @@
   "op.map.plan.edit.deleteZoneHasSeats": "Аввал ҷойҳоро аз ин минтақа кӯчонед.",
   "op.map.plan.edit.deleteZoneLast": "Камаш як минтақа бояд бимонад.",
   "op.map.plan.edit.seatZoneLabel": "Минтақа",
+  "op.map.plan.edit.wallTool": "Деворҳо",
+  "op.map.plan.edit.wallHint": "Барои кашидани девор ба гиреҳҳои тӯр клик кунед. Клик ба девор — нест кардан.",
   "op.map.feedbackMap": "Харита",
   "op.map.feedbackOffline": "Офлайн",
   "op.map.feedbackQueue": "Навбат",

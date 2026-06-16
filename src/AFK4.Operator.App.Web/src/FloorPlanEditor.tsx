@@ -18,6 +18,8 @@ import {
   setZoneColor,
   removeZone,
   zoneSeatCount,
+  addWall,
+  removeWall,
   toBulkUpdateRequest,
   type PlanDraft
 } from './floorPlanDraft';
@@ -68,6 +70,8 @@ export function FloorPlanEditor({
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [saving, setSaving] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // 'select' = arrange seats/zones; 'wall' = click grid nodes to draw walls (selection is irrelevant then).
+  const [tool, setTool] = useState<'select' | 'wall'>('select');
   // Monotonic counter for brand-new zones' client ids (never reused, so it can't collide with a
   // deleted zone's id within one editing session).
   const zoneSeq = useRef(0);
@@ -75,6 +79,13 @@ export function FloorPlanEditor({
   // Selection is seat XOR zone — picking one clears the other so only one inspector shows.
   const selectSeat = (id: string) => { setSelectedSeatId(id); setSelectedZoneId(''); };
   const selectZone = (id: string) => { setSelectedZoneId(id); setSelectedSeatId(''); };
+
+  // Entering/leaving wall mode clears the selection — you're drawing, not editing a seat/zone.
+  const toggleWall = () => {
+    setTool((current) => (current === 'wall' ? 'select' : 'wall'));
+    setSelectedSeatId('');
+    setSelectedZoneId('');
+  };
 
   const planModel = useMemo(() => planModelFromDraft(draft), [draft]);
   const unplaced = draft.seats
@@ -166,9 +177,19 @@ export function FloorPlanEditor({
         <button type="button" onClick={handleCancel} disabled={saving}>
           {t('op.map.plan.edit.cancel')}
         </button>
+        <button
+          type="button"
+          className={tool === 'wall' ? 'active' : undefined}
+          onClick={toggleWall}
+          disabled={saving}
+        >
+          {t('op.map.plan.edit.wallTool')}
+        </button>
       </div>
 
       <FeedbackNotice feedback={feedback} />
+
+      {tool === 'wall' && <p className="floor-plan-editor-hint">{t('op.map.plan.edit.wallHint')}</p>}
 
       <div className="floor-plan-editor-body">
         <div className="floor-plan-editor-rail">
@@ -183,10 +204,13 @@ export function FloorPlanEditor({
         <FloorPlan
           model={planModel}
           mode="edit"
+          tool={tool}
           selectedSeatId={selectedSeatId}
           selectedZoneId={selectedZoneId}
           onSelectSeat={selectSeat}
           onSeatMove={(seatId, x, y) => setDraft((current) => moveSeat(current, seatId, x, y))}
+          onAddWall={(x1, y1, x2, y2) => setDraft((current) => addWall(current, x1, y1, x2, y2))}
+          onDeleteWall={(index) => setDraft((current) => removeWall(current, index))}
         />
         {inspectorSeat ? (
           <FloorInspector
