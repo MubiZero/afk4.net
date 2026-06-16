@@ -8259,7 +8259,9 @@ button {
   outline-offset: 1px;
 }
 .plan-seat.selected {
-  outline: 2px solid var(--accent);
+  /* Selection ring tracks the status tone (matches .seat-tile.selected) so a selected
+     blocking/offline seat keeps its colour signal instead of going generic accent. */
+  outline: 2px solid var(--seat-color, var(--accent));
   outline-offset: 2px;
 }
 .plan-seat-dot {

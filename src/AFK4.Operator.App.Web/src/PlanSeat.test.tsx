@@ -41,7 +41,19 @@ describe('PlanSeat', () => {
     const { getByRole } = renderSeat(model(), { selected: true, onSelect: () => { clicked = true; } });
     const button = getByRole('button');
     expect(button.className).toContain('selected');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(button);
     expect(clicked).toBe(true);
+  });
+
+  it('fires onContextMenu on right-click', () => {
+    let opened = false;
+    const { getByRole } = render(
+      <I18nProvider>
+        <PlanSeat seat={model()} cellSize={56} onSelect={() => {}} onContextMenu={() => { opened = true; }} />
+      </I18nProvider>
+    );
+    fireEvent.contextMenu(getByRole('button'));
+    expect(opened).toBe(true);
   });
 });
